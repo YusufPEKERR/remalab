@@ -320,6 +320,25 @@ class InboundPage(QWidget):
         header_layout.addWidget(title_section)
         header_layout.addStretch()
 
+        # Excel Import/Export Butonları
+        self._import_btn = QPushButton(tr("excel.import"))
+        self._import_btn.setStyleSheet(
+            "background-color: #21262D; border: 1px solid #30363D; color: #C9D1D9; padding: 8px 16px; "
+            "border-radius: 6px; font-weight: bold;"
+        )
+        self._import_btn.setCursor(Qt.PointingHandCursor)
+        self._import_btn.clicked.connect(self._import_excel)
+        header_layout.addWidget(self._import_btn)
+
+        self._export_btn = QPushButton(tr("excel.export"))
+        self._export_btn.setStyleSheet(
+            "background-color: #21262D; border: 1px solid #30363D; color: #C9D1D9; padding: 8px 16px; "
+            "border-radius: 6px; font-weight: bold;"
+        )
+        self._export_btn.setCursor(Qt.PointingHandCursor)
+        self._export_btn.clicked.connect(self._export_excel)
+        header_layout.addWidget(self._export_btn)
+
         # Yeni Stok Ekle Butonu
         self._add_btn = QPushButton(tr("inbound.add_new"))
         self._add_btn.setStyleSheet(
@@ -451,10 +470,114 @@ class InboundPage(QWidget):
             except Exception as e:
                 QMessageBox.critical(self, "Hata", f"Stok kaydedilemedi: {e}")
 
+    def _import_excel(self):
+        """Excel'den veri aktarımı tetikler (sütun eşleştirme ile)."""
+        from ui.excel_utils import import_excel_flow
+        db_cols = ["part_id", "quantity", "unit_price", "total_cost", "location_id", "created_by"]
+        import_excel_flow(self, db_cols, self._save_imported_data)
+
+    def _save_imported_data(self, df):
+        """Eşleştirilen ve DataFrame haline gelen veriyi PostgreSQL'e yazar."""
+        import pandas as pd
+        try:
+            from config.database import SessionLocal
+            from sqlalchemy import text
+            db = SessionLocal()
+            try:
+                for _, row in df.iterrows():
+                    # NaN/Null korumalı güvenli tip dönüşümleri
+                    part_id_raw = row.get("part_id")
+                    if pd.isna(part_id_raw): continue
+                    part_id = int(part_id_raw)
+
+                    qty_raw = row.get("quantity")
+                    qty = int(qty_raw) if not pd.isna(qty_raw) else 0
+                    if qty <= 0: continue
+
+                    price_raw = row.get("unit_price")
+                    price = float(price_raw) if not pd.isna(price_raw) else 1.0
+
+                    total_raw = row.get("total_cost")
+                    total = float(total_raw) if not pd.isna(total_raw) else (qty * price)
+
+                    loc_id_raw = row.get("location_id")
+                    loc_id = int(loc_id_raw) if not pd.isna(loc_id_raw) else 1
+
+                    created_by_raw = row.get("created_by")
+                    created_by = str(created_by_raw) if not pd.isna(created_by_raw) else "excel_import"
+
+                    # 1. Inbound Giriş Kaydını Oluştur
+                    db.execute(text("""
+                        INSERT INTO warehouse.inbound_entries (part_id, quantity, unit_price, total_cost, created_by)
+                        VALUES (:part_id, :qty, :price, :total, :created_by);
+                    """), {"part_id": part_id, "qty": qty, "price": price, "total": total, "created_by": created_by})
+
+                    # 2. Stok Miktarını Güncelle veya Ekle
+                    existing = db.execute(text("""
+                        SELECT id FROM warehouse.stock 
+                        WHERE part_id = :part_id AND location_id = :loc_id;
+                    """), {"part_id": part_id, "loc_id": loc_id}).fetchone()
+
+                    if existing:
+                        db.execute(text("""
+                            UPDATE warehouse.stock SET quantity = quantity + :qty WHERE id = :id;
+                        """), {"qty": qty, "id": existing[0]})
+                    else:
+                        db.execute(text("""
+                            INSERT INTO warehouse.stock (part_id, location_id, quantity)
+                            VALUES (:part_id, :loc_id, :qty);
+                        """), {"part_id": part_id, "loc_id": loc_id, "qty": qty})
+
+                    # 3. Stok Hareket Kaydı
+                    db.execute(text("""
+                        INSERT INTO warehouse.stock_movements (type, quantity)
+                        VALUES ('Inbound', :qty);
+                    """), {"qty": qty})
+
+                db.commit()
+            finally:
+                db.close()
+            self._load_entries()
+        except Exception as e:
+            QMessageBox.critical(self, "Hata", f"Veriler veritabanına kaydedilemedi: {e}")
+
+    def _export_excel(self):
+        """Mevcut tablo kayıtlarını Excel'e aktarır."""
+        from ui.excel_utils import export_excel_flow
+        data = []
+        try:
+            from config.database import SessionLocal
+            from sqlalchemy import text
+            db = SessionLocal()
+            try:
+                rows = db.execute(text("""
+                    SELECT p.name, e.quantity, e.unit_price, e.total_cost, e.created_at, e.created_by
+                    FROM warehouse.inbound_entries e
+                    JOIN warehouse.parts p ON e.part_id = p.id
+                    ORDER BY e.created_at DESC;
+                """)).fetchall()
+                for r in rows:
+                    data.append({
+                        "Parça Adı": r[0],
+                        "Miktar": r[1],
+                        "Birim Fiyat": float(r[2]),
+                        "Toplam Maliyet": float(r[3]),
+                        "Tarih": str(r[4]),
+                        "İşlemi Yapan": r[5]
+                    })
+            finally:
+                db.close()
+        except Exception as e:
+            print(e)
+
+        export_excel_flow(self, data, "Inbound_Entries.xlsx")
+
     def _retranslate(self):
         """Dili günceller."""
         if hasattr(self, "_title_lbl"):
             self._title_lbl.setText(tr("inbound.title"))
             self._subtitle_lbl.setText(tr("inbound.subtitle"))
             self._add_btn.setText(tr("inbound.add_new"))
+            self._import_btn.setText(tr("excel.import"))
+            self._export_btn.setText(tr("excel.export"))
             self._load_entries()

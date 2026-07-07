@@ -146,6 +146,25 @@ class OutboundPage(QWidget):
         header_layout.addWidget(title_section)
         header_layout.addStretch()
 
+        # Excel Import/Export Butonları
+        self._import_btn = QPushButton(tr("excel.import"))
+        self._import_btn.setStyleSheet(
+            "background-color: #21262D; border: 1px solid #30363D; color: #C9D1D9; padding: 8px 16px; "
+            "border-radius: 6px; font-weight: bold;"
+        )
+        self._import_btn.setCursor(Qt.PointingHandCursor)
+        self._import_btn.clicked.connect(self._import_excel)
+        header_layout.addWidget(self._import_btn)
+
+        self._export_btn = QPushButton(tr("excel.export"))
+        self._export_btn.setStyleSheet(
+            "background-color: #21262D; border: 1px solid #30363D; color: #C9D1D9; padding: 8px 16px; "
+            "border-radius: 6px; font-weight: bold;"
+        )
+        self._export_btn.setCursor(Qt.PointingHandCursor)
+        self._export_btn.clicked.connect(self._export_excel)
+        header_layout.addWidget(self._export_btn)
+
         # Yeni Stok Çıkışı Butonu
         self._add_btn = QPushButton(tr("outbound.add_new"))
         self._add_btn.setStyleSheet(
@@ -273,10 +292,111 @@ class OutboundPage(QWidget):
             except Exception as e:
                 QMessageBox.critical(self, "Hata", f"Stok çıkışı kaydedilemedi: {e}")
 
+    def _import_excel(self):
+        """Excel'den veri aktarımı tetikler (sütun eşleştirme ile)."""
+        from ui.excel_utils import import_excel_flow
+        db_cols = ["part_id", "location_id", "quantity", "destination", "created_by"]
+        import_excel_flow(self, db_cols, self._save_imported_data)
+
+    def _save_imported_data(self, df):
+        """Eşleştirilen ve DataFrame haline gelen veriyi PostgreSQL'e yazar."""
+        import pandas as pd
+        try:
+            from config.database import SessionLocal
+            from sqlalchemy import text
+            db = SessionLocal()
+            try:
+                for _, row in df.iterrows():
+                    part_id_raw = row.get("part_id")
+                    if pd.isna(part_id_raw): continue
+                    part_id = int(part_id_raw)
+
+                    loc_id_raw = row.get("location_id")
+                    if pd.isna(loc_id_raw): continue
+                    loc_id = int(loc_id_raw)
+
+                    qty_raw = row.get("quantity")
+                    qty = int(qty_raw) if not pd.isna(qty_raw) else 0
+                    if qty <= 0: continue
+
+                    dest_raw = row.get("destination")
+                    dest = str(dest_raw) if not pd.isna(dest_raw) else "excel_outbound"
+
+                    created_by_raw = row.get("created_by")
+                    created_by = str(created_by_raw) if not pd.isna(created_by_raw) else "excel_import"
+
+                    # Stok kontrolü yapalım
+                    existing = db.execute(text("""
+                        SELECT id, quantity FROM warehouse.stock 
+                        WHERE part_id = :part_id AND location_id = :loc_id;
+                    """), {"part_id": part_id, "loc_id": loc_id}).fetchone()
+
+                    if not existing or existing[1] < qty:
+                        # Stok yetersizse bu satırı atla
+                        continue
+
+                    # 1. Outbound Giriş Kaydını Oluştur
+                    db.execute(text("""
+                        INSERT INTO warehouse.outbound_entries (part_id, location_id, quantity, destination, created_by)
+                        VALUES (:part_id, :loc_id, :qty, :dest, :created_by);
+                    """), {"part_id": part_id, "loc_id": loc_id, "qty": qty, "dest": dest, "created_by": created_by})
+
+                    # 2. Stoktan Düş
+                    db.execute(text("""
+                        UPDATE warehouse.stock SET quantity = quantity - :qty WHERE id = :id;
+                    """), {"qty": qty, "id": existing[0]})
+
+                    # 3. Stok Hareket Kaydı
+                    db.execute(text("""
+                        INSERT INTO warehouse.stock_movements (type, quantity)
+                        VALUES ('Outbound', :qty);
+                    """), {"qty": qty})
+
+                db.commit()
+            finally:
+                db.close()
+            self._load_entries()
+        except Exception as e:
+            QMessageBox.critical(self, "Hata", f"Veriler veritabanına kaydedilemedi: {e}")
+
+    def _export_excel(self):
+        """Mevcut depo çıkış kayıtlarını Excel'e aktarır."""
+        from ui.excel_utils import export_excel_flow
+        data = []
+        try:
+            from config.database import SessionLocal
+            from sqlalchemy import text
+            db = SessionLocal()
+            try:
+                rows = db.execute(text("""
+                    SELECT p.name, l.name, e.quantity, e.destination, e.created_at, e.created_by
+                    FROM warehouse.outbound_entries e
+                    JOIN warehouse.parts p ON e.part_id = p.id
+                    JOIN warehouse.locations l ON e.location_id = l.id
+                    ORDER BY e.created_at DESC;
+                """)).fetchall()
+                for r in rows:
+                    data.append({
+                        "Parça Adı": r[0],
+                        "Lokasyon": r[1],
+                        "Miktar": r[2],
+                        "Alıcı/Müşteri": r[3],
+                        "Tarih": str(r[4]),
+                        "İşlemi Yapan": r[5]
+                    })
+            finally:
+                db.close()
+        except Exception as e:
+            print(e)
+
+        export_excel_flow(self, data, "Outbound_Entries.xlsx")
+
     def _retranslate(self):
         """Dili günceller."""
         if hasattr(self, "_title_lbl"):
             self._title_lbl.setText(tr("outbound.title"))
             self._subtitle_lbl.setText(tr("outbound.subtitle"))
             self._add_btn.setText(tr("outbound.add_new"))
+            self._import_btn.setText(tr("excel.import"))
+            self._export_btn.setText(tr("excel.export"))
             self._load_entries()

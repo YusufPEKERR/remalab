@@ -274,6 +274,14 @@ TRANSLATIONS = {
     "outbound.destination_label": {"en": "Destination", "tr": "Alıcı/Müşteri"},
     "outbound.insufficient_stock": {"en": "Error: Insufficient stock at the selected location!", "tr": "Hata: Seçilen lokasyonda yeterli stok bulunmuyor!"},
     "outbound.success": {"en": "Outbound stock transaction completed successfully!", "tr": "Stok çıkış işlemi başarıyla tamamlandı!"},
+    "excel.import": {"en": "📥 Import Excel", "tr": "📥 Excel'den İçe Aktar"},
+    "excel.export": {"en": "📤 Export Excel", "tr": "📤 Excel'e Dışa Aktar"},
+    "excel.mapping_title": {"en": "Excel Column Mapping", "tr": "Excel Sütun Eşleştirme"},
+    "excel.select_file": {"en": "Select Excel File", "tr": "Excel Dosyası Seçin"},
+    "excel.db_column": {"en": "Database Column", "tr": "Veritabanı Sütunu"},
+    "excel.excel_column": {"en": "Excel Header", "tr": "Excel Sütun Başlığı"},
+    "excel.success": {"en": "Data successfully imported!", "tr": "Veriler başarıyla içe aktarıldı!"},
+    "excel.error": {"en": "An error occurred during Excel operation:", "tr": "Excel işlemi sırasında bir hata oluştu:"},
     
     # ---- Local Database / File Management ----
     "local.title": {"en": "Local Database / SQL Files", "tr": "Lokal Veritabanı / SQL Dosyaları"},
