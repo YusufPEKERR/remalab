@@ -31,6 +31,11 @@
       "name": "Locations Module",
       "path": "ui/locations_page.py",
       "entryPoint": "LocationsPage"
+    },
+    {
+      "name": "Outbound Stock Entry Module",
+      "path": "ui/outbound_page.py",
+      "entryPoint": "OutboundPage"
     }
   ],
   "roles": {
@@ -40,6 +45,7 @@
     "warehouse_worker": {
       "permissions": [
         "inbound_stock_entry",
+        "outbound_stock_entry",
         "warehouse_view",
         "parts_view"
       ]

@@ -17,6 +17,7 @@ from ui.settings_page import SettingsPage
 from ui.parts_page import PartsPage
 from ui.warehouse_page import WarehousePage
 from ui.inbound_page import InboundPage
+from ui.outbound_page import OutboundPage
 from ui.locations_page import LocationsPage
 from ui.translations import tr, get_translator
 
@@ -130,6 +131,10 @@ class MainWindow(QMainWindow):
         inbound = InboundPage()
         self._add_page("nav.inbound", inbound)
 
+        # Outbound Stock Entry
+        outbound = OutboundPage()
+        self._add_page("nav.outbound", outbound)
+
         # Settings (Veritabanı yönetimi dahil)
         settings = SettingsPage()
         self._add_page("nav.settings", settings)
@@ -137,7 +142,7 @@ class MainWindow(QMainWindow):
         # Diğer modüller için placeholder sayfalar
         placeholder_modules = [
             "nav.brands",
-            "nav.phone_models", "nav.suppliers", "nav.outbound",
+            "nav.phone_models", "nav.suppliers",
             "nav.putaway", "nav.picking", "nav.inventory", "nav.quality_control",
             "nav.refurbishment", "nav.priority_matrix", "nav.reports", "nav.users"
         ]

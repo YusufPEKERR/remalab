@@ -82,6 +82,17 @@ def main():
                     created_by VARCHAR(50) NOT NULL
                 );
             """))
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS warehouse.outbound_entries (
+                    id SERIAL PRIMARY KEY,
+                    part_id INT REFERENCES warehouse.parts(id) ON DELETE CASCADE,
+                    location_id INT REFERENCES warehouse.locations(id) ON DELETE CASCADE,
+                    quantity INT NOT NULL,
+                    destination VARCHAR(255) NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    created_by VARCHAR(50) NOT NULL
+                );
+            """))
             # Örnek dummy verileri PostgreSQL'e yükle (eğer bomboşsa)
             parts_count = conn.execute(text("SELECT COUNT(*) FROM warehouse.parts;")).scalar()
             if parts_count == 0:

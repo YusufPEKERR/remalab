@@ -264,6 +264,17 @@ TRANSLATIONS = {
     },
     "inbound.quick_add_title": {"en": "Quick Add Product", "tr": "Hızlı Ürün Ekleme"},
     
+    # ---- Outbound Stock Entry Page Translations ----
+    "outbound.title": {"en": "Outbound Stock Entry", "tr": "Depo Çıkış Modülü"},
+    "outbound.subtitle": {"en": "Record and list inventory outbound stock entries", "tr": "Depodan envanter çıkış işlemlerini kaydedin ve listeleyin"},
+    "outbound.add_new": {"en": "＋ Create Outbound", "tr": "＋ Stok Çıkışı Yap"},
+    "outbound.unauthorized": {"en": "You are not authorized to view this page.", "tr": "Bu sayfayı görüntülemek için yetkiniz bulunmamaktadır."},
+    "outbound.date": {"en": "Outbound Date", "tr": "Çıkış Tarihi"},
+    "outbound.destination": {"en": "Destination/Client", "tr": "Gönderilen Yer / Alıcı"},
+    "outbound.destination_label": {"en": "Destination", "tr": "Alıcı/Müşteri"},
+    "outbound.insufficient_stock": {"en": "Error: Insufficient stock at the selected location!", "tr": "Hata: Seçilen lokasyonda yeterli stok bulunmuyor!"},
+    "outbound.success": {"en": "Outbound stock transaction completed successfully!", "tr": "Stok çıkış işlemi başarıyla tamamlandı!"},
+    
     # ---- Local Database / File Management ----
     "local.title": {"en": "Local Database / SQL Files", "tr": "Lokal Veritabanı / SQL Dosyaları"},
     "local.subtitle": {
