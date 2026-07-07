@@ -64,15 +64,35 @@ class InventoryPage(QWidget):
 
         layout.addLayout(header_layout)
 
-        # Arama çubuğu
-        self._search_input = QLineEdit()
-        self._search_input.setPlaceholderText("Kod, Barkod, Marka veya Model ara...")
-        self._search_input.setStyleSheet(
-            "background-color: #161B22; border: 1px solid #30363D; "
-            "border-radius: 6px; padding: 10px; color: #F0F6FC;"
-        )
-        self._search_input.textChanged.connect(self._load_inventory)
-        layout.addWidget(self._search_input)
+        # Sütun bazlı filtreleme paneli
+        self._filter_layout = QHBoxLayout()
+        self._filter_layout.setSpacing(8)
+        self._filter_widgets = {}
+
+        # Sütun anahtarları ve placeholder etiketleri
+        filter_configs = [
+            ("barcode", "Barkod Filtrele..."),
+            ("item_code", "Ürün Kodu Filtrele..."),
+            ("brand_model", "Marka/Model Filtrele..."),
+            ("part_category", "Parça Kat. Filtrele..."),
+            ("color", "Renk Filtrele..."),
+            ("product_family", "Ürün Ailesi Filtrele..."),
+            ("item_category", "Ürün Kat. Filtrele..."),
+            ("stock_status", "Stok Durumu...")
+        ]
+
+        for col_key, placeholder in filter_configs:
+            f_input = QLineEdit()
+            f_input.setPlaceholderText(placeholder)
+            f_input.setStyleSheet(
+                "background-color: #161B22; border: 1px solid #30363D; "
+                "border-radius: 4px; padding: 6px; color: #F0F6FC; font-size: 11px;"
+            )
+            f_input.textChanged.connect(self._load_inventory)
+            self._filter_layout.addWidget(f_input)
+            self._filter_widgets[col_key] = f_input
+
+        layout.addLayout(self._filter_layout)
 
         # Envanter tablosu
         self._table = QTableWidget()
@@ -113,7 +133,8 @@ class InventoryPage(QWidget):
         self._update_headers()
         self._table.clearContents()
 
-        search_query = self._search_input.text().strip()
+        # Her sütunun filtre değerini al
+        filters = {k: widget.text().strip() for k, widget in self._filter_widgets.items()}
 
         try:
             from config.database import SessionLocal
@@ -127,17 +148,60 @@ class InventoryPage(QWidget):
                     FROM warehouse.parts p
                     LEFT JOIN warehouse.stock s ON p.id = s.part_id
                 """
-                params = {}
-                if search_query:
-                    sql += """
-                        WHERE p.item_code ILIKE :search 
-                           OR p.barcode ILIKE :search 
-                           OR p.brand_model ILIKE :search
-                           OR p.name ILIKE :search
-                    """
-                    params["search"] = f"%{search_query}%"
                 
-                sql += " GROUP BY p.id ORDER BY p.id DESC;"
+                # SQL WHERE koşullarını dinamik olarak ekleyelim
+                where_clauses = []
+                params = {}
+
+                if filters.get("barcode"):
+                    where_clauses.append("p.barcode ILIKE :barcode")
+                    params["barcode"] = f"%{filters['barcode']}%"
+                
+                if filters.get("item_code"):
+                    where_clauses.append("p.item_code ILIKE :item_code")
+                    params["item_code"] = f"%{filters['item_code']}%"
+
+                if filters.get("brand_model"):
+                    where_clauses.append("p.brand_model ILIKE :brand_model")
+                    params["brand_model"] = f"%{filters['brand_model']}%"
+
+                if filters.get("part_category"):
+                    where_clauses.append("p.part_category ILIKE :part_category")
+                    params["part_category"] = f"%{filters['part_category']}%"
+
+                if filters.get("color"):
+                    where_clauses.append("p.color ILIKE :color")
+                    params["color"] = f"%{filters['color']}%"
+
+                if filters.get("product_family"):
+                    where_clauses.append("p.product_family ILIKE :product_family")
+                    params["product_family"] = f"%{filters['product_family']}%"
+
+                if filters.get("item_category"):
+                    where_clauses.append("p.item_category ILIKE :item_category")
+                    params["item_category"] = f"%{filters['item_category']}%"
+
+                if where_clauses:
+                    sql += " WHERE " + " AND ".join(where_clauses)
+
+                sql += " GROUP BY p.id "
+
+                # Stok durumu (HAVING ile kümülatif miktar filtresi)
+                if filters.get("stock_status"):
+                    status_query = filters["stock_status"].lower()
+                    if "tüken" in status_query or "0" in status_query:
+                        sql += " HAVING COALESCE(SUM(s.quantity), 0) = 0 "
+                    elif "kritik" in status_query:
+                        sql += " HAVING COALESCE(SUM(s.quantity), 0) > 0 AND COALESCE(SUM(s.quantity), 0) < 5 "
+                    else:
+                        # Sayısal bir değer girildiyse o miktara göre filtrele
+                        try:
+                            qty_val = int(status_query.replace("adet", "").strip())
+                            sql += f" HAVING COALESCE(SUM(s.quantity), 0) = {qty_val} "
+                        except ValueError:
+                            pass
+
+                sql += " ORDER BY p.id DESC;"
 
                 rows = db.execute(text(sql), params).fetchall()
                 self._table.setRowCount(len(rows))
