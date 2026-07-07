@@ -198,6 +198,11 @@ class WarehousePage(QWidget):
             tr("table.status")
         ])
 
+    def showEvent(self, event):
+        """Depo sayfası her görüntülendiğinde tetiklenir."""
+        super().showEvent(event)
+        self._load_stock()
+
     def _load_stock(self):
         """Depo stok durumunu listeler ve doluluk oranını günceller."""
         self._table.blockSignals(True)

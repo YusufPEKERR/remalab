@@ -348,6 +348,11 @@ class InboundPage(QWidget):
 
         self._load_entries()
 
+    def showEvent(self, event):
+        """Sayfa her gösterildiğinde stok girişlerini yeniler."""
+        super().showEvent(event)
+        self._load_entries()
+
     def _update_headers(self):
         self._table.setHorizontalHeaderLabels([
             tr("table.part_name"),
