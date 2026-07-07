@@ -54,6 +54,8 @@ class Sidebar(QWidget):
         ]),
         ("section.warehouse", [
             ("🏭", "nav.warehouse"),
+            ("📥", "nav.inbound"),
+            ("📤", "nav.outbound"),
             ("📍", "nav.locations"),
         ]),
         ("section.inventory", [
@@ -63,8 +65,6 @@ class Sidebar(QWidget):
             ("🚚", "nav.suppliers"),
         ]),
         ("section.operations", [
-            ("📥", "nav.inbound"),
-            ("📤", "nav.outbound"),
             ("📦", "nav.putaway"),
             ("🛒", "nav.picking"),
             ("📋", "nav.inventory"),
