@@ -97,14 +97,14 @@ class InventoryPage(QWidget):
 
     def _update_headers(self):
         self._table.setHorizontalHeaderLabels([
-            tr("table.item_code"),
             tr("table.barcode"),
+            tr("table.item_code"),
             tr("table.brand"),
             tr("table.model"),
+            tr("table.part_category"),
             tr("table.color"),
             tr("table.product_family"),
             tr("table.item_category"),
-            tr("table.part_category"),
             tr("table.stock_status")
         ])
 
@@ -197,14 +197,14 @@ class InventoryPage(QWidget):
                     else:
                         status_item.setForeground(Qt.green)
 
-                    self._table.setItem(r_idx, 0, item_code_item)
-                    self._table.setItem(r_idx, 1, barcode_item)
+                    self._table.setItem(r_idx, 0, barcode_item)
+                    self._table.setItem(r_idx, 1, item_code_item)
                     self._table.setItem(r_idx, 2, brand_item)
                     self._table.setItem(r_idx, 3, model_item)
-                    self._table.setItem(r_idx, 4, color_item)
-                    self._table.setItem(r_idx, 5, family_item)
-                    self._table.setItem(r_idx, 6, category_item)
-                    self._table.setItem(r_idx, 7, part_cat_item)
+                    self._table.setItem(r_idx, 4, part_cat_item)
+                    self._table.setItem(r_idx, 5, color_item)
+                    self._table.setItem(r_idx, 6, family_item)
+                    self._table.setItem(r_idx, 7, category_item)
                     self._table.setItem(r_idx, 8, status_item)
                     self._table.setRowHeight(r_idx, 44)
             finally:
