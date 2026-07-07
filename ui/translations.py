@@ -156,6 +156,14 @@ TRANSLATIONS = {
     "warehouse.transfer_success": {"en": "Stock transferred successfully!", "tr": "Stok başarıyla transfer edildi!"},
     "warehouse.insufficient_stock": {"en": "Insufficient stock in source location!", "tr": "Kaynak lokasyonda yetersiz stok var!"},
 
+    # ---- Locations Page Translations ----
+    "locations.title": {"en": "Location Management", "tr": "Lokasyon Yönetimi"},
+    "locations.subtitle": {"en": "Add, update or remove warehouse storage locations", "tr": "Depo raf ve depolama lokasyonlarını ekleyin, güncelleyin veya silin"},
+    "locations.add_new": {"en": "＋ Add Location", "tr": "＋ Lokasyon Ekle"},
+    "locations.location_name": {"en": "Location Name", "tr": "Lokasyon Adı"},
+    "locations.search_placeholder": {"en": "Search locations...", "tr": "Lokasyon ara..."},
+    "locations.confirm_delete": {"en": "Are you sure you want to delete this location?", "tr": "Bu lokasyonu silmek istediğinize emin misiniz?"},
+
     # ---- Table Headers ----
     "table.movement_id": {"en": "Movement ID", "tr": "Hareket No"},
     "table.part_name": {"en": "Part Name", "tr": "Parça Adı"},

@@ -26,6 +26,11 @@
       "name": "Inbound Stock Entry Module",
       "path": "ui/inbound_page.py",
       "entryPoint": "InboundPage"
+    },
+    {
+      "name": "Locations Module",
+      "path": "ui/locations_page.py",
+      "entryPoint": "LocationsPage"
     }
   ],
   "roles": {

@@ -17,6 +17,7 @@ from ui.settings_page import SettingsPage
 from ui.parts_page import PartsPage
 from ui.warehouse_page import WarehousePage
 from ui.inbound_page import InboundPage
+from ui.locations_page import LocationsPage
 from ui.translations import tr, get_translator
 
 
@@ -121,6 +122,10 @@ class MainWindow(QMainWindow):
         warehouse = WarehousePage()
         self._add_page("nav.warehouse", warehouse)
 
+        # Locations
+        locations = LocationsPage()
+        self._add_page("nav.locations", locations)
+
         # Inbound Stock Entry
         inbound = InboundPage()
         self._add_page("nav.inbound", inbound)
@@ -131,7 +136,7 @@ class MainWindow(QMainWindow):
 
         # Diğer modüller için placeholder sayfalar
         placeholder_modules = [
-            "nav.locations", "nav.brands",
+            "nav.brands",
             "nav.phone_models", "nav.suppliers", "nav.outbound",
             "nav.putaway", "nav.picking", "nav.inventory", "nav.quality_control",
             "nav.refurbishment", "nav.priority_matrix", "nav.reports", "nav.users"
