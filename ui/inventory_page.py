@@ -40,6 +40,25 @@ class InventoryPage(QWidget):
         self._subtitle_lbl.setStyleSheet("color: #8B949E; font-size: 13px;")
         title_layout.addWidget(self._subtitle_lbl)
 
+        # Excel Import/Export Butonları
+        self._import_btn = QPushButton(tr("excel.import"))
+        self._import_btn.setStyleSheet(
+            "background-color: #21262D; border: 1px solid #30363D; color: #C9D1D9; padding: 8px 16px; "
+            "border-radius: 6px; font-weight: bold;"
+        )
+        self._import_btn.setCursor(Qt.PointingHandCursor)
+        self._import_btn.clicked.connect(self._import_excel)
+        header_layout.addWidget(self._import_btn)
+
+        self._export_btn = QPushButton(tr("excel.export"))
+        self._export_btn.setStyleSheet(
+            "background-color: #21262D; border: 1px solid #30363D; color: #C9D1D9; padding: 8px 16px; "
+            "border-radius: 6px; font-weight: bold;"
+        )
+        self._export_btn.setCursor(Qt.PointingHandCursor)
+        self._export_btn.clicked.connect(self._export_excel)
+        header_layout.addWidget(self._export_btn)
+
         header_layout.addWidget(title_section)
         header_layout.addStretch()
 
@@ -218,8 +237,127 @@ class InventoryPage(QWidget):
             QMessageBox.critical(self, "Hata", f"Güncelleme başarısız: {e}")
             self._load_inventory()
 
+    def _import_excel(self):
+        """Excel'den envanter verisi aktarımı tetikler."""
+        from ui.excel_utils import import_excel_flow
+        db_cols = ["item_code", "barcode", "brand", "model", "color", "product_family", "item_category"]
+        import_excel_flow(self, db_cols, self._save_imported_data)
+
+    def _save_imported_data(self, df):
+        """Eşleştirilen ve DataFrame haline gelen veriyi PostgreSQL'e yazar."""
+        import pandas as pd
+        try:
+            from config.database import SessionLocal
+            from sqlalchemy import text
+            db = SessionLocal()
+            try:
+                for _, row in df.iterrows():
+                    # Ürün adı her zaman zorunludur. Eğer Excel'de yoksa item_code veya varsayılan atanır.
+                    item_code_raw = row.get("item_code")
+                    item_code = str(item_code_raw).strip() if not pd.isna(item_code_raw) else None
+                    
+                    barcode_raw = row.get("barcode")
+                    barcode = str(barcode_raw).strip() if not pd.isna(barcode_raw) else None
+
+                    brand_raw = row.get("brand")
+                    brand = str(brand_raw).strip() if not pd.isna(brand_raw) else None
+
+                    model_raw = row.get("model")
+                    model = str(model_raw).strip() if not pd.isna(model_raw) else None
+
+                    color_raw = row.get("color")
+                    color = str(color_raw).strip() if not pd.isna(color_raw) else None
+
+                    family_raw = row.get("product_family")
+                    family = str(family_raw).strip() if not pd.isna(family_raw) else None
+
+                    category_raw = row.get("item_category")
+                    category = str(category_raw).strip() if not pd.isna(category_raw) else None
+
+                    # Eşleştirme için en azından kod veya barkod bulunmalı
+                    if not item_code and not barcode:
+                        continue
+
+                    # name alanı zorunlu olduğundan en mantıklı ismi ata
+                    p_name = model if model else (item_code if item_code else "Bilinmeyen Parça")
+
+                    # Mevcut barkod veya koda göre kontrol et, varsa güncelle, yoksa ekle
+                    existing = None
+                    if barcode:
+                        existing = db.execute(
+                            text("SELECT id FROM warehouse.parts WHERE barcode = :barcode;"),
+                            {"barcode": barcode}
+                        ).fetchone()
+                    elif item_code:
+                        existing = db.execute(
+                            text("SELECT id FROM warehouse.parts WHERE item_code = :item_code;"),
+                            {"item_code": item_code}
+                        ).fetchone()
+
+                    if existing:
+                        db.execute(text("""
+                            UPDATE warehouse.parts 
+                            SET item_code = COALESCE(:item_code, item_code),
+                                brand = COALESCE(:brand, brand),
+                                model = COALESCE(:model, model),
+                                color = COALESCE(:color, color),
+                                product_family = COALESCE(:family, product_family),
+                                item_category = COALESCE(:category, item_category)
+                            WHERE id = :id;
+                        """), {"item_code": item_code, "brand": brand, "model": model, "color": color, 
+                               "family": family, "category": category, "id": existing[0]})
+                    else:
+                        db.execute(text("""
+                            INSERT INTO warehouse.parts (name, barcode, item_code, brand, model, color, product_family, item_category)
+                            VALUES (:name, :barcode, :item_code, :brand, :model, :color, :family, :category);
+                        """), {"name": p_name, "barcode": barcode, "item_code": item_code, "brand": brand, 
+                               "model": model, "color": color, "family": family, "category": category})
+
+                db.commit()
+            finally:
+                db.close()
+            self._load_inventory()
+        except Exception as e:
+            QMessageBox.critical(self, "Hata", f"Veriler veritabanına kaydedilemedi: {e}")
+
+    def _export_excel(self):
+        """Tüm envanter durumunu Excel olarak dışa aktarır."""
+        from ui.excel_utils import export_excel_flow
+        data = []
+        try:
+            from config.database import SessionLocal
+            from sqlalchemy import text
+            db = SessionLocal()
+            try:
+                rows = db.execute(text("""
+                    SELECT p.item_code, p.barcode, p.brand, p.model, p.color, p.product_family, p.item_category,
+                           COALESCE(SUM(s.quantity), 0) as total_stock
+                    FROM warehouse.parts p
+                    LEFT JOIN warehouse.stock s ON p.id = s.part_id
+                    GROUP BY p.id ORDER BY p.id DESC;
+                """)).fetchall()
+                for r in rows:
+                    data.append({
+                        "Ürün Kodu": r[0],
+                        "Barkod": r[1],
+                        "Marka": r[2],
+                        "Model": r[3],
+                        "Renk": r[4],
+                        "Ürün Ailesi": r[5],
+                        "Ürün Kategorisi": r[6],
+                        "Mevcut Stok": r[7]
+                    })
+            finally:
+                db.close()
+        except Exception as e:
+            print(e)
+
+        export_excel_flow(self, data, "Warehouse_Inventory.xlsx")
+
     def _retranslate(self):
         """Dil değiştiğinde çevirileri yeniler."""
         self._title_lbl.setText(tr("inventory.title"))
         self._subtitle_lbl.setText(tr("inventory.subtitle"))
+        self._import_btn.setText(tr("excel.import"))
+        self._export_btn.setText(tr("excel.export"))
         self._load_inventory()
