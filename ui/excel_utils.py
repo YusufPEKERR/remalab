@@ -121,7 +121,8 @@ class ExcelMappingDialog(QDialog):
             "total_cost": f"{tr('inbound.total_cost')} (total_cost)",
             "location_id": f"{tr('table.location_id')} (location_id)",
             "created_by": f"{tr('inbound.created_by')} (created_by)",
-            "destination": f"{tr('outbound.destination')} (destination)"
+            "destination": f"{tr('outbound.destination')} (destination)",
+            "part_category": f"{tr('table.part_category')} (part_category)"
         }
 
         for idx, db_col in enumerate(self.db_columns):

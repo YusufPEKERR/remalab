@@ -76,7 +76,7 @@ class InventoryPage(QWidget):
 
         # Envanter tablosu
         self._table = QTableWidget()
-        self._table.setColumnCount(8)
+        self._table.setColumnCount(9)
         self._table.setAlternatingRowColors(True)
         self._table.verticalHeader().setVisible(False)
         self._table.setStyleSheet("""
@@ -104,6 +104,7 @@ class InventoryPage(QWidget):
             tr("table.color"),
             tr("table.product_family"),
             tr("table.item_category"),
+            tr("table.part_category"),
             tr("table.stock_status")
         ])
 
@@ -123,7 +124,7 @@ class InventoryPage(QWidget):
                 # warehouse.parts tablosundan detaylar ve warehouse.stock üzerinden toplam miktarlar
                 sql = """
                     SELECT p.id, p.item_code, p.barcode, p.brand, p.model, p.color, p.product_family, p.item_category,
-                           COALESCE(SUM(s.quantity), 0) as total_stock
+                           p.part_category, COALESCE(SUM(s.quantity), 0) as total_stock
                     FROM warehouse.parts p
                     LEFT JOIN warehouse.stock s ON p.id = s.part_id
                 """
@@ -174,8 +175,12 @@ class InventoryPage(QWidget):
                     category_item = QTableWidgetItem(str(row[7]) if row[7] else "")
                     category_item.setData(Qt.UserRole, (p_id, "item_category"))
 
-                    # 8. Stok Durumu (Miktar olarak gösterilsin, Read-only)
-                    qty = row[8]
+                    # 8. Parça Kategorisi (Editable)
+                    part_cat_item = QTableWidgetItem(str(row[8]) if row[8] else "")
+                    part_cat_item.setData(Qt.UserRole, (p_id, "part_category"))
+
+                    # 9. Stok Durumu (Miktar olarak gösterilsin, Read-only)
+                    qty = row[9]
                     status_text = f"{qty} Adet"
                     if qty == 0:
                         status_text = f"Tükendi ({qty})"
@@ -199,7 +204,8 @@ class InventoryPage(QWidget):
                     self._table.setItem(r_idx, 4, color_item)
                     self._table.setItem(r_idx, 5, family_item)
                     self._table.setItem(r_idx, 6, category_item)
-                    self._table.setItem(r_idx, 7, status_item)
+                    self._table.setItem(r_idx, 7, part_cat_item)
+                    self._table.setItem(r_idx, 8, status_item)
                     self._table.setRowHeight(r_idx, 44)
             finally:
                 db.close()
@@ -240,7 +246,7 @@ class InventoryPage(QWidget):
     def _import_excel(self):
         """Excel'den envanter verisi aktarımı tetikler."""
         from ui.excel_utils import import_excel_flow
-        db_cols = ["item_code", "barcode", "brand", "model", "color", "product_family", "item_category"]
+        db_cols = ["item_code", "barcode", "brand", "model", "color", "product_family", "item_category", "part_category"]
         import_excel_flow(self, db_cols, self._save_imported_data)
 
     def _save_imported_data(self, df):
@@ -274,6 +280,9 @@ class InventoryPage(QWidget):
                     category_raw = row.get("item_category")
                     category = str(category_raw).strip() if not pd.isna(category_raw) else None
 
+                    part_cat_raw = row.get("part_category")
+                    part_cat = str(part_cat_raw).strip() if not pd.isna(part_cat_raw) else None
+
                     # Eşleştirme için en azından kod veya barkod bulunmalı
                     if not item_code and not barcode:
                         continue
@@ -302,16 +311,17 @@ class InventoryPage(QWidget):
                                 model = COALESCE(:model, model),
                                 color = COALESCE(:color, color),
                                 product_family = COALESCE(:family, product_family),
-                                item_category = COALESCE(:category, item_category)
+                                item_category = COALESCE(:category, item_category),
+                                part_category = COALESCE(:part_cat, part_category)
                             WHERE id = :id;
                         """), {"item_code": item_code, "brand": brand, "model": model, "color": color, 
-                               "family": family, "category": category, "id": existing[0]})
+                               "family": family, "category": category, "part_cat": part_cat, "id": existing[0]})
                     else:
                         db.execute(text("""
-                            INSERT INTO warehouse.parts (name, barcode, item_code, brand, model, color, product_family, item_category)
-                            VALUES (:name, :barcode, :item_code, :brand, :model, :color, :family, :category);
+                            INSERT INTO warehouse.parts (name, barcode, item_code, brand, model, color, product_family, item_category, part_category)
+                            VALUES (:name, :barcode, :item_code, :brand, :model, :color, :family, :category, :part_cat);
                         """), {"name": p_name, "barcode": barcode, "item_code": item_code, "brand": brand, 
-                               "model": model, "color": color, "family": family, "category": category})
+                               "model": model, "color": color, "family": family, "category": category, "part_cat": part_cat})
 
                 db.commit()
             finally:
@@ -331,7 +341,7 @@ class InventoryPage(QWidget):
             try:
                 rows = db.execute(text("""
                     SELECT p.item_code, p.barcode, p.brand, p.model, p.color, p.product_family, p.item_category,
-                           COALESCE(SUM(s.quantity), 0) as total_stock
+                           p.part_category, COALESCE(SUM(s.quantity), 0) as total_stock
                     FROM warehouse.parts p
                     LEFT JOIN warehouse.stock s ON p.id = s.part_id
                     GROUP BY p.id ORDER BY p.id DESC;
@@ -345,7 +355,8 @@ class InventoryPage(QWidget):
                         "Renk": r[4],
                         "Ürün Ailesi": r[5],
                         "Ürün Kategorisi": r[6],
-                        "Mevcut Stok": r[7]
+                        "Parça Kategorisi": r[7],
+                        "Mevcut Stok": r[8]
                     })
             finally:
                 db.close()

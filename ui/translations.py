@@ -174,6 +174,7 @@ TRANSLATIONS = {
     "table.color": {"en": "Color", "tr": "Renk"},
     "table.product_family": {"en": "Product Family", "tr": "Ürün Ailesi"},
     "table.item_category": {"en": "Item Category", "tr": "Ürün Kategorisi"},
+    "table.part_category": {"en": "Part Category", "tr": "Parça Kategorisi"},
     "table.stock_status": {"en": "Stock Status", "tr": "Stok Durumu"},
 
     # ---- Table Headers ----

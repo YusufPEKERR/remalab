@@ -47,7 +47,8 @@ def main():
                     model VARCHAR(100),
                     color VARCHAR(50),
                     product_family VARCHAR(100),
-                    item_category VARCHAR(100)
+                    item_category VARCHAR(100),
+                    part_category VARCHAR(100)
                 );
             """))
             # Halihazırda tablo varsa yeni kolonların eklenmesi için ALTER kontrolleri
@@ -59,6 +60,7 @@ def main():
                 conn.execute(text("ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS color VARCHAR(50);"))
                 conn.execute(text("ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS product_family VARCHAR(100);"))
                 conn.execute(text("ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS item_category VARCHAR(100);"))
+                conn.execute(text("ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS part_category VARCHAR(100);"))
             except Exception:
                 pass
             conn.execute(text("""
