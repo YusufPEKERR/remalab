@@ -164,6 +164,18 @@ TRANSLATIONS = {
     "locations.search_placeholder": {"en": "Search locations...", "tr": "Lokasyon ara..."},
     "locations.confirm_delete": {"en": "Are you sure you want to delete this location?", "tr": "Bu lokasyonu silmek istediğinize emin misiniz?"},
 
+    # ---- Inventory Page Translations ----
+    "inventory.title": {"en": "Inventory Status", "tr": "Envanter Durumu"},
+    "inventory.subtitle": {"en": "Comprehensive view of all stock details and status", "tr": "Tüm stok detaylarının ve durumlarının kapsamlı görünümü"},
+    "table.item_code": {"en": "Item Code", "tr": "Ürün Kodu"},
+    "table.barcode": {"en": "Barcode", "tr": "Barkod"},
+    "table.brand": {"en": "Brand", "tr": "Marka"},
+    "table.model": {"en": "Model", "tr": "Model"},
+    "table.color": {"en": "Color", "tr": "Renk"},
+    "table.product_family": {"en": "Product Family", "tr": "Ürün Ailesi"},
+    "table.item_category": {"en": "Item Category", "tr": "Ürün Kategorisi"},
+    "table.stock_status": {"en": "Stock Status", "tr": "Stok Durumu"},
+
     # ---- Table Headers ----
     "table.movement_id": {"en": "Movement ID", "tr": "Hareket No"},
     "table.part_name": {"en": "Part Name", "tr": "Parça Adı"},

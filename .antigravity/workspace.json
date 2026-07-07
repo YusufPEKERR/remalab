@@ -36,6 +36,11 @@
       "name": "Outbound Stock Entry Module",
       "path": "ui/outbound_page.py",
       "entryPoint": "OutboundPage"
+    },
+    {
+      "name": "Inventory Module",
+      "path": "ui/inventory_page.py",
+      "entryPoint": "InventoryPage"
     }
   ],
   "roles": {
@@ -46,6 +51,7 @@
       "permissions": [
         "inbound_stock_entry",
         "outbound_stock_entry",
+        "inventory_view",
         "warehouse_view",
         "parts_view"
       ]

@@ -41,12 +41,24 @@ def main():
                 CREATE TABLE IF NOT EXISTS warehouse.parts (
                     id SERIAL PRIMARY KEY,
                     name VARCHAR(255) NOT NULL,
-                    barcode VARCHAR(100) UNIQUE
+                    barcode VARCHAR(100) UNIQUE,
+                    item_code VARCHAR(100) UNIQUE,
+                    brand VARCHAR(100),
+                    model VARCHAR(100),
+                    color VARCHAR(50),
+                    product_family VARCHAR(100),
+                    item_category VARCHAR(100)
                 );
             """))
-            # Halihazırda tablo varsa kolon eklemesi için ALTER kontrolü
+            # Halihazırda tablo varsa yeni kolonların eklenmesi için ALTER kontrolleri
             try:
                 conn.execute(text("ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS barcode VARCHAR(100) UNIQUE;"))
+                conn.execute(text("ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS item_code VARCHAR(100) UNIQUE;"))
+                conn.execute(text("ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS brand VARCHAR(100);"))
+                conn.execute(text("ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS model VARCHAR(100);"))
+                conn.execute(text("ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS color VARCHAR(50);"))
+                conn.execute(text("ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS product_family VARCHAR(100);"))
+                conn.execute(text("ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS item_category VARCHAR(100);"))
             except Exception:
                 pass
             conn.execute(text("""

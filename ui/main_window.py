@@ -19,6 +19,7 @@ from ui.warehouse_page import WarehousePage
 from ui.inbound_page import InboundPage
 from ui.outbound_page import OutboundPage
 from ui.locations_page import LocationsPage
+from ui.inventory_page import InventoryPage
 from ui.translations import tr, get_translator
 
 
@@ -135,6 +136,10 @@ class MainWindow(QMainWindow):
         outbound = OutboundPage()
         self._add_page("nav.outbound", outbound)
 
+        # Inventory Status Page
+        inventory = InventoryPage()
+        self._add_page("nav.inventory", inventory)
+
         # Settings (Veritabanı yönetimi dahil)
         settings = SettingsPage()
         self._add_page("nav.settings", settings)
@@ -143,7 +148,7 @@ class MainWindow(QMainWindow):
         placeholder_modules = [
             "nav.brands",
             "nav.phone_models", "nav.suppliers",
-            "nav.putaway", "nav.picking", "nav.inventory", "nav.quality_control",
+            "nav.putaway", "nav.picking", "nav.quality_control",
             "nav.refurbishment", "nav.priority_matrix", "nav.reports", "nav.users"
         ]
 
