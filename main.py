@@ -45,6 +45,7 @@ def main():
                     item_code VARCHAR(100) UNIQUE,
                     brand VARCHAR(100),
                     model VARCHAR(100),
+                    brand_model VARCHAR(200),
                     color VARCHAR(50),
                     product_family VARCHAR(100),
                     item_category VARCHAR(100),
@@ -57,6 +58,7 @@ def main():
                 conn.execute(text("ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS item_code VARCHAR(100) UNIQUE;"))
                 conn.execute(text("ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS brand VARCHAR(100);"))
                 conn.execute(text("ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS model VARCHAR(100);"))
+                conn.execute(text("ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS brand_model VARCHAR(200);"))
                 conn.execute(text("ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS color VARCHAR(50);"))
                 conn.execute(text("ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS product_family VARCHAR(100);"))
                 conn.execute(text("ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS item_category VARCHAR(100);"))
