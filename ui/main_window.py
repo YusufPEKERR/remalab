@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
     QStackedWidget,
     QLabel,
     QSizePolicy,
+    QFrame,
 )
 from PySide6.QtCore import Qt
 
