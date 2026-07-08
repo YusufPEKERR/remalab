@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import (
+﻿from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
     QHBoxLayout,
@@ -83,15 +83,21 @@ class LoginPage(QWidget):
         left_layout.setContentsMargins(50, 50, 50, 50)
 
         title_lbl = QLabel("REMALAB")
-        title_lbl
+        title_lbl.setStyleSheet(
+            "color: white; font-size: 48px; font-weight: 900; font-family: 'Segoe UI Black'; letter-spacing: 2px; border: none; background: transparent;"
+        )
 
         sub_lbl = QLabel("Geleceğin Depo\nYönetim Sistemi")
-        sub_lbl
+        sub_lbl.setStyleSheet(
+            "color: rgba(255,255,255,0.8); font-size: 24px; font-weight: 400; font-family: 'Segoe UI'; border: none; background: transparent;"
+        )
 
         desc_lbl = QLabel(
             "Tüm stok hareketlerinizi saniyeler\niçinde yönetin, izleyin ve analiz edin."
         )
-        desc_lbl
+        desc_lbl.setStyleSheet(
+            "color: rgba(255,255,255,0.6); font-size: 14px; font-family: 'Segoe UI'; border: none; background: transparent;"
+        )
 
         left_layout.addWidget(title_lbl)
         left_layout.addWidget(sub_lbl)
@@ -117,13 +123,29 @@ class LoginPage(QWidget):
         form_layout.setSpacing(25)
 
         welcome_lbl = QLabel("Giriş Yap")
-        welcome_lbl
+        welcome_lbl.setStyleSheet(
+            "color: #1e3c72; font-size: 32px; font-weight: 800; font-family: 'Segoe UI'; background: transparent;"
+        )
         welcome_lbl.setAlignment(Qt.AlignCenter)
 
         self.username_input = QLineEdit()
         self.username_input.setPlaceholderText("Kullanıcı Adı")
         self.username_input.setFixedHeight(50)
-        self.username_input
+        self.username_input.setStyleSheet("""
+            QLineEdit {
+                border: 2px solid #e0e0e0;
+                border-radius: 12px;
+                padding: 0 20px;
+                font-size: 15px;
+                color: #333;
+                background-color: #fafafa;
+                font-weight: 500;
+            }
+            QLineEdit:focus {
+                border: 2px solid #1e3c72;
+                background-color: white;
+            }
+        """)
 
         self.password_input = QLineEdit()
         self.password_input.setPlaceholderText("Şifre")
@@ -140,7 +162,17 @@ class LoginPage(QWidget):
         self.pwd_toggle_btn = QPushButton("👁")
         self.pwd_toggle_btn.setFixedSize(40, 50)
         self.pwd_toggle_btn.setCursor(QCursor(Qt.PointingHandCursor))
-        self.pwd_toggle_btn
+        self.pwd_toggle_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #fafafa;
+                border: 2px solid #e0e0e0;
+                border-radius: 12px;
+                font-size: 18px;
+            }
+            QPushButton:hover {
+                background-color: #e0e0e0;
+            }
+        """)
         self.pwd_toggle_btn.setCheckable(True)
         self.pwd_toggle_btn.toggled.connect(self._toggle_password)
         
@@ -153,7 +185,26 @@ class LoginPage(QWidget):
 
         self.remember_cb = QCheckBox("Beni hatırla")
         self.remember_cb.setCursor(QCursor(Qt.PointingHandCursor))
-        self.remember_cb
+        self.remember_cb.setStyleSheet("""
+            QCheckBox {
+                color: #555;
+                font-size: 14px;
+                font-weight: 600;
+                font-family: 'Segoe UI';
+                background: transparent;
+            }
+            QCheckBox::indicator {
+                width: 20px;
+                height: 20px;
+                border-radius: 6px;
+                border: 2px solid #ccc;
+                background-color: white;
+            }
+            QCheckBox::indicator:checked {
+                background-color: #1e3c72;
+                border: 2px solid #1e3c72;
+            }
+        """)
 
         self.login_btn = QPushButton("Giriş Yap")
         self.login_btn.setFixedHeight(55)
