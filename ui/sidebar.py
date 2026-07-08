@@ -65,9 +65,7 @@ class Sidebar(QWidget):
             "section.warehouse",
             [
                 ("🏭", "nav.warehouse"),
-                ("📥", "nav.inbound"),
-                ("📤", "nav.outbound"),
-                ("📋", "nav.inventory"),
+                ("📄", "nav.waybill"),
                 ("📍", "nav.locations"),
             ],
         ),
@@ -80,13 +78,7 @@ class Sidebar(QWidget):
                 ("🚚", "nav.suppliers"),
             ],
         ),
-        (
-            "section.operations",
-            [
-                ("📦", "nav.putaway"),
-                ("🛒", "nav.picking"),
-            ],
-        ),
+
         (
             "section.quality",
             [
@@ -155,12 +147,10 @@ class Sidebar(QWidget):
 
         # Yetkiye göre modül dağılımı
         depo_modules = [
-            "nav.dashboard", "nav.warehouse", "nav.inbound", "nav.outbound",
-            "nav.inventory", "nav.locations", "nav.parts", "nav.brands",
-            "nav.phone_models", "nav.suppliers", "nav.reports"
+            "nav.dashboard", "nav.warehouse", "nav.waybill", "nav.locations"
         ]
         teknisyen_modules = [
-            "nav.dashboard", "nav.putaway", "nav.picking", 
+            "nav.dashboard",
             "nav.quality_control", "nav.refurbishment", "nav.priority_matrix"
         ]
 

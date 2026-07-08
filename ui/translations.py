@@ -89,6 +89,7 @@ TRANSLATIONS = {
     "nav.brands": {"en": "Brands", "tr": "Markalar"},
     "nav.phone_models": {"en": "Phone Models", "tr": "Telefon Modelleri"},
     "nav.suppliers": {"en": "Suppliers", "tr": "Tedarikçiler"},
+    "nav.waybill": {"en": "Waybill", "tr": "İrsaliye"},
     "nav.inbound": {"en": "Inbound", "tr": "Giriş"},
     "nav.outbound": {"en": "Outbound", "tr": "Çıkış"},
     "nav.putaway": {"en": "Putaway", "tr": "Yerleştirme"},

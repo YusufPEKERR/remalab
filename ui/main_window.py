@@ -127,25 +127,23 @@ class MainWindow(QMainWindow):
         dashboard = DashboardPage()
         self._add_page("nav.dashboard", dashboard)
 
-        # Admin ve Depo Modülleri
+        # Sadece Admin ve Depo Ortak Modülleri
         if user_role in ["Admin", "Depo"]:
-            parts = PartsPage()
-            self._add_page("nav.parts", parts)
-            
-            warehouse = WarehousePage()
-            self._add_page("nav.warehouse", warehouse)
+            from ui.inventory_page import InventoryPage
+            inventory = InventoryPage()
+            self._add_page("nav.warehouse", inventory)
             
             locations = LocationsPage()
             self._add_page("nav.locations", locations)
             
-            inbound = InboundPage()
-            self._add_page("nav.inbound", inbound)
-            
-            outbound = OutboundPage()
-            self._add_page("nav.outbound", outbound)
-            
-            inventory = InventoryPage()
-            self._add_page("nav.inventory", inventory)
+            from ui.waybill_page import WaybillPage
+            waybill = WaybillPage()
+            self._add_page("nav.waybill", waybill)
+
+        # Sadece Admin Modülleri (Envanter, Sistem vs.)
+        if user_role == "Admin":
+            parts = PartsPage()
+            self._add_page("nav.parts", parts)
             
             depo_placeholders = ["nav.brands", "nav.phone_models", "nav.suppliers", "nav.reports"]
             for m in depo_placeholders:
@@ -153,7 +151,7 @@ class MainWindow(QMainWindow):
 
         # Admin ve Teknisyen Modülleri
         if user_role in ["Admin", "Teknisyen"]:
-            teknisyen_placeholders = ["nav.putaway", "nav.picking", "nav.quality_control", "nav.refurbishment", "nav.priority_matrix"]
+            teknisyen_placeholders = ["nav.quality_control", "nav.refurbishment", "nav.priority_matrix"]
             for m in teknisyen_placeholders:
                 self._add_page(m, PlaceholderPage(m))
 

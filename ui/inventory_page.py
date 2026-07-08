@@ -14,9 +14,110 @@ from PySide6.QtWidgets import (
     QPushButton,
     QHeaderView,
     QMessageBox,
+    QDialog,
+    QComboBox,
+    QSpinBox,
+    QDialogButtonBox,
 )
 from PySide6.QtCore import Qt
 from ui.translations import tr, get_translator
+
+
+class StockTransferDialog(QDialog):
+    """Stok transfer diyaloğu."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(tr("warehouse.transfer_stock"))
+        self.setMinimumWidth(400)
+        self.setStyleSheet("background-color: #0D1117; color: #F0F6FC;")
+
+        layout = QVBoxLayout(self)
+
+        # 1. Kaynak Lokasyon & Parça seçimi
+        lbl1 = QLabel(tr("warehouse.source_location") + " (Stok Satırı)")
+        lbl1.setStyleSheet("color: #8B949E; font-weight: bold;")
+        layout.addWidget(lbl1)
+
+        self.source_combo = QComboBox()
+        self.source_combo.setStyleSheet(
+            "background-color: #161B22; border: 1px solid #30363D; padding: 6px; color: #F0F6FC;"
+        )
+        layout.addWidget(self.source_combo)
+
+        # 2. Hedef Lokasyon
+        lbl2 = QLabel(tr("warehouse.target_location"))
+        lbl2.setStyleSheet("color: #8B949E; font-weight: bold;")
+        layout.addWidget(lbl2)
+
+        self.target_combo = QComboBox()
+        self.target_combo.setStyleSheet(
+            "background-color: #161B22; border: 1px solid #30363D; padding: 6px; color: #F0F6FC;"
+        )
+        layout.addWidget(self.target_combo)
+
+        # 3. Miktar
+        lbl3 = QLabel(tr("warehouse.transfer_quantity"))
+        lbl3.setStyleSheet("color: #8B949E; font-weight: bold;")
+        layout.addWidget(lbl3)
+
+        self.qty_spin = QSpinBox()
+        self.qty_spin.setRange(1, 99999)
+        self.qty_spin.setStyleSheet(
+            "background-color: #161B22; border: 1px solid #30363D; padding: 6px; color: #F0F6FC;"
+        )
+        layout.addWidget(self.qty_spin)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+
+        buttons.button(QDialogButtonBox.Ok).setText(tr("warehouse.transfer_stock"))
+        buttons.button(QDialogButtonBox.Ok).setStyleSheet(
+            "background-color: #1F6FEB; color: white; padding: 6px 12px; border-radius: 4px;"
+        )
+        buttons.button(QDialogButtonBox.Cancel).setText(tr("db.cancel"))
+        buttons.button(QDialogButtonBox.Cancel).setStyleSheet(
+            "background-color: #21262D; color: #8B949E; padding: 6px 12px; border-radius: 4px;"
+        )
+
+        layout.addWidget(buttons)
+
+        self._load_combos()
+
+    def _load_combos(self):
+        """Komboboxları doldurur."""
+        try:
+            from config.database import SessionLocal
+            from sqlalchemy import text
+
+            db = SessionLocal()
+            try:
+                # 1. Kaynak Stoklar
+                stoklar = db.execute(text("""
+                    SELECT s.id, p.name, l.name, s.quantity
+                    FROM warehouse.stock s
+                    JOIN warehouse.parts p ON s.part_id = p.id
+                    JOIN warehouse.locations l ON s.location_id = l.id
+                    WHERE s.quantity > 0;
+                """)).fetchall()
+
+                for row in stoklar:
+                    # id'yi verisi olarak sakla
+                    self.source_combo.addItem(
+                        f"{row[1]} ({row[2]}) - Mevcut: {row[3]} adet", row[0]
+                    )
+
+                # 2. Lokasyonlar
+                lokasyonlar = db.execute(
+                    text("SELECT id, name FROM warehouse.locations;")
+                ).fetchall()
+                for row in lokasyonlar:
+                    self.target_combo.addItem(row[1], row[0])
+            finally:
+                db.close()
+        except Exception as e:
+            print(f"[Error Loading Combo Boxes] {e}")
 
 
 class InventoryPage(QWidget):
@@ -58,6 +159,16 @@ class InventoryPage(QWidget):
         self._import_btn.setCursor(Qt.PointingHandCursor)
         self._import_btn.clicked.connect(self._import_excel)
         header_layout.addWidget(self._import_btn)
+
+        # Stok Transfer Butonu
+        self._transfer_btn = QPushButton(tr("warehouse.transfer_stock"))
+        self._transfer_btn.setStyleSheet(
+            "background-color: #1F6FEB; color: white; padding: 8px 16px; "
+            "border-radius: 6px; font-weight: bold;"
+        )
+        self._transfer_btn.setCursor(Qt.PointingHandCursor)
+        self._transfer_btn.clicked.connect(self._transfer_stock)
+        header_layout.addWidget(self._transfer_btn)
 
         self._export_btn = QPushButton(tr("excel.export"))
         self._export_btn.setStyleSheet(
@@ -500,6 +611,91 @@ class InventoryPage(QWidget):
             print(e)
 
         export_excel_flow(self, data, "Warehouse_Inventory.xlsx")
+
+    def _transfer_stock(self):
+        """Stok transfer operasyonu."""
+        dialog = StockTransferDialog(self)
+        if dialog.exec() == QDialog.Accepted:
+            source_stock_id = dialog.source_combo.currentData()
+            target_location_id = dialog.target_combo.currentData()
+            transfer_qty = dialog.qty_spin.value()
+
+            if source_stock_id is None or target_location_id is None:
+                return
+
+            try:
+                from config.database import SessionLocal
+                from sqlalchemy import text
+
+                db = SessionLocal()
+                try:
+                    # 1. Kaynak satırı oku
+                    source = db.execute(
+                        text(
+                            "SELECT part_id, quantity FROM warehouse.stock WHERE id = :id;"
+                        ),
+                        {"id": source_stock_id},
+                    ).fetchone()
+
+                    if not source or source[1] < transfer_qty:
+                        QMessageBox.warning(
+                            self, "Hata", tr("warehouse.insufficient_stock")
+                        )
+                        return
+
+                    # 2. Kaynağı azalt
+                    db.execute(
+                        text(
+                            "UPDATE warehouse.stock SET quantity = quantity - :qty WHERE id = :id;"
+                        ),
+                        {"qty": transfer_qty, "id": source_stock_id},
+                    )
+
+                    # 3. Hedefe ekle (eğer aynı parça hedef lokasyonda varsa güncelle, yoksa ekle)
+                    part_id = source[0]
+                    target_stock = db.execute(
+                        text(
+                            "SELECT id FROM warehouse.stock WHERE part_id = :p_id AND location_id = :l_id;"
+                        ),
+                        {"p_id": part_id, "l_id": target_location_id},
+                    ).fetchone()
+
+                    if target_stock:
+                        db.execute(
+                            text(
+                                "UPDATE warehouse.stock SET quantity = quantity + :qty WHERE id = :id;"
+                            ),
+                            {"qty": transfer_qty, "id": target_stock[0]},
+                        )
+                    else:
+                        db.execute(
+                            text(
+                                "INSERT INTO warehouse.stock (part_id, location_id, quantity) VALUES (:p_id, :l_id, :qty);"
+                            ),
+                            {
+                                "p_id": part_id,
+                                "l_id": target_location_id,
+                                "qty": transfer_qty,
+                            },
+                        )
+
+                    # 4. Hareket kaydı (stock_movements) oluştur
+                    db.execute(
+                        text(
+                            "INSERT INTO warehouse.stock_movements (type, quantity) VALUES ('Transfer', :qty);"
+                        ),
+                        {"qty": transfer_qty},
+                    )
+
+                    db.commit()
+                    QMessageBox.information(
+                        self, "Başarılı", tr("warehouse.transfer_success")
+                    )
+                finally:
+                    db.close()
+                self._load_inventory()
+            except Exception as e:
+                QMessageBox.critical(self, "Hata", f"Stok transfer edilemedi: {e}")
 
     def _retranslate(self):
         """Dil değiştiğinde çevirileri yeniler."""

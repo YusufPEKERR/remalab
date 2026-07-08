@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
     QSpinBox,
     QDialogButtonBox,
     QProgressBar,
+    QTabWidget,
 )
 from PySide6.QtCore import Qt
 from ui.translations import tr, get_translator
@@ -130,8 +131,20 @@ class WarehousePage(QWidget):
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(28, 28, 28, 28)
-        layout.setSpacing(16)
+        layout.setContentsMargins(0, 0, 0, 0)
+        
+        self.tabs = QTabWidget()
+        self.tabs.setStyleSheet("""
+            QTabWidget::pane { border: none; }
+            QTabBar::tab { background: #0D1117; color: #8B949E; padding: 12px 24px; border: none; font-size: 14px; font-weight: bold; }
+            QTabBar::tab:selected { background: #161B22; color: #F0F6FC; border-bottom: 2px solid #1F6FEB; }
+        """)
+        
+        # Sekme 1: Stok Durumu (Eski içerik)
+        tab_warehouse = QWidget()
+        tab_warehouse_layout = QVBoxLayout(tab_warehouse)
+        tab_warehouse_layout.setContentsMargins(28, 28, 28, 28)
+        tab_warehouse_layout.setSpacing(16)
 
         # Üst Başlık
         header_layout = QHBoxLayout()
@@ -163,7 +176,7 @@ class WarehousePage(QWidget):
         self._transfer_btn.clicked.connect(self._transfer_stock)
         header_layout.addWidget(self._transfer_btn)
 
-        layout.addLayout(header_layout)
+        tab_warehouse_layout.addLayout(header_layout)
 
         # Depo Doluluk Oranı Barı (Progress Bar)
         occupancy_section = QHBoxLayout()
@@ -193,7 +206,7 @@ class WarehousePage(QWidget):
             }
         """)
         occupancy_section.addWidget(self._progress)
-        layout.addLayout(occupancy_section)
+        tab_warehouse_layout.addLayout(occupancy_section)
 
         # Depo Stok Tablosu
         self._table = QTableWidget()
@@ -207,7 +220,16 @@ class WarehousePage(QWidget):
         """)
         self._table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self._table.itemChanged.connect(self._on_item_changed)
-        layout.addWidget(self._table)
+        tab_warehouse_layout.addWidget(self._table)
+        
+        self.tabs.addTab(tab_warehouse, "Stok Durumu & Transfer")
+        
+        # Sekme 2: Stok Sayım (InventoryPage)
+        from ui.inventory_page import InventoryPage
+        self.inventory_page = InventoryPage()
+        self.tabs.addTab(self.inventory_page, tr("nav.inventory"))
+        
+        layout.addWidget(self.tabs)
 
         self._load_stock()
 
