@@ -179,14 +179,19 @@ class MainWindow(QMainWindow):
         # Sadece aktif olan sayfanın verilerini yenile
         current_widget = self._content_stack.currentWidget()
         
-        if hasattr(current_widget, "_load_data"):
-            current_widget._load_data()
-        elif hasattr(current_widget, "load_data"):
-            current_widget.load_data()
-        elif hasattr(current_widget, "refresh"):
-            current_widget.refresh()
-        else:
-            print(f"[{current_widget.__class__.__name__}] için yenileme fonksiyonu bulunamadı.")
+        refresh_methods = [
+            "refresh", "load_data", "_load_data", 
+            "_load_parts", "_load_inventory", "_load_locations",
+            "_load_entries", "_load_users", "_load_stocks",
+            "_load_local_config", "_load_combos"
+        ]
+        
+        for method_name in refresh_methods:
+            if hasattr(current_widget, method_name):
+                getattr(current_widget, method_name)()
+                return
+                
+        print(f"[{current_widget.__class__.__name__}] için yenileme fonksiyonu bulunamadı.")
 
     def _handle_logout(self):
         # Oturumu kapat
