@@ -65,21 +65,7 @@ class TopBar(QWidget):
         layout.addWidget(title_section)
         layout.addStretch()
 
-        # Orta: Arama kutusu
-        search_container = QWidget()
-        search_layout = QHBoxLayout(search_container)
-        search_layout.setContentsMargins(0, 0, 0, 0)
 
-        self._search_input = QLineEdit()
-        self._search_input.setObjectName("search_input")
-        self._search_input.setPlaceholderText(f"🔍  {tr('topbar.search')}")
-        self._search_input.returnPressed.connect(
-            lambda: self.search_requested.emit(self._search_input.text())
-        )
-        search_layout.addWidget(self._search_input)
-
-        layout.addWidget(search_container)
-        layout.addStretch()
 
         # Sağ: Bildirimler ve Profil
         right_section = QWidget()
@@ -192,4 +178,3 @@ class TopBar(QWidget):
         self._breadcrumb.setText(
             f"{tr('topbar.home')}  ›  {tr(self._current_page_key)}"
         )
-        self._search_input.setPlaceholderText(f"🔍  {tr('topbar.search')}")
