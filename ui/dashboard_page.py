@@ -362,14 +362,13 @@ class DashboardPage(QWidget):
     def refresh(self):
         """Main window'dan çağrılan yenileme fonksiyonu."""
         from datetime import datetime
-        import locale
-        try:
-            locale.setlocale(locale.LC_TIME, "tr_TR.UTF-8")
-        except:
-            pass
         now = datetime.now()
-        date_str = now.strftime("%d %B %Y, %A - %H:%M:%S")
-        self._date_label.setText(f"📅 Son Güncelleme: {date_str}")
+        
+        aylar = ["", "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"]
+        gunler = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"]
+        date_str = f"{now.day:02d} {aylar[now.month]} {now.year}, {gunler[now.weekday()]} - {now.strftime('%H:%M:%S')}"
+        
+        self._date_label.setText(f"⏱  Son Güncelleme: {date_str}")
         self.refresh_stats()
 
     def refresh_stats(self):
