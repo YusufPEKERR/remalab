@@ -213,6 +213,7 @@ TRANSLATIONS = {
     "table.location": {"en": "Location", "tr": "Lokasyon"},
     "table.type": {"en": "Type", "tr": "Tür"},
     "table.quantity": {"en": "Quantity", "tr": "Miktar"},
+    "table.date": {"en": "Date", "tr": "Tarih"},
     "table.time": {"en": "Time", "tr": "Zaman"},
     "table.status": {"en": "Status", "tr": "Durum"},
     # ---- Movement Types ----
@@ -273,6 +274,7 @@ TRANSLATIONS = {
     "db.save": {"en": "Save", "tr": "Kaydet"},
     "db.cancel": {"en": "Cancel", "tr": "İptal"},
     "db.delete": {"en": "Delete", "tr": "Sil"},
+    "db.refresh": {"en": "Refresh", "tr": "Yenile"},
     "db.edit": {"en": "Edit", "tr": "Düzenle"},
     "db.connected": {"en": "Connected", "tr": "Bağlı"},
     "db.disconnected": {"en": "Disconnected", "tr": "Bağlı Değil"},
@@ -322,6 +324,12 @@ TRANSLATIONS = {
         "tr": "HATA: Ürün Bulunamadı!\nBu barkoda ait bir ürün sistemde kayıtlı değil.\n\nBu barkodu YENİ ÜRÜN olarak hızlıca eklemek ister misiniz?",
     },
     "inbound.quick_add_title": {"en": "Quick Add Product", "tr": "Hızlı Ürün Ekleme"},
+    # ---- Reports Page Translations ----
+    "reports.title": {"en": "Warehouse Movement Report", "tr": "Depo Hareket Raporu"},
+    "reports.subtitle": {
+        "en": "Summary of the latest warehouse inbound and outbound movements",
+        "tr": "Son depo giriş ve çıkış işlemlerinin özet listesi",
+    },
     # ---- Outbound Stock Entry Page Translations ----
     "outbound.title": {"en": "Outbound Stock Entry", "tr": "Depo Çıkış Modülü"},
     "outbound.subtitle": {

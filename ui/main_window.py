@@ -25,6 +25,7 @@ from ui.inbound_page import InboundPage
 from ui.outbound_page import OutboundPage
 from ui.locations_page import LocationsPage
 from ui.inventory_page import InventoryPage
+from ui.reports_page import ReportsPage
 from ui.users_page import UsersPage
 from ui.translations import tr, get_translator
 from config.session import SessionManager
@@ -153,7 +154,8 @@ class MainWindow(QMainWindow):
 
         # Sadece Admin Modülleri
         if user_role == "Admin":
-            self._add_page("nav.reports", PlaceholderPage("nav.reports"))
+            reports = ReportsPage()
+            self._add_page("nav.reports", reports)
             
             settings = SettingsPage()
             self._add_page("nav.settings", settings)
