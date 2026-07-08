@@ -20,11 +20,7 @@ class WaybillPage(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         
         self.tabs = QTabWidget()
-        self.tabs.setStyleSheet("""
-            QTabWidget::pane { border: none; }
-            QTabBar::tab { background: #0D1117; color: #8B949E; padding: 12px 24px; border: none; font-size: 14px; font-weight: bold; }
-            QTabBar::tab:selected { background: #161B22; color: #F0F6FC; border-bottom: 2px solid #1F6FEB; }
-        """)
+        self.tabs
         
         self.inbound_page = InboundPage()
         self.outbound_page = OutboundPage()

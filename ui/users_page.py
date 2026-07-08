@@ -100,30 +100,22 @@ class UsersPage(QWidget):
         # Üst Panel: Başlık ve Butonlar
         top_layout = QHBoxLayout()
         title_label = QLabel(tr("nav.users"))
-        title_label.setStyleSheet("font-size: 24px; font-weight: bold;")
+        title_label
 
         add_btn = QPushButton(tr("users.add_user"))
-        add_btn.setStyleSheet(
-            "background-color: #238636; color: white; padding: 5px 15px; border-radius: 4px;"
-        )
+        add_btn
         add_btn.clicked.connect(self._add_user)
 
         edit_btn = QPushButton(tr("users.edit_user"))
-        edit_btn.setStyleSheet(
-            "background-color: #1f6feb; color: white; padding: 5px 15px; border-radius: 4px;"
-        )
+        edit_btn
         edit_btn.clicked.connect(self._edit_user)
 
         delete_btn = QPushButton(tr("users.delete_user"))
-        delete_btn.setStyleSheet(
-            "background-color: #da3633; color: white; padding: 5px 15px; border-radius: 4px;"
-        )
+        delete_btn
         delete_btn.clicked.connect(self._delete_user)
 
         reset_btn = QPushButton("🔑 Şifreyi Sıfırla")
-        reset_btn.setStyleSheet(
-            "background-color: #e3b341; color: black; padding: 5px 15px; border-radius: 4px; font-weight: bold;"
-        )
+        reset_btn
         reset_btn.clicked.connect(self._reset_password)
 
         top_layout.addWidget(title_label)

@@ -30,42 +30,36 @@ class StockTransferDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle(tr("warehouse.transfer_stock"))
         self.setMinimumWidth(400)
-        self.setStyleSheet("background-color: #0D1117; color: #F0F6FC;")
+        self
 
         layout = QVBoxLayout(self)
 
         # 1. Kaynak Lokasyon & Parça seçimi
         lbl1 = QLabel(tr("warehouse.source_location") + " (Stok Satırı)")
-        lbl1.setStyleSheet("color: #8B949E; font-weight: bold;")
+        lbl1
         layout.addWidget(lbl1)
 
         self.source_combo = QComboBox()
-        self.source_combo.setStyleSheet(
-            "background-color: #161B22; border: 1px solid #30363D; padding: 6px; color: #F0F6FC;"
-        )
+        self.source_combo
         layout.addWidget(self.source_combo)
 
         # 2. Hedef Lokasyon
         lbl2 = QLabel(tr("warehouse.target_location"))
-        lbl2.setStyleSheet("color: #8B949E; font-weight: bold;")
+        lbl2
         layout.addWidget(lbl2)
 
         self.target_combo = QComboBox()
-        self.target_combo.setStyleSheet(
-            "background-color: #161B22; border: 1px solid #30363D; padding: 6px; color: #F0F6FC;"
-        )
+        self.target_combo
         layout.addWidget(self.target_combo)
 
         # 3. Miktar
         lbl3 = QLabel(tr("warehouse.transfer_quantity"))
-        lbl3.setStyleSheet("color: #8B949E; font-weight: bold;")
+        lbl3
         layout.addWidget(lbl3)
 
         self.qty_spin = QSpinBox()
         self.qty_spin.setRange(1, 99999)
-        self.qty_spin.setStyleSheet(
-            "background-color: #161B22; border: 1px solid #30363D; padding: 6px; color: #F0F6FC;"
-        )
+        self.qty_spin
         layout.addWidget(self.qty_spin)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
@@ -73,13 +67,9 @@ class StockTransferDialog(QDialog):
         buttons.rejected.connect(self.reject)
 
         buttons.button(QDialogButtonBox.Ok).setText(tr("warehouse.transfer_stock"))
-        buttons.button(QDialogButtonBox.Ok).setStyleSheet(
-            "background-color: #1F6FEB; color: white; padding: 6px 12px; border-radius: 4px;"
-        )
+        buttons.button(QDialogButtonBox.Ok)
         buttons.button(QDialogButtonBox.Cancel).setText(tr("db.cancel"))
-        buttons.button(QDialogButtonBox.Cancel).setStyleSheet(
-            "background-color: #21262D; color: #8B949E; padding: 6px 12px; border-radius: 4px;"
-        )
+        buttons.button(QDialogButtonBox.Cancel)
 
         layout.addWidget(buttons)
 
@@ -141,40 +131,29 @@ class InventoryPage(QWidget):
         title_layout.setSpacing(4)
 
         self._title_lbl = QLabel(tr("inventory.title"))
-        self._title_lbl.setStyleSheet(
-            "color: #F0F6FC; font-size: 20px; font-weight: bold;"
-        )
+        self._title_lbl
         title_layout.addWidget(self._title_lbl)
 
         self._subtitle_lbl = QLabel(tr("inventory.subtitle"))
-        self._subtitle_lbl.setStyleSheet("color: #8B949E; font-size: 13px;")
+        self._subtitle_lbl
         title_layout.addWidget(self._subtitle_lbl)
 
         # Excel Import/Export Butonları
         self._import_btn = QPushButton(tr("excel.import"))
-        self._import_btn.setStyleSheet(
-            "background-color: #21262D; border: 1px solid #30363D; color: #C9D1D9; padding: 8px 16px; "
-            "border-radius: 6px; font-weight: bold;"
-        )
+        self._import_btn
         self._import_btn.setCursor(Qt.PointingHandCursor)
         self._import_btn.clicked.connect(self._import_excel)
         header_layout.addWidget(self._import_btn)
 
         # Stok Transfer Butonu
         self._transfer_btn = QPushButton(tr("warehouse.transfer_stock"))
-        self._transfer_btn.setStyleSheet(
-            "background-color: #1F6FEB; color: white; padding: 8px 16px; "
-            "border-radius: 6px; font-weight: bold;"
-        )
+        self._transfer_btn
         self._transfer_btn.setCursor(Qt.PointingHandCursor)
         self._transfer_btn.clicked.connect(self._transfer_stock)
         header_layout.addWidget(self._transfer_btn)
 
         self._export_btn = QPushButton(tr("excel.export"))
-        self._export_btn.setStyleSheet(
-            "background-color: #21262D; border: 1px solid #30363D; color: #C9D1D9; padding: 8px 16px; "
-            "border-radius: 6px; font-weight: bold;"
-        )
+        self._export_btn
         self._export_btn.setCursor(Qt.PointingHandCursor)
         self._export_btn.clicked.connect(self._export_excel)
         header_layout.addWidget(self._export_btn)
@@ -204,10 +183,7 @@ class InventoryPage(QWidget):
         for col_key, placeholder in filter_configs:
             f_input = QLineEdit()
             f_input.setPlaceholderText(placeholder)
-            f_input.setStyleSheet(
-                "background-color: #161B22; border: 1px solid #30363D; "
-                "border-radius: 4px; padding: 6px; color: #F0F6FC; font-size: 11px;"
-            )
+            f_input
             f_input.textChanged.connect(self._load_inventory)
             self._filter_layout.addWidget(f_input)
             self._filter_widgets[col_key] = f_input
@@ -219,11 +195,7 @@ class InventoryPage(QWidget):
         self._table.setColumnCount(8)
         self._table.setAlternatingRowColors(True)
         self._table.verticalHeader().setVisible(False)
-        self._table.setStyleSheet("""
-            QTableWidget { background-color: #0D1117; alternate-background-color: #161B22; border: none; color: #F0F6FC; }
-            QTableWidget::item { color: #F0F6FC; padding: 8px; }
-            QHeaderView::section { background-color: #161B22; color: #8B949E; border: none; font-weight: bold; }
-        """)
+        self._table
         self._table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self._table.itemChanged.connect(self._on_item_changed)
         layout.addWidget(self._table)

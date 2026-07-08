@@ -246,7 +246,7 @@ class DashboardPage(QWidget):
 
 
         self._date_label = QLabel()
-        self._date_label.setStyleSheet("color: #8B949E; font-size: 13px;")
+        self._date_label
         header_layout.addWidget(self._date_label)
 
         main_layout.addLayout(header_layout)
@@ -283,9 +283,7 @@ class DashboardPage(QWidget):
         db_stats_layout.setSpacing(12)
 
         self._db_section_title = QLabel(tr("dashboard.local_db_status"))
-        self._db_section_title.setStyleSheet(
-            "color: #F0F6FC; font-size: 15px; font-weight: 600;"
-        )
+        self._db_section_title
         db_stats_layout.addWidget(self._db_section_title)
 
         db_grid = QGridLayout()
@@ -293,38 +291,30 @@ class DashboardPage(QWidget):
 
         # 4 istatistik alanı
         self._lbl_db_files_title = QLabel(tr("dashboard.total_db_files") + ":")
-        self._lbl_db_files_title.setStyleSheet("color: #8B949E; font-size: 13px;")
+        self._lbl_db_files_title
         self._lbl_db_files_val = QLabel("0")
-        self._lbl_db_files_val.setStyleSheet(
-            "color: #F0F6FC; font-size: 13px; font-weight: bold;"
-        )
+        self._lbl_db_files_val
         db_grid.addWidget(self._lbl_db_files_title, 0, 0)
         db_grid.addWidget(self._lbl_db_files_val, 0, 1)
 
         self._lbl_sql_files_title = QLabel(tr("dashboard.total_sql_files") + ":")
-        self._lbl_sql_files_title.setStyleSheet("color: #8B949E; font-size: 13px;")
+        self._lbl_sql_files_title
         self._lbl_sql_files_val = QLabel("0")
-        self._lbl_sql_files_val.setStyleSheet(
-            "color: #F0F6FC; font-size: 13px; font-weight: bold;"
-        )
+        self._lbl_sql_files_val
         db_grid.addWidget(self._lbl_sql_files_title, 0, 2)
         db_grid.addWidget(self._lbl_sql_files_val, 0, 3)
 
         self._lbl_db_size_title = QLabel(tr("dashboard.total_db_size") + ":")
-        self._lbl_db_size_title.setStyleSheet("color: #8B949E; font-size: 13px;")
+        self._lbl_db_size_title
         self._lbl_db_size_val = QLabel("0 KB")
-        self._lbl_db_size_val.setStyleSheet(
-            "color: #58A6FF; font-size: 13px; font-weight: bold;"
-        )
+        self._lbl_db_size_val
         db_grid.addWidget(self._lbl_db_size_title, 1, 0)
         db_grid.addWidget(self._lbl_db_size_val, 1, 1)
 
         self._lbl_active_db_title = QLabel(tr("dashboard.active_local_db") + ":")
-        self._lbl_active_db_title.setStyleSheet("color: #8B949E; font-size: 13px;")
+        self._lbl_active_db_title
         self._lbl_active_db_val = QLabel("-")
-        self._lbl_active_db_val.setStyleSheet(
-            "color: #3FB950; font-size: 13px; font-weight: bold;"
-        )
+        self._lbl_active_db_val
         db_grid.addWidget(self._lbl_active_db_title, 1, 2)
         db_grid.addWidget(self._lbl_active_db_val, 1, 3)
 
@@ -339,9 +329,7 @@ class DashboardPage(QWidget):
         details_layout.setSpacing(12)
 
         self._details_title_lbl = QLabel(tr("dashboard.details_title").format(name=""))
-        self._details_title_lbl.setStyleSheet(
-            "color: #58A6FF; font-size: 16px; font-weight: 600;"
-        )
+        self._details_title_lbl
         details_layout.addWidget(self._details_title_lbl)
 
         self._details_table = QTableWidget()
@@ -350,27 +338,7 @@ class DashboardPage(QWidget):
         self._details_table.verticalHeader().setVisible(False)
         self._details_table.setShowGrid(False)
         self._details_table.setMinimumHeight(240)  # Yüksekliği belirginleştir
-        self._details_table.setStyleSheet("""
-            QTableWidget {
-                background-color: #0D1117;
-                alternate-background-color: #161B22;
-                border: none;
-                color: #F0F6FC;
-                font-size: 13px;
-            }
-            QTableWidget::item {
-                color: #F0F6FC;
-                padding: 6px;
-            }
-            QHeaderView::section {
-                background-color: #161B22;
-                color: #8B949E;
-                font-size: 11px;
-                font-weight: bold;
-                padding: 8px;
-                border: none;
-            }
-        """)
+        self._details_table
         details_layout.addWidget(self._details_table)
         main_layout.addWidget(self._details_container)
 

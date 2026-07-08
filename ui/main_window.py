@@ -42,21 +42,17 @@ class PlaceholderPage(QWidget):
 
         icon_label = QLabel("🚧")
         icon_label.setAlignment(Qt.AlignCenter)
-        icon_label.setStyleSheet("font-size: 48px;")
+        icon_label
         layout.addWidget(icon_label)
 
         self._title = QLabel(tr(module_tr_key))
         self._title.setAlignment(Qt.AlignCenter)
-        self._title.setStyleSheet(
-            "color: #F0F6FC; font-size: 24px; font-weight: 700; margin-top: 16px;"
-        )
+        self._title
         layout.addWidget(self._title)
 
         self._subtitle = QLabel(tr("placeholder.subtitle"))
         self._subtitle.setAlignment(Qt.AlignCenter)
-        self._subtitle.setStyleSheet(
-            "color: #484F58; font-size: 14px; margin-top: 8px;"
-        )
+        self._subtitle
         layout.addWidget(self._subtitle)
 
         # Dil değişikliklerini dinle

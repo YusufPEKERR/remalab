@@ -30,45 +30,39 @@ class AddOutboundStockDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle(tr("outbound.add_new"))
         self.setMinimumWidth(400)
-        self.setStyleSheet("background-color: #0D1117; color: #F0F6FC;")
+        self
 
         layout = QVBoxLayout(self)
         layout.setSpacing(14)
 
         # 1. Kaynak Stok Satırı Seçimi (Hangi lokasyondaki hangi parça çıkılacak?)
         lbl_stock = QLabel("Çıkış Yapılacak Stok (Parça & Lokasyon):")
-        lbl_stock.setStyleSheet("color: #8B949E; font-weight: bold;")
+        lbl_stock
         layout.addWidget(lbl_stock)
 
         self.stock_combo = QComboBox()
-        self.stock_combo.setStyleSheet(
-            "background-color: #161B22; border: 1px solid #30363D; padding: 8px; color: #F0F6FC; border-radius: 4px;"
-        )
+        self.stock_combo
         layout.addWidget(self.stock_combo)
 
         # 2. Birim Adet
         lbl_qty = QLabel(tr("table.quantity"))
-        lbl_qty.setStyleSheet("color: #8B949E; font-weight: bold;")
+        lbl_qty
         layout.addWidget(lbl_qty)
 
         self.qty_spin = QSpinBox()
         self.qty_spin.setRange(1, 1000000)
         self.qty_spin.setValue(1)
-        self.qty_spin.setStyleSheet(
-            "background-color: #161B22; border: 1px solid #30363D; padding: 8px; color: #F0F6FC; border-radius: 4px;"
-        )
+        self.qty_spin
         layout.addWidget(self.qty_spin)
 
         # 3. Alıcı / Müşteri / Gönderilen Yer
         lbl_dest = QLabel(tr("outbound.destination_label"))
-        lbl_dest.setStyleSheet("color: #8B949E; font-weight: bold;")
+        lbl_dest
         layout.addWidget(lbl_dest)
 
         self.dest_input = QLineEdit()
         self.dest_input.setPlaceholderText("Örn: RemaLab Kadıköy Şubesi")
-        self.dest_input.setStyleSheet(
-            "background-color: #161B22; border: 1px solid #30363D; padding: 8px; color: #F0F6FC; border-radius: 4px;"
-        )
+        self.dest_input
         layout.addWidget(self.dest_input)
 
         # Butonlar
@@ -77,13 +71,9 @@ class AddOutboundStockDialog(QDialog):
         buttons.rejected.connect(self.reject)
 
         buttons.button(QDialogButtonBox.Ok).setText(tr("db.save"))
-        buttons.button(QDialogButtonBox.Ok).setStyleSheet(
-            "background-color: #238636; color: white; padding: 8px 16px; border-radius: 4px; font-weight: bold;"
-        )
+        buttons.button(QDialogButtonBox.Ok)
         buttons.button(QDialogButtonBox.Cancel).setText(tr("db.cancel"))
-        buttons.button(QDialogButtonBox.Cancel).setStyleSheet(
-            "background-color: #21262D; color: #8B949E; padding: 8px 16px; border-radius: 4px;"
-        )
+        buttons.button(QDialogButtonBox.Cancel)
 
         layout.addWidget(buttons)
 
@@ -136,9 +126,7 @@ class OutboundPage(QWidget):
 
         if self._current_role not in ["admin", "warehouse_worker"]:
             unauth_lbl = QLabel(tr("outbound.unauthorized"))
-            unauth_lbl.setStyleSheet(
-                "color: #F85149; font-size: 16px; font-weight: bold;"
-            )
+            unauth_lbl
             unauth_lbl.setAlignment(Qt.AlignCenter)
             self._layout.addWidget(unauth_lbl)
             return
@@ -151,13 +139,11 @@ class OutboundPage(QWidget):
         title_layout.setSpacing(4)
 
         self._title_lbl = QLabel(tr("outbound.title"))
-        self._title_lbl.setStyleSheet(
-            "color: #F0F6FC; font-size: 20px; font-weight: bold;"
-        )
+        self._title_lbl
         title_layout.addWidget(self._title_lbl)
 
         self._subtitle_lbl = QLabel(tr("outbound.subtitle"))
-        self._subtitle_lbl.setStyleSheet("color: #8B949E; font-size: 13px;")
+        self._subtitle_lbl
         title_layout.addWidget(self._subtitle_lbl)
 
         header_layout.addWidget(title_section)
@@ -165,29 +151,20 @@ class OutboundPage(QWidget):
 
         # Excel Import/Export Butonları
         self._import_btn = QPushButton(tr("excel.import"))
-        self._import_btn.setStyleSheet(
-            "background-color: #21262D; border: 1px solid #30363D; color: #C9D1D9; padding: 8px 16px; "
-            "border-radius: 6px; font-weight: bold;"
-        )
+        self._import_btn
         self._import_btn.setCursor(Qt.PointingHandCursor)
         self._import_btn.clicked.connect(self._import_excel)
         header_layout.addWidget(self._import_btn)
 
         self._export_btn = QPushButton(tr("excel.export"))
-        self._export_btn.setStyleSheet(
-            "background-color: #21262D; border: 1px solid #30363D; color: #C9D1D9; padding: 8px 16px; "
-            "border-radius: 6px; font-weight: bold;"
-        )
+        self._export_btn
         self._export_btn.setCursor(Qt.PointingHandCursor)
         self._export_btn.clicked.connect(self._export_excel)
         header_layout.addWidget(self._export_btn)
 
         # Yeni Stok Çıkışı Butonu
         self._add_btn = QPushButton(tr("outbound.add_new"))
-        self._add_btn.setStyleSheet(
-            "background-color: #238636; color: white; padding: 8px 16px; "
-            "border-radius: 6px; font-weight: bold;"
-        )
+        self._add_btn
         self._add_btn.setCursor(Qt.PointingHandCursor)
         self._add_btn.clicked.connect(self._add_outbound_stock)
         header_layout.addWidget(self._add_btn)
@@ -200,11 +177,7 @@ class OutboundPage(QWidget):
         self._table.setAlternatingRowColors(True)
         self._table.verticalHeader().setVisible(False)
         self._table.setSelectionBehavior(QTableWidget.SelectRows)
-        self._table.setStyleSheet("""
-            QTableWidget { background-color: #0D1117; alternate-background-color: #161B22; border: none; color: #F0F6FC; }
-            QTableWidget::item { color: #F0F6FC; padding: 8px; }
-            QHeaderView::section { background-color: #161B22; color: #8B949E; border: none; font-weight: bold; }
-        """)
+        self._table
         self._table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self._layout.addWidget(self._table)
 

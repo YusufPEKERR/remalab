@@ -34,33 +34,29 @@ class QuickAddProductDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle(tr("inbound.quick_add_title"))
         self.setMinimumWidth(350)
-        self.setStyleSheet("background-color: #0D1117; color: #F0F6FC;")
+        self
 
         layout = QVBoxLayout(self)
         layout.setSpacing(12)
 
         # Barkod (Read-only)
         lbl_barcode = QLabel("Barkod:")
-        lbl_barcode.setStyleSheet("color: #8B949E; font-weight: bold;")
+        lbl_barcode
         layout.addWidget(lbl_barcode)
 
         self.barcode_input = QLineEdit(barcode)
         self.barcode_input.setReadOnly(True)
-        self.barcode_input.setStyleSheet(
-            "background-color: #161B22; border: 1px solid #30363D; padding: 8px; color: #8B949E; border-radius: 4px;"
-        )
+        self.barcode_input
         layout.addWidget(self.barcode_input)
 
         # Ürün Adı
         lbl_name = QLabel(tr("parts.part_name"))
-        lbl_name.setStyleSheet("color: #8B949E; font-weight: bold;")
+        lbl_name
         layout.addWidget(lbl_name)
 
         self.name_input = QLineEdit()
         self.name_input.setFocus()
-        self.name_input.setStyleSheet(
-            "background-color: #161B22; border: 1px solid #30363D; padding: 8px; color: #F0F6FC; border-radius: 4px;"
-        )
+        self.name_input
         layout.addWidget(self.name_input)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
@@ -68,13 +64,9 @@ class QuickAddProductDialog(QDialog):
         buttons.rejected.connect(self.reject)
 
         buttons.button(QDialogButtonBox.Ok).setText(tr("db.save"))
-        buttons.button(QDialogButtonBox.Ok).setStyleSheet(
-            "background-color: #238636; color: white; padding: 8px 16px; border-radius: 4px; font-weight: bold;"
-        )
+        buttons.button(QDialogButtonBox.Ok)
         buttons.button(QDialogButtonBox.Cancel).setText(tr("db.cancel"))
-        buttons.button(QDialogButtonBox.Cancel).setStyleSheet(
-            "background-color: #21262D; color: #8B949E; padding: 8px 16px; border-radius: 4px;"
-        )
+        buttons.button(QDialogButtonBox.Cancel)
 
         layout.addWidget(buttons)
 
@@ -86,7 +78,7 @@ class AddInboundStockDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle(tr("inbound.add_new"))
         self.setMinimumWidth(450)
-        self.setStyleSheet("background-color: #0D1117; color: #F0F6FC;")
+        self
 
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
@@ -98,7 +90,7 @@ class AddInboundStockDialog(QDialog):
         )
 
         container = QWidget()
-        container.setStyleSheet("background-color: transparent;")
+        container
         layout = QVBoxLayout(container)
         layout.setSpacing(14)
 
@@ -107,20 +99,18 @@ class AddInboundStockDialog(QDialog):
 
         # 1. Barkod Girişi (Okuyucu için ilk odak alanı)
         lbl_barcode = QLabel(tr("inbound.barcode"))
-        lbl_barcode.setStyleSheet("color: #58A6FF; font-weight: bold;")
+        lbl_barcode
         layout.addWidget(lbl_barcode)
 
         self.barcode_input = QLineEdit()
         self.barcode_input.setPlaceholderText("Barkodu okutun ve Enter'a basın...")
-        self.barcode_input.setStyleSheet(
-            "background-color: #161B22; border: 2px solid #1F6FEB; padding: 10px; color: #F0F6FC; border-radius: 6px; font-size: 14px;"
-        )
+        self.barcode_input
         self.barcode_input.returnPressed.connect(self._on_barcode_scanned)
         layout.addWidget(self.barcode_input)
 
         # --- Hiyerarşik Parça Seçimi ---
         lbl_brand = QLabel("Marka")
-        lbl_brand.setStyleSheet("color: #8B949E; font-weight: bold;")
+        lbl_brand
         layout.addWidget(lbl_brand)
         self.brand_combo = QComboBox()
         self.brand_combo.setStyleSheet(self._combo_style())
@@ -128,7 +118,7 @@ class AddInboundStockDialog(QDialog):
         layout.addWidget(self.brand_combo)
 
         lbl_model = QLabel("Telefon Modeli")
-        lbl_model.setStyleSheet("color: #8B949E; font-weight: bold;")
+        lbl_model
         layout.addWidget(lbl_model)
         self.model_combo = QComboBox()
         self.model_combo.setStyleSheet(self._combo_style())
@@ -136,7 +126,7 @@ class AddInboundStockDialog(QDialog):
         layout.addWidget(self.model_combo)
 
         lbl_category = QLabel("Parça Tipi")
-        lbl_category.setStyleSheet("color: #8B949E; font-weight: bold;")
+        lbl_category
         layout.addWidget(lbl_category)
         self.category_combo = QComboBox()
         self.category_combo.setStyleSheet(self._combo_style())
@@ -144,7 +134,7 @@ class AddInboundStockDialog(QDialog):
         layout.addWidget(self.category_combo)
 
         lbl_part = QLabel(tr("parts.part_name"))
-        lbl_part.setStyleSheet("color: #8B949E; font-weight: bold;")
+        lbl_part
         layout.addWidget(lbl_part)
         self.part_combo = QComboBox()
         self.part_combo.setStyleSheet(self._combo_style())
@@ -161,48 +151,40 @@ class AddInboundStockDialog(QDialog):
         details_layout = QVBoxLayout(self.part_details_widget)
         details_layout.setContentsMargins(10, 10, 10, 10)
         details_layout.setSpacing(4)
-        self.part_details_widget.setStyleSheet(
-            "background-color: #1C2128; border: 1px solid #30363D; border-radius: 4px;"
-        )
+        self.part_details_widget
 
         lbl_stok_kodu = QLabel("Stok Kodu:")
-        lbl_stok_kodu.setStyleSheet("color: #8B949E; font-weight: bold; border: none;")
+        lbl_stok_kodu
         details_layout.addWidget(lbl_stok_kodu)
 
         self.stok_kodu_input = QLineEdit()
         self.stok_kodu_input.setPlaceholderText(
             "Manuel girilebilir veya seçimden gelir"
         )
-        self.stok_kodu_input.setStyleSheet(
-            "background-color: #161B22; border: 1px solid #30363D; padding: 6px; color: #F0F6FC; border-radius: 4px;"
-        )
+        self.stok_kodu_input
         details_layout.addWidget(self.stok_kodu_input)
 
         self.lbl_part_barcode = QLabel("Barkod: -")
-        self.lbl_part_barcode.setStyleSheet(
-            "color: #8B949E; font-size: 12px; border: none; margin-top: 5px;"
-        )
+        self.lbl_part_barcode
         details_layout.addWidget(self.lbl_part_barcode)
 
         layout.addWidget(self.part_details_widget)
 
         # 3. Birim Adet
         lbl_qty = QLabel(tr("table.quantity"))
-        lbl_qty.setStyleSheet("color: #8B949E; font-weight: bold;")
+        lbl_qty
         layout.addWidget(lbl_qty)
 
         self.qty_spin = QSpinBox()
         self.qty_spin.setRange(1, 1000000)
         self.qty_spin.setValue(1)
-        self.qty_spin.setStyleSheet(
-            "background-color: #161B22; border: 1px solid #30363D; padding: 8px; color: #F0F6FC; border-radius: 4px;"
-        )
+        self.qty_spin
         self.qty_spin.valueChanged.connect(self._calculate_total)
         layout.addWidget(self.qty_spin)
 
         # 4. Birim Fiyat
         lbl_price = QLabel(tr("inbound.unit_price"))
-        lbl_price.setStyleSheet("color: #8B949E; font-weight: bold;")
+        lbl_price
         layout.addWidget(lbl_price)
 
         self.price_spin = QDoubleSpinBox()
@@ -210,32 +192,26 @@ class AddInboundStockDialog(QDialog):
         self.price_spin.setDecimals(2)
         self.price_spin.setValue(1.00)
         self.price_spin.setSuffix(" TL")
-        self.price_spin.setStyleSheet(
-            "background-color: #161B22; border: 1px solid #30363D; padding: 8px; color: #F0F6FC; border-radius: 4px;"
-        )
+        self.price_spin
         self.price_spin.valueChanged.connect(self._calculate_total)
         layout.addWidget(self.price_spin)
 
         # 5. Toplam Maliyet (Read-only / calculated)
         lbl_total = QLabel(tr("inbound.total_cost"))
-        lbl_total.setStyleSheet("color: #8B949E; font-weight: bold;")
+        lbl_total
         layout.addWidget(lbl_total)
 
         self.total_cost_lbl = QLabel("1.00 TL")
-        self.total_cost_lbl.setStyleSheet(
-            "font-size: 16px; font-weight: bold; color: #58A6FF; padding: 8px; background-color: #161B22; border-radius: 4px;"
-        )
+        self.total_cost_lbl
         layout.addWidget(self.total_cost_lbl)
 
         # 6. Lokasyon Seçimi
         lbl_loc = QLabel(tr("table.location"))
-        lbl_loc.setStyleSheet("color: #8B949E; font-weight: bold;")
+        lbl_loc
         layout.addWidget(lbl_loc)
 
         self.loc_combo = QComboBox()
-        self.loc_combo.setStyleSheet(
-            "background-color: #161B22; border: 1px solid #30363D; padding: 8px; color: #F0F6FC; border-radius: 4px;"
-        )
+        self.loc_combo
         layout.addWidget(self.loc_combo)
 
         # Butonlar
@@ -244,13 +220,9 @@ class AddInboundStockDialog(QDialog):
         buttons.rejected.connect(self.reject)
 
         buttons.button(QDialogButtonBox.Ok).setText(tr("db.save"))
-        buttons.button(QDialogButtonBox.Ok).setStyleSheet(
-            "background-color: #238636; color: white; padding: 8px 16px; border-radius: 4px; font-weight: bold;"
-        )
+        buttons.button(QDialogButtonBox.Ok)
         buttons.button(QDialogButtonBox.Cancel).setText(tr("db.cancel"))
-        buttons.button(QDialogButtonBox.Cancel).setStyleSheet(
-            "background-color: #21262D; color: #8B949E; padding: 8px 16px; border-radius: 4px;"
-        )
+        buttons.button(QDialogButtonBox.Cancel)
 
         buttons_layout = QHBoxLayout()
         buttons_layout.setContentsMargins(14, 0, 14, 14)
@@ -656,9 +628,7 @@ class InboundPage(QWidget):
 
         if self._current_role not in ["admin", "warehouse_worker"]:
             unauth_lbl = QLabel(tr("inbound.unauthorized"))
-            unauth_lbl.setStyleSheet(
-                "color: #F85149; font-size: 16px; font-weight: bold;"
-            )
+            unauth_lbl
             unauth_lbl.setAlignment(Qt.AlignCenter)
             self._layout.addWidget(unauth_lbl)
             return
@@ -671,13 +641,11 @@ class InboundPage(QWidget):
         title_layout.setSpacing(4)
 
         self._title_lbl = QLabel(tr("inbound.title"))
-        self._title_lbl.setStyleSheet(
-            "color: #F0F6FC; font-size: 20px; font-weight: bold;"
-        )
+        self._title_lbl
         title_layout.addWidget(self._title_lbl)
 
         self._subtitle_lbl = QLabel(tr("inbound.subtitle"))
-        self._subtitle_lbl.setStyleSheet("color: #8B949E; font-size: 13px;")
+        self._subtitle_lbl
         title_layout.addWidget(self._subtitle_lbl)
 
         header_layout.addWidget(title_section)
@@ -685,29 +653,20 @@ class InboundPage(QWidget):
 
         # Excel Import/Export Butonları
         self._import_btn = QPushButton(tr("excel.import"))
-        self._import_btn.setStyleSheet(
-            "background-color: #21262D; border: 1px solid #30363D; color: #C9D1D9; padding: 8px 16px; "
-            "border-radius: 6px; font-weight: bold;"
-        )
+        self._import_btn
         self._import_btn.setCursor(Qt.PointingHandCursor)
         self._import_btn.clicked.connect(self._import_excel)
         header_layout.addWidget(self._import_btn)
 
         self._export_btn = QPushButton(tr("excel.export"))
-        self._export_btn.setStyleSheet(
-            "background-color: #21262D; border: 1px solid #30363D; color: #C9D1D9; padding: 8px 16px; "
-            "border-radius: 6px; font-weight: bold;"
-        )
+        self._export_btn
         self._export_btn.setCursor(Qt.PointingHandCursor)
         self._export_btn.clicked.connect(self._export_excel)
         header_layout.addWidget(self._export_btn)
 
         # Yeni Stok Ekle Butonu
         self._add_btn = QPushButton(tr("inbound.add_new"))
-        self._add_btn.setStyleSheet(
-            "background-color: #238636; color: white; padding: 8px 16px; "
-            "border-radius: 6px; font-weight: bold;"
-        )
+        self._add_btn
         self._add_btn.setCursor(Qt.PointingHandCursor)
         self._add_btn.clicked.connect(self._add_inbound_stock)
         header_layout.addWidget(self._add_btn)
@@ -720,11 +679,7 @@ class InboundPage(QWidget):
         self._table.setAlternatingRowColors(True)
         self._table.verticalHeader().setVisible(False)
         self._table.setSelectionBehavior(QTableWidget.SelectRows)
-        self._table.setStyleSheet("""
-            QTableWidget { background-color: #0D1117; alternate-background-color: #161B22; border: none; color: #F0F6FC; }
-            QTableWidget::item { color: #F0F6FC; padding: 8px; }
-            QHeaderView::section { background-color: #161B22; color: #8B949E; border: none; font-weight: bold; }
-        """)
+        self._table
         self._table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self._layout.addWidget(self._table)
 

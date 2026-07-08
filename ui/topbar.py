@@ -99,7 +99,20 @@ class TopBar(QWidget):
             }
         """
 
+
+        # Tema butonu
+        self.theme_btn = QPushButton("??")
+        self.theme_btn.setObjectName("topbar_icon_btn")
+        self.theme_btn.setFixedSize(36, 36)
+        self.theme_btn.setCursor(Qt.PointingHandCursor)
+        from ui.theme_manager import get_theme_manager
+        self._theme_mgr = get_theme_manager()
+        self.theme_btn.setText("??" if self._theme_mgr.is_dark else "??")
+        self.theme_btn.clicked.connect(self._toggle_theme)
+        right_layout.addWidget(self.theme_btn)
+
         # Yenile butonu
+
         refresh_btn = QPushButton("🔄")
         refresh_btn.setFixedSize(36, 36)
         refresh_btn.setCursor(Qt.PointingHandCursor)
@@ -113,7 +126,7 @@ class TopBar(QWidget):
         separator = QWidget()
         separator.setFixedWidth(1)
         separator.setFixedHeight(32)
-        separator.setStyleSheet("background-color: #21262D;")
+        separator
         right_layout.addWidget(separator)
 
         # Session Bilgilerini al
@@ -152,19 +165,7 @@ class TopBar(QWidget):
         logout_btn = QPushButton("🚪 Çıkış Yap")
         logout_btn.setObjectName("logout_btn")
         logout_btn.setCursor(Qt.PointingHandCursor)
-        logout_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #da3633;
-                color: white;
-                border: none;
-                border-radius: 4px;
-                padding: 6px 12px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #b02a28;
-            }
-        """)
+        logout_btn
         logout_btn.clicked.connect(self.logout_requested.emit)
         
         right_layout.addWidget(logout_btn)
@@ -179,7 +180,13 @@ class TopBar(QWidget):
 
 
 
+
+    def _toggle_theme(self):
+        self._theme_mgr.toggle_theme()
+        self.theme_btn.setText("??" if self._theme_mgr.is_dark else "??")
+
     def _retranslate(self):
+
         """Dil değiştiğinde metinleri güncelle."""
         self._title.setText(tr(self._current_page_key))
         self._breadcrumb.setText(

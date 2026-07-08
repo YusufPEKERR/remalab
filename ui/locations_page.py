@@ -28,20 +28,17 @@ class AddLocationDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle(tr("locations.add_new"))
         self.setMinimumWidth(350)
-        self.setStyleSheet("background-color: #0D1117; color: #F0F6FC;")
+        self
 
         layout = QVBoxLayout(self)
 
         lbl = QLabel(tr("locations.location_name"))
-        lbl.setStyleSheet("color: #8B949E; font-weight: bold;")
+        lbl
         layout.addWidget(lbl)
 
         self.name_input = QLineEdit()
         self.name_input.setPlaceholderText("Örn: A-12-03")
-        self.name_input.setStyleSheet(
-            "background-color: #161B22; border: 1px solid #30363D; "
-            "border-radius: 6px; padding: 8px; color: #F0F6FC;"
-        )
+        self.name_input
         layout.addWidget(self.name_input)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
@@ -49,13 +46,9 @@ class AddLocationDialog(QDialog):
         buttons.rejected.connect(self.reject)
 
         buttons.button(QDialogButtonBox.Ok).setText(tr("db.save"))
-        buttons.button(QDialogButtonBox.Ok).setStyleSheet(
-            "background-color: #238636; color: white; padding: 6px 12px; border-radius: 4px;"
-        )
+        buttons.button(QDialogButtonBox.Ok)
         buttons.button(QDialogButtonBox.Cancel).setText(tr("db.cancel"))
-        buttons.button(QDialogButtonBox.Cancel).setStyleSheet(
-            "background-color: #21262D; color: #8B949E; padding: 6px 12px; border-radius: 4px;"
-        )
+        buttons.button(QDialogButtonBox.Cancel)
 
         layout.addWidget(buttons)
 
@@ -81,13 +74,11 @@ class LocationsPage(QWidget):
         title_layout.setSpacing(4)
 
         self._title_lbl = QLabel(tr("locations.title"))
-        self._title_lbl.setStyleSheet(
-            "color: #F0F6FC; font-size: 20px; font-weight: bold;"
-        )
+        self._title_lbl
         title_layout.addWidget(self._title_lbl)
 
         self._subtitle_lbl = QLabel(tr("locations.subtitle"))
-        self._subtitle_lbl.setStyleSheet("color: #8B949E; font-size: 13px;")
+        self._subtitle_lbl
         title_layout.addWidget(self._subtitle_lbl)
 
         header_layout.addWidget(title_section)
@@ -95,10 +86,7 @@ class LocationsPage(QWidget):
 
         # Ekleme butonu
         self._add_btn = QPushButton(tr("locations.add_new"))
-        self._add_btn.setStyleSheet(
-            "background-color: #238636; color: white; padding: 8px 16px; "
-            "border-radius: 6px; font-weight: bold;"
-        )
+        self._add_btn
         self._add_btn.setCursor(Qt.PointingHandCursor)
         self._add_btn.clicked.connect(self._add_location)
         header_layout.addWidget(self._add_btn)
@@ -108,10 +96,7 @@ class LocationsPage(QWidget):
         # Arama çubuğu
         self._search_input = QLineEdit()
         self._search_input.setPlaceholderText(tr("locations.search_placeholder"))
-        self._search_input.setStyleSheet(
-            "background-color: #161B22; border: 1px solid #30363D; "
-            "border-radius: 6px; padding: 10px; color: #F0F6FC;"
-        )
+        self._search_input
         self._search_input.textChanged.connect(self._load_locations)
         layout.addWidget(self._search_input)
 
@@ -121,11 +106,7 @@ class LocationsPage(QWidget):
         self._table.setAlternatingRowColors(True)
         self._table.verticalHeader().setVisible(False)
         self._table.setSelectionBehavior(QTableWidget.SelectRows)
-        self._table.setStyleSheet("""
-            QTableWidget { background-color: #0D1117; alternate-background-color: #161B22; border: none; color: #F0F6FC; }
-            QTableWidget::item { color: #F0F6FC; padding: 8px; }
-            QHeaderView::section { background-color: #161B22; color: #8B949E; border: none; font-weight: bold; }
-        """)
+        self._table
 
         self._table.horizontalHeader().setSectionResizeMode(
             0, QHeaderView.ResizeToContents
@@ -178,9 +159,7 @@ class LocationsPage(QWidget):
 
                     # Sil butonu
                     del_btn = QPushButton("🗑️")
-                    del_btn.setStyleSheet(
-                        "background-color: transparent; font-size: 14px; border: none;"
-                    )
+                    del_btn
                     del_btn.setCursor(Qt.PointingHandCursor)
                     del_btn.clicked.connect(
                         lambda checked, l_id=row[0]: self._delete_location(l_id)

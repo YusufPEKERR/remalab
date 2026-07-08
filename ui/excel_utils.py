@@ -36,13 +36,13 @@ class ExcelMappingDialog(QDialog):
         self.setWindowTitle(tr("excel.mapping_title"))
         self.setMinimumWidth(750)
         self.setMinimumHeight(550)
-        self.setStyleSheet("background-color: #0D1117; color: #F0F6FC;")
+        self
 
         layout = QVBoxLayout(self)
 
         # Üst Bilgilendirme
         lbl = QLabel("1. Excel Sütun Başlıklarını Veritabanı Alanlarıyla Eşleştirin:")
-        lbl.setStyleSheet("color: #58A6FF; font-weight: bold; font-size: 13px;")
+        lbl
         layout.addWidget(lbl)
 
         # Eşleştirme tablosu
@@ -54,57 +54,20 @@ class ExcelMappingDialog(QDialog):
         self.table.verticalHeader().setVisible(False)
         self.table.setShowGrid(False)
         self.table.setMaximumHeight(200)
-        self.table.setStyleSheet("""
-            QTableWidget { 
-                background-color: #161B22; 
-                border: 1px solid #30363D; 
-                color: #F0F6FC;
-                gridline-color: transparent;
-                border-radius: 6px;
-            }
-            QTableWidget::item { 
-                color: #F0F6FC; 
-                padding-left: 12px;
-            }
-            QHeaderView::section { 
-                background-color: #21262D; 
-                color: #8B949E; 
-                border: none; 
-                font-weight: bold; 
-                padding: 6px;
-            }
-        """)
+        self.table
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         layout.addWidget(self.table)
 
         # Orta Bilgilendirme (Önizleme Alanı)
         lbl_preview = QLabel("2. Seçilen Excel Dosyasından Örnek Veri Önizlemesi:")
-        lbl_preview.setStyleSheet(
-            "color: #58A6FF; font-weight: bold; font-size: 13px; margin-top: 10px;"
-        )
+        lbl_preview
         layout.addWidget(lbl_preview)
 
         # Excel Veri Önizleme Tablosu
         self.preview_table = QTableWidget()
         self.preview_table.verticalHeader().setVisible(False)
         self.preview_table.setShowGrid(True)
-        self.preview_table.setStyleSheet("""
-            QTableWidget { 
-                background-color: #0D1117; 
-                border: 1px solid #30363D; 
-                color: #C9D1D9;
-                gridline-color: #30363D;
-            }
-            QTableWidget::item { 
-                padding: 6px; 
-            }
-            QHeaderView::section { 
-                background-color: #161B22; 
-                color: #8B949E; 
-                border: 1px solid #30363D; 
-                font-weight: bold; 
-            }
-        """)
+        self.preview_table
         layout.addWidget(self.preview_table)
 
         self.db_columns = db_columns
@@ -121,13 +84,9 @@ class ExcelMappingDialog(QDialog):
         buttons.rejected.connect(self.reject)
 
         buttons.button(QDialogButtonBox.Ok).setText(tr("db.save"))
-        buttons.button(QDialogButtonBox.Ok).setStyleSheet(
-            "background-color: #238636; color: white; padding: 8px 16px; border-radius: 4px; font-weight: bold;"
-        )
+        buttons.button(QDialogButtonBox.Ok)
         buttons.button(QDialogButtonBox.Cancel).setText(tr("db.cancel"))
-        buttons.button(QDialogButtonBox.Cancel).setStyleSheet(
-            "background-color: #21262D; color: #8B949E; padding: 8px 16px; border-radius: 4px;"
-        )
+        buttons.button(QDialogButtonBox.Cancel)
 
         layout.addWidget(buttons)
 
@@ -154,16 +113,7 @@ class ExcelMappingDialog(QDialog):
             self.table.setItem(idx, 0, db_item)
 
             combo = QComboBox()
-            combo.setStyleSheet("""
-                QComboBox {
-                    background-color: #161B22; 
-                    border: 1px solid #30363D; 
-                    padding: 4px 8px; 
-                    color: #F0F6FC; 
-                    border-radius: 4px;
-                    min-height: 24px;
-                }
-            """)
+            combo
             combo.addItem("[Eşleştirilmedi]", None)
             for excel_col in self.excel_columns:
                 combo.addItem(excel_col, excel_col)

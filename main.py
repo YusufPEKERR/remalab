@@ -199,7 +199,8 @@ def main():
     app.setFont(font)
 
     # Stylesheet yükle
-    load_stylesheet(app)
+    from ui.theme_manager import get_theme_manager
+    get_theme_manager().apply_theme()
 
     # Session Kontrolü
     session = SessionManager()
