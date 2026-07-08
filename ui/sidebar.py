@@ -132,10 +132,26 @@ class Sidebar(QWidget):
         main_layout.addWidget(separator)
 
         # Scrollable menu area
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
-        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        scroll_area.setFrameShape(QFrame.NoFrame)
+        self._scroll_area = QScrollArea()
+        self._scroll_area.setWidgetResizable(True)
+        self._scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self._scroll_area.setFrameShape(QFrame.NoFrame)
+        main_layout.addWidget(self._scroll_area)
+
+        self.update_menu_permissions()
+
+        # Alt bilgi
+        version_label = QLabel("  v1.0.0")
+        version_label.setObjectName("sidebar_section_label")
+        version_label.setAlignment(Qt.AlignCenter)
+        version_label.setFixedHeight(40)
+        main_layout.addWidget(version_label)
+
+    def update_menu_permissions(self):
+        """Kullanıcı rolüne göre menü butonlarını temizleyip yeniden oluşturur."""
+        # Eski butonları ve labelleri temizle
+        self._buttons.clear()
+        self._section_labels.clear()
 
         scroll_widget = QWidget()
         scroll_layout = QVBoxLayout(scroll_widget)
@@ -196,15 +212,7 @@ class Sidebar(QWidget):
                 scroll_layout.addWidget(btn)
 
         scroll_layout.addStretch()
-        scroll_area.setWidget(scroll_widget)
-        main_layout.addWidget(scroll_area)
-
-        # Alt bilgi
-        version_label = QLabel("  v1.0.0")
-        version_label.setObjectName("sidebar_section_label")
-        version_label.setAlignment(Qt.AlignCenter)
-        version_label.setFixedHeight(40)
-        main_layout.addWidget(version_label)
+        self._scroll_area.setWidget(scroll_widget)
 
     def _on_button_clicked(self, module_tr_key: str):
         """Menü butonuna tıklandığında."""

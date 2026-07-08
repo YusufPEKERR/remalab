@@ -76,18 +76,58 @@ class MainWindow(QMainWindow):
         # Sayfaları tutan dict (tr_key -> index)
         self._pages: dict[str, int] = {}
 
+        # Master Stack (Giriş / Yükleniyor / Ana Uygulama)
+        self._master_stack = QStackedWidget()
+        self.setCentralWidget(self._master_stack)
+
+        # 1. Giriş Sayfası
+        from ui.auth.login_page import LoginPage
+        self._login_page = LoginPage()
+        self._master_stack.addWidget(self._login_page)
+
+        # 2. Yükleniyor Ekranı
+        self._loading_widget = QWidget()
+        self._loading_widget.setObjectName("loading_page")
+        self._loading_widget.setStyleSheet("background-color: #1e3c72;")
+        loading_layout = QVBoxLayout(self._loading_widget)
+        loading_layout.setAlignment(Qt.AlignCenter)
+
+        loading_spinner = QLabel("🔄")
+        loading_spinner.setAlignment(Qt.AlignCenter)
+        loading_spinner.setStyleSheet("font-size: 56px; color: white;")
+        loading_layout.addWidget(loading_spinner)
+
+        loading_lbl = QLabel(tr("common.loading") if tr("common.loading") != "common.loading" else "Yükleniyor...")
+        loading_lbl.setAlignment(Qt.AlignCenter)
+        loading_lbl.setStyleSheet("color: white; font-size: 20px; font-weight: bold; margin-top: 15px;")
+        loading_layout.addWidget(loading_lbl)
+        self._master_stack.addWidget(self._loading_widget)
+
+        # 3. Ana Uygulama Düzeni
+        self._app_widget = QWidget()
+        self._master_stack.addWidget(self._app_widget)
+
         self._setup_ui()
         self._connect_signals()
+
+        # Oturum kontrolüne göre gösterim
+        session = SessionManager()
+        if session.is_authenticated():
+            self._show_app_directly()
+        else:
+            self._master_stack.setCurrentIndex(0) # Login sayfasını göster
 
         # Dil değişikliklerini dinle
         get_translator().language_changed.connect(self._retranslate)
 
-    def _setup_ui(self):
-        """Arayüzü oluştur."""
-        central = QWidget()
-        self.setCentralWidget(central)
+    def _show_app_directly(self):
+        """Doğrudan uygulamayı başlatır."""
+        self._create_pages()
+        self._master_stack.setCurrentIndex(2)
 
-        main_layout = QHBoxLayout(central)
+    def _setup_ui(self):
+        """Ana uygulama arayüzünü oluştur."""
+        main_layout = QHBoxLayout(self._app_widget)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
 
@@ -111,9 +151,6 @@ class MainWindow(QMainWindow):
         right_layout.addWidget(self._content_stack)
 
         main_layout.addWidget(right_section)
-
-        # Sayfaları oluştur
-        self._create_pages()
 
     def _create_pages(self):
         """Tüm sayfaları oluştur ve stack'e ekle."""
@@ -173,9 +210,26 @@ class MainWindow(QMainWindow):
 
     def _connect_signals(self):
         """Sinyalleri bağla."""
+        self._login_page.login_successful.connect(self._start_loading_sequence)
         self._sidebar.navigation_changed.connect(self._on_navigation_changed)
         self._topbar.logout_requested.connect(self._handle_logout)
         self._topbar.refresh_requested.connect(self._handle_refresh)
+
+    def _start_loading_sequence(self):
+        """Oturum açma başarılı olduğunda yükleniyor ekranı geçişini yapar."""
+        self._master_stack.setCurrentIndex(1) # Yükleniyor ekranını göster
+        
+        # 1.2 saniye sonra ana uygulamayı yükle ve göster
+        from PySide6.QtCore import QTimer
+        QTimer.singleShot(1200, self._on_loading_complete)
+
+    def _on_loading_complete(self):
+        """Yükleme tamamlandığında ana pencereleri oluşturur ve gösterir."""
+        self._create_pages()
+        self._master_stack.setCurrentIndex(2) # Ana uygulamayı göster
+        
+        # Arayüzü yenile
+        self._sidebar.update_menu_permissions()
 
     def _handle_refresh(self):
         # Sadece aktif olan sayfanın verilerini yenile

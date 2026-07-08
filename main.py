@@ -218,34 +218,14 @@ def main():
         else:
             session.clear_session()
 
-    if session.is_authenticated():
-        # Session gecerli -> Dashboard goster
-        window = MainWindow()
-        window.show()
-        window.raise_()
-        window.activateWindow()
+    # Ana pencere
+    window = MainWindow()
+    window.show()
+    window.raise_()
+    window.activateWindow()
 
-        # Bu referansı app içinde tutuyoruz ki Garbage Collector yok etmesin
-        app.main_window = window
-    else:
-        # Session yok -> Login goster
-        login_page = LoginPage()
-        login_page.show()
-        login_page.raise_()
-        login_page.activateWindow()
-
-        def on_login_success():
-            # Login basarili -> Dashboard goster
-            login_page.close()
-            main_window = MainWindow()
-            main_window.show()
-            main_window.raise_()
-            main_window.activateWindow()
-            app.main_window = main_window  # Referansi koru
-
-        login_page.login_successful.connect(on_login_success)
-
-        app.login_page = login_page  # Referansi koru
+    # Bu referansı app içinde tutuyoruz ki Garbage Collector yok etmesin
+    app.main_window = window 
 
     print("RemaLab WMS started successfully!")
     sys.exit(app.exec())
