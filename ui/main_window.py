@@ -88,19 +88,52 @@ class MainWindow(QMainWindow):
         # 2. Yükleniyor Ekranı
         self._loading_widget = QWidget()
         self._loading_widget.setObjectName("loading_page")
-        self._loading_widget.setStyleSheet("background-color: #1e3c72;")
+        self._loading_widget.setStyleSheet("""
+            QWidget#loading_page {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #1e3c72, stop:1 #2a5298);
+            }
+        """)
         loading_layout = QVBoxLayout(self._loading_widget)
         loading_layout.setAlignment(Qt.AlignCenter)
+        loading_layout.setSpacing(20)
 
-        loading_spinner = QLabel("🔄")
+        # Elegant glass loading card
+        loading_card = QFrame()
+        loading_card.setFixedSize(400, 250)
+        loading_card.setStyleSheet("""
+            QFrame {
+                background-color: rgba(255, 255, 255, 0.12);
+                border-radius: 20px;
+                border: 1px solid rgba(255, 255, 255, 0.25);
+            }
+            QLabel {
+                background: transparent;
+                border: none;
+                color: #FFFFFF;
+            }
+        """)
+        card_layout = QVBoxLayout(loading_card)
+        card_layout.setAlignment(Qt.AlignCenter)
+        card_layout.setSpacing(15)
+
+        # Modern spinner representation
+        loading_spinner = QLabel("⚡")
         loading_spinner.setAlignment(Qt.AlignCenter)
-        loading_spinner.setStyleSheet("font-size: 56px; color: white;")
-        loading_layout.addWidget(loading_spinner)
+        loading_spinner.setStyleSheet("font-size: 64px; font-weight: bold;")
+        card_layout.addWidget(loading_spinner)
 
-        loading_lbl = QLabel(tr("common.loading") if tr("common.loading") != "common.loading" else "Yükleniyor...")
+        # Spin animation setup (subtle pulse effect)
+        loading_lbl = QLabel(tr("common.loading") if tr("common.loading") != "common.loading" else "Sistem Yükleniyor...")
         loading_lbl.setAlignment(Qt.AlignCenter)
-        loading_lbl.setStyleSheet("color: white; font-size: 20px; font-weight: bold; margin-top: 15px;")
-        loading_layout.addWidget(loading_lbl)
+        loading_lbl.setStyleSheet("font-size: 20px; font-weight: 700; font-family: 'Segoe UI'; letter-spacing: 1px;")
+        card_layout.addWidget(loading_lbl)
+
+        loading_sub = QLabel("Lütfen bekleyin, veriler senkronize ediliyor...")
+        loading_sub.setAlignment(Qt.AlignCenter)
+        loading_sub.setStyleSheet("font-size: 13px; color: rgba(255, 255, 255, 0.65); font-family: 'Segoe UI';")
+        card_layout.addWidget(loading_sub)
+
+        loading_layout.addWidget(loading_card)
         self._master_stack.addWidget(self._loading_widget)
 
         # 3. Ana Uygulama Düzeni
@@ -250,18 +283,23 @@ class MainWindow(QMainWindow):
         print(f"[{current_widget.__class__.__name__}] için yenileme fonksiyonu bulunamadı.")
 
     def _handle_logout(self):
-        # Oturumu kapat
+        """Oturumu kapatır ve uygulamayı kapatmadan Login ekranına döner."""
+        # 1. Oturumu temizle
         SessionManager().clear_session()
-        # Pencereyi kapatıp ana uygulamadan tekrar başlatılmasını sağlamak için
-        # QApplication instance'ı üzerinden restart yapabiliriz ya da main_window kapanınca
-        # main.py'deki akış duracak. Daha kolayı:
-        import os
-        from PySide6.QtWidgets import QApplication
         
-        QApplication.quit()
-        # Yeni bir instance başlatmak (cross-platform çözüm)
-        import subprocess
-        subprocess.Popen([sys.executable, "main.py"])
+        # 2. Login ekranındaki eski girdileri temizle
+        self._login_page.username_input.clear()
+        self._login_page.password_input.clear()
+        
+        # 3. Ana sayfaları temizle (böylece bir sonraki girişte tekrar temiz sıfırdan yüklenir)
+        while self._content_stack.count() > 0:
+            widget = self._content_stack.widget(0)
+            self._content_stack.removeWidget(widget)
+            widget.deleteLater()
+        self._pages.clear()
+
+        # 4. Master Stack'i Giriş Sayfasına yönlendir
+        self._master_stack.setCurrentIndex(0)
 
     def _on_navigation_changed(self, module_tr_key: str):
         """Navigasyon değiştiğinde sayfa değiştir."""
