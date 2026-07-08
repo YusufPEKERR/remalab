@@ -64,6 +64,10 @@ class PlaceholderPage(QWidget):
         self._title.setText(tr(self._tr_key))
         self._subtitle.setText(tr("placeholder.subtitle"))
 
+    def refresh(self):
+        """Placeholder sayfası için boş yenileme metodu."""
+        pass
+
 
 class MainWindow(QMainWindow):
     """Ana uygulama penceresi."""
