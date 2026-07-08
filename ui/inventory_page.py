@@ -138,28 +138,25 @@ class InventoryPage(QWidget):
         self._subtitle_lbl
         title_layout.addWidget(self._subtitle_lbl)
 
+        header_layout.addWidget(title_section)
+        header_layout.addStretch()
+
         # Excel Import/Export Butonları
         self._import_btn = QPushButton(tr("excel.import"))
-        self._import_btn
         self._import_btn.setCursor(Qt.PointingHandCursor)
         self._import_btn.clicked.connect(self._import_excel)
         header_layout.addWidget(self._import_btn)
 
-        # Stok Transfer Butonu
-        self._transfer_btn = QPushButton(tr("warehouse.transfer_stock"))
-        self._transfer_btn
-        self._transfer_btn.setCursor(Qt.PointingHandCursor)
-        self._transfer_btn.clicked.connect(self._transfer_stock)
-        header_layout.addWidget(self._transfer_btn)
-
         self._export_btn = QPushButton(tr("excel.export"))
-        self._export_btn
         self._export_btn.setCursor(Qt.PointingHandCursor)
         self._export_btn.clicked.connect(self._export_excel)
         header_layout.addWidget(self._export_btn)
 
-        header_layout.addWidget(title_section)
-        header_layout.addStretch()
+        # Stok Transfer Butonu
+        self._transfer_btn = QPushButton(tr("warehouse.transfer_stock"))
+        self._transfer_btn.setCursor(Qt.PointingHandCursor)
+        self._transfer_btn.clicked.connect(self._transfer_stock)
+        header_layout.addWidget(self._transfer_btn)
 
         layout.addLayout(header_layout)
 
