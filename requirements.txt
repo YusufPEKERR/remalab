@@ -1,0 +1,6 @@
+PySide6
+PyJWT
+bcrypt
+sqlalchemy
+psycopg2
+python-dotenv
