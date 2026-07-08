@@ -65,7 +65,7 @@ class PlaceholderPage(QWidget):
         self._subtitle.setText(tr("placeholder.subtitle"))
 
     def refresh(self):
-        """Placeholder sayfası için boş yenileme metodu."""
+        # Placeholder sayfaları için yenileme işlemi gerekmez.
         pass
 
 
