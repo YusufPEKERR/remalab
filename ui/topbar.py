@@ -101,13 +101,13 @@ class TopBar(QWidget):
 
 
         # Tema butonu
-        self.theme_btn = QPushButton("??")
+        self.theme_btn = QPushButton("🌙")
         self.theme_btn.setObjectName("topbar_icon_btn")
         self.theme_btn.setFixedSize(36, 36)
         self.theme_btn.setCursor(Qt.PointingHandCursor)
         from ui.theme_manager import get_theme_manager
         self._theme_mgr = get_theme_manager()
-        self.theme_btn.setText("??" if self._theme_mgr.is_dark else "??")
+        self.theme_btn.setText("🌞" if self._theme_mgr.is_dark else "🌙")
         self.theme_btn.clicked.connect(self._toggle_theme)
         right_layout.addWidget(self.theme_btn)
 
@@ -183,7 +183,7 @@ class TopBar(QWidget):
 
     def _toggle_theme(self):
         self._theme_mgr.toggle_theme()
-        self.theme_btn.setText("??" if self._theme_mgr.is_dark else "??")
+        self.theme_btn.setText("🌞" if self._theme_mgr.is_dark else "🌙")
 
     def _retranslate(self):
 
