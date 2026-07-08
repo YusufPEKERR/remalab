@@ -51,7 +51,7 @@ class UserDialog(QDialog):
         )
 
         self.role_combo = QComboBox()
-        self.role_combo.addItems(["Admin", "Depo", "Teknisyen"])
+        self.role_combo.addItems(["Admin", "Depo Müdürü", "Depo", "Teknisyen"])
 
         form_layout.addRow(tr("users.username") + ":", self.username_input)
         form_layout.addRow(tr("users.email") + ":", self.email_input)

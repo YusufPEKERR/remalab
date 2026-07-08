@@ -127,8 +127,8 @@ class MainWindow(QMainWindow):
         dashboard = DashboardPage()
         self._add_page("nav.dashboard", dashboard)
 
-        # Sadece Admin ve Depo Ortak Modülleri
-        if user_role in ["Admin", "Depo"]:
+        # Sadece Admin, Depo ve Depo Müdürü Ortak Modülleri
+        if user_role in ["Admin", "Depo", "Depo Müdürü"]:
             from ui.inventory_page import InventoryPage
             inventory = InventoryPage()
             self._add_page("nav.warehouse", inventory)
@@ -140,12 +140,12 @@ class MainWindow(QMainWindow):
             waybill = WaybillPage()
             self._add_page("nav.waybill", waybill)
 
-        # Sadece Admin Modülleri (Envanter, Sistem vs.)
-        if user_role == "Admin":
+        # Admin ve Depo Müdürü Ortak Modülleri (Envanter)
+        if user_role in ["Admin", "Depo Müdürü"]:
             parts = PartsPage()
             self._add_page("nav.parts", parts)
             
-            depo_placeholders = ["nav.brands", "nav.phone_models", "nav.suppliers", "nav.reports"]
+            depo_placeholders = ["nav.brands", "nav.phone_models", "nav.suppliers"]
             for m in depo_placeholders:
                 self._add_page(m, PlaceholderPage(m))
 
@@ -157,9 +157,11 @@ class MainWindow(QMainWindow):
 
         # Sadece Admin Modülleri
         if user_role == "Admin":
+            self._add_page("nav.reports", PlaceholderPage("nav.reports"))
+            
             settings = SettingsPage()
             self._add_page("nav.settings", settings)
-
+            
             users = UsersPage()
             self._add_page("nav.users", users)
 

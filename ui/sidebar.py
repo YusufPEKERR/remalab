@@ -149,6 +149,10 @@ class Sidebar(QWidget):
         depo_modules = [
             "nav.dashboard", "nav.warehouse", "nav.waybill", "nav.locations"
         ]
+        depo_muduru_modules = [
+            "nav.dashboard", "nav.warehouse", "nav.waybill", "nav.locations",
+            "nav.parts", "nav.brands", "nav.phone_models", "nav.suppliers"
+        ]
         teknisyen_modules = [
             "nav.dashboard",
             "nav.quality_control", "nav.refurbishment", "nav.priority_matrix"
@@ -162,6 +166,8 @@ class Sidebar(QWidget):
                 if user_role == "Admin":
                     allowed_items.append((icon, module_tr_key))
                 elif user_role == "Depo" and module_tr_key in depo_modules:
+                    allowed_items.append((icon, module_tr_key))
+                elif user_role == "Depo Müdürü" and module_tr_key in depo_muduru_modules:
                     allowed_items.append((icon, module_tr_key))
                 elif user_role == "Teknisyen" and module_tr_key in teknisyen_modules:
                     allowed_items.append((icon, module_tr_key))
