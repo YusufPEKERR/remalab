@@ -282,6 +282,9 @@ class PartsPage(QWidget):
         dialog.resize(calculated_width, dialog.height())
 
         ok = dialog.exec()
+        if not ok:
+            return
+            
         new_name = dialog.textValue()
 
         try:
