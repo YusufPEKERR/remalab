@@ -123,10 +123,10 @@ class TopBar(QWidget):
         avatar_letters = username[:2].upper() if username != "Misafir" else "M"
 
         # Kullanıcı avatarı
-        avatar = QLabel(avatar_letters)
-        avatar.setObjectName("user_avatar")
-        avatar.setAlignment(Qt.AlignCenter)
-        right_layout.addWidget(avatar)
+        self._avatar = QLabel(avatar_letters)
+        self._avatar.setObjectName("user_avatar")
+        self._avatar.setAlignment(Qt.AlignCenter)
+        right_layout.addWidget(self._avatar)
 
         # Kullanıcı bilgileri
         user_info = QWidget()
@@ -134,14 +134,14 @@ class TopBar(QWidget):
         user_info_layout.setContentsMargins(0, 0, 0, 0)
         user_info_layout.setSpacing(0)
 
-        user_name = QLabel(f"Hoşgeldin, {username}")
-        user_name.setObjectName("user_name")
+        self._user_name = QLabel(f"Ojj geldin beee , {username}")
+        self._user_name.setObjectName("user_name")
 
         self._user_role = QLabel(role)
         self._user_role.setObjectName("user_role")
 
         user_info_layout.addStretch()
-        user_info_layout.addWidget(user_name)
+        user_info_layout.addWidget(self._user_name)
         user_info_layout.addWidget(self._user_role)
         user_info_layout.addStretch()
 
@@ -163,6 +163,19 @@ class TopBar(QWidget):
         self._current_page_key = page_tr_key
         self._title.setText(tr(page_tr_key))
         self._breadcrumb.setText(f"{tr('topbar.home')}  ›  {tr(page_tr_key)}")
+
+    def update_user_info(self):
+        """Kullanıcı bilgilerini session'dan alıp UI'ı günceller."""
+        session = SessionManager()
+        username = session.username if session.username else "Misafir"
+        role = session.role if session.role else "Kullanıcı"
+
+        avatar_letters = username[:2].upper() if username != "Misafir" else "M"
+        
+        self._avatar.setText(avatar_letters)
+        self._user_name.setText(f"Hoşgeldin, {username}")
+        self._user_role.setText(role)
+
 
 
 

@@ -162,6 +162,10 @@ class MainWindow(QMainWindow):
         """Doğrudan uygulamayı başlatır."""
         self._create_pages()
         self._master_stack.setCurrentIndex(2)
+        
+        # Arayüzü yenile
+        self._sidebar.update_menu_permissions()
+        self._topbar.update_user_info()
 
     def _setup_ui(self):
         """Ana uygulama arayüzünü oluştur."""
@@ -268,6 +272,7 @@ class MainWindow(QMainWindow):
         
         # Arayüzü yenile
         self._sidebar.update_menu_permissions()
+        self._topbar.update_user_info()
 
     def _handle_refresh(self):
         # Sadece aktif olan sayfanın verilerini yenile
