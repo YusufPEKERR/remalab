@@ -173,7 +173,7 @@ class TopBar(QWidget):
         avatar_letters = username[:2].upper() if username != "Misafir" else "M"
         
         self._avatar.setText(avatar_letters)
-        self._user_name.setText(f"Hoşgeldin, {username}")
+        self._user_name.setText(f"Ojj geldin beee , {username}")
         self._user_role.setText(role)
 
 
