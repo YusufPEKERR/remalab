@@ -44,6 +44,19 @@ class ReportsPage(QWidget):
 
         self._refresh_btn = QPushButton(tr("db.refresh"))
         self._refresh_btn.setCursor(Qt.PointingHandCursor)
+        self._refresh_btn.setStyleSheet("""
+            QPushButton {
+                background: transparent;
+                border: none;
+                color: #4F6CB3;
+                font-weight: bold;
+                font-size: 13px;
+                outline: none;
+            }
+            QPushButton:hover {
+                color: #4FA3FF;
+            }
+        """)
         self._refresh_btn.clicked.connect(self._load_entries)
         header_layout.addWidget(self._refresh_btn)
 
