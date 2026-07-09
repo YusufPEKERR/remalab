@@ -4,6 +4,7 @@ Depo giriş ve çıkış hareketlerinin salt-okunur özet listesi.
 """
 
 from PySide6.QtWidgets import (
+<<<<<<< Updated upstream
     QWidget,
     QVBoxLayout,
     QHBoxLayout,
@@ -12,8 +13,13 @@ from PySide6.QtWidgets import (
     QTableWidgetItem,
     QHeaderView,
     QPushButton,
+=======
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel,
+    QTableWidget, QTableWidgetItem, QHeaderView, QPushButton,
+    QDateEdit,
+>>>>>>> Stashed changes
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QDate
 from ui.translations import tr, get_translator
 
 
@@ -68,6 +74,36 @@ class ReportsPage(QWidget):
 
         layout.addLayout(header_layout)
 
+        # Tarih Aralığı Filtresi
+        filter_layout = QHBoxLayout()
+        filter_layout.setSpacing(8)
+
+        self._start_date_lbl = QLabel(tr("reports.start_date") + ":")
+        filter_layout.addWidget(self._start_date_lbl)
+
+        self._start_date = QDateEdit()
+        self._start_date.setCalendarPopup(True)
+        self._start_date.setDisplayFormat("dd.MM.yyyy")
+        self._start_date.setDate(QDate.currentDate().addDays(-30))
+        filter_layout.addWidget(self._start_date)
+
+        self._end_date_lbl = QLabel(tr("reports.end_date") + ":")
+        filter_layout.addWidget(self._end_date_lbl)
+
+        self._end_date = QDateEdit()
+        self._end_date.setCalendarPopup(True)
+        self._end_date.setDisplayFormat("dd.MM.yyyy")
+        self._end_date.setDate(QDate.currentDate())
+        filter_layout.addWidget(self._end_date)
+
+        self._filter_btn = QPushButton(tr("reports.filter"))
+        self._filter_btn.setCursor(Qt.PointingHandCursor)
+        self._filter_btn.clicked.connect(self._load_entries)
+        filter_layout.addWidget(self._filter_btn)
+
+        filter_layout.addStretch()
+        layout.addLayout(filter_layout)
+
         # Hareket tablosu
         self._table = QTableWidget()
         self._table.setColumnCount(6)
@@ -98,9 +134,12 @@ class ReportsPage(QWidget):
         )
 
     def _load_entries(self):
-        """Giriş ve çıkış kayıtlarını birleştirip PostgreSQL'den çeker (salt okunur)."""
+        """Giriş ve çıkış kayıtlarını, seçilen tarih aralığında birleştirip PostgreSQL'den çeker (salt okunur)."""
         self._update_headers()
         self._table.clearContents()
+
+        start_date = self._start_date.date().toString("yyyy-MM-dd")
+        end_date = self._end_date.date().toString("yyyy-MM-dd")
 
         try:
             from config.database import SessionLocal
@@ -121,9 +160,10 @@ class ReportsPage(QWidget):
                         JOIN warehouse.parts p ON e.part_id = p.id
                         JOIN warehouse.locations l ON e.location_id = l.id
                     ) AS combined
+                    WHERE created_at::date BETWEEN :start_date AND :end_date
                     ORDER BY created_at DESC
-                    LIMIT 200;
-                """)).fetchall()
+                    LIMIT 5000;
+                """), {"start_date": start_date, "end_date": end_date}).fetchall()
 
                 self._table.setRowCount(len(rows))
                 for r_idx, row in enumerate(rows):
@@ -153,4 +193,7 @@ class ReportsPage(QWidget):
         self._title_lbl.setText(tr("reports.title"))
         self._subtitle_lbl.setText(tr("reports.subtitle"))
         self._refresh_btn.setText(tr("db.refresh"))
+        self._start_date_lbl.setText(tr("reports.start_date") + ":")
+        self._end_date_lbl.setText(tr("reports.end_date") + ":")
+        self._filter_btn.setText(tr("reports.filter"))
         self._load_entries()
