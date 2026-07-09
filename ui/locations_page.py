@@ -143,7 +143,7 @@ class LocationsPage(QWidget):
                 sql = "SELECT id, name FROM warehouse.locations"
                 params = {}
                 if search_query:
-                    sql += " WHERE name ILIKE :search"
+                    sql += " WHERE name ILIKE :search OR CAST(id AS VARCHAR) ILIKE :search"
                     params["search"] = f"%{search_query}%"
                 sql += " ORDER BY id DESC;"
 

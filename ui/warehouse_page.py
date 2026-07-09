@@ -173,6 +173,15 @@ class WarehousePage(QWidget):
         occupancy_section.addWidget(self._progress)
         tab_warehouse_layout.addLayout(occupancy_section)
 
+        # Arama Çubuğu
+        search_layout = QHBoxLayout()
+        search_layout.setContentsMargins(0, 0, 0, 0)
+        self._search_input = QLineEdit()
+        self._search_input.setPlaceholderText("Ara (ID, Parça Adı, Lokasyon)...")
+        self._search_input.textChanged.connect(self._load_stock)
+        search_layout.addWidget(self._search_input)
+        tab_warehouse_layout.addLayout(search_layout)
+
         # Depo Stok Tablosu
         self._table = QTableWidget()
         self._table.setColumnCount(4)
@@ -215,19 +224,29 @@ class WarehousePage(QWidget):
         self._update_headers()
         self._table.clearContents()
 
+        search_q = self._search_input.text().strip()
+
         try:
             from config.database import SessionLocal
             from sqlalchemy import text
 
             db = SessionLocal()
             try:
-                rows = db.execute(text("""
+                sql = """
                     SELECT s.id, p.name, l.name, s.quantity
                     FROM warehouse.stock s
                     JOIN warehouse.parts p ON s.part_id = p.id
                     JOIN warehouse.locations l ON s.location_id = l.id
-                    ORDER BY s.id DESC;
-                """)).fetchall()
+                """
+                params = {}
+
+                if search_q:
+                    sql += " WHERE p.name ILIKE :q OR l.name ILIKE :q OR CAST(s.id AS VARCHAR) ILIKE :q"
+                    params["q"] = f"%{search_q}%"
+
+                sql += " ORDER BY s.id DESC;"
+
+                rows = db.execute(text(sql), params).fetchall()
 
                 self._table.setRowCount(len(rows))
 

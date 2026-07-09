@@ -145,25 +145,10 @@ class SuppliersPage(QWidget):
         search_row = QHBoxLayout()
         search_row.setSpacing(8)
 
-        self._search_supplier = QLineEdit()
-        self._search_supplier.setPlaceholderText("Tedarikçi Filtrele...")
-        self._search_supplier.textChanged.connect(self._load_data)
-        search_row.addWidget(self._search_supplier)
-
-        self._search_brand = QLineEdit()
-        self._search_brand.setPlaceholderText("Marka Filtrele...")
-        self._search_brand.textChanged.connect(self._load_data)
-        search_row.addWidget(self._search_brand)
-
-        self._search_model = QLineEdit()
-        self._search_model.setPlaceholderText("Model Filtrele...")
-        self._search_model.textChanged.connect(self._load_data)
-        search_row.addWidget(self._search_model)
-
-        self._search_item_code = QLineEdit()
-        self._search_item_code.setPlaceholderText("Ürün Kodu Filtrele...")
-        self._search_item_code.textChanged.connect(self._load_data)
-        search_row.addWidget(self._search_item_code)
+        self._search_input = QLineEdit()
+        self._search_input.setPlaceholderText("Ara (ID, Tedarikçi, Marka, Model, Ürün Kodu, Barkod)...")
+        self._search_input.textChanged.connect(self._load_data)
+        search_row.addWidget(self._search_input)
 
         layout.addLayout(search_row)
 
@@ -201,10 +186,7 @@ class SuppliersPage(QWidget):
         self._update_headers()
         self._table.clearContents()
 
-        supplier_f  = self._search_supplier.text().strip()
-        brand_f     = self._search_brand.text().strip()
-        model_f     = self._search_model.text().strip()
-        item_code_f = self._search_item_code.text().strip()
+        search_q = self._search_input.text().strip()
 
         try:
             from config.database import SessionLocal
@@ -221,18 +203,9 @@ class SuppliersPage(QWidget):
                 """
                 params = {}
 
-                if supplier_f:
-                    sql += " AND supplier ILIKE :supplier"
-                    params["supplier"] = f"%{supplier_f}%"
-                if brand_f:
-                    sql += " AND brand ILIKE :brand"
-                    params["brand"] = f"%{brand_f}%"
-                if model_f:
-                    sql += " AND model ILIKE :model"
-                    params["model"] = f"%{model_f}%"
-                if item_code_f:
-                    sql += " AND item_code ILIKE :item_code"
-                    params["item_code"] = f"%{item_code_f}%"
+                if search_q:
+                    sql += " AND (supplier ILIKE :q OR brand ILIKE :q OR model ILIKE :q OR item_code ILIKE :q OR barcode ILIKE :q OR CAST(id AS VARCHAR) ILIKE :q)"
+                    params["q"] = f"%{search_q}%"
 
                 sql += " ORDER BY id DESC;"
 

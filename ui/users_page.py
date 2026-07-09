@@ -171,9 +171,10 @@ class UsersPage(QWidget):
     def _filter_users(self, text: str):
         text = text.lower()
         for row in range(self.table.rowCount()):
+            u_id = self.table.item(row, 0).text().lower() if self.table.item(row, 0) else ""
             username = self.table.item(row, 1).text().lower() if self.table.item(row, 1) else ""
             email = self.table.item(row, 2).text().lower() if self.table.item(row, 2) else ""
-            if text in username or text in email:
+            if text in u_id or text in username or text in email:
                 self.table.setRowHidden(row, False)
             else:
                 self.table.setRowHidden(row, True)

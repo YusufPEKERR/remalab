@@ -164,25 +164,10 @@ class PhoneModelsPage(QWidget):
         search_row = QHBoxLayout()
         search_row.setSpacing(8)
 
-        self._search_brand = QLineEdit()
-        self._search_brand.setPlaceholderText("Marka Filtrele...")
-        self._search_brand.textChanged.connect(self._load_data)
-        search_row.addWidget(self._search_brand)
-
-        self._search_model = QLineEdit()
-        self._search_model.setPlaceholderText("Model Filtrele...")
-        self._search_model.textChanged.connect(self._load_data)
-        search_row.addWidget(self._search_model)
-
-        self._search_memory = QLineEdit()
-        self._search_memory.setPlaceholderText("Hafıza Filtrele...")
-        self._search_memory.textChanged.connect(self._load_data)
-        search_row.addWidget(self._search_memory)
-
-        self._search_color = QLineEdit()
-        self._search_color.setPlaceholderText("Renk Filtrele...")
-        self._search_color.textChanged.connect(self._load_data)
-        search_row.addWidget(self._search_color)
+        self._search_input = QLineEdit()
+        self._search_input.setPlaceholderText("Ara (ID, Marka, Model, Hafıza, Renk)...")
+        self._search_input.textChanged.connect(self._load_data)
+        search_row.addWidget(self._search_input)
 
         layout.addLayout(search_row)
 
@@ -226,10 +211,7 @@ class PhoneModelsPage(QWidget):
         self._update_headers()
         self._table.clearContents()
 
-        brand_f  = self._search_brand.text().strip()
-        model_f  = self._search_model.text().strip()
-        memory_f = self._search_memory.text().strip()
-        color_f  = self._search_color.text().strip()
+        search_q = self._search_input.text().strip()
 
         try:
             from config.database import SessionLocal
@@ -244,18 +226,9 @@ class PhoneModelsPage(QWidget):
                 """
                 params = {}
 
-                if brand_f:
-                    sql += " AND brand ILIKE :brand"
-                    params["brand"] = f"%{brand_f}%"
-                if model_f:
-                    sql += " AND model ILIKE :model"
-                    params["model"] = f"%{model_f}%"
-                if memory_f:
-                    sql += " AND memory ILIKE :memory"
-                    params["memory"] = f"%{memory_f}%"
-                if color_f:
-                    sql += " AND color ILIKE :color"
-                    params["color"] = f"%{color_f}%"
+                if search_q:
+                    sql += " AND (brand ILIKE :q OR model ILIKE :q OR memory ILIKE :q OR color ILIKE :q OR item_code ILIKE :q OR CAST(id AS VARCHAR) ILIKE :q)"
+                    params["q"] = f"%{search_q}%"
 
                 sql += " ORDER BY brand ASC, model ASC;"
 

@@ -195,8 +195,8 @@ class PartsPage(QWidget):
                 count_sql = "SELECT COUNT(*) FROM warehouse.parts"
                 params = {}
                 if search_query:
-                    sql += " WHERE name ILIKE :search"
-                    count_sql += " WHERE name ILIKE :search"
+                    sql += " WHERE name ILIKE :search OR CAST(id AS VARCHAR) ILIKE :search"
+                    count_sql += " WHERE name ILIKE :search OR CAST(id AS VARCHAR) ILIKE :search"
                     params["search"] = f"%{search_query}%"
                 
                 # Toplam kayıt sayısı ve sayfa hesaplama

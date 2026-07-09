@@ -32,23 +32,17 @@ class ReportsPage(QWidget):
         title_layout.setSpacing(4)
 
         self._title_lbl = QLabel(tr("reports.title"))
-        self._title_lbl.setStyleSheet(
-            "color: #F0F6FC; font-size: 20px; font-weight: bold;"
-        )
+        self._title_lbl.setObjectName("page_title")
         title_layout.addWidget(self._title_lbl)
 
         self._subtitle_lbl = QLabel(tr("reports.subtitle"))
-        self._subtitle_lbl.setStyleSheet("color: #8B949E; font-size: 13px;")
+        self._subtitle_lbl.setObjectName("page_subtitle")
         title_layout.addWidget(self._subtitle_lbl)
 
         header_layout.addWidget(title_section)
         header_layout.addStretch()
 
         self._refresh_btn = QPushButton(tr("db.refresh"))
-        self._refresh_btn.setStyleSheet(
-            "background-color: #21262D; border: 1px solid #30363D; color: #C9D1D9; "
-            "padding: 8px 16px; border-radius: 6px; font-weight: bold;"
-        )
         self._refresh_btn.setCursor(Qt.PointingHandCursor)
         self._refresh_btn.clicked.connect(self._load_entries)
         header_layout.addWidget(self._refresh_btn)
@@ -62,11 +56,6 @@ class ReportsPage(QWidget):
         self._table.setEditTriggers(QTableWidget.NoEditTriggers)
         self._table.verticalHeader().setVisible(False)
         self._table.setSelectionBehavior(QTableWidget.SelectRows)
-        self._table.setStyleSheet("""
-            QTableWidget { background-color: #0D1117; alternate-background-color: #161B22; border: none; color: #F0F6FC; }
-            QTableWidget::item { color: #F0F6FC; padding: 8px; }
-            QHeaderView::section { background-color: #161B22; color: #8B949E; border: none; font-weight: bold; }
-        """)
         self._table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         layout.addWidget(self._table)
 
