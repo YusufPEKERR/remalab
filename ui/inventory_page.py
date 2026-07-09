@@ -170,10 +170,10 @@ class InventoryPage(QWidget):
             ("barcode", "Barkod Filtrele..."),
             ("item_code", "Ürün Kodu Filtrele..."),
             ("brand_model", "Marka/Model Filtrele..."),
-            ("part_category", "Parça Kat. Filtrele..."),
+            ("item_category", "Ürün Kat. Filtrele..."),
             ("color", "Renk Filtrele..."),
             ("product_family", "Ürün Ailesi Filtrele..."),
-            ("item_category", "Ürün Kat. Filtrele..."),
+            ("part_category", "Parça Kat. Filtrele..."),
             ("stock_status", "Stok Durumu..."),
         ]
 
@@ -210,10 +210,10 @@ class InventoryPage(QWidget):
                 tr("table.barcode"),
                 tr("table.item_code"),
                 tr("table.brand_model"),
-                tr("table.part_category"),
+                tr("table.item_category"),
                 tr("table.color"),
                 tr("table.product_family"),
-                tr("table.item_category"),
+                tr("table.part_category"),
                 tr("table.stock_status"),
             ]
         )
@@ -359,10 +359,10 @@ class InventoryPage(QWidget):
                     self._table.setItem(r_idx, 0, barcode_item)
                     self._table.setItem(r_idx, 1, item_code_item)
                     self._table.setItem(r_idx, 2, brand_model_item)
-                    self._table.setItem(r_idx, 3, part_cat_item)
+                    self._table.setItem(r_idx, 3, category_item)
                     self._table.setItem(r_idx, 4, color_item)
                     self._table.setItem(r_idx, 5, family_item)
-                    self._table.setItem(r_idx, 6, category_item)
+                    self._table.setItem(r_idx, 6, part_cat_item)
                     self._table.setItem(r_idx, 7, status_item)
                     self._table.setRowHeight(r_idx, 44)
             finally:

@@ -1,3 +1,5 @@
+from __future__ import annotations
+import bcrypt
 from sqlalchemy.exc import IntegrityError
 
 from config.auth import get_password_hash

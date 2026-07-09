@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QDialog,
     QDialogButtonBox,
+    QComboBox,
 )
 from PySide6.QtCore import Qt
 from ui.translations import tr, get_translator
@@ -58,6 +59,9 @@ class PartsPage(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._current_page = 1
+        self._page_size = 50
+        self._total_pages = 1
         self._setup_ui()
         get_translator().language_changed.connect(self._retranslate)
 
@@ -97,7 +101,7 @@ class PartsPage(QWidget):
         self._search_input = QLineEdit()
         self._search_input.setPlaceholderText(tr("parts.search_placeholder"))
         self._search_input
-        self._search_input.textChanged.connect(self._load_parts)
+        self._search_input.textChanged.connect(self._on_search_changed)
         layout.addWidget(self._search_input)
 
         # Parçalar Tablosu
@@ -118,7 +122,55 @@ class PartsPage(QWidget):
 
         layout.addWidget(self._table)
 
+        # Sayfalama Kontrolleri
+        pagination_layout = QHBoxLayout()
+        
+        size_lbl = QLabel("Sayfa Başına:")
+        pagination_layout.addWidget(size_lbl)
+        
+        self._page_size_combo = QComboBox()
+        self._page_size_combo.addItems(["5", "10", "15", "20", "25", "50"])
+        self._page_size_combo.setCurrentText("50")
+        self._page_size_combo.currentTextChanged.connect(self._on_page_size_changed)
+        pagination_layout.addWidget(self._page_size_combo)
+        
+        pagination_layout.addStretch()
+        
+        self._prev_btn = QPushButton("⬅ Önceki")
+        self._prev_btn.setCursor(Qt.PointingHandCursor)
+        self._prev_btn.clicked.connect(self._prev_page)
+        pagination_layout.addWidget(self._prev_btn)
+        
+        self._page_info_lbl = QLabel("Sayfa 1 / 1")
+        pagination_layout.addWidget(self._page_info_lbl)
+        
+        self._next_btn = QPushButton("Sonraki ➡")
+        self._next_btn.setCursor(Qt.PointingHandCursor)
+        self._next_btn.clicked.connect(self._next_page)
+        pagination_layout.addWidget(self._next_btn)
+        
+        layout.addLayout(pagination_layout)
+
         self._load_parts()
+
+    def _on_search_changed(self):
+        self._current_page = 1
+        self._load_parts()
+
+    def _on_page_size_changed(self, text):
+        self._page_size = int(text)
+        self._current_page = 1
+        self._load_parts()
+
+    def _prev_page(self):
+        if self._current_page > 1:
+            self._current_page -= 1
+            self._load_parts()
+
+    def _next_page(self):
+        if self._current_page < self._total_pages:
+            self._current_page += 1
+            self._load_parts()
 
     def _update_headers(self):
         self._table.setHorizontalHeaderLabels(
@@ -140,11 +192,29 @@ class PartsPage(QWidget):
             db = SessionLocal()
             try:
                 sql = "SELECT id, name FROM warehouse.parts"
+                count_sql = "SELECT COUNT(*) FROM warehouse.parts"
                 params = {}
                 if search_query:
                     sql += " WHERE name ILIKE :search"
+                    count_sql += " WHERE name ILIKE :search"
                     params["search"] = f"%{search_query}%"
-                sql += " ORDER BY id DESC;"
+                
+                # Toplam kayıt sayısı ve sayfa hesaplama
+                total_records = db.execute(text(count_sql), params).scalar() or 0
+                import math
+                self._total_pages = math.ceil(total_records / self._page_size) if total_records > 0 else 1
+                
+                # Geçerli sayfa kontrolü
+                if self._current_page > self._total_pages:
+                    self._current_page = self._total_pages
+                    
+                sql += " ORDER BY id DESC LIMIT :limit OFFSET :offset;"
+                params["limit"] = self._page_size
+                params["offset"] = (self._current_page - 1) * self._page_size
+
+                self._page_info_lbl.setText(f"Sayfa {self._current_page} / {self._total_pages} ({total_records} Kayıt)")
+                self._prev_btn.setEnabled(self._current_page > 1)
+                self._next_btn.setEnabled(self._current_page < self._total_pages)
 
                 rows = db.execute(text(sql), params).fetchall()
                 self._table.setRowCount(len(rows))
