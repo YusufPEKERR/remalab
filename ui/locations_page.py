@@ -19,6 +19,8 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 from ui.translations import tr, get_translator
+from services.location_service import LocationService
+from services.exceptions import ServiceError
 
 
 class AddLocationDialog(QDialog):
@@ -58,6 +60,7 @@ class LocationsPage(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.service = LocationService()
         self._setup_ui()
         get_translator().language_changed.connect(self._retranslate)
 
@@ -135,53 +138,29 @@ class LocationsPage(QWidget):
         search_query = self._search_input.text().strip()
 
         try:
-            from config.database import SessionLocal
-            from sqlalchemy import text
+            locations = self.service.list_locations(search=search_query or None)
+            self._table.setRowCount(len(locations))
 
-            db = SessionLocal()
-            try:
-                sql = "SELECT id, name FROM warehouse.locations"
-                params = {}
-                if search_query:
-                    sql += " WHERE name ILIKE :search OR CAST(id AS VARCHAR) ILIKE :search"
-                    params["search"] = f"%{search_query}%"
-                sql += " ORDER BY id DESC;"
+            for r_idx, location in enumerate(locations):
+                id_item = QTableWidgetItem(str(location["id"]))
+                id_item.setFlags(id_item.flags() & ~Qt.ItemIsEditable)
 
-                rows = db.execute(text(sql), params).fetchall()
-                self._table.setRowCount(len(rows))
+                name_item = QTableWidgetItem(location["name"])
+                name_item.setData(Qt.UserRole, location["id"])
 
-                for r_idx, row in enumerate(rows):
-                    id_item = QTableWidgetItem(str(row[0]))
-                    id_item.setFlags(id_item.flags() & ~Qt.ItemIsEditable)
+                # Sil butonu
+                del_btn = QPushButton("🗑️")
+                del_btn
+                del_btn.setCursor(Qt.PointingHandCursor)
+                del_btn.clicked.connect(
+                    lambda checked, l_id=location["id"]: self._delete_location(l_id)
+                )
 
-                    name_item = QTableWidgetItem(str(row[1]))
-                    name_item.setData(Qt.UserRole, row[0])
-
-                    # Sil butonu
-                    import os
-                    from PySide6.QtGui import QIcon
-                    from PySide6.QtCore import QSize
-                    del_btn = QPushButton()
-                    icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "trash.svg")
-                    if os.path.exists(icon_path):
-                        del_btn.setIcon(QIcon(icon_path))
-                        del_btn.setIconSize(QSize(20, 20))
-                    else:
-                        del_btn.setText("🗑️")
-                    del_btn.setObjectName("table_delete_btn")
-                    del_btn
-                    del_btn.setCursor(Qt.PointingHandCursor)
-                    del_btn.clicked.connect(
-                        lambda checked, l_id=row[0]: self._delete_location(l_id)
-                    )
-
-                    self._table.setItem(r_idx, 0, id_item)
-                    self._table.setItem(r_idx, 1, name_item)
-                    self._table.setCellWidget(r_idx, 2, del_btn)
-                    self._table.setRowHeight(r_idx, 44)
-            finally:
-                db.close()
-        except Exception as e:
+                self._table.setItem(r_idx, 0, id_item)
+                self._table.setItem(r_idx, 1, name_item)
+                self._table.setCellWidget(r_idx, 2, del_btn)
+                self._table.setRowHeight(r_idx, 44)
+        except ServiceError as e:
             print(f"[Error Loading Locations] {e}")
         finally:
             self._table.blockSignals(False)
@@ -195,20 +174,9 @@ class LocationsPage(QWidget):
                 return
 
             try:
-                from config.database import SessionLocal
-                from sqlalchemy import text
-
-                db = SessionLocal()
-                try:
-                    db.execute(
-                        text("INSERT INTO warehouse.locations (name) VALUES (:name);"),
-                        {"name": name},
-                    )
-                    db.commit()
-                finally:
-                    db.close()
+                self.service.add_location(name)
                 self._load_locations()
-            except Exception as e:
+            except ServiceError as e:
                 QMessageBox.critical(self, "Hata", f"Lokasyon eklenemedi: {e}")
 
     def _delete_location(self, loc_id: int):
@@ -222,20 +190,9 @@ class LocationsPage(QWidget):
         )
         if reply == QMessageBox.Yes:
             try:
-                from config.database import SessionLocal
-                from sqlalchemy import text
-
-                db = SessionLocal()
-                try:
-                    db.execute(
-                        text("DELETE FROM warehouse.locations WHERE id = :id;"),
-                        {"id": loc_id},
-                    )
-                    db.commit()
-                finally:
-                    db.close()
+                self.service.delete_location(loc_id)
                 self._load_locations()
-            except Exception as e:
+            except ServiceError as e:
                 QMessageBox.critical(self, "Hata", f"Lokasyon silinemedi: {e}")
 
     def _on_item_changed(self, item: QTableWidgetItem):
@@ -250,19 +207,8 @@ class LocationsPage(QWidget):
             return
 
         try:
-            from config.database import SessionLocal
-            from sqlalchemy import text
-
-            db = SessionLocal()
-            try:
-                db.execute(
-                    text("UPDATE warehouse.locations SET name = :name WHERE id = :id;"),
-                    {"name": new_name, "id": loc_id},
-                )
-                db.commit()
-            finally:
-                db.close()
-        except Exception as e:
+            self.service.update_name(loc_id, new_name)
+        except ServiceError as e:
             QMessageBox.critical(self, "Hata", f"Güncelleme başarısız: {e}")
             self._load_locations()
 

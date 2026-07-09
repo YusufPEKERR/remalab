@@ -21,6 +21,8 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 from ui.translations import tr, get_translator
+from services.outbound_service import OutboundService
+from services.exceptions import InsufficientStockError, ServiceError
 
 
 class AddOutboundStockDialog(QDialog):
@@ -116,6 +118,7 @@ class OutboundPage(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._current_role = "warehouse_worker"
+        self.service = OutboundService()
         self._setup_ui()
         get_translator().language_changed.connect(self._retranslate)
 
@@ -246,59 +249,13 @@ class OutboundPage(QWidget):
             dest = dialog.dest_input.text().strip()
             created_by = "depocu_1"
 
-            if not dest:
-                QMessageBox.warning(self, "Hata", "Lütfen bir alıcı/hedef girin.")
-                return
-
-            if qty > max_qty:
-                QMessageBox.warning(self, "Hata", tr("outbound.insufficient_stock"))
-                return
-
             try:
-                from config.database import SessionLocal
-                from sqlalchemy import text
-
-                db = SessionLocal()
-                try:
-                    # 1. Depo Çıkış Kaydı (inbound_entries benzeri)
-                    db.execute(
-                        text("""
-                        INSERT INTO warehouse.outbound_entries (part_id, location_id, quantity, destination, created_by)
-                        VALUES (:part_id, :loc_id, :qty, :dest, :created_by);
-                    """),
-                        {
-                            "part_id": part_id,
-                            "loc_id": location_id,
-                            "qty": qty,
-                            "dest": dest,
-                            "created_by": created_by,
-                        },
-                    )
-
-                    # 2. Stoktan Düş
-                    db.execute(
-                        text("""
-                        UPDATE warehouse.stock SET quantity = quantity - :qty WHERE id = :id;
-                    """),
-                        {"qty": qty, "id": stock_id},
-                    )
-
-                    # 3. Stok Hareket Kaydı
-                    db.execute(
-                        text("""
-                        INSERT INTO warehouse.stock_movements (type, quantity)
-                        VALUES ('Outbound', :qty);
-                    """),
-                        {"qty": qty},
-                    )
-
-                    db.commit()
-                    QMessageBox.information(self, "Başarılı", tr("outbound.success"))
-                finally:
-                    db.close()
-
+                self.service.ship_goods(stock_id, qty, dest, created_by)
+                QMessageBox.information(self, "Başarılı", tr("outbound.success"))
                 self._load_entries()
-            except Exception as e:
+            except InsufficientStockError:
+                QMessageBox.warning(self, "Hata", tr("outbound.insufficient_stock"))
+            except ServiceError as e:
                 QMessageBox.critical(self, "Hata", f"Stok çıkışı kaydedilemedi: {e}")
 
     def _import_excel(self):
@@ -312,88 +269,45 @@ class OutboundPage(QWidget):
         """Eşleştirilen ve DataFrame haline gelen veriyi PostgreSQL'e yazar."""
         import pandas as pd
 
+        entries = []
+        for _, row in df.iterrows():
+            part_id_raw = row.get("part_id")
+            if pd.isna(part_id_raw):
+                continue
+            part_id = int(part_id_raw)
+
+            loc_id_raw = row.get("location_id")
+            if pd.isna(loc_id_raw):
+                continue
+            loc_id = int(loc_id_raw)
+
+            qty_raw = row.get("quantity")
+            qty = int(qty_raw) if not pd.isna(qty_raw) else 0
+            if qty <= 0:
+                continue
+
+            dest_raw = row.get("destination")
+            dest = str(dest_raw) if not pd.isna(dest_raw) else "excel_outbound"
+
+            created_by_raw = row.get("created_by")
+            created_by = (
+                str(created_by_raw) if not pd.isna(created_by_raw) else "excel_import"
+            )
+
+            entries.append(
+                {
+                    "part_id": part_id,
+                    "location_id": loc_id,
+                    "quantity": qty,
+                    "destination": dest,
+                    "created_by": created_by,
+                }
+            )
+
         try:
-            from config.database import SessionLocal
-            from sqlalchemy import text
-
-            db = SessionLocal()
-            try:
-                for _, row in df.iterrows():
-                    part_id_raw = row.get("part_id")
-                    if pd.isna(part_id_raw):
-                        continue
-                    part_id = int(part_id_raw)
-
-                    loc_id_raw = row.get("location_id")
-                    if pd.isna(loc_id_raw):
-                        continue
-                    loc_id = int(loc_id_raw)
-
-                    qty_raw = row.get("quantity")
-                    qty = int(qty_raw) if not pd.isna(qty_raw) else 0
-                    if qty <= 0:
-                        continue
-
-                    dest_raw = row.get("destination")
-                    dest = str(dest_raw) if not pd.isna(dest_raw) else "excel_outbound"
-
-                    created_by_raw = row.get("created_by")
-                    created_by = (
-                        str(created_by_raw)
-                        if not pd.isna(created_by_raw)
-                        else "excel_import"
-                    )
-
-                    # Stok kontrolü yapalım
-                    existing = db.execute(
-                        text("""
-                        SELECT id, quantity FROM warehouse.stock 
-                        WHERE part_id = :part_id AND location_id = :loc_id;
-                    """),
-                        {"part_id": part_id, "loc_id": loc_id},
-                    ).fetchone()
-
-                    if not existing or existing[1] < qty:
-                        # Stok yetersizse bu satırı atla
-                        continue
-
-                    # 1. Outbound Giriş Kaydını Oluştur
-                    db.execute(
-                        text("""
-                        INSERT INTO warehouse.outbound_entries (part_id, location_id, quantity, destination, created_by)
-                        VALUES (:part_id, :loc_id, :qty, :dest, :created_by);
-                    """),
-                        {
-                            "part_id": part_id,
-                            "loc_id": loc_id,
-                            "qty": qty,
-                            "dest": dest,
-                            "created_by": created_by,
-                        },
-                    )
-
-                    # 2. Stoktan Düş
-                    db.execute(
-                        text("""
-                        UPDATE warehouse.stock SET quantity = quantity - :qty WHERE id = :id;
-                    """),
-                        {"qty": qty, "id": existing[0]},
-                    )
-
-                    # 3. Stok Hareket Kaydı
-                    db.execute(
-                        text("""
-                        INSERT INTO warehouse.stock_movements (type, quantity)
-                        VALUES ('Outbound', :qty);
-                    """),
-                        {"qty": qty},
-                    )
-
-                db.commit()
-            finally:
-                db.close()
+            self.service.ship_goods_bulk(entries)
             self._load_entries()
-        except Exception as e:
+        except ServiceError as e:
             QMessageBox.critical(
                 self, "Hata", f"Veriler veritabanına kaydedilemedi: {e}"
             )

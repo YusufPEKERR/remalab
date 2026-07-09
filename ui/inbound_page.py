@@ -25,6 +25,9 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 from ui.translations import tr, get_translator
+from services.inbound_service import InboundService
+from services.part_service import PartService
+from services.exceptions import ServiceError
 
 
 class QuickAddProductDialog(QDialog):
@@ -518,12 +521,11 @@ class AddInboundStockDialog(QDialog):
                         if quick_dialog.exec() == QDialog.Accepted:
                             p_name = quick_dialog.name_input.text().strip()
                             if p_name:
-                                res = db.execute(text("""
-                                    INSERT INTO warehouse.parts (name, barcode)
-                                    VALUES (:name, :barcode) RETURNING id;
-                                """), {"name": p_name, "barcode": barcode_val})
-                                new_id = res.scalar()
-                                db.commit()
+                                try:
+                                    new_id = PartService().add_part(p_name, barcode=barcode_val)
+                                except ServiceError as e:
+                                    QMessageBox.critical(self, "Hata", f"Parça eklenemedi: {e}")
+                                    return
                                 self._load_combos(select_part_id=new_id)
                                 self.status_lbl.setText(f"✅ Yeni parça eklendi: {p_name}")
                                 self.status_lbl.setStyleSheet("color: #3FB950; font-weight: bold;")
@@ -554,6 +556,7 @@ class InboundPage(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._current_role = "warehouse_worker"
+        self.service = InboundService()
         self._setup_ui()
         get_translator().language_changed.connect(self._retranslate)
 
@@ -699,69 +702,12 @@ class InboundPage(QWidget):
             return
 
         try:
-            from config.database import SessionLocal
-            from sqlalchemy import text
-
-            db = SessionLocal()
-            try:
-                # 1. Inbound Giriş Kaydını Oluştur
-                db.execute(
-                    text("""
-                    INSERT INTO warehouse.inbound_entries (part_id, quantity, unit_price, total_cost, created_by)
-                    VALUES (:part_id, :qty, :price, :total, :created_by);
-                """),
-                    {
-                        "part_id": part_id,
-                        "qty": qty,
-                        "price": price,
-                        "total": total,
-                        "created_by": created_by,
-                    },
-                )
-
-                # 2. Stok Miktarını Güncelle veya Ekle
-                existing = db.execute(
-                    text("""
-                    SELECT id FROM warehouse.stock 
-                    WHERE part_id = :part_id AND location_id = :loc_id;
-                """),
-                    {"part_id": part_id, "loc_id": location_id},
-                ).fetchone()
-
-                if existing:
-                    db.execute(
-                        text("""
-                        UPDATE warehouse.stock SET quantity = quantity + :qty WHERE id = :id;
-                    """),
-                        {"qty": qty, "id": existing[0]},
-                    )
-                else:
-                    db.execute(
-                        text("""
-                        INSERT INTO warehouse.stock (part_id, location_id, quantity)
-                        VALUES (:part_id, :loc_id, :qty);
-                    """),
-                        {"part_id": part_id, "loc_id": location_id, "qty": qty},
-                    )
-
-                # 3. Stok Hareket Kaydı
-                db.execute(
-                    text("""
-                    INSERT INTO warehouse.stock_movements (type, quantity)
-                    VALUES ('Inbound', :qty);
-                """),
-                    {"qty": qty},
-                )
-
-                db.commit()
-                QMessageBox.information(
-                    self, "Başarılı", "Stok girişi başarıyla yapıldı."
-                )
-            finally:
-                db.close()
-
+            self.service.receive_goods(part_id, location_id, qty, price, created_by)
+            QMessageBox.information(
+                self, "Başarılı", "Stok girişi başarıyla yapıldı."
+            )
             self._load_entries()
-        except Exception as e:
+        except ServiceError as e:
             QMessageBox.critical(self, "Hata", f"Stok kaydedilemedi: {e}")
 
     def _import_excel(self):
@@ -782,96 +728,48 @@ class InboundPage(QWidget):
         """Eşleştirilen ve DataFrame haline gelen veriyi PostgreSQL'e yazar."""
         import pandas as pd
 
+        entries = []
+        for _, row in df.iterrows():
+            # NaN/Null korumalı güvenli tip dönüşümleri
+            part_id_raw = row.get("part_id")
+            if pd.isna(part_id_raw):
+                continue
+            part_id = int(part_id_raw)
+
+            qty_raw = row.get("quantity")
+            qty = int(qty_raw) if not pd.isna(qty_raw) else 0
+            if qty <= 0:
+                continue
+
+            price_raw = row.get("unit_price")
+            price = float(price_raw) if not pd.isna(price_raw) else 1.0
+
+            total_raw = row.get("total_cost")
+            total = float(total_raw) if not pd.isna(total_raw) else (qty * price)
+
+            loc_id_raw = row.get("location_id")
+            loc_id = int(loc_id_raw) if not pd.isna(loc_id_raw) else 1
+
+            created_by_raw = row.get("created_by")
+            created_by = (
+                str(created_by_raw) if not pd.isna(created_by_raw) else "excel_import"
+            )
+
+            entries.append(
+                {
+                    "part_id": part_id,
+                    "quantity": qty,
+                    "unit_price": price,
+                    "total_cost": total,
+                    "location_id": loc_id,
+                    "created_by": created_by,
+                }
+            )
+
         try:
-            from config.database import SessionLocal
-            from sqlalchemy import text
-
-            db = SessionLocal()
-            try:
-                for _, row in df.iterrows():
-                    # NaN/Null korumalı güvenli tip dönüşümleri
-                    part_id_raw = row.get("part_id")
-                    if pd.isna(part_id_raw):
-                        continue
-                    part_id = int(part_id_raw)
-
-                    qty_raw = row.get("quantity")
-                    qty = int(qty_raw) if not pd.isna(qty_raw) else 0
-                    if qty <= 0:
-                        continue
-
-                    price_raw = row.get("unit_price")
-                    price = float(price_raw) if not pd.isna(price_raw) else 1.0
-
-                    total_raw = row.get("total_cost")
-                    total = (
-                        float(total_raw) if not pd.isna(total_raw) else (qty * price)
-                    )
-
-                    loc_id_raw = row.get("location_id")
-                    loc_id = int(loc_id_raw) if not pd.isna(loc_id_raw) else 1
-
-                    created_by_raw = row.get("created_by")
-                    created_by = (
-                        str(created_by_raw)
-                        if not pd.isna(created_by_raw)
-                        else "excel_import"
-                    )
-
-                    # 1. Inbound Giriş Kaydını Oluştur
-                    db.execute(
-                        text("""
-                        INSERT INTO warehouse.inbound_entries (part_id, quantity, unit_price, total_cost, created_by)
-                        VALUES (:part_id, :qty, :price, :total, :created_by);
-                    """),
-                        {
-                            "part_id": part_id,
-                            "qty": qty,
-                            "price": price,
-                            "total": total,
-                            "created_by": created_by,
-                        },
-                    )
-
-                    # 2. Stok Miktarını Güncelle veya Ekle
-                    existing = db.execute(
-                        text("""
-                        SELECT id FROM warehouse.stock 
-                        WHERE part_id = :part_id AND location_id = :loc_id;
-                    """),
-                        {"part_id": part_id, "loc_id": loc_id},
-                    ).fetchone()
-
-                    if existing:
-                        db.execute(
-                            text("""
-                            UPDATE warehouse.stock SET quantity = quantity + :qty WHERE id = :id;
-                        """),
-                            {"qty": qty, "id": existing[0]},
-                        )
-                    else:
-                        db.execute(
-                            text("""
-                            INSERT INTO warehouse.stock (part_id, location_id, quantity)
-                            VALUES (:part_id, :loc_id, :qty);
-                        """),
-                            {"part_id": part_id, "loc_id": loc_id, "qty": qty},
-                        )
-
-                    # 3. Stok Hareket Kaydı
-                    db.execute(
-                        text("""
-                        INSERT INTO warehouse.stock_movements (type, quantity)
-                        VALUES ('Inbound', :qty);
-                    """),
-                        {"qty": qty},
-                    )
-
-                db.commit()
-            finally:
-                db.close()
+            self.service.receive_goods_bulk(entries)
             self._load_entries()
-        except Exception as e:
+        except ServiceError as e:
             QMessageBox.critical(
                 self, "Hata", f"Veriler veritabanına kaydedilemedi: {e}"
             )

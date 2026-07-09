@@ -22,6 +22,8 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 from ui.translations import tr, get_translator
+from services.stock_service import StockService
+from services.exceptions import InsufficientStockError, ServiceError
 
 
 class StockTransferDialog(QDialog):
@@ -116,6 +118,7 @@ class WarehousePage(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.service = StockService()
         self._setup_ui()
         get_translator().language_changed.connect(self._retranslate)
 
@@ -298,77 +301,14 @@ class WarehousePage(QWidget):
                 return
 
             try:
-                from config.database import SessionLocal
-                from sqlalchemy import text
-
-                db = SessionLocal()
-                try:
-                    # 1. Kaynak satırı oku
-                    source = db.execute(
-                        text(
-                            "SELECT part_id, quantity FROM warehouse.stock WHERE id = :id;"
-                        ),
-                        {"id": source_stock_id},
-                    ).fetchone()
-
-                    if not source or source[1] < transfer_qty:
-                        QMessageBox.warning(
-                            self, "Hata", tr("warehouse.insufficient_stock")
-                        )
-                        return
-
-                    # 2. Kaynağı azalt
-                    db.execute(
-                        text(
-                            "UPDATE warehouse.stock SET quantity = quantity - :qty WHERE id = :id;"
-                        ),
-                        {"qty": transfer_qty, "id": source_stock_id},
-                    )
-
-                    # 3. Hedefe ekle (eğer aynı parça hedef lokasyonda varsa güncelle, yoksa ekle)
-                    part_id = source[0]
-                    target_stock = db.execute(
-                        text(
-                            "SELECT id FROM warehouse.stock WHERE part_id = :p_id AND location_id = :l_id;"
-                        ),
-                        {"p_id": part_id, "l_id": target_location_id},
-                    ).fetchone()
-
-                    if target_stock:
-                        db.execute(
-                            text(
-                                "UPDATE warehouse.stock SET quantity = quantity + :qty WHERE id = :id;"
-                            ),
-                            {"qty": transfer_qty, "id": target_stock[0]},
-                        )
-                    else:
-                        db.execute(
-                            text(
-                                "INSERT INTO warehouse.stock (part_id, location_id, quantity) VALUES (:p_id, :l_id, :qty);"
-                            ),
-                            {
-                                "p_id": part_id,
-                                "l_id": target_location_id,
-                                "qty": transfer_qty,
-                            },
-                        )
-
-                    # 4. Hareket kaydı (stock_movements) oluştur
-                    db.execute(
-                        text(
-                            "INSERT INTO warehouse.stock_movements (type, quantity) VALUES ('Transfer', :qty);"
-                        ),
-                        {"qty": transfer_qty},
-                    )
-
-                    db.commit()
-                    QMessageBox.information(
-                        self, "Başarılı", tr("warehouse.transfer_success")
-                    )
-                finally:
-                    db.close()
+                self.service.transfer(source_stock_id, target_location_id, transfer_qty)
+                QMessageBox.information(
+                    self, "Başarılı", tr("warehouse.transfer_success")
+                )
                 self._load_stock()
-            except Exception as e:
+            except InsufficientStockError:
+                QMessageBox.warning(self, "Hata", tr("warehouse.insufficient_stock"))
+            except ServiceError as e:
                 QMessageBox.critical(self, "Hata", f"Stok transfer edilemedi: {e}")
 
     def _on_item_changed(self, item: QTableWidgetItem):
@@ -384,20 +324,9 @@ class WarehousePage(QWidget):
             return
 
         try:
-            from config.database import SessionLocal
-            from sqlalchemy import text
-
-            db = SessionLocal()
-            try:
-                db.execute(
-                    text("UPDATE warehouse.stock SET quantity = :qty WHERE id = :id;"),
-                    {"qty": new_qty, "id": stock_id},
-                )
-                db.commit()
-            finally:
-                db.close()
+            self.service.set_quantity(stock_id, new_qty)
             self._load_stock()
-        except Exception as e:
+        except ServiceError as e:
             QMessageBox.critical(self, "Hata", f"Güncelleme başarısız: {e}")
             self._load_stock()
 

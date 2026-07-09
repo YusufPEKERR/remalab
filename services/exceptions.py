@@ -12,3 +12,7 @@ class DuplicateUsernameError(ServiceError):
 
 class NotFoundError(ServiceError):
     pass
+
+
+class InsufficientStockError(ServiceError):
+    pass

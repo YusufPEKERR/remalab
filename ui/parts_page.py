@@ -20,6 +20,8 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 from ui.translations import tr, get_translator
+from services.part_service import PartService
+from services.exceptions import ServiceError
 
 
 class AddPartDialog(QDialog):
@@ -59,9 +61,7 @@ class PartsPage(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._current_page = 1
-        self._page_size = 50
-        self._total_pages = 1
+        self.service = PartService()
         self._setup_ui()
         get_translator().language_changed.connect(self._retranslate)
 
@@ -186,90 +186,29 @@ class PartsPage(QWidget):
         search_query = self._search_input.text().strip()
 
         try:
-            from config.database import SessionLocal
-            from sqlalchemy import text
+            parts = self.service.list_parts(search=search_query or None)
+            self._table.setRowCount(len(parts))
 
-            db = SessionLocal()
-            try:
-                sql = "SELECT id, name FROM warehouse.parts"
-                count_sql = "SELECT COUNT(*) FROM warehouse.parts"
-                params = {}
-                if search_query:
-                    sql += " WHERE name ILIKE :search OR CAST(id AS VARCHAR) ILIKE :search"
-                    count_sql += " WHERE name ILIKE :search OR CAST(id AS VARCHAR) ILIKE :search"
-                    params["search"] = f"%{search_query}%"
-                
-                # Toplam kayıt sayısı ve sayfa hesaplama
-                total_records = db.execute(text(count_sql), params).scalar() or 0
-                import math
-                self._total_pages = math.ceil(total_records / self._page_size) if total_records > 0 else 1
-                
-                # Geçerli sayfa kontrolü
-                if self._current_page > self._total_pages:
-                    self._current_page = self._total_pages
-                    
-                sql += " ORDER BY id DESC LIMIT :limit OFFSET :offset;"
-                params["limit"] = self._page_size
-                params["offset"] = (self._current_page - 1) * self._page_size
+            for r_idx, part in enumerate(parts):
+                id_item = QTableWidgetItem(str(part["id"]))
+                id_item.setFlags(id_item.flags() & ~Qt.ItemIsEditable)
 
-                self._page_info_lbl.setText(f"Sayfa {self._current_page} / {self._total_pages} ({total_records} Kayıt)")
-                self._prev_btn.setEnabled(self._current_page > 1)
-                self._next_btn.setEnabled(self._current_page < self._total_pages)
+                name_item = QTableWidgetItem(part["name"])
+                name_item.setData(Qt.UserRole, part["id"])
 
-                rows = db.execute(text(sql), params).fetchall()
-                self._table.setRowCount(len(rows))
+                # Sil butonu
+                del_btn = QPushButton("🗑️")
+                del_btn
+                del_btn.setCursor(Qt.PointingHandCursor)
+                del_btn.clicked.connect(
+                    lambda checked, p_id=part["id"]: self._delete_part(p_id)
+                )
 
-                for r_idx, row in enumerate(rows):
-                    id_item = QTableWidgetItem(str(row[0]))
-                    id_item.setFlags(id_item.flags() & ~Qt.ItemIsEditable)
-
-                    name_item = QTableWidgetItem(str(row[1]))
-                    name_item.setFlags(name_item.flags() & ~Qt.ItemIsEditable)
-                    name_item.setData(Qt.UserRole, row[0])
-
-                    from config.session import SessionManager
-                    user_role = SessionManager().role
-                    
-                    action_layout = QHBoxLayout()
-                    action_layout.setContentsMargins(0, 0, 0, 0)
-                    action_layout.setSpacing(4)
-                    action_layout.setAlignment(Qt.AlignCenter)
-
-                    if user_role in ["Admin", "Depo Müdürü"]:
-                        edit_btn = QPushButton("✏️")
-                        edit_btn.setObjectName("table_delete_btn")
-                        edit_btn.setCursor(Qt.PointingHandCursor)
-                        edit_btn.clicked.connect(lambda checked, pid=row[0], pname=row[1]: self._edit_part(pid, pname))
-                        action_layout.addWidget(edit_btn)
-
-                    # Sil butonu
-                    import os
-                    from PySide6.QtGui import QIcon
-                    from PySide6.QtCore import QSize
-                    del_btn = QPushButton()
-                    icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "trash.svg")
-                    if os.path.exists(icon_path):
-                        del_btn.setIcon(QIcon(icon_path))
-                        del_btn.setIconSize(QSize(20, 20))
-                    else:
-                        del_btn.setText("🗑️")
-                    del_btn.setObjectName("table_delete_btn")
-                    del_btn.setCursor(Qt.PointingHandCursor)
-                    del_btn.clicked.connect(
-                        lambda checked, p_id=row[0]: self._delete_part(p_id)
-                    )
-                    action_layout.addWidget(del_btn)
-
-                    action_widget = QWidget()
-                    action_widget.setLayout(action_layout)
-
-                    self._table.setItem(r_idx, 0, id_item)
-                    self._table.setItem(r_idx, 1, name_item)
-                    self._table.setCellWidget(r_idx, 2, action_widget)
-                    self._table.setRowHeight(r_idx, 44)
-            finally:
-                db.close()
-        except Exception as e:
+                self._table.setItem(r_idx, 0, id_item)
+                self._table.setItem(r_idx, 1, name_item)
+                self._table.setCellWidget(r_idx, 2, del_btn)
+                self._table.setRowHeight(r_idx, 44)
+        except ServiceError as e:
             print(f"[Error Loading Parts] {e}")
         finally:
             self._table.blockSignals(False)
@@ -283,20 +222,9 @@ class PartsPage(QWidget):
                 return
 
             try:
-                from config.database import SessionLocal
-                from sqlalchemy import text
-
-                db = SessionLocal()
-                try:
-                    db.execute(
-                        text("INSERT INTO warehouse.parts (name) VALUES (:name);"),
-                        {"name": name},
-                    )
-                    db.commit()
-                finally:
-                    db.close()
+                self.service.add_part(name)
                 self._load_parts()
-            except Exception as e:
+            except ServiceError as e:
                 QMessageBox.critical(self, "Hata", f"Parça eklenemedi: {e}")
 
     def _delete_part(self, part_id: int):
@@ -310,20 +238,9 @@ class PartsPage(QWidget):
         )
         if reply == QMessageBox.Yes:
             try:
-                from config.database import SessionLocal
-                from sqlalchemy import text
-
-                db = SessionLocal()
-                try:
-                    db.execute(
-                        text("DELETE FROM warehouse.parts WHERE id = :id;"),
-                        {"id": part_id},
-                    )
-                    db.commit()
-                finally:
-                    db.close()
+                self.service.delete_part(part_id)
                 self._load_parts()
-            except Exception as e:
+            except ServiceError as e:
                 QMessageBox.critical(self, "Hata", f"Parça silinemedi: {e}")
 
     def _edit_part(self, part_id: int, current_name: str):
@@ -341,23 +258,11 @@ class PartsPage(QWidget):
         ok = dialog.exec()
         new_name = dialog.textValue()
 
-        if ok and new_name.strip() and new_name.strip() != current_name:
-            try:
-                from config.database import SessionLocal
-                from sqlalchemy import text
-
-                db = SessionLocal()
-                try:
-                    db.execute(
-                        text("UPDATE warehouse.parts SET name = :name WHERE id = :id;"),
-                        {"name": new_name.strip(), "id": part_id},
-                    )
-                    db.commit()
-                finally:
-                    db.close()
-                self._load_parts()
-            except Exception as e:
-                QMessageBox.critical(self, "Hata", f"Parça güncellenemedi: {e}")
+        try:
+            self.service.update_name(part_id, new_name)
+        except ServiceError as e:
+            QMessageBox.critical(self, "Hata", f"Güncelleme başarısız: {e}")
+            self._load_parts()
 
     def _retranslate(self):
         """Dil değiştiğinde çevirileri yeniler."""
