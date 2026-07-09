@@ -189,15 +189,16 @@ class LoginPage(QWidget):
         
         # Şifre gizle/göster butonu - Input'un içine ekleniyor
         self.pwd_toggle_btn = QPushButton("🙈", self.password_input)
-        self.pwd_toggle_btn.setFixedSize(34, 34)
+        self.pwd_toggle_btn.setFixedSize(24, 24)
         self.pwd_toggle_btn.setCursor(QCursor(Qt.PointingHandCursor))
         self.pwd_toggle_btn.setStyleSheet("""
             QPushButton {
                 background-color: transparent;
                 border: none;
-                font-size: 18px;
+                font-size: 14px;
                 color: #4F6CB3;
-                padding-bottom: 2px;
+                padding: 0px;
+                outline: none;
             }
             QPushButton:hover {
                 color: #4FA3FF;
