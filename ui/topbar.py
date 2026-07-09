@@ -88,13 +88,13 @@ class TopBar(QWidget):
 
 
         # Tema butonu
-        self.theme_btn = QPushButton("🌙")
+        self.theme_btn = QPushButton("☾")
         self.theme_btn.setObjectName("topbar_icon_btn")
         self.theme_btn.setFixedSize(36, 36)
         self.theme_btn.setCursor(Qt.PointingHandCursor)
         from ui.theme_manager import get_theme_manager
         self._theme_mgr = get_theme_manager()
-        self.theme_btn.setText("🌞" if self._theme_mgr.is_dark else "🌙")
+        self.theme_btn.setText("☀" if self._theme_mgr.is_dark else "☾")
         self.theme_btn.clicked.connect(self._toggle_theme)
         right_layout.addWidget(self.theme_btn)
 
@@ -151,7 +151,7 @@ class TopBar(QWidget):
         user_info_layout.setContentsMargins(0, 0, 0, 0)
         user_info_layout.setSpacing(0)
 
-        self._user_name = QLabel(f"Ojj geldin beee , {username}")
+        self._user_name = QLabel(f"Hoşgeldiniz , {username}")
         self._user_name.setObjectName("user_name")
 
         self._user_role = QLabel(role)
@@ -218,7 +218,7 @@ class TopBar(QWidget):
         avatar_letters = username[:2].upper() if username != "Misafir" else "M"
         
         self._avatar.setText(avatar_letters)
-        self._user_name.setText(f"Ojj geldin beee , {username}")
+        self._user_name.setText(f"Hoşgeldiniz , {username}")
         self._user_role.setText(role)
 
 
@@ -227,7 +227,7 @@ class TopBar(QWidget):
 
     def _toggle_theme(self):
         self._theme_mgr.toggle_theme()
-        self.theme_btn.setText("🌞" if self._theme_mgr.is_dark else "🌙")
+        self.theme_btn.setText("☀" if self._theme_mgr.is_dark else "☾")
 
     def _retranslate(self):
 

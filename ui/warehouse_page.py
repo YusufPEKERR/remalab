@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
     QDialogButtonBox,
     QProgressBar,
     QTabWidget,
+    QLineEdit,
 )
 from PySide6.QtCore import Qt
 from ui.translations import tr, get_translator
