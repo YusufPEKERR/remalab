@@ -48,23 +48,7 @@ class ReportsPage(QWidget):
         header_layout.addWidget(title_section)
         header_layout.addStretch()
 
-        self._refresh_btn = QPushButton(tr("db.refresh"))
-        self._refresh_btn.setCursor(Qt.PointingHandCursor)
-        self._refresh_btn.setStyleSheet("""
-            QPushButton {
-                background: transparent;
-                border: none;
-                color: #4F6CB3;
-                font-weight: bold;
-                font-size: 13px;
-                outline: none;
-            }
-            QPushButton:hover {
-                color: #4FA3FF;
-            }
-        """)
-        self._refresh_btn.clicked.connect(self._load_entries)
-        header_layout.addWidget(self._refresh_btn)
+
 
         layout.addLayout(header_layout)
 
@@ -152,5 +136,4 @@ class ReportsPage(QWidget):
         """Dili günceller."""
         self._title_lbl.setText(tr("reports.title"))
         self._subtitle_lbl.setText(tr("reports.subtitle"))
-        self._refresh_btn.setText(tr("db.refresh"))
         self._load_entries()
