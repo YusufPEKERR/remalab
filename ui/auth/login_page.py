@@ -188,7 +188,7 @@ class LoginPage(QWidget):
         """)
         
         # Şifre gizle/göster butonu - Input'un içine ekleniyor
-        self.pwd_toggle_btn = QPushButton("👁", self.password_input)
+        self.pwd_toggle_btn = QPushButton("🙈", self.password_input)
         self.pwd_toggle_btn.setFixedSize(34, 34)
         self.pwd_toggle_btn.setCursor(QCursor(Qt.PointingHandCursor))
         self.pwd_toggle_btn.setStyleSheet("""
@@ -283,10 +283,10 @@ class LoginPage(QWidget):
     def _toggle_password(self, checked):
         if checked:
             self.password_input.setEchoMode(QLineEdit.Normal)
-            self.pwd_toggle_btn.setText("🙈") # Goz kapali emoji
+            self.pwd_toggle_btn.setText("👁") # Şifre görünür -> açık göz
         else:
             self.password_input.setEchoMode(QLineEdit.Password)
-            self.pwd_toggle_btn.setText("👁") # Goz acik emoji
+            self.pwd_toggle_btn.setText("🙈") # Şifre gizli -> maymun
 
     def handle_login(self):
         username = self.username_input.text().strip()
