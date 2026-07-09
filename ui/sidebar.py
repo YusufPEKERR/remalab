@@ -69,7 +69,7 @@ class Sidebar(QWidget):
             [
                 ("🏭", "nav.warehouse"),
                 ("📄", "nav.waybill"),
-                ("📍", "nav.locations"),
+                ("📈", "nav.reports"),
             ],
         ),
         (
@@ -78,7 +78,7 @@ class Sidebar(QWidget):
                 ("🔧", "nav.parts"),
                 ("📱", "nav.phone_models"),
                 ("🚚", "nav.suppliers"),
-                ("📈", "nav.reports"),
+                ("📍", "nav.locations"),
             ],
         ),
         (
