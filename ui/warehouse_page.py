@@ -154,8 +154,8 @@ class WarehousePage(QWidget):
         header_layout.addStretch()
 
         # Stok Transfer Butonu
-        self._transfer_btn = QPushButton(tr("warehouse.transfer_stock"))
-        self._transfer_btn
+        self._transfer_btn = QPushButton(f"🔄 {tr('warehouse.transfer_stock')}")
+        self._transfer_btn.setObjectName("btn_warning")
         self._transfer_btn.setCursor(Qt.PointingHandCursor)
         self._transfer_btn.clicked.connect(self._transfer_stock)
         header_layout.addWidget(self._transfer_btn)
@@ -190,9 +190,9 @@ class WarehousePage(QWidget):
         self._table.setColumnCount(4)
         self._table.setAlternatingRowColors(True)
         self._table.verticalHeader().setVisible(False)
-        self._table
+        self._table.setSelectionBehavior(QTableWidget.SelectRows)
+        self._table.setEditTriggers(QTableWidget.NoEditTriggers)
         self._table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        self._table.itemChanged.connect(self._on_item_changed)
         tab_warehouse_layout.addWidget(self._table)
         
         self.tabs.addTab(tab_warehouse, "Stok Durumu & Transfer")

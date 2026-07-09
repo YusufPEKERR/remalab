@@ -135,6 +135,7 @@ class SuppliersPage(QWidget):
         header_layout.addStretch()
 
         self._add_btn = QPushButton("＋ Yeni Ekle")
+        self._add_btn.setObjectName("btn_success")
         self._add_btn.setCursor(Qt.PointingHandCursor)
         self._add_btn.clicked.connect(self._add_record)
         header_layout.addWidget(self._add_btn)

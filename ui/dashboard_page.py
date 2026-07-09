@@ -206,9 +206,6 @@ class DashboardPage(QWidget):
         # Dil değişikliklerini dinle
         get_translator().language_changed.connect(self._retranslate)
 
-        # Düzenleme sinyalini bağla
-        self._details_table.itemChanged.connect(self._on_detail_item_changed)
-
         # İlk istatistik yüklemesi
         self.refresh()
 

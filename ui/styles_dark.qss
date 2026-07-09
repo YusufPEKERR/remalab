@@ -319,7 +319,7 @@ QPushButton#table_delete_btn {
     padding: 6px;
 }
 QPushButton#table_delete_btn:hover {
-    background-color: #CF222E4D;
+    background-color: transparent;
 }
 
 /* Table Widget */

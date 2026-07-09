@@ -591,21 +591,21 @@ class InboundPage(QWidget):
         header_layout.addStretch()
 
         # Excel Import/Export Butonları
-        self._import_btn = QPushButton(tr("excel.import"))
-        self._import_btn
+        self._import_btn = QPushButton(f"📥 {tr('excel.import')}")
+        self._import_btn.setObjectName("btn_success")
         self._import_btn.setCursor(Qt.PointingHandCursor)
         self._import_btn.clicked.connect(self._import_excel)
         header_layout.addWidget(self._import_btn)
 
-        self._export_btn = QPushButton(tr("excel.export"))
-        self._export_btn
+        self._export_btn = QPushButton(f"📤 {tr('excel.export')}")
+        self._export_btn.setObjectName("btn_primary")
         self._export_btn.setCursor(Qt.PointingHandCursor)
         self._export_btn.clicked.connect(self._export_excel)
         header_layout.addWidget(self._export_btn)
 
         # Yeni Stok Ekle Butonu
         self._add_btn = QPushButton(tr("inbound.add_new"))
-        self._add_btn
+        self._add_btn.setObjectName("btn_success")
         self._add_btn.setCursor(Qt.PointingHandCursor)
         self._add_btn.clicked.connect(self._add_inbound_stock)
         header_layout.addWidget(self._add_btn)
@@ -618,7 +618,7 @@ class InboundPage(QWidget):
         self._table.setAlternatingRowColors(True)
         self._table.verticalHeader().setVisible(False)
         self._table.setSelectionBehavior(QTableWidget.SelectRows)
-        self._table
+        self._table.setEditTriggers(QTableWidget.NoEditTriggers)
         self._table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self._layout.addWidget(self._table)
 
