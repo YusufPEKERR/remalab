@@ -105,14 +105,23 @@ class TopBar(QWidget):
         sep1.setObjectName("topbar_separator")
         right_layout.addWidget(sep1)
 
+        # Son Güncelleme Etiketi
+        self._date_label = QLabel()
+        self._date_label.setObjectName("user_role")
+        self._date_label.setStyleSheet("margin-right: 12px;")
+        right_layout.addWidget(self._date_label)
+
         # Yenile butonu
 
-        refresh_btn = QPushButton("🔄")
+        refresh_btn = QPushButton("↻")
         refresh_btn.setFixedSize(36, 36)
         refresh_btn.setCursor(Qt.PointingHandCursor)
         refresh_btn.setStyleSheet(minimalist_btn_style)
         refresh_btn.clicked.connect(self.refresh_requested.emit)
+        refresh_btn.clicked.connect(self.update_last_refresh_time)
         right_layout.addWidget(refresh_btn)
+
+        self.update_last_refresh_time()
 
 
 
@@ -190,6 +199,15 @@ class TopBar(QWidget):
         self._current_page_key = page_tr_key
         self._title.setText(tr(page_tr_key))
         self._breadcrumb.setText(f"{tr('topbar.home')}  ›  {tr(page_tr_key)}")
+
+    def update_last_refresh_time(self):
+        """Son güncelleme zamanını günceller."""
+        from datetime import datetime
+        now = datetime.now()
+        aylar = ["", "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"]
+        gunler = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"]
+        date_str = f"{now.day:02d} {aylar[now.month]} {now.year}, {gunler[now.weekday()]} - {now.strftime('%H:%M:%S')}"
+        self._date_label.setText(f"⏱ Son Güncelleme: {date_str}")
 
     def update_user_info(self):
         """Kullanıcı bilgilerini session'dan alıp UI'ı günceller."""

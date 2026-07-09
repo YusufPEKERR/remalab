@@ -158,7 +158,7 @@ class InventoryPage(QWidget):
         header_layout.addWidget(self._export_btn)
 
         # Stok Transfer Butonu
-        self._transfer_btn = QPushButton(f"🔄 {tr('warehouse.transfer_stock')}")
+        self._transfer_btn = QPushButton(f"↻ {tr('warehouse.transfer_stock')}")
         self._transfer_btn.setObjectName("btn_warning")
         self._transfer_btn.setCursor(Qt.PointingHandCursor)
         self._transfer_btn.clicked.connect(self._transfer_stock)

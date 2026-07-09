@@ -191,8 +191,18 @@ def main():
             conn.commit()
     except Exception as db_err:
         print(f"[WARN] Database tables could not be auto-initialized: {db_err}")
-
     app = QApplication(sys.argv)
+
+    import os
+    if sys.platform == "win32":
+        import ctypes
+        myappid = "remalab.wms.app.1.0"
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+
+    from PySide6.QtGui import QIcon
+    icon_path = os.path.join(os.path.dirname(__file__), "assets", "Uygulama-Amblemi.png")
+    if os.path.exists(icon_path):
+        app.setWindowIcon(QIcon(icon_path))
 
     # Varsayılan font
     font = QFont("Segoe UI", 10)

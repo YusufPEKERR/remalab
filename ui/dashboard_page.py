@@ -236,15 +236,8 @@ class DashboardPage(QWidget):
         self._page_subtitle = QLabel(tr("dashboard.welcome"))
         self._page_subtitle.setObjectName("dashboard_subtitle")
         title_layout.addWidget(self._page_subtitle)
-
         header_layout.addWidget(title_section)
         header_layout.addStretch()
-
-
-
-        self._date_label = QLabel()
-        self._date_label
-        header_layout.addWidget(self._date_label)
 
         main_layout.addLayout(header_layout)
 
@@ -358,14 +351,6 @@ class DashboardPage(QWidget):
 
     def refresh(self):
         """Main window'dan çağrılan yenileme fonksiyonu."""
-        from datetime import datetime
-        now = datetime.now()
-        
-        aylar = ["", "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"]
-        gunler = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"]
-        date_str = f"{now.day:02d} {aylar[now.month]} {now.year}, {gunler[now.weekday()]} - {now.strftime('%H:%M:%S')}"
-        
-        self._date_label.setText(f"⏱  Son Güncelleme: {date_str}")
         self.refresh_stats()
 
     def refresh_stats(self):

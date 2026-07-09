@@ -85,7 +85,7 @@ class Sidebar(QWidget):
             "section.quality",
             [
                 ("✅", "nav.quality_control"),
-                ("🔄", "nav.refurbishment"),
+                ("↻", "nav.refurbishment"),
                 ("⚡", "nav.priority_matrix"),
             ],
         ),
