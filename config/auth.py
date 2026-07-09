@@ -9,13 +9,14 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 1 day
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    # Güvenlik devre dışı bırakıldı: Şifreler düz metin olarak karşılaştırılıyor
-    return plain_password == hashed_password
+    try:
+        return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
+    except ValueError:
+        return False
 
 
 def get_password_hash(password: str) -> str:
-    # Güvenlik devre dışı bırakıldı: Şifreler düz metin olarak saklanıyor
-    return password
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
 def create_access_token(data: dict) -> str:

@@ -20,10 +20,9 @@ from PySide6.QtWidgets import (
     QInputDialog,
 )
 from PySide6.QtCore import Qt
-from sqlalchemy import text
 
-from config.database import SessionLocal
-from config.auth import get_password_hash
+from services.user_service import UserService
+from services.exceptions import ServiceError
 from ui.translations import tr
 
 
@@ -92,6 +91,7 @@ class UsersPage(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.service = UserService()
         self._setup_ui()
         self._load_data()
 
@@ -130,9 +130,9 @@ class UsersPage(QWidget):
 
         # Tablo
         self.table = QTableWidget()
-        self.table.setColumnCount(5)
+        self.table.setColumnCount(4)
         self.table.setHorizontalHeaderLabels(
-            ["ID", tr("users.username"), tr("users.email"), "Şifre", tr("users.role")]
+            ["ID", tr("users.username"), tr("users.email"), tr("users.role")]
         )
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
@@ -143,56 +143,32 @@ class UsersPage(QWidget):
 
     def _load_data(self):
         self.table.setRowCount(0)
-        db = SessionLocal()
         try:
-            result = db.execute(
-                text(
-                    "SELECT id, username, email, password_hash, role FROM warehouse.users ORDER BY id ASC"
-                )
-            ).fetchall()
-            self.table.setRowCount(len(result))
-            for row_idx, row in enumerate(result):
-                self.table.setItem(row_idx, 0, QTableWidgetItem(str(row[0])))
-                self.table.setItem(row_idx, 1, QTableWidgetItem(row[1]))
-                self.table.setItem(row_idx, 2, QTableWidgetItem(row[2]))
-                self.table.setItem(row_idx, 3, QTableWidgetItem(str(row[3])))
-                self.table.setItem(row_idx, 4, QTableWidgetItem(row[4]))
-        except Exception as e:
-            print(f"[UsersPage] Veri yüklenemedi: {e}")
-        finally:
-            db.close()
+            users = self.service.list_users()
+        except ServiceError as e:
+            QMessageBox.critical(self, "Hata", f"Veri yüklenirken hata oluştu:\n{e}")
+            return
+
+        self.table.setRowCount(len(users))
+        for row_idx, user in enumerate(users):
+            self.table.setItem(row_idx, 0, QTableWidgetItem(str(user["id"])))
+            self.table.setItem(row_idx, 1, QTableWidgetItem(user["username"]))
+            self.table.setItem(row_idx, 2, QTableWidgetItem(user["email"]))
+            self.table.setItem(row_idx, 3, QTableWidgetItem(user["role"]))
 
     def _add_user(self):
         dialog = UserDialog(self)
         if dialog.exec():
             data = dialog.get_data()
-            if not data["username"] or not data["password"]:
-                QMessageBox.warning(self, "Hata", "Kullanıcı adı ve şifre zorunludur.")
-                return
-
-            pwd_hash = get_password_hash(data["password"])
-            db = SessionLocal()
             try:
-                db.execute(
-                    text(
-                        "INSERT INTO warehouse.users (username, email, password_hash, role) VALUES (:u, :e, :p, :r)"
-                    ),
-                    {
-                        "u": data["username"],
-                        "e": data["email"],
-                        "p": pwd_hash,
-                        "r": data["role"],
-                    },
+                self.service.add_user(
+                    data["username"], data["email"], data["password"], data["role"]
                 )
-                db.commit()
                 self._load_data()
-            except Exception as e:
-                db.rollback()
+            except ServiceError as e:
                 QMessageBox.critical(
                     self, "Hata", f"Kullanıcı eklenirken hata oluştu:\n{e}"
                 )
-            finally:
-                db.close()
 
     def _edit_user(self):
         selected = self.table.selectedItems()
@@ -203,53 +179,29 @@ class UsersPage(QWidget):
             return
 
         row = selected[0].row()
-        user_id = self.table.item(row, 0).text()
+        user_id = int(self.table.item(row, 0).text())
         user_data = {
             "username": self.table.item(row, 1).text(),
             "email": self.table.item(row, 2).text(),
-            "role": self.table.item(row, 4).text(),
+            "role": self.table.item(row, 3).text(),
         }
 
         dialog = UserDialog(self, user_data)
         if dialog.exec():
             data = dialog.get_data()
-            db = SessionLocal()
             try:
-                if data["password"]:
-                    pwd_hash = get_password_hash(data["password"])
-                    db.execute(
-                        text(
-                            "UPDATE warehouse.users SET username=:u, email=:e, password_hash=:p, role=:r WHERE id=:id"
-                        ),
-                        {
-                            "u": data["username"],
-                            "e": data["email"],
-                            "p": pwd_hash,
-                            "r": data["role"],
-                            "id": user_id,
-                        },
-                    )
-                else:
-                    db.execute(
-                        text(
-                            "UPDATE warehouse.users SET username=:u, email=:e, role=:r WHERE id=:id"
-                        ),
-                        {
-                            "u": data["username"],
-                            "e": data["email"],
-                            "r": data["role"],
-                            "id": user_id,
-                        },
-                    )
-                db.commit()
+                self.service.update_user(
+                    user_id,
+                    data["username"],
+                    data["email"],
+                    data["role"],
+                    data["password"] or None,
+                )
                 self._load_data()
-            except Exception as e:
-                db.rollback()
+            except ServiceError as e:
                 QMessageBox.critical(
                     self, "Hata", f"Kullanıcı güncellenirken hata oluştu:\n{e}"
                 )
-            finally:
-                db.close()
 
     def _reset_password(self):
         selected = self.table.selectedItems()
@@ -260,7 +212,7 @@ class UsersPage(QWidget):
             return
 
         row = selected[0].row()
-        user_id = self.table.item(row, 0).text()
+        user_id = int(self.table.item(row, 0).text())
         username = self.table.item(row, 1).text()
 
         new_password, ok = QInputDialog.getText(
@@ -271,20 +223,11 @@ class UsersPage(QWidget):
         )
 
         if ok and new_password:
-            db = SessionLocal()
             try:
-                pwd_hash = get_password_hash(new_password)
-                db.execute(
-                    text("UPDATE warehouse.users SET password_hash=:p WHERE id=:id"),
-                    {"p": pwd_hash, "id": user_id},
-                )
-                db.commit()
+                self.service.reset_password(user_id, new_password)
                 QMessageBox.information(self, "Başarılı", f"'{username}' kullanıcısının şifresi başarıyla sıfırlandı!")
-            except Exception as e:
-                db.rollback()
+            except ServiceError as e:
                 QMessageBox.critical(self, "Hata", f"Şifre sıfırlanırken hata oluştu:\n{e}")
-            finally:
-                db.close()
 
     def _delete_user(self):
         selected = self.table.selectedItems()
@@ -295,7 +238,7 @@ class UsersPage(QWidget):
             return
 
         row = selected[0].row()
-        user_id = self.table.item(row, 0).text()
+        user_id = int(self.table.item(row, 0).text())
         username = self.table.item(row, 1).text()
 
         reply = QMessageBox.question(
@@ -305,17 +248,10 @@ class UsersPage(QWidget):
             QMessageBox.Yes | QMessageBox.No,
         )
         if reply == QMessageBox.Yes:
-            db = SessionLocal()
             try:
-                db.execute(
-                    text("DELETE FROM warehouse.users WHERE id=:id"), {"id": user_id}
-                )
-                db.commit()
+                self.service.delete_user(user_id)
                 self._load_data()
-            except Exception as e:
-                db.rollback()
+            except ServiceError as e:
                 QMessageBox.critical(
                     self, "Hata", f"Kullanıcı silinirken hata oluştu:\n{e}"
                 )
-            finally:
-                db.close()
