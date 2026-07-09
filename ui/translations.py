@@ -337,6 +337,9 @@ TRANSLATIONS = {
         "en": "Summary of the latest warehouse inbound and outbound movements",
         "tr": "Son depo giriş ve çıkış işlemlerinin özet listesi",
     },
+    "reports.start_date": {"en": "Start Date", "tr": "Başlangıç Tarihi"},
+    "reports.end_date": {"en": "End Date", "tr": "Bitiş Tarihi"},
+    "reports.filter": {"en": "Filter", "tr": "Filtrele"},
     # ---- Outbound Stock Entry Page Translations ----
     "outbound.title": {"en": "Outbound Stock Entry", "tr": "Depo Çıkış Modülü"},
     "outbound.subtitle": {
