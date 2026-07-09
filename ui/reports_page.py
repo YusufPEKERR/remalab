@@ -4,20 +4,9 @@ Depo giriş ve çıkış hareketlerinin salt-okunur özet listesi.
 """
 
 from PySide6.QtWidgets import (
-<<<<<<< Updated upstream
-    QWidget,
-    QVBoxLayout,
-    QHBoxLayout,
-    QLabel,
-    QTableWidget,
-    QTableWidgetItem,
-    QHeaderView,
-    QPushButton,
-=======
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QTableWidget, QTableWidgetItem, QHeaderView, QPushButton,
     QDateEdit,
->>>>>>> Stashed changes
 )
 from PySide6.QtCore import Qt, QDate
 from ui.translations import tr, get_translator
