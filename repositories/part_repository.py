@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import select, or_, cast, String
 from sqlalchemy.orm import Session
 
 from models.part import Part
@@ -13,7 +13,12 @@ class PartRepository:
     def get_all(self, search: str | None = None) -> list[Part]:
         stmt = select(Part).order_by(Part.id.desc())
         if search:
-            stmt = stmt.where(Part.name.ilike(f"%{search}%"))
+            stmt = stmt.where(
+                or_(
+                    Part.name.ilike(f"%{search}%"),
+                    cast(Part.id, String).ilike(f"%{search}%")
+                )
+            )
         return list(self.db.execute(stmt).scalars().all())
 
     def get_by_id(self, part_id: int) -> Part | None:
