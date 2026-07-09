@@ -1,5 +1,5 @@
 import os
-from PySide6.QtCore import QObject, Signal, QFile, QTextStream
+from PySide6.QtCore import QObject, Signal, QFile, QTextStream, QSettings
 from PySide6.QtWidgets import QApplication
 
 class ThemeManager(QObject):
@@ -7,12 +7,29 @@ class ThemeManager(QObject):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.is_dark = True
+        self.settings = QSettings("RemaLab", "WMS")
+        self.current_username = None
+        # Son kullanılan temayı yükle (uygulama ilk açıldığında giriş ekranı için)
+        self.is_dark = self.settings.value("theme_last_global", False, type=bool)
+
+    def load_user_theme(self, username: str):
+        """Kullanıcı giriş yaptığında o kullanıcıya özel temayı yükler."""
+        self.current_username = username
+        self.is_dark = self.settings.value(f"theme_{username}", self.is_dark, type=bool)
+        self.apply_theme()
+        self.theme_changed.emit(self.is_dark)
 
     def toggle_theme(self):
         self.is_dark = not self.is_dark
         self.apply_theme()
         self.theme_changed.emit(self.is_dark)
+        
+        # Seçimi global olarak kaydet
+        self.settings.setValue("theme_last_global", self.is_dark)
+        
+        # Giriş yapmış bir kullanıcı varsa, ona özel de kaydet
+        if self.current_username:
+            self.settings.setValue(f"theme_{self.current_username}", self.is_dark)
 
     def apply_theme(self):
         app = QApplication.instance()

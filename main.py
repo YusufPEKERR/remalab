@@ -215,6 +215,10 @@ def main():
         payload = decode_access_token(saved_token)
         if payload:
             session.set_session(saved_token, payload)
+            # Load user specific theme if auto-logging in
+            username = payload.get("sub", "")
+            if username:
+                get_theme_manager().load_user_theme(username)
         else:
             session.clear_session()
 

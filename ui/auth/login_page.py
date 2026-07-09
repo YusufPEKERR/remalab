@@ -1,4 +1,4 @@
-﻿from PySide6.QtWidgets import (
+from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
     QHBoxLayout,
@@ -12,8 +12,9 @@
     QMessageBox,
 )
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QCursor, QColor, QPainter, QLinearGradient
+from PySide6.QtGui import QCursor, QColor, QPainter, QLinearGradient, QPixmap
 import sys
+import os
 from config.database import engine
 from sqlalchemy import text
 from config.auth import verify_password, create_access_token
@@ -32,8 +33,8 @@ class LoginPage(QWidget):
     def paintEvent(self, event):
         painter = QPainter(self)
         gradient = QLinearGradient(0, 0, self.width(), self.height())
-        gradient.setColorAt(0.0, QColor("#1e3c72"))
-        gradient.setColorAt(1.0, QColor("#2a5298"))
+        gradient.setColorAt(0.0, QColor("#F8FAFD"))
+        gradient.setColorAt(1.0, QColor("#EBF0F8"))
         painter.fillRect(self.rect(), gradient)
 
     def setup_ui(self):
@@ -52,9 +53,9 @@ class LoginPage(QWidget):
         glass_panel.setFixedSize(900, 550)
         glass_panel.setStyleSheet("""
             QFrame {
-                background-color: rgba(255, 255, 255, 0.15);
-                border-radius: 20px;
-                border: 1px solid rgba(255, 255, 255, 0.3);
+                background-color: rgba(255, 255, 255, 0.5);
+                border-radius: 24px;
+                border: 1px solid rgba(255, 255, 255, 0.8);
             }
         """)
 
@@ -82,24 +83,35 @@ class LoginPage(QWidget):
         left_layout = QVBoxLayout(left_frame)
         left_layout.setContentsMargins(50, 50, 50, 50)
 
-        title_lbl = QLabel("REMALAB")
-        title_lbl.setStyleSheet(
-            "color: white; font-size: 48px; font-weight: 900; font-family: 'Segoe UI Black'; letter-spacing: 2px; border: none; background: transparent;"
-        )
+        # Logo
+        logo_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "assets", "logo.png")
+        self.logo_lbl = QLabel()
+        self.logo_lbl.setStyleSheet("background: transparent; border: none;")
+        if os.path.exists(logo_path):
+            pixmap = QPixmap(logo_path)
+            pixmap = pixmap.scaledToWidth(250, Qt.SmoothTransformation)
+            self.logo_lbl.setPixmap(pixmap)
+        else:
+            # Fallback if logo not found
+            self.logo_lbl.setText("REMALAB")
+            self.logo_lbl.setStyleSheet(
+                "color: #243B7A; font-size: 56px; font-weight: 900; font-family: 'Segoe UI Black'; letter-spacing: 3px; border: none; background: transparent;"
+            )
 
         sub_lbl = QLabel("Geleceğin Depo\nYönetim Sistemi")
         sub_lbl.setStyleSheet(
-            "color: rgba(255,255,255,0.8); font-size: 24px; font-weight: 400; font-family: 'Segoe UI'; border: none; background: transparent;"
+            "color: #4F6CB3; font-size: 24px; font-weight: 400; font-family: 'Segoe UI'; border: none; background: transparent;"
         )
 
         desc_lbl = QLabel(
             "Tüm stok hareketlerinizi saniyeler\niçinde yönetin, izleyin ve analiz edin."
         )
         desc_lbl.setStyleSheet(
-            "color: rgba(255,255,255,0.6); font-size: 14px; font-family: 'Segoe UI'; border: none; background: transparent;"
+            "color: #4F6CB3; font-size: 14px; font-family: 'Segoe UI'; border: none; background: transparent;"
         )
 
-        left_layout.addWidget(title_lbl)
+        left_layout.addWidget(self.logo_lbl)
+        left_layout.addSpacing(10)
         left_layout.addWidget(sub_lbl)
         left_layout.addSpacing(20)
         left_layout.addWidget(desc_lbl)
@@ -109,9 +121,9 @@ class LoginPage(QWidget):
         right_frame = QFrame()
         right_frame.setStyleSheet("""
             QFrame {
-                background-color: rgba(255, 255, 255, 0.95);
-                border-top-right-radius: 20px;
-                border-bottom-right-radius: 20px;
+                background-color: #FFFFFF;
+                border-top-right-radius: 24px;
+                border-bottom-right-radius: 24px;
                 border: none;
             }
         """)
@@ -124,7 +136,7 @@ class LoginPage(QWidget):
 
         welcome_lbl = QLabel("Giriş Yap")
         welcome_lbl.setStyleSheet(
-            "color: #1e3c72; font-size: 32px; font-weight: 800; font-family: 'Segoe UI'; background: transparent;"
+            "color: #243B7A; font-size: 32px; font-weight: 800; font-family: 'Segoe UI'; background: transparent;"
         )
         welcome_lbl.setAlignment(Qt.AlignCenter)
 
@@ -133,17 +145,21 @@ class LoginPage(QWidget):
         self.username_input.setFixedHeight(50)
         self.username_input.setStyleSheet("""
             QLineEdit {
-                border: 2px solid #e0e0e0;
-                border-radius: 12px;
+                border: 2px solid #D8E2F0;
+                border-radius: 14px;
                 padding: 0 20px;
                 font-size: 15px;
-                color: #333;
-                background-color: #fafafa;
+                color: #1B2338;
+                background-color: #F8FAFD;
                 font-weight: 500;
             }
+            QLineEdit:hover {
+                background-color: #FFFFFF;
+                border: 2px solid #4F6CB3;
+            }
             QLineEdit:focus {
-                border: 2px solid #1e3c72;
-                background-color: white;
+                border: 2px solid #4FA3FF;
+                background-color: #FFFFFF;
             }
         """)
 
@@ -151,33 +167,48 @@ class LoginPage(QWidget):
         self.password_input.setPlaceholderText("Şifre")
         self.password_input.setEchoMode(QLineEdit.Password)
         self.password_input.setFixedHeight(50)
-        self.password_input.setStyleSheet(self.username_input.styleSheet())
+        self.password_input.setStyleSheet("""
+            QLineEdit {
+                border: 2px solid #D8E2F0;
+                border-radius: 14px;
+                padding: 0 45px 0 20px;
+                font-size: 15px;
+                color: #1B2338;
+                background-color: #F8FAFD;
+                font-weight: 500;
+            }
+            QLineEdit:hover {
+                background-color: #FFFFFF;
+                border: 2px solid #4F6CB3;
+            }
+            QLineEdit:focus {
+                border: 2px solid #4FA3FF;
+                background-color: #FFFFFF;
+            }
+        """)
         
-        # Sifre gizle/goster butonu
-        self.pwd_container = QWidget()
-        pwd_layout = QHBoxLayout(self.pwd_container)
-        pwd_layout.setContentsMargins(0, 0, 0, 0)
-        pwd_layout.setSpacing(5)
-        
-        self.pwd_toggle_btn = QPushButton("👁")
-        self.pwd_toggle_btn.setFixedSize(40, 50)
+        # Şifre gizle/göster butonu - Input'un içine ekleniyor
+        self.pwd_toggle_btn = QPushButton("👁", self.password_input)
+        self.pwd_toggle_btn.setFixedSize(34, 34)
         self.pwd_toggle_btn.setCursor(QCursor(Qt.PointingHandCursor))
         self.pwd_toggle_btn.setStyleSheet("""
             QPushButton {
-                background-color: #fafafa;
-                border: 2px solid #e0e0e0;
-                border-radius: 12px;
+                background-color: transparent;
+                border: none;
                 font-size: 18px;
+                color: #4F6CB3;
+                padding-bottom: 2px;
             }
             QPushButton:hover {
-                background-color: #e0e0e0;
+                color: #4FA3FF;
             }
         """)
         self.pwd_toggle_btn.setCheckable(True)
         self.pwd_toggle_btn.toggled.connect(self._toggle_password)
         
-        pwd_layout.addWidget(self.password_input)
-        pwd_layout.addWidget(self.pwd_toggle_btn)
+        pwd_layout = QHBoxLayout(self.password_input)
+        pwd_layout.setContentsMargins(0, 0, 10, 0)
+        pwd_layout.addWidget(self.pwd_toggle_btn, 0, Qt.AlignRight | Qt.AlignVCenter)
         
         # Enter tuşu ile giriş
         self.username_input.returnPressed.connect(self.handle_login)
@@ -187,7 +218,7 @@ class LoginPage(QWidget):
         self.remember_cb.setCursor(QCursor(Qt.PointingHandCursor))
         self.remember_cb.setStyleSheet("""
             QCheckBox {
-                color: #555;
+                color: #1B2338;
                 font-size: 14px;
                 font-weight: 600;
                 font-family: 'Segoe UI';
@@ -197,12 +228,13 @@ class LoginPage(QWidget):
                 width: 20px;
                 height: 20px;
                 border-radius: 6px;
-                border: 2px solid #ccc;
-                background-color: white;
+                border: 2px solid #4F6CB3;
+                background-color: #F8FAFD;
             }
             QCheckBox::indicator:checked {
-                background-color: #1e3c72;
-                border: 2px solid #1e3c72;
+                background-color: transparent;
+                border: 2px solid #243B7A;
+                image: url(assets/check.svg);
             }
         """)
 
@@ -211,20 +243,20 @@ class LoginPage(QWidget):
         self.login_btn.setCursor(QCursor(Qt.PointingHandCursor))
         self.login_btn.setStyleSheet("""
             QPushButton {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #1e3c72, stop:1 #2a5298);
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #243B7A, stop:1 #4F6CB3);
                 color: white;
                 border: none;
-                border-radius: 12px;
+                border-radius: 14px;
                 font-size: 18px;
                 font-weight: bold;
                 font-family: 'Segoe UI';
                 letter-spacing: 1px;
             }
             QPushButton:hover {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #152b53, stop:1 #1e3c72);
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #4F6CB3, stop:1 #4FA3FF);
             }
             QPushButton:pressed {
-                background: #112240;
+                background: #182956;
             }
         """)
         self.login_btn.clicked.connect(self.handle_login)
@@ -232,7 +264,7 @@ class LoginPage(QWidget):
         form_layout.addWidget(welcome_lbl)
         form_layout.addSpacing(10)
         form_layout.addWidget(self.username_input)
-        form_layout.addWidget(self.pwd_container)
+        form_layout.addWidget(self.password_input)
         form_layout.addWidget(self.remember_cb)
         form_layout.addSpacing(10)
         form_layout.addWidget(self.login_btn)
@@ -317,6 +349,11 @@ class LoginPage(QWidget):
         token = create_access_token(payload)
         remember = self.remember_cb.isChecked()
         SessionManager().set_session(token, payload, remember=remember)
+        
+        # Load user's theme preference
+        from ui.theme_manager import get_theme_manager
+        get_theme_manager().load_user_theme(username)
+        
         self.login_successful.emit()
 
 

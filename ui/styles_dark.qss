@@ -381,8 +381,8 @@ QHeaderView::section {
 }
 
 #topbar_separator { background-color: #21262D; }
-#logout_btn { background-color: #da3633; color: white; border: none; border-radius: 4px; padding: 6px 12px; font-weight: bold; font-size: 13px; }
-#logout_btn:hover { background-color: #b02a28; }
+#logout_btn { background-color: transparent; border: none; border-radius: 22px; min-width: 44px; max-width: 44px; min-height: 44px; max-height: 44px; padding: 0; }
+#logout_btn:hover { background-color: rgba(255, 255, 255, 0.05); }
 
 QPushButton#btn_success { background-color: #238636; color: white; padding: 5px 15px; border-radius: 4px; font-weight: bold; } QPushButton#btn_success:hover { background-color: #2EA043; }
 QPushButton#btn_primary { background-color: #1F6FEB; color: white; padding: 5px 15px; border-radius: 4px; font-weight: bold; } QPushButton#btn_primary:hover { background-color: #388BFD; }

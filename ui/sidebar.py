@@ -14,9 +14,12 @@ from PySide6.QtWidgets import (
     QSizePolicy,
 )
 from PySide6.QtCore import Signal, Qt
+from PySide6.QtGui import QPixmap
+import os
 
 from ui.translations import tr, get_translator
 from config.session import SessionManager
+from ui.theme_manager import get_theme_manager
 
 
 class SidebarButton(QPushButton):
@@ -108,6 +111,9 @@ class Sidebar(QWidget):
 
         # Dil değişikliklerini dinle
         get_translator().language_changed.connect(self._retranslate)
+        
+        # Tema değişikliklerini dinle
+        get_theme_manager().theme_changed.connect(self._on_theme_changed)
 
     def _setup_ui(self):
         """Arayüzü oluştur."""
@@ -116,8 +122,9 @@ class Sidebar(QWidget):
         main_layout.setSpacing(0)
 
         # Logo
-        self._logo = QLabel("⚡ REMALAB")
+        self._logo = QLabel()
         self._logo.setObjectName("sidebar_logo")
+        self._update_logo_pixmap(get_theme_manager().is_dark)
         main_layout.addWidget(self._logo)
 
         # Alt başlık
@@ -235,3 +242,19 @@ class Sidebar(QWidget):
 
         for btn in self._buttons:
             btn.retranslate()
+
+    def _on_theme_changed(self, is_dark: bool):
+        """Tema değiştiğinde logoyu güncelle."""
+        self._update_logo_pixmap(is_dark)
+
+    def _update_logo_pixmap(self, is_dark: bool):
+        filename = "karanlık-mod.jpeg" if is_dark else "logo.png"
+        logo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", filename)
+        if os.path.exists(logo_path):
+            pixmap = QPixmap(logo_path)
+            pixmap = pixmap.scaledToWidth(180, Qt.SmoothTransformation)
+            self._logo.setPixmap(pixmap)
+            self._logo.setAlignment(Qt.AlignCenter)
+            self._logo.setContentsMargins(0, 20, 0, 10)
+        else:
+            self._logo.setText("REMALAB")

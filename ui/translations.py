@@ -108,6 +108,10 @@ TRANSLATIONS = {
     },
     "topbar.home": {"en": "Home", "tr": "Ana Sayfa"},
     "topbar.role_admin": {"en": "Admin", "tr": "Yönetici"},
+    # ---- Common ----
+    "common.save": {"en": "Save", "tr": "Kaydet"},
+    "common.cancel": {"en": "Cancel", "tr": "İptal"},
+    "common.loading": {"en": "Loading...", "tr": "Yükleniyor..."},
     # ---- Dashboard ----
     "dashboard.title": {"en": "Dashboard Overview", "tr": "Kontrol Paneli"},
     "dashboard.welcome": {
@@ -234,6 +238,7 @@ TRANSLATIONS = {
     "users.add_user": {"en": "Add User", "tr": "Kullanıcı Ekle"},
     "users.edit_user": {"en": "Edit User", "tr": "Kullanıcı Düzenle"},
     "users.delete_user": {"en": "Delete User", "tr": "Kullanıcı Sil"},
+    "users.register": {"en": "Register", "tr": "Kayıt Ol"},
     "users.username": {"en": "Username", "tr": "Kullanıcı Adı"},
     "users.email": {"en": "Email", "tr": "E-posta"},
     "users.password": {"en": "Password", "tr": "Şifre"},

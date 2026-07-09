@@ -31,6 +31,7 @@ from ui.users_page import UsersPage
 from ui.translations import tr, get_translator
 from config.session import SessionManager
 import sys
+import os
 
 
 class PlaceholderPage(QWidget):
@@ -95,7 +96,7 @@ class MainWindow(QMainWindow):
         self._loading_widget.setObjectName("loading_page")
         self._loading_widget.setStyleSheet("""
             QWidget#loading_page {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #1e3c72, stop:1 #2a5298);
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #F8FAFD, stop:1 #EBF0F8);
             }
         """)
         loading_layout = QVBoxLayout(self._loading_widget)
@@ -107,35 +108,46 @@ class MainWindow(QMainWindow):
         loading_card.setFixedSize(400, 250)
         loading_card.setStyleSheet("""
             QFrame {
-                background-color: rgba(255, 255, 255, 0.12);
+                background-color: rgba(255, 255, 255, 0.7);
                 border-radius: 20px;
-                border: 1px solid rgba(255, 255, 255, 0.25);
+                border: 1px solid rgba(255, 255, 255, 0.9);
             }
             QLabel {
                 background: transparent;
                 border: none;
-                color: #FFFFFF;
+                color: #1B2338;
             }
         """)
         card_layout = QVBoxLayout(loading_card)
         card_layout.setAlignment(Qt.AlignCenter)
         card_layout.setSpacing(15)
 
-        # Modern spinner representation
-        loading_spinner = QLabel("⚡")
-        loading_spinner.setAlignment(Qt.AlignCenter)
-        loading_spinner.setStyleSheet("font-size: 64px; font-weight: bold;")
+        # Yükleniyor Spinner (Logo)
+        from ui.theme_manager import get_theme_manager
+        filename = "karanlık-mod.jpeg" if get_theme_manager().is_dark else "logo.png"
+        logo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", filename)
+        loading_spinner = QLabel()
+        if os.path.exists(logo_path):
+            from PySide6.QtGui import QPixmap
+            pixmap = QPixmap(logo_path)
+            pixmap = pixmap.scaledToWidth(120, Qt.SmoothTransformation)
+            loading_spinner.setPixmap(pixmap)
+            loading_spinner.setAlignment(Qt.AlignCenter)
+        else:
+            loading_spinner.setText("Yükleniyor...")
+            loading_spinner.setStyleSheet("font-size: 24px; color: #4F6CB3;")
+            loading_spinner.setAlignment(Qt.AlignCenter)
         card_layout.addWidget(loading_spinner)
 
         # Spin animation setup (subtle pulse effect)
         loading_lbl = QLabel(tr("common.loading") if tr("common.loading") != "common.loading" else "Sistem Yükleniyor...")
         loading_lbl.setAlignment(Qt.AlignCenter)
-        loading_lbl.setStyleSheet("font-size: 20px; font-weight: 700; font-family: 'Segoe UI'; letter-spacing: 1px;")
+        loading_lbl.setStyleSheet("font-size: 20px; font-weight: 700; font-family: 'Segoe UI'; letter-spacing: 1px; color: #243B7A;")
         card_layout.addWidget(loading_lbl)
 
         loading_sub = QLabel("Lütfen bekleyin, veriler senkronize ediliyor...")
         loading_sub.setAlignment(Qt.AlignCenter)
-        loading_sub.setStyleSheet("font-size: 13px; color: rgba(255, 255, 255, 0.65); font-family: 'Segoe UI';")
+        loading_sub.setStyleSheet("font-size: 13px; color: #4F6CB3; font-family: 'Segoe UI';")
         card_layout.addWidget(loading_sub)
 
         loading_layout.addWidget(loading_card)

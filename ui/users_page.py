@@ -61,7 +61,8 @@ class UserDialog(QDialog):
         layout.addLayout(form_layout)
 
         btn_layout = QHBoxLayout()
-        save_btn = QPushButton(tr("common.save"))
+        btn_text = tr("common.save") if self.user_data else tr("users.register")
+        save_btn = QPushButton(btn_text)
         save_btn.clicked.connect(self.accept)
         cancel_btn = QPushButton(tr("common.cancel"))
         cancel_btn.clicked.connect(self.reject)

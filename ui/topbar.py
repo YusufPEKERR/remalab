@@ -148,12 +148,22 @@ class TopBar(QWidget):
         right_layout.addWidget(user_info)
 
         # Profil Çıkış Yap butonu
-        logout_btn = QPushButton("🚪 Çıkış Yap")
+        logout_btn = QPushButton()
         logout_btn.setObjectName("logout_btn")
+        
+        import os
+        from PySide6.QtGui import QIcon, QPixmap
+        from PySide6.QtCore import QSize
+        icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "cikis-yap.png")
+        if os.path.exists(icon_path):
+            logout_btn.setIcon(QIcon(icon_path))
+            logout_btn.setIconSize(QSize(32, 32))
+            
         logout_btn.setCursor(Qt.PointingHandCursor)
-        logout_btn
+        logout_btn.setToolTip("Çıkış Yap")
         logout_btn.clicked.connect(self.logout_requested.emit)
         
+        right_layout.addSpacing(16)
         right_layout.addWidget(logout_btn)
 
         layout.addWidget(right_section)
