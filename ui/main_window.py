@@ -233,9 +233,18 @@ class MainWindow(QMainWindow):
             parts = PartsPage()
             self._add_page("nav.parts", parts)
             
-            depo_placeholders = ["nav.brands", "nav.phone_models", "nav.suppliers"]
+            from ui.phone_models_page import PhoneModelsPage
+            phone_models = PhoneModelsPage()
+            self._add_page("nav.phone_models", phone_models)
+
+            from ui.suppliers_page import SuppliersPage
+            suppliers = SuppliersPage()
+            self._add_page("nav.suppliers", suppliers)
+
+            depo_placeholders = []
             for m in depo_placeholders:
                 self._add_page(m, PlaceholderPage(m))
+
 
         # Admin ve Teknisyen Modülleri
         if user_role in ["Admin", "Teknisyen"]:

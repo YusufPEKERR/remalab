@@ -87,7 +87,7 @@ TRANSLATIONS = {
     "nav.locations": {"en": "Locations", "tr": "Lokasyonlar"},
     "nav.parts": {"en": "Parts", "tr": "Parçalar"},
     "nav.brands": {"en": "Brands", "tr": "Markalar"},
-    "nav.phone_models": {"en": "Phone Models", "tr": "Telefon Modelleri"},
+    "nav.phone_models": {"en": "Product List", "tr": "Ürün Listesi"},
     "nav.suppliers": {"en": "Suppliers", "tr": "Tedarikçiler"},
     "nav.waybill": {"en": "Waybill", "tr": "İrsaliye"},
     "nav.inbound": {"en": "Inbound", "tr": "Giriş"},

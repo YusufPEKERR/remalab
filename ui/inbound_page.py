@@ -77,40 +77,58 @@ class AddInboundStockDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle(tr("inbound.add_new"))
-        self.setMinimumWidth(450)
-        self
+        self.setMinimumWidth(480)
+        self.setMinimumHeight(520)
+
+        # Seçilen part_id saklanacak
+        self._selected_part_id = None
 
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
 
         scroll = QScrollArea(self)
         scroll.setWidgetResizable(True)
-        scroll.setStyleSheet(
-            "QScrollArea { border: none; background-color: transparent; }"
-        )
+        scroll.setStyleSheet("QScrollArea { border: none; background-color: transparent; }")
 
         container = QWidget()
-        container
         layout = QVBoxLayout(container)
         layout.setSpacing(14)
+        layout.setContentsMargins(20, 20, 20, 10)
 
         scroll.setWidget(container)
         main_layout.addWidget(scroll)
 
-        # 1. Barkod Girişi (Okuyucu için ilk odak alanı)
-        lbl_barcode = QLabel(tr("inbound.barcode"))
-        lbl_barcode
+        # ── 1. Barkod ─────────────────────────────────────────────────────────
+        lbl_barcode = QLabel("📋  Barkod (okutun ve Enter'a basın)")
+        lbl_barcode.setStyleSheet("font-weight: bold; color: #58A6FF;")
         layout.addWidget(lbl_barcode)
 
+        bc_row = QHBoxLayout()
         self.barcode_input = QLineEdit()
-        self.barcode_input.setPlaceholderText("Barkodu okutun ve Enter'a basın...")
-        self.barcode_input
+        self.barcode_input.setPlaceholderText("Barkodu okutun veya manuel girin...")
         self.barcode_input.returnPressed.connect(self._on_barcode_scanned)
-        layout.addWidget(self.barcode_input)
+        bc_row.addWidget(self.barcode_input)
 
-        # --- Hiyerarşik Parça Seçimi ---
+        bc_btn = QPushButton("🔍")
+        bc_btn.setFixedWidth(40)
+        bc_btn.setCursor(Qt.PointingHandCursor)
+        bc_btn.setToolTip("Barkodu ara")
+        bc_btn.clicked.connect(self._on_barcode_scanned)
+        bc_row.addWidget(bc_btn)
+        layout.addLayout(bc_row)
+
+        # Durum etiketi
+        self.status_lbl = QLabel("")
+        self.status_lbl.setStyleSheet("color: #8B949E; font-style: italic;")
+        layout.addWidget(self.status_lbl)
+
+        # ── Ayırıcı ───────────────────────────────────────────────────────────
+        sep = QLabel("─" * 55)
+        sep.setStyleSheet("color: #30363D;")
+        layout.addWidget(sep)
+
+        # ── 2. Marka / Model Seçimi (hiyerarşik) ────────────────────────────
         lbl_brand = QLabel("Marka")
-        lbl_brand
         layout.addWidget(lbl_brand)
         self.brand_combo = QComboBox()
         self.brand_combo.setStyleSheet(self._combo_style())
@@ -118,23 +136,13 @@ class AddInboundStockDialog(QDialog):
         layout.addWidget(self.brand_combo)
 
         lbl_model = QLabel("Telefon Modeli")
-        lbl_model
         layout.addWidget(lbl_model)
         self.model_combo = QComboBox()
         self.model_combo.setStyleSheet(self._combo_style())
         self.model_combo.currentIndexChanged.connect(self._on_model_changed)
         layout.addWidget(self.model_combo)
 
-        lbl_category = QLabel("Parça Tipi")
-        lbl_category
-        layout.addWidget(lbl_category)
-        self.category_combo = QComboBox()
-        self.category_combo.setStyleSheet(self._combo_style())
-        self.category_combo.currentIndexChanged.connect(self._on_category_changed)
-        layout.addWidget(self.category_combo)
-
-        lbl_part = QLabel(tr("parts.part_name"))
-        lbl_part
+        lbl_part = QLabel(tr("parts.part_name") + " / Parça")
         layout.addWidget(lbl_part)
         self.part_combo = QComboBox()
         self.part_combo.setStyleSheet(self._combo_style())
@@ -146,113 +154,148 @@ class AddInboundStockDialog(QDialog):
         self.part_combo.currentIndexChanged.connect(self._on_part_selected)
         layout.addWidget(self.part_combo)
 
-        # Parça Detayları (Read-only Info)
-        self.part_details_widget = QWidget()
-        details_layout = QVBoxLayout(self.part_details_widget)
-        details_layout.setContentsMargins(10, 10, 10, 10)
-        details_layout.setSpacing(4)
-        self.part_details_widget
-
-        lbl_stok_kodu = QLabel("Stok Kodu:")
-        lbl_stok_kodu
-        details_layout.addWidget(lbl_stok_kodu)
-
-        self.stok_kodu_input = QLineEdit()
-        self.stok_kodu_input.setPlaceholderText(
-            "Manuel girilebilir veya seçimden gelir"
+        # ── 3. Otomatik doldurulan bilgi kutusu ───────────────────────────────
+        self.info_box = QWidget()
+        self.info_box.setStyleSheet(
+            "QWidget { background: #161B22; border: 1px solid #30363D; border-radius: 6px; padding: 4px; }"
         )
-        self.stok_kodu_input
-        details_layout.addWidget(self.stok_kodu_input)
+        info_layout = QVBoxLayout(self.info_box)
+        info_layout.setContentsMargins(12, 10, 12, 10)
+        info_layout.setSpacing(4)
 
-        self.lbl_part_barcode = QLabel("Barkod: -")
-        self.lbl_part_barcode
-        details_layout.addWidget(self.lbl_part_barcode)
+        self.lbl_info_code    = QLabel("Ürün Kodu: —")
+        self.lbl_info_barcode = QLabel("Barkod: —")
+        self.lbl_info_brand   = QLabel("Marka: —")
+        self.lbl_info_model   = QLabel("Model: —")
+        self.lbl_info_color   = QLabel("Renk: —")
+        for lbl in [self.lbl_info_code, self.lbl_info_barcode,
+                    self.lbl_info_brand, self.lbl_info_model, self.lbl_info_color]:
+            lbl.setStyleSheet("color: #8B949E; font-size: 12px; border: none;")
+            info_layout.addWidget(lbl)
 
-        layout.addWidget(self.part_details_widget)
+        layout.addWidget(self.info_box)
+        self.info_box.setVisible(False)
 
-        # 3. Birim Adet
+        # ── 4. Miktar & Fiyat ────────────────────────────────────────────────
+        qty_price_row = QHBoxLayout()
+        qty_price_row.setSpacing(12)
+
+        qty_col = QVBoxLayout()
         lbl_qty = QLabel(tr("table.quantity"))
-        lbl_qty
-        layout.addWidget(lbl_qty)
-
+        qty_col.addWidget(lbl_qty)
         self.qty_spin = QSpinBox()
-        self.qty_spin.setRange(1, 1000000)
+        self.qty_spin.setRange(1, 1_000_000)
         self.qty_spin.setValue(1)
-        self.qty_spin
         self.qty_spin.valueChanged.connect(self._calculate_total)
-        layout.addWidget(self.qty_spin)
+        qty_col.addWidget(self.qty_spin)
+        qty_price_row.addLayout(qty_col)
 
-        # 4. Birim Fiyat
+        price_col = QVBoxLayout()
         lbl_price = QLabel(tr("inbound.unit_price"))
-        lbl_price
-        layout.addWidget(lbl_price)
-
+        price_col.addWidget(lbl_price)
         self.price_spin = QDoubleSpinBox()
-        self.price_spin.setRange(0.01, 1000000.00)
+        self.price_spin.setRange(0.01, 1_000_000.00)
         self.price_spin.setDecimals(2)
         self.price_spin.setValue(1.00)
         self.price_spin.setSuffix(" TL")
-        self.price_spin
         self.price_spin.valueChanged.connect(self._calculate_total)
-        layout.addWidget(self.price_spin)
+        price_col.addWidget(self.price_spin)
+        qty_price_row.addLayout(price_col)
 
-        # 5. Toplam Maliyet (Read-only / calculated)
+        layout.addLayout(qty_price_row)
+
+        # Toplam
         lbl_total = QLabel(tr("inbound.total_cost"))
-        lbl_total
         layout.addWidget(lbl_total)
-
         self.total_cost_lbl = QLabel("1.00 TL")
-        self.total_cost_lbl
+        self.total_cost_lbl.setStyleSheet("font-weight: bold; color: #3FB950; font-size: 15px;")
         layout.addWidget(self.total_cost_lbl)
 
-        # 6. Lokasyon Seçimi
+        # ── 5. Lokasyon ───────────────────────────────────────────────────────
         lbl_loc = QLabel(tr("table.location"))
-        lbl_loc
         layout.addWidget(lbl_loc)
-
         self.loc_combo = QComboBox()
-        self.loc_combo
+        self.loc_combo.setStyleSheet(self._combo_style())
         layout.addWidget(self.loc_combo)
+
+        layout.addStretch()
 
         # Butonlar
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
-
         buttons.button(QDialogButtonBox.Ok).setText(tr("db.save"))
-        buttons.button(QDialogButtonBox.Ok)
         buttons.button(QDialogButtonBox.Cancel).setText(tr("db.cancel"))
-        buttons.button(QDialogButtonBox.Cancel)
 
-        buttons_layout = QHBoxLayout()
-        buttons_layout.setContentsMargins(14, 0, 14, 14)
-        buttons_layout.addWidget(buttons)
-        main_layout.addLayout(buttons_layout)
+        btn_wrapper = QWidget()
+        btn_layout = QHBoxLayout(btn_wrapper)
+        btn_layout.setContentsMargins(20, 0, 20, 16)
+        btn_layout.addWidget(buttons)
+        main_layout.addWidget(btn_wrapper)
 
         self._load_combos()
         self._calculate_total()
-
-        # Otomatik odaklanma tetikleme
         self.barcode_input.setFocus()
 
+    # ── Stil ─────────────────────────────────────────────────────────────────
     def _combo_style(self):
         return (
-            "QComboBox { background-color: #161B22; border: 1px solid #30363D; padding: 8px; color: #F0F6FC; border-radius: 4px; }"
-            "QComboBox QAbstractItemView { background-color: #161B22; color: #F0F6FC; selection-background-color: #1F6FEB; }"
+            "QComboBox { background-color: #161B22; border: 1px solid #30363D; "
+            "padding: 8px; color: #F0F6FC; border-radius: 4px; } "
+            "QComboBox QAbstractItemView { background-color: #161B22; color: #F0F6FC; "
+            "selection-background-color: #1F6FEB; } "
             "QLineEdit { background-color: #161B22; color: #F0F6FC; border: none; padding: 0px; }"
         )
 
+    # ── Combolar ─────────────────────────────────────────────────────────────
+    def _load_combos(self, select_part_id: int = None):
+        """Marka ve lokasyon listesini parçalar tablosundan yükler."""
+        for cb in [self.brand_combo, self.model_combo, self.part_combo]:
+            cb.blockSignals(True)
+            cb.clear()
+            cb.blockSignals(False)
+        self.loc_combo.clear()
+
+        try:
+            from config.database import SessionLocal
+            from sqlalchemy import text
+
+            db = SessionLocal()
+            try:
+                # Markalar — warehouse.parts.brand'dan çekiyoruz
+                brands = db.execute(text("""
+                    SELECT DISTINCT brand FROM warehouse.parts
+                    WHERE brand IS NOT NULL AND brand <> ''
+                    ORDER BY brand;
+                """)).fetchall()
+
+                self.brand_combo.blockSignals(True)
+                self.brand_combo.addItem("Marka seçiniz...", "")
+                for (b,) in brands:
+                    self.brand_combo.addItem(b, b)
+                self.brand_combo.blockSignals(False)
+
+                # Lokasyonlar
+                locs = db.execute(
+                    text("SELECT id, name FROM warehouse.locations ORDER BY name;")
+                ).fetchall()
+                for row in locs:
+                    self.loc_combo.addItem(row[1], row[0])
+
+                if select_part_id:
+                    self._select_part_hierarchy(select_part_id)
+            finally:
+                db.close()
+        except Exception as e:
+            print(f"[Dialog] Combo yüklenemedi: {e}")
+
     def _on_brand_changed(self, index):
-        self.model_combo.blockSignals(True)
-        self.model_combo.clear()
-        self.model_combo.blockSignals(False)
-        self.category_combo.blockSignals(True)
-        self.category_combo.clear()
-        self.category_combo.blockSignals(False)
-        self.part_combo.blockSignals(True)
-        self.part_combo.clear()
-        self.part_combo.blockSignals(False)
-        self._clear_part_details()
+        for cb in [self.model_combo, self.part_combo]:
+            cb.blockSignals(True)
+            cb.clear()
+            cb.blockSignals(False)
+        self._selected_part_id = None
+        self._update_info_box(None)
 
         brand = self.brand_combo.itemData(index)
         if not brand:
@@ -264,280 +307,173 @@ class AddInboundStockDialog(QDialog):
 
             db = SessionLocal()
             try:
-                if brand == "NULL":
-                    models = db.execute(
-                        text(
-                            "SELECT DISTINCT model FROM warehouse.parts WHERE brand IS NULL ORDER BY model;"
-                        )
-                    ).fetchall()
-                else:
-                    models = db.execute(
-                        text(
-                            "SELECT DISTINCT model FROM warehouse.parts WHERE brand = :brand ORDER BY model;"
-                        ),
-                        {"brand": brand},
-                    ).fetchall()
+                models = db.execute(text("""
+                    SELECT DISTINCT model FROM warehouse.parts
+                    WHERE brand = :brand AND model IS NOT NULL AND model <> ''
+                    ORDER BY model;
+                """), {"brand": brand}).fetchall()
 
                 self.model_combo.blockSignals(True)
-                self.model_combo.addItem("Seçiniz...", "")
+                self.model_combo.addItem("Model seçiniz...", "")
                 for (m,) in models:
-                    self.model_combo.addItem(
-                        m if m else "Belirtilmemiş", m if m else "NULL"
-                    )
+                    self.model_combo.addItem(m, m)
                 self.model_combo.blockSignals(False)
+
+                # Model yoksa direk parçaları yükle
+                if not models:
+                    self._load_parts_for(brand=brand, model=None)
             finally:
                 db.close()
         except Exception as e:
-            print(f"Error: {e}")
+            print(f"[Dialog] Model yüklenemedi: {e}")
 
     def _on_model_changed(self, index):
-        self.category_combo.blockSignals(True)
-        self.category_combo.clear()
-        self.category_combo.blockSignals(False)
         self.part_combo.blockSignals(True)
         self.part_combo.clear()
         self.part_combo.blockSignals(False)
-        self._clear_part_details()
+        self._selected_part_id = None
+        self._update_info_box(None)
 
         brand = self.brand_combo.currentData()
         model = self.model_combo.itemData(index)
         if not brand or not model:
             return
 
+        self._load_parts_for(brand=brand, model=model)
+
+    def _load_parts_for(self, brand: str, model):
+        """Verilen marka+model için parçaları yükler."""
         try:
             from config.database import SessionLocal
             from sqlalchemy import text
 
             db = SessionLocal()
             try:
-                q = "SELECT DISTINCT item_category FROM warehouse.parts WHERE "
-                params = {}
-
-                if brand == "NULL":
-                    q += "brand IS NULL AND "
+                if model:
+                    rows = db.execute(text("""
+                        SELECT id, name FROM warehouse.parts
+                        WHERE brand = :brand AND model = :model
+                        ORDER BY name;
+                    """), {"brand": brand, "model": model}).fetchall()
                 else:
-                    q += "brand = :brand AND "
-                    params["brand"] = brand
-
-                if model == "NULL":
-                    q += "model IS NULL "
-                else:
-                    q += "model = :model "
-                    params["model"] = model
-
-                q += "ORDER BY item_category;"
-
-                categories = db.execute(text(q), params).fetchall()
-
-                self.category_combo.blockSignals(True)
-                self.category_combo.addItem("Seçiniz...", "")
-                for (c,) in categories:
-                    self.category_combo.addItem(
-                        c if c else "Belirtilmemiş", c if c else "NULL"
-                    )
-                self.category_combo.blockSignals(False)
-            finally:
-                db.close()
-        except Exception as e:
-            print(f"Error: {e}")
-
-    def _on_category_changed(self, index):
-        self.part_combo.blockSignals(True)
-        self.part_combo.clear()
-        self.part_combo.blockSignals(False)
-        self._clear_part_details()
-
-        brand = self.brand_combo.currentData()
-        model = self.model_combo.currentData()
-        category = self.category_combo.itemData(index)
-        if not brand or not model or not category:
-            return
-
-        try:
-            from config.database import SessionLocal
-            from sqlalchemy import text
-
-            db = SessionLocal()
-            try:
-                q = "SELECT id, name FROM warehouse.parts WHERE "
-                params = {}
-
-                if brand == "NULL":
-                    q += "brand IS NULL AND "
-                else:
-                    q += "brand = :brand AND "
-                    params["brand"] = brand
-
-                if model == "NULL":
-                    q += "model IS NULL AND "
-                else:
-                    q += "model = :model AND "
-                    params["model"] = model
-
-                if category == "NULL":
-                    q += "item_category IS NULL "
-                else:
-                    q += "item_category = :category "
-                    params["category"] = category
-
-                q += "ORDER BY name;"
-
-                parts = db.execute(text(q), params).fetchall()
+                    rows = db.execute(text("""
+                        SELECT id, name FROM warehouse.parts
+                        WHERE brand = :brand
+                        ORDER BY name;
+                    """), {"brand": brand}).fetchall()
 
                 self.part_combo.blockSignals(True)
-                self.part_combo.addItem("Seçiniz...", "")
-                for p_id, p_name in parts:
+                self.part_combo.addItem("Parça seçiniz...", None)
+                for p_id, p_name in rows:
                     self.part_combo.addItem(p_name, p_id)
                 self.part_combo.blockSignals(False)
             finally:
                 db.close()
         except Exception as e:
-            print(f"Error: {e}")
+            print(f"[Dialog] Parça yüklenemedi: {e}")
 
     def _on_part_selected(self, index):
-        if index < 0:
-            self._clear_part_details()
-            return
-
         part_id = self.part_combo.itemData(index)
         if not part_id:
-            self._clear_part_details()
+            self._selected_part_id = None
+            self._update_info_box(None)
             return
+        self._selected_part_id = part_id
+        self._fill_part_details(part_id)
 
+    def _fill_part_details(self, part_id: int):
+        """Seçilen parçanın detaylarını bilgi kutusuna yazar."""
         try:
             from config.database import SessionLocal
             from sqlalchemy import text
 
             db = SessionLocal()
             try:
-                part = db.execute(
-                    text(
-                        "SELECT barcode, item_code FROM warehouse.parts WHERE id = :id;"
-                    ),
-                    {"id": part_id},
-                ).fetchone()
+                part = db.execute(text("""
+                    SELECT item_code, barcode, brand, model, color
+                    FROM warehouse.parts WHERE id = :id;
+                """), {"id": part_id}).fetchone()
 
                 if part:
-                    barcode = part[0] if part[0] else "-"
-                    item_code = part[1] if part[1] else "-"
+                    self._update_info_box(part)
 
-                    self.lbl_part_barcode.setText(f"Barkod: {barcode}")
-                    self.stok_kodu_input.setText(item_code if item_code != "-" else "")
-
-                    last_price = db.execute(
-                        text(
-                            "SELECT unit_price FROM warehouse.inbound_entries WHERE part_id = :id ORDER BY created_at DESC LIMIT 1;"
-                        ),
-                        {"id": part_id},
-                    ).scalar()
+                    # Son giriş fiyatını getir
+                    last_price = db.execute(text("""
+                        SELECT unit_price FROM warehouse.inbound_entries
+                        WHERE part_id = :id ORDER BY created_at DESC LIMIT 1;
+                    """), {"id": part_id}).scalar()
                     if last_price is not None:
                         self.price_spin.setValue(float(last_price))
-                else:
-                    self._clear_part_details()
             finally:
                 db.close()
         except Exception as e:
-            print(f"[Error Loading Part Details] {e}")
+            print(f"[Dialog] Part detail yüklenemedi: {e}")
 
-    def _clear_part_details(self):
-        self.lbl_part_barcode.setText("Barkod: -")
-        self.stok_kodu_input.clear()
-
-    def _calculate_total(self):
-        qty = self.qty_spin.value()
-        price = self.price_spin.value()
-        total = qty * price
-        self.total_cost_lbl.setText(f"{total:,.2f} TL")
-
-    def _load_combos(self, select_part_id: int = None):
-        """Marka ve lokasyon listesini yükler."""
-        self.brand_combo.blockSignals(True)
-        self.brand_combo.clear()
-        self.brand_combo.blockSignals(False)
-        self.model_combo.blockSignals(True)
-        self.model_combo.clear()
-        self.model_combo.blockSignals(False)
-        self.category_combo.blockSignals(True)
-        self.category_combo.clear()
-        self.category_combo.blockSignals(False)
-        self.part_combo.blockSignals(True)
-        self.part_combo.clear()
-        self.part_combo.blockSignals(False)
-
-        self.loc_combo.clear()
-        try:
-            from config.database import SessionLocal
-            from sqlalchemy import text
-
-            db = SessionLocal()
-            try:
-                # Markalar
-                brands = db.execute(
-                    text("SELECT name FROM warehouse.brands ORDER BY name;")
-                ).fetchall()
-                self.brand_combo.blockSignals(True)
-                self.brand_combo.addItem("Marka seçiniz...", "")
-                for (b,) in brands:
-                    self.brand_combo.addItem(
-                        b if b else "Belirtilmemiş", b if b else "NULL"
-                    )
-                self.brand_combo.blockSignals(False)
-
-                # Lokasyonlar
-                locs = db.execute(
-                    text("SELECT id, name FROM warehouse.locations ORDER BY name;")
-                ).fetchall()
-                for row in locs:
-                    self.loc_combo.addItem(row[1], row[0])
-
-                # Seçim yönlendirmesi
-                if select_part_id:
-                    self._select_part_hierarchy(select_part_id)
-            finally:
-                db.close()
-        except Exception as e:
-            print(f"[Error Loading Dialog Combos] {e}")
+    def _update_info_box(self, part):
+        """Bilgi kutusunu parça verisine göre günceller."""
+        if part is None:
+            self.info_box.setVisible(False)
+            return
+        self.lbl_info_code.setText(f"Ürün Kodu: {part[0] or '—'}")
+        self.lbl_info_barcode.setText(f"Barkod: {part[1] or '—'}")
+        self.lbl_info_brand.setText(f"Marka: {part[2] or '—'}")
+        self.lbl_info_model.setText(f"Model: {part[3] or '—'}")
+        self.lbl_info_color.setText(f"Renk: {part[4] or '—'}")
+        self.info_box.setVisible(True)
 
     def _select_part_hierarchy(self, part_id: int):
+        """Barkod okununca önce combo'ları doldurur sonra seçer."""
         try:
             from config.database import SessionLocal
             from sqlalchemy import text
 
             db = SessionLocal()
             try:
-                part = db.execute(
-                    text(
-                        "SELECT brand, model, item_category FROM warehouse.parts WHERE id = :id;"
-                    ),
-                    {"id": part_id},
-                ).fetchone()
-                if part:
-                    brand = part[0] if part[0] else "NULL"
-                    model = part[1] if part[1] else "NULL"
-                    category = part[2] if part[2] else "NULL"
+                part = db.execute(text("""
+                    SELECT brand, model FROM warehouse.parts WHERE id = :id;
+                """), {"id": part_id}).fetchone()
 
-                    b_idx = self.brand_combo.findData(brand)
-                    if b_idx != -1:
-                        self.brand_combo.setCurrentIndex(b_idx)
+                if not part:
+                    return
 
-                    m_idx = self.model_combo.findData(model)
-                    if m_idx != -1:
-                        self.model_combo.setCurrentIndex(m_idx)
+                brand = part[0] or ""
+                model = part[1] or ""
 
-                    c_idx = self.category_combo.findData(category)
-                    if c_idx != -1:
-                        self.category_combo.setCurrentIndex(c_idx)
-
-                    p_idx = self.part_combo.findData(part_id)
-                    if p_idx != -1:
-                        self.part_combo.setCurrentIndex(p_idx)
+                # Marka seç
+                b_idx = self.brand_combo.findData(brand)
+                if b_idx != -1:
+                    self.brand_combo.setCurrentIndex(b_idx)
+                    # _on_brand_changed çalışır — model combo'yu doldurur
+                    # Kısa bir süre bekleyip model seçiyoruz
+                    from PySide6.QtCore import QTimer
+                    def select_model():
+                        m_idx = self.model_combo.findData(model)
+                        if m_idx != -1:
+                            self.model_combo.setCurrentIndex(m_idx)
+                            # _on_model_changed parçaları doldurur
+                            def select_part():
+                                p_idx = self.part_combo.findData(part_id)
+                                if p_idx != -1:
+                                    self.part_combo.setCurrentIndex(p_idx)
+                            QTimer.singleShot(80, select_part)
+                        else:
+                            # Model yok — direkt parçayı seç
+                            p_idx = self.part_combo.findData(part_id)
+                            if p_idx != -1:
+                                self.part_combo.setCurrentIndex(p_idx)
+                    QTimer.singleShot(80, select_model)
+                else:
+                    # Marka combo'da yoksa — parçaları manuel doldur
+                    self._selected_part_id = part_id
+                    self._fill_part_details(part_id)
             finally:
                 db.close()
         except Exception as e:
-            print(f"Error: {e}")
+            print(f"[Dialog] Hiyerarşi seçim hatası: {e}")
 
+    # ── Barkod Okuma ─────────────────────────────────────────────────────────
     def _on_barcode_scanned(self):
-        """Barkod okutulduğunda if-else karar akışı."""
+        """Barkod okununca tüm alanları otomatik doldurur."""
         barcode_val = self.barcode_input.text().strip()
         if not barcode_val:
             return
@@ -548,22 +484,28 @@ class AddInboundStockDialog(QDialog):
 
             db = SessionLocal()
             try:
-                # Barkodu veritabanında sorgula
-                part = db.execute(
-                    text(
-                        "SELECT id, name FROM warehouse.parts WHERE barcode = :barcode;"
-                    ),
-                    {"barcode": barcode_val},
-                ).fetchone()
+                part = db.execute(text("""
+                    SELECT id, name, item_code, barcode, brand, model, color
+                    FROM warehouse.parts
+                    WHERE barcode = :barcode;
+                """), {"barcode": barcode_val}).fetchone()
 
                 if part:
-                    # SENARYO A: Ürün Bulundu
+                    # ✅ Bulundu — tüm alanları doldur
+                    self._selected_part_id = part[0]
+                    self.status_lbl.setText(f"✅ Bulundu: {part[1]}")
+                    self.status_lbl.setStyleSheet("color: #3FB950; font-weight: bold;")
+                    self._update_info_box(part[2:])
+
+                    # Hiyerarşi combo'larını arka planda doldur
                     self._select_part_hierarchy(part[0])
-                    # Adet alanına odaklan
                     self.qty_spin.setFocus()
                     self.qty_spin.selectAll()
                 else:
-                    # SENARYO B: Ürün Bulunamadı
+                    # ❌ Bulunamadı — hızlı ekleme sor
+                    self.status_lbl.setText(f"❌ Barkod bulunamadı: {barcode_val}")
+                    self.status_lbl.setStyleSheet("color: #F85149; font-weight: bold;")
+
                     reply = QMessageBox.question(
                         self,
                         tr("inbound.barcode_error_title"),
@@ -571,35 +513,23 @@ class AddInboundStockDialog(QDialog):
                         QMessageBox.Yes | QMessageBox.No,
                         QMessageBox.Yes,
                     )
-
                     if reply == QMessageBox.Yes:
-                        # Hızlı Ürün Ekleme Modalı
                         quick_dialog = QuickAddProductDialog(barcode_val, self)
                         if quick_dialog.exec() == QDialog.Accepted:
                             p_name = quick_dialog.name_input.text().strip()
                             if p_name:
-                                # Yeni ürünü veritabanına kaydet
-                                res = db.execute(
-                                    text(
-                                        "INSERT INTO warehouse.parts (name, barcode) VALUES (:name, :barcode) RETURNING id;"
-                                    ),
-                                    {"name": p_name, "barcode": barcode_val},
-                                )
-                                new_part_id = res.scalar()
+                                res = db.execute(text("""
+                                    INSERT INTO warehouse.parts (name, barcode)
+                                    VALUES (:name, :barcode) RETURNING id;
+                                """), {"name": p_name, "barcode": barcode_val})
+                                new_id = res.scalar()
                                 db.commit()
-
-                                # Combobox'ı yenile ve yeni ürünü seçtir
-                                self._load_combos(select_part_id=new_part_id)
+                                self._load_combos(select_part_id=new_id)
+                                self.status_lbl.setText(f"✅ Yeni parça eklendi: {p_name}")
+                                self.status_lbl.setStyleSheet("color: #3FB950; font-weight: bold;")
                                 self.qty_spin.setFocus()
-                                self.qty_spin.selectAll()
-                            else:
-                                self._reset_barcode()
-                        else:
-                            self._reset_barcode()
                     else:
-                        # HAYIR tıklandıysa
                         self._reset_barcode()
-
             finally:
                 db.close()
         except Exception as e:
@@ -607,9 +537,15 @@ class AddInboundStockDialog(QDialog):
             self._reset_barcode()
 
     def _reset_barcode(self):
-        """Barkod giriş alanını temizler ve odağı tekrar oraya çeker."""
         self.barcode_input.clear()
+        self.status_lbl.setText("")
         self.barcode_input.setFocus()
+
+    def _calculate_total(self):
+        qty = self.qty_spin.value()
+        price = self.price_spin.value()
+        self.total_cost_lbl.setText(f"{qty * price:,.2f} TL")
+
 
 
 class InboundPage(QWidget):
@@ -737,83 +673,96 @@ class InboundPage(QWidget):
     def _add_inbound_stock(self):
         """Stok giriş formunu açar ve kaydeder."""
         dialog = AddInboundStockDialog(self)
-        if dialog.exec() == QDialog.Accepted:
-            part_id = dialog.part_combo.currentData()
-            location_id = dialog.loc_combo.currentData()
-            qty = dialog.qty_spin.value()
-            price = dialog.price_spin.value()
-            total = qty * price
-            created_by = "depocu_1"
+        if dialog.exec() != QDialog.Accepted:
+            return
 
-            if part_id is None or location_id is None:
-                QMessageBox.warning(self, "Hata", "Lütfen tüm seçimleri yapın.")
-                return
+        # _selected_part_id barkoddan gelir; yoksa combo seçiminden al
+        part_id = dialog._selected_part_id or dialog.part_combo.currentData()
+        location_id = dialog.loc_combo.currentData()
+        qty = dialog.qty_spin.value()
+        price = dialog.price_spin.value()
+        total = qty * price
 
+        # Oturumdan kullanıcı adını al
+        try:
+            from config.session import SessionManager
+            created_by = SessionManager().username or "sistem"
+        except Exception:
+            created_by = "sistem"
+
+        if not isinstance(part_id, int):
+            QMessageBox.warning(self, "Hata", "Lütfen geçerli bir parça seçin.")
+            return
+
+        if location_id is None:
+            QMessageBox.warning(self, "Hata", "Lütfen bir lokasyon seçin.")
+            return
+
+        try:
+            from config.database import SessionLocal
+            from sqlalchemy import text
+
+            db = SessionLocal()
             try:
-                from config.database import SessionLocal
-                from sqlalchemy import text
+                # 1. Inbound Giriş Kaydını Oluştur
+                db.execute(
+                    text("""
+                    INSERT INTO warehouse.inbound_entries (part_id, quantity, unit_price, total_cost, created_by)
+                    VALUES (:part_id, :qty, :price, :total, :created_by);
+                """),
+                    {
+                        "part_id": part_id,
+                        "qty": qty,
+                        "price": price,
+                        "total": total,
+                        "created_by": created_by,
+                    },
+                )
 
-                db = SessionLocal()
-                try:
-                    # 1. Inbound Giriş Kaydını Oluştur
+                # 2. Stok Miktarını Güncelle veya Ekle
+                existing = db.execute(
+                    text("""
+                    SELECT id FROM warehouse.stock 
+                    WHERE part_id = :part_id AND location_id = :loc_id;
+                """),
+                    {"part_id": part_id, "loc_id": location_id},
+                ).fetchone()
+
+                if existing:
                     db.execute(
                         text("""
-                        INSERT INTO warehouse.inbound_entries (part_id, quantity, unit_price, total_cost, created_by)
-                        VALUES (:part_id, :qty, :price, :total, :created_by);
+                        UPDATE warehouse.stock SET quantity = quantity + :qty WHERE id = :id;
                     """),
-                        {
-                            "part_id": part_id,
-                            "qty": qty,
-                            "price": price,
-                            "total": total,
-                            "created_by": created_by,
-                        },
+                        {"qty": qty, "id": existing[0]},
                     )
-
-                    # 2. Stok Miktarını Güncelle veya Ekle
-                    existing = db.execute(
-                        text("""
-                        SELECT id FROM warehouse.stock 
-                        WHERE part_id = :part_id AND location_id = :loc_id;
-                    """),
-                        {"part_id": part_id, "loc_id": location_id},
-                    ).fetchone()
-
-                    if existing:
-                        db.execute(
-                            text("""
-                            UPDATE warehouse.stock SET quantity = quantity + :qty WHERE id = :id;
-                        """),
-                            {"qty": qty, "id": existing[0]},
-                        )
-                    else:
-                        db.execute(
-                            text("""
-                            INSERT INTO warehouse.stock (part_id, location_id, quantity)
-                            VALUES (:part_id, :loc_id, :qty);
-                        """),
-                            {"part_id": part_id, "loc_id": location_id, "qty": qty},
-                        )
-
-                    # 3. Stok Hareket Kaydı
+                else:
                     db.execute(
                         text("""
-                        INSERT INTO warehouse.stock_movements (type, quantity)
-                        VALUES ('Inbound', :qty);
+                        INSERT INTO warehouse.stock (part_id, location_id, quantity)
+                        VALUES (:part_id, :loc_id, :qty);
                     """),
-                        {"qty": qty},
+                        {"part_id": part_id, "loc_id": location_id, "qty": qty},
                     )
 
-                    db.commit()
-                    QMessageBox.information(
-                        self, "Başarılı", "Stok girişi başarıyla yapıldı."
-                    )
-                finally:
-                    db.close()
+                # 3. Stok Hareket Kaydı
+                db.execute(
+                    text("""
+                    INSERT INTO warehouse.stock_movements (type, quantity)
+                    VALUES ('Inbound', :qty);
+                """),
+                    {"qty": qty},
+                )
 
-                self._load_entries()
-            except Exception as e:
-                QMessageBox.critical(self, "Hata", f"Stok kaydedilemedi: {e}")
+                db.commit()
+                QMessageBox.information(
+                    self, "Başarılı", "Stok girişi başarıyla yapıldı."
+                )
+            finally:
+                db.close()
+
+            self._load_entries()
+        except Exception as e:
+            QMessageBox.critical(self, "Hata", f"Stok kaydedilemedi: {e}")
 
     def _import_excel(self):
         """Excel'den veri aktarımı tetikler (sütun eşleştirme ile)."""

@@ -76,7 +76,6 @@ class Sidebar(QWidget):
             "section.inventory",
             [
                 ("🔧", "nav.parts"),
-                ("🏷️", "nav.brands"),
                 ("📱", "nav.phone_models"),
                 ("🚚", "nav.suppliers"),
             ],
@@ -174,7 +173,7 @@ class Sidebar(QWidget):
         ]
         depo_muduru_modules = [
             "nav.dashboard", "nav.warehouse", "nav.waybill", "nav.locations",
-            "nav.parts", "nav.brands", "nav.phone_models", "nav.suppliers"
+            "nav.parts", "nav.phone_models", "nav.suppliers"
         ]
         teknisyen_modules = [
             "nav.dashboard",
