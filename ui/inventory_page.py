@@ -171,7 +171,9 @@ class InventoryPage(QWidget):
         self._filter_layout.setSpacing(8)
 
         self._search_input = QLineEdit()
-        self._search_input.setPlaceholderText("Ara (ID, Barkod, Ürün Kodu, Marka/Model, Kategori, Renk)...")
+        self._search_input.setPlaceholderText(
+            "Ara (ID, Barkod, Ürün Kodu, Marka/Model, Kategori, Renk)..."
+        )
         self._search_input.textChanged.connect(self._load_inventory)
         self._filter_layout.addWidget(self._search_input)
 
@@ -214,6 +216,7 @@ class InventoryPage(QWidget):
         try:
             from config.database import SessionLocal
             from sqlalchemy import text
+
             db = SessionLocal()
             try:
                 sql = """
@@ -246,7 +249,7 @@ class InventoryPage(QWidget):
                     name_item = QTableWidgetItem(p_name)
                     barcode_item = QTableWidgetItem(p_barcode)
                     stock_item = QTableWidgetItem(str(total_stock))
-                    
+
                     if total_stock == 0:
                         stock_item.setForeground(Qt.red)
 
@@ -286,11 +289,7 @@ class InventoryPage(QWidget):
             try:
                 for _, row in df.iterrows():
                     name_raw = row.get("name")
-                    p_name = (
-                        str(name_raw).strip()
-                        if not pd.isna(name_raw)
-                        else None
-                    )
+                    p_name = str(name_raw).strip() if not pd.isna(name_raw) else None
 
                     barcode_raw = row.get("barcode")
                     barcode = (
@@ -305,13 +304,17 @@ class InventoryPage(QWidget):
                     existing = None
                     if barcode:
                         existing = db.execute(
-                            text("SELECT id FROM warehouse.parts WHERE barcode = :barcode LIMIT 1;"),
+                            text(
+                                "SELECT id FROM warehouse.parts WHERE barcode = :barcode LIMIT 1;"
+                            ),
                             {"barcode": barcode},
                         ).fetchone()
-                    
+
                     if not existing and p_name:
                         existing = db.execute(
-                            text("SELECT id FROM warehouse.parts WHERE name = :name LIMIT 1;"),
+                            text(
+                                "SELECT id FROM warehouse.parts WHERE name = :name LIMIT 1;"
+                            ),
                             {"name": p_name},
                         ).fetchone()
 

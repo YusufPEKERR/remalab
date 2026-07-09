@@ -149,8 +149,9 @@ class LocationsPage(QWidget):
 
                 # İşlemler Butonları
                 from config.session import SessionManager
+
                 user_role = SessionManager().role
-                
+
                 action_layout = QHBoxLayout()
                 action_layout.setContentsMargins(0, 0, 0, 0)
                 action_layout.setSpacing(4)
@@ -160,7 +161,11 @@ class LocationsPage(QWidget):
                     edit_btn = QPushButton("✏️")
                     edit_btn.setObjectName("table_delete_btn")
                     edit_btn.setCursor(Qt.PointingHandCursor)
-                    edit_btn.clicked.connect(lambda checked, lid=location["id"], lname=location["name"]: self._edit_location(lid, lname))
+                    edit_btn.clicked.connect(
+                        lambda checked, lid=location["id"], lname=location[
+                            "name"
+                        ]: self._edit_location(lid, lname)
+                    )
                     action_layout.addWidget(edit_btn)
 
                 # Sil butonu
@@ -168,7 +173,10 @@ class LocationsPage(QWidget):
                 del_btn.setObjectName("table_delete_btn")
                 import os
                 from PySide6.QtGui import QIcon
-                trash_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "trash.svg")
+
+                trash_path = os.path.join(
+                    os.path.dirname(os.path.dirname(__file__)), "assets", "trash.svg"
+                )
                 if os.path.exists(trash_path):
                     del_btn.setIcon(QIcon(trash_path))
                 else:
@@ -178,7 +186,7 @@ class LocationsPage(QWidget):
                     lambda checked, l_id=location["id"]: self._delete_location(l_id)
                 )
                 action_layout.addWidget(del_btn)
-                
+
                 action_widget = QWidget()
                 action_widget.setLayout(action_layout)
 
@@ -224,12 +232,13 @@ class LocationsPage(QWidget):
     def _edit_location(self, loc_id: int, current_name: str):
         """Lokasyon adını pop-up ile günceller."""
         from PySide6.QtWidgets import QInputDialog
+
         new_name, ok = QInputDialog.getText(
             self,
             "Lokasyon Düzenle",
             "Yeni lokasyon adını girin:",
             QLineEdit.Normal,
-            current_name
+            current_name,
         )
         if ok and new_name.strip():
             try:

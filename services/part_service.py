@@ -23,7 +23,9 @@ class PartService:
                 return part.id
             except IntegrityError:
                 db.rollback()
-                raise ValidationError("Bu isimde bir parça zaten mevcut (veya veritabanı kısıtlaması hatası).")
+                raise ValidationError(
+                    "Bu isimde bir parça zaten mevcut (veya veritabanı kısıtlaması hatası)."
+                )
 
     def update_name(self, part_id: int, name: str) -> None:
         if not name:
@@ -47,4 +49,6 @@ class PartService:
                 db.commit()
             except IntegrityError:
                 db.rollback()
-                raise ValidationError("Bu parça başka bir yerde kullanıldığı için silinemez.")
+                raise ValidationError(
+                    "Bu parça başka bir yerde kullanıldığı için silinemez."
+                )

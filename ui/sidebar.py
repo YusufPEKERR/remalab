@@ -11,7 +11,6 @@ from PySide6.QtWidgets import (
     QPushButton,
     QScrollArea,
     QFrame,
-    QSizePolicy,
 )
 from PySide6.QtCore import Signal, Qt
 from PySide6.QtGui import QPixmap
@@ -110,7 +109,7 @@ class Sidebar(QWidget):
 
         # Dil değişikliklerini dinle
         get_translator().language_changed.connect(self._retranslate)
-        
+
         # Tema değişikliklerini dinle
         get_theme_manager().theme_changed.connect(self._on_theme_changed)
 
@@ -175,15 +174,25 @@ class Sidebar(QWidget):
 
         # Yetkiye göre modül dağılımı
         depo_modules = [
-            "nav.dashboard", "nav.warehouse", "nav.waybill", "nav.locations"
+            "nav.dashboard",
+            "nav.warehouse",
+            "nav.waybill",
+            "nav.locations",
         ]
         depo_muduru_modules = [
-            "nav.dashboard", "nav.warehouse", "nav.waybill", "nav.locations",
-            "nav.parts", "nav.phone_models", "nav.suppliers"
+            "nav.dashboard",
+            "nav.warehouse",
+            "nav.waybill",
+            "nav.locations",
+            "nav.parts",
+            "nav.phone_models",
+            "nav.suppliers",
         ]
         teknisyen_modules = [
             "nav.dashboard",
-            "nav.quality_control", "nav.refurbishment", "nav.priority_matrix"
+            "nav.quality_control",
+            "nav.refurbishment",
+            "nav.priority_matrix",
         ]
 
         # Menü öğelerini oluştur
@@ -195,11 +204,13 @@ class Sidebar(QWidget):
                     allowed_items.append((icon, module_tr_key))
                 elif user_role == "Depo" and module_tr_key in depo_modules:
                     allowed_items.append((icon, module_tr_key))
-                elif user_role == "Depo Müdürü" and module_tr_key in depo_muduru_modules:
+                elif (
+                    user_role == "Depo Müdürü" and module_tr_key in depo_muduru_modules
+                ):
                     allowed_items.append((icon, module_tr_key))
                 elif user_role == "Teknisyen" and module_tr_key in teknisyen_modules:
                     allowed_items.append((icon, module_tr_key))
-            
+
             # Eğer bu bölümde gösterilecek hiçbir öğe yoksa bölüm başlığını da çizme
             if not allowed_items:
                 continue
@@ -254,7 +265,9 @@ class Sidebar(QWidget):
 
     def _update_logo_pixmap(self, is_dark: bool):
         filename = "karanlık-mod.png" if is_dark else "logo.png"
-        logo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", filename)
+        logo_path = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)), "assets", filename
+        )
         if os.path.exists(logo_path):
             pixmap = QPixmap(logo_path)
             pixmap = pixmap.scaledToWidth(180, Qt.SmoothTransformation)

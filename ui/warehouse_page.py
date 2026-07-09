@@ -126,10 +126,10 @@ class WarehousePage(QWidget):
     def _setup_ui(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        
+
         self.tabs = QTabWidget()
         self.tabs
-        
+
         # Sekme 1: Stok Durumu (Eski içerik)
         tab_warehouse = QWidget()
         tab_warehouse_layout = QVBoxLayout(tab_warehouse)
@@ -195,14 +195,15 @@ class WarehousePage(QWidget):
         self._table.setEditTriggers(QTableWidget.NoEditTriggers)
         self._table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         tab_warehouse_layout.addWidget(self._table)
-        
+
         self.tabs.addTab(tab_warehouse, "Stok Durumu & Transfer")
-        
+
         # Sekme 2: Stok Sayım (InventoryPage)
         from ui.inventory_page import InventoryPage
+
         self.inventory_page = InventoryPage()
         self.tabs.addTab(self.inventory_page, tr("nav.inventory"))
-        
+
         layout.addWidget(self.tabs)
 
         self._load_stock()

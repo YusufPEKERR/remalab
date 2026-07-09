@@ -91,7 +91,9 @@ class AddInboundStockDialog(QDialog):
 
         scroll = QScrollArea(self)
         scroll.setWidgetResizable(True)
-        scroll.setStyleSheet("QScrollArea { border: none; background-color: transparent; }")
+        scroll.setStyleSheet(
+            "QScrollArea { border: none; background-color: transparent; }"
+        )
 
         container = QWidget()
         layout = QVBoxLayout(container)
@@ -166,13 +168,18 @@ class AddInboundStockDialog(QDialog):
         info_layout.setContentsMargins(12, 10, 12, 10)
         info_layout.setSpacing(4)
 
-        self.lbl_info_code    = QLabel("Ürün Kodu: —")
+        self.lbl_info_code = QLabel("Ürün Kodu: —")
         self.lbl_info_barcode = QLabel("Barkod: —")
-        self.lbl_info_brand   = QLabel("Marka: —")
-        self.lbl_info_model   = QLabel("Model: —")
-        self.lbl_info_color   = QLabel("Renk: —")
-        for lbl in [self.lbl_info_code, self.lbl_info_barcode,
-                    self.lbl_info_brand, self.lbl_info_model, self.lbl_info_color]:
+        self.lbl_info_brand = QLabel("Marka: —")
+        self.lbl_info_model = QLabel("Model: —")
+        self.lbl_info_color = QLabel("Renk: —")
+        for lbl in [
+            self.lbl_info_code,
+            self.lbl_info_barcode,
+            self.lbl_info_brand,
+            self.lbl_info_model,
+            self.lbl_info_color,
+        ]:
             lbl.setStyleSheet("color: #8B949E; font-size: 12px; border: none;")
             info_layout.addWidget(lbl)
 
@@ -211,7 +218,9 @@ class AddInboundStockDialog(QDialog):
         lbl_total = QLabel(tr("inbound.total_cost"))
         layout.addWidget(lbl_total)
         self.total_cost_lbl = QLabel("1.00 TL")
-        self.total_cost_lbl.setStyleSheet("font-weight: bold; color: #3FB950; font-size: 15px;")
+        self.total_cost_lbl.setStyleSheet(
+            "font-weight: bold; color: #3FB950; font-size: 15px;"
+        )
         layout.addWidget(self.total_cost_lbl)
 
         # ── 5. Lokasyon ───────────────────────────────────────────────────────
@@ -310,11 +319,14 @@ class AddInboundStockDialog(QDialog):
 
             db = SessionLocal()
             try:
-                models = db.execute(text("""
+                models = db.execute(
+                    text("""
                     SELECT DISTINCT model FROM warehouse.parts
                     WHERE brand = :brand AND model IS NOT NULL AND model <> ''
                     ORDER BY model;
-                """), {"brand": brand}).fetchall()
+                """),
+                    {"brand": brand},
+                ).fetchall()
 
                 self.model_combo.blockSignals(True)
                 self.model_combo.addItem("Model seçiniz...", "")
@@ -353,17 +365,23 @@ class AddInboundStockDialog(QDialog):
             db = SessionLocal()
             try:
                 if model:
-                    rows = db.execute(text("""
+                    rows = db.execute(
+                        text("""
                         SELECT id, name FROM warehouse.parts
                         WHERE brand = :brand AND model = :model
                         ORDER BY name;
-                    """), {"brand": brand, "model": model}).fetchall()
+                    """),
+                        {"brand": brand, "model": model},
+                    ).fetchall()
                 else:
-                    rows = db.execute(text("""
+                    rows = db.execute(
+                        text("""
                         SELECT id, name FROM warehouse.parts
                         WHERE brand = :brand
                         ORDER BY name;
-                    """), {"brand": brand}).fetchall()
+                    """),
+                        {"brand": brand},
+                    ).fetchall()
 
                 self.part_combo.blockSignals(True)
                 self.part_combo.addItem("Parça seçiniz...", None)
@@ -392,19 +410,25 @@ class AddInboundStockDialog(QDialog):
 
             db = SessionLocal()
             try:
-                part = db.execute(text("""
+                part = db.execute(
+                    text("""
                     SELECT item_code, barcode, brand, model, color
                     FROM warehouse.parts WHERE id = :id;
-                """), {"id": part_id}).fetchone()
+                """),
+                    {"id": part_id},
+                ).fetchone()
 
                 if part:
                     self._update_info_box(part)
 
                     # Son giriş fiyatını getir
-                    last_price = db.execute(text("""
+                    last_price = db.execute(
+                        text("""
                         SELECT unit_price FROM warehouse.inbound_entries
                         WHERE part_id = :id ORDER BY created_at DESC LIMIT 1;
-                    """), {"id": part_id}).scalar()
+                    """),
+                        {"id": part_id},
+                    ).scalar()
                     if last_price is not None:
                         self.price_spin.setValue(float(last_price))
             finally:
@@ -432,9 +456,12 @@ class AddInboundStockDialog(QDialog):
 
             db = SessionLocal()
             try:
-                part = db.execute(text("""
+                part = db.execute(
+                    text("""
                     SELECT brand, model FROM warehouse.parts WHERE id = :id;
-                """), {"id": part_id}).fetchone()
+                """),
+                    {"id": part_id},
+                ).fetchone()
 
                 if not part:
                     return
@@ -449,21 +476,25 @@ class AddInboundStockDialog(QDialog):
                     # _on_brand_changed çalışır — model combo'yu doldurur
                     # Kısa bir süre bekleyip model seçiyoruz
                     from PySide6.QtCore import QTimer
+
                     def select_model():
                         m_idx = self.model_combo.findData(model)
                         if m_idx != -1:
                             self.model_combo.setCurrentIndex(m_idx)
+
                             # _on_model_changed parçaları doldurur
                             def select_part():
                                 p_idx = self.part_combo.findData(part_id)
                                 if p_idx != -1:
                                     self.part_combo.setCurrentIndex(p_idx)
+
                             QTimer.singleShot(80, select_part)
                         else:
                             # Model yok — direkt parçayı seç
                             p_idx = self.part_combo.findData(part_id)
                             if p_idx != -1:
                                 self.part_combo.setCurrentIndex(p_idx)
+
                     QTimer.singleShot(80, select_model)
                 else:
                     # Marka combo'da yoksa — parçaları manuel doldur
@@ -487,11 +518,14 @@ class AddInboundStockDialog(QDialog):
 
             db = SessionLocal()
             try:
-                part = db.execute(text("""
+                part = db.execute(
+                    text("""
                     SELECT id, name, item_code, barcode, brand, model, color
                     FROM warehouse.parts
                     WHERE barcode = :barcode;
-                """), {"barcode": barcode_val}).fetchone()
+                """),
+                    {"barcode": barcode_val},
+                ).fetchone()
 
                 if part:
                     # ✅ Bulundu — tüm alanları doldur
@@ -522,13 +556,21 @@ class AddInboundStockDialog(QDialog):
                             p_name = quick_dialog.name_input.text().strip()
                             if p_name:
                                 try:
-                                    new_id = PartService().add_part(p_name, barcode=barcode_val)
+                                    new_id = PartService().add_part(
+                                        p_name, barcode=barcode_val
+                                    )
                                 except ServiceError as e:
-                                    QMessageBox.critical(self, "Hata", f"Parça eklenemedi: {e}")
+                                    QMessageBox.critical(
+                                        self, "Hata", f"Parça eklenemedi: {e}"
+                                    )
                                     return
                                 self._load_combos(select_part_id=new_id)
-                                self.status_lbl.setText(f"✅ Yeni parça eklendi: {p_name}")
-                                self.status_lbl.setStyleSheet("color: #3FB950; font-weight: bold;")
+                                self.status_lbl.setText(
+                                    f"✅ Yeni parça eklendi: {p_name}"
+                                )
+                                self.status_lbl.setStyleSheet(
+                                    "color: #3FB950; font-weight: bold;"
+                                )
                                 self.qty_spin.setFocus()
                     else:
                         self._reset_barcode()
@@ -547,7 +589,6 @@ class AddInboundStockDialog(QDialog):
         qty = self.qty_spin.value()
         price = self.price_spin.value()
         self.total_cost_lbl.setText(f"{qty * price:,.2f} TL")
-
 
 
 class InboundPage(QWidget):
@@ -684,11 +725,11 @@ class InboundPage(QWidget):
         location_id = dialog.loc_combo.currentData()
         qty = dialog.qty_spin.value()
         price = dialog.price_spin.value()
-        total = qty * price
 
         # Oturumdan kullanıcı adını al
         try:
             from config.session import SessionManager
+
             created_by = SessionManager().username or "sistem"
         except Exception:
             created_by = "sistem"
@@ -703,9 +744,7 @@ class InboundPage(QWidget):
 
         try:
             self.service.receive_goods(part_id, location_id, qty, price, created_by)
-            QMessageBox.information(
-                self, "Başarılı", "Stok girişi başarıyla yapıldı."
-            )
+            QMessageBox.information(self, "Başarılı", "Stok girişi başarıyla yapıldı.")
             self._load_entries()
         except ServiceError as e:
             QMessageBox.critical(self, "Hata", f"Stok kaydedilemedi: {e}")

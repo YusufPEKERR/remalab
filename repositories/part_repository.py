@@ -17,7 +17,7 @@ class PartRepository:
             stmt = stmt.where(
                 or_(
                     Part.name.ilike(f"%{search}%"),
-                    cast(Part.id, String).ilike(f"%{search}%")
+                    cast(Part.id, String).ilike(f"%{search}%"),
                 )
             )
         return list(self.db.execute(stmt).scalars().all())

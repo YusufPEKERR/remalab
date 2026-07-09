@@ -1,5 +1,4 @@
 from __future__ import annotations
-import bcrypt
 from typing import Optional
 from sqlalchemy.exc import IntegrityError
 
@@ -33,7 +32,12 @@ class UserService:
                 )
 
     def update_user(
-        self, user_id: int, username: str, email: str, role: str, password: Optional[str] = None
+        self,
+        user_id: int,
+        username: str,
+        email: str,
+        role: str,
+        password: Optional[str] = None,
     ) -> None:
         if not username:
             raise ValidationError("Kullanıcı adı zorunludur.")

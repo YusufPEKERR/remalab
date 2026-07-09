@@ -4,8 +4,14 @@ Depo giriş ve çıkış hareketlerinin salt-okunur özet listesi.
 """
 
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QTableWidget, QTableWidgetItem, QHeaderView, QPushButton,
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QTableWidget,
+    QTableWidgetItem,
+    QHeaderView,
+    QPushButton,
 )
 from PySide6.QtCore import Qt
 from ui.translations import tr, get_translator
@@ -80,14 +86,16 @@ class ReportsPage(QWidget):
         self._load_entries()
 
     def _update_headers(self):
-        self._table.setHorizontalHeaderLabels([
-            tr("table.date"),
-            tr("table.type"),
-            tr("table.part_name"),
-            tr("table.location"),
-            tr("table.quantity"),
-            tr("inbound.created_by"),
-        ])
+        self._table.setHorizontalHeaderLabels(
+            [
+                tr("table.date"),
+                tr("table.type"),
+                tr("table.part_name"),
+                tr("table.location"),
+                tr("table.quantity"),
+                tr("inbound.created_by"),
+            ]
+        )
 
     def _load_entries(self):
         """Giriş ve çıkış kayıtlarını birleştirip PostgreSQL'den çeker (salt okunur)."""
@@ -97,6 +105,7 @@ class ReportsPage(QWidget):
         try:
             from config.database import SessionLocal
             from sqlalchemy import text
+
             db = SessionLocal()
             try:
                 rows = db.execute(text("""
@@ -118,11 +127,19 @@ class ReportsPage(QWidget):
 
                 self._table.setRowCount(len(rows))
                 for r_idx, row in enumerate(rows):
-                    mtype_key = "movement.inbound" if row[0] == "inbound" else "movement.outbound"
+                    mtype_key = (
+                        "movement.inbound"
+                        if row[0] == "inbound"
+                        else "movement.outbound"
+                    )
                     self._table.setItem(r_idx, 0, QTableWidgetItem(str(row[4])[:16]))
                     self._table.setItem(r_idx, 1, QTableWidgetItem(tr(mtype_key)))
                     self._table.setItem(r_idx, 2, QTableWidgetItem(str(row[1])))
-                    self._table.setItem(r_idx, 3, QTableWidgetItem(str(row[2]) if row[2] is not None else "-"))
+                    self._table.setItem(
+                        r_idx,
+                        3,
+                        QTableWidgetItem(str(row[2]) if row[2] is not None else "-"),
+                    )
                     self._table.setItem(r_idx, 4, QTableWidgetItem(str(row[3])))
                     self._table.setItem(r_idx, 5, QTableWidgetItem(str(row[5])))
                     self._table.setRowHeight(r_idx, 44)

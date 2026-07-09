@@ -5,7 +5,9 @@ from services.exceptions import InsufficientStockError, NotFoundError, Validatio
 
 
 class StockService:
-    def transfer(self, source_stock_id: int, target_location_id: int, quantity: int) -> None:
+    def transfer(
+        self, source_stock_id: int, target_location_id: int, quantity: int
+    ) -> None:
         """Bir stok satırından başka bir lokasyona atomik transfer: kaynaktan düş,
         hedefe ekle/oluştur, hareket kaydı oluştur."""
         if quantity <= 0:
@@ -17,7 +19,9 @@ class StockService:
             if source is None:
                 raise NotFoundError("Kaynak stok kaydı bulunamadı.")
             if source.quantity < quantity:
-                raise InsufficientStockError("Kaynak lokasyonda yeterli stok bulunmuyor.")
+                raise InsufficientStockError(
+                    "Kaynak lokasyonda yeterli stok bulunmuyor."
+                )
 
             stock_repo.decrement(source.id, quantity)
             stock_repo.upsert_increment(source.part_id, target_location_id, quantity)

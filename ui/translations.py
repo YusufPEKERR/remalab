@@ -80,7 +80,10 @@ TRANSLATIONS = {
     "section.inventory": {"en": "INVENTORY", "tr": "ENVANTER"},
     "section.operations": {"en": "OPERATIONS", "tr": "OPERASYONLAR"},
     "section.quality": {"en": "QUALITY", "tr": "KALİTE"},
-    "section.user_and_settings": {"en": "USERS & SETTINGS", "tr": "KULLANICI & AYARLAR"},
+    "section.user_and_settings": {
+        "en": "USERS & SETTINGS",
+        "tr": "KULLANICI & AYARLAR",
+    },
     # ---- Sidebar Modules ----
     "nav.dashboard": {"en": "Dashboard", "tr": "Kontrol Paneli"},
     "nav.warehouse": {"en": "Warehouse", "tr": "Depo"},
@@ -233,7 +236,6 @@ TRANSLATIONS = {
     "time.hour_ago": {"en": "hour ago", "tr": "saat önce"},
     "time.hours_ago": {"en": "hours ago", "tr": "saat önce"},
     # ---- Users Page ----
-    "nav.users": {"en": "Users", "tr": "Kullanıcılar"},
     "users.title": {"en": "User Management", "tr": "Kullanıcı Yönetimi"},
     "users.add_user": {"en": "Add User", "tr": "Kullanıcı Ekle"},
     "users.edit_user": {"en": "Edit User", "tr": "Kullanıcı Düzenle"},

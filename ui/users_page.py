@@ -171,9 +171,21 @@ class UsersPage(QWidget):
     def _filter_users(self, text: str):
         text = text.lower()
         for row in range(self.table.rowCount()):
-            u_id = self.table.item(row, 0).text().lower() if self.table.item(row, 0) else ""
-            username = self.table.item(row, 1).text().lower() if self.table.item(row, 1) else ""
-            email = self.table.item(row, 2).text().lower() if self.table.item(row, 2) else ""
+            u_id = (
+                self.table.item(row, 0).text().lower()
+                if self.table.item(row, 0)
+                else ""
+            )
+            username = (
+                self.table.item(row, 1).text().lower()
+                if self.table.item(row, 1)
+                else ""
+            )
+            email = (
+                self.table.item(row, 2).text().lower()
+                if self.table.item(row, 2)
+                else ""
+            )
             if text in u_id or text in username or text in email:
                 self.table.setRowHidden(row, False)
             else:
@@ -242,15 +254,21 @@ class UsersPage(QWidget):
             self,
             "Şifreyi Sıfırla",
             f"'{username}' kullanıcısı için yeni şifreyi girin:",
-            QLineEdit.Password
+            QLineEdit.Password,
         )
 
         if ok and new_password:
             try:
                 self.service.reset_password(user_id, new_password)
-                QMessageBox.information(self, "Başarılı", f"'{username}' kullanıcısının şifresi başarıyla sıfırlandı!")
+                QMessageBox.information(
+                    self,
+                    "Başarılı",
+                    f"'{username}' kullanıcısının şifresi başarıyla sıfırlandı!",
+                )
             except ServiceError as e:
-                QMessageBox.critical(self, "Hata", f"Şifre sıfırlanırken hata oluştu:\n{e}")
+                QMessageBox.critical(
+                    self, "Hata", f"Şifre sıfırlanırken hata oluştu:\n{e}"
+                )
 
     def _delete_user(self):
         selected = self.table.selectedItems()

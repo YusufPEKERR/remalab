@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
     QFormLayout,
 )
 from PySide6.QtCore import Qt
-from ui.translations import tr, get_translator
+from ui.translations import get_translator
 
 
 class AddSupplierDialog(QDialog):
@@ -27,7 +27,11 @@ class AddSupplierDialog(QDialog):
 
     def __init__(self, parent=None, initial_data=None):
         super().__init__(parent)
-        self.setWindowTitle("Yeni Tedarikçi / Ürün Ekle" if not initial_data else "Tedarikçi / Ürün Düzenle")
+        self.setWindowTitle(
+            "Yeni Tedarikçi / Ürün Ekle"
+            if not initial_data
+            else "Tedarikçi / Ürün Düzenle"
+        )
         self.setMinimumWidth(420)
 
         layout = QVBoxLayout(self)
@@ -64,9 +68,7 @@ class AddSupplierDialog(QDialog):
             self.item_code_input.setText(initial_data.get("item_code", "") or "")
             self.barcode_input.setText(initial_data.get("barcode", "") or "")
 
-        buttons = QDialogButtonBox(
-            QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self
-        )
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         buttons.button(QDialogButtonBox.Ok).setText("Kaydet")
@@ -78,12 +80,12 @@ class SuppliersPage(QWidget):
     """Tedarikçiler modülü."""
 
     COLUMNS = [
-        ("Tedarikçi",   "supplier",  False),
-        ("Marka",       "brand",     False),
-        ("Model",       "model",     False),
-        ("Ürün Kodu",   "item_code", False),
-        ("Barkod",      "barcode",   False),
-        ("İşlemler",    "_delete",   False),
+        ("Tedarikçi", "supplier", False),
+        ("Marka", "brand", False),
+        ("Model", "model", False),
+        ("Ürün Kodu", "item_code", False),
+        ("Barkod", "barcode", False),
+        ("İşlemler", "_delete", False),
     ]
 
     def __init__(self, parent=None):
@@ -127,7 +129,9 @@ class SuppliersPage(QWidget):
         self._title_lbl.setObjectName("page_title")
         title_layout.addWidget(self._title_lbl)
 
-        self._subtitle_lbl = QLabel("Tedarikçi, marka, model, ürün kodu ve barkod bilgilerini yönetin")
+        self._subtitle_lbl = QLabel(
+            "Tedarikçi, marka, model, ürün kodu ve barkod bilgilerini yönetin"
+        )
         self._subtitle_lbl.setObjectName("page_subtitle")
         title_layout.addWidget(self._subtitle_lbl)
 
@@ -147,7 +151,9 @@ class SuppliersPage(QWidget):
         search_row.setSpacing(8)
 
         self._search_input = QLineEdit()
-        self._search_input.setPlaceholderText("Ara (ID, Tedarikçi, Marka, Model, Ürün Kodu, Barkod)...")
+        self._search_input.setPlaceholderText(
+            "Ara (ID, Tedarikçi, Marka, Model, Ürün Kodu, Barkod)..."
+        )
         self._search_input.textChanged.connect(self._load_data)
         search_row.addWidget(self._search_input)
 
@@ -178,9 +184,7 @@ class SuppliersPage(QWidget):
         self._load_data()
 
     def _update_headers(self):
-        self._table.setHorizontalHeaderLabels(
-            [col[0] for col in self.COLUMNS]
-        )
+        self._table.setHorizontalHeaderLabels([col[0] for col in self.COLUMNS])
 
     def _load_data(self):
         self._table.blockSignals(True)
@@ -229,6 +233,7 @@ class SuppliersPage(QWidget):
                     self._table.setItem(r_idx, 4, _item(row[5], "barcode"))
 
                     from config.session import SessionManager
+
                     user_role = SessionManager().role
 
                     action_layout = QHBoxLayout()
@@ -241,25 +246,32 @@ class SuppliersPage(QWidget):
                         edit_btn.setObjectName("table_delete_btn")
                         edit_btn.setCursor(Qt.PointingHandCursor)
                         edit_btn.setToolTip("Bu kaydı düzenle")
-                        
+
                         row_data = {
                             "supplier": row[1],
                             "brand": row[2],
                             "model": row[3],
                             "item_code": row[4],
-                            "barcode": row[5]
+                            "barcode": row[5],
                         }
-                        
+
                         edit_btn.clicked.connect(
-                            lambda checked, pid=p_id, rdata=row_data: self._edit_record(pid, rdata)
+                            lambda checked, pid=p_id, rdata=row_data: self._edit_record(
+                                pid, rdata
+                            )
                         )
                         action_layout.addWidget(edit_btn)
 
                     import os
                     from PySide6.QtGui import QIcon
                     from PySide6.QtCore import QSize
+
                     del_btn = QPushButton()
-                    icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "trash.svg")
+                    icon_path = os.path.join(
+                        os.path.dirname(os.path.dirname(__file__)),
+                        "assets",
+                        "trash.svg",
+                    )
                     if os.path.exists(icon_path):
                         del_btn.setIcon(QIcon(icon_path))
                         del_btn.setIconSize(QSize(20, 20))
@@ -272,10 +284,10 @@ class SuppliersPage(QWidget):
                         lambda checked, pid=p_id: self._delete_record(pid)
                     )
                     action_layout.addWidget(del_btn)
-                    
+
                     action_widget = QWidget()
                     action_widget.setLayout(action_layout)
-                    
+
                     self._table.setCellWidget(r_idx, 5, action_widget)
                     self._table.setRowHeight(r_idx, 44)
 
@@ -324,7 +336,7 @@ class SuppliersPage(QWidget):
                             "brand_model": brand_model or None,
                             "item_code": item_code or None,
                             "barcode": barcode or None,
-                            "id": part_id
+                            "id": part_id,
                         },
                     )
                     db.commit()
@@ -339,11 +351,11 @@ class SuppliersPage(QWidget):
         if dialog.exec() != QDialog.Accepted:
             return
 
-        supplier  = dialog.supplier_input.text().strip() or None
-        brand     = dialog.brand_input.text().strip() or None
-        model     = dialog.model_input.text().strip() or None
+        supplier = dialog.supplier_input.text().strip() or None
+        brand = dialog.brand_input.text().strip() or None
+        model = dialog.model_input.text().strip() or None
         item_code = dialog.item_code_input.text().strip() or None
-        barcode   = dialog.barcode_input.text().strip() or None
+        barcode = dialog.barcode_input.text().strip() or None
 
         brand_model = f"{brand or ''} {model or ''}".strip() or None
         name = brand_model or (supplier if supplier else "Bilinmeyen Ürün")

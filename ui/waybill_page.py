@@ -18,16 +18,16 @@ class WaybillPage(QWidget):
     def _setup_ui(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        
+
         self.tabs = QTabWidget()
         self.tabs
-        
+
         self.inbound_page = InboundPage()
         self.outbound_page = OutboundPage()
-        
+
         self.tabs.addTab(self.inbound_page, tr("nav.inbound"))
         self.tabs.addTab(self.outbound_page, tr("nav.outbound"))
-        
+
         layout.addWidget(self.tabs)
 
     def _retranslate(self):

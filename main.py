@@ -10,7 +10,6 @@ from PySide6.QtCore import Qt, QFile, QTextStream
 from PySide6.QtGui import QFont
 
 from ui.main_window import MainWindow
-from ui.auth.login_page import LoginPage
 from config.session import SessionManager
 from config.auth import get_password_hash
 
@@ -194,13 +193,18 @@ def main():
     app = QApplication(sys.argv)
 
     import os
+
     if sys.platform == "win32":
         import ctypes
+
         myappid = "remalab.wms.app.1.0"
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 
     from PySide6.QtGui import QIcon
-    icon_path = os.path.join(os.path.dirname(__file__), "assets", "Uygulama-Amblemi.png")
+
+    icon_path = os.path.join(
+        os.path.dirname(__file__), "assets", "Uygulama-Amblemi.png"
+    )
     if os.path.exists(icon_path):
         app.setWindowIcon(QIcon(icon_path))
 
@@ -210,6 +214,7 @@ def main():
 
     # Stylesheet yükle
     from ui.theme_manager import get_theme_manager
+
     get_theme_manager().apply_theme()
 
     # Session Kontrolü
@@ -239,7 +244,7 @@ def main():
     window.activateWindow()
 
     # Bu referansı app içinde tutuyoruz ki Garbage Collector yok etmesin
-    app.main_window = window 
+    app.main_window = window
 
     print("RemaLab WMS started successfully!")
     sys.exit(app.exec())

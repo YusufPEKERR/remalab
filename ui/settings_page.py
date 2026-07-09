@@ -8,7 +8,6 @@ Lokal dosya ekleme, klasör seçme, yeni veritabanı oluşturma.
 import json
 import os
 import sqlite3
-import subprocess
 import uuid
 from datetime import datetime
 from PySide6.QtWidgets import (
@@ -24,11 +23,9 @@ from PySide6.QtWidgets import (
     QStackedWidget,
     QMessageBox,
     QSpinBox,
-    QSizePolicy,
     QFileDialog,
 )
-from PySide6.QtCore import Qt, Signal, QTimer
-from PySide6.QtGui import QColor
+from PySide6.QtCore import Qt, Signal
 
 from ui.translations import tr, get_translator
 
@@ -198,8 +195,11 @@ class DatabaseConnectionCard(QWidget):
         import os
         from PySide6.QtGui import QIcon
         from PySide6.QtCore import QSize
+
         delete_btn = QPushButton()
-        icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "trash.svg")
+        icon_path = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)), "assets", "trash.svg"
+        )
         if os.path.exists(icon_path):
             delete_btn.setIcon(QIcon(icon_path))
             delete_btn.setIconSize(QSize(20, 20))
@@ -304,7 +304,7 @@ class LocalDbFileCard(QWidget):
         btn_layout.setContentsMargins(0, 0, 0, 0)
         btn_layout.setSpacing(8)
 
-        open_btn = QPushButton(f"📂")
+        open_btn = QPushButton("📂")
         open_btn.setToolTip(tr("local.open_folder"))
         open_btn.setCursor(Qt.PointingHandCursor)
         open_btn
@@ -325,8 +325,11 @@ class LocalDbFileCard(QWidget):
         import os
         from PySide6.QtGui import QIcon
         from PySide6.QtCore import QSize
+
         remove_btn = QPushButton()
-        icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "trash.svg")
+        icon_path = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)), "assets", "trash.svg"
+        )
         if os.path.exists(icon_path):
             remove_btn.setIcon(QIcon(icon_path))
             remove_btn.setIconSize(QSize(20, 20))
@@ -423,8 +426,11 @@ class DataFolderCard(QWidget):
         import os
         from PySide6.QtGui import QIcon
         from PySide6.QtCore import QSize
+
         remove_btn = QPushButton()
-        icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "trash.svg")
+        icon_path = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)), "assets", "trash.svg"
+        )
         if os.path.exists(icon_path):
             remove_btn.setIcon(QIcon(icon_path))
             remove_btn.setIconSize(QSize(20, 20))

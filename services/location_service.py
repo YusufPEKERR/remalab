@@ -8,8 +8,8 @@ class LocationService:
     def list_locations(self, search: Optional[str] = None) -> list[dict]:
         with get_db() as db:
             return [
-                {"id": l.id, "name": l.name}
-                for l in LocationRepository(db).get_all(search=search)
+                {"id": loc.id, "name": loc.name}
+                for loc in LocationRepository(db).get_all(search=search)
             ]
 
     def add_location(self, name: str) -> None:

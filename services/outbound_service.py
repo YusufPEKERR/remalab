@@ -21,7 +21,9 @@ class OutboundService:
             if stock is None:
                 raise NotFoundError("Stok kaydı bulunamadı.")
             if quantity > stock.quantity:
-                raise InsufficientStockError("Seçilen lokasyonda yeterli stok bulunmuyor.")
+                raise InsufficientStockError(
+                    "Seçilen lokasyonda yeterli stok bulunmuyor."
+                )
 
             OutboundEntryRepository(db).create(
                 stock.part_id, stock.location_id, quantity, destination, created_by

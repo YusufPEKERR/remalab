@@ -84,7 +84,11 @@ class LoginPage(QWidget):
         left_layout.setContentsMargins(50, 50, 50, 50)
 
         # Logo
-        logo_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "assets", "logo.png")
+        logo_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+            "assets",
+            "logo.png",
+        )
         self.logo_lbl = QLabel()
         self.logo_lbl.setStyleSheet("background: transparent; border: none;")
         if os.path.exists(logo_path):
@@ -186,14 +190,17 @@ class LoginPage(QWidget):
                 background-color: #FFFFFF;
             }
         """)
-        
+
         # Şifre gizle/göster butonu - Input'un içine ekleniyor
         self.pwd_toggle_btn = QPushButton("", self.password_input)
-        
+
         from PySide6.QtGui import QIcon
         from PySide6.QtCore import QSize
+
         base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-        self.pwd_toggle_btn.setIcon(QIcon(os.path.join(base_dir, "assets", "kapalı.png")))
+        self.pwd_toggle_btn.setIcon(
+            QIcon(os.path.join(base_dir, "assets", "kapalı.png"))
+        )
         self.pwd_toggle_btn.setIconSize(QSize(20, 20))
         self.pwd_toggle_btn.setFixedSize(24, 24)
         self.pwd_toggle_btn.setCursor(QCursor(Qt.PointingHandCursor))
@@ -212,11 +219,11 @@ class LoginPage(QWidget):
         """)
         self.pwd_toggle_btn.setCheckable(True)
         self.pwd_toggle_btn.toggled.connect(self._toggle_password)
-        
+
         pwd_layout = QHBoxLayout(self.password_input)
         pwd_layout.setContentsMargins(0, 0, 10, 0)
         pwd_layout.addWidget(self.pwd_toggle_btn, 0, Qt.AlignRight | Qt.AlignVCenter)
-        
+
         # Enter tuşu ile giriş
         self.username_input.returnPressed.connect(self.handle_login)
         self.password_input.returnPressed.connect(self.handle_login)
@@ -290,15 +297,20 @@ class LoginPage(QWidget):
     def _toggle_password(self, checked):
         from PySide6.QtGui import QIcon
         from PySide6.QtCore import QSize
+
         base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-        
+
         if checked:
             self.password_input.setEchoMode(QLineEdit.Normal)
-            self.pwd_toggle_btn.setIcon(QIcon(os.path.join(base_dir, "assets", "acik.png")))
+            self.pwd_toggle_btn.setIcon(
+                QIcon(os.path.join(base_dir, "assets", "acik.png"))
+            )
             self.pwd_toggle_btn.setIconSize(QSize(20, 20))
         else:
             self.password_input.setEchoMode(QLineEdit.Password)
-            self.pwd_toggle_btn.setIcon(QIcon(os.path.join(base_dir, "assets", "kapalı.png")))
+            self.pwd_toggle_btn.setIcon(
+                QIcon(os.path.join(base_dir, "assets", "kapalı.png"))
+            )
             self.pwd_toggle_btn.setIconSize(QSize(20, 20))
 
     def handle_login(self):
@@ -362,11 +374,12 @@ class LoginPage(QWidget):
         token = create_access_token(payload)
         remember = self.remember_cb.isChecked()
         SessionManager().set_session(token, payload, remember=remember)
-        
+
         # Load user's theme preference
         from ui.theme_manager import get_theme_manager
+
         get_theme_manager().load_user_theme(username)
-        
+
         self.login_successful.emit()
 
 

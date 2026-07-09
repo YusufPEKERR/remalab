@@ -19,7 +19,9 @@ class UserRepository:
         return self.db.get(User, user_id)
 
     def create(self, username: str, email: str, password_hash: str, role: str) -> User:
-        user = User(username=username, email=email, password_hash=password_hash, role=role)
+        user = User(
+            username=username, email=email, password_hash=password_hash, role=role
+        )
         self.db.add(user)
         self.db.flush()
         return user

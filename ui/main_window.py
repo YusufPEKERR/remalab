@@ -11,7 +11,6 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QStackedWidget,
     QLabel,
-    QSizePolicy,
     QFrame,
 )
 from PySide6.QtCore import Qt
@@ -21,16 +20,11 @@ from ui.topbar import TopBar
 from ui.dashboard_page import DashboardPage
 from ui.settings_page import SettingsPage
 from ui.parts_page import PartsPage
-from ui.warehouse_page import WarehousePage
-from ui.inbound_page import InboundPage
-from ui.outbound_page import OutboundPage
 from ui.locations_page import LocationsPage
-from ui.inventory_page import InventoryPage
 from ui.reports_page import ReportsPage
 from ui.users_page import UsersPage
 from ui.translations import tr, get_translator
 from config.session import SessionManager
-import sys
 import os
 
 
@@ -88,6 +82,7 @@ class MainWindow(QMainWindow):
 
         # 1. Giriş Sayfası
         from ui.auth.login_page import LoginPage
+
         self._login_page = LoginPage()
         self._master_stack.addWidget(self._login_page)
 
@@ -123,12 +118,15 @@ class MainWindow(QMainWindow):
         card_layout.setSpacing(15)
 
         # Yükleniyor Spinner (Logo)
-        from ui.theme_manager import get_theme_manager
+
         filename = "logo.png"
-        logo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", filename)
+        logo_path = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)), "assets", filename
+        )
         loading_spinner = QLabel()
         if os.path.exists(logo_path):
             from PySide6.QtGui import QPixmap
+
             pixmap = QPixmap(logo_path)
             pixmap = pixmap.scaledToWidth(120, Qt.SmoothTransformation)
             loading_spinner.setPixmap(pixmap)
@@ -140,14 +138,22 @@ class MainWindow(QMainWindow):
         card_layout.addWidget(loading_spinner)
 
         # Spin animation setup (subtle pulse effect)
-        loading_lbl = QLabel(tr("common.loading") if tr("common.loading") != "common.loading" else "Sistem Yükleniyor...")
+        loading_lbl = QLabel(
+            tr("common.loading")
+            if tr("common.loading") != "common.loading"
+            else "Sistem Yükleniyor..."
+        )
         loading_lbl.setAlignment(Qt.AlignCenter)
-        loading_lbl.setStyleSheet("font-size: 20px; font-weight: 700; font-family: 'Segoe UI'; letter-spacing: 1px; color: #243B7A;")
+        loading_lbl.setStyleSheet(
+            "font-size: 20px; font-weight: 700; font-family: 'Segoe UI'; letter-spacing: 1px; color: #243B7A;"
+        )
         card_layout.addWidget(loading_lbl)
 
         loading_sub = QLabel("Lütfen bekleyin, veriler senkronize ediliyor...")
         loading_sub.setAlignment(Qt.AlignCenter)
-        loading_sub.setStyleSheet("font-size: 13px; color: #4F6CB3; font-family: 'Segoe UI';")
+        loading_sub.setStyleSheet(
+            "font-size: 13px; color: #4F6CB3; font-family: 'Segoe UI';"
+        )
         card_layout.addWidget(loading_sub)
 
         loading_layout.addWidget(loading_card)
@@ -165,7 +171,7 @@ class MainWindow(QMainWindow):
         if session.is_authenticated():
             self._show_app_directly()
         else:
-            self._master_stack.setCurrentIndex(0) # Login sayfasını göster
+            self._master_stack.setCurrentIndex(0)  # Login sayfasını göster
 
         # Dil değişikliklerini dinle
         get_translator().language_changed.connect(self._retranslate)
@@ -174,7 +180,7 @@ class MainWindow(QMainWindow):
         """Doğrudan uygulamayı başlatır."""
         self._create_pages()
         self._master_stack.setCurrentIndex(2)
-        
+
         # Arayüzü yenile
         self._sidebar.update_menu_permissions()
         self._topbar.update_user_info()
@@ -218,13 +224,15 @@ class MainWindow(QMainWindow):
         # Sadece Admin, Depo ve Depo Müdürü Ortak Modülleri
         if user_role in ["Admin", "Depo", "Depo Müdürü"]:
             from ui.inventory_page import InventoryPage
+
             inventory = InventoryPage()
             self._add_page("nav.warehouse", inventory)
-            
+
             locations = LocationsPage()
             self._add_page("nav.locations", locations)
-            
+
             from ui.waybill_page import WaybillPage
+
             waybill = WaybillPage()
             self._add_page("nav.waybill", waybill)
 
@@ -232,12 +240,14 @@ class MainWindow(QMainWindow):
         if user_role in ["Admin", "Depo Müdürü"]:
             parts = PartsPage()
             self._add_page("nav.parts", parts)
-            
+
             from ui.phone_models_page import PhoneModelsPage
+
             phone_models = PhoneModelsPage()
             self._add_page("nav.phone_models", phone_models)
 
             from ui.suppliers_page import SuppliersPage
+
             suppliers = SuppliersPage()
             self._add_page("nav.suppliers", suppliers)
 
@@ -245,10 +255,13 @@ class MainWindow(QMainWindow):
             for m in depo_placeholders:
                 self._add_page(m, PlaceholderPage(m))
 
-
         # Admin ve Teknisyen Modülleri
         if user_role in ["Admin", "Teknisyen"]:
-            teknisyen_placeholders = ["nav.quality_control", "nav.refurbishment", "nav.priority_matrix"]
+            teknisyen_placeholders = [
+                "nav.quality_control",
+                "nav.refurbishment",
+                "nav.priority_matrix",
+            ]
             for m in teknisyen_placeholders:
                 self._add_page(m, PlaceholderPage(m))
 
@@ -256,10 +269,10 @@ class MainWindow(QMainWindow):
         if user_role == "Admin":
             reports = ReportsPage()
             self._add_page("nav.reports", reports)
-            
+
             settings = SettingsPage()
             self._add_page("nav.settings", settings)
-            
+
             users = UsersPage()
             self._add_page("nav.users", users)
 
@@ -280,17 +293,18 @@ class MainWindow(QMainWindow):
 
     def _start_loading_sequence(self):
         """Oturum açma başarılı olduğunda yükleniyor ekranı geçişini yapar."""
-        self._master_stack.setCurrentIndex(1) # Yükleniyor ekranını göster
-        
+        self._master_stack.setCurrentIndex(1)  # Yükleniyor ekranını göster
+
         # 1.2 saniye sonra ana uygulamayı yükle ve göster
         from PySide6.QtCore import QTimer
+
         QTimer.singleShot(1200, self._on_loading_complete)
 
     def _on_loading_complete(self):
         """Yükleme tamamlandığında ana pencereleri oluşturur ve gösterir."""
         self._create_pages()
-        self._master_stack.setCurrentIndex(2) # Ana uygulamayı göster
-        
+        self._master_stack.setCurrentIndex(2)  # Ana uygulamayı göster
+
         # Arayüzü yenile
         self._sidebar.update_menu_permissions()
         self._topbar.update_user_info()
@@ -298,30 +312,39 @@ class MainWindow(QMainWindow):
     def _handle_refresh(self):
         # Sadece aktif olan sayfanın verilerini yenile
         current_widget = self._content_stack.currentWidget()
-        
+
         refresh_methods = [
-            "refresh", "load_data", "_load_data", 
-            "_load_parts", "_load_inventory", "_load_locations",
-            "_load_entries", "_load_users", "_load_stocks",
-            "_load_local_config", "_load_combos"
+            "refresh",
+            "load_data",
+            "_load_data",
+            "_load_parts",
+            "_load_inventory",
+            "_load_locations",
+            "_load_entries",
+            "_load_users",
+            "_load_stocks",
+            "_load_local_config",
+            "_load_combos",
         ]
-        
+
         for method_name in refresh_methods:
             if hasattr(current_widget, method_name):
                 getattr(current_widget, method_name)()
                 return
-                
-        print(f"[{current_widget.__class__.__name__}] için yenileme fonksiyonu bulunamadı.")
+
+        print(
+            f"[{current_widget.__class__.__name__}] için yenileme fonksiyonu bulunamadı."
+        )
 
     def _handle_logout(self):
         """Oturumu kapatır ve uygulamayı kapatmadan Login ekranına döner."""
         # 1. Oturumu temizle
         SessionManager().clear_session()
-        
+
         # 2. Login ekranındaki eski girdileri temizle
         self._login_page.username_input.clear()
         self._login_page.password_input.clear()
-        
+
         # 3. Ana sayfaları temizle (böylece bir sonraki girişte tekrar temiz sıfırdan yüklenir)
         while self._content_stack.count() > 0:
             widget = self._content_stack.widget(0)

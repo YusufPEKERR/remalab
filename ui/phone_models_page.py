@@ -21,8 +21,7 @@ from PySide6.QtWidgets import (
     QComboBox,
 )
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QColor
-from ui.translations import tr, get_translator
+from ui.translations import get_translator
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -32,12 +31,21 @@ class AddPhoneModelDialog(QDialog):
     """Yeni telefon modeli ekleme formu."""
 
     MEMORY_OPTIONS = [
-        "", "16 GB", "32 GB", "64 GB", "128 GB", "256 GB", "512 GB", "1 TB",
+        "",
+        "16 GB",
+        "32 GB",
+        "64 GB",
+        "128 GB",
+        "256 GB",
+        "512 GB",
+        "1 TB",
     ]
 
     def __init__(self, parent=None, initial_data=None):
         super().__init__(parent)
-        self.setWindowTitle("Yeni Telefon Modeli Ekle" if not initial_data else "Telefon Modeli Düzenle")
+        self.setWindowTitle(
+            "Yeni Telefon Modeli Ekle" if not initial_data else "Telefon Modeli Düzenle"
+        )
         self.setMinimumWidth(420)
 
         layout = QVBoxLayout(self)
@@ -75,9 +83,7 @@ class AddPhoneModelDialog(QDialog):
             self.memory_combo.setCurrentText(initial_data.get("memory", "") or "")
             self.color_input.setText(initial_data.get("color", "") or "")
 
-        buttons = QDialogButtonBox(
-            QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self
-        )
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         buttons.button(QDialogButtonBox.Ok).setText("Kaydet")
@@ -93,12 +99,12 @@ class PhoneModelsPage(QWidget):
 
     # Tablo sütun sırası → (başlık, db_field, editable)
     COLUMNS = [
-        ("Ürün Kodu",   "item_code", True),
-        ("Marka",       "brand",     True),
-        ("Model",       "model",     True),
-        ("Hafıza",      "memory",    False),
-        ("Renk",        "color",     False),
-        ("İşlemler",    "_delete",   False),
+        ("Ürün Kodu", "item_code", True),
+        ("Marka", "brand", True),
+        ("Model", "model", True),
+        ("Hafıza", "memory", False),
+        ("Renk", "color", False),
+        ("İşlemler", "_delete", False),
     ]
 
     def __init__(self, parent=None):
@@ -144,9 +150,7 @@ class PhoneModelsPage(QWidget):
         self._title_lbl.setObjectName("page_title")
         title_layout.addWidget(self._title_lbl)
 
-        self._subtitle_lbl = QLabel(
-            "Marka, model, hafıza ve renk bilgilerini yönetin"
-        )
+        self._subtitle_lbl = QLabel("Marka, model, hafıza ve renk bilgilerini yönetin")
         self._subtitle_lbl.setObjectName("page_subtitle")
         title_layout.addWidget(self._subtitle_lbl)
 
@@ -201,9 +205,7 @@ class PhoneModelsPage(QWidget):
 
     # ── Data Loading ──────────────────────────────────────────────────────────
     def _update_headers(self):
-        self._table.setHorizontalHeaderLabels(
-            [col[0] for col in self.COLUMNS]
-        )
+        self._table.setHorizontalHeaderLabels([col[0] for col in self.COLUMNS])
 
     def _load_data(self):
         """Veritabanından telefon modellerini çeker ve tabloya yazar."""
@@ -256,6 +258,7 @@ class PhoneModelsPage(QWidget):
                     self._table.setItem(r_idx, 4, _item(row[5], "color"))
 
                     from config.session import SessionManager
+
                     user_role = SessionManager().role
 
                     action_layout = QHBoxLayout()
@@ -268,17 +271,19 @@ class PhoneModelsPage(QWidget):
                         edit_btn.setObjectName("table_delete_btn")
                         edit_btn.setCursor(Qt.PointingHandCursor)
                         edit_btn.setToolTip("Bu modeli düzenle")
-                        
+
                         row_data = {
                             "item_code": row[1],
                             "brand": row[2],
                             "model": row[3],
                             "memory": row[4],
-                            "color": row[5]
+                            "color": row[5],
                         }
-                        
+
                         edit_btn.clicked.connect(
-                            lambda checked, pid=p_id, rdata=row_data: self._edit_model(pid, rdata)
+                            lambda checked, pid=p_id, rdata=row_data: self._edit_model(
+                                pid, rdata
+                            )
                         )
                         action_layout.addWidget(edit_btn)
 
@@ -286,8 +291,13 @@ class PhoneModelsPage(QWidget):
                     import os
                     from PySide6.QtGui import QIcon
                     from PySide6.QtCore import QSize
+
                     del_btn = QPushButton()
-                    icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "trash.svg")
+                    icon_path = os.path.join(
+                        os.path.dirname(os.path.dirname(__file__)),
+                        "assets",
+                        "trash.svg",
+                    )
                     if os.path.exists(icon_path):
                         del_btn.setIcon(QIcon(icon_path))
                         del_btn.setIconSize(QSize(20, 20))
@@ -300,10 +310,10 @@ class PhoneModelsPage(QWidget):
                         lambda checked, pid=p_id: self._delete_model(pid)
                     )
                     action_layout.addWidget(del_btn)
-                    
+
                     action_widget = QWidget()
                     action_widget.setLayout(action_layout)
-                    
+
                     self._table.setCellWidget(r_idx, 5, action_widget)
                     self._table.setRowHeight(r_idx, 44)
 
@@ -353,7 +363,7 @@ class PhoneModelsPage(QWidget):
                             "brand_model": brand_model or None,
                             "memory": memory or None,
                             "color": color or None,
-                            "id": part_id
+                            "id": part_id,
                         },
                     )
                     db.commit()
@@ -369,11 +379,11 @@ class PhoneModelsPage(QWidget):
         if dialog.exec() != QDialog.Accepted:
             return
 
-        brand     = dialog.brand_input.text().strip() or None
-        model     = dialog.model_input.text().strip() or None
+        brand = dialog.brand_input.text().strip() or None
+        model = dialog.model_input.text().strip() or None
         item_code = dialog.item_code_input.text().strip() or None
-        memory    = dialog.memory_combo.currentText().strip() or None
-        color     = dialog.color_input.text().strip() or None
+        memory = dialog.memory_combo.currentText().strip() or None
+        color = dialog.color_input.text().strip() or None
 
         if not brand and not model:
             QMessageBox.warning(self, "Uyarı", "En az Marka veya Model girilmelidir.")

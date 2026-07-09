@@ -124,31 +124,31 @@ class PartsPage(QWidget):
 
         # Sayfalama Kontrolleri
         pagination_layout = QHBoxLayout()
-        
+
         size_lbl = QLabel("Sayfa Başına:")
         pagination_layout.addWidget(size_lbl)
-        
+
         self._page_size_combo = QComboBox()
         self._page_size_combo.addItems(["5", "10", "15", "20", "25", "50"])
         self._page_size_combo.setCurrentText("50")
         self._page_size_combo.currentTextChanged.connect(self._on_page_size_changed)
         pagination_layout.addWidget(self._page_size_combo)
-        
+
         pagination_layout.addStretch()
-        
+
         self._prev_btn = QPushButton("⬅ Önceki")
         self._prev_btn.setCursor(Qt.PointingHandCursor)
         self._prev_btn.clicked.connect(self._prev_page)
         pagination_layout.addWidget(self._prev_btn)
-        
+
         self._page_info_lbl = QLabel("Sayfa 1 / 1")
         pagination_layout.addWidget(self._page_info_lbl)
-        
+
         self._next_btn = QPushButton("Sonraki ➡")
         self._next_btn.setCursor(Qt.PointingHandCursor)
         self._next_btn.clicked.connect(self._next_page)
         pagination_layout.addWidget(self._next_btn)
-        
+
         layout.addLayout(pagination_layout)
 
         self._load_parts()
@@ -197,23 +197,32 @@ class PartsPage(QWidget):
                 if search_query:
                     sql += " WHERE name ILIKE :search"
                     count_sql += " WHERE name ILIKE :search"
-                    sql += " WHERE name ILIKE :search OR CAST(id AS VARCHAR) ILIKE :search"
+                    sql += (
+                        " WHERE name ILIKE :search OR CAST(id AS VARCHAR) ILIKE :search"
+                    )
                     params["search"] = f"%{search_query}%"
-                
+
                 # Toplam kayıt sayısı ve sayfa hesaplama
                 total_records = db.execute(text(count_sql), params).scalar() or 0
                 import math
-                self._total_pages = math.ceil(total_records / self._page_size) if total_records > 0 else 1
-                
+
+                self._total_pages = (
+                    math.ceil(total_records / self._page_size)
+                    if total_records > 0
+                    else 1
+                )
+
                 # Geçerli sayfa kontrolü
                 if self._current_page > self._total_pages:
                     self._current_page = self._total_pages
-                    
+
                 sql += " ORDER BY id DESC LIMIT :limit OFFSET :offset;"
                 params["limit"] = self._page_size
                 params["offset"] = (self._current_page - 1) * self._page_size
 
-                self._page_info_lbl.setText(f"Sayfa {self._current_page} / {self._total_pages} ({total_records} Kayıt)")
+                self._page_info_lbl.setText(
+                    f"Sayfa {self._current_page} / {self._total_pages} ({total_records} Kayıt)"
+                )
                 self._prev_btn.setEnabled(self._current_page > 1)
                 self._next_btn.setEnabled(self._current_page < self._total_pages)
 
@@ -229,8 +238,9 @@ class PartsPage(QWidget):
                     name_item.setData(Qt.UserRole, row[0])
 
                     from config.session import SessionManager
+
                     user_role = SessionManager().role
-                    
+
                     action_layout = QHBoxLayout()
                     action_layout.setContentsMargins(0, 0, 0, 0)
                     action_layout.setSpacing(4)
@@ -240,15 +250,24 @@ class PartsPage(QWidget):
                         edit_btn = QPushButton("✏️")
                         edit_btn.setObjectName("table_delete_btn")
                         edit_btn.setCursor(Qt.PointingHandCursor)
-                        edit_btn.clicked.connect(lambda checked, pid=row[0], pname=row[1]: self._edit_part(pid, pname))
+                        edit_btn.clicked.connect(
+                            lambda checked, pid=row[0], pname=row[1]: self._edit_part(
+                                pid, pname
+                            )
+                        )
                         action_layout.addWidget(edit_btn)
 
                     # Sil butonu
                     import os
                     from PySide6.QtGui import QIcon
                     from PySide6.QtCore import QSize
+
                     del_btn = QPushButton()
-                    icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "trash.svg")
+                    icon_path = os.path.join(
+                        os.path.dirname(os.path.dirname(__file__)),
+                        "assets",
+                        "trash.svg",
+                    )
                     if os.path.exists(icon_path):
                         del_btn.setIcon(QIcon(icon_path))
                         del_btn.setIconSize(QSize(20, 20))
@@ -329,11 +348,12 @@ class PartsPage(QWidget):
 
     def _edit_part(self, part_id: int, current_name: str):
         from PySide6.QtWidgets import QInputDialog
+
         dialog = QInputDialog(self)
         dialog.setWindowTitle("Düzenle")
         dialog.setLabelText("Yeni parça adını girin:")
         dialog.setTextValue(current_name)
-        
+
         # İçindeki yazıya göre dinamik genişlik ayarlama
         calculated_width = max(350, len(current_name) * 10 + 100)
         dialog.setMinimumWidth(calculated_width)

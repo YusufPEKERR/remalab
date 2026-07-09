@@ -10,9 +10,6 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QLabel,
     QPushButton,
-    QLineEdit,
-    QSizePolicy,
-    QMenu,
 )
 from PySide6.QtCore import Qt, Signal
 from config.session import SessionManager
@@ -66,8 +63,6 @@ class TopBar(QWidget):
         layout.addWidget(title_section)
         layout.addStretch()
 
-
-
         # Sağ: Bildirimler ve Profil
         right_section = QWidget()
         right_layout = QHBoxLayout(right_section)
@@ -86,13 +81,13 @@ class TopBar(QWidget):
             }
         """
 
-
         # Tema butonu
         self.theme_btn = QPushButton("☾")
         self.theme_btn.setObjectName("topbar_icon_btn")
         self.theme_btn.setFixedSize(36, 36)
         self.theme_btn.setCursor(Qt.PointingHandCursor)
         from ui.theme_manager import get_theme_manager
+
         self._theme_mgr = get_theme_manager()
         self.theme_btn.setText("☀" if self._theme_mgr.is_dark else "☾")
         self.theme_btn.clicked.connect(self._toggle_theme)
@@ -122,8 +117,6 @@ class TopBar(QWidget):
         right_layout.addWidget(refresh_btn)
 
         self.update_last_refresh_time()
-
-
 
         # Ayırıcı 2
         separator = QWidget()
@@ -176,19 +169,22 @@ class TopBar(QWidget):
         # Profil Çıkış Yap butonu
         logout_btn = QPushButton()
         logout_btn.setObjectName("logout_btn")
-        
+
         import os
-        from PySide6.QtGui import QIcon, QPixmap
+        from PySide6.QtGui import QIcon
         from PySide6.QtCore import QSize
-        icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "cikis-yap.png")
+
+        icon_path = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)), "assets", "cikis-yap.png"
+        )
         if os.path.exists(icon_path):
             logout_btn.setIcon(QIcon(icon_path))
             logout_btn.setIconSize(QSize(32, 32))
-            
+
         logout_btn.setCursor(Qt.PointingHandCursor)
         logout_btn.setToolTip("Çıkış Yap")
         logout_btn.clicked.connect(self.logout_requested.emit)
-        
+
         right_layout.addSpacing(16)
         right_layout.addWidget(logout_btn)
 
@@ -203,9 +199,32 @@ class TopBar(QWidget):
     def update_last_refresh_time(self):
         """Son güncelleme zamanını günceller."""
         from datetime import datetime
+
         now = datetime.now()
-        aylar = ["", "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"]
-        gunler = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"]
+        aylar = [
+            "",
+            "Ocak",
+            "Şubat",
+            "Mart",
+            "Nisan",
+            "Mayıs",
+            "Haziran",
+            "Temmuz",
+            "Ağustos",
+            "Eylül",
+            "Ekim",
+            "Kasım",
+            "Aralık",
+        ]
+        gunler = [
+            "Pazartesi",
+            "Salı",
+            "Çarşamba",
+            "Perşembe",
+            "Cuma",
+            "Cumartesi",
+            "Pazar",
+        ]
         date_str = f"{now.day:02d} {aylar[now.month]} {now.year}, {gunler[now.weekday()]} - {now.strftime('%H:%M:%S')}"
         self._date_label.setText(f"⏱ Son Güncelleme: {date_str}")
 
@@ -216,21 +235,16 @@ class TopBar(QWidget):
         role = session.role if session.role else "Kullanıcı"
 
         avatar_letters = username[:2].upper() if username != "Misafir" else "M"
-        
+
         self._avatar.setText(avatar_letters)
         self._user_name.setText(f"Hoşgeldiniz , {username}")
         self._user_role.setText(role)
-
-
-
-
 
     def _toggle_theme(self):
         self._theme_mgr.toggle_theme()
         self.theme_btn.setText("☀" if self._theme_mgr.is_dark else "☾")
 
     def _retranslate(self):
-
         """Dil değiştiğinde metinleri güncelle."""
         self._title.setText(tr(self._current_page_key))
         self._breadcrumb.setText(
