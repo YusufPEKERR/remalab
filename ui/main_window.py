@@ -124,7 +124,7 @@ class MainWindow(QMainWindow):
 
         # Yükleniyor Spinner (Logo)
         from ui.theme_manager import get_theme_manager
-        filename = "karanlık-mod.jpeg" if get_theme_manager().is_dark else "logo.png"
+        filename = "logo.png"
         logo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", filename)
         loading_spinner = QLabel()
         if os.path.exists(logo_path):

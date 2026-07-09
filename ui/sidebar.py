@@ -248,7 +248,7 @@ class Sidebar(QWidget):
         self._update_logo_pixmap(is_dark)
 
     def _update_logo_pixmap(self, is_dark: bool):
-        filename = "karanlık-mod.jpeg" if is_dark else "logo.png"
+        filename = "karanlık-mod.png" if is_dark else "logo.png"
         logo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", filename)
         if os.path.exists(logo_path):
             pixmap = QPixmap(logo_path)
