@@ -6,7 +6,7 @@ Depo giriş ve çıkış hareketlerinin salt-okunur özet listesi.
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QTableWidget, QTableWidgetItem, QHeaderView, QPushButton,
-    QDateEdit,
+    QComboBox,
 )
 from PySide6.QtCore import Qt, QDate
 from ui.translations import tr, get_translator
@@ -19,6 +19,51 @@ class ReportsPage(QWidget):
         super().__init__(parent)
         self._setup_ui()
         get_translator().language_changed.connect(self._retranslate)
+
+    def _create_date_selectors(self):
+        layout = QHBoxLayout()
+        layout.setSpacing(4)
+        
+        day_cb = QComboBox()
+        for i in range(1, 32):
+            day_cb.addItem(f"{i:02d}")
+            
+        month_cb = QComboBox()
+        for i in range(1, 13):
+            month_cb.addItem(f"{i:02d}")
+            
+        year_cb = QComboBox()
+        current_year = QDate.currentDate().year()
+        for i in range(current_year - 5, current_year + 5):
+            year_cb.addItem(str(i))
+            
+        cb_style = """
+            QComboBox {
+                background-color: #161B22;
+                border: 1px solid #30363D;
+                border-radius: 6px;
+                padding: 6px 12px;
+                color: #C9D1D9;
+                font-size: 13px;
+                min-width: 45px;
+            }
+            QComboBox:focus {
+                border-color: #1F6FEB;
+            }
+            QComboBox::drop-down {
+                border-left: 1px solid #30363D;
+                width: 20px;
+            }
+        """
+        day_cb.setStyleSheet(cb_style)
+        month_cb.setStyleSheet(cb_style)
+        year_cb.setStyleSheet(cb_style)
+        
+        layout.addWidget(day_cb)
+        layout.addWidget(month_cb)
+        layout.addWidget(year_cb)
+        
+        return layout, day_cb, month_cb, year_cb
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
@@ -49,25 +94,29 @@ class ReportsPage(QWidget):
 
         # Tarih Aralığı Filtresi
         filter_layout = QHBoxLayout()
-        filter_layout.setSpacing(8)
+        filter_layout.setSpacing(12)
 
         self._start_date_lbl = QLabel(tr("reports.start_date") + ":")
         filter_layout.addWidget(self._start_date_lbl)
 
-        self._start_date = QDateEdit()
-        self._start_date.setCalendarPopup(True)
-        self._start_date.setDisplayFormat("dd.MM.yyyy")
-        self._start_date.setDate(QDate.currentDate().addDays(-30))
-        filter_layout.addWidget(self._start_date)
+        start_layout, self._start_day, self._start_month, self._start_year = self._create_date_selectors()
+        filter_layout.addLayout(start_layout)
+        
+        start_date = QDate.currentDate().addDays(-30)
+        self._start_day.setCurrentText(f"{start_date.day():02d}")
+        self._start_month.setCurrentText(f"{start_date.month():02d}")
+        self._start_year.setCurrentText(str(start_date.year()))
 
         self._end_date_lbl = QLabel(tr("reports.end_date") + ":")
         filter_layout.addWidget(self._end_date_lbl)
 
-        self._end_date = QDateEdit()
-        self._end_date.setCalendarPopup(True)
-        self._end_date.setDisplayFormat("dd.MM.yyyy")
-        self._end_date.setDate(QDate.currentDate())
-        filter_layout.addWidget(self._end_date)
+        end_layout, self._end_day, self._end_month, self._end_year = self._create_date_selectors()
+        filter_layout.addLayout(end_layout)
+
+        end_date = QDate.currentDate()
+        self._end_day.setCurrentText(f"{end_date.day():02d}")
+        self._end_month.setCurrentText(f"{end_date.month():02d}")
+        self._end_year.setCurrentText(str(end_date.year()))
 
         self._filter_btn = QPushButton(tr("reports.filter"))
         self._filter_btn.setCursor(Qt.PointingHandCursor)
@@ -111,8 +160,8 @@ class ReportsPage(QWidget):
         self._update_headers()
         self._table.clearContents()
 
-        start_date = self._start_date.date().toString("yyyy-MM-dd")
-        end_date = self._end_date.date().toString("yyyy-MM-dd")
+        start_date = f"{self._start_year.currentText()}-{self._start_month.currentText()}-{self._start_day.currentText()}"
+        end_date = f"{self._end_year.currentText()}-{self._end_month.currentText()}-{self._end_day.currentText()}"
 
         try:
             from config.database import SessionLocal
