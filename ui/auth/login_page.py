@@ -188,7 +188,13 @@ class LoginPage(QWidget):
         """)
         
         # Şifre gizle/göster butonu - Input'un içine ekleniyor
-        self.pwd_toggle_btn = QPushButton("🙈", self.password_input)
+        self.pwd_toggle_btn = QPushButton("", self.password_input)
+        
+        from PySide6.QtGui import QIcon
+        from PySide6.QtCore import QSize
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        self.pwd_toggle_btn.setIcon(QIcon(os.path.join(base_dir, "assets", "kapalı.png")))
+        self.pwd_toggle_btn.setIconSize(QSize(20, 20))
         self.pwd_toggle_btn.setFixedSize(24, 24)
         self.pwd_toggle_btn.setCursor(QCursor(Qt.PointingHandCursor))
         self.pwd_toggle_btn.setStyleSheet("""
@@ -282,12 +288,18 @@ class LoginPage(QWidget):
         main_layout.addLayout(wrapper_layout)
 
     def _toggle_password(self, checked):
+        from PySide6.QtGui import QIcon
+        from PySide6.QtCore import QSize
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        
         if checked:
             self.password_input.setEchoMode(QLineEdit.Normal)
-            self.pwd_toggle_btn.setText("👁") # Şifre görünür -> açık göz
+            self.pwd_toggle_btn.setIcon(QIcon(os.path.join(base_dir, "assets", "acik.png")))
+            self.pwd_toggle_btn.setIconSize(QSize(20, 20))
         else:
             self.password_input.setEchoMode(QLineEdit.Password)
-            self.pwd_toggle_btn.setText("🙈") # Şifre gizli -> maymun
+            self.pwd_toggle_btn.setIcon(QIcon(os.path.join(base_dir, "assets", "kapalı.png")))
+            self.pwd_toggle_btn.setIconSize(QSize(20, 20))
 
     def handle_login(self):
         username = self.username_input.text().strip()

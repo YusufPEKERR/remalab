@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
     QDialogButtonBox,
     QProgressBar,
     QTabWidget,
+    QLineEdit,
 )
 from PySide6.QtCore import Qt
 from ui.translations import tr, get_translator
@@ -154,7 +155,7 @@ class WarehousePage(QWidget):
         header_layout.addStretch()
 
         # Stok Transfer Butonu
-        self._transfer_btn = QPushButton(f"🔄 {tr('warehouse.transfer_stock')}")
+        self._transfer_btn = QPushButton(f"↻ {tr('warehouse.transfer_stock')}")
         self._transfer_btn.setObjectName("btn_warning")
         self._transfer_btn.setCursor(Qt.PointingHandCursor)
         self._transfer_btn.clicked.connect(self._transfer_stock)

@@ -133,7 +133,7 @@ TRANSLATIONS = {
         "tr": "Tüm lokasyonlardaki son envanter hareketleri",
     },
     "dashboard.view_all": {"en": "View All  →", "tr": "Tümünü Gör  →"},
-    "dashboard.refresh": {"en": "🔄  Refresh", "tr": "🔄  Yenile"},
+    "dashboard.refresh": {"en": "↻  Refresh", "tr": "↻  Yenile"},
     "dashboard.db_error": {
         "en": "Database Connection Error",
         "tr": "Veritabanı Bağlantı Hatası",
@@ -164,8 +164,8 @@ TRANSLATIONS = {
         "tr": "Depo lokasyonlarındaki stokları takip edin ve transfer edin",
     },
     "warehouse.transfer_stock": {
-        "en": "🔄 Transfer Stock",
-        "tr": "🔄 Stok Transfer Et",
+        "en": "↻ Transfer Stock",
+        "tr": "↻ Stok Transfer Et",
     },
     "warehouse.source_location": {"en": "Source Location", "tr": "Kaynak Lokasyon"},
     "warehouse.target_location": {"en": "Target Location", "tr": "Hedef Lokasyon"},

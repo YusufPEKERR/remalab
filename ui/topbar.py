@@ -88,13 +88,13 @@ class TopBar(QWidget):
 
 
         # Tema butonu
-        self.theme_btn = QPushButton("🌙")
+        self.theme_btn = QPushButton("☾")
         self.theme_btn.setObjectName("topbar_icon_btn")
         self.theme_btn.setFixedSize(36, 36)
         self.theme_btn.setCursor(Qt.PointingHandCursor)
         from ui.theme_manager import get_theme_manager
         self._theme_mgr = get_theme_manager()
-        self.theme_btn.setText("🌞" if self._theme_mgr.is_dark else "🌙")
+        self.theme_btn.setText("☀" if self._theme_mgr.is_dark else "☾")
         self.theme_btn.clicked.connect(self._toggle_theme)
         right_layout.addWidget(self.theme_btn)
 
@@ -105,14 +105,23 @@ class TopBar(QWidget):
         sep1.setObjectName("topbar_separator")
         right_layout.addWidget(sep1)
 
+        # Son Güncelleme Etiketi
+        self._date_label = QLabel()
+        self._date_label.setObjectName("user_role")
+        self._date_label.setStyleSheet("margin-right: 12px;")
+        right_layout.addWidget(self._date_label)
+
         # Yenile butonu
 
-        refresh_btn = QPushButton("🔄")
+        refresh_btn = QPushButton("↻")
         refresh_btn.setFixedSize(36, 36)
         refresh_btn.setCursor(Qt.PointingHandCursor)
         refresh_btn.setStyleSheet(minimalist_btn_style)
         refresh_btn.clicked.connect(self.refresh_requested.emit)
+        refresh_btn.clicked.connect(self.update_last_refresh_time)
         right_layout.addWidget(refresh_btn)
+
+        self.update_last_refresh_time()
 
 
 
@@ -142,7 +151,7 @@ class TopBar(QWidget):
         user_info_layout.setContentsMargins(0, 0, 0, 0)
         user_info_layout.setSpacing(0)
 
-        self._user_name = QLabel(f"Ojj geldin beee , {username}")
+        self._user_name = QLabel(f"Hoşgeldiniz , {username}")
         self._user_name.setObjectName("user_name")
 
         self._user_role = QLabel(role)
@@ -191,6 +200,15 @@ class TopBar(QWidget):
         self._title.setText(tr(page_tr_key))
         self._breadcrumb.setText(f"{tr('topbar.home')}  ›  {tr(page_tr_key)}")
 
+    def update_last_refresh_time(self):
+        """Son güncelleme zamanını günceller."""
+        from datetime import datetime
+        now = datetime.now()
+        aylar = ["", "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"]
+        gunler = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"]
+        date_str = f"{now.day:02d} {aylar[now.month]} {now.year}, {gunler[now.weekday()]} - {now.strftime('%H:%M:%S')}"
+        self._date_label.setText(f"⏱ Son Güncelleme: {date_str}")
+
     def update_user_info(self):
         """Kullanıcı bilgilerini session'dan alıp UI'ı günceller."""
         session = SessionManager()
@@ -200,7 +218,7 @@ class TopBar(QWidget):
         avatar_letters = username[:2].upper() if username != "Misafir" else "M"
         
         self._avatar.setText(avatar_letters)
-        self._user_name.setText(f"Ojj geldin beee , {username}")
+        self._user_name.setText(f"Hoşgeldiniz , {username}")
         self._user_role.setText(role)
 
 
@@ -209,7 +227,7 @@ class TopBar(QWidget):
 
     def _toggle_theme(self):
         self._theme_mgr.toggle_theme()
-        self.theme_btn.setText("🌞" if self._theme_mgr.is_dark else "🌙")
+        self.theme_btn.setText("☀" if self._theme_mgr.is_dark else "☾")
 
     def _retranslate(self):
 
