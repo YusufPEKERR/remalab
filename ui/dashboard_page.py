@@ -68,7 +68,7 @@ class StatCard(QWidget):
         icon_container.setAlignment(Qt.AlignCenter)
         icon_container.setFixedSize(44, 44)
         icon_container.setStyleSheet(
-            f"background-color: {accent_color}33; "
+            f"background-color: {accent_color}1A; "
             f"border-radius: 10px; font-size: 20px;"
         )
         top_row.addWidget(icon_container)

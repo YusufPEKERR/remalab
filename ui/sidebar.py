@@ -78,9 +78,9 @@ class Sidebar(QWidget):
                 ("🔧", "nav.parts"),
                 ("📱", "nav.phone_models"),
                 ("🚚", "nav.suppliers"),
+                ("📈", "nav.reports"),
             ],
         ),
-
         (
             "section.quality",
             [
@@ -90,9 +90,8 @@ class Sidebar(QWidget):
             ],
         ),
         (
-            "section.system",
+            "section.user_and_settings",
             [
-                ("📈", "nav.reports"),
                 ("👥", "nav.users"),
                 ("⚙️", "nav.settings"),
             ],
@@ -102,6 +101,7 @@ class Sidebar(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("sidebar")
+        self.setAttribute(Qt.WA_StyledBackground, True)
         self.setFixedWidth(250)
         self._buttons: list[SidebarButton] = []
         self._section_labels: list[tuple[QLabel, str]] = []
@@ -145,6 +145,12 @@ class Sidebar(QWidget):
         main_layout.addWidget(self._scroll_area)
 
         self.update_menu_permissions()
+
+        # Alt ayırıcı (Sidebar'ın altına çizgi)
+        bottom_separator = QFrame()
+        bottom_separator.setObjectName("separator")
+        bottom_separator.setFrameShape(QFrame.HLine)
+        main_layout.addWidget(bottom_separator)
 
         # Alt bilgi
         version_label = QLabel("  v1.0.0")

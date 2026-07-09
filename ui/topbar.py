@@ -32,6 +32,7 @@ class TopBar(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("topbar")
+        self.setAttribute(Qt.WA_StyledBackground, True)
         self.setFixedHeight(60)
         self._current_page_key = "nav.dashboard"
         self._setup_ui()
@@ -97,6 +98,13 @@ class TopBar(QWidget):
         self.theme_btn.clicked.connect(self._toggle_theme)
         right_layout.addWidget(self.theme_btn)
 
+        # Ayırıcı 1
+        sep1 = QWidget()
+        sep1.setFixedWidth(2)
+        sep1.setFixedHeight(32)
+        sep1.setObjectName("topbar_separator")
+        right_layout.addWidget(sep1)
+
         # Yenile butonu
 
         refresh_btn = QPushButton("🔄")
@@ -108,11 +116,11 @@ class TopBar(QWidget):
 
 
 
-        # Ayırıcı
+        # Ayırıcı 2
         separator = QWidget()
-        separator.setFixedWidth(1)
+        separator.setFixedWidth(2)
         separator.setFixedHeight(32)
-        separator
+        separator.setObjectName("topbar_separator")
         right_layout.addWidget(separator)
 
         # Session Bilgilerini al
@@ -146,6 +154,15 @@ class TopBar(QWidget):
         user_info_layout.addStretch()
 
         right_layout.addWidget(user_info)
+
+        # Ayırıcı 3
+        sep3 = QWidget()
+        sep3.setFixedWidth(2)
+        sep3.setFixedHeight(32)
+        sep3.setObjectName("topbar_separator")
+        right_layout.addSpacing(8)
+        right_layout.addWidget(sep3)
+        right_layout.addSpacing(8)
 
         # Profil Çıkış Yap butonu
         logout_btn = QPushButton()

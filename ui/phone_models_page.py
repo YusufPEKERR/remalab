@@ -35,9 +35,9 @@ class AddPhoneModelDialog(QDialog):
         "", "16 GB", "32 GB", "64 GB", "128 GB", "256 GB", "512 GB", "1 TB",
     ]
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, initial_data=None):
         super().__init__(parent)
-        self.setWindowTitle("Yeni Telefon Modeli Ekle")
+        self.setWindowTitle("Yeni Telefon Modeli Ekle" if not initial_data else "Telefon Modeli Düzenle")
         self.setMinimumWidth(420)
 
         layout = QVBoxLayout(self)
@@ -68,6 +68,13 @@ class AddPhoneModelDialog(QDialog):
 
         layout.addLayout(form)
 
+        if initial_data:
+            self.item_code_input.setText(initial_data.get("item_code", "") or "")
+            self.brand_input.setText(initial_data.get("brand", "") or "")
+            self.model_input.setText(initial_data.get("model", "") or "")
+            self.memory_combo.setCurrentText(initial_data.get("memory", "") or "")
+            self.color_input.setText(initial_data.get("color", "") or "")
+
         buttons = QDialogButtonBox(
             QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self
         )
@@ -89,9 +96,9 @@ class PhoneModelsPage(QWidget):
         ("Ürün Kodu",   "item_code", True),
         ("Marka",       "brand",     True),
         ("Model",       "model",     True),
-        ("Hafıza",      "memory",    True),
-        ("Renk",        "color",     True),
-        ("",            "_delete",   False),  # Sil butonu
+        ("Hafıza",      "memory",    False),
+        ("Renk",        "color",     False),
+        ("İşlemler",    "_delete",   False),
     ]
 
     def __init__(self, parent=None):
@@ -197,9 +204,8 @@ class PhoneModelsPage(QWidget):
         hh.setSectionResizeMode(4, QHeaderView.ResizeToContents)
         # Sil butonu
         hh.setSectionResizeMode(5, QHeaderView.Fixed)
-        self._table.setColumnWidth(5, 50)
+        self._table.setColumnWidth(5, 100)
 
-        self._table.itemChanged.connect(self._on_item_changed)
         layout.addWidget(self._table)
 
         self._load_data()
@@ -261,6 +267,7 @@ class PhoneModelsPage(QWidget):
 
                     def _item(val, field):
                         it = QTableWidgetItem(str(val) if val else "")
+                        it.setFlags(it.flags() & ~Qt.ItemIsEditable)
                         it.setData(Qt.UserRole, (p_id, field))
                         return it
 
@@ -275,14 +282,56 @@ class PhoneModelsPage(QWidget):
                     # 4 — Renk
                     self._table.setItem(r_idx, 4, _item(row[5], "color"))
 
-                    # 5 — Sil butonu
-                    del_btn = QPushButton("🗑️")
+                    from config.session import SessionManager
+                    user_role = SessionManager().role
+
+                    action_layout = QHBoxLayout()
+                    action_layout.setContentsMargins(0, 0, 0, 0)
+                    action_layout.setSpacing(4)
+                    action_layout.setAlignment(Qt.AlignCenter)
+
+                    if user_role in ["Admin", "Depo Müdürü"]:
+                        edit_btn = QPushButton("✏️")
+                        edit_btn.setObjectName("table_delete_btn")
+                        edit_btn.setCursor(Qt.PointingHandCursor)
+                        edit_btn.setToolTip("Bu modeli düzenle")
+                        
+                        row_data = {
+                            "item_code": row[1],
+                            "brand": row[2],
+                            "model": row[3],
+                            "memory": row[4],
+                            "color": row[5]
+                        }
+                        
+                        edit_btn.clicked.connect(
+                            lambda checked, pid=p_id, rdata=row_data: self._edit_model(pid, rdata)
+                        )
+                        action_layout.addWidget(edit_btn)
+
+                    # Sil butonu
+                    import os
+                    from PySide6.QtGui import QIcon
+                    from PySide6.QtCore import QSize
+                    del_btn = QPushButton()
+                    icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "trash.svg")
+                    if os.path.exists(icon_path):
+                        del_btn.setIcon(QIcon(icon_path))
+                        del_btn.setIconSize(QSize(20, 20))
+                    else:
+                        del_btn.setText("🗑️")
+                    del_btn.setObjectName("table_delete_btn")
                     del_btn.setCursor(Qt.PointingHandCursor)
                     del_btn.setToolTip("Bu modeli sil")
                     del_btn.clicked.connect(
                         lambda checked, pid=p_id: self._delete_model(pid)
                     )
-                    self._table.setCellWidget(r_idx, 5, del_btn)
+                    action_layout.addWidget(del_btn)
+                    
+                    action_widget = QWidget()
+                    action_widget.setLayout(action_layout)
+                    
+                    self._table.setCellWidget(r_idx, 5, action_widget)
                     self._table.setRowHeight(r_idx, 44)
 
             finally:
@@ -292,51 +341,54 @@ class PhoneModelsPage(QWidget):
         finally:
             self._table.blockSignals(False)
 
-    # ── Inline Edit ───────────────────────────────────────────────────────────
-    def _on_item_changed(self, item: QTableWidgetItem):
-        item_data = item.data(Qt.UserRole)
-        if item_data is None:
-            return
+    # ── Edit Model ────────────────────────────────────────────────────────────
+    def _edit_model(self, part_id: int, initial_data: dict):
+        dialog = AddPhoneModelDialog(self, initial_data)
+        if dialog.exec() == QDialog.Accepted:
+            brand = dialog.brand_input.text().strip()
+            model = dialog.model_input.text().strip()
+            item_code = dialog.item_code_input.text().strip()
+            memory = dialog.memory_combo.currentText().strip()
+            color = dialog.color_input.text().strip()
 
-        p_id, field = item_data
-        new_val = item.text().strip() or None
+            brand_model = f"{brand} {model}".strip()
+            name = brand_model or "Bilinmeyen Model"
 
-        try:
-            from config.database import SessionLocal
-            from sqlalchemy import text
-
-            db = SessionLocal()
             try:
-                # brand_model'i de güncelle (brand veya model değişirse)
-                extra = ""
-                extra_params = {}
-                if field in ("brand", "model"):
-                    # Diğer alanı da çek
-                    other = db.execute(
-                        text(
-                            f"SELECT brand, model FROM warehouse.parts WHERE id = :id;"
-                        ),
-                        {"id": p_id},
-                    ).fetchone()
-                    if other:
-                        b = new_val if field == "brand" else (other[0] or "")
-                        m = new_val if field == "model" else (other[1] or "")
-                        bm = f"{b} {m}".strip()
-                        extra = ", brand_model = :bm"
-                        extra_params["bm"] = bm if bm else None
+                from config.database import SessionLocal
+                from sqlalchemy import text
 
-                db.execute(
-                    text(
-                        f"UPDATE warehouse.parts SET {field} = :val{extra} WHERE id = :id;"
-                    ),
-                    {"val": new_val, "id": p_id, **extra_params},
-                )
-                db.commit()
-            finally:
-                db.close()
-        except Exception as e:
-            QMessageBox.critical(self, "Hata", f"Güncelleme başarısız:\n{e}")
-            self._load_data()
+                db = SessionLocal()
+                try:
+                    db.execute(
+                        text("""
+                            UPDATE warehouse.parts
+                            SET name = :name,
+                                item_code = :item_code,
+                                brand = :brand,
+                                model = :model,
+                                brand_model = :brand_model,
+                                memory = :memory,
+                                color = :color
+                            WHERE id = :id;
+                        """),
+                        {
+                            "name": name,
+                            "item_code": item_code or None,
+                            "brand": brand or None,
+                            "model": model or None,
+                            "brand_model": brand_model or None,
+                            "memory": memory or None,
+                            "color": color or None,
+                            "id": part_id
+                        },
+                    )
+                    db.commit()
+                finally:
+                    db.close()
+                self._load_data()
+            except Exception as e:
+                QMessageBox.critical(self, "Hata", f"Model güncellenemedi:\n{e}")
 
     # ── Add ───────────────────────────────────────────────────────────────────
     def _add_model(self):

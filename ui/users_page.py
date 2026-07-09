@@ -103,24 +103,34 @@ class UsersPage(QWidget):
         title_label = QLabel(tr("nav.users"))
         title_label
 
-        add_btn = QPushButton(tr("users.add_user"))
-        add_btn
+        add_btn = QPushButton(f"➕ {tr('users.add_user')}")
+        add_btn.setObjectName("btn_primary")
+        add_btn.setCursor(Qt.PointingHandCursor)
         add_btn.clicked.connect(self._add_user)
 
-        edit_btn = QPushButton(tr("users.edit_user"))
-        edit_btn
+        edit_btn = QPushButton(f"✏️ {tr('users.edit_user')}")
+        edit_btn.setObjectName("btn_success")
+        edit_btn.setCursor(Qt.PointingHandCursor)
         edit_btn.clicked.connect(self._edit_user)
 
-        delete_btn = QPushButton(tr("users.delete_user"))
-        delete_btn
+        delete_btn = QPushButton(f"🗑️ {tr('users.delete_user')}")
+        delete_btn.setObjectName("btn_danger")
+        delete_btn.setCursor(Qt.PointingHandCursor)
         delete_btn.clicked.connect(self._delete_user)
 
         reset_btn = QPushButton("🔑 Şifreyi Sıfırla")
-        reset_btn
+        reset_btn.setObjectName("btn_warning")
+        reset_btn.setCursor(Qt.PointingHandCursor)
         reset_btn.clicked.connect(self._reset_password)
+
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("Kullanıcı Ara...")
+        self.search_input.setFixedWidth(200)
+        self.search_input.textChanged.connect(self._filter_users)
 
         top_layout.addWidget(title_label)
         top_layout.addStretch()
+        top_layout.addWidget(self.search_input)
         top_layout.addWidget(add_btn)
         top_layout.addWidget(edit_btn)
         top_layout.addWidget(reset_btn)
@@ -151,10 +161,22 @@ class UsersPage(QWidget):
 
         self.table.setRowCount(len(users))
         for row_idx, user in enumerate(users):
-            self.table.setItem(row_idx, 0, QTableWidgetItem(str(user["id"])))
+            id_item = QTableWidgetItem(str(user["id"]))
+            id_item.setData(Qt.UserRole, user["id"])
+            self.table.setItem(row_idx, 0, id_item)
             self.table.setItem(row_idx, 1, QTableWidgetItem(user["username"]))
             self.table.setItem(row_idx, 2, QTableWidgetItem(user["email"]))
             self.table.setItem(row_idx, 3, QTableWidgetItem(user["role"]))
+
+    def _filter_users(self, text: str):
+        text = text.lower()
+        for row in range(self.table.rowCount()):
+            username = self.table.item(row, 1).text().lower() if self.table.item(row, 1) else ""
+            email = self.table.item(row, 2).text().lower() if self.table.item(row, 2) else ""
+            if text in username or text in email:
+                self.table.setRowHidden(row, False)
+            else:
+                self.table.setRowHidden(row, True)
 
     def _add_user(self):
         dialog = UserDialog(self)
@@ -179,7 +201,7 @@ class UsersPage(QWidget):
             return
 
         row = selected[0].row()
-        user_id = int(self.table.item(row, 0).text())
+        user_id = int(self.table.item(row, 0).data(Qt.UserRole))
         user_data = {
             "username": self.table.item(row, 1).text(),
             "email": self.table.item(row, 2).text(),
@@ -212,7 +234,7 @@ class UsersPage(QWidget):
             return
 
         row = selected[0].row()
-        user_id = int(self.table.item(row, 0).text())
+        user_id = int(self.table.item(row, 0).data(Qt.UserRole))
         username = self.table.item(row, 1).text()
 
         new_password, ok = QInputDialog.getText(
@@ -238,7 +260,7 @@ class UsersPage(QWidget):
             return
 
         row = selected[0].row()
-        user_id = int(self.table.item(row, 0).text())
+        user_id = int(self.table.item(row, 0).data(Qt.UserRole))
         username = self.table.item(row, 1).text()
 
         reply = QMessageBox.question(

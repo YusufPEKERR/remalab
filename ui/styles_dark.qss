@@ -90,8 +90,9 @@ QPushButton#nav_button {
     background-color: transparent;
     color: #8B949E;
     border: none;
+    border-left: 4px solid transparent;
     border-radius: 8px;
-    padding: 10px 16px;
+    padding: 10px 12px;
     text-align: left;
     font-size: 13px;
     font-weight: 500;
@@ -107,8 +108,9 @@ QPushButton#nav_button_active {
     background-color: #1F6FEB;
     color: #FFFFFF;
     border: none;
+    border-left: 4px solid #58A6FF;
     border-radius: 8px;
-    padding: 10px 16px;
+    padding: 10px 12px;
     text-align: left;
     font-size: 13px;
     font-weight: 600;
@@ -124,7 +126,6 @@ QPushButton#nav_button_active {
     text-transform: uppercase;
 }
 
-/* ---- Topbar ---- */
 #topbar {
     background-color: #1A202C;
     border-bottom: 1px solid #4A5568;
@@ -165,8 +166,8 @@ QPushButton#nav_button_active {
 
 /* Topbar icon buttons */
 QPushButton#topbar_icon_btn {
-    background-color: #2D3748;
-    border: 1px solid #4A5568;
+    background-color: transparent;
+    border: none;
     border-radius: 8px;
     padding: 8px;
     min-width: 36px;
@@ -177,8 +178,7 @@ QPushButton#topbar_icon_btn {
 }
 
 QPushButton#topbar_icon_btn:hover {
-    background-color: #4A5568;
-    border-color: #718096;
+    background-color: #2D3748;
 }
 
 #notification_badge {
@@ -309,7 +309,17 @@ QPushButton#table_action_btn {
 }
 
 QPushButton#table_action_btn:hover {
-    background-color: #388BFD;
+    background-color: #4FA3FF;
+}
+
+QPushButton#table_delete_btn {
+    background-color: transparent;
+    border: none;
+    border-radius: 4px;
+    padding: 6px;
+}
+QPushButton#table_delete_btn:hover {
+    background-color: #CF222E4D;
 }
 
 /* Table Widget */

@@ -195,7 +195,17 @@ class DatabaseConnectionCard(QWidget):
         edit_btn.clicked.connect(lambda: self.edit_requested.emit(self._connection))
         btn_layout.addWidget(edit_btn)
 
-        delete_btn = QPushButton("🗑️")
+        import os
+        from PySide6.QtGui import QIcon
+        from PySide6.QtCore import QSize
+        delete_btn = QPushButton()
+        icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "trash.svg")
+        if os.path.exists(icon_path):
+            delete_btn.setIcon(QIcon(icon_path))
+            delete_btn.setIconSize(QSize(20, 20))
+        else:
+            delete_btn.setText("🗑️")
+        delete_btn.setObjectName("table_delete_btn")
         delete_btn.setCursor(Qt.PointingHandCursor)
         delete_btn
         delete_btn.clicked.connect(
@@ -312,7 +322,17 @@ class LocalDbFileCard(QWidget):
         )
         btn_layout.addWidget(export_btn)
 
-        remove_btn = QPushButton("🗑️")
+        import os
+        from PySide6.QtGui import QIcon
+        from PySide6.QtCore import QSize
+        remove_btn = QPushButton()
+        icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "trash.svg")
+        if os.path.exists(icon_path):
+            remove_btn.setIcon(QIcon(icon_path))
+            remove_btn.setIconSize(QSize(20, 20))
+        else:
+            remove_btn.setText("🗑️")
+        remove_btn.setObjectName("table_delete_btn")
         remove_btn.setToolTip(tr("local.remove"))
         remove_btn.setCursor(Qt.PointingHandCursor)
         remove_btn
@@ -400,7 +420,17 @@ class DataFolderCard(QWidget):
         )
         layout.addWidget(open_btn)
 
-        remove_btn = QPushButton("🗑️")
+        import os
+        from PySide6.QtGui import QIcon
+        from PySide6.QtCore import QSize
+        remove_btn = QPushButton()
+        icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "trash.svg")
+        if os.path.exists(icon_path):
+            remove_btn.setIcon(QIcon(icon_path))
+            remove_btn.setIconSize(QSize(20, 20))
+        else:
+            remove_btn.setText("🗑️")
+        remove_btn.setObjectName("table_delete_btn")
         remove_btn.setCursor(Qt.PointingHandCursor)
         remove_btn
         remove_btn.clicked.connect(

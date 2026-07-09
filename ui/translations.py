@@ -80,7 +80,7 @@ TRANSLATIONS = {
     "section.inventory": {"en": "INVENTORY", "tr": "ENVANTER"},
     "section.operations": {"en": "OPERATIONS", "tr": "OPERASYONLAR"},
     "section.quality": {"en": "QUALITY", "tr": "KALİTE"},
-    "section.system": {"en": "SYSTEM", "tr": "SİSTEM"},
+    "section.user_and_settings": {"en": "USERS & SETTINGS", "tr": "KULLANICI & AYARLAR"},
     # ---- Sidebar Modules ----
     "nav.dashboard": {"en": "Dashboard", "tr": "Kontrol Paneli"},
     "nav.warehouse": {"en": "Warehouse", "tr": "Depo"},

@@ -158,7 +158,17 @@ class LocationsPage(QWidget):
                     name_item.setData(Qt.UserRole, row[0])
 
                     # Sil butonu
-                    del_btn = QPushButton("🗑️")
+                    import os
+                    from PySide6.QtGui import QIcon
+                    from PySide6.QtCore import QSize
+                    del_btn = QPushButton()
+                    icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "trash.svg")
+                    if os.path.exists(icon_path):
+                        del_btn.setIcon(QIcon(icon_path))
+                        del_btn.setIconSize(QSize(20, 20))
+                    else:
+                        del_btn.setText("🗑️")
+                    del_btn.setObjectName("table_delete_btn")
                     del_btn
                     del_btn.setCursor(Qt.PointingHandCursor)
                     del_btn.clicked.connect(

@@ -25,9 +25,9 @@ from ui.translations import tr, get_translator
 class AddSupplierDialog(QDialog):
     """Yeni tedarikçi-parça ilişkisi / ürün ekleme formu."""
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, initial_data=None):
         super().__init__(parent)
-        self.setWindowTitle("Yeni Tedarikçi / Ürün Ekle")
+        self.setWindowTitle("Yeni Tedarikçi / Ürün Ekle" if not initial_data else "Tedarikçi / Ürün Düzenle")
         self.setMinimumWidth(420)
 
         layout = QVBoxLayout(self)
@@ -57,6 +57,13 @@ class AddSupplierDialog(QDialog):
 
         layout.addLayout(form)
 
+        if initial_data:
+            self.supplier_input.setText(initial_data.get("supplier", "") or "")
+            self.brand_input.setText(initial_data.get("brand", "") or "")
+            self.model_input.setText(initial_data.get("model", "") or "")
+            self.item_code_input.setText(initial_data.get("item_code", "") or "")
+            self.barcode_input.setText(initial_data.get("barcode", "") or "")
+
         buttons = QDialogButtonBox(
             QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self
         )
@@ -71,12 +78,12 @@ class SuppliersPage(QWidget):
     """Tedarikçiler modülü."""
 
     COLUMNS = [
-        ("Tedarikçi",   "supplier",  True),
-        ("Marka",       "brand",     True),
-        ("Model",       "model",     True),
-        ("Ürün Kodu",   "item_code", True),
-        ("Barkod",      "barcode",   True),
-        ("",            "_delete",   False),
+        ("Tedarikçi",   "supplier",  False),
+        ("Marka",       "brand",     False),
+        ("Model",       "model",     False),
+        ("Ürün Kodu",   "item_code", False),
+        ("Barkod",      "barcode",   False),
+        ("İşlemler",    "_delete",   False),
     ]
 
     def __init__(self, parent=None):
@@ -174,9 +181,8 @@ class SuppliersPage(QWidget):
         hh.setSectionResizeMode(3, QHeaderView.ResizeToContents)
         hh.setSectionResizeMode(4, QHeaderView.ResizeToContents)
         hh.setSectionResizeMode(5, QHeaderView.Fixed)
-        self._table.setColumnWidth(5, 50)
+        self._table.setColumnWidth(5, 100)
 
-        self._table.itemChanged.connect(self._on_item_changed)
         layout.addWidget(self._table)
 
         self._load_data()
@@ -238,6 +244,7 @@ class SuppliersPage(QWidget):
 
                     def _item(val, field):
                         it = QTableWidgetItem(str(val) if val else "")
+                        it.setFlags(it.flags() & ~Qt.ItemIsEditable)
                         it.setData(Qt.UserRole, (p_id, field))
                         return it
 
@@ -247,13 +254,55 @@ class SuppliersPage(QWidget):
                     self._table.setItem(r_idx, 3, _item(row[4], "item_code"))
                     self._table.setItem(r_idx, 4, _item(row[5], "barcode"))
 
-                    del_btn = QPushButton("🗑️")
+                    from config.session import SessionManager
+                    user_role = SessionManager().role
+
+                    action_layout = QHBoxLayout()
+                    action_layout.setContentsMargins(0, 0, 0, 0)
+                    action_layout.setSpacing(4)
+                    action_layout.setAlignment(Qt.AlignCenter)
+
+                    if user_role in ["Admin", "Depo Müdürü"]:
+                        edit_btn = QPushButton("✏️")
+                        edit_btn.setObjectName("table_delete_btn")
+                        edit_btn.setCursor(Qt.PointingHandCursor)
+                        edit_btn.setToolTip("Bu kaydı düzenle")
+                        
+                        row_data = {
+                            "supplier": row[1],
+                            "brand": row[2],
+                            "model": row[3],
+                            "item_code": row[4],
+                            "barcode": row[5]
+                        }
+                        
+                        edit_btn.clicked.connect(
+                            lambda checked, pid=p_id, rdata=row_data: self._edit_record(pid, rdata)
+                        )
+                        action_layout.addWidget(edit_btn)
+
+                    import os
+                    from PySide6.QtGui import QIcon
+                    from PySide6.QtCore import QSize
+                    del_btn = QPushButton()
+                    icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "trash.svg")
+                    if os.path.exists(icon_path):
+                        del_btn.setIcon(QIcon(icon_path))
+                        del_btn.setIconSize(QSize(20, 20))
+                    else:
+                        del_btn.setText("🗑️")
+                    del_btn.setObjectName("table_delete_btn")
                     del_btn.setCursor(Qt.PointingHandCursor)
                     del_btn.setToolTip("Bu kaydı sil")
                     del_btn.clicked.connect(
                         lambda checked, pid=p_id: self._delete_record(pid)
                     )
-                    self._table.setCellWidget(r_idx, 5, del_btn)
+                    action_layout.addWidget(del_btn)
+                    
+                    action_widget = QWidget()
+                    action_widget.setLayout(action_layout)
+                    
+                    self._table.setCellWidget(r_idx, 5, action_widget)
                     self._table.setRowHeight(r_idx, 44)
 
             finally:
@@ -263,44 +312,53 @@ class SuppliersPage(QWidget):
         finally:
             self._table.blockSignals(False)
 
-    def _on_item_changed(self, item: QTableWidgetItem):
-        item_data = item.data(Qt.UserRole)
-        if item_data is None:
-            return
+    def _edit_record(self, part_id: int, initial_data: dict):
+        dialog = AddSupplierDialog(self, initial_data)
+        if dialog.exec() == QDialog.Accepted:
+            supplier = dialog.supplier_input.text().strip()
+            brand = dialog.brand_input.text().strip()
+            model = dialog.model_input.text().strip()
+            item_code = dialog.item_code_input.text().strip()
+            barcode = dialog.barcode_input.text().strip()
 
-        p_id, field = item_data
-        new_val = item.text().strip() or None
+            brand_model = f"{brand} {model}".strip()
+            name = brand_model or (supplier if supplier else "Bilinmeyen Ürün")
 
-        try:
-            from config.database import SessionLocal
-            from sqlalchemy import text
-
-            db = SessionLocal()
             try:
-                extra = ""
-                extra_params = {}
-                if field in ("brand", "model"):
-                    other = db.execute(
-                        text(f"SELECT brand, model FROM warehouse.parts WHERE id = :id;"),
-                        {"id": p_id},
-                    ).fetchone()
-                    if other:
-                        b = new_val if field == "brand" else (other[0] or "")
-                        m = new_val if field == "model" else (other[1] or "")
-                        bm = f"{b} {m}".strip()
-                        extra = ", brand_model = :bm"
-                        extra_params["bm"] = bm if bm else None
+                from config.database import SessionLocal
+                from sqlalchemy import text
 
-                db.execute(
-                    text(f"UPDATE warehouse.parts SET {field} = :val{extra} WHERE id = :id;"),
-                    {"val": new_val, "id": p_id, **extra_params},
-                )
-                db.commit()
-            finally:
-                db.close()
-        except Exception as e:
-            QMessageBox.critical(self, "Hata", f"Güncelleme başarısız:\n{e}")
-            self._load_data()
+                db = SessionLocal()
+                try:
+                    db.execute(
+                        text("""
+                            UPDATE warehouse.parts
+                            SET name = :name,
+                                supplier = :supplier,
+                                brand = :brand,
+                                model = :model,
+                                brand_model = :brand_model,
+                                item_code = :item_code,
+                                barcode = :barcode
+                            WHERE id = :id;
+                        """),
+                        {
+                            "name": name,
+                            "supplier": supplier or None,
+                            "brand": brand or None,
+                            "model": model or None,
+                            "brand_model": brand_model or None,
+                            "item_code": item_code or None,
+                            "barcode": barcode or None,
+                            "id": part_id
+                        },
+                    )
+                    db.commit()
+                finally:
+                    db.close()
+                self._load_data()
+            except Exception as e:
+                QMessageBox.critical(self, "Hata", f"Kayıt güncellenemedi:\n{e}")
 
     def _add_record(self):
         dialog = AddSupplierDialog(self)
