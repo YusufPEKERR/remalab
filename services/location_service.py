@@ -1,10 +1,11 @@
 from config.database import get_db
 from repositories.location_repository import LocationRepository
+from typing import Optional
 from services.exceptions import NotFoundError, ValidationError
 
 
 class LocationService:
-    def list_locations(self, search: str | None = None) -> list[dict]:
+    def list_locations(self, search: Optional[str] = None) -> list[dict]:
         with get_db() as db:
             return [
                 {"id": l.id, "name": l.name}

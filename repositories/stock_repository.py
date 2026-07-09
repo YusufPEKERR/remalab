@@ -1,5 +1,6 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from typing import Optional
 
 from models.stock import Stock
 
@@ -10,10 +11,10 @@ class StockRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_by_id(self, stock_id: int) -> Stock | None:
+    def get_by_id(self, stock_id: int) -> Optional[Stock]:
         return self.db.get(Stock, stock_id)
 
-    def get_by_part_location(self, part_id: int, location_id: int) -> Stock | None:
+    def get_by_part_location(self, part_id: int, location_id: int) -> Optional[Stock]:
         stmt = select(Stock).where(
             Stock.part_id == part_id, Stock.location_id == location_id
         )
@@ -44,7 +45,7 @@ class StockRepository:
             return self.increment(existing.id, quantity)
         return self.create(part_id, location_id, quantity)
 
-    def set_quantity(self, stock_id: int, quantity: int) -> Stock | None:
+    def set_quantity(self, stock_id: int, quantity: int) -> Optional[Stock]:
         stock = self.db.get(Stock, stock_id)
         if stock is None:
             return None

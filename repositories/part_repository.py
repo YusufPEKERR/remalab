@@ -1,5 +1,6 @@
 from sqlalchemy import select, or_, cast, String
 from sqlalchemy.orm import Session
+from typing import Optional
 
 from models.part import Part
 
@@ -10,7 +11,7 @@ class PartRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_all(self, search: str | None = None) -> list[Part]:
+    def get_all(self, search: Optional[str] = None) -> list[Part]:
         stmt = select(Part).order_by(Part.id.desc())
         if search:
             stmt = stmt.where(
@@ -21,16 +22,16 @@ class PartRepository:
             )
         return list(self.db.execute(stmt).scalars().all())
 
-    def get_by_id(self, part_id: int) -> Part | None:
+    def get_by_id(self, part_id: int) -> Optional[Part]:
         return self.db.get(Part, part_id)
 
-    def create(self, name: str, barcode: str | None = None) -> Part:
+    def create(self, name: str, barcode: Optional[str] = None) -> Part:
         part = Part(name=name, barcode=barcode)
         self.db.add(part)
         self.db.flush()
         return part
 
-    def update_name(self, part_id: int, name: str) -> Part | None:
+    def update_name(self, part_id: int, name: str) -> Optional[Part]:
         part = self.db.get(Part, part_id)
         if part is None:
             return None

@@ -1,17 +1,18 @@
 from config.database import get_db
 from repositories.part_repository import PartRepository
+from typing import Optional
 from services.exceptions import NotFoundError, ValidationError
 
 
 class PartService:
-    def list_parts(self, search: str | None = None) -> list[dict]:
+    def list_parts(self, search: Optional[str] = None) -> list[dict]:
         with get_db() as db:
             return [
                 {"id": p.id, "name": p.name}
                 for p in PartRepository(db).get_all(search=search)
             ]
 
-    def add_part(self, name: str, barcode: str | None = None) -> int:
+    def add_part(self, name: str, barcode: Optional[str] = None) -> int:
         if not name:
             raise ValidationError("Parça adı zorunludur.")
         with get_db() as db:

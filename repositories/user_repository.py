@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -29,8 +30,8 @@ class UserRepository:
         username: str,
         email: str,
         role: str,
-        password_hash: str | None = None,
-    ) -> User | None:
+        password_hash: Optional[str] = None,
+    ) -> Optional[User]:
         user = self.db.get(User, user_id)
         if user is None:
             return None
