@@ -196,17 +196,43 @@ class PartsPage(QWidget):
                 name_item = QTableWidgetItem(part["name"])
                 name_item.setData(Qt.UserRole, part["id"])
 
-                # Sil butonu
-                del_btn = QPushButton("🗑️")
-                del_btn
+                # İşlemler Butonları
+                from config.session import SessionManager
+                user_role = SessionManager().role
+                
+                action_layout = QHBoxLayout()
+                action_layout.setContentsMargins(0, 0, 0, 0)
+                action_layout.setSpacing(4)
+                action_layout.setAlignment(Qt.AlignCenter)
+
+                if user_role in ["Admin", "Depo Müdürü"]:
+                    edit_btn = QPushButton("✏️")
+                    edit_btn.setObjectName("table_delete_btn") # Same transparent flat style
+                    edit_btn.setCursor(Qt.PointingHandCursor)
+                    edit_btn.clicked.connect(lambda checked, pid=part["id"], pname=part["name"]: self._edit_part(pid, pname))
+                    action_layout.addWidget(edit_btn)
+
+                del_btn = QPushButton()
+                del_btn.setObjectName("table_delete_btn")
+                import os
+                from PySide6.QtGui import QIcon
+                trash_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "trash.svg")
+                if os.path.exists(trash_path):
+                    del_btn.setIcon(QIcon(trash_path))
+                else:
+                    del_btn.setText("🗑️")
                 del_btn.setCursor(Qt.PointingHandCursor)
                 del_btn.clicked.connect(
                     lambda checked, p_id=part["id"]: self._delete_part(p_id)
                 )
+                action_layout.addWidget(del_btn)
+
+                action_widget = QWidget()
+                action_widget.setLayout(action_layout)
 
                 self._table.setItem(r_idx, 0, id_item)
                 self._table.setItem(r_idx, 1, name_item)
-                self._table.setCellWidget(r_idx, 2, del_btn)
+                self._table.setCellWidget(r_idx, 2, action_widget)
                 self._table.setRowHeight(r_idx, 44)
         except ServiceError as e:
             print(f"[Error Loading Parts] {e}")
@@ -256,6 +282,9 @@ class PartsPage(QWidget):
         dialog.resize(calculated_width, dialog.height())
 
         ok = dialog.exec()
+        if not ok:
+            return
+            
         new_name = dialog.textValue()
 
         try:
