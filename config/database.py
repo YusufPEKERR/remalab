@@ -26,8 +26,8 @@ engine = create_engine(
     DATABASE_URL, 
     pool_pre_ping=True, 
     connect_args={
-        "connect_timeout": 3,
-        "options": "-c statement_timeout=5000",
+        "connect_timeout": 10,
+        "options": "-c statement_timeout=10000",
         "keepalives": 1,
         "keepalives_idle": 3,
         "keepalives_interval": 1,
@@ -57,8 +57,8 @@ def reconnect_engine():
         DATABASE_URL, 
         pool_pre_ping=True, 
         connect_args={
-            "connect_timeout": 3,
-            "options": "-c statement_timeout=5000",
+            "connect_timeout": 10,
+            "options": "-c statement_timeout=10000",
             "keepalives": 1,
             "keepalives_idle": 3,
             "keepalives_interval": 1,
@@ -86,7 +86,6 @@ import psycopg2
 
 from sqlalchemy.engine import Engine
 
-@event.listens_for(Engine, "handle_error")
 def receive_handle_error(exception_context):
     e = exception_context.original_exception
     is_db_error = False
@@ -113,4 +112,10 @@ def receive_handle_error(exception_context):
             else:
                 import sys
                 sys.exit(1)
+
+
+def register_db_error_listener():
+    """Veritabanı çalışma zamanı bağlantı hatalarını yakalamak için dinleyiciyi kaydeder."""
+    event.listen(Engine, "handle_error", receive_handle_error)
+
 

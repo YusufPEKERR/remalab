@@ -213,6 +213,10 @@ def main():
             else:
                 sys.exit(1) # Çıkış yapıldı
 
+    # Veritabanı başarıyla kurulduktan sonra çalışma zamanı (runtime) hata dinleyicisini kaydet
+    from config.database import register_db_error_listener
+    register_db_error_listener()
+
     # Session Kontrolü
     session = SessionManager()
 
