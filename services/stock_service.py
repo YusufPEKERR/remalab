@@ -18,6 +18,8 @@ class StockService:
             source = stock_repo.get_by_id(source_stock_id)
             if source is None:
                 raise NotFoundError("Kaynak stok kaydı bulunamadı.")
+            if source.location_id == target_location_id:
+                raise ValidationError("Aynı depoya transfer yapılamaz.")
             if source.quantity < quantity:
                 raise InsufficientStockError(
                     "Kaynak lokasyonda yeterli stok bulunmuyor."

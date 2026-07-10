@@ -6,9 +6,9 @@ Depo giriş ve çıkış hareketlerinin salt-okunur özet listesi.
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QTableWidget, QTableWidgetItem, QHeaderView, QPushButton,
-    QComboBox,
+    QDateTimeEdit,
 )
-from PySide6.QtCore import Qt, QDate
+from PySide6.QtCore import Qt, QDate, QTime, QDateTime
 from ui.translations import tr, get_translator
 
 
@@ -19,51 +19,6 @@ class ReportsPage(QWidget):
         super().__init__(parent)
         self._setup_ui()
         get_translator().language_changed.connect(self._retranslate)
-
-    def _create_date_selectors(self):
-        layout = QHBoxLayout()
-        layout.setSpacing(4)
-        
-        day_cb = QComboBox()
-        for i in range(1, 32):
-            day_cb.addItem(f"{i:02d}")
-            
-        month_cb = QComboBox()
-        for i in range(1, 13):
-            month_cb.addItem(f"{i:02d}")
-            
-        year_cb = QComboBox()
-        current_year = QDate.currentDate().year()
-        for i in range(current_year - 5, current_year + 5):
-            year_cb.addItem(str(i))
-            
-        cb_style = """
-            QComboBox {
-                background-color: #161B22;
-                border: 1px solid #30363D;
-                border-radius: 6px;
-                padding: 6px 12px;
-                color: #C9D1D9;
-                font-size: 13px;
-                min-width: 45px;
-            }
-            QComboBox:focus {
-                border-color: #1F6FEB;
-            }
-            QComboBox::drop-down {
-                border-left: 1px solid #30363D;
-                width: 20px;
-            }
-        """
-        day_cb.setStyleSheet(cb_style)
-        month_cb.setStyleSheet(cb_style)
-        year_cb.setStyleSheet(cb_style)
-        
-        layout.addWidget(day_cb)
-        layout.addWidget(month_cb)
-        layout.addWidget(year_cb)
-        
-        return layout, day_cb, month_cb, year_cb
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
@@ -88,35 +43,58 @@ class ReportsPage(QWidget):
         header_layout.addWidget(title_section)
         header_layout.addStretch()
 
-
-
         layout.addLayout(header_layout)
 
         # Tarih Aralığı Filtresi
         filter_layout = QHBoxLayout()
         filter_layout.setSpacing(12)
+        
+        dt_style = """
+            QDateTimeEdit {
+                background-color: #161B22;
+                border: 1px solid #30363D;
+                border-radius: 6px;
+                padding: 6px 12px;
+                color: #C9D1D9;
+                font-size: 13px;
+                min-width: 140px;
+            }
+            QDateTimeEdit:focus {
+                border-color: #1F6FEB;
+            }
+            QDateTimeEdit::drop-down {
+                border-left: 1px solid #30363D;
+                width: 20px;
+            }
+        """
 
         self._start_date_lbl = QLabel(tr("reports.start_date") + ":")
         filter_layout.addWidget(self._start_date_lbl)
 
-        start_layout, self._start_day, self._start_month, self._start_year = self._create_date_selectors()
-        filter_layout.addLayout(start_layout)
+        self._start_datetime = QDateTimeEdit()
+        self._start_datetime.setCalendarPopup(True)
+        self._start_datetime.setDisplayFormat("dd.MM.yyyy HH:mm")
+        self._start_datetime.setStyleSheet(dt_style)
         
-        start_date = QDate.currentDate().addDays(-30)
-        self._start_day.setCurrentText(f"{start_date.day():02d}")
-        self._start_month.setCurrentText(f"{start_date.month():02d}")
-        self._start_year.setCurrentText(str(start_date.year()))
+        start_dt = QDateTime.currentDateTime().addDays(-30)
+        start_dt.setTime(QTime(0, 0))
+        self._start_datetime.setDateTime(start_dt)
+        
+        filter_layout.addWidget(self._start_datetime)
 
         self._end_date_lbl = QLabel(tr("reports.end_date") + ":")
         filter_layout.addWidget(self._end_date_lbl)
 
-        end_layout, self._end_day, self._end_month, self._end_year = self._create_date_selectors()
-        filter_layout.addLayout(end_layout)
-
-        end_date = QDate.currentDate()
-        self._end_day.setCurrentText(f"{end_date.day():02d}")
-        self._end_month.setCurrentText(f"{end_date.month():02d}")
-        self._end_year.setCurrentText(str(end_date.year()))
+        self._end_datetime = QDateTimeEdit()
+        self._end_datetime.setCalendarPopup(True)
+        self._end_datetime.setDisplayFormat("dd.MM.yyyy HH:mm")
+        self._end_datetime.setStyleSheet(dt_style)
+        
+        end_dt = QDateTime.currentDateTime()
+        end_dt.setTime(QTime(23, 59))
+        self._end_datetime.setDateTime(end_dt)
+        
+        filter_layout.addWidget(self._end_datetime)
 
         self._filter_btn = QPushButton(tr("reports.filter"))
         self._filter_btn.setCursor(Qt.PointingHandCursor)
@@ -160,8 +138,8 @@ class ReportsPage(QWidget):
         self._update_headers()
         self._table.clearContents()
 
-        start_date = f"{self._start_year.currentText()}-{self._start_month.currentText()}-{self._start_day.currentText()}"
-        end_date = f"{self._end_year.currentText()}-{self._end_month.currentText()}-{self._end_day.currentText()}"
+        start_date = self._start_datetime.dateTime().toString("yyyy-MM-dd HH:mm:ss")
+        end_date = self._end_datetime.dateTime().toString("yyyy-MM-dd HH:mm:ss")
 
         try:
             from config.database import SessionLocal
@@ -182,7 +160,7 @@ class ReportsPage(QWidget):
                         JOIN warehouse.parts p ON e.part_id = p.id
                         JOIN warehouse.locations l ON e.location_id = l.id
                     ) AS combined
-                    WHERE created_at::date BETWEEN :start_date AND :end_date
+                    WHERE created_at >= CAST(:start_date AS timestamp) AND created_at <= CAST(:end_date AS timestamp)
                     ORDER BY created_at DESC
                     LIMIT 5000;
                 """), {"start_date": start_date, "end_date": end_date}).fetchall()

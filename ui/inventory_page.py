@@ -25,91 +25,7 @@ from services.stock_service import StockService
 from services.exceptions import InsufficientStockError, ServiceError
 
 
-class StockTransferDialog(QDialog):
-    """Stok transfer diyaloğu."""
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle(tr("warehouse.transfer_stock"))
-        self.setMinimumWidth(400)
-        self
-
-        layout = QVBoxLayout(self)
-
-        # 1. Kaynak Lokasyon & Parça seçimi
-        lbl1 = QLabel(tr("warehouse.source_location") + " (Stok Satırı)")
-        lbl1
-        layout.addWidget(lbl1)
-
-        self.source_combo = QComboBox()
-        self.source_combo
-        layout.addWidget(self.source_combo)
-
-        # 2. Hedef Lokasyon
-        lbl2 = QLabel(tr("warehouse.target_location"))
-        lbl2
-        layout.addWidget(lbl2)
-
-        self.target_combo = QComboBox()
-        self.target_combo
-        layout.addWidget(self.target_combo)
-
-        # 3. Miktar
-        lbl3 = QLabel(tr("warehouse.transfer_quantity"))
-        lbl3
-        layout.addWidget(lbl3)
-
-        self.qty_spin = QSpinBox()
-        self.qty_spin.setRange(1, 99999)
-        self.qty_spin
-        layout.addWidget(self.qty_spin)
-
-        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
-        buttons.accepted.connect(self.accept)
-        buttons.rejected.connect(self.reject)
-
-        buttons.button(QDialogButtonBox.Ok).setText(tr("warehouse.transfer_stock"))
-        buttons.button(QDialogButtonBox.Ok)
-        buttons.button(QDialogButtonBox.Cancel).setText(tr("db.cancel"))
-        buttons.button(QDialogButtonBox.Cancel)
-
-        layout.addWidget(buttons)
-
-        self._load_combos()
-
-    def _load_combos(self):
-        """Komboboxları doldurur."""
-        try:
-            from config.database import SessionLocal
-            from sqlalchemy import text
-
-            db = SessionLocal()
-            try:
-                # 1. Kaynak Stoklar
-                stoklar = db.execute(text("""
-                    SELECT s.id, p.name, l.name, s.quantity
-                    FROM warehouse.stock s
-                    JOIN warehouse.parts p ON s.part_id = p.id
-                    JOIN warehouse.locations l ON s.location_id = l.id
-                    WHERE s.quantity > 0;
-                """)).fetchall()
-
-                for row in stoklar:
-                    # id'yi verisi olarak sakla
-                    self.source_combo.addItem(
-                        f"{row[1]} ({row[2]}) - Mevcut: {row[3]} adet", row[0]
-                    )
-
-                # 2. Lokasyonlar
-                lokasyonlar = db.execute(
-                    text("SELECT id, name FROM warehouse.locations;")
-                ).fetchall()
-                for row in lokasyonlar:
-                    self.target_combo.addItem(row[1], row[0])
-            finally:
-                db.close()
-        except Exception as e:
-            print(f"[Error Loading Combo Boxes] {e}")
+from ui.stock_transfer_dialog import StockTransferDialog
 
 
 class InventoryPage(QWidget):
@@ -390,8 +306,8 @@ class InventoryPage(QWidget):
         """Stok transfer operasyonu."""
         dialog = StockTransferDialog(self)
         if dialog.exec() == QDialog.Accepted:
-            source_stock_id = dialog.source_combo.currentData()
-            target_location_id = dialog.target_combo.currentData()
+            source_stock_id = dialog.source_stock_id
+            target_location_id = dialog.target_loc_combo.currentData()
             transfer_qty = dialog.qty_spin.value()
 
             if source_stock_id is None or target_location_id is None:
