@@ -213,71 +213,66 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(right_section)
 
     def _create_pages(self):
-        """Tüm sayfaları oluştur ve stack'e ekle."""
+        """Dashboard'u hemen oluşturur; diğer sayfalar ilk ziyarette (lazy) kurulur.
+
+        Önceden tüm modüller (Depo, Parçalar, Raporlar, vb.) girişte anında
+        inşa ediliyor ve her biri kendi veritabanı sorgusunu çalıştırıyordu.
+        Kullanıcı o sayfayı hiç açmasa bile bu maliyeti ödüyordu. Artık sadece
+        gezinme menüsünde tıklanan sayfa, tıklandığı an kuruluyor.
+        """
         session = SessionManager()
         user_role = session.role
+        self._page_factories = self._build_page_factories(user_role)
 
-        # Herkesin gördüğü
+        # Herkesin gördüğü ilk sayfa
         dashboard = DashboardPage()
         self._add_page("nav.dashboard", dashboard)
+        self._content_stack.setCurrentIndex(0)
+
+    def _build_page_factories(self, user_role: str) -> dict:
+        """Role göre erişilebilir modüller için gecikmeli (lazy) kurucu fonksiyonlar üretir."""
+        factories: dict = {}
 
         # Sadece Admin, Depo ve Depo Müdürü Ortak Modülleri
         if user_role in ["Admin", "Depo", "Depo Müdürü"]:
-            from ui.warehouse_page import WarehousePage
+            def _make_warehouse():
+                from ui.warehouse_page import WarehousePage
+                return WarehousePage()
 
-            warehouse = WarehousePage()
-            self._add_page("nav.warehouse", warehouse)
+            def _make_waybill():
+                from ui.waybill_page import WaybillPage
+                return WaybillPage()
 
-            locations = LocationsPage()
-            self._add_page("nav.locations", locations)
-
-            from ui.waybill_page import WaybillPage
-
-            waybill = WaybillPage()
-            self._add_page("nav.waybill", waybill)
+            factories["nav.warehouse"] = _make_warehouse
+            factories["nav.locations"] = lambda: LocationsPage()
+            factories["nav.waybill"] = _make_waybill
 
         # Admin ve Depo Müdürü Ortak Modülleri (Envanter)
         if user_role in ["Admin", "Depo Müdürü"]:
-            parts = PartsPage()
-            self._add_page("nav.parts", parts)
+            def _make_phone_models():
+                from ui.phone_models_page import PhoneModelsPage
+                return PhoneModelsPage()
 
-            from ui.phone_models_page import PhoneModelsPage
+            def _make_suppliers():
+                from ui.suppliers_page import SuppliersPage
+                return SuppliersPage()
 
-            phone_models = PhoneModelsPage()
-            self._add_page("nav.phone_models", phone_models)
-
-            from ui.suppliers_page import SuppliersPage
-
-            suppliers = SuppliersPage()
-            self._add_page("nav.suppliers", suppliers)
-
-            depo_placeholders = []
-            for m in depo_placeholders:
-                self._add_page(m, PlaceholderPage(m))
+            factories["nav.parts"] = lambda: PartsPage()
+            factories["nav.phone_models"] = _make_phone_models
+            factories["nav.suppliers"] = _make_suppliers
 
         # Admin ve Teknisyen Modülleri
         if user_role in ["Admin", "Teknisyen"]:
-            teknisyen_placeholders = [
-                "nav.quality_control",
-                "nav.refurbishment",
-                "nav.priority_matrix",
-            ]
-            for m in teknisyen_placeholders:
-                self._add_page(m, PlaceholderPage(m))
+            for m in ["nav.quality_control", "nav.refurbishment", "nav.priority_matrix"]:
+                factories[m] = lambda m=m: PlaceholderPage(m)
 
         # Sadece Admin Modülleri
         if user_role == "Admin":
-            reports = ReportsPage()
-            self._add_page("nav.reports", reports)
+            factories["nav.reports"] = lambda: ReportsPage()
+            factories["nav.settings"] = lambda: SettingsPage()
+            factories["nav.users"] = lambda: UsersPage()
 
-            settings = SettingsPage()
-            self._add_page("nav.settings", settings)
-
-            users = UsersPage()
-            self._add_page("nav.users", users)
-
-        # İlk sayfa Dashboard
-        self._content_stack.setCurrentIndex(0)
+        return factories
 
     def _add_page(self, tr_key: str, widget: QWidget):
         """Yeni sayfa ekle."""
@@ -295,10 +290,11 @@ class MainWindow(QMainWindow):
         """Oturum açma başarılı olduğunda yükleniyor ekranı geçişini yapar."""
         self._master_stack.setCurrentIndex(1)  # Yükleniyor ekranını göster
 
-        # 1.2 saniye sonra ana uygulamayı yükle ve göster
+        # Yükleniyor ekranının bir kare boyanmasına izin ver, sonra hemen devam et
+        # (yapay bir bekleme yok - sadece Dashboard artık lazy yükleme sayesinde hızlı).
         from PySide6.QtCore import QTimer
 
-        QTimer.singleShot(1200, self._on_loading_complete)
+        QTimer.singleShot(0, self._on_loading_complete)
 
     def _on_loading_complete(self):
         """Yükleme tamamlandığında ana pencereleri oluşturur ve gösterir."""
@@ -356,10 +352,15 @@ class MainWindow(QMainWindow):
         self._master_stack.setCurrentIndex(0)
 
     def _on_navigation_changed(self, module_tr_key: str):
-        """Navigasyon değiştiğinde sayfa değiştir."""
-        if module_tr_key in self._pages:
-            self._content_stack.setCurrentIndex(self._pages[module_tr_key])
-            self._topbar.set_page_title(module_tr_key)
+        """Navigasyon değiştiğinde sayfa değiştir; sayfa ilk kez görülüyorsa burada kurulur."""
+        if module_tr_key not in self._pages:
+            factory = getattr(self, "_page_factories", {}).get(module_tr_key)
+            if factory is None:
+                return
+            self._add_page(module_tr_key, factory())
+
+        self._content_stack.setCurrentIndex(self._pages[module_tr_key])
+        self._topbar.set_page_title(module_tr_key)
 
     def _retranslate(self):
         """Dil değiştiğinde pencere başlığını güncelle."""

@@ -26,6 +26,10 @@ def load_stylesheet(app: QApplication):
         print(f"[WARN] Style file not found: {style_path}")
 
 
+# Şema DDL'i sadece bu sürüm değiştiğinde tekrar çalıştırılır (her açılışta değil).
+SCHEMA_VERSION = "1"
+
+
 def init_database_schema():
     """Veritabanını hazırla (Schema ve Tablolar). Hata fırlatabilir."""
     from config.database import engine
@@ -33,6 +37,22 @@ def init_database_schema():
 
     with engine.connect() as conn:
         conn.execute(text("CREATE SCHEMA IF NOT EXISTS warehouse;"))
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS warehouse._schema_meta (
+                key VARCHAR(50) PRIMARY KEY,
+                value VARCHAR(50)
+            );
+        """))
+        conn.commit()
+
+        current_version = conn.execute(
+            text("SELECT value FROM warehouse._schema_meta WHERE key = 'schema_version'")
+        ).scalar()
+
+        if current_version == SCHEMA_VERSION:
+            # Şema zaten güncel: 10+ CREATE/ALTER sorgusunu tekrar göndermeye gerek yok.
+            return
+
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS warehouse.parts (
                 id SERIAL PRIMARY KEY,
@@ -125,6 +145,11 @@ def init_database_schema():
         if users_count == 0:
             admin_hash = get_password_hash("admin123")
             conn.execute(text(f"INSERT INTO warehouse.users (username, email, password_hash, role) VALUES ('admin', 'admin@remalab.com', '{admin_hash}', 'Admin');"))
+
+        conn.execute(text("""
+            INSERT INTO warehouse._schema_meta (key, value) VALUES ('schema_version', :v)
+            ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
+        """), {"v": SCHEMA_VERSION})
         conn.commit()
 
 
