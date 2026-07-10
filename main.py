@@ -200,6 +200,7 @@ def main():
         myappid = "remalab.wms.app.1.0"
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 
+    # pyrefly: ignore [missing-import]
     from PySide6.QtGui import QIcon
 
     icon_path = os.path.join(

@@ -10,3 +10,4 @@ class Part(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String(255), nullable=False)
     barcode = Column(String(100), nullable=True)
+    critical_limit = Column(Integer, default=10)
