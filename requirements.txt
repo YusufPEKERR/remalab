@@ -13,3 +13,5 @@ pydantic
 mkdocs-material
 mkdocstrings[python]
 email-validator
+pandas
+openpyxl

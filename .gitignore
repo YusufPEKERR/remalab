@@ -52,3 +52,8 @@ database/
 
 . s e s s i o n  
 site/
+
+# PyInstaller build outputs
+build/
+dist/
+*.spec
