@@ -30,6 +30,20 @@ from services.part_service import PartService
 from services.exceptions import ServiceError
 
 
+class SelectAllSpinBox(QSpinBox):
+    """Odaklanınca mevcut metni seçili hale getirir; böylece yeni yazılan rakam
+    sona eklenmek yerine üzerine yazılır (yüksek miktarlarda hane kısıtlaması
+    yaşanmasını önler)."""
+
+    def focusInEvent(self, event):
+        super().focusInEvent(event)
+        self.selectAll()
+
+    def mousePressEvent(self, event):
+        super().mousePressEvent(event)
+        self.selectAll()
+
+
 class QuickAddProductDialog(QDialog):
     """Bulunamayan barkodlar için Hızlı Ürün Ekleme modal formu."""
 
@@ -186,49 +200,60 @@ class AddInboundStockDialog(QDialog):
         layout.addWidget(self.info_box)
         self.info_box.setVisible(False)
 
-        # ── 4. Miktar & Fiyat ────────────────────────────────────────────────
+        # ── 4. Giriş Tipi ────────────────────────────────────────────────────
+        lbl_type = QLabel("Giriş Tipi")
+        layout.addWidget(lbl_type)
+        self.type_combo = QComboBox()
+        self.type_combo.setStyleSheet(self._combo_style())
+        self.type_combo.addItem("Yeni Alım (Tedarikçiden)", "new")
+        self.type_combo.addItem("İç Transfer (Başka Depodan)", "transfer")
+        self.type_combo.currentIndexChanged.connect(self._on_type_changed)
+        layout.addWidget(self.type_combo)
+
+        # ── 5. Miktar & Fiyat ────────────────────────────────────────────────
         qty_price_row = QHBoxLayout()
         qty_price_row.setSpacing(12)
 
         qty_col = QVBoxLayout()
         lbl_qty = QLabel(tr("table.quantity"))
         qty_col.addWidget(lbl_qty)
-        self.qty_spin = QSpinBox()
-        self.qty_spin.setRange(1, 1_000_000)
+        self.qty_spin = SelectAllSpinBox()
+        self.qty_spin.setRange(0, 1_000_000)
         self.qty_spin.setValue(1)
-        self.qty_spin.valueChanged.connect(self._calculate_total)
         qty_col.addWidget(self.qty_spin)
         qty_price_row.addLayout(qty_col)
 
         price_col = QVBoxLayout()
-        lbl_price = QLabel(tr("inbound.unit_price"))
-        price_col.addWidget(lbl_price)
+        self.lbl_price = QLabel(tr("inbound.unit_price"))
+        price_col.addWidget(self.lbl_price)
         self.price_spin = QDoubleSpinBox()
         self.price_spin.setRange(0.01, 1_000_000.00)
         self.price_spin.setDecimals(2)
         self.price_spin.setValue(1.00)
         self.price_spin.setSuffix(" TL")
-        self.price_spin.valueChanged.connect(self._calculate_total)
         price_col.addWidget(self.price_spin)
         qty_price_row.addLayout(price_col)
 
         layout.addLayout(qty_price_row)
 
-        # Toplam
-        lbl_total = QLabel(tr("inbound.total_cost"))
-        layout.addWidget(lbl_total)
-        self.total_cost_lbl = QLabel("1.00 TL")
-        self.total_cost_lbl.setStyleSheet(
-            "font-weight: bold; color: #3FB950; font-size: 15px;"
-        )
-        layout.addWidget(self.total_cost_lbl)
-
-        # ── 5. Lokasyon ───────────────────────────────────────────────────────
-        lbl_loc = QLabel(tr("table.location"))
-        layout.addWidget(lbl_loc)
+        # ── 6. Lokasyon ───────────────────────────────────────────────────────
+        self.lbl_loc = QLabel(tr("table.location"))
+        layout.addWidget(self.lbl_loc)
         self.loc_combo = QComboBox()
         self.loc_combo.setStyleSheet(self._combo_style())
         layout.addWidget(self.loc_combo)
+
+        self.lbl_source = QLabel("Kaynak Depo")
+        layout.addWidget(self.lbl_source)
+        self.source_combo = QComboBox()
+        self.source_combo.setStyleSheet(self._combo_style())
+        layout.addWidget(self.source_combo)
+
+        self.lbl_target = QLabel("Hedef Depo")
+        layout.addWidget(self.lbl_target)
+        self.target_combo = QComboBox()
+        self.target_combo.setStyleSheet(self._combo_style())
+        layout.addWidget(self.target_combo)
 
         layout.addStretch()
 
@@ -246,7 +271,7 @@ class AddInboundStockDialog(QDialog):
         main_layout.addWidget(btn_wrapper)
 
         self._load_combos()
-        self._calculate_total()
+        self._on_type_changed()
         self.barcode_input.setFocus()
 
     # ── Stil ─────────────────────────────────────────────────────────────────
@@ -398,9 +423,68 @@ class AddInboundStockDialog(QDialog):
         if not part_id:
             self._selected_part_id = None
             self._update_info_box(None)
+            self.source_combo.clear()
             return
         self._selected_part_id = part_id
         self._fill_part_details(part_id)
+        if self.type_combo.currentData() == "transfer":
+            self._load_source_target_combos()
+
+    def _on_type_changed(self):
+        """Giriş Tipi değiştiğinde Lokasyon / Kaynak+Hedef Depo alanlarını değiştirir."""
+        is_transfer = self.type_combo.currentData() == "transfer"
+
+        self.lbl_loc.setVisible(not is_transfer)
+        self.loc_combo.setVisible(not is_transfer)
+
+        self.lbl_source.setVisible(is_transfer)
+        self.source_combo.setVisible(is_transfer)
+        self.lbl_target.setVisible(is_transfer)
+        self.target_combo.setVisible(is_transfer)
+
+        if is_transfer:
+            self._load_source_target_combos()
+
+    def _load_source_target_combos(self):
+        """İç transfer modunda: seçili parçanın stoklu olduğu lokasyonları Kaynak
+        Depo'ya, tüm lokasyonları Hedef Depo'ya doldurur."""
+        self.source_combo.clear()
+        part_id = self._selected_part_id or self.part_combo.currentData()
+        if not isinstance(part_id, int):
+            return
+
+        try:
+            from config.database import SessionLocal
+            from sqlalchemy import text
+
+            db = SessionLocal()
+            try:
+                stoklar = db.execute(
+                    text("""
+                    SELECT s.id, l.name, s.quantity
+                    FROM warehouse.stock s
+                    JOIN warehouse.locations l ON s.location_id = l.id
+                    WHERE s.part_id = :part_id AND s.quantity > 0
+                    ORDER BY l.name;
+                """),
+                    {"part_id": part_id},
+                ).fetchall()
+
+                for stock_id, loc_name, qty in stoklar:
+                    self.source_combo.addItem(
+                        f"{loc_name} - Mevcut: {qty} adet", stock_id
+                    )
+
+                if self.target_combo.count() == 0:
+                    lokasyonlar = db.execute(
+                        text("SELECT id, name FROM warehouse.locations ORDER BY name;")
+                    ).fetchall()
+                    for loc_id, loc_name in lokasyonlar:
+                        self.target_combo.addItem(loc_name, loc_id)
+            finally:
+                db.close()
+        except Exception as e:
+            print(f"[Dialog] Kaynak/Hedef depo yüklenemedi: {e}")
 
     def _fill_part_details(self, part_id: int):
         """Seçilen parçanın detaylarını bilgi kutusuna yazar."""
@@ -585,10 +669,6 @@ class AddInboundStockDialog(QDialog):
         self.status_lbl.setText("")
         self.barcode_input.setFocus()
 
-    def _calculate_total(self):
-        qty = self.qty_spin.value()
-        price = self.price_spin.value()
-        self.total_cost_lbl.setText(f"{qty * price:,.2f} TL")
 
 
 class InboundPage(QWidget):
@@ -660,7 +740,12 @@ class InboundPage(QWidget):
         self._table.verticalHeader().setVisible(False)
         self._table.setSelectionBehavior(QTableWidget.SelectRows)
         self._table.setEditTriggers(QTableWidget.NoEditTriggers)
-        self._table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        header = self._table.horizontalHeader()
+        for col in range(5):
+            header.setSectionResizeMode(col, QHeaderView.Interactive)
+        header.setSectionResizeMode(5, QHeaderView.Stretch)
+        for col, width in enumerate([160, 70, 100, 130, 110]):
+            self._table.setColumnWidth(col, width)
         self._layout.addWidget(self._table)
 
         self._load_entries()
@@ -676,14 +761,14 @@ class InboundPage(QWidget):
                 tr("table.part_name"),
                 tr("table.quantity"),
                 tr("inbound.unit_price"),
-                tr("inbound.total_cost"),
                 tr("inbound.date"),
                 tr("inbound.created_by"),
+                "Tür / Detay",
             ]
         )
 
     def _load_entries(self):
-        """Mevcut stok girişlerini PostgreSQL'den çeker."""
+        """Mevcut stok girişlerini ve iç transferleri PostgreSQL'den çeker."""
         self._update_headers()
         self._table.clearContents()
 
@@ -694,24 +779,41 @@ class InboundPage(QWidget):
             db = SessionLocal()
             try:
                 rows = db.execute(text("""
-                    SELECT p.name, e.quantity, e.unit_price, e.total_cost, e.created_at, e.created_by
+                    SELECT p.name, e.quantity, e.unit_price, e.created_at,
+                           e.created_by, 'Yeni Alım' AS detail
                     FROM warehouse.inbound_entries e
                     JOIN warehouse.parts p ON e.part_id = p.id
-                    ORDER BY e.created_at DESC;
+
+                    UNION ALL
+
+                    SELECT p.name, m.quantity, m.unit_price, m.created_at, m.created_by,
+                           'İç Transfer: ' || COALESCE(sl.name, '—') || ' → ' || COALESCE(tl.name, '—') AS detail
+                    FROM warehouse.stock_movements m
+                    JOIN warehouse.parts p ON m.part_id = p.id
+                    LEFT JOIN warehouse.locations sl ON m.source_location_id = sl.id
+                    LEFT JOIN warehouse.locations tl ON m.target_location_id = tl.id
+                    WHERE m.type = 'Transfer'
+
+                    ORDER BY created_at DESC
+                    LIMIT 200;
                 """)).fetchall()
 
+                self._table.setUpdatesEnabled(False)
                 self._table.setRowCount(len(rows))
                 for r_idx, row in enumerate(rows):
                     self._table.setItem(r_idx, 0, QTableWidgetItem(str(row[0])))
                     self._table.setItem(r_idx, 1, QTableWidgetItem(str(row[1])))
-                    self._table.setItem(r_idx, 2, QTableWidgetItem(f"{row[2]:,.2f} TL"))
-                    self._table.setItem(r_idx, 3, QTableWidgetItem(f"{row[3]:,.2f} TL"))
-                    self._table.setItem(r_idx, 4, QTableWidgetItem(str(row[4])[:16]))
+                    price_txt = f"{row[2]:,.2f} TL" if row[2] is not None else "—"
+                    self._table.setItem(r_idx, 2, QTableWidgetItem(price_txt))
+                    self._table.setItem(r_idx, 3, QTableWidgetItem(str(row[3])[:16]))
+                    self._table.setItem(r_idx, 4, QTableWidgetItem(str(row[4])))
                     self._table.setItem(r_idx, 5, QTableWidgetItem(str(row[5])))
                     self._table.setRowHeight(r_idx, 44)
+                self._table.setUpdatesEnabled(True)
             finally:
                 db.close()
         except Exception as e:
+            self._table.setUpdatesEnabled(True)
             print(f"[Error Loading Inbounds] {e}")
 
     def _add_inbound_stock(self):
@@ -722,9 +824,15 @@ class InboundPage(QWidget):
 
         # _selected_part_id barkoddan gelir; yoksa combo seçiminden al
         part_id = dialog._selected_part_id or dialog.part_combo.currentData()
-        location_id = dialog.loc_combo.currentData()
         qty = dialog.qty_spin.value()
-        price = dialog.price_spin.value()
+
+        if not isinstance(part_id, int):
+            QMessageBox.warning(self, "Hata", "Lütfen geçerli bir parça seçin.")
+            return
+
+        if qty <= 0:
+            QMessageBox.warning(self, "Hata", "Miktar 0'dan büyük olmalıdır.")
+            return
 
         # Oturumdan kullanıcı adını al
         try:
@@ -734,9 +842,37 @@ class InboundPage(QWidget):
         except Exception:
             created_by = "sistem"
 
-        if not isinstance(part_id, int):
-            QMessageBox.warning(self, "Hata", "Lütfen geçerli bir parça seçin.")
+        if dialog.type_combo.currentData() == "transfer":
+            source_stock_id = dialog.source_combo.currentData()
+            target_location_id = dialog.target_combo.currentData()
+
+            if source_stock_id is None or target_location_id is None:
+                QMessageBox.warning(self, "Hata", "Lütfen kaynak ve hedef depo seçin.")
+                return
+
+            try:
+                from services.stock_service import StockService
+                from services.exceptions import InsufficientStockError
+
+                StockService().transfer(
+                    source_stock_id,
+                    target_location_id,
+                    qty,
+                    created_by=created_by,
+                    unit_price=dialog.price_spin.value(),
+                )
+                QMessageBox.information(
+                    self, "Başarılı", "Stok transferi başarıyla yapıldı."
+                )
+                self._load_entries()
+            except InsufficientStockError:
+                QMessageBox.warning(self, "Hata", "Kaynak depoda yeterli stok yok.")
+            except ServiceError as e:
+                QMessageBox.critical(self, "Hata", f"Transfer yapılamadı: {e}")
             return
+
+        location_id = dialog.loc_combo.currentData()
+        price = dialog.price_spin.value()
 
         if location_id is None:
             QMessageBox.warning(self, "Hata", "Lütfen bir lokasyon seçin.")

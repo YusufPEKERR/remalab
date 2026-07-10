@@ -244,7 +244,7 @@ def main():
     window.activateWindow()
 
     # Bu referansı app içinde tutuyoruz ki Garbage Collector yok etmesin
-    app.main_window = window
+    app.main_window = window 
 
     print("RemaLab WMS started successfully!")
     sys.exit(app.exec())
@@ -252,3 +252,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+ 

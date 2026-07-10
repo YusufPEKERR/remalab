@@ -6,7 +6,12 @@ from services.exceptions import InsufficientStockError, NotFoundError, Validatio
 
 class StockService:
     def transfer(
-        self, source_stock_id: int, target_location_id: int, quantity: int
+        self,
+        source_stock_id: int,
+        target_location_id: int,
+        quantity: int,
+        created_by: str = None,
+        unit_price: float = None,
     ) -> None:
         """Bir stok satırından başka bir lokasyona atomik transfer: kaynaktan düş,
         hedefe ekle/oluştur, hareket kaydı oluştur."""
@@ -23,9 +28,22 @@ class StockService:
                     "Kaynak lokasyonda yeterli stok bulunmuyor."
                 )
 
+            source_location_id = source.location_id
+            part_id = source.part_id
+            total_cost = unit_price * quantity if unit_price is not None else None
+
             stock_repo.decrement(source.id, quantity)
-            stock_repo.upsert_increment(source.part_id, target_location_id, quantity)
-            StockMovementRepository(db).create("Transfer", quantity)
+            stock_repo.upsert_increment(part_id, target_location_id, quantity)
+            StockMovementRepository(db).create(
+                "Transfer",
+                quantity,
+                part_id=part_id,
+                source_location_id=source_location_id,
+                target_location_id=target_location_id,
+                created_by=created_by,
+                unit_price=unit_price,
+                total_cost=total_cost,
+            )
             db.commit()
 
     def set_quantity(self, stock_id: int, quantity: int) -> None:

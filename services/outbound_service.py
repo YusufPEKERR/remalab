@@ -7,7 +7,13 @@ from services.exceptions import InsufficientStockError, NotFoundError, Validatio
 
 class OutboundService:
     def ship_goods(
-        self, stock_id: int, quantity: int, destination: str, created_by: str
+        self,
+        stock_id: int,
+        quantity: int,
+        destination: str,
+        created_by: str,
+        outbound_type: str = None,
+        description: str = None,
     ) -> None:
         """Tek bir stok çıkışını atomik olarak kaydeder: çıkış kaydı + stok azaltma + hareket kaydı."""
         if not destination:
@@ -26,7 +32,13 @@ class OutboundService:
                 )
 
             OutboundEntryRepository(db).create(
-                stock.part_id, stock.location_id, quantity, destination, created_by
+                stock.part_id,
+                stock.location_id,
+                quantity,
+                destination,
+                created_by,
+                outbound_type=outbound_type,
+                description=description,
             )
             stock_repo.decrement(stock.id, quantity)
             StockMovementRepository(db).create("Outbound", quantity)

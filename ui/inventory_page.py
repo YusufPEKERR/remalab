@@ -60,7 +60,7 @@ class StockTransferDialog(QDialog):
         layout.addWidget(lbl3)
 
         self.qty_spin = QSpinBox()
-        self.qty_spin.setRange(1, 99999)
+        self.qty_spin.setRange(0, 99999)
         self.qty_spin
         layout.addWidget(self.qty_spin)
 
@@ -395,6 +395,10 @@ class InventoryPage(QWidget):
             transfer_qty = dialog.qty_spin.value()
 
             if source_stock_id is None or target_location_id is None:
+                return
+
+            if transfer_qty <= 0:
+                QMessageBox.warning(self, "Hata", "Transfer miktarı 0'dan büyük olmalıdır.")
                 return
 
             try:
