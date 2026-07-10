@@ -29,17 +29,26 @@ class AddPartDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle(tr("parts.add_new"))
         self.setMinimumWidth(350)
-        self
 
         layout = QVBoxLayout(self)
 
         lbl = QLabel(tr("parts.part_name"))
-        lbl
         layout.addWidget(lbl)
 
         self.name_input = QLineEdit()
-        self.name_input
         layout.addWidget(self.name_input)
+
+        from config.session import SessionManager
+        self.is_admin = SessionManager().role == "Admin"
+
+        if self.is_admin:
+            limit_lbl = QLabel("Kritik Stok Sınırı (Varsayılan: 10)")
+            layout.addWidget(limit_lbl)
+            from PySide6.QtWidgets import QSpinBox
+            self.limit_input = QSpinBox()
+            self.limit_input.setRange(0, 10000)
+            self.limit_input.setValue(10)
+            layout.addWidget(self.limit_input)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
         buttons.accepted.connect(self.accept)
@@ -47,9 +56,7 @@ class AddPartDialog(QDialog):
 
         # Stil
         buttons.button(QDialogButtonBox.Ok).setText(tr("db.save"))
-        buttons.button(QDialogButtonBox.Ok)
         buttons.button(QDialogButtonBox.Cancel).setText(tr("db.cancel"))
-        buttons.button(QDialogButtonBox.Cancel)
 
         layout.addWidget(buttons)
 
@@ -106,11 +113,10 @@ class PartsPage(QWidget):
 
         # Parçalar Tablosu
         self._table = QTableWidget()
-        self._table.setColumnCount(3)
+        self._table.setColumnCount(4)
         self._table.setAlternatingRowColors(True)
         self._table.verticalHeader().setVisible(False)
         self._table.setSelectionBehavior(QTableWidget.SelectRows)
-        self._table
 
         self._table.horizontalHeader().setSectionResizeMode(
             0, QHeaderView.ResizeToContents
@@ -118,6 +124,9 @@ class PartsPage(QWidget):
         self._table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
         self._table.horizontalHeader().setSectionResizeMode(
             2, QHeaderView.ResizeToContents
+        )
+        self._table.horizontalHeader().setSectionResizeMode(
+            3, QHeaderView.ResizeToContents
         )
 
         layout.addWidget(self._table)
@@ -174,7 +183,7 @@ class PartsPage(QWidget):
 
     def _update_headers(self):
         self._table.setHorizontalHeaderLabels(
-            [tr("table.part_id"), tr("parts.part_name"), "İşlemler"]
+            [tr("table.part_id"), tr("parts.part_name"), "Kritik Sınır", "İşlemler"]
         )
 
     def _load_parts(self):
@@ -191,15 +200,13 @@ class PartsPage(QWidget):
 
             db = SessionLocal()
             try:
-                sql = "SELECT id, name FROM warehouse.parts"
+                sql = "SELECT id, name, critical_limit FROM warehouse.parts"
                 count_sql = "SELECT COUNT(*) FROM warehouse.parts"
                 params = {}
                 if search_query:
-                    sql += " WHERE name ILIKE :search"
-                    count_sql += " WHERE name ILIKE :search"
-                    sql += (
-                        " WHERE name ILIKE :search OR CAST(id AS VARCHAR) ILIKE :search"
-                    )
+                    where_clause = " WHERE name ILIKE :search OR CAST(id AS VARCHAR) ILIKE :search"
+                    sql += where_clause
+                    count_sql += where_clause
                     params["search"] = f"%{search_query}%"
 
                 # Toplam kayıt sayısı ve sayfa hesaplama
@@ -237,6 +244,9 @@ class PartsPage(QWidget):
                     name_item.setFlags(name_item.flags() & ~Qt.ItemIsEditable)
                     name_item.setData(Qt.UserRole, row[0])
 
+                    limit_item = QTableWidgetItem(str(row[2]) if row[2] is not None else "10")
+                    limit_item.setFlags(limit_item.flags() & ~Qt.ItemIsEditable)
+
                     from config.session import SessionManager
 
                     user_role = SessionManager().role
@@ -251,8 +261,8 @@ class PartsPage(QWidget):
                         edit_btn.setObjectName("table_delete_btn")
                         edit_btn.setCursor(Qt.PointingHandCursor)
                         edit_btn.clicked.connect(
-                            lambda checked, pid=row[0], pname=row[1]: self._edit_part(
-                                pid, pname
+                            lambda checked, pid=row[0], pname=row[1], plimit=row[2]: self._edit_part(
+                                pid, pname, plimit
                             )
                         )
                         action_layout.addWidget(edit_btn)
@@ -285,7 +295,8 @@ class PartsPage(QWidget):
 
                     self._table.setItem(r_idx, 0, id_item)
                     self._table.setItem(r_idx, 1, name_item)
-                    self._table.setCellWidget(r_idx, 2, action_widget)
+                    self._table.setItem(r_idx, 2, limit_item)
+                    self._table.setCellWidget(r_idx, 3, action_widget)
                     self._table.setRowHeight(r_idx, 44)
             finally:
                 db.close()
@@ -308,9 +319,13 @@ class PartsPage(QWidget):
 
                 db = SessionLocal()
                 try:
+                    critical_limit = 10
+                    if getattr(dialog, "is_admin", False):
+                        critical_limit = dialog.limit_input.value()
+                        
                     db.execute(
-                        text("INSERT INTO warehouse.parts (name) VALUES (:name);"),
-                        {"name": name},
+                        text("INSERT INTO warehouse.parts (name, critical_limit) VALUES (:name, :critical_limit);"),
+                        {"name": name, "critical_limit": critical_limit},
                     )
                     db.commit()
                 finally:
@@ -346,33 +361,57 @@ class PartsPage(QWidget):
             except Exception as e:
                 QMessageBox.critical(self, "Hata", f"Parça silinemedi: {e}")
 
-    def _edit_part(self, part_id: int, current_name: str):
-        from PySide6.QtWidgets import QInputDialog
+    def _edit_part(self, part_id: int, current_name: str, current_limit: int):
+        from config.session import SessionManager
+        is_admin = SessionManager().role == "Admin"
 
-        dialog = QInputDialog(self)
+        dialog = QDialog(self)
         dialog.setWindowTitle("Düzenle")
-        dialog.setLabelText("Yeni parça adını girin:")
-        dialog.setTextValue(current_name)
+        dialog.setMinimumWidth(350)
+        
+        layout = QVBoxLayout(dialog)
+        
+        layout.addWidget(QLabel("Yeni parça adını girin:"))
+        name_input = QLineEdit()
+        name_input.setText(current_name)
+        layout.addWidget(name_input)
+        
+        limit_input = None
+        if is_admin:
+            layout.addWidget(QLabel("Kritik Stok Sınırı:"))
+            from PySide6.QtWidgets import QSpinBox
+            limit_input = QSpinBox()
+            limit_input.setRange(0, 10000)
+            limit_input.setValue(current_limit if current_limit is not None else 10)
+            layout.addWidget(limit_input)
+            
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, dialog)
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
 
-        # İçindeki yazıya göre dinamik genişlik ayarlama
-        calculated_width = max(350, len(current_name) * 10 + 100)
-        dialog.setMinimumWidth(calculated_width)
-        dialog.resize(calculated_width, dialog.height())
-
-        ok = dialog.exec()
-        new_name = dialog.textValue()
-
-        if ok and new_name.strip() and new_name.strip() != current_name:
+        if dialog.exec() == QDialog.Accepted:
+            new_name = name_input.text().strip()
+            if not new_name:
+                return
+            
             try:
                 from config.database import SessionLocal
                 from sqlalchemy import text
 
                 db = SessionLocal()
                 try:
-                    db.execute(
-                        text("UPDATE warehouse.parts SET name = :name WHERE id = :id;"),
-                        {"name": new_name.strip(), "id": part_id},
-                    )
+                    if is_admin and limit_input:
+                        new_limit = limit_input.value()
+                        db.execute(
+                            text("UPDATE warehouse.parts SET name = :name, critical_limit = :critical_limit WHERE id = :id;"),
+                            {"name": new_name, "critical_limit": new_limit, "id": part_id},
+                        )
+                    else:
+                        db.execute(
+                            text("UPDATE warehouse.parts SET name = :name WHERE id = :id;"),
+                            {"name": new_name, "id": part_id},
+                        )
                     db.commit()
                 finally:
                     db.close()

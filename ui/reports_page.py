@@ -1,12 +1,12 @@
 """
 RemaLab WMS - Reports Page
-Depo giriş ve çıkış hareketlerinin salt-okunur özet listesi.
+Depo giriş ve çıkış hareketlerinin salt-okunur özet listesi ve kritik stok raporu.
 """
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QTableWidget, QTableWidgetItem, QHeaderView, QPushButton,
-    QComboBox,
+    QComboBox, QTabWidget, QFileDialog, QMessageBox
 )
 from PySide6.QtCore import Qt, QDate
 from ui.translations import tr, get_translator
@@ -50,9 +50,11 @@ class ReportsPage(QWidget):
             QComboBox:focus {
                 border-color: #1F6FEB;
             }
-            QComboBox::drop-down {
-                border-left: 1px solid #30363D;
-                width: 20px;
+            QComboBox QAbstractItemView {
+                background-color: #161B22;
+                border: 1px solid #30363D;
+                color: #C9D1D9;
+                selection-background-color: #1F6FEB;
             }
         """
         day_cb.setStyleSheet(cb_style)
@@ -81,16 +83,23 @@ class ReportsPage(QWidget):
         self._title_lbl.setObjectName("page_title")
         title_layout.addWidget(self._title_lbl)
 
-        self._subtitle_lbl = QLabel(tr("reports.subtitle"))
+        self._subtitle_lbl = QLabel("Tüm hareketleri ve kritik stok durumlarını raporlayın")
         self._subtitle_lbl.setObjectName("page_subtitle")
         title_layout.addWidget(self._subtitle_lbl)
 
         header_layout.addWidget(title_section)
         header_layout.addStretch()
 
-
-
         layout.addLayout(header_layout)
+
+        # Tabs
+        self._tabs = QTabWidget()
+        layout.addWidget(self._tabs)
+
+        # TAB 1: Tüm Hareketler
+        self._movements_tab = QWidget()
+        movements_layout = QVBoxLayout(self._movements_tab)
+        movements_layout.setContentsMargins(12, 12, 12, 12)
 
         # Tarih Aralığı Filtresi
         filter_layout = QHBoxLayout()
@@ -122,9 +131,14 @@ class ReportsPage(QWidget):
         self._filter_btn.setCursor(Qt.PointingHandCursor)
         self._filter_btn.clicked.connect(self._load_entries)
         filter_layout.addWidget(self._filter_btn)
+        
+        self._export_general_btn = QPushButton("📊 Excel'e Aktar")
+        self._export_general_btn.setCursor(Qt.PointingHandCursor)
+        self._export_general_btn.clicked.connect(self._export_general_excel)
+        filter_layout.addWidget(self._export_general_btn)
 
         filter_layout.addStretch()
-        layout.addLayout(filter_layout)
+        movements_layout.addLayout(filter_layout)
 
         # Hareket tablosu
         self._table = QTableWidget()
@@ -134,14 +148,50 @@ class ReportsPage(QWidget):
         self._table.verticalHeader().setVisible(False)
         self._table.setSelectionBehavior(QTableWidget.SelectRows)
         self._table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        layout.addWidget(self._table)
+        movements_layout.addWidget(self._table)
 
+        self._tabs.addTab(self._movements_tab, "Genel Raporlar")
+
+        # TAB 2: Kritik Stok Raporları
+        self._critical_tab = QWidget()
+        critical_layout = QVBoxLayout(self._critical_tab)
+        critical_layout.setContentsMargins(12, 12, 12, 12)
+
+        self._export_critical_btn = QPushButton("📊 Excel'e Aktar")
+        self._export_critical_btn.setCursor(Qt.PointingHandCursor)
+        self._export_critical_btn.clicked.connect(self._export_critical_excel)
+        self._export_critical_btn.setFixedWidth(150)
+        self._export_critical_btn.setObjectName("btn_secondary")
+        
+        critical_btn_layout = QHBoxLayout()
+        critical_btn_layout.addWidget(self._export_critical_btn)
+        critical_btn_layout.addStretch()
+        critical_layout.addLayout(critical_btn_layout)
+
+        self._critical_table = QTableWidget()
+        self._critical_table.setColumnCount(4)
+        self._critical_table.setAlternatingRowColors(True)
+        self._critical_table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self._critical_table.verticalHeader().setVisible(False)
+        self._critical_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self._critical_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        critical_layout.addWidget(self._critical_table)
+
+        self._tabs.addTab(self._critical_tab, "Kritik Raporlar")
+
+        self._tabs.currentChanged.connect(self._on_tab_changed)
         self._load_entries()
+
+    def _on_tab_changed(self, index):
+        if index == 1:
+            self._load_critical_stock()
 
     def showEvent(self, event):
-        """Sayfa her gösterildiğinde hareket listesini yeniler."""
+        """Sayfa her gösterildiğinde listeyi yeniler."""
         super().showEvent(event)
         self._load_entries()
+        if self._tabs.currentIndex() == 1:
+            self._load_critical_stock()
 
     def _update_headers(self):
         self._table.setHorizontalHeaderLabels(
@@ -154,6 +204,52 @@ class ReportsPage(QWidget):
                 tr("inbound.created_by"),
             ]
         )
+        self._critical_table.setHorizontalHeaderLabels(
+            [
+                "Parça Adı",
+                "Lokasyon",
+                "Mevcut Stok",
+                "Kritik Limit",
+            ]
+        )
+
+    def _load_critical_stock(self):
+        self._critical_table.clearContents()
+        self._update_headers()
+        
+        try:
+            from config.database import SessionLocal
+            from sqlalchemy import text
+            
+            db = SessionLocal()
+            try:
+                sql = """
+                    SELECT p.name, l.name, s.quantity, p.critical_limit
+                    FROM warehouse.stock s
+                    JOIN warehouse.parts p ON s.part_id = p.id
+                    JOIN warehouse.locations l ON s.location_id = l.id
+                    WHERE s.quantity <= COALESCE(p.critical_limit, 10)
+                    ORDER BY s.quantity ASC;
+                """
+                rows = db.execute(text(sql)).fetchall()
+                self._critical_table.setRowCount(len(rows))
+                
+                for r_idx, row in enumerate(rows):
+                    p_name, l_name, qty, limit = row
+                    
+                    self._critical_table.setItem(r_idx, 0, QTableWidgetItem(str(p_name)))
+                    self._critical_table.setItem(r_idx, 1, QTableWidgetItem(str(l_name)))
+                    
+                    qty_item = QTableWidgetItem(str(qty))
+                    qty_item.setForeground(Qt.red)
+                    self._critical_table.setItem(r_idx, 2, qty_item)
+                    
+                    self._critical_table.setItem(r_idx, 3, QTableWidgetItem(str(limit if limit else 10)))
+                    
+            finally:
+                db.close()
+        except Exception as e:
+            print(f"Kritik stok yüklenirken hata: {e}")
 
     def _load_entries(self):
         """Giriş ve çıkış kayıtlarını, seçilen tarih aralığında birleştirip PostgreSQL'den çeker (salt okunur)."""
@@ -197,24 +293,85 @@ class ReportsPage(QWidget):
                     self._table.setItem(r_idx, 0, QTableWidgetItem(str(row[4])[:16]))
                     self._table.setItem(r_idx, 1, QTableWidgetItem(tr(mtype_key)))
                     self._table.setItem(r_idx, 2, QTableWidgetItem(str(row[1])))
-                    self._table.setItem(
-                        r_idx,
-                        3,
-                        QTableWidgetItem(str(row[2]) if row[2] is not None else "-"),
-                    )
+                    self._table.setItem(r_idx, 3, QTableWidgetItem(str(row[2]) if row[2] else "-"))
                     self._table.setItem(r_idx, 4, QTableWidgetItem(str(row[3])))
                     self._table.setItem(r_idx, 5, QTableWidgetItem(str(row[5])))
-                    self._table.setRowHeight(r_idx, 44)
             finally:
                 db.close()
         except Exception as e:
-            print(f"[Error Loading Reports] {e}")
+            print(f"Raporlar yüklenemedi: {e}")
 
     def _retranslate(self):
-        """Dili günceller."""
         self._title_lbl.setText(tr("reports.title"))
-        self._subtitle_lbl.setText(tr("reports.subtitle"))
         self._start_date_lbl.setText(tr("reports.start_date") + ":")
         self._end_date_lbl.setText(tr("reports.end_date") + ":")
         self._filter_btn.setText(tr("reports.filter"))
-        self._load_entries()
+        self._update_headers()
+
+    def _export_general_excel(self):
+        try:
+            import pandas as pd
+        except ImportError:
+            QMessageBox.critical(self, "Hata", "pandas kütüphanesi eksik!")
+            return
+
+        if self._table.rowCount() == 0:
+            QMessageBox.warning(self, "Uyarı", "Tabloda dışa aktarılacak veri yok.")
+            return
+
+        filepath, _ = QFileDialog.getSaveFileName(self, "Excel Dışa Aktar", "genel_raporlar.xlsx", "Excel Files (*.xlsx)")
+        if not filepath:
+            return
+
+        data = []
+        for r in range(self._table.rowCount()):
+            row_data = {}
+            for c in range(self._table.columnCount()):
+                header_item = self._table.horizontalHeaderItem(c)
+                col_name = header_item.text() if header_item else f"Sütun {c+1}"
+                item = self._table.item(r, c)
+                row_data[col_name] = item.text() if item else ""
+            data.append(row_data)
+
+        try:
+            from ui.excel_utils import style_excel_file
+            df = pd.DataFrame(data)
+            df.to_excel(filepath, index=False)
+            style_excel_file(filepath)
+            QMessageBox.information(self, "Başarılı", "Genel Raporlar başarıyla Excel'e aktarıldı.")
+        except Exception as e:
+            QMessageBox.critical(self, "Hata", f"Excel kaydedilirken hata oluştu:\n{e}")
+
+    def _export_critical_excel(self):
+        try:
+            import pandas as pd
+        except ImportError:
+            QMessageBox.critical(self, "Hata", "pandas kütüphanesi eksik!")
+            return
+
+        if self._critical_table.rowCount() == 0:
+            QMessageBox.warning(self, "Uyarı", "Kritik tabloda dışa aktarılacak veri yok.")
+            return
+
+        filepath, _ = QFileDialog.getSaveFileName(self, "Excel Dışa Aktar", "kritik_raporlar.xlsx", "Excel Files (*.xlsx)")
+        if not filepath:
+            return
+
+        data = []
+        for r in range(self._critical_table.rowCount()):
+            row_data = {}
+            for c in range(self._critical_table.columnCount()):
+                header_item = self._critical_table.horizontalHeaderItem(c)
+                col_name = header_item.text() if header_item else f"Sütun {c+1}"
+                item = self._critical_table.item(r, c)
+                row_data[col_name] = item.text() if item else ""
+            data.append(row_data)
+
+        try:
+            from ui.excel_utils import style_excel_file
+            df = pd.DataFrame(data)
+            df.to_excel(filepath, index=False)
+            style_excel_file(filepath)
+            QMessageBox.information(self, "Başarılı", "Kritik Raporlar başarıyla Excel'e aktarıldı.")
+        except Exception as e:
+            QMessageBox.critical(self, "Hata", f"Excel kaydedilirken hata oluştu:\n{e}")

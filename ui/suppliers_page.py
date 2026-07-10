@@ -39,34 +39,42 @@ class AddSupplierDialog(QDialog):
         form = QFormLayout()
         form.setSpacing(12)
 
+        from PySide6.QtWidgets import QComboBox, QLineEdit
+        
         self.supplier_input = QLineEdit()
         self.supplier_input.setPlaceholderText("Tedarikçi Adı (örn. XYZ Elektronik)")
         form.addRow("Tedarikçi:", self.supplier_input)
 
-        self.brand_input = QLineEdit()
-        self.brand_input.setPlaceholderText("Marka")
+        self.brand_input = QComboBox()
+        self.brand_input.setEditable(False)
+        self.brand_input.setPlaceholderText("Marka seçin")
         form.addRow("Marka:", self.brand_input)
 
-        self.model_input = QLineEdit()
-        self.model_input.setPlaceholderText("Model")
+        self.model_input = QComboBox()
+        self.model_input.setEditable(False)
+        self.model_input.setPlaceholderText("Model seçin")
         form.addRow("Model:", self.model_input)
 
-        self.item_code_input = QLineEdit()
-        self.item_code_input.setPlaceholderText("Ürün Kodu")
+        self.item_code_input = QComboBox()
+        self.item_code_input.setEditable(False)
+        self.item_code_input.setPlaceholderText("Ürün Kodu seçin")
         form.addRow("Ürün Kodu:", self.item_code_input)
 
-        self.barcode_input = QLineEdit()
-        self.barcode_input.setPlaceholderText("Barkod")
+        self.barcode_input = QComboBox()
+        self.barcode_input.setEditable(False)
+        self.barcode_input.setPlaceholderText("Barkod seçin")
         form.addRow("Barkod:", self.barcode_input)
+        
+        self._load_existing_data()
 
         layout.addLayout(form)
 
         if initial_data:
             self.supplier_input.setText(initial_data.get("supplier", "") or "")
-            self.brand_input.setText(initial_data.get("brand", "") or "")
-            self.model_input.setText(initial_data.get("model", "") or "")
-            self.item_code_input.setText(initial_data.get("item_code", "") or "")
-            self.barcode_input.setText(initial_data.get("barcode", "") or "")
+            self.brand_input.setCurrentText(initial_data.get("brand", "") or "")
+            self.model_input.setCurrentText(initial_data.get("model", "") or "")
+            self.item_code_input.setCurrentText(initial_data.get("item_code", "") or "")
+            self.barcode_input.setCurrentText(initial_data.get("barcode", "") or "")
 
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
         buttons.accepted.connect(self.accept)
@@ -74,6 +82,32 @@ class AddSupplierDialog(QDialog):
         buttons.button(QDialogButtonBox.Ok).setText("Kaydet")
         buttons.button(QDialogButtonBox.Cancel).setText("İptal")
         layout.addWidget(buttons)
+
+    def _load_existing_data(self):
+        try:
+            from config.database import SessionLocal
+            from sqlalchemy import text
+            db = SessionLocal()
+            try:
+                def get_distinct(column):
+                    res = db.execute(text(f"SELECT DISTINCT {column} FROM warehouse.parts WHERE {column} IS NOT NULL AND {column} != '' ORDER BY {column}"))
+                    return [str(row[0]) for row in res.fetchall()]
+                
+                self.brand_input.addItems(get_distinct("brand"))
+                self.brand_input.setCurrentIndex(-1)
+                
+                self.model_input.addItems(get_distinct("model"))
+                self.model_input.setCurrentIndex(-1)
+                
+                self.item_code_input.addItems(get_distinct("item_code"))
+                self.item_code_input.setCurrentIndex(-1)
+                
+                self.barcode_input.addItems(get_distinct("barcode"))
+                self.barcode_input.setCurrentIndex(-1)
+            finally:
+                db.close()
+        except Exception as e:
+            print(f"[AddSupplierDialog] Veriler yüklenirken hata: {e}")
 
 
 class SuppliersPage(QWidget):
@@ -302,10 +336,10 @@ class SuppliersPage(QWidget):
         dialog = AddSupplierDialog(self, initial_data)
         if dialog.exec() == QDialog.Accepted:
             supplier = dialog.supplier_input.text().strip()
-            brand = dialog.brand_input.text().strip()
-            model = dialog.model_input.text().strip()
-            item_code = dialog.item_code_input.text().strip()
-            barcode = dialog.barcode_input.text().strip()
+            brand = dialog.brand_input.currentText().strip()
+            model = dialog.model_input.currentText().strip()
+            item_code = dialog.item_code_input.currentText().strip()
+            barcode = dialog.barcode_input.currentText().strip()
 
             brand_model = f"{brand} {model}".strip()
             name = brand_model or (supplier if supplier else "Bilinmeyen Ürün")
@@ -352,10 +386,10 @@ class SuppliersPage(QWidget):
             return
 
         supplier = dialog.supplier_input.text().strip() or None
-        brand = dialog.brand_input.text().strip() or None
-        model = dialog.model_input.text().strip() or None
-        item_code = dialog.item_code_input.text().strip() or None
-        barcode = dialog.barcode_input.text().strip() or None
+        brand = dialog.brand_input.currentText().strip() or None
+        model = dialog.model_input.currentText().strip() or None
+        item_code = dialog.item_code_input.currentText().strip() or None
+        barcode = dialog.barcode_input.currentText().strip() or None
 
         brand_model = f"{brand or ''} {model or ''}".strip() or None
         name = brand_model or (supplier if supplier else "Bilinmeyen Ürün")

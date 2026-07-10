@@ -223,10 +223,10 @@ class MainWindow(QMainWindow):
 
         # Sadece Admin, Depo ve Depo Müdürü Ortak Modülleri
         if user_role in ["Admin", "Depo", "Depo Müdürü"]:
-            from ui.inventory_page import InventoryPage
+            from ui.warehouse_page import WarehousePage
 
-            inventory = InventoryPage()
-            self._add_page("nav.warehouse", inventory)
+            warehouse = WarehousePage()
+            self._add_page("nav.warehouse", warehouse)
 
             locations = LocationsPage()
             self._add_page("nav.locations", locations)
