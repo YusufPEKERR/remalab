@@ -34,6 +34,10 @@ export default function Suppliers() {
 
   useEffect(() => {
     fetchSuppliers();
+
+    const handleRefresh = () => fetchSuppliers();
+    window.addEventListener('app:refresh', handleRefresh);
+    return () => window.removeEventListener('app:refresh', handleRefresh);
   }, []);
 
   const handleOpenModal = (supplier = null) => {

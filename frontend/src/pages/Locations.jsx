@@ -30,6 +30,10 @@ export default function Locations() {
 
   useEffect(() => {
     fetchLocations();
+
+    const handleRefresh = () => fetchLocations();
+    window.addEventListener('app:refresh', handleRefresh);
+    return () => window.removeEventListener('app:refresh', handleRefresh);
   }, []);
 
   const handleAdd = async (e) => {

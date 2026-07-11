@@ -49,6 +49,10 @@ export default function Parts() {
 
   useEffect(() => {
     fetchParts();
+
+    const handleRefresh = () => fetchParts();
+    window.addEventListener('app:refresh', handleRefresh);
+    return () => window.removeEventListener('app:refresh', handleRefresh);
   }, []);
 
   const handleOpenModal = (part = null) => {
@@ -71,14 +75,21 @@ export default function Parts() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Submitting:", formData);
+    if (currentPart) {
+      const res = await api.updatePart(currentPart.id, formData);
+      if (!res.success) alert("Güncelleme hatası: " + res.message);
+    } else {
+      const res = await api.createPart(formData);
+      if (!res.success) alert("Ekleme hatası: " + res.message);
+    }
     setIsModalOpen(false);
     fetchParts();
   };
 
   const handleDelete = async (id) => {
     if (window.confirm('Bu parçayı silmek istediğinize emin misiniz?')) {
-      console.log("Deleting part:", id);
+      const res = await api.deletePart(id);
+      if (res && !res.success) alert("Silme hatası: " + res.message);
       fetchParts();
     }
   };
@@ -124,17 +135,17 @@ export default function Parts() {
     <div className="h-full flex flex-col space-y-6 overflow-hidden">
       
       {/* Header */}
-      <div className="flex justify-between items-center bg-[#1e2330] p-6 rounded-2xl border border-slate-700/50 shadow-sm shrink-0">
+      <div className="flex justify-between items-center bg-white dark:bg-[#1e2330] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm shrink-0">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100 tracking-tight">Stok Kartları (Parçalar)</h1>
-          <p className="text-slate-400 mt-1">Depodaki parçaların tanımlarını yönetin ve listeleyin.</p>
+          <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Stok Kartları (Parçalar)</h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-1">Depodaki parçaların tanımlarını yönetin ve listeleyin.</p>
         </div>
         
         <div className="flex gap-3 items-center">
           <div className="relative">
             <select 
               onChange={handleExcelAction}
-              className="appearance-none bg-[#242a38] hover:bg-[#2a3142] text-slate-300 border border-slate-600 rounded-xl px-4 py-2 pr-8 transition-colors font-medium cursor-pointer focus:outline-none focus:border-blue-500"
+              className="appearance-none bg-slate-100 dark:bg-[#242a38] hover:bg-slate-200 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-2 pr-8 transition-colors font-medium cursor-pointer focus:outline-none focus:border-blue-500"
             >
               <option value="">Excel İşlemi Seç...</option>
               <option value="download_template">Boş Şablon İndir</option>
@@ -163,7 +174,7 @@ export default function Parts() {
           </div>
           <input
             type="text"
-            className="w-full bg-[#1e2330] border border-slate-700 text-slate-200 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:border-blue-500 shadow-sm"
+            className="w-full bg-white dark:bg-[#1e2330] border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:border-blue-500 shadow-sm"
             placeholder="Parça Ara (Kod, Marka, Model, Tip)..."
             value={searchTerm}
             onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
@@ -172,10 +183,10 @@ export default function Parts() {
       </div>
 
       {/* Table Content */}
-      <div className="bg-[#1e2330] rounded-2xl border border-slate-700/50 shadow-lg flex-1 overflow-hidden flex flex-col">
+      <div className="bg-white dark:bg-[#1e2330] rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-lg flex-1 overflow-hidden flex flex-col">
         <div className="overflow-auto flex-1">
           <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs sticky top-0 z-10">
+            <thead className="bg-slate-100 dark:bg-[#242a38] text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wider text-xs sticky top-0 z-10 border-b border-slate-200 dark:border-slate-700/50">
               <tr>
                 <th className="px-6 py-4">ID</th>
                 <th className="px-6 py-4">Parça Kodu</th>
@@ -187,25 +198,25 @@ export default function Parts() {
                 <th className="px-6 py-4 text-center">İşlemler</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-700/50">
+            <tbody className="divide-y divide-slate-200 dark:divide-slate-700/50">
               {loading ? (
                 <tr>
-                  <td colSpan="8" className="px-6 py-8 text-center text-slate-400">
-                    <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-400" />
+                  <td colSpan="8" className="px-6 py-8 text-center text-slate-500 dark:text-slate-400">
+                    <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-500 dark:text-blue-400" />
                     Yükleniyor...
                   </td>
                 </tr>
               ) : paginatedParts.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="px-6 py-8 text-center text-slate-500">
+                  <td colSpan="8" className="px-6 py-8 text-center text-slate-500 dark:text-slate-400">
                     Kayıt bulunamadı.
                   </td>
                 </tr>
               ) : (
                 paginatedParts.map(part => (
-                  <tr key={part.id} className="hover:bg-[#2a3142] transition-colors text-slate-300">
+                  <tr key={part.id} className="hover:bg-slate-50 dark:hover:bg-[#2a3142] transition-colors text-slate-700 dark:text-slate-300">
                     <td className="px-6 py-4 font-mono text-slate-500">{part.id}</td>
-                    <td className="px-6 py-4 font-medium text-slate-200">{part.item_code}</td>
+                    <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200">{part.item_code}</td>
                     <td className="px-6 py-4">{part.brand}</td>
                     <td className="px-6 py-4">{part.model}</td>
                     <td className="px-6 py-4">{part.color}</td>
@@ -221,14 +232,14 @@ export default function Parts() {
                       <div className="flex justify-center gap-3">
                         <button 
                           onClick={() => handleOpenModal(part)}
-                          className="p-1.5 text-blue-400 hover:bg-blue-400/10 rounded-lg transition-colors"
+                          className="p-1.5 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-400/10 rounded-lg transition-colors"
                           title="Düzenle"
                         >
                           <Edit size={16} />
                         </button>
                         <button 
                           onClick={() => handleDelete(part.id)}
-                          className="p-1.5 text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
+                          className="p-1.5 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-400/10 rounded-lg transition-colors"
                           title="Sil"
                         >
                           <Trash2 size={16} />
@@ -243,13 +254,13 @@ export default function Parts() {
         </div>
         
         {/* Pagination Footer */}
-        <div className="bg-[#242a38] border-t border-slate-700/50 px-6 py-4 flex items-center justify-between text-slate-400 text-sm">
+        <div className="bg-slate-50 dark:bg-[#242a38] border-t border-slate-200 dark:border-slate-700/50 px-6 py-4 flex items-center justify-between text-slate-500 dark:text-slate-400 text-sm">
           <div className="flex items-center gap-2">
             <span>Sayfa Başına:</span>
             <select 
               value={itemsPerPage} 
               onChange={(e) => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }}
-              className="bg-[#1e2330] border border-slate-700 rounded-lg px-2 py-1 text-slate-200 focus:outline-none focus:border-slate-500"
+              className="bg-white dark:bg-[#1e2330] border border-slate-300 dark:border-slate-700 rounded-lg px-2 py-1 text-slate-700 dark:text-slate-200 focus:outline-none focus:border-slate-500"
             >
               <option value={10}>10</option>
               <option value={20}>20</option>
@@ -262,7 +273,7 @@ export default function Parts() {
             <button 
               onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
               disabled={currentPage === 1}
-              className="px-3 py-1.5 bg-[#1e2330] hover:bg-[#2a3142] disabled:opacity-50 disabled:cursor-not-allowed border border-slate-700 rounded-lg transition-colors text-slate-300"
+              className="px-3 py-1.5 bg-white dark:bg-[#1e2330] hover:bg-slate-100 dark:hover:bg-[#2a3142] disabled:opacity-50 disabled:cursor-not-allowed border border-slate-300 dark:border-slate-700 rounded-lg transition-colors text-slate-700 dark:text-slate-300"
             >
               ← Önceki
             </button>
@@ -272,7 +283,7 @@ export default function Parts() {
             <button 
               onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
               disabled={currentPage === totalPages}
-              className="px-3 py-1.5 bg-[#1e2330] hover:bg-[#2a3142] disabled:opacity-50 disabled:cursor-not-allowed border border-slate-700 rounded-lg transition-colors text-slate-300"
+              className="px-3 py-1.5 bg-white dark:bg-[#1e2330] hover:bg-slate-100 dark:hover:bg-[#2a3142] disabled:opacity-50 disabled:cursor-not-allowed border border-slate-300 dark:border-slate-700 rounded-lg transition-colors text-slate-700 dark:text-slate-300"
             >
               Sonraki →
             </button>
@@ -282,42 +293,42 @@ export default function Parts() {
 
       {/* Add/Edit Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-[99] p-4">
-          <div className="bg-[#1e2330] border border-slate-700 shadow-2xl rounded-2xl w-full max-w-md animate-in fade-in zoom-in duration-200">
-            <div className="px-6 py-4 border-b border-slate-700/50 flex justify-between items-center">
-              <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
+        <div className="fixed inset-0 bg-slate-900/40 dark:bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-[99] p-4">
+          <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-md animate-in fade-in zoom-in duration-200">
+            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 flex justify-between items-center bg-slate-50 dark:bg-[#1e2330] rounded-t-2xl">
+              <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                 {currentPart ? 'Parçayı Düzenle' : 'Yeni Stok Kartı Ekle'}
               </h2>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white">
+              <button onClick={() => setIsModalOpen(false)} className="text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white">
                 <X size={20} />
               </button>
             </div>
             
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-1">Parça Kodu <span className="text-red-400">*</span></label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-400 mb-1">Parça Kodu <span className="text-red-500 dark:text-red-400">*</span></label>
                 <input 
                   type="text" required
-                  className="w-full bg-[#242a38] border border-slate-700 rounded-lg px-3 py-2.5 text-slate-200 focus:outline-none focus:border-blue-500"
+                  className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
                   value={formData.item_code}
                   onChange={e => setFormData({...formData, item_code: e.target.value})}
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1">Marka</label>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-400 mb-1">Marka</label>
                   <input 
                     type="text"
-                    className="w-full bg-[#242a38] border border-slate-700 rounded-lg px-3 py-2.5 text-slate-200 focus:outline-none focus:border-blue-500"
+                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
                     value={formData.brand}
                     onChange={e => setFormData({...formData, brand: e.target.value})}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1">Model</label>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-400 mb-1">Model</label>
                   <input 
                     type="text"
-                    className="w-full bg-[#242a38] border border-slate-700 rounded-lg px-3 py-2.5 text-slate-200 focus:outline-none focus:border-blue-500"
+                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
                     value={formData.model}
                     onChange={e => setFormData({...formData, model: e.target.value})}
                   />
@@ -325,31 +336,31 @@ export default function Parts() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1">Renk</label>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-400 mb-1">Renk</label>
                   <input 
                     type="text"
-                    className="w-full bg-[#242a38] border border-slate-700 rounded-lg px-3 py-2.5 text-slate-200 focus:outline-none focus:border-blue-500"
+                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
                     value={formData.color}
                     onChange={e => setFormData({...formData, color: e.target.value})}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1">Parça Tipi</label>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-400 mb-1">Parça Tipi</label>
                   <input 
                     type="text"
-                    className="w-full bg-[#242a38] border border-slate-700 rounded-lg px-3 py-2.5 text-slate-200 focus:outline-none focus:border-blue-500"
+                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
                     value={formData.part_category}
                     onChange={e => setFormData({...formData, part_category: e.target.value})}
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-1">Parça Kategorisi</label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-400 mb-1">Parça Kategorisi</label>
                 <input 
                   type="text"
                   list="categories-list"
                   placeholder="Kategori seçin veya yazın..."
-                  className="w-full bg-[#242a38] border border-slate-700 rounded-lg px-3 py-2.5 text-slate-200 focus:outline-none focus:border-blue-500"
+                  className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
                   value={formData.item_category}
                   onChange={e => setFormData({...formData, item_category: e.target.value})}
                 />
@@ -358,10 +369,10 @@ export default function Parts() {
                 </datalist>
               </div>
 
-              <div className="pt-2 flex justify-end gap-3 mt-6 border-t border-slate-700/50">
+              <div className="pt-2 flex justify-end gap-3 mt-6 border-t border-slate-200 dark:border-slate-700/50">
                 <button 
                   type="button" onClick={() => setIsModalOpen(false)}
-                  className="mt-4 px-5 py-2.5 text-slate-300 hover:bg-slate-800 rounded-lg transition-colors font-medium"
+                  className="mt-4 px-5 py-2.5 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors font-medium border border-slate-300 dark:border-transparent"
                 >
                   İptal
                 </button>

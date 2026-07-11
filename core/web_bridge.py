@@ -495,7 +495,7 @@ class WebBridge(QObject):
             elif mov_type == 'out':
                 query = query.filter(StockMovement.type.in_(["Çıkış", "İç Transfer", "Müşteri Satışı", "Tedarikçiye İade", "Outbound", "Transfer"]))
                 
-            query = query.order_by(StockMovement.created_at.desc()).limit(200)
+            query = query.order_by(StockMovement.created_at.desc())
             results = query.all()
             
             res = []
@@ -504,10 +504,10 @@ class WebBridge(QObject):
                     "id": mov.id,
                     "type": mov.type,
                     "quantity": mov.quantity,
-                    "part_name": f"{p.brand} {p.model} {p.name}" if p else "Silinmiş Parça",
+                    "part_name": f"{p.brand} {p.model} {p.name}" if p else "Sistemden Silinmiş Parça",
                     "source_location": sloc.name if sloc else "-",
                     "target_location": tloc.name if tloc else "-",
-                    "created_by": mov.created_by,
+                    "created_by": mov.created_by if mov.created_by else "Tanımsız Kullanıcı",
                     "unit_price": float(mov.unit_price) if mov.unit_price else None,
                     "created_at": mov.created_at.strftime("%Y-%m-%d %H:%M") if mov.created_at else ""
                 })
@@ -596,7 +596,8 @@ class WebBridge(QObject):
             query = db.query(StockMovement, Part, SourceLoc, TargetLoc) \
                 .outerjoin(Part, StockMovement.part_id == Part.id) \
                 .outerjoin(SourceLoc, StockMovement.source_location_id == SourceLoc.id) \
-                .outerjoin(TargetLoc, StockMovement.target_location_id == TargetLoc.id)
+                .outerjoin(TargetLoc, StockMovement.target_location_id == TargetLoc.id) \
+                .filter(Part.id.isnot(None))
                 
             if start_date:
                 try:

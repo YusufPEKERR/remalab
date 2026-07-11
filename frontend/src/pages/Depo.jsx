@@ -51,8 +51,23 @@ export default function Depo() {
     await api.exportTableToExcel(inventory, "depo_stok.xlsx");
   };
 
+  const handleDownloadTemplate = async () => {
+    const templateData = [
+      {
+        "Ürün Adı": "",
+        "Barkod": "",
+        "Kritik Limit": ""
+      }
+    ];
+    await api.exportTableToExcel(templateData, "depo_ice_aktarim_sablonu.xlsx");
+  };
+
   useEffect(() => {
     loadInventory();
+
+    const handleRefresh = () => loadInventory();
+    window.addEventListener('app:refresh', handleRefresh);
+    return () => window.removeEventListener('app:refresh', handleRefresh);
   }, []);
 
   const handleExcelImport = async (data) => {
@@ -60,9 +75,29 @@ export default function Depo() {
     loadInventory();
   };
 
-  const handleTransferSubmit = (transferData) => {
-    setIsTransferModalOpen(false);
-    loadInventory();
+  const handleTransferSubmit = async (transferData) => {
+    try {
+      const user = JSON.parse(localStorage.getItem('user') || sessionStorage.getItem('user') || '{}');
+      const userId = user.id || 1;
+      
+      const res = await api.transferStock(
+        transferData.sourceStockId,
+        transferData.sourceLocId,
+        transferData.targetLocationId,
+        transferData.quantity,
+        userId
+      );
+      
+      if (res && res.success) {
+        setIsTransferModalOpen(false);
+        loadInventory();
+      } else {
+        alert(res ? res.message : "Transfer işlemi başarısız oldu.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Transfer sırasında bir hata oluştu.");
+    }
   };
 
   const filteredInventory = useMemo(() => {
@@ -107,14 +142,15 @@ export default function Depo() {
     <div className="h-full flex flex-col space-y-6 overflow-hidden">
       
       {/* Header */}
-      <div className="flex justify-between items-center bg-[#1e2330] p-6 rounded-2xl border border-slate-700/50 shadow-sm shrink-0">
+      <div className="flex justify-between items-center bg-white dark:bg-[#1e2330] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm shrink-0">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100 tracking-tight">Depo Stok Durumu</h1>
-          <p className="text-slate-400 mt-1">Depo lokasyonlarındaki stokları takip edin ve transfer edin</p>
+          <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Depo Stok Durumu</h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-1">Depo lokasyonlarındaki stokları takip edin ve transfer edin</p>
         </div>
         <div className="flex gap-3">
           <button 
-            className="px-4 py-2.5 bg-[#242a38] hover:bg-[#2a3142] text-blue-400 border border-slate-600 rounded-xl transition-colors font-medium flex items-center gap-2 shadow-sm"
+            onClick={handleDownloadTemplate}
+            className="px-4 py-2.5 bg-slate-100 dark:bg-[#242a38] hover:bg-slate-200 dark:hover:bg-[#2a3142] text-blue-600 dark:text-blue-400 border border-slate-300 dark:border-slate-600 rounded-xl transition-colors font-medium flex items-center gap-2 shadow-sm"
           >
             <Download size={18} /> Şablon
           </button>
@@ -140,23 +176,23 @@ export default function Depo() {
       </div>
 
       {/* Progress Bar Section */}
-      <div className="bg-[#1e2330] px-6 py-5 rounded-2xl border border-slate-700/50 flex flex-col gap-3 shrink-0">
+      <div className="bg-white dark:bg-[#1e2330] px-6 py-5 rounded-2xl border border-slate-200 dark:border-slate-700/50 flex flex-col gap-3 shrink-0">
         <div className="flex justify-between items-end">
-          <label className="text-sm font-semibold text-slate-300 flex items-center gap-2">
-            <Info size={16} className="text-blue-400"/>
+          <label className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+            <Info size={16} className="text-blue-600 dark:text-blue-400"/>
             {occupancy.title}
           </label>
           <div className="text-right">
-            <span className="text-xs text-slate-400 font-medium mr-2">
+            <span className="text-xs text-slate-500 dark:text-slate-400 font-medium mr-2">
               {selectedItem ? `Kritik Limit: ${selectedItem.critical_limit || 10}` : `Kapasite: ${occupancy.maxCapacity}`}
             </span>
-            <span className={`text-sm font-bold ${occupancy.isCritical ? 'text-red-400' : 'text-slate-200'}`}>
+            <span className={`text-sm font-bold ${occupancy.isCritical ? 'text-red-500 dark:text-red-400' : 'text-slate-800 dark:text-slate-200'}`}>
               {occupancy.currentQty} / {occupancy.maxCapacity} {selectedItem && occupancy.isCritical && "(⚠️ Kritik Stok)"}
             </span>
           </div>
         </div>
         
-        <div className="w-full bg-[#0f1219] rounded-full h-3.5 border border-slate-700/50 overflow-hidden relative">
+        <div className="w-full bg-slate-100 dark:bg-[#0f1219] rounded-full h-3.5 border border-slate-200 dark:border-slate-700/50 overflow-hidden relative">
           <div 
             className={`h-full rounded-full transition-all duration-500 ease-out ${occupancy.isCritical ? 'bg-red-500' : 'bg-emerald-500'}`}
             style={{ width: `${occupancy.percentage}%` }}
@@ -172,7 +208,7 @@ export default function Depo() {
           </div>
           <input
             type="text"
-            className="w-full bg-[#1e2330] border border-slate-700 text-slate-200 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:border-blue-500 shadow-sm"
+            className="w-full bg-white dark:bg-[#1e2330] border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:border-blue-500 shadow-sm"
             placeholder="Ara (ID, Parça Adı, Lokasyon)..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -181,10 +217,10 @@ export default function Depo() {
       </div>
 
       {/* Table Area */}
-      <div className="bg-[#1e2330] rounded-2xl border border-slate-700/50 shadow-lg flex-1 overflow-hidden flex flex-col">
+      <div className="bg-white dark:bg-[#1e2330] rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-lg flex-1 overflow-hidden flex flex-col">
         <div className="overflow-auto flex-1">
           <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-[#242a38] text-slate-400 font-medium uppercase text-xs sticky top-0 z-10">
+            <thead className="bg-slate-100 dark:bg-[#242a38] text-slate-500 dark:text-slate-400 font-medium uppercase text-xs sticky top-0 z-10 border-b border-slate-200 dark:border-slate-700/50">
               <tr>
                 <th className="px-6 py-4">PARÇA ADI</th>
                 <th className="px-6 py-4">LOKASYON</th>
@@ -192,7 +228,7 @@ export default function Depo() {
                 <th className="px-6 py-4">DURUM</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-700/50">
+            <tbody className="divide-y divide-slate-200 dark:divide-slate-700/50">
               {filteredInventory.map((item) => {
                 const limit = item.critical_limit || 10;
                 const isCritical = item.quantity <= limit;
@@ -202,11 +238,11 @@ export default function Depo() {
                   <tr 
                     key={item.id} 
                     onClick={() => setSelectedItem(isSelected ? null : item)}
-                    className={`cursor-pointer transition-colors
-                      ${isSelected ? 'bg-blue-600/10 border-l-2 border-blue-500' : 'hover:bg-[#2a3142] border-l-2 border-transparent text-slate-300'}`}
+                    className={`cursor-pointer transition-colors text-slate-700 dark:text-slate-300
+                      ${isSelected ? 'bg-blue-50 dark:bg-blue-600/10 border-l-2 border-blue-500' : 'hover:bg-slate-50 dark:hover:bg-[#2a3142] border-l-2 border-transparent'}`}
                   >
-                    <td className="px-6 py-4 font-medium text-slate-200">{item.name}</td>
-                    <td className="px-6 py-4 text-slate-400">{item.location}</td>
+                    <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200">{item.name}</td>
+                    <td className="px-6 py-4 text-slate-500 dark:text-slate-400">{item.location}</td>
                     <td className="px-6 py-4 font-mono font-medium">{item.quantity}</td>
                     <td className="px-6 py-4">
                       {isCritical ? (
@@ -223,7 +259,7 @@ export default function Depo() {
                 );
               })}
               {filteredInventory.length === 0 && (
-                <tr><td colSpan="4" className="px-6 py-12 text-center text-slate-500">Kayıt bulunamadı.</td></tr>
+                <tr><td colSpan="4" className="px-6 py-12 text-center text-slate-500 dark:text-slate-400">Kayıt bulunamadı.</td></tr>
               )}
             </tbody>
           </table>

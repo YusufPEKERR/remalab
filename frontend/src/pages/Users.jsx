@@ -39,6 +39,10 @@ export default function Users() {
 
   useEffect(() => {
     fetchUsers();
+
+    const handleRefresh = () => fetchUsers();
+    window.addEventListener('app:refresh', handleRefresh);
+    return () => window.removeEventListener('app:refresh', handleRefresh);
   }, []);
 
   const openModal = (mode) => {
@@ -206,7 +210,7 @@ export default function Users() {
                     <td className="px-6 py-4 text-slate-400">{user.email}</td>
                     <td className="px-6 py-4">
                       <span className={`px-2.5 py-1 rounded-md text-xs font-bold
-                        ${user.role === 'Admin' ? 'bg-purple-500/20 text-purple-400 border border-purple-500/20' : 
+                        ${(user.role === 'Admin' || user.role === 'Yönetici') ? 'bg-purple-500/20 text-purple-400 border border-purple-500/20' : 
                           user.role === 'Depo Müdürü' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/20' :
                           'bg-emerald-500/20 text-emerald-400 border border-emerald-500/20'}
                       `}>
@@ -272,6 +276,7 @@ export default function Users() {
                       value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})}
                     >
                       <option value="Admin">Admin</option>
+                      <option value="Yönetici">Yönetici</option>
                       <option value="Depo Müdürü">Depo Müdürü</option>
                       <option value="Depo">Depo</option>
                       <option value="Teknisyen">Teknisyen</option>

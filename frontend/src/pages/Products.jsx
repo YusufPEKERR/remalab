@@ -30,6 +30,10 @@ export default function Products() {
 
   useEffect(() => {
     fetchProducts();
+
+    const handleRefresh = () => fetchProducts();
+    window.addEventListener('app:refresh', handleRefresh);
+    return () => window.removeEventListener('app:refresh', handleRefresh);
   }, []);
 
   const handleOpenModal = (product = null) => {

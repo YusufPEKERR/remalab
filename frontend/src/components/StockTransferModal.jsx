@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { api } from '../services/api';
 import { ArrowRightLeft, X, QrCode, Search, Package, MapPin, DatabaseZap } from 'lucide-react';
 
 export default function StockTransferModal({ isOpen, onClose, onTransfer, locations = [] }) {
@@ -16,6 +17,7 @@ export default function StockTransferModal({ isOpen, onClose, onTransfer, locati
   // Mock dependent dropdown data
   const [sourceLocations, setSourceLocations] = useState([]);
   const [brands, setBrands] = useState([]);
+  const [products, setProducts] = useState([]);
   const [fullStock, setFullStock] = useState([]);
 
   useEffect(() => {

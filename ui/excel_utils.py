@@ -238,8 +238,8 @@ def style_excel_file(filepath: str):
                 col_letter = openpyxl.utils.get_column_letter(col_idx)
                 for cell in col:
                     if cell.row > 1:
-                        # Satır yüksekliği
-                        sheet.row_dimensions[cell.row].height = 22
+                        # Satır yüksekliği otomatik ayarlansın diye manuel yükseklik vermiyoruz
+                        # sheet.row_dimensions[cell.row].height = 22
                         
                         # Alternatif arka plan rengi
                         if cell.row % 2 == 0:
@@ -258,8 +258,8 @@ def style_excel_file(filepath: str):
                     except:
                         pass
                 
-                # Sütun genişliğini içeriğe göre ayarla (min 15, max 45)
-                adjusted_width = min(max(max_length + 4, 15), 45)
+                # Sütun genişliğini içeriğe göre ayarla (min 15, max 80)
+                adjusted_width = min(max(max_length + 4, 15), 80)
                 sheet.column_dimensions[col_letter].width = adjusted_width
                 
             # İlk satırı dondur (sabit kalsın)

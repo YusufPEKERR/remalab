@@ -50,6 +50,10 @@ export default function Raporlar() {
 
   useEffect(() => {
     fetchReports();
+
+    const handleRefresh = () => fetchReports();
+    window.addEventListener('app:refresh', handleRefresh);
+    return () => window.removeEventListener('app:refresh', handleRefresh);
   }, [activeTab]);
 
   return (
