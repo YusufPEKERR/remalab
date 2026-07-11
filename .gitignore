@@ -63,3 +63,11 @@ dist/
 .session.bak
 .agents/
 .antigravity/
+# Node
+node_modules/
+frontend/dist/
+
+# SQLite DB
+*.db
+*.sqlite
+

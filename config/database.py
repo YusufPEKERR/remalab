@@ -29,13 +29,19 @@ engine = create_engine(
         "connect_timeout": 10,
         "options": "-c statement_timeout=10000",
         "keepalives": 1,
-        "keepalives_idle": 60,
-        "keepalives_interval": 10,
-        "keepalives_count": 5
+        "keepalives_idle": 3,
+        "keepalives_interval": 1,
+        "keepalives_count": 3
     }
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+
+def init_database_schema():
+    """Veritabanı tablolarını oluşturur."""
+    from models.user import User # Modellerin kaydolması için import
+    # Diğer modeller de buraya eklenebilir
+    Base.metadata.create_all(bind=engine)
 
 def reconnect_engine():
     """Rebuilds the engine and sessionmaker using current os.environ credentials."""
@@ -60,9 +66,9 @@ def reconnect_engine():
             "connect_timeout": 10,
             "options": "-c statement_timeout=10000",
             "keepalives": 1,
-            "keepalives_idle": 60,
-            "keepalives_interval": 10,
-            "keepalives_count": 5
+            "keepalives_idle": 3,
+            "keepalives_interval": 1,
+            "keepalives_count": 3
         }
     )
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

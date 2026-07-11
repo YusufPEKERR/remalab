@@ -11,3 +11,11 @@ class Part(Base):
     name = Column(String(255), nullable=False)
     barcode = Column(String(100), nullable=True)
     critical_limit = Column(Integer, default=10)
+    
+    # Yeni eklenen sütunlar (Tedarikçi ve Ürün Listesi için)
+    supplier = Column(String(255), nullable=True)
+    brand = Column(String(100), nullable=True)
+    model = Column(String(100), nullable=True)
+    item_code = Column(String(100), nullable=True)
+    memory = Column(String(50), nullable=True)
+    color = Column(String(50), nullable=True)

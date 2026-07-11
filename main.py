@@ -1,210 +1,25 @@
-"""
-RemaLab - Warehouse Management System
-Ana giriş noktası
-"""
-
 import sys
 import os
-from PySide6.QtWidgets import QApplication, QDialog
-from PySide6.QtCore import Qt, QFile, QTextStream
-from PySide6.QtGui import QFont
+from PySide6.QtWidgets import QApplication
+from PySide6.QtGui import QIcon, QFont
+from PySide6.QtCore import Qt
 
+from config.database import init_database_schema, register_db_error_listener
 from ui.main_window import MainWindow
-from config.session import SessionManager
-from config.auth import get_password_hash
-
-
-def load_stylesheet(app: QApplication):
-    """QSS stil dosyasını yükle."""
-    style_path = os.path.join(os.path.dirname(__file__), "ui", "styles.qss")
-    file = QFile(style_path)
-    if file.open(QFile.ReadOnly | QFile.Text):
-        stream = QTextStream(file)
-        app.setStyleSheet(stream.readAll())
-        file.close()
-    else:
-        print(f"[WARN] Style file not found: {style_path}")
-
-
-# Şema DDL'i sadece bu sürüm değiştiğinde tekrar çalıştırılır (her açılışta değil).
-SCHEMA_VERSION = "1"
-
-
-def init_database_schema():
-    """Veritabanını hazırla (Schema ve Tablolar). Hata fırlatabilir."""
-    from config.database import engine
-    from sqlalchemy import text
-
-    with engine.connect() as conn:
-        conn.execute(text("CREATE SCHEMA IF NOT EXISTS warehouse;"))
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS warehouse._schema_meta (
-                key VARCHAR(50) PRIMARY KEY,
-                value VARCHAR(50)
-            );
-        """))
-        conn.commit()
-
-        current_version = conn.execute(
-            text("SELECT value FROM warehouse._schema_meta WHERE key = 'schema_version'")
-        ).scalar()
-
-        if current_version == SCHEMA_VERSION:
-            # Şema zaten güncel: 10+ CREATE/ALTER sorgusunu tekrar göndermeye gerek yok.
-            return
-
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS warehouse.parts (
-                id SERIAL PRIMARY KEY,
-                name VARCHAR(255) NOT NULL,
-                barcode VARCHAR(100) UNIQUE,
-                item_code VARCHAR(100) UNIQUE,
-                brand VARCHAR(100),
-                model VARCHAR(100),
-                brand_model VARCHAR(200),
-                color VARCHAR(50),
-                product_family VARCHAR(100),
-                item_category VARCHAR(100),
-                part_category VARCHAR(100)
-            );
-        """))
-        # Halihazırda tablo varsa yeni kolonların eklenmesi için ALTER kontrolleri
-        try:
-            conn.execute(text("ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS barcode VARCHAR(100) UNIQUE;"))
-            conn.execute(text("ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS item_code VARCHAR(100) UNIQUE;"))
-            conn.execute(text("ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS brand VARCHAR(100);"))
-            conn.execute(text("ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS model VARCHAR(100);"))
-            conn.execute(text("ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS brand_model VARCHAR(200);"))
-            conn.execute(text("ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS color VARCHAR(50);"))
-            conn.execute(text("ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS product_family VARCHAR(100);"))
-            conn.execute(text("ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS item_category VARCHAR(100);"))
-            conn.execute(text("ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS part_category VARCHAR(100);"))
-        except Exception:
-            pass
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS warehouse.users (
-                id SERIAL PRIMARY KEY,
-                username VARCHAR(100) UNIQUE NOT NULL,
-                email VARCHAR(100) UNIQUE NOT NULL,
-                password_hash VARCHAR(255) NOT NULL,
-                role VARCHAR(50) NOT NULL DEFAULT 'Teknisyen'
-            );
-        """))
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS warehouse.locations (
-                id SERIAL PRIMARY KEY,
-                name VARCHAR(100) NOT NULL
-            );
-        """))
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS warehouse.stock (
-                id SERIAL PRIMARY KEY,
-                part_id INT REFERENCES warehouse.parts(id) ON DELETE CASCADE,
-                location_id INT REFERENCES warehouse.locations(id) ON DELETE CASCADE,
-                quantity INT NOT NULL DEFAULT 0
-            );
-        """))
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS warehouse.stock_movements (
-                id SERIAL PRIMARY KEY,
-                type VARCHAR(50) NOT NULL,
-                quantity INT NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-        """))
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS warehouse.inbound_entries (
-                id SERIAL PRIMARY KEY,
-                part_id INT REFERENCES warehouse.parts(id) ON DELETE CASCADE,
-                quantity INT NOT NULL,
-                unit_price DECIMAL(12,2) NOT NULL,
-                total_cost DECIMAL(12,2) NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                created_by VARCHAR(50) NOT NULL
-            );
-        """))
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS warehouse.outbound_entries (
-                id SERIAL PRIMARY KEY,
-                part_id INT REFERENCES warehouse.parts(id) ON DELETE CASCADE,
-                location_id INT REFERENCES warehouse.locations(id) ON DELETE CASCADE,
-                quantity INT NOT NULL,
-                destination VARCHAR(255) NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                created_by VARCHAR(50) NOT NULL
-            );
-        """))
-        # Örnek dummy verileri PostgreSQL'e yükle (eğer bomboşsa)
-        parts_count = conn.execute(text("SELECT COUNT(*) FROM warehouse.parts;")).scalar()
-        if parts_count == 0:
-            conn.execute(text("INSERT INTO warehouse.parts (name) VALUES ('iPhone 15 Pro LCD'), ('Samsung S24 Battery'), ('Pixel 8 Back Cover');"))
-            conn.execute(text("INSERT INTO warehouse.locations (name) VALUES ('A-12-03'), ('B-05-01'), ('C-08-02');"))
-            conn.execute(text("INSERT INTO warehouse.stock (part_id, location_id, quantity) VALUES (1, 1, 100), (2, 2, 4), (3, 3, 20);"))
-        
-        users_count = conn.execute(text("SELECT COUNT(*) FROM warehouse.users;")).scalar()
-        if users_count == 0:
-            admin_hash = get_password_hash("admin123")
-            conn.execute(text(f"INSERT INTO warehouse.users (username, email, password_hash, role) VALUES ('admin', 'admin@remalab.com', '{admin_hash}', 'Admin');"))
-
-        conn.execute(text("""
-            INSERT INTO warehouse._schema_meta (key, value) VALUES ('schema_version', :v)
-            ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
-        """), {"v": SCHEMA_VERSION})
-        conn.commit()
-
-
-def global_exception_handler(exc_type, exc_value, exc_traceback):
-    """Çalışma zamanında (runtime) yakalanmayan veritabanı hatalarını global olarak yakalar."""
-    if issubclass(exc_type, Exception):
-        import sqlalchemy.exc
-        
-        is_db_error = False
-        err_str = str(exc_value).lower()
-        if issubclass(exc_type, sqlalchemy.exc.OperationalError):
-            is_db_error = True
-        elif "psycopg2.operationalerror" in err_str or ("connection" in err_str and "failed" in err_str):
-            is_db_error = True
-            
-        if is_db_error:
-            print(f"[WARN] Runtime Database Connection Error: {exc_value}")
-            from ui.db_error_dialog import DatabaseErrorDialog
-            from PySide6.QtWidgets import QDialog
-            
-            dialog = DatabaseErrorDialog(str(exc_value))
-            result = dialog.exec()
-            
-            if result == QDialog.Accepted:
-                from config.database import reconnect_engine
-                reconnect_engine()
-                # İşlemin yarım kaldığı ancak uygulamanın çökmesinin engellendiği durum.
-                return
-            else:
-                sys.exit(1)
-                
-    # Veritabanı hatası değilse veya kullanıcı kapatmamışsa normal hata işleyicisine yolla
-    sys.__excepthook__(exc_type, exc_value, exc_traceback)
-
 
 def main():
-    """Uygulamayı başlat."""
+    """Uygulamayı başlat (PySide6 + React WebEngine via QWebChannel)."""
     # High DPI desteği
     QApplication.setHighDpiScaleFactorRoundingPolicy(
         Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
     )
 
     app = QApplication(sys.argv)
-    
-    # Global hata dinleyiciyi kaydet
-    sys.excepthook = global_exception_handler
 
     if sys.platform == "win32":
         import ctypes
-
         myappid = "remalab.wms.app.1.0"
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
-
-    # pyrefly: ignore [missing-import]
-    from PySide6.QtGui import QIcon
 
     icon_path = os.path.join(
         os.path.dirname(__file__), "assets", "Uygulama-Amblemi.png"
@@ -212,54 +27,14 @@ def main():
     if os.path.exists(icon_path):
         app.setWindowIcon(QIcon(icon_path))
 
-    # Varsayılan font
-    font = QFont("Segoe UI", 10)
-    app.setFont(font)
+    # Veritabanını hazırla
+    try:
+        init_database_schema()
+        register_db_error_listener()
+    except Exception as db_err:
+        print(f"[WARN] Database tables could not be auto-initialized: {db_err}")
 
-    # Stylesheet yükle
-    from ui.theme_manager import get_theme_manager
-    get_theme_manager().apply_theme()
-
-    # Veritabanını hazırla (Hata yakalama döngüsü)
-    while True:
-        try:
-            init_database_schema()
-            break  # Başarılı olursa döngüden çık
-        except Exception as db_err:
-            print(f"[WARN] Database tables could not be auto-initialized: {db_err}")
-            from ui.db_error_dialog import DatabaseErrorDialog
-            dialog = DatabaseErrorDialog(str(db_err))
-            result = dialog.exec()
-            
-            if result == QDialog.Accepted:
-                from config.database import reconnect_engine
-                reconnect_engine()
-                continue # Yeniden bağlanmayı dene
-            else:
-                sys.exit(1) # Çıkış yapıldı
-
-    # Veritabanı başarıyla kurulduktan sonra çalışma zamanı (runtime) hata dinleyicisini kaydet
-    from config.database import register_db_error_listener
-    register_db_error_listener()
-
-    # Session Kontrolü
-    session = SessionManager()
-
-    # Load session if it exists on disk
-    saved_token = session.load_session_from_disk()
-    if saved_token:
-        from config.auth import decode_access_token
-
-        payload = decode_access_token(saved_token)
-        if payload:
-            session.set_session(saved_token, payload)
-            username = payload.get("sub", "")
-            if username:
-                get_theme_manager().load_user_theme(username)
-        else:
-            session.clear_session()
-
-    # Ana pencere
+    # Ana pencereyi (WebEngine) aç
     window = MainWindow()
     window.show()
     window.raise_()
@@ -268,9 +43,8 @@ def main():
     # Bu referansı app içinde tutuyoruz ki Garbage Collector yok etmesin
     app.main_window = window 
 
-    print("RemaLab WMS started successfully!")
+    print("RemaLab WMS (React + QWebChannel) started successfully!")
     sys.exit(app.exec())
-
 
 if __name__ == "__main__":
     main()
