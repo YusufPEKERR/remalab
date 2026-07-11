@@ -1,0 +1,408 @@
+// QWebChannel is loaded globally via script tag in index.html
+
+let backendPromise = null;
+
+export const getBackend = () => {
+    if (!backendPromise) {
+        backendPromise = new Promise((resolve, reject) => {
+            if (typeof window.qt === 'undefined' || !window.qt.webChannelTransport) {
+                console.warn('Qt WebChannel not detected. Using mock backend.');
+                // Mock Backend for browser testing
+                resolve({
+                    login: (username, password, cb) => {
+                        setTimeout(() => {
+                            if (username === 'admin' && password === 'admin') {
+                                cb(JSON.stringify({ success: true, user: { username: 'admin', role: 'admin' } }));
+                            } else {
+                                cb(JSON.stringify({ success: false, message: 'Invalid credentials (Mock)' }));
+                            }
+                        }, 500);
+                    },
+                    get_users: (cb) => {
+                        setTimeout(() => {
+                            cb(JSON.stringify({ success: true, users: [
+                                { id: 1, username: 'admin', email: 'admin@test.com', role: 'Admin' }
+                            ]}));
+                        }, 500);
+                    },
+                    create_user: (username, email, password, role, cb) => {
+                        setTimeout(() => cb(JSON.stringify({ success: true })), 500);
+                    },
+                    update_user: (id, username, email, password, role, cb) => {
+                        setTimeout(() => cb(JSON.stringify({ success: true })), 500);
+                    },
+                    delete_user: (id, cb) => {
+                        setTimeout(() => cb(JSON.stringify({ success: true })), 500);
+                    },
+                    get_parts: (cb) => {
+                        setTimeout(() => cb(JSON.stringify({ success: true, parts: [] })), 500);
+                    },
+                    create_part: (...args) => {
+                        const cb = args[args.length - 1];
+                        setTimeout(() => cb(JSON.stringify({ success: true })), 500);
+                    },
+                    update_part: (...args) => {
+                        const cb = args[args.length - 1];
+                        setTimeout(() => cb(JSON.stringify({ success: true })), 500);
+                    },
+                    delete_part: (id, cb) => {
+                        setTimeout(() => cb(JSON.stringify({ success: true })), 500);
+                    },
+                    get_dev_mode: (cb) => {
+                        setTimeout(() => cb(JSON.stringify({ success: true, dev_mode: true })), 200);
+                    },
+                    set_dev_mode: (enabled, cb) => {
+                        setTimeout(() => cb(JSON.stringify({ success: true })), 200);
+                    }
+                });
+                return;
+            }
+
+            // Initialize QWebChannel
+            new QWebChannel(window.qt.webChannelTransport, (channel) => {
+                if (channel.objects.backend) {
+                    resolve(channel.objects.backend);
+                } else {
+                    reject(new Error('Backend object not registered on QWebChannel'));
+                }
+            });
+        });
+    }
+    return backendPromise;
+};
+
+// API Wrapper Functions (Promisified)
+export const api = {
+    login: async (username, password) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.login(username, password, (res) => resolve(JSON.parse(res)));
+        });
+    },
+    
+    getUsers: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_users((res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    createUser: async (userData) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.create_user(
+                userData.username,
+                userData.email,
+                userData.password,
+                userData.role,
+                (res) => resolve(JSON.parse(res))
+            );
+        });
+    },
+
+    updateUser: async (id, userData) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.update_user(
+                String(id),
+                userData.username,
+                userData.email,
+                userData.password || '',
+                userData.role,
+                (res) => resolve(JSON.parse(res))
+            );
+        });
+    },
+
+    deleteUser: async (id) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.delete_user(String(id), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    // ==========================
+    // PARTS (PARÇALAR) MODÜLÜ
+    // ==========================
+
+    getParts: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_parts((res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    createPart: async (partData) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.create_part(
+                partData.item_code || '',
+                partData.brand || '',
+                partData.model || '',
+                partData.color || '',
+                partData.part_category || '',
+                partData.item_category || '',
+                (res) => resolve(JSON.parse(res))
+            );
+        });
+    },
+
+    updatePart: async (id, partData) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.update_part(
+                String(id),
+                partData.item_code || '',
+                partData.brand || '',
+                partData.model || '',
+                partData.color || '',
+                partData.part_category || '',
+                partData.item_category || '',
+                (res) => resolve(JSON.parse(res))
+            );
+        });
+    },
+
+    deletePart: async (id) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.delete_part(String(id), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
+
+    // ==========================
+    // LOCATIONS (LOKASYONLAR)
+    // ==========================
+
+    getLocations: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_locations) {
+                backend.get_locations((res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true, locations: [{id: 1, name: "Raf A1 (Mock)"}]});
+            }
+        });
+    },
+
+    createLocation: async (name) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.create_location) {
+                backend.create_location(name, (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true });
+            }
+        });
+    },
+
+    deleteLocation: async (id) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.delete_location) {
+                backend.delete_location(String(id), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true });
+            }
+        });
+    },
+
+    // ==========================
+    // PRODUCTS (Ürün Listesi / Telefon)
+    // ==========================
+
+    getProducts: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_products) {
+                backend.get_products((res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true, products: [] });
+            }
+        });
+    },
+
+    createProduct: async (p) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.create_product) {
+                backend.create_product(p.item_code || '', p.brand || '', p.model || '', p.memory || '', p.color || '', p.name || '', (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true });
+            }
+        });
+    },
+
+    // ==========================
+    // SUPPLIERS (TEDARİKÇİLER)
+    // ==========================
+
+    getSuppliers: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_suppliers) {
+                backend.get_suppliers((res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true, suppliers: [] });
+            }
+        });
+    },
+
+    createSupplier: async (s) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.create_supplier) {
+                backend.create_supplier(s.supplier || '', s.brand || '', s.model || '', s.item_code || '', s.barcode || '', (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true });
+            }
+        });
+    },
+
+    // ==========================
+    // STOK & DEPO & İRSALİYE
+    // ==========================
+
+    getStockStatus: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_stock_status) {
+                backend.get_stock_status((res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true, stock: [] });
+            }
+        });
+    },
+
+    transferStock: async (partId, fromLoc, toLoc, qty, user) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.transfer_stock) {
+                backend.transfer_stock(String(partId), String(fromLoc), String(toLoc), String(qty), user, (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true });
+            }
+        });
+    },
+
+    getStockMovements: async (typeStr) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_stock_movements) {
+                backend.get_stock_movements(typeStr, (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true, movements: [] });
+            }
+        });
+    },
+
+    addInboundEntry: async (partId, locId, qty, price, typeStr, user) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.add_inbound_entry) {
+                backend.add_inbound_entry(String(partId), String(locId), String(qty), String(price), typeStr, user, (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true });
+            }
+        });
+    },
+
+    addOutboundEntry: async (partId, locId, qty, typeStr, user) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.add_outbound_entry) {
+                backend.add_outbound_entry(String(partId), String(locId), String(qty), typeStr, user, (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true });
+            }
+        });
+    },
+
+    getReports: async (startDate, endDate) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_reports) {
+                backend.get_reports(startDate || "", endDate || "", (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true, reports: [] });
+            }
+        });
+    },
+
+    getDashboardStats: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_dashboard_stats) {
+                backend.get_dashboard_stats((res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true, stats: { totalParts: 0, criticalStock: 0, todaysInbound: 0, todaysOutbound: 0, activeLocations: 0 } });
+            }
+        });
+    },
+
+    getCriticalStock: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_critical_stock) {
+                backend.get_critical_stock((res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true, critical_stock: [] });
+            }
+        });
+    },
+
+    exportTableToExcel: async (data, filename) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.export_table_to_excel) {
+                backend.export_table_to_excel(JSON.stringify(data), filename, (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false, message: "Excel export not available in mock mode" });
+            }
+        });
+    },
+
+    transferStock: async (partId, sourceLocId, targetLocId, quantity, userId) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.transfer_stock) {
+                backend.transfer_stock(
+                    String(partId),
+                    String(sourceLocId),
+                    String(targetLocId),
+                    parseInt(quantity, 10),
+                    String(userId),
+                    (res) => resolve(JSON.parse(res))
+                );
+            } else {
+                resolve({ success: false, message: "TransferStock not available in mock mode" });
+            }
+        });
+    },
+
+    getDevMode: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_dev_mode((res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    setDevMode: async (enabled) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.set_dev_mode(enabled, (res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    updateDbSettings: async (settings) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.update_db_settings) {
+                backend.update_db_settings(settings.host, settings.port, settings.dbName, settings.user, settings.password, (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false, message: "Backend bridge missing" });
+            }
+        });
+    }
+};

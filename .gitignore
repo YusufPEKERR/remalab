@@ -1,0 +1,73 @@
+# Virtual Environment
+venv/
+.venv/
+ENV/
+env/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Local database file config caches
+local_databases.json
+db_connections.json
+.env
+
+# Project SQLite copied databases inside database/
+database/
+
+# IDE / Editor configuration files
+.vscode/
+.idea/
+# Virtual Environment
+venv/
+.venv/
+ENV/
+env/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Local database file config caches
+local_databases.json
+db_connections.json
+.env
+
+# Project SQLite copied databases inside database/
+database/
+
+# IDE / Editor configuration files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+. s e s s i o n  
+site/
+
+# PyInstaller build outputs
+build/
+dist/
+*.spec
+
+# Session & IDE files
+.session
+.session.bak
+.agents/
+.antigravity/
+# Node
+node_modules/
+frontend/dist/
+
+# SQLite DB
+*.db
+*.sqlite
+
