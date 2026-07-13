@@ -17,7 +17,8 @@ export default function Login() {
     if (storedUser) {
       try {
         const u = JSON.parse(storedUser);
-        navigate(u?.role?.toLowerCase() === 'depo' ? '/depo' : '/dashboard');
+        const userRole = u?.role?.toLowerCase() || 'admin';
+        navigate(['depo', 'depo müdürü'].includes(userRole) ? '/depo' : '/dashboard');
       } catch {
         navigate('/dashboard');
       }
@@ -65,7 +66,7 @@ export default function Login() {
           localStorage.removeItem('saved_password');
         }
         const userRole = (response.user?.role || 'Admin').toLowerCase();
-        navigate(userRole === 'depo' ? '/depo' : '/dashboard');
+        navigate(['depo', 'depo müdürü'].includes(userRole) ? '/depo' : '/dashboard');
       } else {
         setError(response.message || 'Giriş başarısız oldu.');
       }

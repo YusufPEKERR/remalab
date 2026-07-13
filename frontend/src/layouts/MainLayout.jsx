@@ -74,7 +74,7 @@ export default function MainLayout() {
   const allowedPaths = {
     'admin': ['/dashboard', '/depo', '/irsaliye', '/raporlar', '/parts', '/products', '/suppliers', '/locations', '/users', '/settings', '/data-management', '/quality', '/refurbishment', '/priority'],
     'depo': ['/depo', '/irsaliye', '/raporlar'],
-    'depo müdürü': ['/dashboard', '/depo', '/irsaliye', '/locations', '/parts', '/products', '/suppliers', '/data-management'],
+    'depo müdürü': ['/depo', '/irsaliye', '/raporlar', '/parts', '/products', '/suppliers', '/locations'],
     'teknisyen': ['/dashboard', '/quality', '/refurbishment', '/priority']
   };
 
