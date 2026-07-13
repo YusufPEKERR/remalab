@@ -1,8 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Download, Upload, Plus, RefreshCw, ArrowRightLeft, FileSpreadsheet, Search } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
-// eslint-disable-next-line no-unused-vars
-import { Download, Upload, Plus, RefreshCw, ArrowRightLeft } from 'lucide-react';
+import { Download, Upload, Plus, RefreshCw, ArrowRightLeft, FileSpreadsheet, Search } from 'lucide-react';
 import { api } from '../services/api';
 import ExcelMappingModal from '../components/ExcelMappingModal';
 import StockTransferModal from '../components/StockTransferModal';
@@ -92,7 +89,6 @@ export default function Irsaliye() {
     }
   };
 
-  const fetchData = async (silent = false) => {
   const fetchData = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
