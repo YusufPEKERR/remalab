@@ -233,10 +233,10 @@ export default function Raporlar() {
                         <td className="px-6 py-4">
                           <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${
                             r.type.includes('Giriş') 
-                              ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' 
+                              ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20' 
                               : r.type.includes('Çıkış') 
-                                ? 'bg-orange-500/10 text-orange-400 border-orange-500/20'
-                                : 'bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-600'
+                                ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20'
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-600'
                           }`}>
                             {r.type}
                           </span>
