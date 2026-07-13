@@ -51,23 +51,28 @@ export default function Raporlar() {
   const [activeTab, setActiveTab] = useState('general');
 
   const fetchReports = async (silent = false) => {
-    if (!silent) setLoading(true);
+    if (silent !== true) setLoading(true);
     try {
       if (activeTab === 'general') {
         const res = await api.getReports(startDate, endDate);
         if (res.success) {
           setGeneralReports(res.reports);
+        } else {
+          alert("Genel raporlar alınamadı: " + (res.message || "Bilinmeyen hata"));
         }
       } else {
         const res = await api.getCriticalStock();
         if (res.success) {
           setCriticalReports(res.critical_stock);
+        } else {
+          alert("Kritik raporlar alınamadı: " + (res.message || "Bilinmeyen hata"));
         }
       }
     } catch (err) {
       console.error("Reports error:", err);
+      alert("Bir hata oluştu: " + err.message);
     } finally {
-      if (!silent) setLoading(false);
+      if (silent !== true) setLoading(false);
     }
   };
 
@@ -171,7 +176,7 @@ export default function Raporlar() {
               </div>
 
               <button 
-                onClick={fetchReports}
+                onClick={() => fetchReports(false)}
                 className="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
               >
                 <Filter size={16} /> Filtrele
