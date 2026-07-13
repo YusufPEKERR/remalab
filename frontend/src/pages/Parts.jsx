@@ -8,6 +8,7 @@ export default function Parts() {
   const [parts, setParts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterDepartment, setFilterDepartment] = useState('');
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -208,13 +209,20 @@ export default function Parts() {
   // Filter and Pagination Logic
   const filteredParts = useMemo(() => {
     const q = searchTerm.toLowerCase();
-    return parts.filter(p => 
-      (p.item_code && p.item_code.toLowerCase().includes(q)) ||
-      (p.brand && p.brand.toLowerCase().includes(q)) ||
-      (p.model && p.model.toLowerCase().includes(q)) ||
-      (p.part_category && p.part_category.toLowerCase().includes(q))
-    );
-  }, [parts, searchTerm]);
+    return parts.filter(p => {
+      const matchesSearch = 
+        (p.item_code && p.item_code.toLowerCase().includes(q)) ||
+        (p.brand && p.brand.toLowerCase().includes(q)) ||
+        (p.model && p.model.toLowerCase().includes(q)) ||
+        (p.part_category && p.part_category.toLowerCase().includes(q));
+      
+      const matchesDepartment = filterDepartment 
+        ? (p.department && p.department.includes(filterDepartment))
+        : true;
+
+      return matchesSearch && matchesDepartment;
+    });
+  }, [parts, searchTerm, filterDepartment]);
 
   const totalPages = Math.ceil(filteredParts.length / itemsPerPage) || 1;
   const paginatedParts = filteredParts.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
@@ -267,6 +275,18 @@ export default function Parts() {
             value={searchTerm}
             onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
           />
+        </div>
+        <div className="w-56 relative shrink-0">
+          <select
+            value={filterDepartment}
+            onChange={(e) => { setFilterDepartment(e.target.value); setCurrentPage(1); }}
+            className="w-full h-full bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 shadow-sm appearance-none"
+          >
+            <option value="">Tüm Departmanlar</option>
+            {DEPARTMENTS.map(d => (
+              <option key={d} value={d}>{d}</option>
+            ))}
+          </select>
         </div>
       </div>
 
