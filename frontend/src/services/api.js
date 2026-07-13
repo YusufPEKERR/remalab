@@ -677,5 +677,39 @@ export const api = {
                 resolve({ success: true });
             }
         });
+    },
+
+    // ==========================
+    // DYNAMIC TABLE MANAGEMENT
+    // ==========================
+    getAllTablesSchema: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_all_tables_schema) {
+                backend.get_all_tables_schema((res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false, message: "Backend bridge missing" });
+            }
+        });
+    },
+    getTableData: async (schema, table) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_table_data) {
+                backend.get_table_data(schema, table, (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false, message: "Backend bridge missing" });
+            }
+        });
+    },
+    insertTableData: async (schema, table, data) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.insert_table_data) {
+                backend.insert_table_data(schema, table, JSON.stringify(data), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false, message: "Backend bridge missing" });
+            }
+        });
     }
 };

@@ -61,7 +61,7 @@ dist/
 # Session & IDE files
 .session
 .session.bak
-.agents/
+
 .antigravity/
 # Node
 node_modules/
