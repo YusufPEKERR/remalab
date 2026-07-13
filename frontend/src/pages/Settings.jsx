@@ -16,7 +16,8 @@ import {
   DatabaseZap,
   PlugZap,
   Code2,
-  X
+  X,
+  Building2
 } from 'lucide-react';
 import { api } from '../services/api';
 
@@ -86,6 +87,37 @@ export default function Settings() {
       fetchLocalData();
     }
   }, [activeTab]);
+
+  // Departments
+  const [departments, setDepartments] = useState([]);
+  const [showDeptForm, setShowDeptForm] = useState(false);
+  const [editingDept, setEditingDept] = useState(null);
+  const [deptFormData, setDeptFormData] = useState({ name: '', code: '', manager: '', default_location: '', status: 'Aktif' });
+
+  const fetchDepartments = async () => {
+    setDepartments([
+      { id: '1', name: 'Servis', code: 'SRV', manager: 'Ahmet Yılmaz', default_location: 'Servis Depo', status: 'Aktif' },
+      { id: '2', name: 'Teknik Servis', code: 'TS', manager: 'Mehmet Demir', default_location: 'Tamirhane', status: 'Aktif' },
+      { id: '3', name: 'Üretim', code: 'URT', manager: 'Ali Kaya', default_location: 'Üretim Bandı', status: 'Aktif' }
+    ]);
+  };
+
+  useEffect(() => {
+    if (activeTab === 'departments') {
+      fetchDepartments();
+    }
+  }, [activeTab]);
+
+  const handleOpenDeptForm = (dept = null) => {
+    if (dept) {
+      setEditingDept(dept);
+      setDeptFormData(dept);
+    } else {
+      setEditingDept(null);
+      setDeptFormData({ name: '', code: '', manager: '', default_location: '', status: 'Aktif' });
+    }
+    setShowDeptForm(true);
+  };
 
   const handleOpenDbForm = (conn = null) => {
     if (conn) {
