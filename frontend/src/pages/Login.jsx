@@ -18,8 +18,14 @@ export default function Login() {
       navigate('/dashboard');
     } else {
       const savedUsername = localStorage.getItem('saved_username');
+      const savedPassword = localStorage.getItem('saved_password');
       if (savedUsername) {
         setUsername(savedUsername);
+        if (savedPassword) {
+          try {
+            setPassword(atob(savedPassword));
+          } catch (e) {}
+        }
         setRememberMe(true);
       }
       const el = document.getElementById('username-input');
@@ -45,11 +51,13 @@ export default function Login() {
         if (rememberMe) {
           localStorage.setItem('user', JSON.stringify(response.user));
           localStorage.setItem('saved_username', username);
+          localStorage.setItem('saved_password', btoa(password));
           sessionStorage.removeItem('user');
         } else {
           sessionStorage.setItem('user', JSON.stringify(response.user));
           localStorage.removeItem('user');
           localStorage.removeItem('saved_username');
+          localStorage.removeItem('saved_password');
         }
         navigate('/dashboard');
       } else {
