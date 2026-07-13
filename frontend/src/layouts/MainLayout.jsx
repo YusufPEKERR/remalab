@@ -126,15 +126,15 @@ export default function MainLayout() {
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-[#0f1219] overflow-hidden">
       {/* Sidebar */}
-      <aside className="w-64 bg-[#161B22] text-slate-300 flex flex-col border-r border-[#30363D] z-20">
-        <div className="flex items-center justify-center pb-6 pt-10 border-b border-[#30363D]">
+      <aside className="w-64 bg-white dark:bg-[#161B22] text-slate-700 dark:text-slate-300 flex flex-col border-r border-slate-200 dark:border-[#30363D] z-20">
+        <div className="flex items-center justify-center pb-6 pt-10 border-b border-slate-200 dark:border-[#30363D]">
           <img src="/logo.png" alt="Remalab Logo" className="h-36 w-full object-contain drop-shadow-md scale-110" />
         </div>
         
         <div className="flex-1 overflow-y-auto py-6 space-y-6 scrollbar-thin scrollbar-thumb-[#30363D] scrollbar-track-transparent">
           {filteredGroups.map((group, idx) => (
             <div key={idx} className="px-4">
-              <h3 className="px-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">
+              <h3 className="px-2 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">
                 {group.title}
               </h3>
               <nav className="space-y-1">
@@ -147,7 +147,7 @@ export default function MainLayout() {
                       className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
                         isActive 
                           ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' 
-                          : 'text-slate-400 hover:text-slate-200 hover:bg-[#2a3142]'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#2a3142]'
                       }`}
                       onClick={(e) => {
                         e.preventDefault();
@@ -164,10 +164,10 @@ export default function MainLayout() {
           ))}
         </div>
         
-        <div className="p-4 border-t border-[#30363D]">
+        <div className="p-4 border-t border-slate-200 dark:border-[#30363D]">
           <button 
             onClick={handleLogout}
-            className="flex items-center gap-3 px-3 py-2.5 w-full rounded-xl text-sm font-medium text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
+            className="flex items-center gap-3 px-3 py-2.5 w-full rounded-xl text-sm font-medium text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-300 transition-colors"
           >
             <LogOut size={18} />
             Çıkış Yap
