@@ -119,7 +119,7 @@ export default function Irsaliye() {
   };
 
   const handleBarcodeSearch = () => {
-    const p = parts.find(x => x.barcode === inboundBarcode || String(x.barcode) === inboundBarcode);
+    const p = parts.find(x => x.item_code === inboundBarcode || String(x.item_code) === inboundBarcode);
     if (p) {
       setInboundBrand(p.brand || '');
       setInboundModel(p.model || '');
@@ -372,7 +372,7 @@ export default function Irsaliye() {
                 <label className="block text-sm font-medium text-slate-300 mb-1">Parça Adı / Parça</label>
                 <select required className="w-full px-3 py-2 bg-[#0f1219] border border-slate-700 text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.part_id} onChange={(e) => setFormData({...formData, part_id: e.target.value})}>
                   <option value="">Parça seçiniz...</option>
-                  {filteredParts.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  {filteredParts.map(p => <option key={p.id} value={p.id}>{p.brand} {p.model} {p.name ? `- ${p.name}` : ''}</option>)}
                 </select>
               </div>
 
