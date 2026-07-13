@@ -10,6 +10,8 @@ import Depo from './pages/Depo';
 import Irsaliye from './pages/Irsaliye';
 import Raporlar from './pages/Raporlar';
 import Settings from './pages/Settings';
+import Departments from './pages/Departments';
+import ServiceRecords from './pages/ServiceRecords';
 import DataManagement from './pages/DataManagement';
 import MainLayout from './layouts/MainLayout';
 
@@ -41,6 +43,8 @@ function App() {
           {/* KULLANICI & AYARLAR */}
           <Route path="/users" element={<Users />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/departments" element={<Departments />} />
+          <Route path="/service-records" element={<ServiceRecords />} />
           <Route path="/data-management" element={<DataManagement />} />
         </Route>
       </Routes>

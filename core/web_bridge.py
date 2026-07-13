@@ -12,6 +12,54 @@ class WebBridge(QObject):
         self._ensure_department_column()
         self._ensure_status_column()
         self._ensure_departments_table()
+        self._ensure_stock_movement_columns()
+        self._ensure_service_records_table()
+
+    def _ensure_service_records_table(self):
+        """warehouse.service_records tablosu yoksa oluşturur."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            db.execute(text("""
+                CREATE TABLE IF NOT EXISTS warehouse.service_records (
+                    id SERIAL PRIMARY KEY,
+                    customer_name VARCHAR(150) NOT NULL,
+                    customer_phone VARCHAR(30),
+                    customer_email VARCHAR(150),
+                    company VARCHAR(150),
+                    brand VARCHAR(100),
+                    model VARCHAR(100),
+                    imei_serial VARCHAR(100),
+                    color VARCHAR(50),
+                    fault_category VARCHAR(100),
+                    fault_type VARCHAR(150),
+                    customer_complaint TEXT,
+                    preliminary_diagnosis TEXT,
+                    status VARCHAR(30) DEFAULT 'Arıza Kabul',
+                    technician_note TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            """))
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            print(f"[WebBridge] service_records tablosu oluşturulamadı: {e}")
+        finally:
+            db.close()
+
+    def _ensure_stock_movement_columns(self):
+        """warehouse.stock_movements tablosuna technician ve description sütunlarını ekler."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            db.execute(text("ALTER TABLE warehouse.stock_movements ADD COLUMN IF NOT EXISTS technician VARCHAR(150);"))
+            db.execute(text("ALTER TABLE warehouse.stock_movements ADD COLUMN IF NOT EXISTS description TEXT;"))
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            print(f"[WebBridge] stock_movements kolonları eklenemedi: {e}")
+        finally:
+            db.close()
 
     def _ensure_department_column(self):
         """warehouse.parts tablosuna department sütunu yoksa ekler."""
@@ -530,6 +578,141 @@ class WebBridge(QObject):
         finally:
             db.close()
 
+    # ==========================
+    # SERVİS KAYITLARI MODÜLÜ
+    # ==========================
+
+    @Slot(result=str)
+    def get_service_records(self):
+        """Tüm servis kayıtlarını getirir."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            rows = db.execute(text("""
+                SELECT id, customer_name, customer_phone, customer_email, company,
+                       brand, model, imei_serial, color, fault_category, fault_type,
+                       customer_complaint, preliminary_diagnosis, status, technician_note, created_at
+                FROM warehouse.service_records
+                ORDER BY id DESC
+            """)).mappings().all()
+            records = []
+            for row in rows:
+                records.append({
+                    "id": str(row["id"]),
+                    "customer_name": row["customer_name"] or "",
+                    "customer_phone": row["customer_phone"] or "",
+                    "customer_email": row["customer_email"] or "",
+                    "company": row["company"] or "",
+                    "brand": row["brand"] or "",
+                    "model": row["model"] or "",
+                    "imei_serial": row["imei_serial"] or "",
+                    "color": row["color"] or "",
+                    "fault_category": row["fault_category"] or "",
+                    "fault_type": row["fault_type"] or "",
+                    "customer_complaint": row["customer_complaint"] or "",
+                    "preliminary_diagnosis": row["preliminary_diagnosis"] or "",
+                    "status": row["status"] or "Arıza Kabul",
+                    "technician_note": row["technician_note"] or "",
+                    "created_at": row["created_at"].strftime("%Y-%m-%d %H:%M") if row["created_at"] else ""
+                })
+            return json.dumps({"success": True, "records": records})
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, str, str, str, str, str, str, str, str, str, str, str, str, result=str)
+    def create_service_record(self, customer_name, customer_phone, customer_email, company,
+                               brand, model, imei_serial, color, fault_category, fault_type,
+                               customer_complaint, preliminary_diagnosis, status, technician_note):
+        """Yeni servis kaydı ekler."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            name = customer_name.strip()
+            if not name:
+                return json.dumps({"success": False, "message": "Müşteri adı zorunludur"})
+
+            db.execute(text("""
+                INSERT INTO warehouse.service_records (
+                    customer_name, customer_phone, customer_email, company,
+                    brand, model, imei_serial, color, fault_category, fault_type,
+                    customer_complaint, preliminary_diagnosis, status, technician_note
+                ) VALUES (
+                    :name, :phone, :email, :company,
+                    :brand, :model, :imei, :color, :fcat, :ftype,
+                    :complaint, :diagnosis, :status, :note
+                )
+            """), {
+                "name": name, "phone": customer_phone or None, "email": customer_email or None,
+                "company": company or None, "brand": brand or None, "model": model or None,
+                "imei": imei_serial or None, "color": color or None,
+                "fcat": fault_category or None, "ftype": fault_type or None,
+                "complaint": customer_complaint or None, "diagnosis": preliminary_diagnosis or None,
+                "status": status or "Arıza Kabul", "note": technician_note or None
+            })
+            db.commit()
+            return json.dumps({"success": True, "message": "Servis kaydı eklendi"})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": f"Kayıt hatası: {str(e)}"})
+        finally:
+            db.close()
+
+    @Slot(str, str, str, str, str, str, str, str, str, str, str, str, str, str, str, result=str)
+    def update_service_record(self, record_id_str, customer_name, customer_phone, customer_email, company,
+                               brand, model, imei_serial, color, fault_category, fault_type,
+                               customer_complaint, preliminary_diagnosis, status, technician_note):
+        """Var olan bir servis kaydını günceller."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            record_id = int(record_id_str)
+            name = customer_name.strip()
+            if not name:
+                return json.dumps({"success": False, "message": "Müşteri adı zorunludur"})
+
+            db.execute(text("""
+                UPDATE warehouse.service_records
+                SET customer_name = :name, customer_phone = :phone, customer_email = :email, company = :company,
+                    brand = :brand, model = :model, imei_serial = :imei, color = :color,
+                    fault_category = :fcat, fault_type = :ftype,
+                    customer_complaint = :complaint, preliminary_diagnosis = :diagnosis,
+                    status = :status, technician_note = :note
+                WHERE id = :id
+            """), {
+                "name": name, "phone": customer_phone or None, "email": customer_email or None,
+                "company": company or None, "brand": brand or None, "model": model or None,
+                "imei": imei_serial or None, "color": color or None,
+                "fcat": fault_category or None, "ftype": fault_type or None,
+                "complaint": customer_complaint or None, "diagnosis": preliminary_diagnosis or None,
+                "status": status or "Arıza Kabul", "note": technician_note or None,
+                "id": record_id
+            })
+            db.commit()
+            return json.dumps({"success": True, "message": "Servis kaydı güncellendi"})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": f"Güncelleme hatası: {str(e)}"})
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
+    def delete_service_record(self, record_id_str):
+        """Belirtilen id'ye sahip servis kaydını siler."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            record_id = int(record_id_str)
+            db.execute(text("DELETE FROM warehouse.service_records WHERE id = :id"), {"id": record_id})
+            db.commit()
+            return json.dumps({"success": True, "message": "Servis kaydı silindi"})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": f"Silme hatası: {str(e)}"})
+        finally:
+            db.close()
+
     # --- YENİ EKLENEN ÜRÜN (TELEFON) VE TEDARİKÇİ FONKSİYONLARI ---
     # Products ve Suppliers verileri, 'parts' tablosundan çekilecek.
     
@@ -723,6 +906,8 @@ class WebBridge(QObject):
                     "source_location": sloc.name if sloc else "-",
                     "target_location": tloc.name if tloc else "-",
                     "created_by": mov.created_by,
+                    "technician": mov.technician or "-",
+                    "description": mov.description or "-",
                     "unit_price": float(mov.unit_price) if mov.unit_price else None,
                     "created_at": mov.created_at.strftime("%Y-%m-%d %H:%M") if mov.created_at else ""
                 })
@@ -766,8 +951,8 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    @Slot(str, str, str, str, str, result=str)
-    def add_outbound_entry(self, part_id, location_id, qty, type_str, username):
+    @Slot(str, str, str, str, str, str, str, result=str)
+    def add_outbound_entry(self, part_id, location_id, qty, type_str, username, technician, description):
         from models.stock import Stock
         from models.stock_movement import StockMovement
         db = SessionLocal()
@@ -785,7 +970,9 @@ class WebBridge(QObject):
                 quantity=qty,
                 part_id=part_id,
                 source_location_id=location_id,
-                created_by=username
+                created_by=username,
+                technician=technician or None,
+                description=description or None
             )
             db.add(mov)
             db.commit()
@@ -1010,17 +1197,6 @@ class WebBridge(QObject):
             # Dosyayı otomatik aç (Windows)
             os.startfile(file_path)
             
-            return json.dumps({"success": True})
-        except Exception as e:
-            return json.dumps({"success": False, "message": str(e)})
-
-
-    @Slot(str, str, str, int, str, result=str)
-    def transfer_stock(self, part_id, source_loc_id, target_loc_id, quantity, user_id):
-        from services.stock_service import StockService
-        import json
-        try:
-            StockService.transfer_stock(int(part_id), int(source_loc_id), int(target_loc_id), int(quantity), user_id)
             return json.dumps({"success": True})
         except Exception as e:
             return json.dumps({"success": False, "message": str(e)})

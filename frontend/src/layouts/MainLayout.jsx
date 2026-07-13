@@ -3,7 +3,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { 
   LogOut, LayoutDashboard, Users, Package, Settings, Bell,
   Warehouse, FileText, BarChart2, Box, Truck, MapPin,
-  CheckCircle, Search, AlertTriangle, Zap, RefreshCw, Sun, Moon, Database
+  CheckCircle, Search, AlertTriangle, Zap, RefreshCw, Sun, Moon, Database, Building2, Wrench
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useTheme } from '../context/ThemeContext';
@@ -72,9 +72,9 @@ export default function MainLayout() {
 
   // Permission maps based on Python code:
   const allowedPaths = {
-    'admin': ['/dashboard', '/depo', '/irsaliye', '/raporlar', '/parts', '/products', '/suppliers', '/locations', '/users', '/settings', '/data-management', '/quality', '/refurbishment', '/priority'],
-    'depo': ['/depo', '/irsaliye', '/raporlar'],
-    'depo müdürü': ['/depo', '/irsaliye', '/raporlar', '/parts', '/products', '/suppliers', '/locations'],
+    'admin': ['/dashboard', '/depo', '/irsaliye', '/raporlar', '/parts', '/products', '/suppliers', '/locations', '/users', '/settings', '/departments', '/service-records', '/data-management', '/quality', '/refurbishment', '/priority'],
+    'depo': ['/dashboard', '/depo', '/irsaliye', '/locations'],
+    'depo müdürü': ['/dashboard', '/depo', '/irsaliye', '/locations', '/parts', '/products', '/suppliers', '/data-management'],
     'teknisyen': ['/dashboard', '/quality', '/refurbishment', '/priority']
   };
 
@@ -109,7 +109,9 @@ export default function MainLayout() {
       items: [
         { name: 'Kullanıcılar', icon: Users, path: '/users' },
         { name: 'Ayarlar', icon: Settings, path: '/settings' },
-        { name: 'Veri Yönetimi', icon: Database, path: '/data-management' }
+        { name: 'Veri Yönetimi', icon: Database, path: '/data-management' },
+        { name: 'Departman Yönetimi', icon: Building2, path: '/departments' },
+        { name: 'Servis Kaydı', icon: Wrench, path: '/service-records' }
       ]
     }
   ];

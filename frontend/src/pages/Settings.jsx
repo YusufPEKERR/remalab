@@ -16,7 +16,6 @@ import {
   DatabaseZap,
   PlugZap,
   Code2,
-  Building2,
   X
 } from 'lucide-react';
 import { api } from '../services/api';
@@ -108,77 +107,6 @@ export default function Settings() {
   const handleDeleteDb = (id) => {
     if (window.confirm("Bu bağlantıyı silmek istediğinize emin misiniz?")) {
       console.log("Deleting DB:", id);
-    }
-  };
-
-  // Department Management
-  const DEPARTMENT_NAMES = ['Servis', 'Teknik Servis', 'Üretim', 'Kalite'];
-  const DEPARTMENT_CODES = { 'Servis': 'SRV', 'Teknik Servis': 'TS', 'Üretim': 'URT', 'Kalite': 'KAL' };
-  const [departments, setDepartments] = useState([]);
-  const [locations, setLocations] = useState([]);
-  const [showDeptForm, setShowDeptForm] = useState(false);
-  const [editingDept, setEditingDept] = useState(null);
-  const [deptFormData, setDeptFormData] = useState({ name: '', code: '', responsible: '', default_location_id: '', status: 'Aktif' });
-
-  const fetchDepartments = async () => {
-    const res = await api.getDepartments();
-    if (res.success) setDepartments(res.departments || []);
-  };
-
-  useEffect(() => {
-    if (activeTab === 'departments') {
-      fetchDepartments();
-      api.getLocations().then(res => { if (res.success) setLocations(res.locations || []); });
-    }
-  }, [activeTab]);
-
-  const handleOpenDeptForm = (dept = null) => {
-    if (dept) {
-      setEditingDept(dept);
-      setDeptFormData({
-        name: dept.name || '',
-        code: dept.code || '',
-        responsible: dept.responsible || '',
-        default_location_id: dept.default_location_id || '',
-        status: dept.status || 'Aktif'
-      });
-    } else {
-      setEditingDept(null);
-      setDeptFormData({ name: '', code: '', responsible: '', default_location_id: '', status: 'Aktif' });
-    }
-    setShowDeptForm(true);
-  };
-
-  const handleDeptNameChange = (value) => {
-    const mappedCode = DEPARTMENT_CODES[value.trim()];
-    setDeptFormData(prev => ({
-      ...prev,
-      name: value,
-      code: mappedCode || prev.code
-    }));
-  };
-
-  const handleSaveDept = async (e) => {
-    e.preventDefault();
-    const res = editingDept
-      ? await api.updateDepartment(editingDept.id, deptFormData)
-      : await api.createDepartment(deptFormData);
-    if (res.success) {
-      setShowDeptForm(false);
-      fetchDepartments();
-    } else {
-      alert(res.message || 'İşlem başarısız oldu.');
-    }
-  };
-
-  const handleDeleteDept = async (id) => {
-    if (window.confirm('Bu departmanı silmek istediğinize emin misiniz?')) {
-      const res = await api.deleteDepartment(id);
-      if (res.success) {
-        fetchDepartments();
-      } else {
-        alert(res.message || 'Silme işlemi başarısız oldu.');
-      }
     }
   };
 
