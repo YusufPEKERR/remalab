@@ -224,7 +224,11 @@ export const api = {
                 backend.get_departments((res) => resolve(JSON.parse(res)));
             } else {
                 resolve({ success: true, departments: [] });
-=======
+            }
+        });
+    },
+
+    // ==========================
     // PARÇA KATEGORİLERİ
     // ==========================
 
@@ -270,6 +274,12 @@ export const api = {
                     dept.status || 'Aktif',
                     (res) => resolve(JSON.parse(res))
                 );
+            } else {
+                resolve({ success: true });
+            }
+        });
+    },
+
     createPartCategory: async (name) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
@@ -305,6 +315,12 @@ export const api = {
         return new Promise((resolve) => {
             if (backend.delete_department) {
                 backend.delete_department(String(id), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true });
+            }
+        });
+    },
+
     deletePartCategory: async (id) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
