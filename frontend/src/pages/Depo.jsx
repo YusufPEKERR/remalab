@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo } from 'react';
 import { Search, RefreshCw, AlertTriangle, Upload, Download, ArrowRightLeft, FileSpreadsheet, Info } from 'lucide-react';
 import { api } from '../services/api';
 import ExcelMappingModal from '../components/ExcelMappingModal';
-import StockTransferModal from '../components/StockTransferModal';
 
 export default function Depo() {
   const [inventory, setInventory] = useState([]);
@@ -12,11 +11,6 @@ export default function Depo() {
   
   // Modals
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
-  const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
-
-  // Transfer State
-  const [locations, setLocations] = useState([{id: 1, name: 'Ana Depo'}, {id: 2, name: 'Şube Depo'}]);
-  
   const dbColumns = ["name", "barcode", "critical_limit"];
   const friendlyNames = {
     name: "Parça Adı",
@@ -143,12 +137,6 @@ export default function Depo() {
           >
             <Upload size={18} /> Dışa Aktar
           </button>
-          <button 
-            onClick={() => setIsTransferModalOpen(true)}
-            className="px-5 py-2.5 bg-yellow-500 hover:bg-yellow-600 text-slate-900 rounded-xl transition-colors font-bold flex items-center gap-2 shadow-lg shadow-yellow-900/20 ml-2"
-          >
-            <ArrowRightLeft size={18} /> Stok Transferi
-          </button>
         </div>
       </div>
 
@@ -249,13 +237,6 @@ export default function Depo() {
         onImport={handleExcelImport}
         dbColumns={dbColumns}
         friendlyNames={friendlyNames}
-      />
-
-      <StockTransferModal 
-        isOpen={isTransferModalOpen}
-        onClose={() => setIsTransferModalOpen(false)}
-        onTransfer={handleTransferSubmit}
-        locations={locations}
       />
 
     </div>
