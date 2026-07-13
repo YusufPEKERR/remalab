@@ -468,35 +468,24 @@ export default function Parts() {
                   <label className="block text-sm font-medium text-slate-400 mb-1">Parça Tipi</label>
                   <input
                     type="text"
-                    list="part-categories-list"
+                    list="categories-list"
                     placeholder="Parça tipi seçin veya yazın..."
                     className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
-                    list="categories-list"
-                    placeholder="Seçiniz..."
-                    className="w-full bg-[#242a38] border border-slate-700 rounded-lg px-3 py-2.5 text-slate-200 focus:outline-none focus:border-blue-500"
                     value={formData.part_category}
                     onChange={e => handlePartCategoryChange(e.target.value)}
                   />
-                  <datalist id="part-categories-list">
-                    {Object.keys(PART_CATEGORY_DEPARTMENTS).map(c => <option key={c} value={c} />)}
                   <datalist id="categories-list">
                     {categories.map(c => <option key={c} value={c} />)}
                   </datalist>
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-1">Parça Kalitesi</label>
-                <input
-                  type="text"
-                  list="categories-list"
-                  placeholder="Kalite seçin veya yazın..."
-                  className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
                 <label className="block text-sm font-medium text-slate-400 mb-1">Parça Kategorisi</label>
                 <input
                   type="text"
                   list="part-categories-list"
                   placeholder="Kategori seçin veya yazın..."
-                  className="w-full bg-[#242a38] border border-slate-700 rounded-lg px-3 py-2.5 text-slate-200 focus:outline-none focus:border-blue-500"
+                  className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
                   value={formData.item_category}
                   onChange={e => setFormData({...formData, item_category: e.target.value})}
                 />
