@@ -85,9 +85,6 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Kontrol Paneli</h1>
           <p className="text-slate-500 mt-1">Hoş geldiniz, sistemin güncel durumunu buradan takip edebilirsiniz.</p>
         </div>
-        <button onClick={loadDashboardData} className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-full transition-colors">
-          <RefreshCw size={20} className={loading ? "animate-spin" : ""} />
-        </button>
       </div>
 
       {/* Cards */}
