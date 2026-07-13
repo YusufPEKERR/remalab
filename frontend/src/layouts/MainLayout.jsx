@@ -18,8 +18,9 @@ export default function MainLayout() {
   const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(timer);
+    // Saniye saniye artmasını istemediğiniz için timer kaldırıldı
+    // const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    // return () => clearInterval(timer);
   }, []);
 
   useEffect(() => {
