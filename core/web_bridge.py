@@ -1095,6 +1095,32 @@ class WebBridge(QObject):
         finally:
             db.close()
             
+    @Slot(str, str, str, str, str, str, str, result=str)
+    def update_product(self, product_id_str, item_code, brand, model, memory, color, name):
+        from models.part import Part
+        db = SessionLocal()
+        try:
+            part_id = int(product_id_str)
+            part = db.query(Part).filter(Part.id == part_id).first()
+            if not part:
+                return json.dumps({"success": False, "message": "Ürün bulunamadı"})
+            
+            part.item_code = item_code
+            part.brand = brand
+            part.model = model
+            part.memory = memory
+            part.color = color
+            part.name = name or f"{brand} {model}"
+            
+            db.commit()
+            return json.dumps({"success": True})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+
     @Slot(result=str)
     def get_suppliers(self):
         from models.part import Part

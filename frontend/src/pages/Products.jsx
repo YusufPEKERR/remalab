@@ -64,9 +64,20 @@ export default function Products() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Submitting:", formData);
-    setIsModalOpen(false);
-    fetchProducts();
+    try {
+      const res = currentProduct
+        ? await api.updateProduct(currentProduct.id, formData)
+        : await api.createProduct(formData);
+      if (res.success) {
+        setIsModalOpen(false);
+        fetchProducts();
+      } else {
+        alert(res.message || 'İşlem başarısız oldu.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Bir hata oluştu.');
+    }
   };
 
   const handleDelete = async (id) => {

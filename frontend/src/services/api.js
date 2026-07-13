@@ -555,6 +555,17 @@ export const api = {
         });
     },
 
+    updateProduct: async (id, p) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.update_product) {
+                backend.update_product(String(id), p.item_code || '', p.brand || '', p.model || '', p.memory || '', p.color || '', p.name || '', (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true });
+            }
+        });
+    },
+
     // ==========================
     // SUPPLIERS (TEDARİKÇİLER)
     // ==========================
