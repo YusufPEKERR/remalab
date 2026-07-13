@@ -3,7 +3,9 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 const ThemeContext = createContext();
 
 export const ThemeProvider = ({ children }) => {
-  const [theme, setTheme] = useState('dark');
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem('global_theme') || 'dark';
+  });
   const [currentUser, setCurrentUser] = useState(null);
 
   useEffect(() => {
@@ -17,15 +19,15 @@ export const ThemeProvider = ({ children }) => {
         if (savedTheme === 'light' || savedTheme === 'dark') {
           setTheme(savedTheme);
         } else {
-          setTheme('dark');
+          setTheme(localStorage.getItem('global_theme') || 'dark');
         }
       } else {
         setCurrentUser(null);
-        setTheme('dark');
+        setTheme(localStorage.getItem('global_theme') || 'dark');
       }
     } catch (e) {
       console.error('Failed to parse user for theme', e);
-      setTheme('dark');
+      setTheme(localStorage.getItem('global_theme') || 'dark');
     }
   }, []);
 
@@ -40,6 +42,7 @@ export const ThemeProvider = ({ children }) => {
     if (currentUser) {
       localStorage.setItem(`theme_${currentUser}`, theme);
     }
+    localStorage.setItem('global_theme', theme);
   }, [theme, currentUser]);
 
   const toggleTheme = () => {
@@ -52,7 +55,7 @@ export const ThemeProvider = ({ children }) => {
     if (savedTheme === 'light' || savedTheme === 'dark') {
       setTheme(savedTheme);
     } else {
-      setTheme('dark');
+      setTheme(localStorage.getItem('global_theme') || 'dark');
     }
   };
 

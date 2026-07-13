@@ -98,9 +98,9 @@ export default function Suppliers() {
     <div className="h-full flex flex-col space-y-6 overflow-hidden">
       
       {/* Header */}
-      <div className="flex justify-between items-center bg-[#1e2330] p-6 rounded-2xl border border-slate-700/50 shadow-sm shrink-0">
+      <div className="flex justify-between items-center bg-white dark:bg-[#1e2330] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm shrink-0">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100 tracking-tight flex items-center gap-3">
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-3">
             <Truck className="text-indigo-400" size={28}/> Tedarikçiler
           </h1>
           <p className="text-slate-400 mt-1">Tedarikçi, marka, model, ürün kodu ve barkod bilgilerini yönetin</p>
@@ -132,16 +132,16 @@ export default function Suppliers() {
             placeholder="Ara (ID, Tedarikçi, Marka, Model, Ürün Kodu, Barkod)..." 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-[#1e2330] border border-slate-700 text-slate-200 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:border-indigo-500 shadow-sm"
+            className="w-full bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:border-indigo-500 shadow-sm"
           />
         </div>
       </div>
 
       {/* Table */}
-      <div className="bg-[#1e2330] border border-slate-700/50 rounded-2xl shadow-lg flex-1 overflow-hidden flex flex-col">
+      <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl shadow-lg flex-1 overflow-hidden flex flex-col">
         <div className="overflow-auto flex-1">
           <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-[#242a38] text-slate-400 font-medium uppercase text-xs sticky top-0 z-10">
+            <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase text-xs sticky top-0 z-10">
               <tr>
                 <th className="px-6 py-4">TEDARİKÇİ</th>
                 <th className="px-6 py-4">MARKA</th>
@@ -167,8 +167,8 @@ export default function Suppliers() {
                 </tr>
               ) : (
                 filteredSuppliers.map((supplier) => (
-                  <tr key={supplier.id} className="hover:bg-[#2a3142] transition-colors group text-slate-300">
-                    <td className="px-6 py-4 font-medium text-slate-200">{supplier.supplier || '-'}</td>
+                  <tr key={supplier.id} className="hover:bg-slate-100 dark:bg-[#2a3142] transition-colors group text-slate-700 dark:text-slate-300">
+                    <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200">{supplier.supplier || '-'}</td>
                     <td className="px-6 py-4">{supplier.brand || '-'}</td>
                     <td className="px-6 py-4">{supplier.model || '-'}</td>
                     <td className="px-6 py-4 font-mono text-slate-400">{supplier.item_code || '-'}</td>
@@ -201,14 +201,14 @@ export default function Suppliers() {
 
       {/* Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-[#0f1219]/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-[#1e2330] border border-slate-700 shadow-2xl rounded-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="px-6 py-4 border-b border-slate-700/50 flex justify-between items-center bg-[#242a38]">
-              <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
+        <div className="fixed inset-0 bg-slate-50 dark:bg-[#0f1219]/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 flex justify-between items-center bg-slate-50 dark:bg-[#242a38]">
+              <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <Truck size={20} className="text-indigo-400"/>
                 {currentSupplier ? 'Tedarikçi Düzenle' : 'Yeni Tedarikçi Ekle'}
               </h2>
-              <button type="button" onClick={handleCloseModal} className="text-slate-400 hover:text-white transition-colors bg-[#1e2330] p-1.5 rounded-lg border border-slate-700">
+              <button type="button" onClick={handleCloseModal} className="text-slate-400 hover:text-slate-900 dark:text-white transition-colors bg-white dark:bg-[#1e2330] p-1.5 rounded-lg border border-slate-200 dark:border-slate-700">
                 <X size={18} />
               </button>
             </div>
@@ -223,7 +223,7 @@ export default function Suppliers() {
                   type="text" 
                   required 
                   placeholder="Örn. XYZ Elektronik"
-                  className="w-full bg-[#242a38] border border-slate-700 rounded-xl px-4 py-2.5 text-slate-200 focus:outline-none focus:border-indigo-500 placeholder-slate-500" 
+                  className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500 placeholder-slate-500" 
                   value={formData.supplier} 
                   onChange={e => setFormData({...formData, supplier: e.target.value})} 
                 />
@@ -238,7 +238,7 @@ export default function Suppliers() {
                     type="text" 
                     list="brand-list"
                     placeholder="Marka seçin/yazın"
-                    className="w-full bg-[#242a38] border border-slate-700 rounded-xl px-4 py-2.5 text-slate-200 focus:outline-none focus:border-indigo-500 placeholder-slate-500" 
+                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500 placeholder-slate-500" 
                     value={formData.brand} 
                     onChange={e => setFormData({...formData, brand: e.target.value})} 
                   />
@@ -255,7 +255,7 @@ export default function Suppliers() {
                     type="text" 
                     list="model-list"
                     placeholder="Model seçin/yazın"
-                    className="w-full bg-[#242a38] border border-slate-700 rounded-xl px-4 py-2.5 text-slate-200 focus:outline-none focus:border-indigo-500 placeholder-slate-500" 
+                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500 placeholder-slate-500" 
                     value={formData.model} 
                     onChange={e => setFormData({...formData, model: e.target.value})} 
                   />
@@ -274,7 +274,7 @@ export default function Suppliers() {
                     type="text" 
                     list="itemcode-list"
                     placeholder="Ürün kodu seçin/yazın"
-                    className="w-full bg-[#242a38] border border-slate-700 rounded-xl px-4 py-2.5 text-slate-200 focus:outline-none focus:border-indigo-500 placeholder-slate-500 font-mono" 
+                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500 placeholder-slate-500 font-mono" 
                     value={formData.item_code} 
                     onChange={e => setFormData({...formData, item_code: e.target.value})} 
                   />
@@ -291,7 +291,7 @@ export default function Suppliers() {
                     type="text" 
                     list="barcode-list"
                     placeholder="Barkod seçin/yazın"
-                    className="w-full bg-[#242a38] border border-slate-700 rounded-xl px-4 py-2.5 text-slate-200 focus:outline-none focus:border-indigo-500 placeholder-slate-500 font-mono" 
+                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500 placeholder-slate-500 font-mono" 
                     value={formData.barcode} 
                     onChange={e => setFormData({...formData, barcode: e.target.value})} 
                   />
@@ -301,8 +301,8 @@ export default function Suppliers() {
                 </div>
               </div>
 
-              <div className="pt-4 flex justify-end gap-3 border-t border-slate-700/50 mt-6">
-                <button type="button" onClick={handleCloseModal} className="px-5 py-2.5 bg-[#242a38] hover:bg-[#2a3142] text-slate-300 rounded-xl font-medium transition-colors border border-slate-600">İptal</button>
+              <div className="pt-4 flex justify-end gap-3 border-t border-slate-200 dark:border-slate-700/50 mt-6">
+                <button type="button" onClick={handleCloseModal} className="px-5 py-2.5 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:bg-[#2a3142] text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors border border-slate-600">İptal</button>
                 <button type="submit" className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors shadow-lg shadow-indigo-900/20">Kaydet</button>
               </div>
             </form>

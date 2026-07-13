@@ -80,9 +80,9 @@ export default function Products() {
     <div className="h-full flex flex-col space-y-6 overflow-hidden">
       
       {/* Header */}
-      <div className="flex justify-between items-center bg-[#1e2330] p-6 rounded-2xl border border-slate-700/50 shadow-sm shrink-0">
+      <div className="flex justify-between items-center bg-white dark:bg-[#1e2330] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm shrink-0">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100 tracking-tight">Telefon Modelleri (Ürünler)</h1>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">Telefon Modelleri (Ürünler)</h1>
           <p className="text-slate-400 mt-1">Marka, model, hafıza ve renk bilgilerini yönetin.</p>
         </div>
         
@@ -102,7 +102,7 @@ export default function Products() {
           </div>
           <input
             type="text"
-            className="w-full bg-[#1e2330] border border-slate-700 text-slate-200 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:border-blue-500 shadow-sm"
+            className="w-full bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:border-blue-500 shadow-sm"
             placeholder="Ara (ID, Marka, Model, Hafıza, Renk)..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -111,10 +111,10 @@ export default function Products() {
       </div>
 
       {/* Table */}
-      <div className="bg-[#1e2330] rounded-2xl border border-slate-700/50 shadow-lg flex-1 overflow-hidden flex flex-col">
+      <div className="bg-white dark:bg-[#1e2330] rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-lg flex-1 overflow-hidden flex flex-col">
         <div className="overflow-auto flex-1">
           <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs sticky top-0 z-10">
+            <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs sticky top-0 z-10">
               <tr>
                 <th className="px-6 py-4">Ürün Kodu</th>
                 <th className="px-6 py-4">Marka</th>
@@ -140,10 +140,10 @@ export default function Products() {
                 </tr>
               ) : (
                 filteredProducts.map((product) => (
-                  <tr key={product.id} className="hover:bg-[#2a3142] transition-colors text-slate-300">
+                  <tr key={product.id} className="hover:bg-slate-100 dark:bg-[#2a3142] transition-colors text-slate-700 dark:text-slate-300">
                     <td className="px-6 py-4 font-mono text-slate-400">{product.item_code || '-'}</td>
-                    <td className="px-6 py-4 font-medium text-slate-200">{product.brand || '-'}</td>
-                    <td className="px-6 py-4 font-medium text-slate-200">{product.model || '-'}</td>
+                    <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200">{product.brand || '-'}</td>
+                    <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200">{product.model || '-'}</td>
                     <td className="px-6 py-4">{product.memory || '-'}</td>
                     <td className="px-6 py-4">{product.color || '-'}</td>
                     <td className="px-6 py-4 text-center">
@@ -175,12 +175,12 @@ export default function Products() {
       {/* Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-[99] p-4">
-          <div className="bg-[#1e2330] border border-slate-700 shadow-2xl rounded-2xl w-full max-w-md animate-in fade-in zoom-in duration-200">
-            <div className="px-6 py-4 border-b border-slate-700/50 flex justify-between items-center">
-              <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
+          <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-md animate-in fade-in zoom-in duration-200">
+            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 flex justify-between items-center">
+              <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 {currentProduct ? 'Telefon Modelini Düzenle' : 'Yeni Telefon Modeli Ekle'}
               </h2>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white">
+              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-900 dark:text-white">
                 <X size={20} />
               </button>
             </div>
@@ -191,7 +191,7 @@ export default function Products() {
                 <input 
                   type="text" 
                   placeholder="örn. IC-IP15-004"
-                  className="w-full bg-[#242a38] border border-slate-700 rounded-lg px-3 py-2.5 text-slate-200 focus:outline-none focus:border-blue-500"
+                  className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
                   value={formData.item_code} 
                   onChange={e => setFormData({...formData, item_code: e.target.value})} 
                 />
@@ -202,7 +202,7 @@ export default function Products() {
                 <input 
                   type="text" 
                   placeholder="örn. Apple"
-                  className="w-full bg-[#242a38] border border-slate-700 rounded-lg px-3 py-2.5 text-slate-200 focus:outline-none focus:border-blue-500"
+                  className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
                   value={formData.brand} 
                   onChange={e => setFormData({...formData, brand: e.target.value})} 
                 />
@@ -213,7 +213,7 @@ export default function Products() {
                 <input 
                   type="text" 
                   placeholder="örn. iPhone 15 Pro"
-                  className="w-full bg-[#242a38] border border-slate-700 rounded-lg px-3 py-2.5 text-slate-200 focus:outline-none focus:border-blue-500"
+                  className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
                   value={formData.model} 
                   onChange={e => setFormData({...formData, model: e.target.value})} 
                 />
@@ -225,7 +225,7 @@ export default function Products() {
                   type="text"
                   list="memory-options"
                   placeholder="Seçiniz veya yazınız..."
-                  className="w-full bg-[#242a38] border border-slate-700 rounded-lg px-3 py-2.5 text-slate-200 focus:outline-none focus:border-blue-500"
+                  className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
                   value={formData.memory} 
                   onChange={e => setFormData({...formData, memory: e.target.value})} 
                 />
@@ -239,14 +239,14 @@ export default function Products() {
                 <input 
                   type="text" 
                   placeholder="örn. Siyah"
-                  className="w-full bg-[#242a38] border border-slate-700 rounded-lg px-3 py-2.5 text-slate-200 focus:outline-none focus:border-blue-500"
+                  className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
                   value={formData.color} 
                   onChange={e => setFormData({...formData, color: e.target.value})} 
                 />
               </div>
 
-              <div className="pt-2 flex justify-end gap-3 mt-6 border-t border-slate-700/50">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="mt-4 px-5 py-2.5 text-slate-300 hover:bg-slate-800 rounded-lg transition-colors font-medium">İptal</button>
+              <div className="pt-2 flex justify-end gap-3 mt-6 border-t border-slate-200 dark:border-slate-700/50">
+                <button type="button" onClick={() => setIsModalOpen(false)} className="mt-4 px-5 py-2.5 text-slate-700 dark:text-slate-300 hover:bg-slate-800 rounded-lg transition-colors font-medium">İptal</button>
                 <button type="submit" className="mt-4 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors shadow-lg shadow-blue-900/20">Kaydet</button>
               </div>
             </form>

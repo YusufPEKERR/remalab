@@ -95,7 +95,7 @@ export default function Dashboard() {
           <div 
             key={card.id} 
             onClick={() => handleCardClick(card.id)}
-            className={`bg-[#1e2330] rounded-2xl p-5 border border-slate-700/50 shadow-lg cursor-pointer transition-all hover:scale-[1.02] hover:border-[${card.color}]/50`}
+            className={`bg-white dark:bg-[#1e2330] rounded-2xl p-5 border border-slate-200 dark:border-slate-700/50 shadow-lg cursor-pointer transition-all hover:scale-[1.02] hover:border-[${card.color}]/50`}
             style={{ borderLeftWidth: activeDetail === card.id ? '4px' : '1px', borderLeftColor: activeDetail === card.id ? card.color : 'rgba(51, 65, 85, 0.5)' }}
           >
             <div className="flex justify-between items-start mb-4">
@@ -111,29 +111,29 @@ export default function Dashboard() {
             </div>
             <div>
               <h3 className="text-slate-400 font-medium mb-1">{card.title}</h3>
-              <p className="text-2xl font-bold text-slate-100">{card.value}</p>
+              <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{card.value}</p>
             </div>
           </div>
         ))}
       </div>
 
       {/* Local DB Section */}
-      <div className="bg-[#1e2330] rounded-2xl p-6 border border-slate-700/50 shadow-lg">
-        <h3 className="text-lg font-semibold text-slate-200 flex items-center gap-2 mb-4">
+      <div className="bg-white dark:bg-[#1e2330] rounded-2xl p-6 border border-slate-200 dark:border-slate-700/50 shadow-lg">
+        <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2 mb-4">
           <Server size={18} className="text-indigo-400"/> Lokal Veritabanı Durumu
         </h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
           <div>
             <p className="text-slate-500 text-sm mb-1 flex items-center gap-1"><Database size={14}/> Toplam DB Dosyası:</p>
-            <p className="text-slate-200 font-medium">{localDbStats.totalDbFiles}</p>
+            <p className="text-slate-800 dark:text-slate-200 font-medium">{localDbStats.totalDbFiles}</p>
           </div>
           <div>
             <p className="text-slate-500 text-sm mb-1 flex items-center gap-1"><FileText size={14}/> Toplam SQL Dosyası:</p>
-            <p className="text-slate-200 font-medium">{localDbStats.totalSqlFiles}</p>
+            <p className="text-slate-800 dark:text-slate-200 font-medium">{localDbStats.totalSqlFiles}</p>
           </div>
           <div>
             <p className="text-slate-500 text-sm mb-1 flex items-center gap-1"><HardDrive size={14}/> Toplam Boyut:</p>
-            <p className="text-slate-200 font-medium">{localDbStats.totalDbSize}</p>
+            <p className="text-slate-800 dark:text-slate-200 font-medium">{localDbStats.totalDbSize}</p>
           </div>
           <div>
             <p className="text-slate-500 text-sm mb-1 flex items-center gap-1"><Database size={14}/> Aktif DB:</p>
@@ -144,13 +144,13 @@ export default function Dashboard() {
 
       {/* Details Table (Shows when card clicked) */}
       {activeDetail && (
-        <div className="bg-[#1e2330] rounded-2xl p-6 border border-slate-700/50 shadow-lg animate-in fade-in slide-in-from-top-4 duration-300">
-          <h3 className="text-lg font-semibold text-slate-200 mb-4 capitalize">
+        <div className="bg-white dark:bg-[#1e2330] rounded-2xl p-6 border border-slate-200 dark:border-slate-700/50 shadow-lg animate-in fade-in slide-in-from-top-4 duration-300">
+          <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4 capitalize">
             Detaylar: {cards.find(c => c.id === activeDetail)?.title}
           </h3>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm whitespace-nowrap">
-              <thead className="bg-[#242a38] text-slate-400 font-medium uppercase text-xs">
+              <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase text-xs">
                 <tr>
                   <th className="px-4 py-3 rounded-l-lg">ID / Parça</th>
                   <th className="px-4 py-3">Lokasyon</th>
@@ -163,7 +163,7 @@ export default function Dashboard() {
                   <tr><td colSpan="4" className="px-4 py-6 text-center text-slate-500">Veri bulunamadı.</td></tr>
                 ) : (
                   detailData.map((d, i) => (
-                    <tr key={i} className="hover:bg-[#2a3142] text-slate-300">
+                    <tr key={i} className="hover:bg-slate-100 dark:bg-[#2a3142] text-slate-700 dark:text-slate-300">
                       <td className="px-4 py-3 font-medium">{d.name}</td>
                       <td className="px-4 py-3">{d.loc || '-'}</td>
                       <td className="px-4 py-3">{d.qty || '-'} {d.status && <span className="ml-2 text-xs bg-yellow-500/20 text-yellow-500 px-2 py-0.5 rounded">{d.status}</span>}</td>
@@ -178,10 +178,10 @@ export default function Dashboard() {
       )}
 
       {/* Recent Movements */}
-      <div className="bg-[#1e2330] rounded-2xl p-6 border border-slate-700/50 shadow-lg">
+      <div className="bg-white dark:bg-[#1e2330] rounded-2xl p-6 border border-slate-200 dark:border-slate-700/50 shadow-lg">
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h3 className="text-lg font-semibold text-slate-200 flex items-center gap-2">
+            <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
               📋 Son Stok Hareketleri
             </h3>
             <p className="text-sm text-slate-500 mt-1">Sistemdeki en son giriş, çıkış ve transfer işlemleri</p>
@@ -193,7 +193,7 @@ export default function Dashboard() {
         
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-[#242a38] text-slate-400 font-medium uppercase text-xs">
+            <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase text-xs">
               <tr>
                 <th className="px-4 py-3 rounded-l-lg">Hareket ID</th>
                 <th className="px-4 py-3">Parça Adı</th>
@@ -206,9 +206,9 @@ export default function Dashboard() {
             </thead>
             <tbody className="divide-y divide-slate-700/50">
               {recentMovements.length > 0 ? recentMovements.map((mov, i) => (
-                <tr key={mov.id || i} className="hover:bg-[#2a3142] text-slate-300 transition-colors">
+                <tr key={mov.id || i} className="hover:bg-slate-100 dark:bg-[#2a3142] text-slate-700 dark:text-slate-300 transition-colors">
                   <td className="px-4 py-4 font-mono text-slate-400">{mov.id}</td>
-                  <td className="px-4 py-4 font-medium text-slate-200">{mov.part_name || '-'}</td>
+                  <td className="px-4 py-4 font-medium text-slate-800 dark:text-slate-200">{mov.part_name || '-'}</td>
                   <td className="px-4 py-4">{mov.type === 'Giriş' ? mov.target_location : mov.source_location}</td>
                   <td className="px-4 py-4">
                     <span style={{color: mov.type && mov.type.includes('Giriş') ? '#58A6FF' : mov.type && mov.type.includes('Çıkış') ? '#F85149' : '#D2A828'}}>

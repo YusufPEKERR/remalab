@@ -101,21 +101,21 @@ export default function Raporlar() {
     <div className="h-full flex flex-col space-y-6 overflow-hidden">
       
       {/* Header */}
-      <div className="flex justify-between items-center bg-[#1e2330] p-6 rounded-2xl border border-slate-700/50 shadow-sm shrink-0">
+      <div className="flex justify-between items-center bg-white dark:bg-[#1e2330] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm shrink-0">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100 tracking-tight">Raporlar</h1>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">Raporlar</h1>
           <p className="text-slate-400 mt-1">Tüm hareketleri ve kritik stok durumlarını raporlayın.</p>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex space-x-1 bg-[#1e2330] p-1 rounded-xl border border-slate-700/50 shrink-0 self-start">
+      <div className="flex space-x-1 bg-white dark:bg-[#1e2330] p-1 rounded-xl border border-slate-200 dark:border-slate-700/50 shrink-0 self-start">
         <button
           onClick={() => setActiveTab('general')}
           className={`px-6 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 ${
             activeTab === 'general' 
-              ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' 
-              : 'text-slate-400 hover:text-slate-200 hover:bg-[#2a3142]'
+              ? 'bg-blue-600 text-slate-900 dark:text-white shadow-lg shadow-blue-900/20' 
+              : 'text-slate-400 hover:text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:bg-[#2a3142]'
           }`}
         >
           Genel Raporlar
@@ -124,8 +124,8 @@ export default function Raporlar() {
           onClick={() => setActiveTab('critical')}
           className={`px-6 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 ${
             activeTab === 'critical' 
-              ? 'bg-red-600 text-white shadow-lg shadow-red-900/20' 
-              : 'text-slate-400 hover:text-slate-200 hover:bg-[#2a3142]'
+              ? 'bg-red-600 text-slate-900 dark:text-white shadow-lg shadow-red-900/20' 
+              : 'text-slate-400 hover:text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:bg-[#2a3142]'
           }`}
         >
           Kritik Raporlar
@@ -135,14 +135,14 @@ export default function Raporlar() {
       {activeTab === 'general' && (
         <>
           {/* Toolbar General */}
-          <div className="bg-[#1e2330] p-4 rounded-xl border border-slate-700/50 shadow-sm flex flex-col gap-4 shrink-0">
+          <div className="bg-white dark:bg-[#1e2330] p-4 rounded-xl border border-slate-200 dark:border-slate-700/50 shadow-sm flex flex-col gap-4 shrink-0">
             {/* Quick Filters */}
-            <div className="flex gap-2 border-b border-slate-700/50 pb-3">
+            <div className="flex gap-2 border-b border-slate-200 dark:border-slate-700/50 pb-3">
                <span className="text-sm font-medium text-slate-400 self-center mr-2">Hızlı Filtre:</span>
-               <button onClick={() => setQuickFilter('today')} className="text-xs px-3 py-1.5 bg-[#2a3142] hover:bg-[#323a4d] text-slate-300 rounded-lg border border-slate-600 transition-colors">Bugün</button>
-               <button onClick={() => setQuickFilter('yesterday')} className="text-xs px-3 py-1.5 bg-[#2a3142] hover:bg-[#323a4d] text-slate-300 rounded-lg border border-slate-600 transition-colors">Dün</button>
-               <button onClick={() => setQuickFilter('week')} className="text-xs px-3 py-1.5 bg-[#2a3142] hover:bg-[#323a4d] text-slate-300 rounded-lg border border-slate-600 transition-colors">Son 1 Hafta</button>
-               <button onClick={() => setQuickFilter('month')} className="text-xs px-3 py-1.5 bg-[#2a3142] hover:bg-[#323a4d] text-slate-300 rounded-lg border border-slate-600 transition-colors">Son 1 Ay</button>
+               <button onClick={() => setQuickFilter('today')} className="text-xs px-3 py-1.5 bg-slate-100 dark:bg-[#2a3142] hover:bg-[#323a4d] text-slate-700 dark:text-slate-300 rounded-lg border border-slate-600 transition-colors">Bugün</button>
+               <button onClick={() => setQuickFilter('yesterday')} className="text-xs px-3 py-1.5 bg-slate-100 dark:bg-[#2a3142] hover:bg-[#323a4d] text-slate-700 dark:text-slate-300 rounded-lg border border-slate-600 transition-colors">Dün</button>
+               <button onClick={() => setQuickFilter('week')} className="text-xs px-3 py-1.5 bg-slate-100 dark:bg-[#2a3142] hover:bg-[#323a4d] text-slate-700 dark:text-slate-300 rounded-lg border border-slate-600 transition-colors">Son 1 Hafta</button>
+               <button onClick={() => setQuickFilter('month')} className="text-xs px-3 py-1.5 bg-slate-100 dark:bg-[#2a3142] hover:bg-[#323a4d] text-slate-700 dark:text-slate-300 rounded-lg border border-slate-600 transition-colors">Son 1 Ay</button>
             </div>
             
             <div className="flex flex-col md:flex-row gap-4 items-center">
@@ -151,14 +151,14 @@ export default function Raporlar() {
                 <input 
                   type="date" 
                   style={{ colorScheme: 'dark' }}
-                  className="bg-[#242a38] text-slate-200 border border-slate-700 rounded-l-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                  className="bg-slate-50 dark:bg-[#242a38] text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-l-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
                   value={startDate.split('T')[0] || ''}
                   onChange={(e) => setStartDate(`${e.target.value}T${startDate.split('T')[1] || '00:00'}`)}
                 />
                 <input 
                   type="time" 
                   style={{ colorScheme: 'dark' }}
-                  className="bg-[#242a38] text-slate-200 border-y border-r border-slate-700 rounded-r-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 -ml-2"
+                  className="bg-slate-50 dark:bg-[#242a38] text-slate-800 dark:text-slate-200 border-y border-r border-slate-200 dark:border-slate-700 rounded-r-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 -ml-2"
                   value={startDate.split('T')[1] || '00:00'}
                   onChange={(e) => setStartDate(`${startDate.split('T')[0] || ''}T${e.target.value}`)}
                 />
@@ -169,14 +169,14 @@ export default function Raporlar() {
                 <input 
                   type="date" 
                   style={{ colorScheme: 'dark' }}
-                  className="bg-[#242a38] text-slate-200 border border-slate-700 rounded-l-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                  className="bg-slate-50 dark:bg-[#242a38] text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-l-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
                   value={endDate.split('T')[0] || ''}
                   onChange={(e) => setEndDate(`${e.target.value}T${endDate.split('T')[1] || '23:59'}`)}
                 />
                 <input 
                   type="time" 
                   style={{ colorScheme: 'dark' }}
-                  className="bg-[#242a38] text-slate-200 border-y border-r border-slate-700 rounded-r-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 -ml-2"
+                  className="bg-slate-50 dark:bg-[#242a38] text-slate-800 dark:text-slate-200 border-y border-r border-slate-200 dark:border-slate-700 rounded-r-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 -ml-2"
                   value={endDate.split('T')[1] || '23:59'}
                   onChange={(e) => setEndDate(`${endDate.split('T')[0] || ''}T${e.target.value}`)}
                 />
@@ -191,7 +191,7 @@ export default function Raporlar() {
 
               <button 
                 onClick={handleExportGeneral}
-                className="flex items-center gap-2 px-5 py-2 bg-[#2a3142] hover:bg-[#323a4d] border border-slate-600 text-slate-300 rounded-lg text-sm font-medium transition-colors ml-auto"
+                className="flex items-center gap-2 px-5 py-2 bg-slate-100 dark:bg-[#2a3142] hover:bg-[#323a4d] border border-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors ml-auto"
               >
                 <Download size={16} /> 📊 Excel'e Aktar
               </button>
@@ -199,10 +199,10 @@ export default function Raporlar() {
           </div>
 
           {/* Table General */}
-          <div className="bg-[#1e2330] border border-slate-700/50 rounded-2xl shadow-lg flex-1 overflow-hidden flex flex-col">
+          <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl shadow-lg flex-1 overflow-hidden flex flex-col">
             <div className="overflow-auto flex-1">
               <table className="w-full text-left text-sm whitespace-nowrap">
-                <thead className="bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs sticky top-0 z-10">
+                <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs sticky top-0 z-10">
                   <tr>
                     <th className="px-6 py-4">TARİH</th>
                     <th className="px-6 py-4">HAREKET TİPİ</th>
@@ -228,7 +228,7 @@ export default function Raporlar() {
                     </tr>
                   ) : (
                     generalReports.map((r) => (
-                      <tr key={r.id} className="hover:bg-[#2a3142] transition-colors group text-slate-300">
+                      <tr key={r.id} className="hover:bg-slate-100 dark:bg-[#2a3142] transition-colors group text-slate-700 dark:text-slate-300">
                         <td className="px-6 py-4 font-mono text-slate-400">{r.date}</td>
                         <td className="px-6 py-4">
                           <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${
@@ -236,14 +236,14 @@ export default function Raporlar() {
                               ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' 
                               : r.type.includes('Çıkış') 
                                 ? 'bg-orange-500/10 text-orange-400 border-orange-500/20'
-                                : 'bg-slate-800 text-slate-300 border-slate-600'
+                                : 'bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-600'
                           }`}>
                             {r.type}
                           </span>
                         </td>
-                        <td className="px-6 py-4 font-medium text-slate-200">{r.part_name}</td>
+                        <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200">{r.part_name}</td>
                         <td className="px-6 py-4 text-slate-400">{r.location}</td>
-                        <td className="px-6 py-4 font-mono text-slate-200">{r.quantity}</td>
+                        <td className="px-6 py-4 font-mono text-slate-800 dark:text-slate-200">{r.quantity}</td>
                         <td className="px-6 py-4">{r.user}</td>
                       </tr>
                     ))
@@ -258,20 +258,20 @@ export default function Raporlar() {
       {activeTab === 'critical' && (
         <>
           {/* Toolbar Critical */}
-          <div className="bg-[#1e2330] p-4 rounded-xl border border-slate-700/50 shadow-sm flex items-center shrink-0">
+          <div className="bg-white dark:bg-[#1e2330] p-4 rounded-xl border border-slate-200 dark:border-slate-700/50 shadow-sm flex items-center shrink-0">
             <button 
               onClick={handleExportCritical}
-              className="flex items-center gap-2 px-5 py-2 bg-[#2a3142] hover:bg-[#323a4d] border border-slate-600 text-slate-300 rounded-lg text-sm font-medium transition-colors"
+              className="flex items-center gap-2 px-5 py-2 bg-slate-100 dark:bg-[#2a3142] hover:bg-[#323a4d] border border-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors"
             >
               <Download size={16} /> 📊 Excel'e Aktar
             </button>
           </div>
 
           {/* Table Critical */}
-          <div className="bg-[#1e2330] border border-slate-700/50 rounded-2xl shadow-lg flex-1 overflow-hidden flex flex-col">
+          <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl shadow-lg flex-1 overflow-hidden flex flex-col">
             <div className="overflow-auto flex-1">
               <table className="w-full text-left text-sm whitespace-nowrap">
-                <thead className="bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs sticky top-0 z-10">
+                <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs sticky top-0 z-10">
                   <tr>
                     <th className="px-6 py-4">PARÇA ADI</th>
                     <th className="px-6 py-4">LOKASYON</th>
@@ -295,8 +295,8 @@ export default function Raporlar() {
                     </tr>
                   ) : (
                     criticalReports.map((r) => (
-                      <tr key={r.id} className="hover:bg-[#2a3142] transition-colors group text-slate-300">
-                        <td className="px-6 py-4 font-medium text-slate-200">{r.part_name}</td>
+                      <tr key={r.id} className="hover:bg-slate-100 dark:bg-[#2a3142] transition-colors group text-slate-700 dark:text-slate-300">
+                        <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200">{r.part_name}</td>
                         <td className="px-6 py-4 text-slate-400">{r.location}</td>
                         <td className="px-6 py-4 font-mono">
                           <span className="text-red-500 font-bold flex items-center gap-1.5">

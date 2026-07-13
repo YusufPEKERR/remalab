@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { 
   LogOut, LayoutDashboard, Users, Package, Settings, Bell,
@@ -16,10 +16,22 @@ export default function MainLayout() {
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const { theme, toggleTheme } = useTheme();
+  const notifRef = useRef(null);
 
   useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(timer);
+    const handleClickOutside = (event) => {
+      if (notifRef.current && !notifRef.current.contains(event.target)) {
+        setShowNotifications(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    // Saniye saniye artmasını istemediğiniz için timer kaldırıldı
+    // const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    // return () => clearInterval(timer);
   }, []);
 
   useEffect(() => {
@@ -112,19 +124,17 @@ export default function MainLayout() {
   );
 
   return (
-    <div className="flex h-screen bg-[#0f1219] overflow-hidden">
+    <div className="flex h-screen bg-slate-50 dark:bg-[#0f1219] overflow-hidden">
       {/* Sidebar */}
-      <aside className="w-64 bg-[#161B22] text-slate-300 flex flex-col border-r border-[#30363D] z-20">
-        <div className="py-6 flex items-center justify-center px-4 border-b border-[#30363D]">
-          <h1 className="text-2xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400">
-            REMALAB
-          </h1>
+      <aside className="w-64 bg-white dark:bg-[#161B22] text-slate-700 dark:text-slate-300 flex flex-col border-r border-slate-200 dark:border-[#30363D] z-20">
+        <div className="flex items-center justify-center pb-6 pt-10 border-b border-slate-200 dark:border-[#30363D]">
+          <img src="/logo.png" alt="Remalab Logo" className="h-36 w-full object-contain drop-shadow-md scale-110" />
         </div>
         
         <div className="flex-1 overflow-y-auto py-6 space-y-6 scrollbar-thin scrollbar-thumb-[#30363D] scrollbar-track-transparent">
           {filteredGroups.map((group, idx) => (
             <div key={idx} className="px-4">
-              <h3 className="px-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">
+              <h3 className="px-2 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">
                 {group.title}
               </h3>
               <nav className="space-y-1">
@@ -137,7 +147,7 @@ export default function MainLayout() {
                       className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
                         isActive 
                           ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' 
-                          : 'text-slate-400 hover:bg-[#1e2330] hover:text-slate-200'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#2a3142]'
                       }`}
                       onClick={(e) => {
                         e.preventDefault();
@@ -154,10 +164,10 @@ export default function MainLayout() {
           ))}
         </div>
         
-        <div className="p-4 border-t border-[#30363D]">
+        <div className="p-4 border-t border-slate-200 dark:border-[#30363D]">
           <button 
             onClick={handleLogout}
-            className="flex items-center gap-3 px-3 py-2.5 w-full rounded-xl text-sm font-medium text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
+            className="flex items-center gap-3 px-3 py-2.5 w-full rounded-xl text-sm font-medium text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-300 transition-colors"
           >
             <LogOut size={18} />
             Çıkış Yap
@@ -168,9 +178,9 @@ export default function MainLayout() {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Topbar */}
-        <header className="h-16 bg-[#161B22] border-b border-[#30363D] flex items-center justify-between px-6 shadow-sm z-10 shrink-0">
+        <header className="h-16 bg-white dark:bg-[#161B22] border-b border-slate-200 dark:border-[#30363D] flex items-center justify-between px-6 shadow-sm z-50 shrink-0">
           <div className="flex flex-col">
-            <h2 className="text-lg font-bold text-slate-100 tracking-tight">
+            <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100 tracking-tight">
               {currentPage ? currentPage.name : 'Depo Yönetim Sistemi'}
             </h2>
             <p className="text-[11px] font-medium text-slate-500 tracking-wide uppercase">
@@ -179,9 +189,9 @@ export default function MainLayout() {
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-[#1e2330] rounded-lg border border-slate-700/50">
+            <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-[#1e2330] rounded-lg border border-slate-200 dark:border-slate-700/50">
               <span className="text-[11px] font-medium text-slate-400">⏱ SON GÜNCELLEME:</span>
-              <span className="text-xs font-bold text-slate-200 font-mono tracking-wider">
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 font-mono tracking-wider">
                 {currentTime.toLocaleDateString('tr-TR', { day: '2-digit', month: 'short', year: 'numeric' })} - {currentTime.toLocaleTimeString('tr-TR')}
               </span>
             </div>
@@ -196,11 +206,20 @@ export default function MainLayout() {
             >
               <RefreshCw size={18} />
             </button>
+
+            {/* Theme Toggle Button */}
+            <button
+              onClick={toggleTheme}
+              className="p-2 text-slate-500 dark:text-slate-400 hover:text-amber-500 dark:hover:text-amber-400 transition-colors bg-slate-100 dark:bg-[#1e2330] rounded-xl border border-slate-200 dark:border-slate-700/50 hover:border-amber-300 dark:hover:border-amber-500/50"
+              title={theme === 'dark' ? 'Açık Tema' : 'Koyu Tema'}
+            >
+              {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
             
-            <div className="relative">
+            <div className="relative" ref={notifRef}>
               <button 
                 onClick={() => setShowNotifications(!showNotifications)}
-                className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors relative bg-slate-100 dark:bg-[#1e2330] rounded-xl border border-slate-200 dark:border-slate-700/50" 
+                className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-800 dark:text-slate-200 transition-colors relative bg-slate-100 dark:bg-[#1e2330] rounded-xl border border-slate-200 dark:border-slate-700/50" 
                 title="Bildirimler"
               >
                 <Bell size={18} />
@@ -231,7 +250,7 @@ export default function MainLayout() {
                     {notifications.length > 0 ? (
                       <div className="divide-y divide-slate-100 dark:divide-slate-700/50">
                         {notifications.map((notif, idx) => (
-                          <div key={idx} className="p-4 hover:bg-slate-50 dark:hover:bg-[#2a3142] transition-colors cursor-pointer" onClick={() => {setShowNotifications(false); navigate('/depo');}}>
+                          <div key={idx} className="p-4 hover:bg-slate-50 dark:hover:bg-slate-100 dark:bg-[#2a3142] transition-colors cursor-pointer" onClick={() => {setShowNotifications(false); navigate('/depo');}}>
                             <div className="flex items-start gap-3">
                               <div className="mt-0.5 shrink-0">
                                 <AlertTriangle size={18} className={notif.status === 'Tükendi' ? "text-red-400" : "text-amber-400"} />
@@ -266,7 +285,7 @@ export default function MainLayout() {
                 {user && user.username ? user.username.charAt(0) : 'U'}
               </div>
               <div className="hidden md:block">
-                <p className="text-sm font-semibold text-slate-200 leading-none">{(user && user.username) ? user.username : 'Misafir'}</p>
+                <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 leading-none">{(user && user.username) ? user.username : 'Misafir'}</p>
                 <p className="text-xs text-slate-400 mt-1">{(user && user.role) ? user.role : 'Guest'}</p>
               </div>
             </div>
@@ -274,7 +293,7 @@ export default function MainLayout() {
         </header>
 
         {/* Page Content (Outlet renders child routes) */}
-        <main className="flex-1 overflow-hidden p-6 bg-[#0f1219]">
+        <main className="flex-1 overflow-hidden p-6 bg-slate-50 dark:bg-[#0f1219]">
           <div className="h-full max-w-[1600px] mx-auto">
             <Outlet />
           </div>

@@ -98,15 +98,15 @@ export default function Locations() {
           placeholder="Lokasyon ara..." 
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full pl-10 pr-4 py-3 bg-[#1e2330] border border-slate-700 rounded-t-xl focus:outline-none text-slate-200 transition-all text-sm"
+          className="w-full pl-10 pr-4 py-3 bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 rounded-t-xl focus:outline-none text-slate-800 dark:text-slate-200 transition-all text-sm"
         />
       </div>
 
       {/* Table */}
-      <div className="bg-[#1e2330] border border-slate-700/50 rounded-b-xl shadow-lg flex-1 overflow-hidden flex flex-col -mt-6">
+      <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-b-xl shadow-lg flex-1 overflow-hidden flex flex-col -mt-6">
         <div className="overflow-y-auto flex-1 mt-2">
           <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-[#242a38] text-slate-300 font-semibold border-b border-slate-700/50 sticky top-0 uppercase tracking-wider text-xs z-10">
+            <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-700 dark:text-slate-300 font-semibold border-b border-slate-200 dark:border-slate-700/50 sticky top-0 uppercase tracking-wider text-xs z-10">
               <tr>
                 <th className="px-6 py-4 w-32">LOKASYON ID</th>
                 <th className="px-6 py-4">LOKASYON ADI</th>
@@ -129,7 +129,7 @@ export default function Locations() {
                 </tr>
               ) : (
                 filteredLocations.map((loc) => (
-                  <tr key={loc.id} className="hover:bg-[#2a3142] transition-colors group text-slate-200">
+                  <tr key={loc.id} className="hover:bg-slate-100 dark:bg-[#2a3142] transition-colors group text-slate-800 dark:text-slate-200">
                     <td className="px-6 py-3 font-mono">{loc.id}</td>
                     <td className="px-6 py-3">{loc.name}</td>
                     <td className="px-6 py-3 text-right">

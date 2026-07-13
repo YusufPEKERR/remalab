@@ -70,27 +70,27 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0f1219] relative overflow-hidden text-slate-200 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-[#0f1219] relative overflow-hidden text-slate-800 dark:text-slate-200 p-4">
       
       {/* Background Ornaments */}
       <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-blue-600/20 blur-[120px] rounded-full pointer-events-none"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-emerald-600/10 blur-[120px] rounded-full pointer-events-none"></div>
 
       {/* Main Container */}
-      <div className="flex w-full max-w-[1000px] h-auto min-h-[600px] rounded-[24px] overflow-hidden relative z-10 border border-slate-800/50 shadow-2xl bg-[#1e2330]/80 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-500 flex-col md:flex-row">
+      <div className="flex w-full max-w-[1000px] h-auto min-h-[600px] rounded-[24px] overflow-hidden relative z-10 border border-slate-300 dark:border-slate-800/50 shadow-2xl bg-white dark:bg-[#1e2330]/80 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-500 flex-col md:flex-row">
         
         {/* Left Side: Branding / Graphic */}
-        <div className="flex-1 hidden md:flex flex-col justify-between px-12 py-14 bg-gradient-to-br from-[#161b26] to-[#0f1219] border-r border-slate-800/50 relative overflow-hidden">
+        <div className="flex-1 hidden md:flex flex-col justify-between px-12 py-14 bg-gradient-to-br from-[#161b26] to-[#0f1219] border-r border-slate-300 dark:border-slate-800/50 relative overflow-hidden">
           
           <div className="relative z-10">
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-900/50">
-                <Box size={24} className="text-white" />
+              <div className="flex items-center justify-center">
+                <img src="/uygulama-amblemi.png" alt="Remalab Amblemi" className="w-16 h-16 object-contain drop-shadow-xl" />
               </div>
-              <h1 className="text-2xl font-black tracking-tight text-white">REMALAB <span className="text-blue-500 font-medium">WMS</span></h1>
+              <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white mt-2">REMALAB <span className="text-blue-500 font-medium">TEKNOLOJİ</span></h1>
             </div>
             
-            <h2 className="text-3xl font-bold text-white mt-12 leading-snug">
+            <h2 className="text-3xl font-bold text-slate-900 dark:text-white mt-12 leading-snug">
               Depo Yönetiminde <br/>
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300">
                 Yeni Nesil Deneyim
@@ -105,13 +105,13 @@ export default function Login() {
           {/* Abstract Graphic */}
           <div className="relative z-10 mt-12">
             <div className="flex gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-slate-800/50 flex items-center justify-center border border-slate-700/50 backdrop-blur-sm animate-pulse" style={{ animationDelay: '0ms' }}>
+              <div className="w-12 h-12 rounded-2xl bg-slate-800/50 flex items-center justify-center border border-slate-200 dark:border-slate-700/50 backdrop-blur-sm animate-pulse" style={{ animationDelay: '0ms' }}>
                 <Activity size={20} className="text-emerald-400" />
               </div>
-              <div className="w-12 h-12 rounded-2xl bg-slate-800/50 flex items-center justify-center border border-slate-700/50 backdrop-blur-sm animate-pulse" style={{ animationDelay: '300ms' }}>
+              <div className="w-12 h-12 rounded-2xl bg-slate-800/50 flex items-center justify-center border border-slate-200 dark:border-slate-700/50 backdrop-blur-sm animate-pulse" style={{ animationDelay: '300ms' }}>
                 <Box size={20} className="text-blue-400" />
               </div>
-              <div className="w-12 h-12 rounded-2xl bg-slate-800/50 flex items-center justify-center border border-slate-700/50 backdrop-blur-sm animate-pulse" style={{ animationDelay: '600ms' }}>
+              <div className="w-12 h-12 rounded-2xl bg-slate-800/50 flex items-center justify-center border border-slate-200 dark:border-slate-700/50 backdrop-blur-sm animate-pulse" style={{ animationDelay: '600ms' }}>
                 <MapPin size={20} className="text-purple-400" />
               </div>
             </div>
@@ -122,10 +122,10 @@ export default function Login() {
         </div>
 
         {/* Right Side: Form */}
-        <div className="flex-1 flex flex-col justify-center px-8 sm:px-14 py-12 bg-[#1e2330]">
+        <div className="flex-1 flex flex-col justify-center px-8 sm:px-14 py-12 bg-white dark:bg-[#1e2330]">
           
           <div className="w-full max-w-sm mx-auto">
-            <h2 className="text-2xl font-bold text-white mb-2">Hoş Geldiniz</h2>
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Hoş Geldiniz</h2>
             <p className="text-slate-400 text-sm mb-8">Devam etmek için hesabınıza giriş yapın.</p>
 
             {error && (
@@ -148,7 +148,7 @@ export default function Login() {
                     placeholder="Kullanıcı adınızı girin"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    className="w-full h-[52px] pl-11 pr-4 bg-[#242a38] border border-slate-700/50 rounded-xl outline-none text-slate-200 placeholder:text-slate-500 transition-all focus:bg-[#2a3142] focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20"
+                    className="w-full h-[52px] pl-11 pr-4 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700/50 rounded-xl outline-none text-slate-800 dark:text-slate-200 placeholder:text-slate-500 transition-all focus:bg-slate-100 dark:bg-[#2a3142] focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20"
                   />
                 </div>
               </div>
@@ -163,12 +163,12 @@ export default function Login() {
                     placeholder="Şifrenizi girin"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full h-[52px] pl-11 pr-12 bg-[#242a38] border border-slate-700/50 rounded-xl outline-none text-slate-200 placeholder:text-slate-500 transition-all focus:bg-[#2a3142] focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20"
+                    className="w-full h-[52px] pl-11 pr-12 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700/50 rounded-xl outline-none text-slate-800 dark:text-slate-200 placeholder:text-slate-500 transition-all focus:bg-slate-100 dark:bg-[#2a3142] focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 dark:text-slate-300 transition-colors"
                   >
                     {showPassword ? <Eye size={18} /> : <EyeOff size={18} />}
                   </button>
@@ -185,12 +185,12 @@ export default function Login() {
                       onChange={(e) => setRememberMe(e.target.checked)}
                       className="peer sr-only"
                     />
-                    <div className="w-5 h-5 rounded-[6px] border border-slate-600 bg-[#242a38] peer-checked:bg-blue-600 peer-checked:border-blue-600 transition-all"></div>
-                    <svg className="absolute w-3.5 h-3.5 text-white opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                    <div className="w-5 h-5 rounded-[6px] border border-slate-600 bg-slate-50 dark:bg-[#242a38] peer-checked:bg-blue-600 peer-checked:border-blue-600 transition-all"></div>
+                    <svg className="absolute w-3.5 h-3.5 text-slate-900 dark:text-white opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                     </svg>
                   </div>
-                  <span className="ml-2.5 text-sm text-slate-400 group-hover:text-slate-300 transition-colors">
+                  <span className="ml-2.5 text-sm text-slate-400 group-hover:text-slate-700 dark:text-slate-300 transition-colors">
                     Beni hatırla
                   </span>
                 </label>

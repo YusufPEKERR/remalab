@@ -190,7 +190,7 @@ export default function Irsaliye() {
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-slate-700 mt-2">
+      <div className="border-b border-slate-200 dark:border-slate-700 mt-2">
         <nav className="-mb-px flex space-x-8">
           <button
             onClick={() => setActiveTab('inbound')}
@@ -212,8 +212,8 @@ export default function Irsaliye() {
       </div>
 
       {/* Actions */}
-      <div className="flex justify-between items-center bg-[#1e2330] p-4 rounded-xl border border-slate-700/50 shadow-sm">
-        <div className="text-slate-300 text-sm">
+      <div className="flex justify-between items-center bg-white dark:bg-[#1e2330] p-4 rounded-xl border border-slate-200 dark:border-slate-700/50 shadow-sm">
+        <div className="text-slate-700 dark:text-slate-300 text-sm">
           {activeTab === 'inbound' ? 'Yeni Stok Girişi' : 'Depo Çıkış Modülü'}
         </div>
         <div className="flex gap-3 items-center">
@@ -226,7 +226,7 @@ export default function Irsaliye() {
           <div className="relative">
             <select 
               onChange={handleExcelAction}
-              className="appearance-none bg-[#242a38] hover:bg-[#2a3142] text-slate-300 border border-slate-600 rounded-xl px-4 py-2 pr-8 transition-colors font-medium cursor-pointer focus:outline-none focus:border-blue-500"
+              className="appearance-none bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:bg-[#2a3142] text-slate-700 dark:text-slate-300 border border-slate-600 rounded-xl px-4 py-2 pr-8 transition-colors font-medium cursor-pointer focus:outline-none focus:border-blue-500"
             >
               <option value="">Excel İşlemi Seç...</option>
               <option value="download_template">Boş Şablon İndir</option>
@@ -256,10 +256,10 @@ export default function Irsaliye() {
       </div>
 
       {/* Table */}
-      <div className="bg-[#1e2330] border border-slate-700/50 rounded-xl shadow-lg flex-1 overflow-hidden flex flex-col">
+      <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-xl shadow-lg flex-1 overflow-hidden flex flex-col">
         <div className="overflow-y-auto flex-1">
           <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-[#242a38] text-slate-300 font-semibold border-b border-slate-700/50 sticky top-0 uppercase tracking-wider text-xs z-10">
+            <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-700 dark:text-slate-300 font-semibold border-b border-slate-200 dark:border-slate-700/50 sticky top-0 uppercase tracking-wider text-xs z-10">
               {activeTab === 'inbound' ? (
                 <tr>
                   <th className="px-6 py-4">PARÇA ADI</th>
@@ -297,7 +297,7 @@ export default function Irsaliye() {
                 </tr>
               ) : (
                 movements.map((mov, index) => (
-                  <tr key={`${mov.id}-${index}`} className="hover:bg-[#2a3142] transition-colors group text-slate-200">
+                  <tr key={`${mov.id}-${index}`} className="hover:bg-slate-100 dark:bg-[#2a3142] transition-colors group text-slate-800 dark:text-slate-200">
                     {activeTab === 'inbound' ? (
                       <>
                         <td className="px-6 py-3">{mov.part_name}</td>
@@ -333,10 +333,10 @@ export default function Irsaliye() {
       {/* INBOUND MODAL */}
       {showInboundModal && (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-[#1e2330] rounded-2xl shadow-2xl border border-slate-700/50 w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="px-6 py-4 border-b border-slate-700/50 flex justify-between items-center bg-[#242a38]">
-              <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2"><Plus size={18}/> Yeni Stok Ekle</h2>
-              <button onClick={() => setShowInboundModal(false)} className="text-slate-400 hover:text-white">&times;</button>
+          <div className="bg-white dark:bg-[#1e2330] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700/50 w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 flex justify-between items-center bg-slate-50 dark:bg-[#242a38]">
+              <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2"><Plus size={18}/> Yeni Stok Ekle</h2>
+              <button onClick={() => setShowInboundModal(false)} className="text-slate-400 hover:text-slate-900 dark:text-white">&times;</button>
             </div>
             <form onSubmit={handleInbound} className="p-6 space-y-4">
               
@@ -345,40 +345,40 @@ export default function Irsaliye() {
                   <span className="bg-slate-800 px-1.5 py-0.5 rounded text-xs">📄</span> Barkod (okutun ve Enter'a basın)
                 </label>
                 <div className="flex gap-2">
-                  <input type="text" placeholder="Barkodu okutun veya manuel girin..." className="flex-1 px-4 py-2 bg-[#0f1219] border border-slate-700 text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={inboundBarcode} onChange={(e) => setInboundBarcode(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleBarcodeSearch())} />
-                  <button type="button" onClick={handleBarcodeSearch} className="px-4 bg-[#2a3142] hover:bg-blue-600 border border-slate-600 rounded-lg text-white transition-colors"><Search size={18} /></button>
+                  <input type="text" placeholder="Barkodu okutun veya manuel girin..." className="flex-1 px-4 py-2 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={inboundBarcode} onChange={(e) => setInboundBarcode(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleBarcodeSearch())} />
+                  <button type="button" onClick={handleBarcodeSearch} className="px-4 bg-slate-100 dark:bg-[#2a3142] hover:bg-blue-600 border border-slate-600 rounded-lg text-white transition-colors"><Search size={18} /></button>
                 </div>
               </div>
 
-              <div className="border-t border-slate-700/50 pt-4"></div>
+              <div className="border-t border-slate-200 dark:border-slate-700/50 pt-4"></div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Marka</label>
-                <select className="w-full px-3 py-2 bg-[#0f1219] border border-slate-700 text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={inboundBrand} onChange={(e) => { setInboundBrand(e.target.value); setInboundModel(''); setFormData({...formData, part_id: ''}); }}>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Marka</label>
+                <select className="w-full px-3 py-2 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={inboundBrand} onChange={(e) => { setInboundBrand(e.target.value); setInboundModel(''); setFormData({...formData, part_id: ''}); }}>
                   <option value="">Marka seçiniz...</option>
                   {uniqueBrands.map(b => <option key={b} value={b}>{b}</option>)}
                 </select>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Telefon Modeli</label>
-                <select className="w-full px-3 py-2 bg-[#0f1219] border border-slate-700 text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={inboundModel} onChange={(e) => { setInboundModel(e.target.value); setFormData({...formData, part_id: ''}); }}>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Telefon Modeli</label>
+                <select className="w-full px-3 py-2 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={inboundModel} onChange={(e) => { setInboundModel(e.target.value); setFormData({...formData, part_id: ''}); }}>
                   <option value="">Model seçiniz...</option>
                   {uniqueModels.map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Parça Adı / Parça</label>
-                <select required className="w-full px-3 py-2 bg-[#0f1219] border border-slate-700 text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.part_id} onChange={(e) => setFormData({...formData, part_id: e.target.value})}>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Parça Adı / Parça</label>
+                <select required className="w-full px-3 py-2 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.part_id} onChange={(e) => setFormData({...formData, part_id: e.target.value})}>
                   <option value="">Parça seçiniz...</option>
                   {filteredParts.map(p => <option key={p.id} value={p.id}>{p.brand} {p.model} {p.name ? `- ${p.name}` : ''}</option>)}
                 </select>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Giriş Tipi</label>
-                <select required className="w-full px-3 py-2 bg-[#0f1219] border border-slate-700 text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.type} onChange={(e) => setFormData({...formData, type: e.target.value})}>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Giriş Tipi</label>
+                <select required className="w-full px-3 py-2 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.type} onChange={(e) => setFormData({...formData, type: e.target.value})}>
                   <option value="Yeni Alım (Tedarikçiden)">Yeni Alım (Tedarikçiden)</option>
                   <option value="İade Girişi">İade Girişi</option>
                   <option value="Depodan Depoya">Depodan Depoya</option>
@@ -388,28 +388,28 @@ export default function Irsaliye() {
 
               <div className="flex gap-4">
                 <div className="flex-1">
-                  <label className="block text-sm font-medium text-slate-300 mb-1">Miktar</label>
-                  <input type="number" required min="1" className="w-full px-3 py-2 bg-[#0f1219] border border-slate-700 text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.qty} onChange={(e) => setFormData({...formData, qty: e.target.value})} />
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Miktar</label>
+                  <input type="number" required min="1" className="w-full px-3 py-2 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.qty} onChange={(e) => setFormData({...formData, qty: e.target.value})} />
                 </div>
                 <div className="flex-1">
-                  <label className="block text-sm font-medium text-slate-300 mb-1">Birim Fiyat</label>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Birim Fiyat</label>
                   <div className="relative">
-                    <input type="number" step="0.01" className="w-full px-3 py-2 pr-8 bg-[#0f1219] border border-slate-700 text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.price} onChange={(e) => setFormData({...formData, price: e.target.value})} />
+                    <input type="number" step="0.01" className="w-full px-3 py-2 pr-8 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.price} onChange={(e) => setFormData({...formData, price: e.target.value})} />
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">TL</span>
                   </div>
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Lokasyon</label>
-                <select required className="w-full px-3 py-2 bg-[#0f1219] border border-slate-700 text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.loc_id} onChange={(e) => setFormData({...formData, loc_id: e.target.value})}>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Lokasyon</label>
+                <select required className="w-full px-3 py-2 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.loc_id} onChange={(e) => setFormData({...formData, loc_id: e.target.value})}>
                   <option value="">Lokasyon seçiniz...</option>
                   {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
                 </select>
               </div>
 
-              <div className="flex justify-end gap-3 mt-6 border-t border-slate-700/50 pt-4">
-                <button type="button" onClick={() => setShowInboundModal(false)} className="px-5 py-2.5 bg-[#323a4d] hover:bg-[#3f485e] text-slate-200 rounded-lg text-sm font-medium transition-colors">İptal</button>
+              <div className="flex justify-end gap-3 mt-6 border-t border-slate-200 dark:border-slate-700/50 pt-4">
+                <button type="button" onClick={() => setShowInboundModal(false)} className="px-5 py-2.5 bg-[#323a4d] hover:bg-[#3f485e] text-slate-800 dark:text-slate-200 rounded-lg text-sm font-medium transition-colors">İptal</button>
                 <button type="submit" className="px-5 py-2.5 bg-[#42526e] hover:bg-[#506385] text-white rounded-lg text-sm font-medium transition-colors shadow-lg">Kaydet</button>
               </div>
             </form>
@@ -420,39 +420,39 @@ export default function Irsaliye() {
       {/* OUTBOUND MODAL */}
       {showOutboundModal && (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-[#1e2330] rounded-2xl shadow-2xl border border-slate-700/50 w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="px-6 py-4 border-b border-slate-700/50 flex justify-between items-center bg-[#242a38]">
-              <h2 className="text-lg font-bold text-slate-100">Stok Çıkışı Yap</h2>
+          <div className="bg-white dark:bg-[#1e2330] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700/50 w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 flex justify-between items-center bg-slate-50 dark:bg-[#242a38]">
+              <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Stok Çıkışı Yap</h2>
             </div>
             <form onSubmit={handleOutbound} className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Tür</label>
-                <select required className="w-full px-3 py-2 bg-[#0f1219] border border-slate-700 text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.type} onChange={(e) => setFormData({...formData, type: e.target.value})}>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Tür</label>
+                <select required className="w-full px-3 py-2 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.type} onChange={(e) => setFormData({...formData, type: e.target.value})}>
                   <option value="Müşteri Satışı">Müşteri Satışı</option>
                   <option value="Tedarikçiye İade">Tedarikçiye İade</option>
                   <option value="Fire">Fire / Bozuk</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Parça</label>
-                <select required className="w-full px-3 py-2 bg-[#0f1219] border border-slate-700 text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.part_id} onChange={(e) => setFormData({...formData, part_id: e.target.value})}>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Parça</label>
+                <select required className="w-full px-3 py-2 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.part_id} onChange={(e) => setFormData({...formData, part_id: e.target.value})}>
                   <option value="">Seçiniz...</option>
                   {parts.map(p => <option key={p.id} value={p.id}>{p.brand} {p.model}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Kaynak Lokasyon</label>
-                <select required className="w-full px-3 py-2 bg-[#0f1219] border border-slate-700 text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.loc_id} onChange={(e) => setFormData({...formData, loc_id: e.target.value})}>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Kaynak Lokasyon</label>
+                <select required className="w-full px-3 py-2 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.loc_id} onChange={(e) => setFormData({...formData, loc_id: e.target.value})}>
                   <option value="">Seçiniz...</option>
                   {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Miktar</label>
-                <input type="number" required min="1" className="w-full px-3 py-2 bg-[#0f1219] border border-slate-700 text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.qty} onChange={(e) => setFormData({...formData, qty: e.target.value})} />
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Miktar</label>
+                <input type="number" required min="1" className="w-full px-3 py-2 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.qty} onChange={(e) => setFormData({...formData, qty: e.target.value})} />
               </div>
-              <div className="flex justify-end gap-3 mt-6 border-t border-slate-700/50 pt-4">
-                <button type="button" onClick={() => setShowOutboundModal(false)} className="px-4 py-2 border border-slate-600 rounded-xl hover:bg-[#2a3142] text-slate-300 text-sm font-medium transition-colors">İptal</button>
+              <div className="flex justify-end gap-3 mt-6 border-t border-slate-200 dark:border-slate-700/50 pt-4">
+                <button type="button" onClick={() => setShowOutboundModal(false)} className="px-4 py-2 border border-slate-600 rounded-xl hover:bg-slate-100 dark:bg-[#2a3142] text-slate-700 dark:text-slate-300 text-sm font-medium transition-colors">İptal</button>
                 <button type="submit" className="px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 text-sm font-medium transition-colors shadow-lg shadow-red-900/20">Kaydet</button>
               </div>
             </form>
