@@ -3,19 +3,41 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { 
   LogOut, LayoutDashboard, Users, Package, Settings, Bell,
   Warehouse, FileText, BarChart2, Box, Truck, MapPin,
-  CheckCircle, Search, AlertTriangle, Zap, RefreshCw
+  CheckCircle, Search, AlertTriangle, Zap, RefreshCw, Sun, Moon
 } from 'lucide-react';
+import { api } from '../services/api';
+import { useTheme } from '../context/ThemeContext';
 
 export default function MainLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [user, setUser] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [notifications, setNotifications] = useState([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    fetchNotifications();
+    const notifTimer = setInterval(fetchNotifications, 60000); // 1 minute
+    return () => clearInterval(notifTimer);
+  }, []);
+
+  const fetchNotifications = async () => {
+    try {
+      const res = await api.getCriticalStock();
+      if (res && res.success) {
+        setNotifications(res.critical_stock || []);
+      }
+    } catch (err) {
+      console.error('Bildirimler alınamadı', err);
+    }
+  };
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user') || sessionStorage.getItem('user');
