@@ -164,12 +164,72 @@ export default function MainLayout() {
               </span>
             </div>
             
-            <button className="p-2 text-slate-400 hover:text-slate-200 transition-colors relative bg-[#1e2330] rounded-xl border border-slate-700/50" title="Bildirimler">
-              <Bell size={18} />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-[#1e2330]"></span>
-            </button>
-            <div className="flex items-center gap-3 border-l border-[#30363D] pl-4">
-              <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 font-bold uppercase shadow-sm">
+            <div className="relative">
+              <button 
+                onClick={() => setShowNotifications(!showNotifications)}
+                className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors relative bg-slate-100 dark:bg-[#1e2330] rounded-xl border border-slate-200 dark:border-slate-700/50" 
+                title="Bildirimler"
+              >
+                <Bell size={18} />
+                {notifications.length > 0 && (
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-[#1e2330] animate-pulse"></span>
+                )}
+              </button>
+
+              {showNotifications && (
+                <div className="absolute right-0 mt-3 w-[360px] bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
+                  <div className="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#242a38] flex flex-col gap-2">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-bold text-slate-800 dark:text-slate-100">Kritik Stok Bildirimleri</h3>
+                      {notifications.length > 0 && (
+                        <div className="flex items-center gap-2">
+                          <span className="bg-red-500/20 text-red-600 dark:text-red-400 text-xs font-bold px-2 py-0.5 rounded-md">{notifications.length} Uyarı</span>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); setNotifications([]); }}
+                            className="text-xs text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 font-medium px-2 py-1 bg-red-50 dark:bg-red-500/10 rounded-md transition-colors"
+                          >
+                            Tümünü Sil
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-[#30363D] scrollbar-track-transparent">
+                    {notifications.length > 0 ? (
+                      <div className="divide-y divide-slate-100 dark:divide-slate-700/50">
+                        {notifications.map((notif, idx) => (
+                          <div key={idx} className="p-4 hover:bg-slate-50 dark:hover:bg-[#2a3142] transition-colors cursor-pointer" onClick={() => {setShowNotifications(false); navigate('/depo');}}>
+                            <div className="flex items-start gap-3">
+                              <div className="mt-0.5 shrink-0">
+                                <AlertTriangle size={18} className={notif.status === 'Tükendi' ? "text-red-400" : "text-amber-400"} />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-slate-800 dark:text-slate-200 mb-1 leading-snug line-clamp-2" title={notif.part_name}>{notif.part_name}</p>
+                                <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">Lokasyon: <strong className="text-slate-700 dark:text-slate-300">{notif.location_name}</strong></p>
+                                <div className="flex items-center justify-between mt-2">
+                                  <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">Stok: {notif.quantity}</span>
+                                  <span className={`text-[10px] font-bold uppercase tracking-wider ${notif.status === 'Tükendi' ? 'text-red-500 dark:text-red-400' : 'text-amber-500 dark:text-amber-400'}`}>
+                                    {notif.status === 'Tükendi' ? 'STOK TÜKENDİ' : 'KRİTİK SEVİYE'}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="p-8 text-center text-slate-500 dark:text-slate-400 flex flex-col items-center">
+                        <CheckCircle size={36} className="mb-3 text-emerald-500/60" />
+                        <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Harika! Tüm stoklar güvende.</p>
+                        <p className="text-xs mt-1">Şu an için kritik seviyede ürün yok.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-3 border-l border-slate-200 dark:border-[#30363D] pl-4">
+              <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold uppercase shadow-sm">
                 {user && user.username ? user.username.charAt(0) : 'U'}
               </div>
               <div className="hidden md:block">
