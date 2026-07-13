@@ -3,45 +3,25 @@ import { Database, Download, Upload, FileSpreadsheet, AlertTriangle, Eye, Refres
 import { api } from '../services/api';
 import ExcelMappingModal from '../components/ExcelMappingModal';
 
-const TABLES = [
-  { id: 'parts', name: 'Stok Kartları (Parçalar)', fetch: api.getParts, create: api.createPart,
-    columns: ["item_code", "brand", "model", "color", "part_category", "item_category"],
-    friendlyNames: {
-      item_code: "Ürün Kodu (item_code)", brand: "Marka (brand)", model: "Model (model)",
-      color: "Renk (color)", part_category: "Parça Tipi", item_category: "Parça Kategorisi"
-    }
-  },
-  { id: 'products', name: 'Telefon Modelleri', fetch: api.getProducts, create: api.createProduct,
-    columns: ["item_code", "brand", "model", "memory", "color"],
-    friendlyNames: {
-      item_code: "Ürün Kodu (item_code)", brand: "Marka (brand)", model: "Model (model)",
-      memory: "Hafıza (memory)", color: "Renk (color)"
-    }
-  },
-  { id: 'locations', name: 'Lokasyonlar', fetch: api.getLocations, create: (data) => api.createLocation(data.name || "Yeni Lokasyon"),
-    columns: ["name"],
-    friendlyNames: { name: "Lokasyon Adı (name)" }
-  },
-  { id: 'part_categories', name: 'Parça Kategorileri', fetch: api.getPartCategories, create: (data) => api.createPartCategory(data.name || ""),
-    columns: ["name"],
-    friendlyNames: { name: "Kategori Adı (name)" }
-  },
-  { id: 'suppliers', name: 'Tedarikçiler', fetch: api.getSuppliers, create: api.createSupplier,
-    columns: ["supplier", "brand", "model", "item_code", "barcode"],
-    friendlyNames: {
-      supplier: "Tedarikçi Adı (supplier)", brand: "Marka (brand)", model: "Model (model)",
-      item_code: "Ürün Kodu (item_code)", barcode: "Barkod (barcode)"
-    }
-  },
-  { id: 'users', name: 'Kullanıcılar', fetch: api.getUsers, create: api.createUser,
-    columns: ["username", "email", "password", "role"],
-    friendlyNames: {
-      username: "Kullanıcı Adı (username)", email: "E-Posta (email)", password: "Şifre (password)", role: "Rol (role)"
-    }
-  }
-];
+const KNOWN_FRIENDLY_NAMES = {
+  item_code: "Ürün Kodu (item_code)",
+  brand: "Marka (brand)",
+  model: "Model (model)",
+  color: "Renk (color)",
+  part_category: "Parça Tipi",
+  item_category: "Parça Kategorisi",
+  memory: "Hafıza (memory)",
+  name: "Adı (name)",
+  supplier: "Tedarikçi Adı (supplier)",
+  barcode: "Barkod (barcode)",
+  username: "Kullanıcı Adı (username)",
+  email: "E-Posta (email)",
+  password: "Şifre (password)",
+  role: "Rol (role)"
+};
 
 export default function DataManagement() {
+  const [tables, setTables] = useState([]);
   const [selectedTableId, setSelectedTableId] = useState('');
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -51,7 +31,39 @@ export default function DataManagement() {
   const [editingCell, setEditingCell] = useState(null);
   const [editingValue, setEditingValue] = useState("");
 
-  const selectedTable = TABLES.find(t => t.id === selectedTableId);
+  useEffect(() => {
+    fetchTables();
+  }, []);
+
+  const fetchTables = async () => {
+    try {
+      const res = await api.getAllTablesSchema();
+      if (res.success && res.tables) {
+        const dynamicTables = res.tables.map(t => {
+          const friendlyNames = {};
+          t.columns.forEach(col => {
+            friendlyNames[col] = KNOWN_FRIENDLY_NAMES[col] || col;
+          });
+          
+          return {
+            id: t.id,
+            name: t.name,
+            schema: t.schema,
+            table_name: t.table_name,
+            columns: t.columns,
+            friendlyNames: friendlyNames,
+            fetch: () => api.getTableData(t.schema, t.table_name),
+            create: (data) => api.insertTableData(t.schema, t.table_name, data)
+          };
+        });
+        setTables(dynamicTables);
+      }
+    } catch (err) {
+      console.error("Tablo şemaları alınırken hata oluştu:", err);
+    }
+  };
+
+  const selectedTable = tables.find(t => t.id === selectedTableId);
 
   useEffect(() => {
     if (selectedTable) {
@@ -61,7 +73,7 @@ export default function DataManagement() {
       setSelectedColumns([]);
       setPreviewData([]);
     }
-  }, [selectedTableId]);
+  }, [selectedTableId, tables]);
 
   const loadPreview = async (table) => {
     setPreviewLoading(true);
@@ -191,7 +203,7 @@ export default function DataManagement() {
               className="w-full max-w-md bg-[#242a38] text-slate-200 border border-slate-600 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 font-medium"
             >
               <option value="">İşlem yapılacak tabloyu seçin...</option>
-              {TABLES.map(t => (
+              {tables.map(t => (
                 <option key={t.id} value={t.id}>{t.name}</option>
               ))}
             </select>

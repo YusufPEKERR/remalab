@@ -1226,3 +1226,99 @@ class WebBridge(QObject):
         settings["data_folders"] = [f for f in folders if f.get("id") != folder_id]
         self._write_settings(settings)
         return json.dumps({"success": True})
+
+    # ==========================
+    # DYNAMIC TABLE MANAGEMENT
+    # ==========================
+    @Slot(result=str)
+    def get_all_tables_schema(self):
+        """Fetch all tables and their columns from specific schemas."""
+        import json
+        from sqlalchemy import text
+        from config.database import get_db
+        try:
+            with get_db() as db:
+                # First fetch tables
+                tables_query = text('''
+                    SELECT table_schema, table_name 
+                    FROM information_schema.tables 
+                    WHERE table_schema IN ('public', 'warehouse', 'auth') 
+                      AND table_type = 'BASE TABLE'
+                ''')
+                tables_result = db.execute(tables_query).fetchall()
+                
+                tables_data = []
+                for schema, t_name in tables_result:
+                    cols_query = text('''
+                        SELECT column_name 
+                        FROM information_schema.columns 
+                        WHERE table_schema = :schema AND table_name = :t_name
+                    ''')
+                    cols_result = db.execute(cols_query, {"schema": schema, "t_name": t_name}).fetchall()
+                    columns = [row[0] for row in cols_result]
+                    
+                    tables_data.append({
+                        "id": f"{schema}.{t_name}",
+                        "name": f"{t_name} ({schema})",
+                        "schema": schema,
+                        "table_name": t_name,
+                        "columns": columns
+                    })
+                return json.dumps({"success": True, "tables": tables_data})
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+
+    @Slot(str, str, result=str)
+    def get_table_data(self, schema, table_name):
+        """Fetch all rows from a dynamically specified table."""
+        import json
+        from sqlalchemy import text
+        from config.database import get_db
+        
+        # Security: whitelist check or ensure schema is valid
+        if schema not in ['public', 'warehouse', 'auth']:
+            return json.dumps({"success": False, "message": "Invalid schema"})
+            
+        try:
+            with get_db() as db:
+                query = text(f'SELECT * FROM "{schema}"."{table_name}"')
+                result = db.execute(query).fetchall()
+                keys = result[0]._mapping.keys() if result else []
+                data = [dict(zip(keys, row)) for row in result]
+                # convert datetime objects to string
+                for row in data:
+                    for k, v in row.items():
+                        if hasattr(v, 'isoformat'):
+                            row[k] = v.isoformat()
+                return json.dumps({"success": True, "data": data})
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+
+    @Slot(str, str, str, result=str)
+    def insert_table_data(self, schema, table_name, data_json):
+        """Insert row into a specified table."""
+        import json
+        from sqlalchemy import text
+        from config.database import get_db
+        
+        if schema not in ['public', 'warehouse', 'auth']:
+            return json.dumps({"success": False, "message": "Invalid schema"})
+            
+        try:
+            data = json.loads(data_json)
+            if not isinstance(data, dict):
+                return json.dumps({"success": False, "message": "Data must be a dictionary"})
+                
+            columns = list(data.keys())
+            values = list(data.values())
+            
+            placeholders = ', '.join([f':{col}' for col in columns])
+            col_names = ', '.join([f'"{col}"' for col in columns])
+            
+            with get_db() as db:
+                query = text(f'INSERT INTO "{schema}"."{table_name}" ({col_names}) VALUES ({placeholders})')
+                db.execute(query, data)
+                db.commit()
+                return json.dumps({"success": True})
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
