@@ -115,10 +115,12 @@ export default function MainLayout() {
   ];
 
   // Filter groups based on role
-  const filteredGroups = menuGroups.map(group => ({
-    ...group,
-    items: group.items.filter(item => allowed.includes(item.path))
-  })).filter(group => group.items.length > 0);
+  const filteredGroups = userRole === 'admin' 
+    ? menuGroups
+    : menuGroups.map(group => ({
+        ...group,
+        items: group.items.filter(item => allowed.includes(item.path))
+      })).filter(group => group.items.length > 0);
 
   const currentPage = menuGroups.flatMap(g => g.items).find(i => 
     location.pathname === i.path || (i.path !== '/' && location.pathname.startsWith(i.path))
