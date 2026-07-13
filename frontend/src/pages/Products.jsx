@@ -72,7 +72,17 @@ export default function Products() {
   const handleDelete = async (id) => {
     if (window.confirm('Bu telefonu/modeli silmek istediğinize emin misiniz?')) {
       console.log("Deleting product:", id);
-      fetchProducts();
+      try {
+        const res = await api.deletePart(id);
+        if (res.success) {
+          fetchProducts();
+        } else {
+          alert(res.message || 'Silme işlemi başarısız oldu.');
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Bir hata oluştu.');
+      }
     }
   };
 
