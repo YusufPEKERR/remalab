@@ -381,6 +381,7 @@ export default function Irsaliye() {
                 <select required className="w-full px-3 py-2 bg-[#0f1219] border border-slate-700 text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.type} onChange={(e) => setFormData({...formData, type: e.target.value})}>
                   <option value="Yeni Alım (Tedarikçiden)">Yeni Alım (Tedarikçiden)</option>
                   <option value="İade Girişi">İade Girişi</option>
+                  <option value="Depodan Depoya">Depodan Depoya</option>
                   <option value="Diğer">Diğer</option>
                 </select>
               </div>
