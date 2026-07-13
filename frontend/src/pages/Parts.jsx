@@ -70,11 +70,10 @@ export default function Parts() {
     model: "Model (model)",
     color: "Renk (color)",
     part_category: "Parça Tipi (part_category)",
-    item_category: "Parça Kalitesi (item_category)",
+    item_category: "Parça Kategorisi (item_category)",
     stock_tracking_type: "Stok Takip Tipi (stock_tracking_type)",
     department: "Departman (department)",
     status: "Parça Statüsü (status)"
-    item_category: "Parça Kategorisi (item_category)"
   };
 
   const fetchPartCategories = async () => {
