@@ -416,10 +416,10 @@ export default function Settings() {
                   <p className="text-slate-400 text-sm mt-1">SQLite veritabanı veya SQL betik dosyalarını yönetin.</p>
                 </div>
                 <div className="flex gap-2">
-                  <button className="flex items-center gap-2 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:bg-[#2a3142] text-slate-800 dark:text-slate-200 border border-slate-600 px-4 py-2 rounded-xl transition-all font-medium text-sm">
+                  <button onClick={() => alert("Özellik henüz yapım aşamasındadır.")} className="flex items-center gap-2 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:bg-[#2a3142] text-slate-800 dark:text-slate-200 border border-slate-600 px-4 py-2 rounded-xl transition-all font-medium text-sm">
                     Var Olanı Ekle
                   </button>
-                  <button className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl transition-all shadow-lg shadow-purple-900/20 font-medium text-sm">
+                  <button onClick={() => alert("Özellik henüz yapım aşamasındadır.")} className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl transition-all shadow-lg shadow-purple-900/20 font-medium text-sm">
                     <Plus size={16} /> Yeni Oluştur
                   </button>
                 </div>
@@ -442,8 +442,8 @@ export default function Settings() {
                       </div>
                     </div>
                     <div className="flex flex-col gap-1 shrink-0 justify-center">
-                      <button className="p-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-lg transition-colors" title="Klasörü Aç"><FolderOpen size={16} /></button>
-                      <button className="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors" title="Kaldır"><Trash2 size={16} /></button>
+                      <button onClick={() => alert(file.path + " dizini açılıyor...")} className="p-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-lg transition-colors" title="Klasörü Aç"><FolderOpen size={16} /></button>
+                      <button onClick={() => { if(window.confirm('Bu veritabanını listeden kaldırmak istiyor musunuz?')) setLocalFiles(localFiles.filter(f => f.id !== file.id)); }} className="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors" title="Kaldır"><Trash2 size={16} /></button>
                     </div>
                   </div>
                 ))}
@@ -459,7 +459,7 @@ export default function Settings() {
                   <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2"><FolderOpen size={20} className="text-orange-400"/> Veri Klasörleri</h2>
                   <p className="text-slate-400 text-sm mt-1">Yedekleme veya dışa aktarım klasörlerini buradan yönetin.</p>
                 </div>
-                <button className="flex items-center gap-2 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:bg-[#2a3142] text-slate-800 dark:text-slate-200 border border-slate-600 px-4 py-2 rounded-xl transition-all font-medium text-sm">
+                <button onClick={() => alert("Özellik henüz yapım aşamasındadır.")} className="flex items-center gap-2 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:bg-[#2a3142] text-slate-800 dark:text-slate-200 border border-slate-600 px-4 py-2 rounded-xl transition-all font-medium text-sm">
                   <Plus size={16} /> Klasör Ekle
                 </button>
               </div>
@@ -481,7 +481,7 @@ export default function Settings() {
                         </div>
                         <p className="text-slate-500 text-xs truncate">{folder.path}</p>
                       </div>
-                      <button className="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors shrink-0">
+                      <button onClick={() => { if(window.confirm('Bu klasörü listeden kaldırmak istiyor musunuz?')) setDataFolders(dataFolders.filter(f => f.id !== folder.id)); }} className="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors shrink-0">
                         <Trash2 size={16} />
                       </button>
                     </div>
