@@ -126,8 +126,8 @@ export default function MainLayout() {
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-[#0f1219] overflow-hidden">
       {/* Sidebar */}
-      <aside className="w-64 bg-white dark:bg-[#161B22] text-slate-700 dark:text-slate-300 flex flex-col border-r border-slate-200 dark:border-[#30363D] z-20">
-        <div className="flex items-center justify-center pb-6 pt-10 border-b border-slate-200 dark:border-[#30363D]">
+      <aside className="w-64 bg-[#161B22] text-slate-300 flex flex-col border-r border-[#30363D] z-20">
+        <div className="flex items-center justify-center pb-6 pt-10 border-b border-[#30363D]">
           <img src="/logo.png" alt="Remalab Logo" className="h-36 w-full object-contain drop-shadow-md scale-110" />
         </div>
         
@@ -147,7 +147,7 @@ export default function MainLayout() {
                       className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
                         isActive 
                           ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' 
-                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#2a3142]'
+                          : 'text-slate-400 hover:text-slate-200 hover:bg-[#2a3142]'
                       }`}
                       onClick={(e) => {
                         e.preventDefault();
@@ -164,7 +164,7 @@ export default function MainLayout() {
           ))}
         </div>
         
-        <div className="p-4 border-t border-slate-200 dark:border-[#30363D]">
+        <div className="p-4 border-t border-[#30363D]">
           <button 
             onClick={handleLogout}
             className="flex items-center gap-3 px-3 py-2.5 w-full rounded-xl text-sm font-medium text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
