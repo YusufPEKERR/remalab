@@ -215,6 +215,69 @@ export const api = {
     },
 
     // ==========================
+    // DEPARTMANLAR
+    // ==========================
+
+    getDepartments: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_departments) {
+                backend.get_departments((res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true, departments: [] });
+            }
+        });
+    },
+
+    createDepartment: async (dept) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.create_department) {
+                backend.create_department(
+                    dept.name || '',
+                    dept.code || '',
+                    dept.responsible || '',
+                    dept.default_location_id ? String(dept.default_location_id) : '',
+                    dept.status || 'Aktif',
+                    (res) => resolve(JSON.parse(res))
+                );
+            } else {
+                resolve({ success: true });
+            }
+        });
+    },
+
+    updateDepartment: async (id, dept) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.update_department) {
+                backend.update_department(
+                    String(id),
+                    dept.name || '',
+                    dept.code || '',
+                    dept.responsible || '',
+                    dept.default_location_id ? String(dept.default_location_id) : '',
+                    dept.status || 'Aktif',
+                    (res) => resolve(JSON.parse(res))
+                );
+            } else {
+                resolve({ success: true });
+            }
+        });
+    },
+
+    deleteDepartment: async (id) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.delete_department) {
+                backend.delete_department(String(id), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true });
+            }
+        });
+    },
+
+    // ==========================
     // PRODUCTS (Ürün Listesi / Telefon)
     // ==========================
 

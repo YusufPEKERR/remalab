@@ -11,6 +11,7 @@ class WebBridge(QObject):
         super().__init__(parent)
         self._ensure_department_column()
         self._ensure_status_column()
+        self._ensure_departments_table()
 
     def _ensure_department_column(self):
         """warehouse.parts tablosuna department sütunu yoksa ekler."""
@@ -35,6 +36,28 @@ class WebBridge(QObject):
         except Exception as e:
             db.rollback()
             print(f"[WebBridge] status kolonu eklenemedi: {e}")
+        finally:
+            db.close()
+
+    def _ensure_departments_table(self):
+        """warehouse.departments tablosu yoksa oluşturur."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            db.execute(text("""
+                CREATE TABLE IF NOT EXISTS warehouse.departments (
+                    id SERIAL PRIMARY KEY,
+                    name VARCHAR(100) NOT NULL,
+                    code VARCHAR(20),
+                    responsible VARCHAR(150),
+                    default_location_id INTEGER REFERENCES warehouse.locations(id),
+                    status VARCHAR(20) DEFAULT 'Aktif'
+                );
+            """))
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            print(f"[WebBridge] departments tablosu oluşturulamadı: {e}")
         finally:
             db.close()
 
@@ -350,6 +373,110 @@ class WebBridge(QObject):
             return json.dumps({"success": False, "message": "Bulunamadı"})
         except Exception as e:
             return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    # ==========================
+    # DEPARTMANLAR MODÜLÜ
+    # ==========================
+
+    @Slot(result=str)
+    def get_departments(self):
+        """Tüm departmanları varsayılan lokasyon adıyla birlikte getirir."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            rows = db.execute(text("""
+                SELECT d.id, d.name, d.code, d.responsible, d.default_location_id, d.status, l.name AS location_name
+                FROM warehouse.departments d
+                LEFT JOIN warehouse.locations l ON l.id = d.default_location_id
+                ORDER BY d.id
+            """)).mappings().all()
+            departments = []
+            for row in rows:
+                departments.append({
+                    "id": str(row["id"]),
+                    "name": row["name"] or "",
+                    "code": row["code"] or "",
+                    "responsible": row["responsible"] or "",
+                    "default_location_id": str(row["default_location_id"]) if row["default_location_id"] else "",
+                    "default_location_name": row["location_name"] or "",
+                    "status": row["status"] or "Aktif"
+                })
+            return json.dumps({"success": True, "departments": departments})
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, str, str, str, result=str)
+    def create_department(self, name, code, responsible, default_location_id, status):
+        """Yeni departman ekler."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            dept_name = name.strip()
+            if not dept_name:
+                return json.dumps({"success": False, "message": "Departman adı zorunludur"})
+
+            loc_id = int(default_location_id) if default_location_id.strip() else None
+            db.execute(text("""
+                INSERT INTO warehouse.departments (name, code, responsible, default_location_id, status)
+                VALUES (:name, :code, :resp, :loc, :status)
+            """), {
+                "name": dept_name, "code": code or None, "resp": responsible or None,
+                "loc": loc_id, "status": status or "Aktif"
+            })
+            db.commit()
+            return json.dumps({"success": True, "message": "Departman eklendi"})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": f"Kayıt hatası: {str(e)}"})
+        finally:
+            db.close()
+
+    @Slot(str, str, str, str, str, str, result=str)
+    def update_department(self, dept_id_str, name, code, responsible, default_location_id, status):
+        """Var olan bir departmanı günceller."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            dept_id = int(dept_id_str)
+            dept_name = name.strip()
+            if not dept_name:
+                return json.dumps({"success": False, "message": "Departman adı zorunludur"})
+
+            loc_id = int(default_location_id) if default_location_id.strip() else None
+            db.execute(text("""
+                UPDATE warehouse.departments
+                SET name = :name, code = :code, responsible = :resp,
+                    default_location_id = :loc, status = :status
+                WHERE id = :id
+            """), {
+                "name": dept_name, "code": code or None, "resp": responsible or None,
+                "loc": loc_id, "status": status or "Aktif", "id": dept_id
+            })
+            db.commit()
+            return json.dumps({"success": True, "message": "Departman güncellendi"})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": f"Güncelleme hatası: {str(e)}"})
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
+    def delete_department(self, dept_id_str):
+        """Belirtilen id'ye sahip departmanı siler."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            dept_id = int(dept_id_str)
+            db.execute(text("DELETE FROM warehouse.departments WHERE id = :id"), {"id": dept_id})
+            db.commit()
+            return json.dumps({"success": True, "message": "Departman silindi"})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": f"Silme hatası: {str(e)}"})
         finally:
             db.close()
 
