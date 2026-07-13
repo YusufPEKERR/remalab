@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+// eslint-disable-next-line no-unused-vars
 import {
   Settings as SettingsIcon,
   Database,
@@ -36,7 +37,7 @@ export default function Settings() {
   useEffect(() => {
     const storedUser = localStorage.getItem('user') || sessionStorage.getItem('user');
     if (storedUser) {
-      try { setUser(JSON.parse(storedUser)); } catch (e) { /* ignore */ }
+      try { setUser(JSON.parse(storedUser)); } catch (_e) { /* ignore */ }
     }
   }, []);
   const isAdmin = (user?.role || '').toLowerCase() === 'admin';
@@ -62,7 +63,7 @@ export default function Settings() {
   };
 
   // DB Connections
-  const [connections, setConnections] = useState([
+  const [connections, _setConnections] = useState([
     { id: '1', name: 'Main DB', db_type: 'postgresql', host: 'localhost', port: 5432, database: 'remalab_db', username: 'postgres', active: true },
     { id: '2', name: 'Legacy Test', db_type: 'mysql', host: '192.168.1.100', port: 3306, database: 'test_db', username: 'root', active: false }
   ]);
@@ -71,11 +72,11 @@ export default function Settings() {
   const [dbFormData, setDbFormData] = useState({ name: '', db_type: 'postgresql', host: 'localhost', port: 5432, database: '', username: '', password: '' });
 
   // Local DB
-  const [localFiles, setLocalFiles] = useState([
+  const [localFiles, _setLocalFiles] = useState([
     { id: '1', name: 'remalab_local', path: 'C:/app/database/remalab_local.db', type: 'sqlite', size: '2.4 MB', tables: 15, records: 4500, modified: '11.07.2026 14:30' },
     { id: '2', name: 'backup_2026', path: 'C:/app/database/backup_2026.sql', type: 'sql', size: '4.1 MB', modified: '10.07.2026 09:15' }
   ]);
-  const [dataFolders, setDataFolders] = useState([
+  const [dataFolders, _setDataFolders] = useState([
     { id: '1', name: 'Data', path: 'C:/app/data', type: 'data' },
     { id: '2', name: 'Backups', path: 'C:/app/backups', type: 'backup' }
   ]);

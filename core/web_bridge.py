@@ -376,8 +376,7 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    # ==========================
-    # DEPARTMANLAR MODÜLÜ
+    # ===================    # DEPARTMANLAR MODÜLÜ
     # ==========================
 
     @Slot(result=str)
@@ -404,6 +403,15 @@ class WebBridge(QObject):
                     "status": row["status"] or "Aktif"
                 })
             return json.dumps({"success": True, "departments": departments})
+=======
+    # --- YENİ EKLENEN PARÇA KATEGORİSİ FONKSİYONLARI ---
+    @Slot(result=str)
+    def get_part_categories(self):
+        from models.part_category import PartCategory
+        db = SessionLocal()
+        try:
+            cats = db.query(PartCategory).order_by(PartCategory.name).all()
+            return json.dumps({"success": True, "categories": [{"id": c.id, "name": c.name} for c in cats]})
         except Exception as e:
             return json.dumps({"success": False, "message": str(e)})
         finally:
@@ -461,6 +469,23 @@ class WebBridge(QObject):
         except Exception as e:
             db.rollback()
             return json.dumps({"success": False, "message": f"Güncelleme hatası: {str(e)}"})
+    @Slot(str, result=str)
+    def create_part_category(self, name):
+        from models.part_category import PartCategory
+        db = SessionLocal()
+        try:
+            name = (name or "").strip()
+            if not name:
+                return json.dumps({"success": False, "message": "Kategori adı zorunludur"})
+            if db.query(PartCategory).filter(PartCategory.name == name).first():
+                return json.dumps({"success": False, "message": "Bu kategori zaten var"})
+            cat = PartCategory(name=name)
+            db.add(cat)
+            db.commit()
+            return json.dumps({"success": True, "message": "Kategori eklendi", "id": cat.id})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
         finally:
             db.close()
 
@@ -477,6 +502,20 @@ class WebBridge(QObject):
         except Exception as e:
             db.rollback()
             return json.dumps({"success": False, "message": f"Silme hatası: {str(e)}"})
+    def delete_part_category(self, id_str):
+        from models.part_category import PartCategory
+        db = SessionLocal()
+        try:
+            cat_id = int(id_str)
+            cat = db.query(PartCategory).filter(PartCategory.id == cat_id).first()
+            if cat:
+                db.delete(cat)
+                db.commit()
+                return json.dumps({"success": True})
+            return json.dumps({"success": False, "message": "Bulunamadı"})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
         finally:
             db.close()
 

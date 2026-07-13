@@ -216,8 +216,7 @@ export const api = {
 
     // ==========================
     // DEPARTMANLAR
-    // ==========================
-
+    // ===================
     getDepartments: async () => {
         const backend = await getBackend();
         return new Promise((resolve) => {
@@ -225,6 +224,36 @@ export const api = {
                 backend.get_departments((res) => resolve(JSON.parse(res)));
             } else {
                 resolve({ success: true, departments: [] });
+=======
+    // PARÇA KATEGORİLERİ
+    // ==========================
+
+    getPartCategories: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_part_categories) {
+                backend.get_part_categories((res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ 
+                    success: true, 
+                    categories: [
+                        {id: 1, name: "Ekran / LCD"}, 
+                        {id: 2, name: "Batarya"}, 
+                        {id: 3, name: "Kasa / Back Cover"}, 
+                        {id: 4, name: "Ön Cam / Front Glass"},
+                        {id: 5, name: "Arka Cam / Back Glass"},
+                        {id: 6, name: "Anakart / Mainboard"}, 
+                        {id: 7, name: "Ön Kamera / Front Camera"}, 
+                        {id: 8, name: "Arka Kamera / Main Camera"}, 
+                        {id: 9, name: "Şarj Soketi / Charging Connector"},
+                        {id: 10, name: "Ahize / Receiver"},
+                        {id: 11, name: "Hoparlör / Speaker"},
+                        {id: 12, name: "Mikrofon / Microphone"},
+                        {id: 13, name: "NFC"},
+                        {id: 14, name: "Titreşim / Vibration Engine"},
+                        {id: 15, name: "Sensör / Sensor FPC"}
+                    ] 
+                });
             }
         });
     },
@@ -241,6 +270,11 @@ export const api = {
                     dept.status || 'Aktif',
                     (res) => resolve(JSON.parse(res))
                 );
+    createPartCategory: async (name) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.create_part_category) {
+                backend.create_part_category(name, (res) => resolve(JSON.parse(res)));
             } else {
                 resolve({ success: true });
             }
@@ -271,6 +305,11 @@ export const api = {
         return new Promise((resolve) => {
             if (backend.delete_department) {
                 backend.delete_department(String(id), (res) => resolve(JSON.parse(res)));
+    deletePartCategory: async (id) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.delete_part_category) {
+                backend.delete_part_category(String(id), (res) => resolve(JSON.parse(res)));
             } else {
                 resolve({ success: true });
             }

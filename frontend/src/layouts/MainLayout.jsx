@@ -4,6 +4,7 @@ import {
   LogOut, LayoutDashboard, Users, Package, Settings, Bell,
   Warehouse, FileText, BarChart2, Box, Truck, MapPin,
   CheckCircle, Search, AlertTriangle, Zap, RefreshCw, Sun, Moon
+  CheckCircle, Search, AlertTriangle, Zap, RefreshCw, Database
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useTheme } from '../context/ThemeContext';
@@ -72,9 +73,9 @@ export default function MainLayout() {
 
   // Permission maps based on Python code:
   const allowedPaths = {
-    'admin': ['/dashboard', '/depo', '/irsaliye', '/raporlar', '/parts', '/products', '/suppliers', '/locations', '/users', '/settings', '/quality', '/refurbishment', '/priority'],
+    'admin': ['/dashboard', '/depo', '/irsaliye', '/raporlar', '/parts', '/products', '/suppliers', '/locations', '/users', '/settings', '/data-management', '/quality', '/refurbishment', '/priority'],
     'depo': ['/dashboard', '/depo', '/irsaliye', '/locations'],
-    'depo müdürü': ['/dashboard', '/depo', '/irsaliye', '/locations', '/parts', '/products', '/suppliers'],
+    'depo müdürü': ['/dashboard', '/depo', '/irsaliye', '/locations', '/parts', '/products', '/suppliers', '/data-management'],
     'teknisyen': ['/dashboard', '/quality', '/refurbishment', '/priority']
   };
 
@@ -108,7 +109,8 @@ export default function MainLayout() {
       title: 'KULLANICI & AYARLAR',
       items: [
         { name: 'Kullanıcılar', icon: Users, path: '/users' },
-        { name: 'Ayarlar', icon: Settings, path: '/settings' }
+        { name: 'Ayarlar', icon: Settings, path: '/settings' },
+        { name: 'Veri Yönetimi', icon: Database, path: '/data-management' }
       ]
     }
   ];

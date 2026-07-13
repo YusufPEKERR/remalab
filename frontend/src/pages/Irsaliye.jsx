@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Download, Upload, Plus, RefreshCw, ArrowRightLeft, FileSpreadsheet, Search } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+// eslint-disable-next-line no-unused-vars
+import { Download, Upload, Plus, RefreshCw, ArrowRightLeft } from 'lucide-react';
 import { api } from '../services/api';
 import ExcelMappingModal from '../components/ExcelMappingModal';
 import StockTransferModal from '../components/StockTransferModal';
@@ -90,6 +93,7 @@ export default function Irsaliye() {
   };
 
   const fetchData = async (silent = false) => {
+  const fetchData = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
       const typeStr = activeTab === 'inbound' ? 'in' : 'out';
@@ -99,12 +103,12 @@ export default function Irsaliye() {
       } else {
         setError(res ? res.message : 'Hata');
       }
-    } catch (err) {
+    } catch (_err) {
       setError('Bağlantı hatası.');
     } finally {
       if (!silent) setLoading(false);
     }
-  };
+  }, [activeTab]);
 
   const fetchDependencies = async () => {
     const resP = await api.getParts();
@@ -148,7 +152,7 @@ export default function Irsaliye() {
     fetchData();
     const interval = setInterval(() => fetchData(true), 8000);
     return () => clearInterval(interval);
-  }, [activeTab]);
+  }, [fetchData]);
 
   useEffect(() => {
     fetchDependencies();
@@ -211,6 +215,11 @@ export default function Irsaliye() {
         </nav>
       </div>
 
+      {error && (
+        <div className="bg-red-500/10 border border-red-500/50 text-red-400 px-4 py-2 rounded-xl text-sm font-medium">
+          {error}
+        </div>
+      )}
       {/* Actions */}
       <div className="flex justify-between items-center bg-white dark:bg-[#1e2330] p-4 rounded-xl border border-slate-200 dark:border-slate-700/50 shadow-sm">
         <div className="text-slate-700 dark:text-slate-300 text-sm">

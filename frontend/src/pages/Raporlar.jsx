@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Download, Filter, RefreshCw, AlertTriangle } from 'lucide-react';
 import { api } from '../services/api';
 
@@ -52,6 +53,8 @@ export default function Raporlar() {
 
   const fetchReports = async (silent = false) => {
     if (silent !== true) setLoading(true);
+  const fetchReports = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       if (activeTab === 'general') {
         const res = await api.getReports(startDate, endDate);
@@ -74,7 +77,7 @@ export default function Raporlar() {
     } finally {
       if (silent !== true) setLoading(false);
     }
-  };
+  }, [activeTab, startDate, endDate]);
 
   const fetchReportsRef = useRef(fetchReports);
   useEffect(() => {
@@ -95,7 +98,7 @@ export default function Raporlar() {
       if (fetchReportsRef.current) fetchReportsRef.current(true);
     }, 8000);
     return () => clearInterval(interval);
-  }, [activeTab]);
+  }, [fetchReports]);
 
   return (
     <div className="h-full flex flex-col space-y-6 overflow-hidden">

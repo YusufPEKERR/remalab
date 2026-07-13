@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, Search, Trash2, Edit, RefreshCw, X } from 'lucide-react';
+import { Plus, Search, Trash2, Edit, RefreshCw, X, FileSpreadsheet } from 'lucide-react';
 import { api } from '../services/api';
+import ExcelMappingModal from '../components/ExcelMappingModal';
 
 const MEMORY_OPTIONS = ["", "16 GB", "32 GB", "64 GB", "128 GB", "256 GB", "512 GB", "1 TB"];
 
@@ -11,10 +12,20 @@ export default function Products() {
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentProduct, setCurrentProduct] = useState(null);
+  const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
   
   const [formData, setFormData] = useState({
     item_code: '', brand: '', model: '', memory: '', color: ''
   });
+
+  const dbColumns = ["item_code", "brand", "model", "memory", "color"];
+  const friendlyNames = {
+    item_code: "Ürün Kodu (item_code)",
+    brand: "Marka (brand)",
+    model: "Model (model)",
+    memory: "Hafıza (memory)",
+    color: "Renk (color)"
+  };
 
   const fetchProducts = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -65,6 +76,33 @@ export default function Products() {
     }
   };
 
+  const handleExcelAction = async (e) => {
+    const action = e.target.value;
+    e.target.value = '';
+    
+    if (action === 'download_template') {
+      const templateData = [{ item_code: 'ORNEK-001', brand: 'Örnek Marka', model: 'Örnek Model', memory: '128 GB', color: 'Siyah' }];
+      await api.exportTableToExcel(templateData, "urunler_sablonu.xlsx");
+    } else if (action === 'export') {
+      await api.exportTableToExcel(products, "urunler_listesi.xlsx");
+    } else if (action === 'import') {
+      setIsExcelModalOpen(true);
+    }
+  };
+
+  const handleExcelImport = async (data) => {
+    console.log("Mapped Excel Data to Import:", data);
+    for (const item of data) {
+      if (api.createProduct) {
+        await api.createProduct(item);
+      } else {
+        console.log("Creating product via API is not yet implemented, item:", item);
+      }
+    }
+    setIsExcelModalOpen(false);
+    fetchProducts();
+  };
+
   const filteredProducts = useMemo(() => {
     const q = searchTerm.toLowerCase();
     return products.filter(p => 
@@ -86,12 +124,29 @@ export default function Products() {
           <p className="text-slate-400 mt-1">Marka, model, hafıza ve renk bilgilerini yönetin.</p>
         </div>
         
-        <button 
-          onClick={() => handleOpenModal()}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-blue-900/20 font-medium"
-        >
-          <Plus size={18} /> Yeni Model Ekle
-        </button>
+        <div className="flex gap-3 items-center">
+          <div className="relative">
+            <select 
+              onChange={handleExcelAction}
+              className="appearance-none bg-[#242a38] hover:bg-[#2a3142] text-slate-300 border border-slate-600 rounded-xl px-4 py-2 pr-8 transition-colors font-medium cursor-pointer focus:outline-none focus:border-blue-500"
+            >
+              <option value="">Excel İşlemi Seç...</option>
+              <option value="download_template">Boş Şablon İndir</option>
+              <option value="export">Excel'e Dışa Aktar</option>
+              <option value="import">Excel'den İçe Aktar</option>
+            </select>
+            <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-slate-400">
+              <FileSpreadsheet size={16} />
+            </div>
+          </div>
+          
+          <button 
+            onClick={() => handleOpenModal()}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-blue-900/20 font-medium"
+          >
+            <Plus size={18} /> Yeni Model Ekle
+          </button>
+        </div>
       </div>
 
       {/* Filter Panel */}
@@ -253,6 +308,15 @@ export default function Products() {
           </div>
         </div>
       )}
+
+      {/* Excel Mapping Modal */}
+      <ExcelMappingModal 
+        isOpen={isExcelModalOpen}
+        onClose={() => setIsExcelModalOpen(false)}
+        onImport={handleExcelImport}
+        dbColumns={dbColumns}
+        friendlyNames={friendlyNames}
+      />
     </div>
   );
 }

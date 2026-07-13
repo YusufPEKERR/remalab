@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+// eslint-disable-next-line no-unused-vars
 import { Plus, Search, Trash2, Edit, AlertCircle, RefreshCw, X, Download, Upload, FileSpreadsheet } from 'lucide-react';
 import { api } from '../services/api';
 import ExcelMappingModal from '../components/ExcelMappingModal';
@@ -21,7 +22,8 @@ export default function Parts() {
     item_code: '', brand: '', model: '', color: '', part_category: '', item_category: '', stock_tracking_type: 'Stok Takipli', department: [], status: 'Aktif'
   });
 
-  const [categories, setCategories] = useState(['Orijinal', 'Muadil', 'Çıkma']); // Mock
+  const [categories, _setCategories] = useState(['Orijinal', 'Muadil', 'Çıkma', 'Yan Sanayi', 'A Kalite', 'B Kalite']); // Mock
+  const [partCategories, setPartCategories] = useState([]);
 
   const DEPARTMENTS = ['Servis', 'Teknik Servis', 'Üretim', 'Kalite'];
 
@@ -72,6 +74,18 @@ export default function Parts() {
     stock_tracking_type: "Stok Takip Tipi (stock_tracking_type)",
     department: "Departman (department)",
     status: "Parça Statüsü (status)"
+    item_category: "Parça Kategorisi (item_category)"
+  };
+
+  const fetchPartCategories = async () => {
+    try {
+      const res = await api.getPartCategories();
+      if (res.success) {
+        setPartCategories((res.categories || []).map(c => c.name));
+      }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const fetchParts = async (silent = false) => {
@@ -90,6 +104,7 @@ export default function Parts() {
 
   useEffect(() => {
     fetchParts();
+    fetchPartCategories();
     // Başka bilgisayarlardan yapılan değişiklikleri yakalamak için periyodik, sessiz yenileme
     const interval = setInterval(() => fetchParts(true), 8000);
     return () => clearInterval(interval);
@@ -272,6 +287,7 @@ export default function Parts() {
                 <th className="px-6 py-4">Stok Takibi</th>
                 <th className="px-6 py-4">Departman</th>
                 <th className="px-6 py-4">Parça Statüsü</th>
+                <th className="px-6 py-4">Parça Kategorisi</th>
                 <th className="px-6 py-4 text-center">İşlemler</th>
               </tr>
             </thead>
@@ -456,11 +472,16 @@ export default function Parts() {
                     list="part-categories-list"
                     placeholder="Parça tipi seçin veya yazın..."
                     className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                    list="categories-list"
+                    placeholder="Seçiniz..."
+                    className="w-full bg-[#242a38] border border-slate-700 rounded-lg px-3 py-2.5 text-slate-200 focus:outline-none focus:border-blue-500"
                     value={formData.part_category}
                     onChange={e => handlePartCategoryChange(e.target.value)}
                   />
                   <datalist id="part-categories-list">
                     {Object.keys(PART_CATEGORY_DEPARTMENTS).map(c => <option key={c} value={c} />)}
+                  <datalist id="categories-list">
+                    {categories.map(c => <option key={c} value={c} />)}
                   </datalist>
                 </div>
               </div>
@@ -471,11 +492,17 @@ export default function Parts() {
                   list="categories-list"
                   placeholder="Kalite seçin veya yazın..."
                   className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                <label className="block text-sm font-medium text-slate-400 mb-1">Parça Kategorisi</label>
+                <input
+                  type="text"
+                  list="part-categories-list"
+                  placeholder="Kategori seçin veya yazın..."
+                  className="w-full bg-[#242a38] border border-slate-700 rounded-lg px-3 py-2.5 text-slate-200 focus:outline-none focus:border-blue-500"
                   value={formData.item_category}
                   onChange={e => setFormData({...formData, item_category: e.target.value})}
                 />
-                <datalist id="categories-list">
-                  {categories.map(c => <option key={c} value={c} />)}
+                <datalist id="part-categories-list">
+                  {partCategories.map(c => <option key={c} value={c} />)}
                 </datalist>
               </div>
               <div>

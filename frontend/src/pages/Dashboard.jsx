@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
+// eslint-disable-next-line no-unused-vars
 import { 
   Wrench, Package, AlertTriangle, ArrowDownToLine, ArrowUpFromLine, MapPin, 
   ChevronRight, RefreshCw, Server, Database, HardDrive, FileText
@@ -12,7 +13,7 @@ export default function Dashboard() {
     totalParts: '12,458',
     totalStock: '84,291',
     lowStock: '23',
-    totalParts: '0',
+    _unusedStats: '0',
     criticalStock: '0',
     todaysInbound: '0',
     todaysOutbound: '0',
