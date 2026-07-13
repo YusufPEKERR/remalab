@@ -19,3 +19,6 @@ class Part(Base):
     item_code = Column(String(100), nullable=True)
     memory = Column(String(50), nullable=True)
     color = Column(String(50), nullable=True)
+    stock_tracking_type = Column(String(20), default="Stok Takipli", nullable=True)
+    department = Column(String(255), nullable=True)
+    status = Column(String(20), default="Aktif", nullable=True)

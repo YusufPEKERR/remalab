@@ -18,19 +18,60 @@ export default function Parts() {
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
   
   const [formData, setFormData] = useState({
-    item_code: '', brand: '', model: '', color: '', part_category: '', item_category: ''
+    item_code: '', brand: '', model: '', color: '', part_category: '', item_category: '', stock_tracking_type: 'Stok Takipli', department: [], status: 'Aktif'
   });
 
   const [categories, setCategories] = useState(['Orijinal', 'Muadil', 'Çıkma']); // Mock
 
-  const dbColumns = ["item_code", "brand", "model", "color", "part_category", "item_category"];
+  const DEPARTMENTS = ['Servis', 'Teknik Servis', 'Üretim', 'Kalite'];
+
+  const PART_STATUSES = ['Aktif', 'Pasif', 'Beklemede', 'Hurda'];
+
+  // Parça Tipine göre ilgili departmanların otomatik işaretlenmesi için varsayılan eşleştirme.
+  const PART_CATEGORY_DEPARTMENTS = {
+    'Ekran': ['Teknik Servis'],
+    'Batarya': ['Teknik Servis'],
+    'Kasa': ['Teknik Servis'],
+    'Anakart': ['Teknik Servis'],
+    'Kamera': ['Teknik Servis'],
+    'Şarj Soketi': ['Teknik Servis'],
+    'Hoparlör': ['Teknik Servis'],
+    'Mikrofon': ['Teknik Servis'],
+    'Ön Cam': ['Teknik Servis'],
+    'Arka Cam': ['Teknik Servis'],
+    'Buton': ['Teknik Servis'],
+    'Titreşim Motoru': ['Teknik Servis'],
+    'Sim Tepsi': ['Teknik Servis'],
+    'Flex Kablo': ['Teknik Servis'],
+    'Kılıf': ['Servis'],
+    'Ekran Koruyucu': ['Servis'],
+    'Şarj Aleti': ['Servis'],
+    'Kablo': ['Servis'],
+    'Kulaklık': ['Servis'],
+    'Ambalaj': ['Servis'],
+    'Hammadde': ['Üretim'],
+    'Yarı Mamül': ['Üretim'],
+    'OCA Film': ['Üretim'],
+    'Polarizer': ['Üretim'],
+    'Çerçeve': ['Üretim'],
+    'Lens': ['Üretim'],
+    'Test Cihazı': ['Kalite'],
+    'Kalibrasyon Malzemesi': ['Kalite'],
+    'Ölçüm Aleti': ['Kalite'],
+    'Numune': ['Kalite'],
+  };
+
+  const dbColumns = ["item_code", "brand", "model", "color", "part_category", "item_category", "stock_tracking_type", "department", "status"];
   const friendlyNames = {
     item_code: "Parça Kodu (item_code) *",
     brand: "Marka (brand)",
     model: "Model (model)",
     color: "Renk (color)",
     part_category: "Parça Tipi (part_category)",
-    item_category: "Kategori (item_category)"
+    item_category: "Parça Kalitesi (item_category)",
+    stock_tracking_type: "Stok Takip Tipi (stock_tracking_type)",
+    department: "Departman (department)",
+    status: "Parça Statüsü (status)"
   };
 
   const fetchParts = async (silent = false) => {
@@ -63,13 +104,34 @@ export default function Parts() {
         model: part.model || '',
         color: part.color || '',
         part_category: part.part_category || '',
-        item_category: part.item_category || ''
+        item_category: part.item_category || '',
+        stock_tracking_type: part.stock_tracking_type || 'Stok Takipli',
+        department: part.department ? part.department.split(',').map(d => d.trim()).filter(Boolean) : [],
+        status: part.status || 'Aktif'
       });
     } else {
       setCurrentPart(null);
-      setFormData({ item_code: '', brand: '', model: '', color: '', part_category: '', item_category: '' });
+      setFormData({ item_code: '', brand: '', model: '', color: '', part_category: '', item_category: '', stock_tracking_type: 'Stok Takipli', department: [], status: 'Aktif' });
     }
     setIsModalOpen(true);
+  };
+
+  const toggleDepartment = (dept) => {
+    setFormData(prev => ({
+      ...prev,
+      department: prev.department.includes(dept)
+        ? prev.department.filter(d => d !== dept)
+        : [...prev.department, dept]
+    }));
+  };
+
+  const handlePartCategoryChange = (value) => {
+    const mapped = PART_CATEGORY_DEPARTMENTS[value.trim()] || [];
+    setFormData(prev => ({
+      ...prev,
+      part_category: value,
+      department: Array.from(new Set([...prev.department, ...mapped]))
+    }));
   };
 
   const handleSubmit = async (e) => {
@@ -111,7 +173,7 @@ export default function Parts() {
     e.target.value = '';
     
     if (action === 'download_template') {
-      const templateData = [{ item_code: 'ORNEK-KOD-001', brand: 'Örnek Marka', model: 'Örnek Model', color: 'Örnek Renk', part_category: 'Ekran', item_category: 'Orijinal' }];
+      const templateData = [{ item_code: 'ORNEK-KOD-001', brand: 'Örnek Marka', model: 'Örnek Model', color: 'Örnek Renk', part_category: 'Ekran', item_category: 'Orijinal', stock_tracking_type: 'Stok Takipli', department: 'Servis, Kalite', status: 'Aktif' }];
       await api.exportTableToExcel(templateData, "stok_karti_sablonu.xlsx");
     } else if (action === 'export') {
       await api.exportTableToExcel(parts, "stok_kartlari.xlsx");
@@ -206,21 +268,24 @@ export default function Parts() {
                 <th className="px-6 py-4">Model</th>
                 <th className="px-6 py-4">Renk</th>
                 <th className="px-6 py-4">Parça Tipi</th>
-                <th className="px-6 py-4">Kategori</th>
+                <th className="px-6 py-4">Kalite</th>
+                <th className="px-6 py-4">Stok Takibi</th>
+                <th className="px-6 py-4">Departman</th>
+                <th className="px-6 py-4">Parça Statüsü</th>
                 <th className="px-6 py-4 text-center">İşlemler</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-700/50">
               {loading ? (
                 <tr>
-                  <td colSpan="8" className="px-6 py-8 text-center text-slate-400">
+                  <td colSpan="11" className="px-6 py-8 text-center text-slate-400">
                     <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-400" />
                     Yükleniyor...
                   </td>
                 </tr>
               ) : paginatedParts.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="px-6 py-8 text-center text-slate-500">
+                  <td colSpan="11" className="px-6 py-8 text-center text-slate-500">
                     Kayıt bulunamadı.
                   </td>
                 </tr>
@@ -240,9 +305,37 @@ export default function Parts() {
                         </span>
                       )}
                     </td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${
+                        part.stock_tracking_type === 'Stok Takipsiz'
+                          ? 'bg-slate-500/10 text-slate-400 border-slate-500/20'
+                          : 'bg-green-500/10 text-green-400 border-green-500/20'
+                      }`}>
+                        {part.stock_tracking_type || 'Stok Takipli'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-wrap gap-1">
+                        {part.department && part.department.split(',').map(d => d.trim()).filter(Boolean).map(d => (
+                          <span key={d} className="px-2.5 py-1 rounded-full text-xs font-medium border bg-purple-500/10 text-purple-400 border-purple-500/20">
+                            {d}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${
+                        part.status === 'Pasif' ? 'bg-slate-500/10 text-slate-400 border-slate-500/20' :
+                        part.status === 'Beklemede' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+                        part.status === 'Hurda' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
+                        'bg-green-500/10 text-green-400 border-green-500/20'
+                      }`}>
+                        {part.status || 'Aktif'}
+                      </span>
+                    </td>
                     <td className="px-6 py-4 text-center">
                       <div className="flex justify-center gap-3">
-                        <button 
+                        <button
                           onClick={() => handleOpenModal(part)}
                           className="p-1.5 text-blue-400 hover:bg-blue-400/10 rounded-lg transition-colors"
                           title="Düzenle"
@@ -358,20 +451,25 @@ export default function Parts() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-400 mb-1">Parça Tipi</label>
-                  <input 
+                  <input
                     type="text"
+                    list="part-categories-list"
+                    placeholder="Parça tipi seçin veya yazın..."
                     className="w-full bg-[#242a38] border border-slate-700 rounded-lg px-3 py-2.5 text-slate-200 focus:outline-none focus:border-blue-500"
                     value={formData.part_category}
-                    onChange={e => setFormData({...formData, part_category: e.target.value})}
+                    onChange={e => handlePartCategoryChange(e.target.value)}
                   />
+                  <datalist id="part-categories-list">
+                    {Object.keys(PART_CATEGORY_DEPARTMENTS).map(c => <option key={c} value={c} />)}
+                  </datalist>
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-1">Parça Kategorisi</label>
-                <input 
+                <label className="block text-sm font-medium text-slate-400 mb-1">Parça Kalitesi</label>
+                <input
                   type="text"
                   list="categories-list"
-                  placeholder="Kategori seçin veya yazın..."
+                  placeholder="Kalite seçin veya yazın..."
                   className="w-full bg-[#242a38] border border-slate-700 rounded-lg px-3 py-2.5 text-slate-200 focus:outline-none focus:border-blue-500"
                   value={formData.item_category}
                   onChange={e => setFormData({...formData, item_category: e.target.value})}
@@ -379,6 +477,45 @@ export default function Parts() {
                 <datalist id="categories-list">
                   {categories.map(c => <option key={c} value={c} />)}
                 </datalist>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-2">Departman</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {DEPARTMENTS.map(dept => (
+                    <label key={dept} className="flex items-center gap-2 bg-[#242a38] border border-slate-700 rounded-lg px-3 py-2.5 cursor-pointer hover:border-slate-500 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={formData.department.includes(dept)}
+                        onChange={() => toggleDepartment(dept)}
+                        className="accent-blue-600"
+                      />
+                      <span className="text-slate-200 text-sm">{dept}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-400 mb-1">Stok Takip Tipi</label>
+                  <select
+                    className="w-full bg-[#242a38] border border-slate-700 rounded-lg px-3 py-2.5 text-slate-200 focus:outline-none focus:border-blue-500"
+                    value={formData.stock_tracking_type}
+                    onChange={e => setFormData({...formData, stock_tracking_type: e.target.value})}
+                  >
+                    <option value="Stok Takipli">Stok Takipli</option>
+                    <option value="Stok Takipsiz">Stok Takipsiz</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-400 mb-1">Parça Statüsü</label>
+                  <select
+                    className="w-full bg-[#242a38] border border-slate-700 rounded-lg px-3 py-2.5 text-slate-200 focus:outline-none focus:border-blue-500"
+                    value={formData.status}
+                    onChange={e => setFormData({...formData, status: e.target.value})}
+                  >
+                    {PART_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
               </div>
 
               <div className="pt-2 flex justify-end gap-3 mt-6 border-t border-slate-700/50">

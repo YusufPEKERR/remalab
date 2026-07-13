@@ -142,6 +142,9 @@ export const api = {
                 partData.color || '',
                 partData.part_category || '',
                 partData.item_category || '',
+                partData.stock_tracking_type || 'Stok Takipli',
+                Array.isArray(partData.department) ? partData.department.join(', ') : (partData.department || ''),
+                partData.status || 'Aktif',
                 (res) => resolve(JSON.parse(res))
             );
         });
@@ -158,6 +161,9 @@ export const api = {
                 partData.color || '',
                 partData.part_category || '',
                 partData.item_category || '',
+                partData.stock_tracking_type || 'Stok Takipli',
+                Array.isArray(partData.department) ? partData.department.join(', ') : (partData.department || ''),
+                partData.status || 'Aktif',
                 (res) => resolve(JSON.parse(res))
             );
         });
