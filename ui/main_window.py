@@ -59,9 +59,16 @@ class MainWindow(QMainWindow):
 
         # WebEngineView oluştur
         self.web_view = QWebEngineView()
+        # QWebEngineProfile Kurulumu (Kalıcı Profil)
+        from PySide6.QtWebEngineCore import QWebEngineProfile
+        self.profile = QWebEngineProfile("remalab_persistent_profile", self)
         
-        # Custom page for JS logs
-        self.web_page = WebPage()
+        # Windows/Linux/Mac için standart veri yoluna kaydet
+        storage_path = os.path.join(os.path.expanduser("~"), ".remalab", "webengine_data")
+        self.profile.setPersistentStoragePath(storage_path)
+
+        # Custom page for JS logs (Kalıcı profili kullanarak)
+        self.web_page = WebPage(self.profile, self.web_view)
         self.web_view.setPage(self.web_page)
         
         self._layout.addWidget(self.web_view)

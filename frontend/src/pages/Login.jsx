@@ -17,6 +17,11 @@ export default function Login() {
     if (storedUser) {
       navigate('/dashboard');
     } else {
+      const savedUsername = localStorage.getItem('saved_username');
+      if (savedUsername) {
+        setUsername(savedUsername);
+        setRememberMe(true);
+      }
       const el = document.getElementById('username-input');
       if (el) el.focus();
     }
@@ -39,10 +44,12 @@ export default function Login() {
       if (response.success) {
         if (rememberMe) {
           localStorage.setItem('user', JSON.stringify(response.user));
+          localStorage.setItem('saved_username', username);
           sessionStorage.removeItem('user');
         } else {
           sessionStorage.setItem('user', JSON.stringify(response.user));
           localStorage.removeItem('user');
+          localStorage.removeItem('saved_username');
         }
         navigate('/dashboard');
       } else {
