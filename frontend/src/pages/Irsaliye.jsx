@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Download, Upload, Plus, RefreshCw, ArrowRightLeft } from 'lucide-react';
+import { Download, Upload, Plus, RefreshCw, ArrowRightLeft, FileSpreadsheet } from 'lucide-react';
 import { api } from '../services/api';
-import * as XLSX from 'xlsx';
+import ExcelMappingModal from '../components/ExcelMappingModal';
 
 export default function Irsaliye() {
   const [activeTab, setActiveTab] = useState('inbound'); // 'inbound' or 'outbound'
@@ -9,72 +9,77 @@ export default function Irsaliye() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Modals
   const [showInboundModal, setShowInboundModal] = useState(false);
   const [showOutboundModal, setShowOutboundModal] = useState(false);
-  const [showImportModal, setShowImportModal] = useState(false);
-  const [selectedFile, setSelectedFile] = useState(null);
   
   // Data for forms
   const [parts, setParts] = useState([]);
   const [locations, setLocations] = useState([]);
   const [formData, setFormData] = useState({ part_id: '', loc_id: '', qty: 1, price: 0, type: '' });
 
-  const handleDownloadImportTemplate = async () => {
-    const templateData = [{
-      "Parça ID": "1",
-      "Lokasyon ID": "1",
-      "Miktar": 10,
-      "Birim Fiyat": 150.00,
-      "İşlem Türü": activeTab === 'inbound' ? "Yeni Alım" : "Çıkış"
-    }];
-    await api.exportTableToExcel(templateData, "irsaliye_sablon.xlsx");
+  const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
+
+  const dbColumns = ["part_id", "loc_id", "qty", "price", "type"];
+  const friendlyNames = {
+    part_id: "Parça ID (Zorunlu)",
+    loc_id: "Lokasyon ID (Zorunlu)",
+    qty: "Miktar (Zorunlu)",
+    price: "Birim Fiyat",
+    type: "İşlem Türü"
   };
 
-  const handleSimpleExcelImport = async (e) => {
-    e.preventDefault();
-    if (!selectedFile) return;
-
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      try {
-        const data = new Uint8Array(event.target.result);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const firstSheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[firstSheetName];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet);
-
-        if (jsonData.length === 0) {
-          alert('Excel dosyası boş!');
-          return;
-        }
-
-        let successCount = 0;
-        for (const row of jsonData) {
-          const pId = row["Parça ID"] || row.part_id;
-          const lId = row["Lokasyon ID"] || row.loc_id;
-          const qty = row["Miktar"] || row.qty || row.quantity;
-          const price = row["Birim Fiyat"] || row.price || 0;
-          const type = row["İşlem Türü"] || row.type || (activeTab === 'inbound' ? 'Yeni Alım' : 'Çıkış');
-
-          if (!pId || !lId || !qty) continue;
-
-          if (activeTab === 'inbound') {
-            await api.addInboundEntry(pId, lId, qty, price, type, 'admin');
-          } else {
-            await api.addOutboundEntry(pId, lId, qty, type, 'admin');
-          }
-          successCount++;
-        }
+  const handleExcelImport = async (data) => {
+    setIsExcelModalOpen(false);
+    let successCount = 0;
+    
+    for (const row of data) {
+        if (!row.part_id || !row.loc_id || !row.qty) continue;
         
-        alert(`${successCount} kayıt başarıyla içe aktarıldı.`);
-        setShowImportModal(false);
-        setSelectedFile(null);
-        fetchData();
-      } catch (err) {
-        alert("Excel okuma hatası: " + err);
-      }
-    };
-    reader.readAsArrayBuffer(selectedFile);
+        if (activeTab === 'inbound') {
+            await api.addInboundEntry(
+                row.part_id, 
+                row.loc_id, 
+                row.qty, 
+                row.price || 0, 
+                row.type || 'Yeni Alım', 
+                'admin'
+            );
+        } else {
+            await api.addOutboundEntry(
+                row.part_id, 
+                row.loc_id, 
+                row.qty, 
+                row.type || 'Çıkış', 
+                'admin'
+            );
+        }
+        successCount++;
+    }
+    
+    alert(`${successCount} kayıt başarıyla içe aktarıldı.`);
+    fetchData();
+  };
+
+  const handleExcelAction = async (e) => {
+    const action = e.target.value;
+    e.target.value = '';
+    
+    if (action === 'download_template') {
+        const templateData = [{
+          "Parça ID": "1",
+          "Lokasyon ID": "1",
+          "Miktar": 10,
+          "Birim Fiyat": 150.00,
+          "İşlem Türü": activeTab === 'inbound' ? "Yeni Alım" : "Çıkış"
+        }];
+        await api.exportTableToExcel(templateData, "irsaliye_sablon.xlsx");
+    } else if (action === 'export') {
+        const filename = activeTab === 'inbound' ? 'giris_irsaliyeleri.xlsx' : 'cikis_irsaliyeleri.xlsx';
+        await api.exportTableToExcel(movements, filename);
+    } else if (action === 'import') {
+        setIsExcelModalOpen(true);
+    }
   };
 
   const fetchData = async (silent = false) => {
@@ -131,11 +136,6 @@ export default function Irsaliye() {
     } else alert("Hata: " + (res ? res.message : ""));
   };
 
-  const handleExportExcel = async () => {
-    const filename = activeTab === 'inbound' ? 'giris_irsaliyeleri.xlsx' : 'cikis_irsaliyeleri.xlsx';
-    await api.exportTableToExcel(movements, filename);
-  };
-
   return (
     <div className="h-full flex flex-col space-y-6">
       
@@ -178,19 +178,21 @@ export default function Irsaliye() {
         <div className="text-slate-300 text-sm">
           {activeTab === 'inbound' ? 'Yeni Stok Girişi' : 'Depo Çıkış Modülü'}
         </div>
-        <div className="flex gap-3">
-          <button 
-            onClick={() => { setSelectedFile(null); setShowImportModal(true); }}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
-          >
-            <Upload size={16} /> Excel'den İçe Aktar
-          </button>
-          <button 
-            onClick={handleExportExcel}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
-          >
-            <Download size={16} /> Excel'e Dışa Aktar
-          </button>
+        <div className="flex gap-3 items-center">
+          <div className="relative">
+            <select 
+              onChange={handleExcelAction}
+              className="appearance-none bg-[#242a38] hover:bg-[#2a3142] text-slate-300 border border-slate-600 rounded-xl px-4 py-2 pr-8 transition-colors font-medium cursor-pointer focus:outline-none focus:border-blue-500"
+            >
+              <option value="">Excel İşlemi Seç...</option>
+              <option value="download_template">Boş Şablon İndir</option>
+              <option value="export">Excel'e Dışa Aktar</option>
+              <option value="import">Excel'den İçe Aktar</option>
+            </select>
+            <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-slate-400">
+              <FileSpreadsheet size={16} />
+            </div>
+          </div>
           {activeTab === 'inbound' ? (
             <button 
               onClick={() => { setFormData({ part_id: '', loc_id: '', qty: 1, price: 0, type: 'Yeni Alım' }); setShowInboundModal(true); }}
@@ -367,45 +369,13 @@ export default function Irsaliye() {
           </div>
         </div>
       )}
-      {/* IMPORT MODAL */}
-      {showImportModal && (
-        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-[#1e2330] rounded-2xl shadow-2xl border border-slate-700/50 w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="px-6 py-4 border-b border-slate-700/50 flex justify-between items-center bg-[#242a38]">
-              <h2 className="text-lg font-bold text-slate-100">Excel'den İçe Aktar</h2>
-            </div>
-            <form onSubmit={handleSimpleExcelImport} className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Excel Dosyası (.xlsx)</label>
-                <input 
-                  type="file" 
-                  accept=".xlsx, .xls"
-                  required 
-                  onChange={(e) => setSelectedFile(e.target.files[0])}
-                  className="w-full px-3 py-2 bg-[#0f1219] border border-slate-700 text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" 
-                />
-                <p className="text-xs text-slate-500 mt-2">
-                  Excel dosyanızda şu başlıklar bulunmalıdır: <br/>
-                  <b>Parça ID, Lokasyon ID, Miktar, Birim Fiyat, İşlem Türü</b>
-                </p>
-              </div>
-              <div className="flex justify-between items-center mt-4">
-                <button 
-                  type="button" 
-                  onClick={handleDownloadImportTemplate}
-                  className="text-blue-400 hover:text-blue-300 text-sm font-medium underline flex items-center gap-1"
-                >
-                  <Download size={14} /> Şablon İndir
-                </button>
-              </div>
-              <div className="flex justify-end gap-3 mt-6 border-t border-slate-700/50 pt-4">
-                <button type="button" onClick={() => setShowImportModal(false)} className="px-4 py-2 border border-slate-600 rounded-xl hover:bg-[#2a3142] text-slate-300 text-sm font-medium transition-colors">İptal</button>
-                <button type="submit" className="px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 text-sm font-medium transition-colors shadow-lg shadow-green-900/20">Yükle</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <ExcelMappingModal 
+        isOpen={isExcelModalOpen}
+        onClose={() => setIsExcelModalOpen(false)}
+        onImport={handleExcelImport}
+        dbColumns={dbColumns}
+        friendlyNames={friendlyNames}
+      />
     </div>
   );
 }
