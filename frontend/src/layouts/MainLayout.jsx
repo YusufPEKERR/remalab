@@ -179,22 +179,25 @@ export default function MainLayout() {
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-[#1e2330] rounded-lg border border-slate-700/50">
-              <span className="text-[11px] font-medium text-slate-400">⏱ SON GÜNCELLEME:</span>
-              <span className="text-xs font-bold text-slate-200 font-mono tracking-wider">
-                {currentTime.toLocaleDateString('tr-TR', { day: '2-digit', month: 'short', year: 'numeric' })} - {currentTime.toLocaleTimeString('tr-TR')}
-              </span>
-            </div>
-
             <button
               onClick={() => {
                 setCurrentTime(new Date());
                 window.dispatchEvent(new CustomEvent('app:refresh'));
               }}
-              className="p-2 text-slate-500 dark:text-slate-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors bg-slate-100 dark:bg-[#1e2330] rounded-xl border border-slate-200 dark:border-slate-700/50 hover:border-blue-300 dark:hover:border-blue-500/50"
+              className="group flex items-center gap-3 px-3 py-1.5 bg-[#1e2330] hover:bg-[#242a38] rounded-xl border border-slate-700/50 hover:border-blue-500/50 transition-all cursor-pointer shadow-sm"
               title="Sayfayı Yenile"
             >
-              <RefreshCw size={18} />
+              <div className="hidden lg:flex flex-col items-end mr-1">
+                <span className="text-[10px] font-medium text-slate-400 group-hover:text-slate-300 transition-colors tracking-wider">
+                  Son Yenileme
+                </span>
+                <span className="text-xs font-bold text-slate-200 font-mono tracking-wide group-hover:text-blue-400 transition-colors">
+                  {currentTime.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                </span>
+              </div>
+              <div className="p-1.5 bg-[#2a3142] group-hover:bg-blue-500/20 rounded-lg transition-colors border border-slate-600/50 group-hover:border-blue-500/30">
+                <RefreshCw size={16} className="text-slate-300 group-hover:text-blue-400 group-hover:rotate-180 transition-all duration-500 ease-out" />
+              </div>
             </button>
             
             <div className="relative">
