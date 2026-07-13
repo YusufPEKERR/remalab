@@ -11,19 +11,42 @@ export default function Raporlar() {
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() - 30);
-    d.setHours(0, 0, 0, 0); // Start of day
-    // toISOString returns UTC, we need local time string YYYY-MM-DDThh:mm
+    d.setHours(0, 0, 0, 0); 
     const offset = d.getTimezoneOffset() * 60000;
-    const localISOTime = (new Date(d - offset)).toISOString().slice(0, 16);
-    return localISOTime;
+    return (new Date(d - offset)).toISOString().slice(0, 16);
   });
   const [endDate, setEndDate] = useState(() => {
     const d = new Date();
-    d.setHours(23, 59, 59, 999); // End of day
+    d.setHours(23, 59, 59, 999);
     const offset = d.getTimezoneOffset() * 60000;
-    const localISOTime = (new Date(d - offset)).toISOString().slice(0, 16);
-    return localISOTime;
+    return (new Date(d - offset)).toISOString().slice(0, 16);
   });
+  
+  const setQuickFilter = (type) => {
+    const now = new Date();
+    const end = new Date(now);
+    end.setHours(23, 59, 59, 999);
+    
+    let start = new Date(now);
+    if (type === 'today') {
+      start.setHours(0, 0, 0, 0);
+    } else if (type === 'yesterday') {
+      start.setDate(start.getDate() - 1);
+      start.setHours(0, 0, 0, 0);
+      end.setDate(end.getDate() - 1);
+      end.setHours(23, 59, 59, 999);
+    } else if (type === 'week') {
+      start.setDate(start.getDate() - 7);
+      start.setHours(0, 0, 0, 0);
+    } else if (type === 'month') {
+      start.setDate(start.getDate() - 30);
+      start.setHours(0, 0, 0, 0);
+    }
+
+    const offset = start.getTimezoneOffset() * 60000;
+    setStartDate(new Date(start - offset).toISOString().slice(0, 16));
+    setEndDate(new Date(end - offset).toISOString().slice(0, 16));
+  };
   
   const [activeTab, setActiveTab] = useState('general');
 
@@ -100,40 +123,63 @@ export default function Raporlar() {
       {activeTab === 'general' && (
         <>
           {/* Toolbar General */}
-          <div className="bg-[#1e2330] p-4 rounded-xl border border-slate-700/50 shadow-sm flex flex-col md:flex-row gap-4 items-center shrink-0">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-slate-400">Başlangıç:</span>
-              <input 
-                type="datetime-local" 
-                className="bg-[#242a38] text-slate-200 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-              />
+          <div className="bg-[#1e2330] p-4 rounded-xl border border-slate-700/50 shadow-sm flex flex-col gap-4 shrink-0">
+            {/* Quick Filters */}
+            <div className="flex gap-2 border-b border-slate-700/50 pb-3">
+               <span className="text-sm font-medium text-slate-400 self-center mr-2">Hızlı Filtre:</span>
+               <button onClick={() => setQuickFilter('today')} className="text-xs px-3 py-1.5 bg-[#2a3142] hover:bg-[#323a4d] text-slate-300 rounded-lg border border-slate-600 transition-colors">Bugün</button>
+               <button onClick={() => setQuickFilter('yesterday')} className="text-xs px-3 py-1.5 bg-[#2a3142] hover:bg-[#323a4d] text-slate-300 rounded-lg border border-slate-600 transition-colors">Dün</button>
+               <button onClick={() => setQuickFilter('week')} className="text-xs px-3 py-1.5 bg-[#2a3142] hover:bg-[#323a4d] text-slate-300 rounded-lg border border-slate-600 transition-colors">Son 1 Hafta</button>
+               <button onClick={() => setQuickFilter('month')} className="text-xs px-3 py-1.5 bg-[#2a3142] hover:bg-[#323a4d] text-slate-300 rounded-lg border border-slate-600 transition-colors">Son 1 Ay</button>
             </div>
             
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-slate-400">Bitiş:</span>
-              <input 
-                type="datetime-local" 
-                className="bg-[#242a38] text-slate-200 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-              />
+            <div className="flex flex-col md:flex-row gap-4 items-center">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-slate-400">Başlangıç:</span>
+                <input 
+                  type="date" 
+                  className="bg-[#242a38] text-slate-200 border border-slate-700 rounded-l-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                  value={startDate.split('T')[0] || ''}
+                  onChange={(e) => setStartDate(`${e.target.value}T${startDate.split('T')[1] || '00:00'}`)}
+                />
+                <input 
+                  type="time" 
+                  className="bg-[#242a38] text-slate-200 border-y border-r border-slate-700 rounded-r-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 -ml-2"
+                  value={startDate.split('T')[1] || '00:00'}
+                  onChange={(e) => setStartDate(`${startDate.split('T')[0] || ''}T${e.target.value}`)}
+                />
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-slate-400">Bitiş:</span>
+                <input 
+                  type="date" 
+                  className="bg-[#242a38] text-slate-200 border border-slate-700 rounded-l-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                  value={endDate.split('T')[0] || ''}
+                  onChange={(e) => setEndDate(`${e.target.value}T${endDate.split('T')[1] || '23:59'}`)}
+                />
+                <input 
+                  type="time" 
+                  className="bg-[#242a38] text-slate-200 border-y border-r border-slate-700 rounded-r-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 -ml-2"
+                  value={endDate.split('T')[1] || '23:59'}
+                  onChange={(e) => setEndDate(`${endDate.split('T')[0] || ''}T${e.target.value}`)}
+                />
+              </div>
+
+              <button 
+                onClick={fetchReports}
+                className="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                <Filter size={16} /> Filtrele
+              </button>
+
+              <button 
+                onClick={handleExportGeneral}
+                className="flex items-center gap-2 px-5 py-2 bg-[#2a3142] hover:bg-[#323a4d] border border-slate-600 text-slate-300 rounded-lg text-sm font-medium transition-colors ml-auto"
+              >
+                <Download size={16} /> 📊 Excel'e Aktar
+              </button>
             </div>
-
-            <button 
-              onClick={fetchReports}
-              className="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
-            >
-              <Filter size={16} /> Filtrele
-            </button>
-
-            <button 
-              onClick={handleExportGeneral}
-              className="flex items-center gap-2 px-5 py-2 bg-[#2a3142] hover:bg-[#323a4d] border border-slate-600 text-slate-300 rounded-lg text-sm font-medium transition-colors ml-auto"
-            >
-              <Download size={16} /> 📊 Excel'e Aktar
-            </button>
           </div>
 
           {/* Table General */}
