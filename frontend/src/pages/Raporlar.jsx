@@ -1,5 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Download, Filter, RefreshCw, AlertTriangle } from 'lucide-react';
 import { api } from '../services/api';
 
@@ -51,8 +50,6 @@ export default function Raporlar() {
   
   const [activeTab, setActiveTab] = useState('general');
 
-  const fetchReports = async (silent = false) => {
-    if (silent !== true) setLoading(true);
   const fetchReports = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
