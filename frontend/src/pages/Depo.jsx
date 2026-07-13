@@ -53,9 +53,10 @@ export default function Depo() {
 
   const handleDownloadTemplate = async () => {
     const templateData = [{
-      "Parça Adı": "Örn: iPhone 13 Ekran",
-      "Barkod": "123456789012",
-      "Kritik Limit": 10
+      "Parça Adı": "",
+      "Lokasyon": "",
+      "Stok Miktarı": "",
+      "Durumu": ""
     }];
     await api.exportTableToExcel(templateData, "depo_sablon.xlsx");
   };
