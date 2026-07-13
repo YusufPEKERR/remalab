@@ -31,7 +31,7 @@ export default function Login() {
         if (savedPassword) {
           try {
             setPassword(atob(savedPassword));
-          } catch (e) {}
+          } catch (e) { }
         }
         setRememberMe(true);
       }
@@ -53,7 +53,7 @@ export default function Login() {
     try {
       const response = await api.login(username, password);
       setLoading(false);
-      
+
       if (response.success) {
         if (rememberMe) {
           localStorage.setItem('user', JSON.stringify(response.user));
@@ -79,17 +79,17 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-[#0f1219] relative overflow-hidden text-slate-800 dark:text-slate-200 p-4">
-      
+
       {/* Background Ornaments */}
       <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-blue-600/20 blur-[120px] rounded-full pointer-events-none"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-emerald-600/10 blur-[120px] rounded-full pointer-events-none"></div>
 
       {/* Main Container */}
       <div className="flex w-full max-w-[1000px] h-auto min-h-[600px] rounded-[24px] overflow-hidden relative z-10 border border-slate-300 dark:border-slate-800/50 shadow-2xl bg-white dark:bg-[#1e2330]/80 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-500 flex-col md:flex-row">
-        
+
         {/* Left Side: Branding / Graphic */}
         <div className="flex-1 hidden md:flex flex-col justify-between px-12 py-14 bg-gradient-to-br from-[#161b26] to-[#0f1219] border-r border-slate-300 dark:border-slate-800/50 relative overflow-hidden">
-          
+
           <div className="relative z-10">
             <div className="flex items-center gap-3 mb-6">
               <div className="flex items-center justify-center">
@@ -97,16 +97,16 @@ export default function Login() {
               </div>
               <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white mt-2">REMALAB <span className="text-blue-500 font-medium">TEKNOLOJİ</span></h1>
             </div>
-            
+
             <h2 className="text-3xl font-bold text-slate-900 dark:text-white mt-12 leading-snug">
-              Depo Yönetiminde <br/>
+              Depo Yönetiminde <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300">
                 Yeni Nesil Deneyim
               </span>
             </h2>
-            
+
             <p className="mt-6 text-slate-400 leading-relaxed text-sm max-w-sm">
-              Stoklarınızı anlık takip edin, lokasyon bazlı yönetim sağlayın ve detaylı raporlarla deponuzun verimliliğini maksimize edin.
+              Stoklarınızı anlık takip edin, lokasyon bazlı yönetim sağlayın ve
             </p>
           </div>
 
@@ -131,7 +131,7 @@ export default function Login() {
 
         {/* Right Side: Form */}
         <div className="flex-1 flex flex-col justify-center px-8 sm:px-14 py-12 bg-white dark:bg-[#1e2330]">
-          
+
           <div className="w-full max-w-sm mx-auto">
             <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Hoş Geldiniz</h2>
             <p className="text-slate-400 text-sm mb-8">Devam etmek için hesabınıza giriş yapın.</p>
@@ -144,7 +144,7 @@ export default function Login() {
             )}
 
             <form onSubmit={handleLogin} className="space-y-5">
-              
+
               {/* Username Input */}
               <div className="space-y-1.5">
                 <label className="text-sm font-medium text-slate-400 pl-1">Kullanıcı Adı</label>
@@ -220,7 +220,7 @@ export default function Login() {
                 )}
               </button>
             </form>
-            
+
           </div>
         </div>
       </div>
