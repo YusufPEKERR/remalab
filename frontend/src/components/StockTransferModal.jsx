@@ -134,14 +134,14 @@ export default function StockTransferModal({ isOpen, onClose, onTransfer, locati
 
   return (
     <div className="fixed inset-0 bg-[#0f1219]/80 backdrop-blur-sm flex items-center justify-center z-[99] p-4 overflow-y-auto">
-      <div className="bg-[#1e2330] border border-slate-700 shadow-2xl rounded-2xl w-full max-w-lg animate-in fade-in zoom-in duration-200 my-8">
+      <div className="bg-white dark:bg-[#1e2330] border border-slate-700 shadow-2xl rounded-2xl w-full max-w-lg animate-in fade-in zoom-in duration-200 my-8">
         
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-700/50 flex justify-between items-center bg-[#242a38] rounded-t-2xl">
-          <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
+        <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 flex justify-between items-center bg-slate-50 dark:bg-[#242a38] rounded-t-2xl">
+          <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
             <ArrowRightLeft size={20} className="text-yellow-500"/> Stok Transferi
           </h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors bg-[#1e2330] p-1.5 rounded-lg border border-slate-700">
+          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors bg-white dark:bg-[#1e2330] p-1.5 rounded-lg border border-slate-700">
             <X size={18} />
           </button>
         </div>
@@ -149,8 +149,8 @@ export default function StockTransferModal({ isOpen, onClose, onTransfer, locati
         <div className="p-6 space-y-6">
           
           {/* QR/Barcode Section */}
-          <div className="bg-[#242a38] p-4 rounded-xl border border-slate-700/50">
-            <label className="block text-sm font-semibold text-slate-300 mb-2 flex items-center gap-2">
+          <div className="bg-slate-50 dark:bg-[#242a38] p-4 rounded-xl border border-slate-200 dark:border-slate-700/50">
+            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-2">
               <QrCode size={16} className="text-blue-400"/> QR / Barkod / Ürün Kodu Okutma
             </label>
             <form onSubmit={handleQrScan} className="relative">
@@ -162,7 +162,7 @@ export default function StockTransferModal({ isOpen, onClose, onTransfer, locati
                 value={qrCode}
                 onChange={e => setQrCode(e.target.value)}
                 placeholder="Okutun veya yazıp Enter'a basın..."
-                className="w-full bg-[#1e2330] border border-slate-600 rounded-lg pl-10 pr-4 py-2.5 text-slate-200 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 shadow-sm"
+                className="w-full bg-white dark:bg-[#1e2330] border border-slate-300 dark:border-slate-600 rounded-lg pl-10 pr-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 shadow-sm"
               />
             </form>
           </div>
@@ -179,7 +179,7 @@ export default function StockTransferModal({ isOpen, onClose, onTransfer, locati
                 <select 
                   value={sourceLocId} 
                   onChange={e => handleSourceLocChange(e.target.value)}
-                  className="w-full bg-[#1e2330] border border-slate-700/70 rounded-lg px-3 py-2.5 text-slate-200 focus:outline-none focus:border-blue-500"
+                  className="w-full bg-white dark:bg-[#1e2330] border border-slate-700/70 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
                 >
                   <option value="">--- Lokasyon Seçin ---</option>
                   {sourceLocations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
@@ -192,7 +192,7 @@ export default function StockTransferModal({ isOpen, onClose, onTransfer, locati
                   value={brandModel} 
                   onChange={e => handleBrandModelChange(e.target.value)}
                   disabled={!sourceLocId}
-                  className="w-full bg-[#1e2330] border border-slate-700/70 rounded-lg px-3 py-2.5 text-slate-200 focus:outline-none focus:border-blue-500 disabled:opacity-50"
+                  className="w-full bg-white dark:bg-[#1e2330] border border-slate-700/70 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 disabled:opacity-50"
                 >
                   <option value="">--- Marka/Model Seçin ---</option>
                   {brands.map(b => <option key={b} value={b}>{b}</option>)}
@@ -205,7 +205,7 @@ export default function StockTransferModal({ isOpen, onClose, onTransfer, locati
                   value={productId} 
                   onChange={e => handleProductChange(e.target.value)}
                   disabled={!brandModel}
-                  className="w-full bg-[#1e2330] border border-slate-700/70 rounded-lg px-3 py-2.5 text-slate-200 focus:outline-none focus:border-blue-500 disabled:opacity-50"
+                  className="w-full bg-white dark:bg-[#1e2330] border border-slate-700/70 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 disabled:opacity-50"
                 >
                   <option value="">--- Ürün Seçin ---</option>
                   {products.map(p => <option key={p.id} value={p.id}>{p.name} (Mevcut: {p.qty})</option>)}
@@ -226,7 +226,7 @@ export default function StockTransferModal({ isOpen, onClose, onTransfer, locati
                 <select 
                   value={targetLocId} 
                   onChange={e => setTargetLocId(e.target.value)}
-                  className="w-full bg-[#1e2330] border border-slate-700/70 rounded-lg px-3 py-2.5 text-slate-200 focus:outline-none focus:border-yellow-500"
+                  className="w-full bg-white dark:bg-[#1e2330] border border-slate-700/70 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-yellow-500"
                 >
                   <option value="">--- Lokasyon Seçin ---</option>
                   {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
@@ -243,7 +243,7 @@ export default function StockTransferModal({ isOpen, onClose, onTransfer, locati
                     value={quantity} 
                     onChange={e => setQuantity(Number(e.target.value))}
                     disabled={!productId}
-                    className="w-full bg-[#1e2330] border border-slate-700/70 rounded-lg px-3 py-2.5 text-slate-200 focus:outline-none focus:border-yellow-500 disabled:opacity-50 font-bold" 
+                    className="w-full bg-white dark:bg-[#1e2330] border border-slate-700/70 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-yellow-500 disabled:opacity-50 font-bold" 
                   />
                 </div>
                 <div className="pb-2">
@@ -258,8 +258,8 @@ export default function StockTransferModal({ isOpen, onClose, onTransfer, locati
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-slate-700/50 flex justify-end gap-3 bg-[#242a38] rounded-b-2xl">
-          <button onClick={onClose} className="px-5 py-2.5 text-slate-300 hover:bg-slate-800 rounded-xl font-medium transition-colors border border-slate-600">İptal</button>
+        <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-700/50 flex justify-end gap-3 bg-slate-50 dark:bg-[#242a38] rounded-b-2xl">
+          <button onClick={onClose} className="px-5 py-2.5 text-slate-700 dark:text-slate-300 hover:bg-slate-800 rounded-xl font-medium transition-colors border border-slate-300 dark:border-slate-600">İptal</button>
           <button 
             onClick={handleSubmit} 
             disabled={!productId || quantity <= 0 || !targetLocId || quantity > maxQuantity}

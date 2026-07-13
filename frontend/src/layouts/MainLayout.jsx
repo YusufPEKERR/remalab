@@ -149,7 +149,7 @@ export default function MainLayout() {
                       className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
                         isActive 
                           ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' 
-                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#2a3142]'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-100 dark:bg-[#2a3142]'
                       }`}
                       onClick={(e) => {
                         e.preventDefault();

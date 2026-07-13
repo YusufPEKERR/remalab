@@ -185,7 +185,7 @@ export default function Login() {
                       onChange={(e) => setRememberMe(e.target.checked)}
                       className="peer sr-only"
                     />
-                    <div className="w-5 h-5 rounded-[6px] border border-slate-600 bg-slate-50 dark:bg-[#242a38] peer-checked:bg-blue-600 peer-checked:border-blue-600 transition-all"></div>
+                    <div className="w-5 h-5 rounded-[6px] border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-[#242a38] peer-checked:bg-blue-600 peer-checked:border-blue-600 transition-all"></div>
                     <svg className="absolute w-3.5 h-3.5 text-slate-900 dark:text-white opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                     </svg>

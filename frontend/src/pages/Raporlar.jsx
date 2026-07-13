@@ -139,10 +139,10 @@ export default function Raporlar() {
             {/* Quick Filters */}
             <div className="flex gap-2 border-b border-slate-200 dark:border-slate-700/50 pb-3">
                <span className="text-sm font-medium text-slate-400 self-center mr-2">Hızlı Filtre:</span>
-               <button onClick={() => setQuickFilter('today')} className="text-xs px-3 py-1.5 bg-slate-100 dark:bg-[#2a3142] hover:bg-[#323a4d] text-slate-700 dark:text-slate-300 rounded-lg border border-slate-600 transition-colors">Bugün</button>
-               <button onClick={() => setQuickFilter('yesterday')} className="text-xs px-3 py-1.5 bg-slate-100 dark:bg-[#2a3142] hover:bg-[#323a4d] text-slate-700 dark:text-slate-300 rounded-lg border border-slate-600 transition-colors">Dün</button>
-               <button onClick={() => setQuickFilter('week')} className="text-xs px-3 py-1.5 bg-slate-100 dark:bg-[#2a3142] hover:bg-[#323a4d] text-slate-700 dark:text-slate-300 rounded-lg border border-slate-600 transition-colors">Son 1 Hafta</button>
-               <button onClick={() => setQuickFilter('month')} className="text-xs px-3 py-1.5 bg-slate-100 dark:bg-[#2a3142] hover:bg-[#323a4d] text-slate-700 dark:text-slate-300 rounded-lg border border-slate-600 transition-colors">Son 1 Ay</button>
+               <button onClick={() => setQuickFilter('today')} className="text-xs px-3 py-1.5 bg-slate-100 dark:bg-[#2a3142] hover:bg-[#323a4d] text-slate-700 dark:text-slate-300 rounded-lg border border-slate-300 dark:border-slate-600 transition-colors">Bugün</button>
+               <button onClick={() => setQuickFilter('yesterday')} className="text-xs px-3 py-1.5 bg-slate-100 dark:bg-[#2a3142] hover:bg-[#323a4d] text-slate-700 dark:text-slate-300 rounded-lg border border-slate-300 dark:border-slate-600 transition-colors">Dün</button>
+               <button onClick={() => setQuickFilter('week')} className="text-xs px-3 py-1.5 bg-slate-100 dark:bg-[#2a3142] hover:bg-[#323a4d] text-slate-700 dark:text-slate-300 rounded-lg border border-slate-300 dark:border-slate-600 transition-colors">Son 1 Hafta</button>
+               <button onClick={() => setQuickFilter('month')} className="text-xs px-3 py-1.5 bg-slate-100 dark:bg-[#2a3142] hover:bg-[#323a4d] text-slate-700 dark:text-slate-300 rounded-lg border border-slate-300 dark:border-slate-600 transition-colors">Son 1 Ay</button>
             </div>
             
             <div className="flex flex-col md:flex-row gap-4 items-center">
@@ -191,7 +191,7 @@ export default function Raporlar() {
 
               <button 
                 onClick={handleExportGeneral}
-                className="flex items-center gap-2 px-5 py-2 bg-slate-100 dark:bg-[#2a3142] hover:bg-[#323a4d] border border-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors ml-auto"
+                className="flex items-center gap-2 px-5 py-2 bg-slate-100 dark:bg-[#2a3142] hover:bg-[#323a4d] border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors ml-auto"
               >
                 <Download size={16} /> 📊 Excel'e Aktar
               </button>
@@ -261,7 +261,7 @@ export default function Raporlar() {
           <div className="bg-white dark:bg-[#1e2330] p-4 rounded-xl border border-slate-200 dark:border-slate-700/50 shadow-sm flex items-center shrink-0">
             <button 
               onClick={handleExportCritical}
-              className="flex items-center gap-2 px-5 py-2 bg-slate-100 dark:bg-[#2a3142] hover:bg-[#323a4d] border border-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors"
+              className="flex items-center gap-2 px-5 py-2 bg-slate-100 dark:bg-[#2a3142] hover:bg-[#323a4d] border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors"
             >
               <Download size={16} /> 📊 Excel'e Aktar
             </button>

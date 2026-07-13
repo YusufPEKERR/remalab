@@ -35,7 +35,7 @@ export default function DbErrorModal({ isOpen, errorMessage, onClose, onReconnec
 
   return (
     <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
-      <div className="bg-[#1e2330] border border-slate-700 shadow-2xl rounded-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+      <div className="bg-white dark:bg-[#1e2330] border border-slate-700 shadow-2xl rounded-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
         
         {view === 'error' ? (
           /* --- ERROR VIEW --- */
@@ -44,7 +44,7 @@ export default function DbErrorModal({ isOpen, errorMessage, onClose, onReconnec
               <AlertTriangle size={40} className="text-red-500" />
             </div>
             
-            <h2 className="text-xl font-bold text-slate-100 mb-2">Veritabanı bağlantısı kurulamadı!</h2>
+            <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-2">Veritabanı bağlantısı kurulamadı!</h2>
             <p className="text-red-400 text-sm bg-red-500/10 p-3 rounded-lg border border-red-500/20 w-full mb-8">
               {errorMessage || "Sunucuyla iletişim kurulamıyor. Lütfen veritabanı ayarlarını kontrol edin."}
             </p>
@@ -58,7 +58,7 @@ export default function DbErrorModal({ isOpen, errorMessage, onClose, onReconnec
               </button>
               <button 
                 onClick={() => setView('settings')}
-                className="w-full bg-slate-700 hover:bg-slate-600 text-slate-200 font-semibold py-3 rounded-xl transition-colors"
+                className="w-full bg-slate-700 hover:bg-slate-600 text-slate-800 dark:text-slate-200 font-semibold py-3 rounded-xl transition-colors"
               >
                 Sunucu Değiştir
               </button>
@@ -73,7 +73,7 @@ export default function DbErrorModal({ isOpen, errorMessage, onClose, onReconnec
         ) : (
           /* --- SETTINGS VIEW --- */
           <div className="p-6">
-            <h2 className="text-lg font-bold text-slate-100 mb-6 flex items-center gap-2">
+            <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-6 flex items-center gap-2">
               <Database size={20} className="text-blue-400"/>
               Veritabanı Ayarlarını Güncelle
             </h2>
@@ -84,7 +84,7 @@ export default function DbErrorModal({ isOpen, errorMessage, onClose, onReconnec
                 <div className="relative">
                   <Server className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
                   <input type="text" value={host} onChange={e => setHost(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2.5 bg-[#242a38] border border-slate-700 rounded-lg text-slate-200 focus:outline-none focus:border-blue-500" />
+                    className="w-full pl-9 pr-3 py-2.5 bg-slate-50 dark:bg-[#242a38] border border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" />
                 </div>
               </div>
 
@@ -93,7 +93,7 @@ export default function DbErrorModal({ isOpen, errorMessage, onClose, onReconnec
                 <div className="relative">
                   <Server className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
                   <input type="text" value={port} onChange={e => setPort(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2.5 bg-[#242a38] border border-slate-700 rounded-lg text-slate-200 focus:outline-none focus:border-blue-500" />
+                    className="w-full pl-9 pr-3 py-2.5 bg-slate-50 dark:bg-[#242a38] border border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" />
                 </div>
               </div>
 
@@ -102,7 +102,7 @@ export default function DbErrorModal({ isOpen, errorMessage, onClose, onReconnec
                 <div className="relative">
                   <Database className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
                   <input type="text" value={dbName} onChange={e => setDbName(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2.5 bg-[#242a38] border border-slate-700 rounded-lg text-slate-200 focus:outline-none focus:border-blue-500" />
+                    className="w-full pl-9 pr-3 py-2.5 bg-slate-50 dark:bg-[#242a38] border border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" />
                 </div>
               </div>
 
@@ -111,7 +111,7 @@ export default function DbErrorModal({ isOpen, errorMessage, onClose, onReconnec
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
                   <input type="text" value={user} onChange={e => setUser(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2.5 bg-[#242a38] border border-slate-700 rounded-lg text-slate-200 focus:outline-none focus:border-blue-500" />
+                    className="w-full pl-9 pr-3 py-2.5 bg-slate-50 dark:bg-[#242a38] border border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" />
                 </div>
               </div>
 
@@ -120,7 +120,7 @@ export default function DbErrorModal({ isOpen, errorMessage, onClose, onReconnec
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
                   <input type="password" value={password} onChange={e => setPassword(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2.5 bg-[#242a38] border border-slate-700 rounded-lg text-slate-200 focus:outline-none focus:border-blue-500" />
+                    className="w-full pl-9 pr-3 py-2.5 bg-slate-50 dark:bg-[#242a38] border border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" />
                 </div>
               </div>
             </div>
@@ -128,7 +128,7 @@ export default function DbErrorModal({ isOpen, errorMessage, onClose, onReconnec
             <div className="mt-8 flex gap-3">
               <button 
                 onClick={() => setView('error')}
-                className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium py-2.5 rounded-lg transition-colors"
+                className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium py-2.5 rounded-lg transition-colors"
               >
                 İptal
               </button>

@@ -108,11 +108,11 @@ export default function ExcelMappingModal({
 
   return (
     <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
-      <div className="bg-[#1e2330] border border-slate-700 shadow-2xl rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
+      <div className="bg-white dark:bg-[#1e2330] border border-slate-700 shadow-2xl rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
         
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-700/50 flex justify-between items-center bg-[#242a38]">
-          <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
+        <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 flex justify-between items-center bg-slate-50 dark:bg-[#242a38]">
+          <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
             <FileSpreadsheet size={20} className="text-green-500" />
             Excel İçe Aktarma ve Eşleştirme
           </h2>
@@ -131,11 +131,11 @@ export default function ExcelMappingModal({
           )}
 
           {!fileData ? (
-            <div className="flex flex-col items-center justify-center py-20 px-4 border-2 border-dashed border-slate-700 rounded-xl bg-[#242a38]/50">
+            <div className="flex flex-col items-center justify-center py-20 px-4 border-2 border-dashed border-slate-700 rounded-xl bg-slate-50 dark:bg-[#242a38]/50">
               <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mb-4">
                 <Upload size={32} className="text-slate-400" />
               </div>
-              <h3 className="text-lg font-medium text-slate-200 mb-2">Excel Dosyası Yükle</h3>
+              <h3 className="text-lg font-medium text-slate-800 dark:text-slate-200 mb-2">Excel Dosyası Yükle</h3>
               <p className="text-slate-500 text-sm mb-6 text-center max-w-sm">
                 Sisteme aktarmak istediğiniz kayıtları içeren .xlsx veya .xls uzantılı dosyanızı seçin.
               </p>
@@ -149,13 +149,13 @@ export default function ExcelMappingModal({
               
               {/* Mapping Section */}
               <section>
-                <h3 className="text-slate-200 font-medium mb-3 flex items-center gap-2">
+                <h3 className="text-slate-800 dark:text-slate-200 font-medium mb-3 flex items-center gap-2">
                   <span className="bg-blue-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">1</span>
                   Sütun Başlıklarını Eşleştirin
                 </h3>
-                <div className="bg-[#242a38] rounded-xl border border-slate-700/50 overflow-hidden">
+                <div className="bg-slate-50 dark:bg-[#242a38] rounded-xl border border-slate-200 dark:border-slate-700/50 overflow-hidden">
                   <table className="w-full text-left text-sm">
-                    <thead className="bg-slate-800/50 text-slate-400 border-b border-slate-700/50">
+                    <thead className="bg-slate-800/50 text-slate-400 border-b border-slate-200 dark:border-slate-700/50">
                       <tr>
                         <th className="px-4 py-3 font-medium">Veritabanı Alanı</th>
                         <th className="px-4 py-3 font-medium">Excel'deki Karşılığı</th>
@@ -164,12 +164,12 @@ export default function ExcelMappingModal({
                     <tbody className="divide-y divide-slate-700/50">
                       {dbColumns.map(dbCol => (
                         <tr key={dbCol} className="hover:bg-slate-800/20">
-                          <td className="px-4 py-3 text-slate-300 font-medium">
+                          <td className="px-4 py-3 text-slate-700 dark:text-slate-300 font-medium">
                             {friendlyNames?.[dbCol] || dbCol}
                           </td>
                           <td className="px-4 py-3">
                             <select 
-                              className="w-full bg-[#1e2330] border border-slate-700 text-slate-200 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500"
+                              className="w-full bg-white dark:bg-[#1e2330] border border-slate-700 text-slate-800 dark:text-slate-200 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500"
                               value={mappings[dbCol] || ''}
                               onChange={(e) => handleMappingChange(dbCol, e.target.value)}
                             >
@@ -188,13 +188,13 @@ export default function ExcelMappingModal({
 
               {/* Preview Section */}
               <section>
-                <h3 className="text-slate-200 font-medium mb-3 flex items-center gap-2">
+                <h3 className="text-slate-800 dark:text-slate-200 font-medium mb-3 flex items-center gap-2">
                   <span className="bg-blue-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">2</span>
                   Örnek Veri Önizlemesi (İlk 5 Satır)
                 </h3>
-                <div className="bg-[#242a38] rounded-xl border border-slate-700/50 overflow-hidden overflow-x-auto">
+                <div className="bg-slate-50 dark:bg-[#242a38] rounded-xl border border-slate-200 dark:border-slate-700/50 overflow-hidden overflow-x-auto">
                   <table className="w-full text-left text-sm whitespace-nowrap">
-                    <thead className="bg-slate-800/50 text-slate-400 border-b border-slate-700/50">
+                    <thead className="bg-slate-800/50 text-slate-400 border-b border-slate-200 dark:border-slate-700/50">
                       <tr>
                         {excelColumns.map(col => (
                           <th key={col} className="px-4 py-3 font-medium">{col}</th>
@@ -203,7 +203,7 @@ export default function ExcelMappingModal({
                     </thead>
                     <tbody className="divide-y divide-slate-700/50">
                       {previewRows.map((row, i) => (
-                        <tr key={i} className="hover:bg-slate-800/20 text-slate-300">
+                        <tr key={i} className="hover:bg-slate-800/20 text-slate-700 dark:text-slate-300">
                           {excelColumns.map(col => (
                             <td key={col} className="px-4 py-3 truncate max-w-[200px]">
                               {row[col] !== undefined ? String(row[col]) : ''}
@@ -222,10 +222,10 @@ export default function ExcelMappingModal({
 
         {/* Footer */}
         {fileData && (
-          <div className="px-6 py-4 border-t border-slate-700/50 flex justify-end gap-3 bg-[#242a38]">
+          <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-700/50 flex justify-end gap-3 bg-slate-50 dark:bg-[#242a38]">
             <button 
               onClick={onClose}
-              className="px-5 py-2.5 text-slate-300 bg-[#1e2330] hover:bg-slate-800 border border-slate-700 rounded-lg text-sm font-medium transition-colors"
+              className="px-5 py-2.5 text-slate-700 dark:text-slate-300 bg-white dark:bg-[#1e2330] hover:bg-slate-800 border border-slate-700 rounded-lg text-sm font-medium transition-colors"
             >
               İptal
             </button>

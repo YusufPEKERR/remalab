@@ -149,16 +149,16 @@ export default function Users() {
           <button onClick={() => api.exportTableToExcel(users, "kullanicilar.xlsx")} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl shadow-sm text-sm font-medium transition-colors">
             <Download size={16} /> Excel
           </button>
-          <button onClick={handleAdd} className="flex items-center gap-2 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:bg-[#2a3142] border border-slate-600 text-slate-800 dark:text-slate-200 px-4 py-2.5 rounded-xl shadow-sm text-sm font-medium transition-colors">
+          <button onClick={handleAdd} className="flex items-center gap-2 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:bg-[#2a3142] border border-slate-300 dark:border-slate-600 text-slate-800 dark:text-slate-200 px-4 py-2.5 rounded-xl shadow-sm text-sm font-medium transition-colors">
             <Plus size={16} className="text-green-400" /> Ekle
           </button>
-          <button onClick={handleEdit} disabled={!selectedUserId} className="flex items-center gap-2 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:bg-[#2a3142] border border-slate-600 text-slate-800 dark:text-slate-200 px-4 py-2.5 rounded-xl shadow-sm text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+          <button onClick={handleEdit} disabled={!selectedUserId} className="flex items-center gap-2 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:bg-[#2a3142] border border-slate-300 dark:border-slate-600 text-slate-800 dark:text-slate-200 px-4 py-2.5 rounded-xl shadow-sm text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
             <Edit size={16} className="text-blue-400" /> Düzenle
           </button>
-          <button onClick={handleResetPassword} disabled={!selectedUserId} className="flex items-center gap-2 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:bg-[#2a3142] border border-slate-600 text-slate-800 dark:text-slate-200 px-4 py-2.5 rounded-xl shadow-sm text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+          <button onClick={handleResetPassword} disabled={!selectedUserId} className="flex items-center gap-2 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:bg-[#2a3142] border border-slate-300 dark:border-slate-600 text-slate-800 dark:text-slate-200 px-4 py-2.5 rounded-xl shadow-sm text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
             <Key size={16} className="text-yellow-400" /> Şifre
           </button>
-          <button onClick={handleDelete} disabled={!selectedUserId} className="flex items-center gap-2 bg-slate-50 dark:bg-[#242a38] hover:bg-red-500/10 border border-slate-600 hover:border-red-500/30 text-slate-800 dark:text-slate-200 hover:text-red-400 px-4 py-2.5 rounded-xl shadow-sm text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+          <button onClick={handleDelete} disabled={!selectedUserId} className="flex items-center gap-2 bg-slate-50 dark:bg-[#242a38] hover:bg-red-500/10 border border-slate-300 dark:border-slate-600 hover:border-red-500/30 text-slate-800 dark:text-slate-200 hover:text-red-400 px-4 py-2.5 rounded-xl shadow-sm text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
             <Trash2 size={16} className={selectedUserId ? "text-red-400" : ""} /> Sil
           </button>
         </div>
@@ -297,7 +297,7 @@ export default function Users() {
               )}
 
               <div className="pt-4 flex justify-end gap-3 border-t border-slate-200 dark:border-slate-700/50 mt-6">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-5 py-2.5 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:bg-[#2a3142] text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors border border-slate-600">İptal</button>
+                <button type="button" onClick={() => setIsModalOpen(false)} className="px-5 py-2.5 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:bg-[#2a3142] text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors border border-slate-300 dark:border-slate-600">İptal</button>
                 <button type="submit" className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors shadow-lg shadow-blue-900/20">Kaydet</button>
               </div>
             </form>
