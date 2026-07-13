@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { 
   LogOut, LayoutDashboard, Users, Package, Settings, Bell,
@@ -16,6 +16,17 @@ export default function MainLayout() {
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const { theme, toggleTheme } = useTheme();
+  const notifRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (notifRef.current && !notifRef.current.contains(event.target)) {
+        setShowNotifications(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   useEffect(() => {
     // Saniye saniye artmasını istemediğiniz için timer kaldırıldı
@@ -169,7 +180,7 @@ export default function MainLayout() {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Topbar */}
-        <header className="h-16 bg-[#161B22] border-b border-[#30363D] flex items-center justify-between px-6 shadow-sm z-10 shrink-0">
+        <header className="h-16 bg-[#161B22] border-b border-[#30363D] flex items-center justify-between px-6 shadow-sm z-50 shrink-0">
           <div className="flex flex-col">
             <h2 className="text-lg font-bold text-slate-100 tracking-tight">
               {currentPage ? currentPage.name : 'Depo Yönetim Sistemi'}
@@ -198,7 +209,7 @@ export default function MainLayout() {
               <RefreshCw size={18} />
             </button>
             
-            <div className="relative">
+            <div className="relative" ref={notifRef}>
               <button 
                 onClick={() => setShowNotifications(!showNotifications)}
                 className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors relative bg-slate-100 dark:bg-[#1e2330] rounded-xl border border-slate-200 dark:border-slate-700/50" 
