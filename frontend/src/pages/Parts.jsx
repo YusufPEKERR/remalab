@@ -25,6 +25,7 @@ export default function Parts() {
 
   const [categories, _setCategories] = useState(['Orijinal', 'Muadil', 'Çıkma', 'Yan Sanayi', 'A Kalite', 'B Kalite']); // Mock
   const [partCategories, setPartCategories] = useState([]);
+  const [products, setProducts] = useState([]);
 
   const DEPARTMENTS = ['Servis', 'Teknik Servis', 'Üretim', 'Kalite'];
 
@@ -88,6 +89,17 @@ export default function Parts() {
     }
   };
 
+  const fetchProducts = async () => {
+    try {
+      const res = await api.getProducts();
+      if (res.success) {
+        setProducts(res.products || []);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const fetchParts = async (silent = false) => {
     if (!silent) setLoading(true);
     try {
@@ -105,6 +117,7 @@ export default function Parts() {
   useEffect(() => {
     fetchParts();
     fetchPartCategories();
+    fetchProducts();
     // Başka bilgisayarlardan yapılan değişiklikleri yakalamak için periyodik, sessiz yenileme
     const interval = setInterval(() => fetchParts(true), 8000);
     return () => clearInterval(interval);
@@ -226,6 +239,9 @@ export default function Parts() {
 
   const totalPages = Math.ceil(filteredParts.length / itemsPerPage) || 1;
   const paginatedParts = filteredParts.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  const uniqueBrands = [...new Set(products.map(p => p.brand).filter(Boolean))].sort();
+  const uniqueModels = [...new Set(products.filter(p => p.brand === formData.brand).map(p => p.model).filter(Boolean))].sort();
 
   return (
     <div className="h-full flex flex-col space-y-6 overflow-hidden">
@@ -456,21 +472,26 @@ export default function Parts() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-400 mb-1">Marka</label>
-                  <input 
-                    type="text"
-                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                  <select
+                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 appearance-none"
                     value={formData.brand}
-                    onChange={e => setFormData({...formData, brand: e.target.value})}
-                  />
+                    onChange={e => setFormData({...formData, brand: e.target.value, model: ''})}
+                  >
+                    <option value="">Marka Seçiniz...</option>
+                    {uniqueBrands.map(b => <option key={b} value={b}>{b}</option>)}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-400 mb-1">Model</label>
-                  <input 
-                    type="text"
-                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                  <select
+                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 appearance-none disabled:opacity-50"
                     value={formData.model}
                     onChange={e => setFormData({...formData, model: e.target.value})}
-                  />
+                    disabled={!formData.brand}
+                  >
+                    <option value="">Model Seçiniz...</option>
+                    {uniqueModels.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
