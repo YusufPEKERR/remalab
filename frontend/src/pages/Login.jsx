@@ -84,10 +84,10 @@ export default function Login() {
           
           <div className="relative z-10">
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-900/50">
-                <Box size={24} className="text-white" />
+              <div className="flex items-center justify-center">
+                <img src="/uygulama-amblemi.png" alt="Remalab Amblemi" className="w-16 h-16 object-contain drop-shadow-xl" />
               </div>
-              <h1 className="text-2xl font-black tracking-tight text-white">REMALAB <span className="text-blue-500 font-medium">WMS</span></h1>
+              <h1 className="text-2xl font-black tracking-tight text-white mt-2">REMALAB <span className="text-blue-500 font-medium">WMS</span></h1>
             </div>
             
             <h2 className="text-3xl font-bold text-white mt-12 leading-snug">
