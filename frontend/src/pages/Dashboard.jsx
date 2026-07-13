@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { 
   Wrench, Package, AlertTriangle, ArrowDownToLine, ArrowUpFromLine, MapPin, 
@@ -6,6 +7,7 @@ import {
 } from 'lucide-react';
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [stats, setStats] = useState({
     totalParts: '12,458',
     totalStock: '84,291',
@@ -165,7 +167,7 @@ export default function Dashboard() {
                       <td className="px-4 py-3 font-medium">{d.name}</td>
                       <td className="px-4 py-3">{d.loc || '-'}</td>
                       <td className="px-4 py-3">{d.qty || '-'} {d.status && <span className="ml-2 text-xs bg-yellow-500/20 text-yellow-500 px-2 py-0.5 rounded">{d.status}</span>}</td>
-                      <td className="px-4 py-3"><button className="text-blue-400 hover:text-blue-300">Düzenle</button></td>
+                      <td className="px-4 py-3"><button onClick={() => navigate('/parts')} className="text-blue-400 hover:text-blue-300 transition-colors">Düzenle</button></td>
                     </tr>
                   ))
                 )}
@@ -184,7 +186,7 @@ export default function Dashboard() {
             </h3>
             <p className="text-sm text-slate-500 mt-1">Sistemdeki en son giriş, çıkış ve transfer işlemleri</p>
           </div>
-          <button className="text-blue-400 hover:text-blue-300 text-sm font-medium flex items-center">
+          <button onClick={() => navigate('/raporlar')} className="text-blue-400 hover:text-blue-300 text-sm font-medium flex items-center transition-colors">
             Tümünü Gör <ChevronRight size={16} />
           </button>
         </div>
