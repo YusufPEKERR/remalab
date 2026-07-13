@@ -127,8 +127,8 @@ export default function MainLayout() {
     <div className="flex h-screen bg-[#0f1219] overflow-hidden">
       {/* Sidebar */}
       <aside className="w-64 bg-[#161B22] text-slate-300 flex flex-col border-r border-[#30363D] z-20">
-        <div className="py-6 flex items-center justify-center px-4 border-b border-[#30363D]">
-          <img src="/logo.png" alt="Remalab Logo" className="h-10 object-contain drop-shadow-md" />
+        <div className="py-4 flex items-center justify-center px-4 border-b border-[#30363D]">
+          <img src="/logo.png" alt="Remalab Logo" className="h-16 object-contain drop-shadow-md" />
         </div>
         
         <div className="flex-1 overflow-y-auto py-6 space-y-6 scrollbar-thin scrollbar-thumb-[#30363D] scrollbar-track-transparent">
