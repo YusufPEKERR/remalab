@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Eye, EyeOff, User, Lock, ArrowRight, Activity, Box, MapPin, AlertCircle, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
+import amblem from '../assets/Uygulama-Amblemi.png';
 
 export default function Login() {
   const [username, setUsername] = useState('');
@@ -92,7 +93,7 @@ export default function Login() {
           <div className="relative z-10">
             <div className="flex items-center gap-3 mb-6">
               <div className="flex items-center justify-center">
-                <img src="/uygulama-amblemi.png" alt="Remalab Amblemi" className="w-16 h-16 object-contain drop-shadow-xl" />
+                <img src={amblem} alt="Remalab Amblemi" className="w-16 h-16 object-contain drop-shadow-xl" />
               </div>
               <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white mt-2">REMALAB <span className="text-blue-500 font-medium">TEKNOLOJİ</span></h1>
             </div>
