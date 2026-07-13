@@ -600,17 +600,24 @@ class WebBridge(QObject):
                 
             if start_date:
                 try:
-                    dt = datetime.strptime(start_date, "%Y-%m-%d")
+                    if 'T' in start_date:
+                        dt = datetime.strptime(start_date, "%Y-%m-%dT%H:%M")
+                    else:
+                        dt = datetime.strptime(start_date, "%Y-%m-%d")
                     query = query.filter(StockMovement.created_at >= dt)
                 except:
                     pass
             if end_date:
                 try:
-                    dt = datetime.strptime(end_date, "%Y-%m-%d")
-                    # Add 1 day to include the entire end_date
-                    import datetime as dt_module
-                    dt = dt + dt_module.timedelta(days=1)
-                    query = query.filter(StockMovement.created_at < dt)
+                    if 'T' in end_date:
+                        dt = datetime.strptime(end_date, "%Y-%m-%dT%H:%M")
+                        query = query.filter(StockMovement.created_at <= dt)
+                    else:
+                        dt = datetime.strptime(end_date, "%Y-%m-%d")
+                        # Add 1 day to include the entire end_date
+                        import datetime as dt_module
+                        dt = dt + dt_module.timedelta(days=1)
+                        query = query.filter(StockMovement.created_at < dt)
                 except:
                     pass
                     

@@ -11,10 +11,18 @@ export default function Raporlar() {
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() - 30);
-    return d.toISOString().split('T')[0];
+    d.setHours(0, 0, 0, 0); // Start of day
+    // toISOString returns UTC, we need local time string YYYY-MM-DDThh:mm
+    const offset = d.getTimezoneOffset() * 60000;
+    const localISOTime = (new Date(d - offset)).toISOString().slice(0, 16);
+    return localISOTime;
   });
   const [endDate, setEndDate] = useState(() => {
-    return new Date().toISOString().split('T')[0];
+    const d = new Date();
+    d.setHours(23, 59, 59, 999); // End of day
+    const offset = d.getTimezoneOffset() * 60000;
+    const localISOTime = (new Date(d - offset)).toISOString().slice(0, 16);
+    return localISOTime;
   });
   
   const [activeTab, setActiveTab] = useState('general');
@@ -96,7 +104,7 @@ export default function Raporlar() {
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-slate-400">Başlangıç:</span>
               <input 
-                type="date" 
+                type="datetime-local" 
                 className="bg-[#242a38] text-slate-200 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
@@ -106,7 +114,7 @@ export default function Raporlar() {
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-slate-400">Bitiş:</span>
               <input 
-                type="date" 
+                type="datetime-local" 
                 className="bg-[#242a38] text-slate-200 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
