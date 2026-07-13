@@ -15,7 +15,12 @@ export default function Login() {
   useEffect(() => {
     const storedUser = localStorage.getItem('user') || sessionStorage.getItem('user');
     if (storedUser) {
-      navigate('/dashboard');
+      try {
+        const u = JSON.parse(storedUser);
+        navigate(u?.role?.toLowerCase() === 'depo' ? '/depo' : '/dashboard');
+      } catch {
+        navigate('/dashboard');
+      }
     } else {
       const savedUsername = localStorage.getItem('saved_username');
       const savedPassword = localStorage.getItem('saved_password');
@@ -59,7 +64,8 @@ export default function Login() {
           localStorage.removeItem('saved_username');
           localStorage.removeItem('saved_password');
         }
-        navigate('/dashboard');
+        const userRole = (response.user?.role || 'Admin').toLowerCase();
+        navigate(userRole === 'depo' ? '/depo' : '/dashboard');
       } else {
         setError(response.message || 'Giriş başarısız oldu.');
       }
