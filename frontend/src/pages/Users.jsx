@@ -146,7 +146,7 @@ export default function Users() {
         </div>
         
         <div className="flex flex-wrap gap-2">
-          <button onClick={() => api.exportTableToExcel(users, "kullanicilar.xlsx")} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-slate-900 dark:text-white px-4 py-2.5 rounded-xl shadow-sm text-sm font-medium transition-colors">
+          <button onClick={() => api.exportTableToExcel(users, "kullanicilar.xlsx")} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl shadow-sm text-sm font-medium transition-colors">
             <Download size={16} /> Excel
           </button>
           <button onClick={handleAdd} className="flex items-center gap-2 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:bg-[#2a3142] border border-slate-600 text-slate-800 dark:text-slate-200 px-4 py-2.5 rounded-xl shadow-sm text-sm font-medium transition-colors">
@@ -298,7 +298,7 @@ export default function Users() {
 
               <div className="pt-4 flex justify-end gap-3 border-t border-slate-200 dark:border-slate-700/50 mt-6">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-5 py-2.5 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:bg-[#2a3142] text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors border border-slate-600">İptal</button>
-                <button type="submit" className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-slate-900 dark:text-white rounded-xl font-medium transition-colors shadow-lg shadow-blue-900/20">Kaydet</button>
+                <button type="submit" className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors shadow-lg shadow-blue-900/20">Kaydet</button>
               </div>
             </form>
           </div>

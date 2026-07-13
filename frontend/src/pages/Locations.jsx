@@ -76,7 +76,7 @@ export default function Locations() {
         </div>
         <button 
           onClick={() => setIsModalOpen(true)}
-          className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-slate-900 dark:text-white px-4 py-2.5 rounded-lg transition-all shadow-sm font-medium text-sm"
+          className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2.5 rounded-lg transition-all shadow-sm font-medium text-sm"
         >
           <Plus size={18} />
           <span>Lokasyon Ekle</span>
@@ -180,7 +180,7 @@ export default function Locations() {
 
               <div className="pt-4 flex justify-end gap-3 border-t border-slate-100 mt-6">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 text-sm font-medium">İptal</button>
-                <button type="submit" className="px-4 py-2 text-slate-900 dark:text-white bg-green-600 hover:bg-green-700 rounded-lg text-sm font-medium shadow-sm">Kaydet</button>
+                <button type="submit" className="px-4 py-2 text-white bg-green-600 hover:bg-green-700 rounded-lg text-sm font-medium shadow-sm">Kaydet</button>
               </div>
             </form>
           </div>

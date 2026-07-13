@@ -107,7 +107,7 @@ export default function Suppliers() {
         </div>
         <button 
           onClick={() => handleOpenModal()}
-          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-slate-900 dark:text-white px-5 py-2.5 rounded-xl transition-all shadow-lg shadow-indigo-900/20 font-medium text-sm"
+          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl transition-all shadow-lg shadow-indigo-900/20 font-medium text-sm"
         >
           <Plus size={18} />
           <span>Yeni Ekle</span>
@@ -303,7 +303,7 @@ export default function Suppliers() {
 
               <div className="pt-4 flex justify-end gap-3 border-t border-slate-200 dark:border-slate-700/50 mt-6">
                 <button type="button" onClick={handleCloseModal} className="px-5 py-2.5 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:bg-[#2a3142] text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors border border-slate-600">İptal</button>
-                <button type="submit" className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-slate-900 dark:text-white rounded-xl font-medium transition-colors shadow-lg shadow-indigo-900/20">Kaydet</button>
+                <button type="submit" className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors shadow-lg shadow-indigo-900/20">Kaydet</button>
               </div>
             </form>
           </div>

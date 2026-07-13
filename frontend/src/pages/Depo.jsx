@@ -127,13 +127,13 @@ export default function Depo() {
           </button>
           <button 
             onClick={() => setIsExcelModalOpen(true)}
-            className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-slate-900 dark:text-white rounded-xl transition-colors font-medium flex items-center gap-2 shadow-sm shadow-blue-900/20"
+            className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors font-medium flex items-center gap-2 shadow-sm shadow-blue-900/20"
           >
             <FileSpreadsheet size={18} /> İçe Aktar
           </button>
           <button 
             onClick={handleExport}
-            className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-slate-900 dark:text-white rounded-xl transition-colors font-medium flex items-center gap-2 shadow-sm shadow-emerald-900/20"
+            className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl transition-colors font-medium flex items-center gap-2 shadow-sm shadow-emerald-900/20"
           >
             <Upload size={18} /> Dışa Aktar
           </button>

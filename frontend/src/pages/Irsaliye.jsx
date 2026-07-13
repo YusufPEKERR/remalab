@@ -240,14 +240,14 @@ export default function Irsaliye() {
           {activeTab === 'inbound' ? (
             <button 
               onClick={resetInboundForm}
-              className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-900 dark:text-white rounded-lg text-sm font-medium transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-sm font-medium transition-colors"
             >
               <Plus size={16} /> Yeni Stok Ekle
             </button>
           ) : (
             <button 
               onClick={() => { setFormData({ part_id: '', loc_id: '', qty: 1, price: 0, type: 'Müşteri Satışı' }); setShowOutboundModal(true); }}
-              className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-slate-900 dark:text-white rounded-lg text-sm font-medium transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-colors"
             >
               <Plus size={16} /> Stok Çıkışı Yap
             </button>
@@ -346,7 +346,7 @@ export default function Irsaliye() {
                 </label>
                 <div className="flex gap-2">
                   <input type="text" placeholder="Barkodu okutun veya manuel girin..." className="flex-1 px-4 py-2 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={inboundBarcode} onChange={(e) => setInboundBarcode(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleBarcodeSearch())} />
-                  <button type="button" onClick={handleBarcodeSearch} className="px-4 bg-slate-100 dark:bg-[#2a3142] hover:bg-blue-600 border border-slate-600 rounded-lg text-slate-900 dark:text-white transition-colors"><Search size={18} /></button>
+                  <button type="button" onClick={handleBarcodeSearch} className="px-4 bg-slate-100 dark:bg-[#2a3142] hover:bg-blue-600 border border-slate-600 rounded-lg text-white transition-colors"><Search size={18} /></button>
                 </div>
               </div>
 
@@ -410,7 +410,7 @@ export default function Irsaliye() {
 
               <div className="flex justify-end gap-3 mt-6 border-t border-slate-200 dark:border-slate-700/50 pt-4">
                 <button type="button" onClick={() => setShowInboundModal(false)} className="px-5 py-2.5 bg-[#323a4d] hover:bg-[#3f485e] text-slate-800 dark:text-slate-200 rounded-lg text-sm font-medium transition-colors">İptal</button>
-                <button type="submit" className="px-5 py-2.5 bg-[#42526e] hover:bg-[#506385] text-slate-900 dark:text-white rounded-lg text-sm font-medium transition-colors shadow-lg">Kaydet</button>
+                <button type="submit" className="px-5 py-2.5 bg-[#42526e] hover:bg-[#506385] text-white rounded-lg text-sm font-medium transition-colors shadow-lg">Kaydet</button>
               </div>
             </form>
           </div>
@@ -453,7 +453,7 @@ export default function Irsaliye() {
               </div>
               <div className="flex justify-end gap-3 mt-6 border-t border-slate-200 dark:border-slate-700/50 pt-4">
                 <button type="button" onClick={() => setShowOutboundModal(false)} className="px-4 py-2 border border-slate-600 rounded-xl hover:bg-slate-100 dark:bg-[#2a3142] text-slate-700 dark:text-slate-300 text-sm font-medium transition-colors">İptal</button>
-                <button type="submit" className="px-4 py-2 bg-red-600 text-slate-900 dark:text-white rounded-xl hover:bg-red-700 text-sm font-medium transition-colors shadow-lg shadow-red-900/20">Kaydet</button>
+                <button type="submit" className="px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 text-sm font-medium transition-colors shadow-lg shadow-red-900/20">Kaydet</button>
               </div>
             </form>
           </div>

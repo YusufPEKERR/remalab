@@ -205,7 +205,7 @@ export default function Settings() {
                   </div>
                   <button 
                     onClick={() => handleOpenDbForm()}
-                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-slate-900 dark:text-white px-4 py-2 rounded-xl transition-all shadow-lg shadow-blue-900/20 font-medium text-sm"
+                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl transition-all shadow-lg shadow-blue-900/20 font-medium text-sm"
                   >
                     <Plus size={16} /> Yeni Bağlantı
                   </button>
@@ -217,7 +217,7 @@ export default function Settings() {
                     return (
                       <div key={conn.id} className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-5 flex gap-5 hover:border-slate-500 transition-colors group relative overflow-hidden">
                         {conn.active && (
-                          <div className="absolute top-0 right-0 bg-blue-600 text-slate-900 dark:text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl uppercase tracking-wider">
+                          <div className="absolute top-0 right-0 bg-blue-600 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl uppercase tracking-wider">
                             Aktif
                           </div>
                         )}
@@ -315,8 +315,8 @@ export default function Settings() {
 
                   <div className="flex justify-end gap-3 pt-6 border-t border-slate-200 dark:border-slate-700/50 mt-6">
                     <button type="button" onClick={() => setShowDbForm(false)} className="px-5 py-2.5 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:bg-[#2a3142] text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors border border-slate-600">İptal</button>
-                    <button type="button" onClick={() => alert("Test Ediliyor...")} className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-slate-900 dark:text-white rounded-xl font-medium transition-colors shadow-lg shadow-indigo-900/20 flex items-center gap-2"><PlugZap size={18}/> Test Et</button>
-                    <button type="submit" className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-slate-900 dark:text-white rounded-xl font-medium transition-colors shadow-lg shadow-blue-900/20 flex items-center gap-2"><Save size={18}/> Kaydet</button>
+                    <button type="button" onClick={() => alert("Test Ediliyor...")} className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors shadow-lg shadow-indigo-900/20 flex items-center gap-2"><PlugZap size={18}/> Test Et</button>
+                    <button type="submit" className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors shadow-lg shadow-blue-900/20 flex items-center gap-2"><Save size={18}/> Kaydet</button>
                   </div>
                 </form>
               </div>
@@ -339,7 +339,7 @@ export default function Settings() {
                   <button className="flex items-center gap-2 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:bg-[#2a3142] text-slate-800 dark:text-slate-200 border border-slate-600 px-4 py-2 rounded-xl transition-all font-medium text-sm">
                     Var Olanı Ekle
                   </button>
-                  <button className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-slate-900 dark:text-white px-4 py-2 rounded-xl transition-all shadow-lg shadow-purple-900/20 font-medium text-sm">
+                  <button className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl transition-all shadow-lg shadow-purple-900/20 font-medium text-sm">
                     <Plus size={16} /> Yeni Oluştur
                   </button>
                 </div>

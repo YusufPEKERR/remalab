@@ -184,7 +184,7 @@ export default function Raporlar() {
 
               <button 
                 onClick={() => fetchReports(false)}
-                className="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-slate-900 dark:text-white rounded-lg text-sm font-medium transition-colors"
+                className="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
               >
                 <Filter size={16} /> Filtrele
               </button>

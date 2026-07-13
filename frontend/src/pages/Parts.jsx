@@ -233,7 +233,7 @@ export default function Parts() {
           
           <button 
             onClick={() => handleOpenModal()}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-slate-900 dark:text-white px-4 py-2 rounded-xl transition-all shadow-lg shadow-blue-900/20 font-medium"
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl transition-all shadow-lg shadow-blue-900/20 font-medium"
           >
             <Plus size={18} /> Yeni Parça Ekle
           </button>
@@ -527,7 +527,7 @@ export default function Parts() {
                 </button>
                 <button 
                   type="submit"
-                  className="mt-4 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-slate-900 dark:text-white rounded-lg font-medium transition-colors shadow-lg shadow-blue-900/20"
+                  className="mt-4 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors shadow-lg shadow-blue-900/20"
                 >
                   {currentPart ? 'Güncelle' : 'Kaydet'}
                 </button>

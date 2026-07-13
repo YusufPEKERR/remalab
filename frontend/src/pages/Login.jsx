@@ -200,7 +200,7 @@ export default function Login() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full h-[52px] mt-4 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-slate-900 dark:text-white font-semibold rounded-xl transition-all shadow-lg shadow-blue-900/20 disabled:opacity-70 disabled:cursor-not-allowed group"
+                className="w-full h-[52px] mt-4 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl transition-all shadow-lg shadow-blue-900/20 disabled:opacity-70 disabled:cursor-not-allowed group"
               >
                 {loading ? (
                   <RefreshCw size={20} className="animate-spin" />
