@@ -404,6 +404,120 @@ export const api = {
         });
     },
 
+    // ==========================
+    // İŞ EMİRLERİ
+    // ==========================
+
+    getWorkOrders: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_work_orders) {
+                backend.get_work_orders((res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true, work_orders: [] });
+            }
+        });
+    },
+
+    createWorkOrder: async (order) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.create_work_order) {
+                backend.create_work_order(
+                    order.service_record_id || '',
+                    order.description || '',
+                    order.assigned_technician || '',
+                    order.priority || 'Orta',
+                    order.start_date || '',
+                    order.end_date || '',
+                    order.parts_used || '[]',
+                    order.status || 'Beklemede',
+                    (res) => resolve(JSON.parse(res))
+                );
+            } else {
+                resolve({ success: true });
+            }
+        });
+    },
+
+    updateWorkOrder: async (id, order) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.update_work_order) {
+                backend.update_work_order(
+                    String(id),
+                    order.service_record_id || '',
+                    order.description || '',
+                    order.assigned_technician || '',
+                    order.priority || 'Orta',
+                    order.start_date || '',
+                    order.end_date || '',
+                    order.parts_used || '[]',
+                    order.status || 'Beklemede',
+                    (res) => resolve(JSON.parse(res))
+                );
+            } else {
+                resolve({ success: true });
+            }
+        });
+    },
+
+    deleteWorkOrder: async (id) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.delete_work_order) {
+                backend.delete_work_order(String(id), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true });
+            }
+        });
+    },
+
+    // ==========================
+    // ÜRETİM (Yarı Mamul / Malzeme Tüketimi / Geçmiş)
+    // ==========================
+
+    getProductionRuns: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_production_runs) {
+                backend.get_production_runs((res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true, production_runs: [] });
+            }
+        });
+    },
+
+    createProductionRun: async (run) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.create_production_run) {
+                backend.create_production_run(
+                    run.target_part_id || '',
+                    String(run.quantity_produced || ''),
+                    run.location_id || '',
+                    run.produced_by || '',
+                    run.notes || '',
+                    run.materials_json || '[]',
+                    (res) => resolve(JSON.parse(res))
+                );
+            } else {
+                resolve({ success: true });
+            }
+        });
+    },
+
+    deleteProductionRun: async (id) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.delete_production_run) {
+                backend.delete_production_run(String(id), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true });
+            }
+        });
+    },
+
     deletePartCategory: async (id) => {
         const backend = await getBackend();
         return new Promise((resolve) => {

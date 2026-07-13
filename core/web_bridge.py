@@ -14,6 +14,65 @@ class WebBridge(QObject):
         self._ensure_departments_table()
         self._ensure_stock_movement_columns()
         self._ensure_service_records_table()
+        self._ensure_work_orders_table()
+        self._ensure_production_tables()
+
+    def _ensure_production_tables(self):
+        """warehouse.production_runs ve production_materials tablolarını yoksa oluşturur."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            db.execute(text("""
+                CREATE TABLE IF NOT EXISTS warehouse.production_runs (
+                    id SERIAL PRIMARY KEY,
+                    target_part_id INTEGER REFERENCES warehouse.parts(id),
+                    quantity_produced INTEGER NOT NULL,
+                    location_id INTEGER REFERENCES warehouse.locations(id),
+                    produced_by VARCHAR(150),
+                    notes TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            """))
+            db.execute(text("""
+                CREATE TABLE IF NOT EXISTS warehouse.production_materials (
+                    id SERIAL PRIMARY KEY,
+                    production_run_id INTEGER REFERENCES warehouse.production_runs(id) ON DELETE CASCADE,
+                    part_id INTEGER REFERENCES warehouse.parts(id),
+                    quantity_consumed INTEGER NOT NULL
+                );
+            """))
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            print(f"[WebBridge] production tabloları oluşturulamadı: {e}")
+        finally:
+            db.close()
+
+    def _ensure_work_orders_table(self):
+        """warehouse.work_orders tablosu yoksa oluşturur."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            db.execute(text("""
+                CREATE TABLE IF NOT EXISTS warehouse.work_orders (
+                    id SERIAL PRIMARY KEY,
+                    service_record_id INTEGER REFERENCES warehouse.service_records(id),
+                    description TEXT,
+                    assigned_technician VARCHAR(150),
+                    priority VARCHAR(20) DEFAULT 'Orta',
+                    start_date DATE,
+                    end_date DATE,
+                    parts_used TEXT,
+                    status VARCHAR(30) DEFAULT 'Beklemede',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            """))
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            print(f"[WebBridge] work_orders tablosu oluşturulamadı: {e}")
+        finally:
+            db.close()
 
     def _ensure_service_records_table(self):
         """warehouse.service_records tablosu yoksa oluşturur."""
@@ -711,6 +770,277 @@ class WebBridge(QObject):
             db.execute(text("DELETE FROM warehouse.service_records WHERE id = :id"), {"id": record_id})
             db.commit()
             return json.dumps({"success": True, "message": "Servis kaydı silindi"})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": f"Silme hatası: {str(e)}"})
+        finally:
+            db.close()
+
+    # ==========================
+    # İŞ EMİRLERİ MODÜLÜ
+    # ==========================
+
+    @Slot(result=str)
+    def get_work_orders(self):
+        """Tüm iş emirlerini, bağlı olduğu servis kaydı bilgileriyle birlikte getirir."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            rows = db.execute(text("""
+                SELECT w.id, w.service_record_id, w.description, w.assigned_technician, w.priority,
+                       w.start_date, w.end_date, w.parts_used, w.status, w.created_at,
+                       s.customer_name, s.brand, s.model, s.fault_category, s.fault_type
+                FROM warehouse.work_orders w
+                LEFT JOIN warehouse.service_records s ON s.id = w.service_record_id
+                ORDER BY w.id DESC
+            """)).mappings().all()
+            orders = []
+            for row in rows:
+                orders.append({
+                    "id": str(row["id"]),
+                    "service_record_id": str(row["service_record_id"]) if row["service_record_id"] else "",
+                    "customer_name": row["customer_name"] or "",
+                    "brand": row["brand"] or "",
+                    "model": row["model"] or "",
+                    "fault_category": row["fault_category"] or "",
+                    "fault_type": row["fault_type"] or "",
+                    "description": row["description"] or "",
+                    "assigned_technician": row["assigned_technician"] or "",
+                    "priority": row["priority"] or "Orta",
+                    "start_date": row["start_date"].strftime("%Y-%m-%d") if row["start_date"] else "",
+                    "end_date": row["end_date"].strftime("%Y-%m-%d") if row["end_date"] else "",
+                    "parts_used": row["parts_used"] or "[]",
+                    "status": row["status"] or "Beklemede",
+                    "created_at": row["created_at"].strftime("%Y-%m-%d %H:%M") if row["created_at"] else ""
+                })
+            return json.dumps({"success": True, "work_orders": orders})
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, str, str, str, str, str, str, result=str)
+    def create_work_order(self, service_record_id, description, assigned_technician, priority,
+                           start_date, end_date, parts_used, status):
+        """Yeni iş emri ekler."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            db.execute(text("""
+                INSERT INTO warehouse.work_orders (
+                    service_record_id, description, assigned_technician, priority,
+                    start_date, end_date, parts_used, status
+                ) VALUES (
+                    :sr_id, :desc, :tech, :priority, :start, :end, :parts, :status
+                )
+            """), {
+                "sr_id": int(service_record_id) if service_record_id.strip() else None,
+                "desc": description or None,
+                "tech": assigned_technician or None,
+                "priority": priority or "Orta",
+                "start": start_date or None,
+                "end": end_date or None,
+                "parts": parts_used or None,
+                "status": status or "Beklemede"
+            })
+            db.commit()
+            return json.dumps({"success": True, "message": "İş emri eklendi"})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": f"Kayıt hatası: {str(e)}"})
+        finally:
+            db.close()
+
+    @Slot(str, str, str, str, str, str, str, str, str, result=str)
+    def update_work_order(self, order_id_str, service_record_id, description, assigned_technician, priority,
+                           start_date, end_date, parts_used, status):
+        """Var olan bir iş emrini günceller."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            order_id = int(order_id_str)
+            db.execute(text("""
+                UPDATE warehouse.work_orders
+                SET service_record_id = :sr_id, description = :desc, assigned_technician = :tech,
+                    priority = :priority, start_date = :start, end_date = :end,
+                    parts_used = :parts, status = :status
+                WHERE id = :id
+            """), {
+                "sr_id": int(service_record_id) if service_record_id.strip() else None,
+                "desc": description or None,
+                "tech": assigned_technician or None,
+                "priority": priority or "Orta",
+                "start": start_date or None,
+                "end": end_date or None,
+                "parts": parts_used or None,
+                "status": status or "Beklemede",
+                "id": order_id
+            })
+            db.commit()
+            return json.dumps({"success": True, "message": "İş emri güncellendi"})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": f"Güncelleme hatası: {str(e)}"})
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
+    def delete_work_order(self, order_id_str):
+        """Belirtilen id'ye sahip iş emrini siler."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            order_id = int(order_id_str)
+            db.execute(text("DELETE FROM warehouse.work_orders WHERE id = :id"), {"id": order_id})
+            db.commit()
+            return json.dumps({"success": True, "message": "İş emri silindi"})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": f"Silme hatası: {str(e)}"})
+        finally:
+            db.close()
+
+    # ==========================
+    # ÜRETİM MODÜLÜ (Yarı Mamul Üretimi / Malzeme Tüketimi / Üretim Geçmişi)
+    # ==========================
+
+    @Slot(result=str)
+    def get_production_runs(self):
+        """Tüm üretim kayıtlarını, tükettikleri malzemelerle birlikte getirir."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            runs = db.execute(text("""
+                SELECT pr.id, pr.target_part_id, pr.quantity_produced, pr.location_id,
+                       pr.produced_by, pr.notes, pr.created_at,
+                       p.brand AS target_brand, p.model AS target_model,
+                       p.item_code AS target_code, p.name AS target_name,
+                       l.name AS location_name
+                FROM warehouse.production_runs pr
+                LEFT JOIN warehouse.parts p ON p.id = pr.target_part_id
+                LEFT JOIN warehouse.locations l ON l.id = pr.location_id
+                ORDER BY pr.id DESC
+            """)).mappings().all()
+
+            materials = db.execute(text("""
+                SELECT pm.production_run_id, pm.part_id, pm.quantity_consumed,
+                       p.brand, p.model, p.item_code, p.name
+                FROM warehouse.production_materials pm
+                LEFT JOIN warehouse.parts p ON p.id = pm.part_id
+            """)).mappings().all()
+
+            materials_by_run = {}
+            for m in materials:
+                part_label = f'{m["brand"] or ""} {m["model"] or ""}'.strip() or (m["name"] or "")
+                materials_by_run.setdefault(m["production_run_id"], []).append({
+                    "part_id": str(m["part_id"]) if m["part_id"] else "",
+                    "part_name": part_label,
+                    "item_code": m["item_code"] or "",
+                    "quantity_consumed": m["quantity_consumed"]
+                })
+
+            result = []
+            for r in runs:
+                target_label = f'{r["target_brand"] or ""} {r["target_model"] or ""}'.strip() or (r["target_name"] or "")
+                result.append({
+                    "id": str(r["id"]),
+                    "target_part_id": str(r["target_part_id"]) if r["target_part_id"] else "",
+                    "target_part_name": target_label,
+                    "target_item_code": r["target_code"] or "",
+                    "quantity_produced": r["quantity_produced"],
+                    "location_id": str(r["location_id"]) if r["location_id"] else "",
+                    "location_name": r["location_name"] or "",
+                    "produced_by": r["produced_by"] or "",
+                    "notes": r["notes"] or "",
+                    "created_at": r["created_at"].strftime("%Y-%m-%d %H:%M") if r["created_at"] else "",
+                    "materials": materials_by_run.get(r["id"], [])
+                })
+            return json.dumps({"success": True, "production_runs": result})
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, str, str, str, str, result=str)
+    def create_production_run(self, target_part_id, quantity_produced, location_id, produced_by, notes, materials_json):
+        """Hammadde tüketip yarı mamul/ürün stoku oluşturan bir üretim kaydı ekler."""
+        from sqlalchemy import text
+        import json as json_module
+        db = SessionLocal()
+        try:
+            qty = int(quantity_produced)
+            loc_id = int(location_id)
+            tgt_id = int(target_part_id)
+            materials = json_module.loads(materials_json or "[]")
+
+            if qty <= 0:
+                return json.dumps({"success": False, "message": "Üretilecek miktar sıfırdan büyük olmalıdır."})
+
+            # Stok yeterliliğini kontrol et
+            for m in materials:
+                part_id = int(m["part_id"])
+                needed = int(m["quantity_consumed"])
+                row = db.execute(text("""
+                    SELECT quantity FROM warehouse.stock WHERE part_id = :pid AND location_id = :lid
+                """), {"pid": part_id, "lid": loc_id}).first()
+                available = row[0] if row else 0
+                if available < needed:
+                    return json.dumps({"success": False, "message": f"Yetersiz stok (parça id {part_id}): mevcut {available}, gerekli {needed}"})
+
+            # Hammaddeleri seçilen lokasyondan düş
+            for m in materials:
+                part_id = int(m["part_id"])
+                needed = int(m["quantity_consumed"])
+                db.execute(text("""
+                    UPDATE warehouse.stock SET quantity = quantity - :qty
+                    WHERE part_id = :pid AND location_id = :lid
+                """), {"qty": needed, "pid": part_id, "lid": loc_id})
+
+            # Üretilen parçanın stokunu artır (yoksa oluştur)
+            existing = db.execute(text("""
+                SELECT id FROM warehouse.stock WHERE part_id = :pid AND location_id = :lid
+            """), {"pid": tgt_id, "lid": loc_id}).first()
+            if existing:
+                db.execute(text("UPDATE warehouse.stock SET quantity = quantity + :qty WHERE id = :id"),
+                           {"qty": qty, "id": existing[0]})
+            else:
+                db.execute(text("""
+                    INSERT INTO warehouse.stock (part_id, location_id, quantity) VALUES (:pid, :lid, :qty)
+                """), {"pid": tgt_id, "lid": loc_id, "qty": qty})
+
+            # Üretim kaydını oluştur
+            run_id = db.execute(text("""
+                INSERT INTO warehouse.production_runs (target_part_id, quantity_produced, location_id, produced_by, notes)
+                VALUES (:tgt, :qty, :lid, :by, :notes) RETURNING id
+            """), {
+                "tgt": tgt_id, "qty": qty, "lid": loc_id,
+                "by": produced_by or None, "notes": notes or None
+            }).scalar()
+
+            for m in materials:
+                db.execute(text("""
+                    INSERT INTO warehouse.production_materials (production_run_id, part_id, quantity_consumed)
+                    VALUES (:run_id, :pid, :qty)
+                """), {"run_id": run_id, "pid": int(m["part_id"]), "qty": int(m["quantity_consumed"])})
+
+            db.commit()
+            return json.dumps({"success": True, "message": "Üretim kaydı oluşturuldu"})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": f"Üretim kaydı hatası: {str(e)}"})
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
+    def delete_production_run(self, run_id_str):
+        """Belirtilen üretim kaydını siler (stok hareketlerini geri almaz, sadece geçmiş kaydını kaldırır)."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            run_id = int(run_id_str)
+            db.execute(text("DELETE FROM warehouse.production_runs WHERE id = :id"), {"id": run_id})
+            db.commit()
+            return json.dumps({"success": True, "message": "Üretim kaydı silindi"})
         except Exception as e:
             db.rollback()
             return json.dumps({"success": False, "message": f"Silme hatası: {str(e)}"})

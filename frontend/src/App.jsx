@@ -8,6 +8,7 @@ import Suppliers from './pages/Suppliers';
 import Locations from './pages/Locations';
 import Depo from './pages/Depo';
 import Irsaliye from './pages/Irsaliye';
+import WorkOrders from './pages/WorkOrders';
 import Raporlar from './pages/Raporlar';
 import Settings from './pages/Settings';
 import Departments from './pages/Departments';
@@ -32,6 +33,7 @@ function App() {
           {/* DEPO */}
           <Route path="/depo" element={<Depo />} />
           <Route path="/irsaliye" element={<Irsaliye />} />
+          <Route path="/work-orders" element={<WorkOrders />} />
           <Route path="/raporlar" element={<Raporlar />} />
 
           {/* ENVANTER */}
