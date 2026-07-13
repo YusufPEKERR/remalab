@@ -601,25 +601,24 @@ class WebBridge(QObject):
             if start_date:
                 try:
                     if 'T' in start_date:
-                        dt = datetime.strptime(start_date, "%Y-%m-%dT%H:%M")
+                        dt = datetime.fromisoformat(start_date)
                     else:
                         dt = datetime.strptime(start_date, "%Y-%m-%d")
                     query = query.filter(StockMovement.created_at >= dt)
-                except:
-                    pass
+                except Exception as e:
+                    print(f"Error parsing start_date '{start_date}': {e}")
             if end_date:
                 try:
                     if 'T' in end_date:
-                        dt = datetime.strptime(end_date, "%Y-%m-%dT%H:%M")
+                        dt = datetime.fromisoformat(end_date)
                         query = query.filter(StockMovement.created_at <= dt)
                     else:
                         dt = datetime.strptime(end_date, "%Y-%m-%d")
-                        # Add 1 day to include the entire end_date
                         import datetime as dt_module
                         dt = dt + dt_module.timedelta(days=1)
                         query = query.filter(StockMovement.created_at < dt)
-                except:
-                    pass
+                except Exception as e:
+                    print(f"Error parsing end_date '{end_date}': {e}")
                     
             query = query.order_by(StockMovement.created_at.desc()).limit(1000)
             results = query.all()
