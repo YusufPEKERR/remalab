@@ -321,6 +321,87 @@ export const api = {
         });
     },
 
+    // ==========================
+    // SERVİS KAYITLARI
+    // ==========================
+
+    getServiceRecords: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_service_records) {
+                backend.get_service_records((res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true, records: [] });
+            }
+        });
+    },
+
+    createServiceRecord: async (rec) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.create_service_record) {
+                backend.create_service_record(
+                    rec.customer_name || '',
+                    rec.customer_phone || '',
+                    rec.customer_email || '',
+                    rec.company || '',
+                    rec.brand || '',
+                    rec.model || '',
+                    rec.imei_serial || '',
+                    rec.color || '',
+                    rec.fault_category || '',
+                    rec.fault_type || '',
+                    rec.customer_complaint || '',
+                    rec.preliminary_diagnosis || '',
+                    rec.status || 'Arıza Kabul',
+                    rec.technician_note || '',
+                    (res) => resolve(JSON.parse(res))
+                );
+            } else {
+                resolve({ success: true });
+            }
+        });
+    },
+
+    updateServiceRecord: async (id, rec) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.update_service_record) {
+                backend.update_service_record(
+                    String(id),
+                    rec.customer_name || '',
+                    rec.customer_phone || '',
+                    rec.customer_email || '',
+                    rec.company || '',
+                    rec.brand || '',
+                    rec.model || '',
+                    rec.imei_serial || '',
+                    rec.color || '',
+                    rec.fault_category || '',
+                    rec.fault_type || '',
+                    rec.customer_complaint || '',
+                    rec.preliminary_diagnosis || '',
+                    rec.status || 'Arıza Kabul',
+                    rec.technician_note || '',
+                    (res) => resolve(JSON.parse(res))
+                );
+            } else {
+                resolve({ success: true });
+            }
+        });
+    },
+
+    deleteServiceRecord: async (id) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.delete_service_record) {
+                backend.delete_service_record(String(id), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true });
+            }
+        });
+    },
+
     deletePartCategory: async (id) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
@@ -432,11 +513,11 @@ export const api = {
         });
     },
 
-    addOutboundEntry: async (partId, locId, qty, typeStr, user) => {
+    addOutboundEntry: async (partId, locId, qty, typeStr, user, technician, description) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
             if (backend.add_outbound_entry) {
-                backend.add_outbound_entry(String(partId), String(locId), String(qty), typeStr, user, (res) => resolve(JSON.parse(res)));
+                backend.add_outbound_entry(String(partId), String(locId), String(qty), typeStr, user, technician || "", description || "", (res) => resolve(JSON.parse(res)));
             } else {
                 resolve({ success: true });
             }
@@ -483,24 +564,6 @@ export const api = {
                 backend.export_table_to_excel(JSON.stringify(data), filename, (res) => resolve(JSON.parse(res)));
             } else {
                 resolve({ success: false, message: "Excel export not available in mock mode" });
-            }
-        });
-    },
-
-    transferStock: async (partId, sourceLocId, targetLocId, quantity, userId) => {
-        const backend = await getBackend();
-        return new Promise((resolve) => {
-            if (backend.transfer_stock) {
-                backend.transfer_stock(
-                    String(partId),
-                    String(sourceLocId),
-                    String(targetLocId),
-                    parseInt(quantity, 10),
-                    String(userId),
-                    (res) => resolve(JSON.parse(res))
-                );
-            } else {
-                resolve({ success: false, message: "TransferStock not available in mock mode" });
             }
         });
     },

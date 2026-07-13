@@ -129,7 +129,7 @@ export default function Locations() {
                 </tr>
               ) : (
                 filteredLocations.map((loc) => (
-                  <tr key={loc.id} className="hover:bg-slate-100 dark:bg-[#2a3142] transition-colors group text-slate-800 dark:text-slate-200">
+                  <tr key={loc.id} className="hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors group text-slate-800 dark:text-slate-200">
                     <td className="px-6 py-3 font-mono">{loc.id}</td>
                     <td className="px-6 py-3">{loc.name}</td>
                     <td className="px-6 py-3 text-right">

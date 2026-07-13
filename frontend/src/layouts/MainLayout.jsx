@@ -3,7 +3,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { 
   LogOut, LayoutDashboard, Users, Package, Settings, Bell,
   Warehouse, FileText, BarChart2, Box, Truck, MapPin,
-  CheckCircle, Search, AlertTriangle, Zap, RefreshCw, Sun, Moon, Database
+  CheckCircle, Search, AlertTriangle, Zap, RefreshCw, Sun, Moon, Database, Building2, Wrench
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useTheme } from '../context/ThemeContext';
@@ -72,7 +72,7 @@ export default function MainLayout() {
 
   // Permission maps based on Python code:
   const allowedPaths = {
-    'admin': ['/dashboard', '/depo', '/irsaliye', '/raporlar', '/parts', '/products', '/suppliers', '/locations', '/users', '/settings', '/data-management', '/quality', '/refurbishment', '/priority'],
+    'admin': ['/dashboard', '/depo', '/irsaliye', '/raporlar', '/parts', '/products', '/suppliers', '/locations', '/users', '/settings', '/departments', '/service-records', '/data-management', '/quality', '/refurbishment', '/priority'],
     'depo': ['/dashboard', '/depo', '/irsaliye', '/locations'],
     'depo müdürü': ['/dashboard', '/depo', '/irsaliye', '/locations', '/parts', '/products', '/suppliers', '/data-management'],
     'teknisyen': ['/dashboard', '/quality', '/refurbishment', '/priority']
@@ -109,16 +109,20 @@ export default function MainLayout() {
       items: [
         { name: 'Kullanıcılar', icon: Users, path: '/users' },
         { name: 'Ayarlar', icon: Settings, path: '/settings' },
-        { name: 'Veri Yönetimi', icon: Database, path: '/data-management' }
+        { name: 'Veri Yönetimi', icon: Database, path: '/data-management' },
+        { name: 'Departman Yönetimi', icon: Building2, path: '/departments' },
+        { name: 'Servis Kaydı', icon: Wrench, path: '/service-records' }
       ]
     }
   ];
 
   // Filter groups based on role
-  const filteredGroups = menuGroups.map(group => ({
-    ...group,
-    items: group.items.filter(item => allowed.includes(item.path))
-  })).filter(group => group.items.length > 0);
+  const filteredGroups = userRole === 'admin' 
+    ? menuGroups
+    : menuGroups.map(group => ({
+        ...group,
+        items: group.items.filter(item => allowed.includes(item.path))
+      })).filter(group => group.items.length > 0);
 
   const currentPage = menuGroups.flatMap(g => g.items).find(i => 
     location.pathname === i.path || (i.path !== '/' && location.pathname.startsWith(i.path))
@@ -149,7 +153,7 @@ export default function MainLayout() {
                       className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
                         isActive 
                           ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' 
-                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-100 dark:bg-[#2a3142]'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#2a3142]'
                       }`}
                       onClick={(e) => {
                         e.preventDefault();
@@ -221,7 +225,7 @@ export default function MainLayout() {
             <div className="relative" ref={notifRef}>
               <button 
                 onClick={() => setShowNotifications(!showNotifications)}
-                className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-800 dark:text-slate-200 transition-colors relative bg-slate-100 dark:bg-[#1e2330] rounded-xl border border-slate-200 dark:border-slate-700/50" 
+                className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors relative bg-slate-100 dark:bg-[#1e2330] rounded-xl border border-slate-200 dark:border-slate-700/50" 
                 title="Bildirimler"
               >
                 <Bell size={18} />
@@ -252,7 +256,7 @@ export default function MainLayout() {
                     {notifications.length > 0 ? (
                       <div className="divide-y divide-slate-100 dark:divide-slate-700/50">
                         {notifications.map((notif, idx) => (
-                          <div key={idx} className="p-4 hover:bg-slate-50 dark:hover:bg-slate-100 dark:bg-[#2a3142] transition-colors cursor-pointer" onClick={() => {setShowNotifications(false); navigate('/depo');}}>
+                          <div key={idx} className="p-4 hover:bg-slate-50 dark:hover:bg-[#2a3142] transition-colors cursor-pointer" onClick={() => {setShowNotifications(false); navigate('/depo');}}>
                             <div className="flex items-start gap-3">
                               <div className="mt-0.5 shrink-0">
                                 <AlertTriangle size={18} className={notif.status === 'Tükendi' ? "text-red-400" : "text-amber-400"} />

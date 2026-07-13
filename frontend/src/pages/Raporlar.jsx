@@ -115,7 +115,7 @@ export default function Raporlar() {
           className={`px-6 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 ${
             activeTab === 'general' 
               ? 'bg-blue-600 text-slate-900 dark:text-white shadow-lg shadow-blue-900/20' 
-              : 'text-slate-400 hover:text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:bg-[#2a3142]'
+              : 'text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#2a3142]'
           }`}
         >
           Genel Raporlar
@@ -125,7 +125,7 @@ export default function Raporlar() {
           className={`px-6 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 ${
             activeTab === 'critical' 
               ? 'bg-red-600 text-slate-900 dark:text-white shadow-lg shadow-red-900/20' 
-              : 'text-slate-400 hover:text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:bg-[#2a3142]'
+              : 'text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#2a3142]'
           }`}
         >
           Kritik Raporlar
@@ -228,7 +228,7 @@ export default function Raporlar() {
                     </tr>
                   ) : (
                     generalReports.map((r) => (
-                      <tr key={r.id} className="hover:bg-slate-100 dark:bg-[#2a3142] transition-colors group text-slate-700 dark:text-slate-300">
+                      <tr key={r.id} className="hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors group text-slate-700 dark:text-slate-300">
                         <td className="px-6 py-4 font-mono text-slate-400">{r.date}</td>
                         <td className="px-6 py-4">
                           <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${
@@ -295,7 +295,7 @@ export default function Raporlar() {
                     </tr>
                   ) : (
                     criticalReports.map((r) => (
-                      <tr key={r.id} className="hover:bg-slate-100 dark:bg-[#2a3142] transition-colors group text-slate-700 dark:text-slate-300">
+                      <tr key={r.id} className="hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors group text-slate-700 dark:text-slate-300">
                         <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200">{r.part_name}</td>
                         <td className="px-6 py-4 text-slate-400">{r.location}</td>
                         <td className="px-6 py-4 font-mono">

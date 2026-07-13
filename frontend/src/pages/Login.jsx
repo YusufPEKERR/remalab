@@ -15,7 +15,13 @@ export default function Login() {
   useEffect(() => {
     const storedUser = localStorage.getItem('user') || sessionStorage.getItem('user');
     if (storedUser) {
-      navigate('/dashboard');
+      try {
+        const u = JSON.parse(storedUser);
+        const userRole = u?.role?.toLowerCase() || 'admin';
+        navigate(['depo', 'depo müdürü'].includes(userRole) ? '/depo' : '/dashboard');
+      } catch {
+        navigate('/dashboard');
+      }
     } else {
       const savedUsername = localStorage.getItem('saved_username');
       const savedPassword = localStorage.getItem('saved_password');
@@ -59,7 +65,8 @@ export default function Login() {
           localStorage.removeItem('saved_username');
           localStorage.removeItem('saved_password');
         }
-        navigate('/dashboard');
+        const userRole = (response.user?.role || 'Admin').toLowerCase();
+        navigate(['depo', 'depo müdürü'].includes(userRole) ? '/depo' : '/dashboard');
       } else {
         setError(response.message || 'Giriş başarısız oldu.');
       }
@@ -168,7 +175,7 @@ export default function Login() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 dark:text-slate-300 transition-colors"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
                   >
                     {showPassword ? <Eye size={18} /> : <EyeOff size={18} />}
                   </button>
@@ -190,7 +197,7 @@ export default function Login() {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                     </svg>
                   </div>
-                  <span className="ml-2.5 text-sm text-slate-400 group-hover:text-slate-700 dark:text-slate-300 transition-colors">
+                  <span className="ml-2.5 text-sm text-slate-400 group-hover:text-slate-700 dark:hover:text-slate-300 transition-colors">
                     Beni hatırla
                   </span>
                 </label>

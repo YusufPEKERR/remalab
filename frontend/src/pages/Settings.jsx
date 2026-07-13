@@ -16,8 +16,8 @@ import {
   DatabaseZap,
   PlugZap,
   Code2,
-  Building2,
-  X
+  X,
+  Building2
 } from 'lucide-react';
 import { api } from '../services/api';
 
@@ -88,6 +88,37 @@ export default function Settings() {
     }
   }, [activeTab]);
 
+  // Departments
+  const [departments, setDepartments] = useState([]);
+  const [showDeptForm, setShowDeptForm] = useState(false);
+  const [editingDept, setEditingDept] = useState(null);
+  const [deptFormData, setDeptFormData] = useState({ name: '', code: '', manager: '', default_location: '', status: 'Aktif' });
+
+  const fetchDepartments = async () => {
+    setDepartments([
+      { id: '1', name: 'Servis', code: 'SRV', manager: 'Ahmet Yılmaz', default_location: 'Servis Depo', status: 'Aktif' },
+      { id: '2', name: 'Teknik Servis', code: 'TS', manager: 'Mehmet Demir', default_location: 'Tamirhane', status: 'Aktif' },
+      { id: '3', name: 'Üretim', code: 'URT', manager: 'Ali Kaya', default_location: 'Üretim Bandı', status: 'Aktif' }
+    ]);
+  };
+
+  useEffect(() => {
+    if (activeTab === 'departments') {
+      fetchDepartments();
+    }
+  }, [activeTab]);
+
+  const handleOpenDeptForm = (dept = null) => {
+    if (dept) {
+      setEditingDept(dept);
+      setDeptFormData(dept);
+    } else {
+      setEditingDept(null);
+      setDeptFormData({ name: '', code: '', manager: '', default_location: '', status: 'Aktif' });
+    }
+    setShowDeptForm(true);
+  };
+
   const handleOpenDbForm = (conn = null) => {
     if (conn) {
       setEditingDb(conn);
@@ -111,77 +142,6 @@ export default function Settings() {
     }
   };
 
-  // Department Management
-  const DEPARTMENT_NAMES = ['Servis', 'Teknik Servis', 'Üretim', 'Kalite'];
-  const DEPARTMENT_CODES = { 'Servis': 'SRV', 'Teknik Servis': 'TS', 'Üretim': 'URT', 'Kalite': 'KAL' };
-  const [departments, setDepartments] = useState([]);
-  const [locations, setLocations] = useState([]);
-  const [showDeptForm, setShowDeptForm] = useState(false);
-  const [editingDept, setEditingDept] = useState(null);
-  const [deptFormData, setDeptFormData] = useState({ name: '', code: '', responsible: '', default_location_id: '', status: 'Aktif' });
-
-  const fetchDepartments = async () => {
-    const res = await api.getDepartments();
-    if (res.success) setDepartments(res.departments || []);
-  };
-
-  useEffect(() => {
-    if (activeTab === 'departments') {
-      fetchDepartments();
-      api.getLocations().then(res => { if (res.success) setLocations(res.locations || []); });
-    }
-  }, [activeTab]);
-
-  const handleOpenDeptForm = (dept = null) => {
-    if (dept) {
-      setEditingDept(dept);
-      setDeptFormData({
-        name: dept.name || '',
-        code: dept.code || '',
-        responsible: dept.responsible || '',
-        default_location_id: dept.default_location_id || '',
-        status: dept.status || 'Aktif'
-      });
-    } else {
-      setEditingDept(null);
-      setDeptFormData({ name: '', code: '', responsible: '', default_location_id: '', status: 'Aktif' });
-    }
-    setShowDeptForm(true);
-  };
-
-  const handleDeptNameChange = (value) => {
-    const mappedCode = DEPARTMENT_CODES[value.trim()];
-    setDeptFormData(prev => ({
-      ...prev,
-      name: value,
-      code: mappedCode || prev.code
-    }));
-  };
-
-  const handleSaveDept = async (e) => {
-    e.preventDefault();
-    const res = editingDept
-      ? await api.updateDepartment(editingDept.id, deptFormData)
-      : await api.createDepartment(deptFormData);
-    if (res.success) {
-      setShowDeptForm(false);
-      fetchDepartments();
-    } else {
-      alert(res.message || 'İşlem başarısız oldu.');
-    }
-  };
-
-  const handleDeleteDept = async (id) => {
-    if (window.confirm('Bu departmanı silmek istediğinize emin misiniz?')) {
-      const res = await api.deleteDepartment(id);
-      if (res.success) {
-        fetchDepartments();
-      } else {
-        alert(res.message || 'Silme işlemi başarısız oldu.');
-      }
-    }
-  };
-
   return (
     <div className="h-full flex flex-col space-y-6 overflow-hidden">
       
@@ -196,7 +156,7 @@ export default function Settings() {
         <button
           onClick={() => setActiveTab('general')}
           className={`flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-medium transition-all duration-200
-            ${activeTab === 'general' ? 'bg-blue-600 text-slate-900 dark:text-white shadow-lg shadow-blue-900/20' : 'bg-white dark:bg-[#1e2330] text-slate-400 hover:text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:bg-[#2a3142] border border-slate-200 dark:border-slate-700/50'}
+            ${activeTab === 'general' ? 'bg-blue-600 text-slate-900 dark:text-white shadow-lg shadow-blue-900/20' : 'bg-white dark:bg-[#1e2330] text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#2a3142] border border-slate-200 dark:border-slate-700/50'}
           `}
         >
           <SettingsIcon size={18} /> Genel Ayarlar
@@ -204,7 +164,7 @@ export default function Settings() {
         <button
           onClick={() => setActiveTab('database')}
           className={`flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-medium transition-all duration-200
-            ${activeTab === 'database' ? 'bg-blue-600 text-slate-900 dark:text-white shadow-lg shadow-blue-900/20' : 'bg-white dark:bg-[#1e2330] text-slate-400 hover:text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:bg-[#2a3142] border border-slate-200 dark:border-slate-700/50'}
+            ${activeTab === 'database' ? 'bg-blue-600 text-slate-900 dark:text-white shadow-lg shadow-blue-900/20' : 'bg-white dark:bg-[#1e2330] text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#2a3142] border border-slate-200 dark:border-slate-700/50'}
           `}
         >
           <Server size={18} /> Veritabanı Bağlantıları
@@ -212,7 +172,7 @@ export default function Settings() {
         <button
           onClick={() => setActiveTab('local')}
           className={`flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-medium transition-all duration-200
-            ${activeTab === 'local' ? 'bg-blue-600 text-slate-900 dark:text-white shadow-lg shadow-blue-900/20' : 'bg-white dark:bg-[#1e2330] text-slate-400 hover:text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:bg-[#2a3142] border border-slate-200 dark:border-slate-700/50'}
+            ${activeTab === 'local' ? 'bg-blue-600 text-slate-900 dark:text-white shadow-lg shadow-blue-900/20' : 'bg-white dark:bg-[#1e2330] text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#2a3142] border border-slate-200 dark:border-slate-700/50'}
           `}
         >
           <HardDrive size={18} /> Lokal DB / Klasörler
@@ -220,7 +180,7 @@ export default function Settings() {
         <button
           onClick={() => setActiveTab('departments')}
           className={`flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-medium transition-all duration-200
-            ${activeTab === 'departments' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'bg-white dark:bg-[#1e2330] text-slate-400 hover:text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:bg-[#2a3142] border border-slate-200 dark:border-slate-700/50'}
+            ${activeTab === 'departments' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'bg-white dark:bg-[#1e2330] text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#2a3142] border border-slate-200 dark:border-slate-700/50'}
           `}
         >
           <Building2 size={18} /> Departman Yönetimi
@@ -329,7 +289,7 @@ export default function Settings() {
                         </div>
 
                         <div className="flex flex-col gap-2 shrink-0 justify-center">
-                          <button onClick={() => alert("Bağlantı test ediliyor...")} className="px-3 py-1.5 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:bg-[#2a3142] text-slate-700 dark:text-slate-300 rounded-lg text-xs font-medium border border-slate-300 dark:border-slate-600 transition-colors flex items-center gap-1.5">
+                          <button onClick={() => alert("Bağlantı test ediliyor...")} className="px-3 py-1.5 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 rounded-lg text-xs font-medium border border-slate-300 dark:border-slate-600 transition-colors flex items-center gap-1.5">
                             <PlugZap size={14} /> Test
                           </button>
                           <div className="flex gap-2">
@@ -402,7 +362,7 @@ export default function Settings() {
                   </div>
 
                   <div className="flex justify-end gap-3 pt-6 border-t border-slate-200 dark:border-slate-700/50 mt-6">
-                    <button type="button" onClick={() => setShowDbForm(false)} className="px-5 py-2.5 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:bg-[#2a3142] text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors border border-slate-300 dark:border-slate-600">İptal</button>
+                    <button type="button" onClick={() => setShowDbForm(false)} className="px-5 py-2.5 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors border border-slate-300 dark:border-slate-600">İptal</button>
                     <button type="button" onClick={() => alert("Test Ediliyor...")} className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors shadow-lg shadow-indigo-900/20 flex items-center gap-2"><PlugZap size={18}/> Test Et</button>
                     <button type="submit" className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors shadow-lg shadow-blue-900/20 flex items-center gap-2"><Save size={18}/> Kaydet</button>
                   </div>
@@ -424,7 +384,7 @@ export default function Settings() {
                   <p className="text-slate-400 text-sm mt-1">SQLite veritabanı veya SQL betik dosyalarını yönetin.</p>
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={async () => { const res = await api.addLocalFile(); if(res.success) fetchLocalData(); else if(res.message !== "Seçim iptal edildi") alert(res.message); }} className="flex items-center gap-2 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:bg-[#2a3142] text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-600 px-4 py-2 rounded-xl transition-all font-medium text-sm">
+                  <button onClick={async () => { const res = await api.addLocalFile(); if(res.success) fetchLocalData(); else if(res.message !== "Seçim iptal edildi") alert(res.message); }} className="flex items-center gap-2 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-600 px-4 py-2 rounded-xl transition-all font-medium text-sm">
                     Var Olanı Ekle
                   </button>
                   <button onClick={async () => { const res = await api.createLocalFile(); if(res.success) fetchLocalData(); else if(res.message !== "İşlem iptal edildi") alert(res.message); }} className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl transition-all shadow-lg shadow-purple-900/20 font-medium text-sm">
@@ -467,7 +427,7 @@ export default function Settings() {
                   <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2"><FolderOpen size={20} className="text-orange-400"/> Veri Klasörleri</h2>
                   <p className="text-slate-400 text-sm mt-1">Yedekleme veya dışa aktarım klasörlerini buradan yönetin.</p>
                 </div>
-                <button onClick={async () => { const res = await api.addDataFolder(); if(res.success) fetchLocalData(); else if(res.message !== "Seçim iptal edildi") alert(res.message); }} className="flex items-center gap-2 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:bg-[#2a3142] text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-600 px-4 py-2 rounded-xl transition-all font-medium text-sm">
+                <button onClick={async () => { const res = await api.addDataFolder(); if(res.success) fetchLocalData(); else if(res.message !== "Seçim iptal edildi") alert(res.message); }} className="flex items-center gap-2 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-600 px-4 py-2 rounded-xl transition-all font-medium text-sm">
                   <Plus size={16} /> Klasör Ekle
                 </button>
               </div>
@@ -538,7 +498,7 @@ export default function Settings() {
                         </tr>
                       ) : (
                         departments.map(dept => (
-                          <tr key={dept.id} className="hover:bg-slate-100 dark:bg-[#2a3142] transition-colors text-slate-700 dark:text-slate-300">
+                          <tr key={dept.id} className="hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors text-slate-700 dark:text-slate-300">
                             <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200">{dept.name}</td>
                             <td className="px-6 py-4 font-mono text-slate-400">{dept.code}</td>
                             <td className="px-6 py-4">{dept.responsible}</td>
@@ -645,7 +605,7 @@ export default function Settings() {
                   </div>
 
                   <div className="flex justify-end gap-3 pt-6 border-t border-slate-200 dark:border-slate-700/50 mt-6">
-                    <button type="button" onClick={() => setShowDeptForm(false)} className="px-5 py-2.5 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:bg-[#2a3142] text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors border border-slate-300 dark:border-slate-600">İptal</button>
+                    <button type="button" onClick={() => setShowDeptForm(false)} className="px-5 py-2.5 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors border border-slate-300 dark:border-slate-600">İptal</button>
                     <button type="submit" className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors shadow-lg shadow-blue-900/20 flex items-center gap-2"><Save size={18}/> Kaydet</button>
                   </div>
                 </form>

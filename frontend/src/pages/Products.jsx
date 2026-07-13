@@ -128,7 +128,7 @@ export default function Products() {
           <div className="relative">
             <select 
               onChange={handleExcelAction}
-              className="appearance-none bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:bg-[#2a3142] text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-2 pr-8 transition-colors font-medium cursor-pointer focus:outline-none focus:border-blue-500"
+              className="appearance-none bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-2 pr-8 transition-colors font-medium cursor-pointer focus:outline-none focus:border-blue-500"
             >
               <option value="">Excel İşlemi Seç...</option>
               <option value="download_template">Boş Şablon İndir</option>
@@ -195,7 +195,7 @@ export default function Products() {
                 </tr>
               ) : (
                 filteredProducts.map((product) => (
-                  <tr key={product.id} className="hover:bg-slate-100 dark:bg-[#2a3142] transition-colors text-slate-700 dark:text-slate-300">
+                  <tr key={product.id} className="hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors text-slate-700 dark:text-slate-300">
                     <td className="px-6 py-4 font-mono text-slate-400">{product.item_code || '-'}</td>
                     <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200">{product.brand || '-'}</td>
                     <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200">{product.model || '-'}</td>

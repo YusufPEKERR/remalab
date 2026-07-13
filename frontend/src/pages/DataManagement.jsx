@@ -215,7 +215,7 @@ export default function DataManagement() {
                 <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200">2. Tablo Sütunları</h3>
                 <div className="flex flex-wrap gap-3">
                   {selectedTable.columns.map(col => (
-                    <label key={col} className="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-[#242a38] border border-slate-700 rounded-lg text-sm cursor-pointer hover:bg-slate-100 dark:bg-[#2a3142] transition-colors">
+                    <label key={col} className="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-[#242a38] border border-slate-700 rounded-lg text-sm cursor-pointer hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors">
                       <input 
                         type="checkbox" 
                         className="rounded border-slate-300 dark:border-slate-600 bg-[#0f1219] text-blue-500 focus:ring-blue-500/50"
@@ -310,7 +310,7 @@ export default function DataManagement() {
                           </tr>
                         ) : (
                           previewData.map((row, idx) => (
-                            <tr key={idx} className="hover:bg-slate-100 dark:bg-[#2a3142] text-slate-700 dark:text-slate-300 transition-colors">
+                            <tr key={idx} className="hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 transition-colors">
                               {selectedColumns.map(col => {
                                 const isEditing = editingCell?.rowIndex === idx && editingCell?.colName === col;
                                 return (
