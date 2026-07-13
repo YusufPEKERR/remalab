@@ -528,5 +528,89 @@ export const api = {
                 resolve({ success: false, message: "Backend bridge missing" });
             }
         });
+    },
+
+    // ==========================
+    // LOCAL DB & DATA FOLDERS
+    // ==========================
+    getLocalFiles: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_local_files) {
+                backend.get_local_files((res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true, local_files: [] });
+            }
+        });
+    },
+    addLocalFile: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.add_local_file) {
+                backend.add_local_file((res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false, message: "Backend bridge missing" });
+            }
+        });
+    },
+    createLocalFile: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.create_local_file) {
+                backend.create_local_file((res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false, message: "Backend bridge missing" });
+            }
+        });
+    },
+    deleteLocalFile: async (id) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.delete_local_file) {
+                backend.delete_local_file(String(id), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true });
+            }
+        });
+    },
+    openLocalFolder: async (path) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.open_local_folder) {
+                backend.open_local_folder(path, (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true });
+            }
+        });
+    },
+    getDataFolders: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_data_folders) {
+                backend.get_data_folders((res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true, data_folders: [] });
+            }
+        });
+    },
+    addDataFolder: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.add_data_folder) {
+                backend.add_data_folder((res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false, message: "Backend bridge missing" });
+            }
+        });
+    },
+    deleteDataFolder: async (id) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.delete_data_folder) {
+                backend.delete_data_folder(String(id), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true });
+            }
+        });
     }
 };

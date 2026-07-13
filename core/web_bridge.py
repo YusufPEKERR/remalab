@@ -1024,3 +1024,205 @@ class WebBridge(QObject):
             return json.dumps({"success": True})
         except Exception as e:
             return json.dumps({"success": False, "message": str(e)})
+
+    # ==========================================
+    # LOCAL DB & DATA FOLDERS (AYARLAR SEKME)
+    # ==========================================
+    def _get_settings_file(self):
+        import os
+        from pathlib import Path
+        settings_dir = os.path.join(str(Path.home()), ".remalab")
+        os.makedirs(settings_dir, exist_ok=True)
+        return os.path.join(settings_dir, "settings.json")
+
+    def _read_settings(self):
+        import json, os
+        settings_file = self._get_settings_file()
+        if not os.path.exists(settings_file):
+            return {"local_files": [], "data_folders": []}
+        try:
+            with open(settings_file, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except:
+            return {"local_files": [], "data_folders": []}
+
+    def _write_settings(self, data):
+        import json
+        settings_file = self._get_settings_file()
+        with open(settings_file, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=4)
+
+    @Slot(result=str)
+    def get_local_files(self):
+        import json, os, datetime
+        settings = self._read_settings()
+        files = settings.get("local_files", [])
+        valid_files = []
+        for f in files:
+            path = f.get("path")
+            if path and os.path.exists(path):
+                size_bytes = os.path.getsize(path)
+                size_mb = size_bytes / (1024 * 1024)
+                mod_time = os.path.getmtime(path)
+                mod_date = datetime.datetime.fromtimestamp(mod_time).strftime('%d.%m.%Y %H:%M')
+                
+                f["size"] = f"{size_mb:.2f} MB"
+                f["modified"] = mod_date
+                
+                # Mock tables/records count if sqlite
+                if f.get("type") == "sqlite":
+                    f["tables"] = 0
+                    f["records"] = 0
+                    try:
+                        import sqlite3
+                        conn = sqlite3.connect(path)
+                        cursor = conn.cursor()
+                        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+                        tables = cursor.fetchall()
+                        f["tables"] = len(tables)
+                        conn.close()
+                    except:
+                        pass
+                
+                valid_files.append(f)
+            else:
+                f["size"] = "Kayıp"
+                f["modified"] = "Bilinmiyor"
+                valid_files.append(f)
+        
+        return json.dumps({"success": True, "local_files": valid_files})
+
+    @Slot(result=str)
+    def add_local_file(self):
+        from PySide6.QtWidgets import QFileDialog, QApplication
+        import json, os, uuid
+        
+        main_win = QApplication.instance().main_window
+        file_path, _ = QFileDialog.getOpenFileName(
+            main_win, "Var Olan Veritabanı veya Betiği Seç", "", "Database Files (*.db *.sqlite *.sql);;All Files (*)"
+        )
+        if not file_path:
+            return json.dumps({"success": False, "message": "Seçim iptal edildi"})
+            
+        settings = self._read_settings()
+        
+        # Check if already exists
+        for f in settings.get("local_files", []):
+            if f.get("path") == file_path:
+                return json.dumps({"success": False, "message": "Bu dosya zaten listede."})
+                
+        file_type = "sqlite" if file_path.endswith((".db", ".sqlite")) else "sql"
+        new_file = {
+            "id": str(uuid.uuid4()),
+            "name": os.path.basename(file_path),
+            "path": file_path,
+            "type": file_type
+        }
+        
+        settings.setdefault("local_files", []).append(new_file)
+        self._write_settings(settings)
+        return json.dumps({"success": True, "file": new_file})
+
+    @Slot(result=str)
+    def create_local_file(self):
+        from PySide6.QtWidgets import QFileDialog, QApplication
+        import json, os, uuid, sqlite3
+        
+        main_win = QApplication.instance().main_window
+        file_path, _ = QFileDialog.getSaveFileName(
+            main_win, "Yeni SQLite Veritabanı Oluştur", "yeni_veritabani.db", "SQLite Database (*.db)"
+        )
+        if not file_path:
+            return json.dumps({"success": False, "message": "İşlem iptal edildi"})
+            
+        try:
+            # Create empty sqlite
+            conn = sqlite3.connect(file_path)
+            conn.close()
+            
+            settings = self._read_settings()
+            new_file = {
+                "id": str(uuid.uuid4()),
+                "name": os.path.basename(file_path),
+                "path": file_path,
+                "type": "sqlite"
+            }
+            settings.setdefault("local_files", []).append(new_file)
+            self._write_settings(settings)
+            return json.dumps({"success": True, "file": new_file})
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+
+    @Slot(str, result=str)
+    def delete_local_file(self, file_id):
+        import json
+        settings = self._read_settings()
+        files = settings.get("local_files", [])
+        settings["local_files"] = [f for f in files if f.get("id") != file_id]
+        self._write_settings(settings)
+        return json.dumps({"success": True})
+
+    @Slot(str, result=str)
+    def open_local_folder(self, file_path):
+        import json, os, sys
+        import subprocess
+        try:
+            folder = os.path.dirname(file_path)
+            if not os.path.exists(folder):
+                return json.dumps({"success": False, "message": "Klasör bulunamadı."})
+            if os.name == 'nt':
+                os.startfile(folder)
+            elif sys.platform == 'darwin':
+                subprocess.Popen(['open', folder])
+            else:
+                subprocess.Popen(['xdg-open', folder])
+            return json.dumps({"success": True})
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+
+    @Slot(result=str)
+    def get_data_folders(self):
+        import json
+        settings = self._read_settings()
+        return json.dumps({"success": True, "data_folders": settings.get("data_folders", [])})
+
+    @Slot(result=str)
+    def add_data_folder(self):
+        from PySide6.QtWidgets import QFileDialog, QApplication
+        import json, os, uuid
+        
+        main_win = QApplication.instance().main_window
+        folder_path = QFileDialog.getExistingDirectory(
+            main_win, "Klasör Seç"
+        )
+        if not folder_path:
+            return json.dumps({"success": False, "message": "Seçim iptal edildi"})
+            
+        settings = self._read_settings()
+        
+        # Check if already exists
+        for f in settings.get("data_folders", []):
+            if f.get("path") == folder_path:
+                return json.dumps({"success": False, "message": "Bu klasör zaten listede."})
+                
+        # Determine type based on name heuristically or default to data
+        folder_type = "backup" if "backup" in folder_path.lower() or "yedek" in folder_path.lower() else "data"
+        new_folder = {
+            "id": str(uuid.uuid4()),
+            "name": os.path.basename(folder_path) or folder_path,
+            "path": folder_path,
+            "type": folder_type
+        }
+        
+        settings.setdefault("data_folders", []).append(new_folder)
+        self._write_settings(settings)
+        return json.dumps({"success": True, "folder": new_folder})
+
+    @Slot(str, result=str)
+    def delete_data_folder(self, folder_id):
+        import json
+        settings = self._read_settings()
+        folders = settings.get("data_folders", [])
+        settings["data_folders"] = [f for f in folders if f.get("id") != folder_id]
+        self._write_settings(settings)
+        return json.dumps({"success": True})
