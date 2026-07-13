@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Download, Filter, RefreshCw, AlertTriangle } from 'lucide-react';
 import { api } from '../services/api';
 
@@ -76,6 +76,11 @@ export default function Raporlar() {
     }
   };
 
+  const fetchReportsRef = useRef(fetchReports);
+  useEffect(() => {
+    fetchReportsRef.current = fetchReports;
+  }, [fetchReports]);
+
   const handleExportGeneral = async () => {
     await api.exportTableToExcel(generalReports, "genel_raporlar.xlsx");
   };
@@ -85,8 +90,10 @@ export default function Raporlar() {
   };
 
   useEffect(() => {
-    fetchReports();
-    const interval = setInterval(() => fetchReports(true), 8000);
+    fetchReportsRef.current();
+    const interval = setInterval(() => {
+      if (fetchReportsRef.current) fetchReportsRef.current(true);
+    }, 8000);
     return () => clearInterval(interval);
   }, [activeTab]);
 
