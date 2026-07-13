@@ -29,7 +29,8 @@ class WebBridge(QObject):
                     company VARCHAR(150),
                     brand VARCHAR(100),
                     model VARCHAR(100),
-                    imei_serial VARCHAR(100),
+                    memory VARCHAR(50),
+                    product_code VARCHAR(100),
                     color VARCHAR(50),
                     fault_category VARCHAR(100),
                     fault_type VARCHAR(150),
@@ -40,6 +41,8 @@ class WebBridge(QObject):
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
             """))
+            db.execute(text("ALTER TABLE warehouse.service_records ADD COLUMN IF NOT EXISTS memory VARCHAR(50);"))
+            db.execute(text("ALTER TABLE warehouse.service_records ADD COLUMN IF NOT EXISTS product_code VARCHAR(100);"))
             db.commit()
         except Exception as e:
             db.rollback()
@@ -590,7 +593,7 @@ class WebBridge(QObject):
         try:
             rows = db.execute(text("""
                 SELECT id, customer_name, customer_phone, customer_email, company,
-                       brand, model, imei_serial, color, fault_category, fault_type,
+                       brand, model, memory, product_code, color, fault_category, fault_type,
                        customer_complaint, preliminary_diagnosis, status, technician_note, created_at
                 FROM warehouse.service_records
                 ORDER BY id DESC
@@ -605,7 +608,8 @@ class WebBridge(QObject):
                     "company": row["company"] or "",
                     "brand": row["brand"] or "",
                     "model": row["model"] or "",
-                    "imei_serial": row["imei_serial"] or "",
+                    "memory": row["memory"] or "",
+                    "product_code": row["product_code"] or "",
                     "color": row["color"] or "",
                     "fault_category": row["fault_category"] or "",
                     "fault_type": row["fault_type"] or "",
@@ -621,9 +625,9 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    @Slot(str, str, str, str, str, str, str, str, str, str, str, str, str, str, result=str)
+    @Slot(str, str, str, str, str, str, str, str, str, str, str, str, str, str, str, result=str)
     def create_service_record(self, customer_name, customer_phone, customer_email, company,
-                               brand, model, imei_serial, color, fault_category, fault_type,
+                               brand, model, memory, product_code, color, fault_category, fault_type,
                                customer_complaint, preliminary_diagnosis, status, technician_note):
         """Yeni servis kaydı ekler."""
         from sqlalchemy import text
@@ -636,17 +640,17 @@ class WebBridge(QObject):
             db.execute(text("""
                 INSERT INTO warehouse.service_records (
                     customer_name, customer_phone, customer_email, company,
-                    brand, model, imei_serial, color, fault_category, fault_type,
+                    brand, model, memory, product_code, color, fault_category, fault_type,
                     customer_complaint, preliminary_diagnosis, status, technician_note
                 ) VALUES (
                     :name, :phone, :email, :company,
-                    :brand, :model, :imei, :color, :fcat, :ftype,
+                    :brand, :model, :memory, :code, :color, :fcat, :ftype,
                     :complaint, :diagnosis, :status, :note
                 )
             """), {
                 "name": name, "phone": customer_phone or None, "email": customer_email or None,
                 "company": company or None, "brand": brand or None, "model": model or None,
-                "imei": imei_serial or None, "color": color or None,
+                "memory": memory or None, "code": product_code or None, "color": color or None,
                 "fcat": fault_category or None, "ftype": fault_type or None,
                 "complaint": customer_complaint or None, "diagnosis": preliminary_diagnosis or None,
                 "status": status or "Arıza Kabul", "note": technician_note or None
@@ -659,9 +663,9 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    @Slot(str, str, str, str, str, str, str, str, str, str, str, str, str, str, str, result=str)
+    @Slot(str, str, str, str, str, str, str, str, str, str, str, str, str, str, str, str, result=str)
     def update_service_record(self, record_id_str, customer_name, customer_phone, customer_email, company,
-                               brand, model, imei_serial, color, fault_category, fault_type,
+                               brand, model, memory, product_code, color, fault_category, fault_type,
                                customer_complaint, preliminary_diagnosis, status, technician_note):
         """Var olan bir servis kaydını günceller."""
         from sqlalchemy import text
@@ -675,7 +679,7 @@ class WebBridge(QObject):
             db.execute(text("""
                 UPDATE warehouse.service_records
                 SET customer_name = :name, customer_phone = :phone, customer_email = :email, company = :company,
-                    brand = :brand, model = :model, imei_serial = :imei, color = :color,
+                    brand = :brand, model = :model, memory = :memory, product_code = :code, color = :color,
                     fault_category = :fcat, fault_type = :ftype,
                     customer_complaint = :complaint, preliminary_diagnosis = :diagnosis,
                     status = :status, technician_note = :note
@@ -683,7 +687,7 @@ class WebBridge(QObject):
             """), {
                 "name": name, "phone": customer_phone or None, "email": customer_email or None,
                 "company": company or None, "brand": brand or None, "model": model or None,
-                "imei": imei_serial or None, "color": color or None,
+                "memory": memory or None, "code": product_code or None, "color": color or None,
                 "fcat": fault_category or None, "ftype": fault_type or None,
                 "complaint": customer_complaint or None, "diagnosis": preliminary_diagnosis or None,
                 "status": status or "Arıza Kabul", "note": technician_note or None,

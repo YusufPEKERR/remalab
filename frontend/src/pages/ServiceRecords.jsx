@@ -30,7 +30,7 @@ const STATUS_STYLES = {
 
 const EMPTY_FORM = {
   customer_name: '', customer_phone: '', customer_email: '', company: '',
-  brand: '', model: '', imei_serial: '', color: '',
+  brand: '', model: '', memory: '', product_code: '', color: '',
   fault_category: '', fault_type: '', customer_complaint: '', preliminary_diagnosis: '',
   status: 'Arıza Kabul', technician_note: ''
 };
@@ -41,7 +41,7 @@ export default function ServiceRecords() {
   const [showForm, setShowForm] = useState(false);
   const [editingRecord, setEditingRecord] = useState(null);
   const [formData, setFormData] = useState(EMPTY_FORM);
-  const [parts, setParts] = useState([]);
+  const [products, setProducts] = useState([]);
 
   const fetchRecords = async () => {
     setLoading(true);
@@ -52,14 +52,55 @@ export default function ServiceRecords() {
 
   useEffect(() => {
     fetchRecords();
-    api.getParts().then(res => { if (res.success) setParts(res.parts || []); });
+    api.getProducts().then(res => { if (res.success) setProducts(res.products || []); });
   }, []);
 
-  const uniqueBrands = Array.from(new Set(parts.map(p => p.brand).filter(Boolean))).sort();
-  const modelsForBrand = Array.from(new Set(parts.filter(p => p.brand === formData.brand).map(p => p.model).filter(Boolean))).sort();
+  const getModelsFor = (brand) =>
+    Array.from(new Set(products.filter(p => p.brand === brand).map(p => p.model).filter(Boolean))).sort();
+  const getMemoriesFor = (brand, model) =>
+    Array.from(new Set(products.filter(p => p.brand === brand && p.model === model).map(p => p.memory).filter(Boolean))).sort();
+  const getCodesFor = (brand, model, memory) =>
+    Array.from(new Set(products.filter(p => p.brand === brand && p.model === model && p.memory === memory).map(p => p.item_code).filter(Boolean))).sort();
+  const getColorFor = (brand, model, memory, code) => {
+    const match = products.find(p => p.brand === brand && p.model === model && p.memory === memory && p.item_code === code);
+    return match ? (match.color || '') : '';
+  };
+
+  const uniqueBrands = Array.from(new Set(products.map(p => p.brand).filter(Boolean))).sort();
+  const modelsForBrand = getModelsFor(formData.brand);
+  const memoriesForModel = getMemoriesFor(formData.brand, formData.model);
+  const codesForMemory = getCodesFor(formData.brand, formData.model, formData.memory);
 
   const handleBrandChange = (value) => {
-    setFormData(prev => ({ ...prev, brand: value, model: '' }));
+    const models = getModelsFor(value);
+    const model = models.length === 1 ? models[0] : '';
+    const memories = model ? getMemoriesFor(value, model) : [];
+    const memory = memories.length === 1 ? memories[0] : '';
+    const codes = memory ? getCodesFor(value, model, memory) : [];
+    const product_code = codes.length === 1 ? codes[0] : '';
+    const color = product_code ? getColorFor(value, model, memory, product_code) : '';
+    setFormData(prev => ({ ...prev, brand: value, model, memory, product_code, color }));
+  };
+
+  const handleModelChange = (value) => {
+    const memories = getMemoriesFor(formData.brand, value);
+    const memory = memories.length === 1 ? memories[0] : '';
+    const codes = memory ? getCodesFor(formData.brand, value, memory) : [];
+    const product_code = codes.length === 1 ? codes[0] : '';
+    const color = product_code ? getColorFor(formData.brand, value, memory, product_code) : '';
+    setFormData(prev => ({ ...prev, model: value, memory, product_code, color }));
+  };
+
+  const handleMemoryChange = (value) => {
+    const codes = getCodesFor(formData.brand, formData.model, value);
+    const product_code = codes.length === 1 ? codes[0] : '';
+    const color = product_code ? getColorFor(formData.brand, formData.model, value, product_code) : '';
+    setFormData(prev => ({ ...prev, memory: value, product_code, color }));
+  };
+
+  const handleProductCodeChange = (value) => {
+    const color = getColorFor(formData.brand, formData.model, formData.memory, value);
+    setFormData(prev => ({ ...prev, product_code: value, color: color || prev.color }));
   };
 
   const handleOpenForm = (record = null) => {
@@ -155,8 +196,8 @@ export default function ServiceRecords() {
                           <div className="text-xs text-slate-400">{rec.customer_phone}{rec.company ? ` · ${rec.company}` : ''}</div>
                         </td>
                         <td className="px-6 py-4">
-                          <div>{rec.brand} {rec.model}</div>
-                          <div className="text-xs text-slate-400">{rec.imei_serial}</div>
+                          <div>{rec.brand} {rec.model}{rec.memory ? ` (${rec.memory})` : ''}</div>
+                          <div className="text-xs text-slate-400">{rec.product_code}</div>
                         </td>
                         <td className="px-6 py-4">
                           <div>{rec.fault_category}</div>
@@ -237,14 +278,24 @@ export default function ServiceRecords() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-400 mb-1.5">Model</label>
-                    <input type="text" list="service-model-list" placeholder="Model seçin veya yazın..." className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={formData.model} onChange={e => setFormData({...formData, model: e.target.value})} />
+                    <input type="text" list="service-model-list" placeholder="Model seçin veya yazın..." className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={formData.model} onChange={e => handleModelChange(e.target.value)} />
                     <datalist id="service-model-list">
                       {modelsForBrand.map(m => <option key={m} value={m} />)}
                     </datalist>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-400 mb-1.5">IMEI / Seri No</label>
-                    <input type="text" className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={formData.imei_serial} onChange={e => setFormData({...formData, imei_serial: e.target.value})} />
+                    <label className="block text-sm font-medium text-slate-400 mb-1.5">Hafıza</label>
+                    <input type="text" list="service-memory-list" placeholder="Hafıza seçin veya yazın..." className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={formData.memory} onChange={e => handleMemoryChange(e.target.value)} />
+                    <datalist id="service-memory-list">
+                      {memoriesForModel.map(m => <option key={m} value={m} />)}
+                    </datalist>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-400 mb-1.5">Ürün Kodu</label>
+                    <input type="text" list="service-code-list" placeholder="Ürün kodu seçin veya yazın..." className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={formData.product_code} onChange={e => handleProductCodeChange(e.target.value)} />
+                    <datalist id="service-code-list">
+                      {codesForMemory.map(c => <option key={c} value={c} />)}
+                    </datalist>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-400 mb-1.5">Renk</label>
