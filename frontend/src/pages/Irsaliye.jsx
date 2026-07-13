@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Download, Upload, Plus, RefreshCw, ArrowRightLeft } from 'lucide-react';
 import { api } from '../services/api';
+import ExcelMappingModal from '../components/ExcelMappingModal';
 
 export default function Irsaliye() {
   const [activeTab, setActiveTab] = useState('inbound'); // 'inbound' or 'outbound'
@@ -16,6 +17,49 @@ export default function Irsaliye() {
   const [parts, setParts] = useState([]);
   const [locations, setLocations] = useState([]);
   const [formData, setFormData] = useState({ part_id: '', loc_id: '', qty: 1, price: 0, type: '' });
+
+  const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
+
+  const dbColumns = ["part_id", "loc_id", "qty", "price", "type"];
+  const friendlyNames = {
+    part_id: "Parça ID (Zorunlu)",
+    loc_id: "Lokasyon ID (Zorunlu)",
+    qty: "Miktar (Zorunlu)",
+    price: "Birim Fiyat",
+    type: "İşlem Türü"
+  };
+
+  const handleExcelImport = async (data) => {
+    setIsExcelModalOpen(false);
+    let successCount = 0;
+    
+    for (const row of data) {
+        if (!row.part_id || !row.loc_id || !row.qty) continue;
+        
+        if (activeTab === 'inbound') {
+            await api.addInboundEntry(
+                row.part_id, 
+                row.loc_id, 
+                row.qty, 
+                row.price || 0, 
+                row.type || 'Yeni Alım', 
+                'admin'
+            );
+        } else {
+            await api.addOutboundEntry(
+                row.part_id, 
+                row.loc_id, 
+                row.qty, 
+                row.type || 'Çıkış', 
+                'admin'
+            );
+        }
+        successCount++;
+    }
+    
+    alert(`${successCount} kayıt başarıyla içe aktarıldı.`);
+    fetchData();
+  };
 
   const fetchData = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -120,7 +164,7 @@ export default function Irsaliye() {
         </div>
         <div className="flex gap-3">
           <button 
-            onClick={() => alert("İrsaliye içe aktarma modülü yakında eklenecek.")}
+            onClick={() => setIsExcelModalOpen(true)}
             className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
           >
             <Upload size={16} /> Excel'den İçe Aktar
@@ -307,6 +351,13 @@ export default function Irsaliye() {
           </div>
         </div>
       )}
+      <ExcelMappingModal 
+        isOpen={isExcelModalOpen}
+        onClose={() => setIsExcelModalOpen(false)}
+        onImport={handleExcelImport}
+        dbColumns={dbColumns}
+        friendlyNames={friendlyNames}
+      />
     </div>
   );
 }
