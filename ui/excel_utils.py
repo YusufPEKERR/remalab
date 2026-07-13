@@ -259,7 +259,7 @@ def style_excel_file(filepath: str):
                         pass
                 
                 # Sütun genişliğini içeriğe göre ayarla (min 15, max 45)
-                adjusted_width = min(max(max_length + 4, 15), 45)
+                adjusted_width = min(max(int(max_length * 1.3) + 4, 15), 50)
                 sheet.column_dimensions[col_letter].width = adjusted_width
                 
             # İlk satırı dondur (sabit kalsın)

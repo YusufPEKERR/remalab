@@ -51,6 +51,15 @@ export default function Depo() {
     await api.exportTableToExcel(inventory, "depo_stok.xlsx");
   };
 
+  const handleDownloadTemplate = async () => {
+    const templateData = [{
+      "Parça Adı": "Örn: iPhone 13 Ekran",
+      "Barkod": "123456789012",
+      "Kritik Limit": 10
+    }];
+    await api.exportTableToExcel(templateData, "depo_sablon.xlsx");
+  };
+
   useEffect(() => {
     loadInventory();
     const interval = setInterval(() => loadInventory(true), 8000);
@@ -116,6 +125,7 @@ export default function Depo() {
         </div>
         <div className="flex gap-3">
           <button 
+            onClick={handleDownloadTemplate}
             className="px-4 py-2.5 bg-[#242a38] hover:bg-[#2a3142] text-blue-400 border border-slate-600 rounded-xl transition-colors font-medium flex items-center gap-2 shadow-sm"
           >
             <Download size={18} /> Şablon

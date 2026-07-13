@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { ArrowRightLeft, X, QrCode, Search, Package, MapPin, DatabaseZap } from 'lucide-react';
+import { api } from '../services/api';
 
 export default function StockTransferModal({ isOpen, onClose, onTransfer, locations = [] }) {
   // State for Form fields
@@ -17,6 +18,7 @@ export default function StockTransferModal({ isOpen, onClose, onTransfer, locati
   const [sourceLocations, setSourceLocations] = useState([]);
   const [brands, setBrands] = useState([]);
   const [fullStock, setFullStock] = useState([]);
+  const [products, setProducts] = useState([]);
 
   useEffect(() => {
     if (isOpen) {
