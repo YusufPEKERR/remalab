@@ -403,7 +403,11 @@ class WebBridge(QObject):
                     "status": row["status"] or "Aktif"
                 })
             return json.dumps({"success": True, "departments": departments})
-=======
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
     # --- YENİ EKLENEN PARÇA KATEGORİSİ FONKSİYONLARI ---
     @Slot(result=str)
     def get_part_categories(self):
@@ -469,6 +473,9 @@ class WebBridge(QObject):
         except Exception as e:
             db.rollback()
             return json.dumps({"success": False, "message": f"Güncelleme hatası: {str(e)}"})
+        finally:
+            db.close()
+
     @Slot(str, result=str)
     def create_part_category(self, name):
         from models.part_category import PartCategory
@@ -502,6 +509,10 @@ class WebBridge(QObject):
         except Exception as e:
             db.rollback()
             return json.dumps({"success": False, "message": f"Silme hatası: {str(e)}"})
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
     def delete_part_category(self, id_str):
         from models.part_category import PartCategory
         db = SessionLocal()
