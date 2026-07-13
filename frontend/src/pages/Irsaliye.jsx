@@ -231,7 +231,7 @@ export default function Irsaliye() {
           <div className="relative">
             <select 
               onChange={handleExcelAction}
-              className="appearance-none bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:bg-[#2a3142] text-slate-700 dark:text-slate-300 border border-slate-600 rounded-xl px-4 py-2 pr-8 transition-colors font-medium cursor-pointer focus:outline-none focus:border-blue-500"
+              className="appearance-none bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:bg-[#2a3142] text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-2 pr-8 transition-colors font-medium cursor-pointer focus:outline-none focus:border-blue-500"
             >
               <option value="">Excel İşlemi Seç...</option>
               <option value="download_template">Boş Şablon İndir</option>
@@ -351,7 +351,7 @@ export default function Irsaliye() {
                 </label>
                 <div className="flex gap-2">
                   <input type="text" placeholder="Barkodu okutun veya manuel girin..." className="flex-1 px-4 py-2 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={inboundBarcode} onChange={(e) => setInboundBarcode(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleBarcodeSearch())} />
-                  <button type="button" onClick={handleBarcodeSearch} className="px-4 bg-slate-100 dark:bg-[#2a3142] hover:bg-blue-600 border border-slate-600 rounded-lg text-white transition-colors"><Search size={18} /></button>
+                  <button type="button" onClick={handleBarcodeSearch} className="px-4 bg-slate-100 dark:bg-[#2a3142] hover:bg-blue-600 border border-slate-300 dark:border-slate-600 rounded-lg text-white transition-colors"><Search size={18} /></button>
                 </div>
               </div>
 
@@ -457,7 +457,7 @@ export default function Irsaliye() {
                 <input type="number" required min="1" className="w-full px-3 py-2 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.qty} onChange={(e) => setFormData({...formData, qty: e.target.value})} />
               </div>
               <div className="flex justify-end gap-3 mt-6 border-t border-slate-200 dark:border-slate-700/50 pt-4">
-                <button type="button" onClick={() => setShowOutboundModal(false)} className="px-4 py-2 border border-slate-600 rounded-xl hover:bg-slate-100 dark:bg-[#2a3142] text-slate-700 dark:text-slate-300 text-sm font-medium transition-colors">İptal</button>
+                <button type="button" onClick={() => setShowOutboundModal(false)} className="px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-xl hover:bg-slate-100 dark:bg-[#2a3142] text-slate-700 dark:text-slate-300 text-sm font-medium transition-colors">İptal</button>
                 <button type="submit" className="px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 text-sm font-medium transition-colors shadow-lg shadow-red-900/20">Kaydet</button>
               </div>
             </form>

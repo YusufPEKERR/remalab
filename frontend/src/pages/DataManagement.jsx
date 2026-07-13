@@ -163,16 +163,16 @@ export default function DataManagement() {
 
   return (
     <div className="h-full flex flex-col space-y-6 overflow-hidden">
-      <div className="flex justify-between items-center bg-[#1e2330] p-6 rounded-2xl border border-slate-700/50 shadow-sm shrink-0">
+      <div className="flex justify-between items-center bg-white dark:bg-[#1e2330] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm shrink-0">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100 tracking-tight flex items-center gap-3">
+          <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight flex items-center gap-3">
             <Database size={28} className="text-blue-400" /> Veri Yönetimi
           </h1>
           <p className="text-slate-400 mt-1">Sistemdeki tüm tabloları yönetin, dışa aktarın ve excel'den içeri veri yükleyin.</p>
         </div>
       </div>
 
-      <div className="flex-1 bg-[#1e2330] p-6 rounded-2xl border border-slate-700/50 shadow-lg overflow-y-auto">
+      <div className="flex-1 bg-white dark:bg-[#1e2330] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-lg overflow-y-auto">
         <div className="max-w-3xl space-y-8">
           
           <div className="flex items-start gap-3 bg-amber-500/10 border border-amber-500/20 text-amber-400 p-4 rounded-xl">
@@ -184,11 +184,11 @@ export default function DataManagement() {
           </div>
 
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-slate-200">1. Tablo Seçimi</h3>
+            <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200">1. Tablo Seçimi</h3>
             <select 
               value={selectedTableId}
               onChange={(e) => setSelectedTableId(e.target.value)}
-              className="w-full max-w-md bg-[#242a38] text-slate-200 border border-slate-600 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 font-medium"
+              className="w-full max-w-md bg-slate-50 dark:bg-[#242a38] text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 font-medium"
             >
               <option value="">İşlem yapılacak tabloyu seçin...</option>
               {TABLES.map(t => (
@@ -200,17 +200,17 @@ export default function DataManagement() {
           {selectedTable && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
               <div className="space-y-3">
-                <h3 className="text-lg font-semibold text-slate-200">2. Tablo Sütunları</h3>
+                <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200">2. Tablo Sütunları</h3>
                 <div className="flex flex-wrap gap-3">
                   {selectedTable.columns.map(col => (
-                    <label key={col} className="flex items-center gap-2 px-3 py-2 bg-[#242a38] border border-slate-700 rounded-lg text-sm cursor-pointer hover:bg-[#2a3142] transition-colors">
+                    <label key={col} className="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-[#242a38] border border-slate-700 rounded-lg text-sm cursor-pointer hover:bg-slate-100 dark:bg-[#2a3142] transition-colors">
                       <input 
                         type="checkbox" 
-                        className="rounded border-slate-600 bg-[#0f1219] text-blue-500 focus:ring-blue-500/50"
+                        className="rounded border-slate-300 dark:border-slate-600 bg-[#0f1219] text-blue-500 focus:ring-blue-500/50"
                         checked={selectedColumns.includes(col)}
                         onChange={() => toggleColumn(col)}
                       />
-                      <span className="text-slate-300 font-mono">{col}</span>
+                      <span className="text-slate-700 dark:text-slate-300 font-mono">{col}</span>
                     </label>
                   ))}
                 </div>
@@ -219,57 +219,57 @@ export default function DataManagement() {
               {/* Preview UI */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-slate-200 flex items-center gap-2">
+                  <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
                     <Eye size={20} className="text-slate-400" /> 3. Veri Önizleme
                   </h3>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2.5">
                     <button 
                       onClick={handleGlobalSave}
-                      className="px-3 py-1.5 bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500/30 text-xs font-bold flex items-center gap-1.5 transition-colors"
+                      className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-sm font-semibold flex items-center gap-2 transition-all shadow-lg shadow-emerald-500/20 hover:scale-[1.02] active:scale-[0.98]"
                       title="Değişiklikleri Kaydet"
                     >
-                      <Save size={14} /> Kaydet
+                      <Save size={16} /> Kaydet
                     </button>
                     <button 
                       onClick={handleGlobalCancel}
-                      className="px-3 py-1.5 bg-red-500/20 text-red-400 rounded hover:bg-red-500/30 text-xs font-bold flex items-center gap-1.5 transition-colors"
+                      className="px-4 py-2 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-sm font-semibold flex items-center gap-2 transition-all shadow-lg shadow-rose-500/20 hover:scale-[1.02] active:scale-[0.98]"
                       title="Seçimi İptal Et"
                     >
-                      <XCircle size={14} /> İptal Et
+                      <XCircle size={16} /> İptal Et
                     </button>
                     
-                    <div className="w-px h-6 bg-slate-700 mx-1"></div>
+                    <div className="w-px h-8 bg-slate-300 dark:bg-slate-700 mx-2"></div>
 
                     <button 
                       onClick={handleDownloadTemplate}
                       disabled={loading || selectedColumns.length === 0}
-                      className="px-3 py-1.5 bg-slate-700/50 text-slate-300 rounded hover:bg-slate-700/80 text-xs font-medium flex items-center gap-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-4 py-2 bg-white dark:bg-[#242a38] border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 rounded-xl hover:bg-slate-50 dark:hover:bg-[#2a3142] text-sm font-medium flex items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
                       title="Seçili sütun başlıklarını içeren boş şablon indir"
                     >
-                      <FileSpreadsheet size={14} /> Şablon
+                      <FileSpreadsheet size={16} className="text-emerald-500" /> Şablon
                     </button>
                     <button 
                       onClick={handleExportData}
                       disabled={loading || selectedColumns.length === 0}
-                      className="px-3 py-1.5 bg-slate-700/50 text-slate-300 rounded hover:bg-slate-700/80 text-xs font-medium flex items-center gap-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-medium flex items-center gap-2 transition-all shadow-lg shadow-indigo-600/20 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
                       title="Seçili sütunlarla mevcut tabloyu yedekle"
                     >
-                      <Download size={14} /> Dışa Aktar
+                      <Download size={16} /> Dışa Aktar
                     </button>
                     <button 
                       onClick={() => setIsExcelModalOpen(true)}
                       disabled={loading}
-                      className="px-3 py-1.5 bg-slate-700/50 text-slate-300 rounded hover:bg-slate-700/80 text-xs font-medium flex items-center gap-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-sm font-medium flex items-center gap-2 transition-all shadow-lg shadow-violet-600/20 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
                       title="Tüm sütunlarla kayıt ekle"
                     >
-                      <Upload size={14} /> İçe Aktar
+                      <Upload size={16} /> İçe Aktar
                     </button>
                   </div>
                 </div>
-                <div className="bg-[#242a38] border border-slate-700 rounded-xl overflow-hidden shadow-sm">
+                <div className="bg-slate-50 dark:bg-[#242a38] border border-slate-700 rounded-xl overflow-hidden shadow-sm">
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm whitespace-nowrap">
-                      <thead className="bg-[#1e2330] text-slate-400 font-medium uppercase tracking-wider text-[11px]">
+                      <thead className="bg-white dark:bg-[#1e2330] text-slate-400 font-medium uppercase tracking-wider text-[11px]">
                         <tr>
                           {selectedColumns.map(col => (
                             <th key={col} className="px-4 py-3">{selectedTable.friendlyNames[col] || col}</th>
@@ -298,13 +298,13 @@ export default function DataManagement() {
                           </tr>
                         ) : (
                           previewData.map((row, idx) => (
-                            <tr key={idx} className="hover:bg-[#2a3142] text-slate-300 transition-colors">
+                            <tr key={idx} className="hover:bg-slate-100 dark:bg-[#2a3142] text-slate-700 dark:text-slate-300 transition-colors">
                               {selectedColumns.map(col => {
                                 const isEditing = editingCell?.rowIndex === idx && editingCell?.colName === col;
                                 return (
                                   <td 
                                     key={col} 
-                                    className="px-4 py-3 font-medium text-slate-200 cursor-cell"
+                                    className="px-4 py-3 font-medium text-slate-800 dark:text-slate-200 cursor-cell"
                                     onDoubleClick={() => handleDoubleClick(idx, col, row[col])}
                                   >
                                     {isEditing ? (
