@@ -3,8 +3,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { 
   LogOut, LayoutDashboard, Users, Package, Settings, Bell,
   Warehouse, FileText, BarChart2, Box, Truck, MapPin,
-  CheckCircle, Search, AlertTriangle, Zap, RefreshCw, Sun, Moon
-  CheckCircle, Search, AlertTriangle, Zap, RefreshCw, Database
+  CheckCircle, Search, AlertTriangle, Zap, RefreshCw, Sun, Moon, Database
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useTheme } from '../context/ThemeContext';
