@@ -87,7 +87,7 @@ export default function Login() {
               <div className="flex items-center justify-center">
                 <img src="/uygulama-amblemi.png" alt="Remalab Amblemi" className="w-16 h-16 object-contain drop-shadow-xl" />
               </div>
-              <h1 className="text-2xl font-black tracking-tight text-white mt-2">REMALAB <span className="text-blue-500 font-medium">WMS</span></h1>
+              <h1 className="text-2xl font-black tracking-tight text-white mt-2">REMALAB <span className="text-blue-500 font-medium">TEKNOLOJİ</span></h1>
             </div>
             
             <h2 className="text-3xl font-bold text-white mt-12 leading-snug">
