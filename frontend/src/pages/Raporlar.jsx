@@ -138,12 +138,14 @@ export default function Raporlar() {
                 <span className="text-sm font-medium text-slate-400">Başlangıç:</span>
                 <input 
                   type="date" 
+                  style={{ colorScheme: 'dark' }}
                   className="bg-[#242a38] text-slate-200 border border-slate-700 rounded-l-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
                   value={startDate.split('T')[0] || ''}
                   onChange={(e) => setStartDate(`${e.target.value}T${startDate.split('T')[1] || '00:00'}`)}
                 />
                 <input 
                   type="time" 
+                  style={{ colorScheme: 'dark' }}
                   className="bg-[#242a38] text-slate-200 border-y border-r border-slate-700 rounded-r-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 -ml-2"
                   value={startDate.split('T')[1] || '00:00'}
                   onChange={(e) => setStartDate(`${startDate.split('T')[0] || ''}T${e.target.value}`)}
@@ -154,12 +156,14 @@ export default function Raporlar() {
                 <span className="text-sm font-medium text-slate-400">Bitiş:</span>
                 <input 
                   type="date" 
+                  style={{ colorScheme: 'dark' }}
                   className="bg-[#242a38] text-slate-200 border border-slate-700 rounded-l-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
                   value={endDate.split('T')[0] || ''}
                   onChange={(e) => setEndDate(`${e.target.value}T${endDate.split('T')[1] || '23:59'}`)}
                 />
                 <input 
                   type="time" 
+                  style={{ colorScheme: 'dark' }}
                   className="bg-[#242a38] text-slate-200 border-y border-r border-slate-700 rounded-r-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 -ml-2"
                   value={endDate.split('T')[1] || '23:59'}
                   onChange={(e) => setEndDate(`${endDate.split('T')[0] || ''}T${e.target.value}`)}
