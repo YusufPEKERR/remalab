@@ -13,9 +13,14 @@ export default function Login() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const el = document.getElementById('username-input');
-    if (el) el.focus();
-  }, []);
+    const storedUser = localStorage.getItem('user') || sessionStorage.getItem('user');
+    if (storedUser) {
+      navigate('/dashboard');
+    } else {
+      const el = document.getElementById('username-input');
+      if (el) el.focus();
+    }
+  }, [navigate]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
