@@ -164,7 +164,7 @@ export default function Dashboard() {
                   <tr><td colSpan="4" className="px-4 py-6 text-center text-slate-500">Veri bulunamadı.</td></tr>
                 ) : (
                   detailData.map((d, i) => (
-                    <tr key={i} className="hover:bg-slate-100 dark:bg-[#2a3142] text-slate-700 dark:text-slate-300">
+                    <tr key={i} className="hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300">
                       <td className="px-4 py-3 font-medium">{d.name}</td>
                       <td className="px-4 py-3">{d.loc || '-'}</td>
                       <td className="px-4 py-3">{d.qty || '-'} {d.status && <span className="ml-2 text-xs bg-yellow-500/20 text-yellow-500 px-2 py-0.5 rounded">{d.status}</span>}</td>
@@ -207,7 +207,7 @@ export default function Dashboard() {
             </thead>
             <tbody className="divide-y divide-slate-700/50">
               {recentMovements.length > 0 ? recentMovements.map((mov, i) => (
-                <tr key={mov.id || i} className="hover:bg-slate-100 dark:bg-[#2a3142] text-slate-700 dark:text-slate-300 transition-colors">
+                <tr key={mov.id || i} className="hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 transition-colors">
                   <td className="px-4 py-4 font-mono text-slate-400">{mov.id}</td>
                   <td className="px-4 py-4 font-medium text-slate-800 dark:text-slate-200">{mov.part_name || '-'}</td>
                   <td className="px-4 py-4">{mov.type === 'Giriş' ? mov.target_location : mov.source_location}</td>

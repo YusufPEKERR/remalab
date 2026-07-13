@@ -233,7 +233,7 @@ export default function Parts() {
           <div className="relative">
             <select 
               onChange={handleExcelAction}
-              className="appearance-none bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:bg-[#2a3142] text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-2 pr-8 transition-colors font-medium cursor-pointer focus:outline-none focus:border-blue-500"
+              className="appearance-none bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-2 pr-8 transition-colors font-medium cursor-pointer focus:outline-none focus:border-blue-500"
             >
               <option value="">Excel İşlemi Seç...</option>
               <option value="download_template">Boş Şablon İndir</option>
@@ -306,7 +306,7 @@ export default function Parts() {
                 </tr>
               ) : (
                 paginatedParts.map(part => (
-                  <tr key={part.id} className="hover:bg-slate-100 dark:bg-[#2a3142] transition-colors text-slate-700 dark:text-slate-300">
+                  <tr key={part.id} className="hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors text-slate-700 dark:text-slate-300">
                     <td className="px-6 py-4 font-mono text-slate-500">{part.id}</td>
                     <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200">{part.item_code}</td>
                     <td className="px-6 py-4">{part.brand}</td>
@@ -393,7 +393,7 @@ export default function Parts() {
             <button 
               onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
               disabled={currentPage === 1}
-              className="px-3 py-1.5 bg-white dark:bg-[#1e2330] hover:bg-slate-100 dark:bg-[#2a3142] disabled:opacity-50 disabled:cursor-not-allowed border border-slate-200 dark:border-slate-700 rounded-lg transition-colors text-slate-700 dark:text-slate-300"
+              className="px-3 py-1.5 bg-white dark:bg-[#1e2330] hover:bg-slate-100 dark:hover:bg-[#2a3142] disabled:opacity-50 disabled:cursor-not-allowed border border-slate-200 dark:border-slate-700 rounded-lg transition-colors text-slate-700 dark:text-slate-300"
             >
               ← Önceki
             </button>
@@ -403,7 +403,7 @@ export default function Parts() {
             <button 
               onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
               disabled={currentPage === totalPages}
-              className="px-3 py-1.5 bg-white dark:bg-[#1e2330] hover:bg-slate-100 dark:bg-[#2a3142] disabled:opacity-50 disabled:cursor-not-allowed border border-slate-200 dark:border-slate-700 rounded-lg transition-colors text-slate-700 dark:text-slate-300"
+              className="px-3 py-1.5 bg-white dark:bg-[#1e2330] hover:bg-slate-100 dark:hover:bg-[#2a3142] disabled:opacity-50 disabled:cursor-not-allowed border border-slate-200 dark:border-slate-700 rounded-lg transition-colors text-slate-700 dark:text-slate-300"
             >
               Sonraki →
             </button>

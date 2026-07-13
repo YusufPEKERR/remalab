@@ -149,7 +149,7 @@ export default function MainLayout() {
                       className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
                         isActive 
                           ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' 
-                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-100 dark:bg-[#2a3142]'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#2a3142]'
                       }`}
                       onClick={(e) => {
                         e.preventDefault();
@@ -221,7 +221,7 @@ export default function MainLayout() {
             <div className="relative" ref={notifRef}>
               <button 
                 onClick={() => setShowNotifications(!showNotifications)}
-                className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-800 dark:text-slate-200 transition-colors relative bg-slate-100 dark:bg-[#1e2330] rounded-xl border border-slate-200 dark:border-slate-700/50" 
+                className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors relative bg-slate-100 dark:bg-[#1e2330] rounded-xl border border-slate-200 dark:border-slate-700/50" 
                 title="Bildirimler"
               >
                 <Bell size={18} />
@@ -252,7 +252,7 @@ export default function MainLayout() {
                     {notifications.length > 0 ? (
                       <div className="divide-y divide-slate-100 dark:divide-slate-700/50">
                         {notifications.map((notif, idx) => (
-                          <div key={idx} className="p-4 hover:bg-slate-50 dark:hover:bg-slate-100 dark:bg-[#2a3142] transition-colors cursor-pointer" onClick={() => {setShowNotifications(false); navigate('/depo');}}>
+                          <div key={idx} className="p-4 hover:bg-slate-50 dark:hover:bg-[#2a3142] transition-colors cursor-pointer" onClick={() => {setShowNotifications(false); navigate('/depo');}}>
                             <div className="flex items-start gap-3">
                               <div className="mt-0.5 shrink-0">
                                 <AlertTriangle size={18} className={notif.status === 'Tükendi' ? "text-red-400" : "text-amber-400"} />

@@ -121,7 +121,7 @@ export default function Depo() {
         <div className="flex gap-3">
           <button 
             onClick={handleDownloadTemplate}
-            className="px-4 py-2.5 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:bg-[#2a3142] text-blue-400 border border-slate-300 dark:border-slate-600 rounded-xl transition-colors font-medium flex items-center gap-2 shadow-sm"
+            className="px-4 py-2.5 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:hover:bg-[#2a3142] text-blue-400 border border-slate-300 dark:border-slate-600 rounded-xl transition-colors font-medium flex items-center gap-2 shadow-sm"
           >
             <Download size={18} /> Şablon
           </button>
@@ -204,7 +204,7 @@ export default function Depo() {
                     key={item.id} 
                     onClick={() => setSelectedItem(isSelected ? null : item)}
                     className={`cursor-pointer transition-colors
-                      ${isSelected ? 'bg-blue-600/10 border-l-2 border-blue-500' : 'hover:bg-slate-100 dark:bg-[#2a3142] border-l-2 border-transparent text-slate-700 dark:text-slate-300'}`}
+                      ${isSelected ? 'bg-blue-600/10 border-l-2 border-blue-500' : 'hover:bg-slate-100 dark:hover:bg-[#2a3142] border-l-2 border-transparent text-slate-700 dark:text-slate-300'}`}
                   >
                     <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200">{item.name}</td>
                     <td className="px-6 py-4 text-slate-400">{item.location}</td>

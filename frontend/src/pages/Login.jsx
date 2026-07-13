@@ -168,7 +168,7 @@ export default function Login() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 dark:text-slate-300 transition-colors"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
                   >
                     {showPassword ? <Eye size={18} /> : <EyeOff size={18} />}
                   </button>
@@ -190,7 +190,7 @@ export default function Login() {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                     </svg>
                   </div>
-                  <span className="ml-2.5 text-sm text-slate-400 group-hover:text-slate-700 dark:text-slate-300 transition-colors">
+                  <span className="ml-2.5 text-sm text-slate-400 group-hover:text-slate-700 dark:hover:text-slate-300 transition-colors">
                     Beni hatırla
                   </span>
                 </label>
