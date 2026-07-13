@@ -323,7 +323,7 @@ export default function WorkOrders() {
                       <div key={idx} className="flex gap-2 items-center">
                         <select className="flex-1 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-blue-500" value={row.part_id} onChange={e => handlePartRowChange(idx, 'part_id', e.target.value)}>
                           <option value="">Parça seçiniz...</option>
-                          {parts.map(p => <option key={p.id} value={p.id}>{p.brand} {p.model} {p.item_code ? `- ${p.item_code}` : ''}</option>)}
+                          {parts.map(p => <option key={p.id} value={p.id}>{p.brand} {p.model} {p.color} {p.part_category} {p.item_code ? `- ${p.item_code}` : ''}</option>)}
                         </select>
                         <input type="number" min="1" className="w-20 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-blue-500" value={row.quantity} onChange={e => handlePartRowChange(idx, 'quantity', e.target.value)} />
                         <button type="button" onClick={() => handleRemovePartRow(idx)} className="p-2 text-red-400 hover:bg-red-400/10 rounded-lg transition-colors">
@@ -435,7 +435,7 @@ export default function WorkOrders() {
                   <label className="block text-sm font-medium text-slate-400 mb-1.5">Üretilen Parça <span className="text-red-400">*</span></label>
                   <select required className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={productionForm.target_part_id} onChange={e => setProductionForm({...productionForm, target_part_id: e.target.value})}>
                     <option value="">Parça seçiniz...</option>
-                    {parts.map(p => <option key={p.id} value={p.id}>{p.brand} {p.model} {p.item_code ? `- ${p.item_code}` : ''}</option>)}
+                    {parts.map(p => <option key={p.id} value={p.id}>{p.brand} {p.model} {p.color} {p.part_category} {p.item_code ? `- ${p.item_code}` : ''}</option>)}
                   </select>
                 </div>
                 <div>
@@ -480,7 +480,7 @@ export default function WorkOrders() {
                           <div className="flex gap-2 items-center">
                             <select className="flex-1 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-blue-500" value={row.part_id} onChange={e => handleMaterialRowChange(idx, 'part_id', e.target.value)}>
                               <option value="">Parça seçiniz...</option>
-                              {parts.map(p => <option key={p.id} value={p.id}>{p.brand} {p.model} {p.item_code ? `- ${p.item_code}` : ''}</option>)}
+                              {parts.map(p => <option key={p.id} value={p.id}>{p.brand} {p.model} {p.color} {p.part_category} {p.item_code ? `- ${p.item_code}` : ''}</option>)}
                             </select>
                             <input type="number" min="1" className="w-20 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-blue-500" value={row.quantity_consumed} onChange={e => handleMaterialRowChange(idx, 'quantity_consumed', e.target.value)} />
                             <button type="button" onClick={() => handleRemoveMaterialRow(idx)} className="p-2 text-red-400 hover:bg-red-400/10 rounded-lg transition-colors">

@@ -242,6 +242,7 @@ export default function Parts() {
 
   const uniqueBrands = [...new Set(products.map(p => p.brand).filter(Boolean))].sort();
   const uniqueModels = [...new Set(products.filter(p => p.brand === formData.brand).map(p => p.model).filter(Boolean))].sort();
+  const uniqueColors = [...new Set(products.filter(p => p.brand === formData.brand && p.model === formData.model).map(p => p.color).filter(Boolean))].sort();
 
   return (
     <div className="h-full flex flex-col space-y-6 overflow-hidden">
@@ -497,12 +498,15 @@ export default function Parts() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-400 mb-1">Renk</label>
-                  <input 
-                    type="text"
-                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                  <select
+                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 appearance-none disabled:opacity-50"
                     value={formData.color}
                     onChange={e => setFormData({...formData, color: e.target.value})}
-                  />
+                    disabled={!formData.model}
+                  >
+                    <option value="">Renk Seçiniz...</option>
+                    {uniqueColors.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-400 mb-1">Parça Kategorisi</label>
