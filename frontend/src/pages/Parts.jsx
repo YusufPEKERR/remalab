@@ -481,17 +481,21 @@ export default function Parts() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-400 mb-1">Parça Kategorisi</label>
-                <input
-                  type="text"
-                  list="part-categories-list"
-                  placeholder="Kategori seçin veya yazın..."
-                  className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
-                  value={formData.item_category}
-                  onChange={e => setFormData({...formData, item_category: e.target.value})}
-                />
-                <datalist id="part-categories-list">
-                  {partCategories.map(c => <option key={c} value={c} />)}
-                </datalist>
+                <div className="relative">
+                  <select
+                    className="w-full appearance-none bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 pr-8 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 cursor-pointer"
+                    value={formData.item_category}
+                    onChange={e => setFormData({...formData, item_category: e.target.value})}
+                  >
+                    <option value="">Kategori seçiniz...</option>
+                    {partCategories.map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                  <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-slate-500">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                  </div>
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-400 mb-2">Departman</label>
