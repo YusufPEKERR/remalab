@@ -14,6 +14,17 @@ export default function Products() {
   const [currentProduct, setCurrentProduct] = useState(null);
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
   
+  // Selection and Export States
+  const [selectedRows, setSelectedRows] = useState([]);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [selectedExportColumns, setSelectedExportColumns] = useState({
+    "Ürün Kodu": true,
+    "Marka": true,
+    "Model": true,
+    "Hafıza": true,
+    "Renk": true
+  });
+  
   const [formData, setFormData] = useState({
     item_code: '', brand: '', model: '', memory: '', color: ''
   });
@@ -105,10 +116,50 @@ export default function Products() {
       const templateData = [{ item_code: 'ORNEK-001', brand: 'Örnek Marka', model: 'Örnek Model', memory: '128 GB', color: 'Siyah' }];
       await api.exportTableToExcel(templateData, "urunler_sablonu.xlsx");
     } else if (action === 'export') {
-      await api.exportTableToExcel(products, "urunler_listesi.xlsx");
+      setIsExportModalOpen(true);
     } else if (action === 'import') {
       setIsExcelModalOpen(true);
     }
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedRows.length === filteredProducts.length && filteredProducts.length > 0) {
+      setSelectedRows([]);
+    } else {
+      setSelectedRows(filteredProducts.map(p => p.id));
+    }
+  };
+
+  const toggleRowSelect = (id, e) => {
+    e.stopPropagation();
+    setSelectedRows(prev => 
+      prev.includes(id) ? prev.filter(rowId => rowId !== id) : [...prev, id]
+    );
+  };
+
+  const executeExport = async () => {
+    const dataToExport = selectedRows.length > 0 
+      ? products.filter(p => selectedRows.includes(p.id))
+      : filteredProducts;
+
+    if (dataToExport.length === 0) {
+      alert("Dışa aktarılacak veri bulunamadı.");
+      setIsExportModalOpen(false);
+      return;
+    }
+
+    const exportReadyData = dataToExport.map(p => {
+      const row = {};
+      if (selectedExportColumns["Ürün Kodu"]) row["Ürün Kodu"] = p.item_code;
+      if (selectedExportColumns["Marka"]) row["Marka"] = p.brand;
+      if (selectedExportColumns["Model"]) row["Model"] = p.model;
+      if (selectedExportColumns["Hafıza"]) row["Hafıza"] = p.memory;
+      if (selectedExportColumns["Renk"]) row["Renk"] = p.color;
+      return row;
+    });
+
+    await api.exportTableToExcel(exportReadyData, 'urunler_listesi.xlsx');
+    setIsExportModalOpen(false);
   };
 
   const handleExcelImport = async (data) => {
@@ -147,13 +198,13 @@ export default function Products() {
         
         <div className="flex gap-3 items-center">
           <div className="relative">
-            <select 
+              <select 
               onChange={handleExcelAction}
               className="appearance-none bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-2 pr-8 transition-colors font-medium cursor-pointer focus:outline-none focus:border-blue-500"
             >
               <option value="">Excel İşlemi Seç...</option>
               <option value="download_template">Boş Şablon İndir</option>
-              <option value="export">Excel'e Dışa Aktar</option>
+              <option value="export">{selectedRows.length > 0 ? `${selectedRows.length} Seçiliyi Dışa Aktar` : 'Tümünü Dışa Aktar'}</option>
               <option value="import">Excel'den İçe Aktar</option>
             </select>
             <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-slate-400">
@@ -192,6 +243,14 @@ export default function Products() {
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs sticky top-0 z-10">
               <tr>
+                <th className="px-6 py-4 w-12 text-center">
+                  <input 
+                    type="checkbox" 
+                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-white dark:bg-slate-800"
+                    checked={selectedRows.length === filteredProducts.length && filteredProducts.length > 0}
+                    onChange={toggleSelectAll}
+                  />
+                </th>
                 <th className="px-6 py-4">Ürün Kodu</th>
                 <th className="px-6 py-4">Marka</th>
                 <th className="px-6 py-4">Model</th>
@@ -215,33 +274,36 @@ export default function Products() {
                   </td>
                 </tr>
               ) : (
-                filteredProducts.map((product) => (
-                  <tr key={product.id} className="hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors text-slate-700 dark:text-slate-300">
+                filteredProducts.map((product) => {
+                  const isChecked = selectedRows.includes(product.id);
+                  return (
+                  <tr key={product.id} className={`hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors group text-slate-700 dark:text-slate-300 ${isChecked ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}>
+                    <td className="px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
+                      <input 
+                        type="checkbox" 
+                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-white dark:bg-slate-800"
+                        checked={isChecked}
+                        onChange={(e) => toggleRowSelect(product.id, e)}
+                      />
+                    </td>
                     <td className="px-6 py-4 font-mono text-slate-400">{product.item_code || '-'}</td>
                     <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200">{product.brand || '-'}</td>
                     <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200">{product.model || '-'}</td>
                     <td className="px-6 py-4">{product.memory || '-'}</td>
                     <td className="px-6 py-4">{product.color || '-'}</td>
                     <td className="px-6 py-4 text-center">
-                      <div className="flex justify-center gap-3">
-                        <button 
-                          onClick={() => handleOpenModal(product)}
-                          className="p-1.5 text-blue-400 hover:bg-blue-400/10 rounded-lg transition-colors"
-                          title="Düzenle"
-                        >
+                      <div className="flex justify-center gap-2">
+                        <button onClick={(e) => { e.stopPropagation(); handleOpenModal(product); }} className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg transition-colors" title="Düzenle">
                           <Edit size={16} />
                         </button>
-                        <button 
-                          onClick={() => handleDelete(product.id)}
-                          className="p-1.5 text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
-                          title="Sil"
-                        >
+                        <button onClick={(e) => { e.stopPropagation(); handleDelete(product.id); }} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors" title="Sil">
                           <Trash2 size={16} />
                         </button>
                       </div>
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -338,6 +400,47 @@ export default function Products() {
         dbColumns={dbColumns}
         friendlyNames={friendlyNames}
       />
+
+      {/* Dışa Aktar Sütun Seçimi Modalı */}
+      {isExportModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/80 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-sm p-6">
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4">Sütun Seçimi</h2>
+            <p className="text-sm text-slate-500 mb-4">Dışa aktarılacak Excel dosyasında hangi sütunların bulunmasını istediğinizi seçin.</p>
+            
+            <div className="space-y-3 mb-6 max-h-60 overflow-y-auto pr-2">
+              {Object.keys(selectedExportColumns).map((col) => (
+                <label key={col} className="flex items-center gap-3 cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={selectedExportColumns[col]}
+                    onChange={(e) => setSelectedExportColumns(prev => ({...prev, [col]: e.target.checked}))}
+                    className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-slate-50 dark:bg-slate-800"
+                  />
+                  <span className="text-slate-700 dark:text-slate-300 font-medium">{col}</span>
+                </label>
+              ))}
+            </div>
+
+            <div className="flex justify-end gap-3 mt-6">
+              <button 
+                onClick={() => setIsExportModalOpen(false)}
+                className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg transition-colors font-medium"
+              >
+                İptal
+              </button>
+              <button 
+                onClick={executeExport}
+                disabled={!Object.values(selectedExportColumns).some(Boolean)}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors font-medium shadow-md shadow-emerald-500/20 disabled:opacity-50"
+              >
+                Dışa Aktar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

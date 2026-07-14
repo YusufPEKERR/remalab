@@ -14,10 +14,25 @@ export default function Parts() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(50);
   
-  // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentPart, setCurrentPart] = useState(null);
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
+  
+  // Selection and Export States
+  const [selectedRows, setSelectedRows] = useState([]);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [selectedExportColumns, setSelectedExportColumns] = useState({
+    "ID": true,
+    "Parça Kodu": true,
+    "Marka": true,
+    "Model": true,
+    "Renk": true,
+    "Parça Tipi": true,
+    "Parça Kategorisi": true,
+    "Stok Takibi": true,
+    "Departman": true,
+    "Parça Statüsü": true
+  });
   
   const [formData, setFormData] = useState({
     item_code: '', brand: '', model: '', color: '', part_category: '', item_category: '', stock_tracking_type: 'Stok Takipli', department: [], status: 'Aktif'
@@ -213,10 +228,56 @@ export default function Parts() {
       const templateData = [{ item_code: 'ORNEK-KOD-001', brand: 'Örnek Marka', model: 'Örnek Model', color: 'Örnek Renk', part_category: 'Ekran', item_category: 'Orijinal', stock_tracking_type: 'Stok Takipli', department: 'Servis, Kalite', status: 'Aktif' }];
       await api.exportTableToExcel(templateData, "stok_karti_sablonu.xlsx");
     } else if (action === 'export') {
-      await api.exportTableToExcel(parts, "stok_kartlari.xlsx");
+      setIsExportModalOpen(true);
     } else if (action === 'import') {
       setIsExcelModalOpen(true);
     }
+  };
+
+  const toggleSelectAll = () => {
+    // Determine the data currently viewed (all or paginated? Usually it's better to select from filtered parts across all pages, but to avoid huge arrays, let's select all filtered parts)
+    if (selectedRows.length === filteredParts.length && filteredParts.length > 0) {
+      setSelectedRows([]);
+    } else {
+      setSelectedRows(filteredParts.map(p => p.id));
+    }
+  };
+
+  const toggleRowSelect = (id, e) => {
+    e.stopPropagation();
+    setSelectedRows(prev => 
+      prev.includes(id) ? prev.filter(rowId => rowId !== id) : [...prev, id]
+    );
+  };
+
+  const executeExport = async () => {
+    const dataToExport = selectedRows.length > 0 
+      ? parts.filter(p => selectedRows.includes(p.id))
+      : filteredParts;
+
+    if (dataToExport.length === 0) {
+      alert("Dışa aktarılacak veri bulunamadı.");
+      setIsExportModalOpen(false);
+      return;
+    }
+
+    const exportReadyData = dataToExport.map(p => {
+      const row = {};
+      if (selectedExportColumns["ID"]) row["ID"] = p.id;
+      if (selectedExportColumns["Parça Kodu"]) row["Parça Kodu"] = p.item_code;
+      if (selectedExportColumns["Marka"]) row["Marka"] = p.brand;
+      if (selectedExportColumns["Model"]) row["Model"] = p.model;
+      if (selectedExportColumns["Renk"]) row["Renk"] = p.color;
+      if (selectedExportColumns["Parça Tipi"]) row["Parça Tipi"] = p.part_category;
+      if (selectedExportColumns["Parça Kategorisi"]) row["Parça Kategorisi"] = p.item_category;
+      if (selectedExportColumns["Stok Takibi"]) row["Stok Takibi"] = p.stock_tracking_type;
+      if (selectedExportColumns["Departman"]) row["Departman"] = p.department;
+      if (selectedExportColumns["Parça Statüsü"]) row["Parça Statüsü"] = p.status;
+      return row;
+    });
+
+    await api.exportTableToExcel(exportReadyData, 'stok_kartlari.xlsx');
+    setIsExportModalOpen(false);
   };
 
   const handleExcelImport = async (data) => {
@@ -271,7 +332,7 @@ export default function Parts() {
             >
               <option value="">Excel İşlemi Seç...</option>
               <option value="download_template">Boş Şablon İndir</option>
-              <option value="export">Excel'e Dışa Aktar</option>
+              <option value="export">{selectedRows.length > 0 ? `${selectedRows.length} Seçiliyi Dışa Aktar` : 'Tümünü Dışa Aktar'}</option>
               <option value="import">Excel'den İçe Aktar</option>
             </select>
             <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-slate-400">
@@ -322,6 +383,14 @@ export default function Parts() {
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs sticky top-0 z-10">
               <tr>
+                <th className="px-6 py-4 w-12 text-center">
+                  <input 
+                    type="checkbox" 
+                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-white dark:bg-slate-800"
+                    checked={selectedRows.length === filteredParts.length && filteredParts.length > 0}
+                    onChange={toggleSelectAll}
+                  />
+                </th>
                 <th className="px-6 py-4">ID</th>
                 <th className="px-6 py-4">Parça Kodu</th>
                 <th className="px-6 py-4">Marka</th>
@@ -350,9 +419,19 @@ export default function Parts() {
                   </td>
                 </tr>
               ) : (
-                paginatedParts.map(part => (
-                  <tr key={part.id} className="hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors text-slate-700 dark:text-slate-300">
-                    <td className="px-6 py-4 font-mono text-slate-500">{part.id}</td>
+                paginatedParts.map((part) => {
+                  const isChecked = selectedRows.includes(part.id);
+                  return (
+                  <tr key={part.id} className={`hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors group text-slate-800 dark:text-slate-200 ${isChecked ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}>
+                    <td className="px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
+                      <input 
+                        type="checkbox" 
+                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-white dark:bg-slate-800"
+                        checked={isChecked}
+                        onChange={(e) => toggleRowSelect(part.id, e)}
+                      />
+                    </td>
+                    <td className="px-6 py-4 font-mono text-slate-400">{part.id}</td>
                     <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200">{part.item_code}</td>
                     <td className="px-6 py-4">{part.brand}</td>
                     <td className="px-6 py-4">{part.model}</td>
@@ -400,25 +479,18 @@ export default function Parts() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-center">
-                      <div className="flex justify-center gap-3">
-                        <button
-                          onClick={() => handleOpenModal(part)}
-                          className="p-1.5 text-blue-400 hover:bg-blue-400/10 rounded-lg transition-colors"
-                          title="Düzenle"
-                        >
+                      <div className="flex justify-center gap-2">
+                        <button onClick={(e) => { e.stopPropagation(); handleOpenModal(part); }} className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg transition-colors" title="Düzenle">
                           <Edit size={16} />
                         </button>
-                        <button 
-                          onClick={() => handleDelete(part.id)}
-                          className="p-1.5 text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
-                          title="Sil"
-                        >
+                        <button onClick={(e) => { e.stopPropagation(); handleDelete(part.id); }} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors" title="Sil">
                           <Trash2 size={16} />
                         </button>
                       </div>
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>

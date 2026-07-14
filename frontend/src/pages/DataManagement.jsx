@@ -383,7 +383,7 @@ export default function DataManagement() {
                                 return (
                                   <td 
                                     key={col} 
-                                    className="px-4 py-3 font-medium text-slate-800 dark:text-slate-200 cursor-cell"
+                                    className="px-4 py-3 font-medium text-slate-800 dark:text-slate-200"
                                     onDoubleClick={() => handleDoubleClick(idx, col, row[col])}
                                   >
                                     {isEditing ? (
