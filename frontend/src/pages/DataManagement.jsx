@@ -154,14 +154,33 @@ export default function DataManagement() {
   };
 
   const handleDownloadTemplate = async () => {
-    if (!selectedTable) return;
+    if (!selectedTable || selectedTableId === '__ALL__') return;
     const templateData = [
       selectedColumns.reduce((acc, col) => { acc[col] = `Örnek ${col}`; return acc; }, {})
     ];
+    
     await api.exportTableToExcel(templateData, `${selectedTable.id}_sablonu.xlsx`);
   };
 
+  const handleExportAllTables = async () => {
+    setLoading(true);
+    try {
+      const res = await api.exportAllTablesToExcel("tum_tablolar.xlsx");
+      if (res && res.success === false) {
+        throw new Error(res.message || "Tüm tablolar dışa aktarılamadı.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Tüm tablolar dışa aktarılırken hata oluştu: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleExportData = async () => {
+    if (selectedTableId === '__ALL__') {
+      return handleExportAllTables();
+    }
     if (!selectedTable) return;
     setLoading(true);
     try {
@@ -232,13 +251,31 @@ export default function DataManagement() {
               className="w-full max-w-md bg-slate-50 dark:bg-[#242a38] text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 font-medium"
             >
               <option value="">İşlem yapılacak tabloyu seçin...</option>
+              <option value="__ALL__">Tüm Tablolar</option>
               {tables.map(t => (
                 <option key={t.id} value={t.id}>{t.name}</option>
               ))}
             </select>
           </div>
 
-          {selectedTable && (
+          {selectedTableId === '__ALL__' ? (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+              <div className="bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 p-6 rounded-xl text-center">
+                <Database size={48} className="mx-auto text-indigo-500 mb-4 opacity-50" />
+                <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-200 mb-2">Tüm Tablolar Dışa Aktarılacak</h3>
+                <p className="text-slate-500 dark:text-slate-400">Veritabanındaki toplam {tables.length} tablonun tamamı, tek bir Excel dosyasında ayrı ayrı sayfalar (sheet) halinde bilgisayarınıza indirilecektir.</p>
+                <div className="mt-6">
+                  <button 
+                    onClick={handleExportData}
+                    disabled={loading}
+                    className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-medium inline-flex items-center gap-2 transition-all shadow-lg shadow-indigo-600/20 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
+                  >
+                    <Download size={18} /> {loading ? "Dışa Aktarılıyor..." : "Tüm Tabloları Dışa Aktar"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : selectedTable && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
               <div className="space-y-3">
                 <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200">2. Tablo Sütunları</h3>

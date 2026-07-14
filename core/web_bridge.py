@@ -1790,6 +1790,87 @@ class WebBridge(QObject):
         except Exception as e:
             return json.dumps({"success": False, "message": str(e)})
 
+    @Slot(str, result=str)
+    def export_all_tables_to_excel(self, filename):
+        """
+        Tüm veritabanı tablolarını tek bir excel dosyasında farklı sheet'lerde dışa aktarır.
+        JS üzerinden veri transferini atlayarak (size limitleri aşmamak için) direkt db'den çeker.
+        """
+        from ui.excel_utils import style_excel_file
+        import json
+        import pandas as pd
+        import os
+        import re
+        from pathlib import Path
+        from sqlalchemy import text
+        from config.database import get_db
+        try:
+            downloads_path = str(Path.home() / "Downloads")
+            file_path = os.path.join(downloads_path, filename)
+            
+            # Eğer dosya varsa ismini değiştir
+            counter = 1
+            base_name, ext = os.path.splitext(filename)
+            while os.path.exists(file_path):
+                file_path = os.path.join(downloads_path, f"{base_name}_{counter}{ext}")
+                counter += 1
+                
+            # Sheet adlarını temizleme fonksiyonu
+            def clean_sheet_name(name):
+                # Excel kısıtlamaları: max 31 karakter, : \ / ? * [ ] yasak
+                name = re.sub(r'[:\\/?*\[\]]', '_', name)
+                return name[:31]
+                
+            with get_db() as db:
+                tables_query = text('''
+                    SELECT table_schema, table_name 
+                    FROM information_schema.tables 
+                    WHERE table_schema IN ('public', 'warehouse', 'auth') 
+                      AND table_type = 'BASE TABLE'
+                ''')
+                tables_result = db.execute(tables_query).fetchall()
+
+                with pd.ExcelWriter(file_path, engine='openpyxl') as writer:
+                    used_sheet_names = set()
+                    
+                    for schema, t_name in tables_result:
+                        query = text(f'SELECT * FROM "{schema}"."{t_name}"')
+                        result = db.execute(query).fetchall()
+                        keys = result[0]._mapping.keys() if result else []
+                        data = [dict(zip(keys, row)) for row in result]
+                        
+                        for row in data:
+                            for k, v in row.items():
+                                if hasattr(v, 'isoformat'):
+                                    row[k] = v.isoformat()
+                                    
+                        cleaned_name = clean_sheet_name(t_name)
+                        
+                        # Aynı isim çakışmasını önle
+                        original_clean = cleaned_name
+                        suffix = 1
+                        while cleaned_name in used_sheet_names:
+                            suffix_str = f"_{suffix}"
+                            cleaned_name = f"{original_clean[:31-len(suffix_str)]}{suffix_str}"
+                            suffix += 1
+                            
+                        used_sheet_names.add(cleaned_name)
+                        
+                        df = pd.DataFrame(data)
+                        df.to_excel(writer, sheet_name=cleaned_name, index=False)
+                    
+            try:
+                style_excel_file(file_path)
+            except:
+                pass
+                
+            # Dosyayı otomatik aç (Windows)
+            os.startfile(file_path)
+            
+            return json.dumps({"success": True})
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+
     # ==========================================
     # LOCAL DB & DATA FOLDERS (AYARLAR SEKME)
     # ==========================================
