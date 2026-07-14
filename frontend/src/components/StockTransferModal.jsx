@@ -183,7 +183,7 @@ export default function StockTransferModal({ isOpen, onClose, onTransfer, locati
                   className="w-full bg-white dark:bg-[#1e2330] border border-slate-700/70 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
                 >
                   <option value="">--- Lokasyon Seçin ---</option>
-                  {locations.filter(l => !restrictedIdSet.has(String(l.id))).map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                  {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
                 </select>
               </div>
 
@@ -230,7 +230,7 @@ export default function StockTransferModal({ isOpen, onClose, onTransfer, locati
                   className="w-full bg-white dark:bg-[#1e2330] border border-slate-700/70 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-yellow-500"
                 >
                   <option value="">--- Lokasyon Seçin ---</option>
-                  {locations.filter(l => !restrictedIdSet.has(String(l.id))).map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                  {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
                 </select>
               </div>
 
