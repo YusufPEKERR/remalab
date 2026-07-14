@@ -542,7 +542,7 @@ export default function Parts() {
                     onChange={e => handlePartCategoryChange(e.target.value)}
                   >
                     <option value="">Parça tipi seçiniz...</option>
-                    {Object.keys(PART_CATEGORY_DEPARTMENTS).map(c => (
+                    {categories.map(c => (
                       <option key={c} value={c}>{c}</option>
                     ))}
                   </select>
