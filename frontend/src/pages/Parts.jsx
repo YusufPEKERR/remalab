@@ -9,11 +9,6 @@ export default function Parts() {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterDepartment, setFilterDepartment] = useState('');
-  
-  // BOM feature temp states
-  const [tempBrand, setTempBrand] = useState('');
-  const [tempModel, setTempModel] = useState('');
-  const [compatibleList, setCompatibleList] = useState([]);
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -132,31 +127,14 @@ export default function Parts() {
     if (part) {
       setCurrentPart(part);
       setFormData({
-        item_code: part.item_code || '',
-        brand: part.brand || '',
-        model: part.model || '',
-        color: part.color || '',
-        part_category: part.part_category || '',
-        item_category: part.item_category || '',
-        stock_tracking_type: part.stock_tracking_type || 'Stok Takipli',
+        ...part,
         department: part.department ? part.department.split(',').map(d => d.trim()).filter(Boolean) : [],
         status: part.status || 'Aktif'
       });
-      // Parse comma-separated brand/model into a list of objects
-      const brands = (part.brand || '').split(',').map(s => s.trim()).filter(Boolean);
-      const models = (part.model || '').split(',').map(s => s.trim()).filter(Boolean);
-      const list = [];
-      for (let i = 0; i < Math.max(brands.length, models.length); i++) {
-        list.push({ brand: brands[i] || '', model: models[i] || '' });
-      }
-      setCompatibleList(list);
     } else {
       setCurrentPart(null);
       setFormData({ item_code: '', brand: '', model: '', color: '', part_category: '', item_category: '', stock_tracking_type: 'Stok Takipli', department: [], status: 'Aktif' });
-      setCompatibleList([]);
     }
-    setTempBrand('');
-    setTempModel('');
     setIsModalOpen(true);
   };
 
@@ -188,42 +166,9 @@ export default function Parts() {
         // Ensure department is correctly formatted as an array for the form
         department: existing.department ? String(existing.department).split(',').map(d => d.trim()).filter(Boolean) : []
       });
-      // Update compatibleList
-      const brands = (existing.brand || '').split(',').map(s => s.trim()).filter(Boolean);
-      const models = (existing.model || '').split(',').map(s => s.trim()).filter(Boolean);
-      const list = [];
-      for (let i = 0; i < Math.max(brands.length, models.length); i++) {
-        list.push({ brand: brands[i] || '', model: models[i] || '' });
-      }
-      setCompatibleList(list);
     } else {
       alert("Bu parça koduna ait mevcut bir kayıt bulunamadı.");
     }
-  };
-
-  const handleAddCompatibleModel = () => {
-    if (!tempBrand || !tempModel) return;
-    const exists = compatibleList.find(c => c.brand === tempBrand && c.model === tempModel);
-    if (!exists) {
-      const newList = [...compatibleList, { brand: tempBrand, model: tempModel }];
-      setCompatibleList(newList);
-      setFormData(prev => ({
-        ...prev,
-        brand: newList.map(x => x.brand).join(', '),
-        model: newList.map(x => x.model).join(', ')
-      }));
-    }
-    setTempModel('');
-  };
-
-  const handleRemoveCompatibleModel = (index) => {
-    const newList = compatibleList.filter((_, i) => i !== index);
-    setCompatibleList(newList);
-    setFormData(prev => ({
-      ...prev,
-      brand: newList.map(x => x.brand).join(', '),
-      model: newList.map(x => x.model).join(', ')
-    }));
   };
 
   const handleSubmit = async (e) => {
@@ -305,11 +250,8 @@ export default function Parts() {
   const paginatedParts = filteredParts.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const uniqueBrands = [...new Set(products.map(p => p.brand).filter(Boolean))].sort();
-  const uniqueModels = [...new Set(products.filter(p => p.brand === tempBrand).map(p => p.model).filter(Boolean))].sort();
-  // Fetch colors based on the first brand/model in the compatible list, or the temp ones
-  const searchBrandForColor = compatibleList.length > 0 ? compatibleList[0].brand : tempBrand;
-  const searchModelForColor = compatibleList.length > 0 ? compatibleList[0].model : tempModel;
-  const uniqueColors = [...new Set(products.filter(p => p.brand === searchBrandForColor && p.model === searchModelForColor).map(p => p.color).filter(Boolean))].sort();
+  const uniqueModels = [...new Set(products.filter(p => p.brand === formData.brand).map(p => p.model).filter(Boolean))].sort();
+  const uniqueColors = [...new Set(products.filter(p => p.brand === formData.brand && p.model === formData.model).map(p => p.color).filter(Boolean))].sort();
 
   return (
     <div className="h-full flex flex-col space-y-6 overflow-hidden">
@@ -559,56 +501,30 @@ export default function Parts() {
                   </button>
                 </div>
               </div>
-              <div className="bg-slate-50 dark:bg-[#242a38] p-4 rounded-xl border border-slate-200 dark:border-slate-700/50 space-y-3">
-                <label className="block text-sm font-bold text-slate-800 dark:text-slate-200">Uyumlu Cihazlar (BOM) <span className="text-red-400">*</span></label>
-                <div className="flex gap-2">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-400 mb-1">Marka</label>
                   <select
-                    className="flex-1 bg-white dark:bg-[#1e2330] border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 appearance-none"
-                    value={tempBrand}
-                    onChange={e => { setTempBrand(e.target.value); setTempModel(''); }}
+                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 appearance-none"
+                    value={formData.brand}
+                    onChange={e => setFormData({...formData, brand: e.target.value, model: ''})}
                   >
-                    <option value="">Marka Seçiniz</option>
+                    <option value="">Marka Seçiniz...</option>
                     {uniqueBrands.map(b => <option key={b} value={b}>{b}</option>)}
                   </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-400 mb-1">Model</label>
                   <select
-                    className="flex-1 bg-white dark:bg-[#1e2330] border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 appearance-none disabled:opacity-50"
-                    value={tempModel}
-                    onChange={e => setTempModel(e.target.value)}
-                    disabled={!tempBrand}
+                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 appearance-none disabled:opacity-50"
+                    value={formData.model}
+                    onChange={e => setFormData({...formData, model: e.target.value})}
+                    disabled={!formData.brand}
                   >
-                    <option value="">Model Seçiniz</option>
+                    <option value="">Model Seçiniz...</option>
                     {uniqueModels.map(m => <option key={m} value={m}>{m}</option>)}
                   </select>
-                  <button 
-                    type="button" 
-                    onClick={handleAddCompatibleModel}
-                    disabled={!tempBrand || !tempModel}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
-                  >
-                    Ekle
-                  </button>
                 </div>
-                
-                {/* Tag List */}
-                {compatibleList.length > 0 && (
-                  <div className="flex flex-wrap gap-2 pt-2">
-                    {compatibleList.map((item, idx) => (
-                      <span key={idx} className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium border bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-500/20">
-                        {item.brand} {item.model}
-                        <button 
-                          type="button" 
-                          onClick={() => handleRemoveCompatibleModel(idx)}
-                          className="hover:bg-blue-200 dark:hover:bg-blue-500/30 rounded-full p-0.5 text-blue-500 dark:text-blue-300 transition-colors"
-                        >
-                          <X size={14} />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                )}
-                {compatibleList.length === 0 && (
-                  <p className="text-xs text-red-400">Lütfen en az bir uyumlu marka/model ekleyin.</p>
-                )}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -709,8 +625,7 @@ export default function Parts() {
                 </button>
                 <button 
                   type="submit"
-                  disabled={compatibleList.length === 0}
-                  className="mt-4 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium shadow-lg shadow-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="mt-4 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium shadow-lg shadow-blue-500/30"
                 >
                   {currentPart ? 'Güncelle' : 'Kaydet'}
                 </button>

@@ -15,7 +15,8 @@ const KNOWN_TABLE_NAMES = {
   production_runs: "İş Emirleri / Üretim (production_runs)",
   departments: "Departmanlar (departments)",
   service_records: "Servis Kayıtları (service_records)",
-  service_parts: "Servis Parçaları (service_parts)"
+  service_parts: "Servis Parçaları (service_parts)",
+  item_bom: "Ürün Ağacı / BOM (item_bom)"
 };
 
 const KNOWN_FRIENDLY_NAMES = {

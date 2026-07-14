@@ -15,6 +15,7 @@ import Departments from './pages/Departments';
 import ServiceRecords from './pages/ServiceRecords';
 import DataManagement from './pages/DataManagement';
 import MainLayout from './layouts/MainLayout';
+import ItemBOM from './pages/ItemBOM';
 
 function App() {
   return (
@@ -48,6 +49,9 @@ function App() {
           <Route path="/departments" element={<Departments />} />
           <Route path="/service-records" element={<ServiceRecords />} />
           <Route path="/data-management" element={<DataManagement />} />
+          
+          {/* HIDDEN MODULES */}
+          <Route path="/item-bom" element={<ItemBOM />} />
         </Route>
       </Routes>
     </BrowserRouter>
