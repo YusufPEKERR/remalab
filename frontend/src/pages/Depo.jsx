@@ -11,10 +11,11 @@ export default function Depo() {
   
   // Modals
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
-  const dbColumns = ["name", "barcode", "critical_limit"];
+  const dbColumns = ["name", "location", "quantity", "critical_limit"];
   const friendlyNames = {
     name: "Parça Adı",
-    barcode: "Barkod",
+    location: "Lokasyon",
+    quantity: "Stok Miktarı",
     critical_limit: "Kritik Limit"
   };
 
@@ -47,10 +48,10 @@ export default function Depo() {
 
   const handleDownloadTemplate = async () => {
     const templateData = [{
-      "Parça Adı": "",
-      "Lokasyon": "",
-      "Stok Miktarı": "",
-      "Durumu": ""
+      "Parça Adı": "Örn. Motor",
+      "Lokasyon": "Raf-1",
+      "Stok Miktarı": "50",
+      "Kritik Limit": "10"
     }];
     await api.exportTableToExcel(templateData, "depo_sablon.xlsx");
   };
@@ -63,6 +64,7 @@ export default function Depo() {
 
   const handleExcelImport = async (data) => {
     setIsExcelModalOpen(false);
+    alert('Depo stoklarının Excel üzerinden toplu olarak içeri aktarımı işlemi henüz backend tarafında geliştirilme aşamasındadır. Lütfen stok ekleme işlemlerini Parçalar sayfasından veya manuel yapınız.');
     loadInventory();
   };
 
