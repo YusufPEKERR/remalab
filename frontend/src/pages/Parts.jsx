@@ -21,6 +21,7 @@ export default function Parts() {
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(50);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentPart, setCurrentPart] = useState(null);
@@ -183,6 +184,8 @@ export default function Parts() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     try {
       const payload = {
         ...formData,
@@ -201,6 +204,8 @@ export default function Parts() {
     } catch (err) {
       console.error(err);
       alert('Bir hata oluştu.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -722,9 +727,12 @@ export default function Parts() {
                 </button>
                 <button
                   type="submit"
-                  className="mt-4 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium shadow-lg shadow-blue-500/30"
+                  disabled={isSubmitting}
+                  className={`mt-4 px-5 py-2.5 text-white rounded-lg transition-colors font-medium shadow-lg ${
+                    isSubmitting ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/30'
+                  }`}
                 >
-                  {currentPart ? 'Güncelle' : 'Kaydet'}
+                  {isSubmitting ? 'Kaydediliyor...' : (currentPart ? 'Güncelle' : 'Kaydet')}
                 </button>
               </div>
             </form>

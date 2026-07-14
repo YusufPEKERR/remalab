@@ -38,6 +38,7 @@ export default function Irsaliye() {
 
   // Export Modal
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedExportColumns, setSelectedExportColumns] = useState({
     "Parça Adı": true,
     "Yön": true,
@@ -227,18 +228,24 @@ export default function Irsaliye() {
   };
 
   const handleTransferSubmit = async (transferData) => {
-    const res = await api.transferStock(
-      transferData.sourceStockId,
-      transferData.sourceLocId,
-      transferData.targetLocationId,
-      transferData.quantity,
-      'admin'
-    );
-    if (res && res.success) {
-      setIsTransferModalOpen(false);
-      fetchData();
-    } else {
-      alert('Hata: ' + (res ? res.message : ''));
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      const res = await api.transferStock(
+        transferData.sourceStockId,
+        transferData.sourceLocId,
+        transferData.targetLocationId,
+        transferData.quantity,
+        'admin'
+      );
+      if (res && res.success) {
+        setIsTransferModalOpen(false);
+        fetchData();
+      } else {
+        alert('Hata: ' + (res ? res.message : ''));
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -298,35 +305,64 @@ export default function Irsaliye() {
 
   const handleInbound = async (e) => {
     e.preventDefault();
-    const user = "admin";
-    const isTransfer = formData.type === 'Depodan Depoya';
-
-    if (isTransfer && Number(formData.qty) > getStockQty(formData.part_id, formData.source_loc_id)) {
-      alert("Kaynak lokasyonda yeterli stok yok.");
+    
+    if (!formData.part_id) {
+      alert("Lütfen önce barkod okutarak veya aratarak bir parça seçin.");
       return;
     }
+    
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    
+    try {
+      const user = "admin";
+      const isTransfer = formData.type === 'Depodan Depoya';
 
-    const res = isTransfer
-      ? await api.transferStock(formData.part_id, formData.source_loc_id, formData.loc_id, formData.qty, user)
-      : await api.addInboundEntry(formData.part_id, formData.loc_id, formData.qty, formData.price, formData.type || 'Yeni Alım', user);
+      if (isTransfer && Number(formData.qty) > getStockQty(formData.part_id, formData.source_loc_id)) {
+        alert("Kaynak lokasyonda yeterli stok yok.");
+        return;
+      }
 
-    if (res && res.success) {
-      setShowInboundModal(false);
-      fetchData();
-    } else alert("Hata: " + (res ? res.message : ""));
+      const res = isTransfer
+        ? await api.transferStock(formData.part_id, formData.source_loc_id, formData.loc_id, formData.qty, user)
+        : await api.addInboundEntry(formData.part_id, formData.loc_id, formData.qty, formData.price, formData.type || 'Yeni Alım', user);
+
+      if (res && res.success) {
+        setShowInboundModal(false);
+        fetchData();
+      } else alert("Hata: " + (res ? res.message : ""));
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleOutbound = async (e) => {
     e.preventDefault();
-    if (!window.confirm("Bu stok çıkışını yapmak istediğinize emin misiniz?")) {
+    
+    if (!formData.part_id) {
+      alert("Lütfen önce barkod okutarak veya aratarak bir parça seçin.");
       return;
     }
-    const user = "admin";
-    const res = await api.addOutboundEntry(formData.part_id, formData.loc_id, formData.qty, formData.type || 'Teknik Servis', user, formData.technician, formData.description);
-    if (res && res.success) {
-      setShowOutboundModal(false);
-      fetchData();
-    } else alert("Hata: " + (res ? res.message : ""));
+
+    const available = getStockQty(formData.part_id, formData.source_loc_id || formData.loc_id);
+    if (Number(formData.qty) > available) {
+      alert("Seçili lokasyonda yeterli stok yok!");
+      return;
+    }
+    
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    
+    try {
+      const user = "admin";
+      const res = await api.addOutboundEntry(formData.part_id, formData.loc_id, formData.qty, formData.type || 'Teknik Servis', user, formData.technician, formData.description);
+      if (res && res.success) {
+        setShowOutboundModal(false);
+        fetchData();
+      } else alert("Hata: " + (res ? res.message : ""));
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -637,9 +673,11 @@ export default function Irsaliye() {
                 </div>
               )}
 
-              <div className="flex justify-end gap-3 mt-6 border-t border-slate-200 dark:border-slate-700/50 pt-4">
-                <button type="button" onClick={() => setShowInboundModal(false)} className="px-5 py-2.5 bg-[#323a4d] hover:bg-[#3f485e] text-slate-800 dark:text-slate-200 rounded-lg text-sm font-medium transition-colors">İptal</button>
-                <button type="submit" className="px-5 py-2.5 bg-[#42526e] hover:bg-[#506385] text-white rounded-lg text-sm font-medium transition-colors shadow-lg">Kaydet</button>
+              <div className="flex justify-end gap-3 mt-6 border-t border-slate-200 dark:border-slate-700 pt-4">
+                <button type="button" onClick={() => setShowInboundModal(false)} className="px-5 py-2.5 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors font-medium">İptal</button>
+                <button type="submit" disabled={isSubmitting} className={`px-5 py-2.5 text-white rounded-xl transition-colors font-medium shadow-lg ${isSubmitting ? 'bg-emerald-400 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/30'}`}>
+                  {isSubmitting ? 'Kaydediliyor...' : 'Kaydet'}
+                </button>
               </div>
             </form>
           </div>
@@ -738,10 +776,12 @@ export default function Irsaliye() {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 mt-6 border-t border-slate-200 dark:border-slate-700/50 pt-4">
-                <button type="button" onClick={() => setShowOutboundModal(false)} className="px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-xl hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 text-sm font-medium transition-colors">İptal</button>
-                <button type="submit" className="px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 text-sm font-medium transition-colors shadow-lg shadow-red-900/20">Kaydet</button>
-              </div>
+              <div className="flex justify-end gap-3 mt-6 border-t border-slate-200 dark:border-slate-700 pt-4">
+                  <button type="button" onClick={() => setShowOutboundModal(false)} className="px-5 py-2.5 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors font-medium">İptal</button>
+                  <button type="submit" disabled={isSubmitting} className={`px-5 py-2.5 text-white rounded-xl transition-colors font-medium shadow-lg ${isSubmitting ? 'bg-red-400 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 shadow-red-500/30'}`}>
+                    {isSubmitting ? 'Kaydediliyor...' : 'Çıkış Yap'}
+                  </button>
+                </div>
             </form>
           </div>
         </div>
