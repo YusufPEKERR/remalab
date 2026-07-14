@@ -538,7 +538,7 @@ export default function WorkOrders() {
                             {row.part_name} {row.item_code ? <span className="text-slate-400">- {row.item_code}</span> : null}
                           </div>
                           <div className="text-sm text-slate-500 dark:text-slate-400 w-14 text-center">{row.quantity} ad.</div>
-                          <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${SUPPLY_STATUS_STYLES[row.status] || SUPPLY_STATUS_STYLES['Stokta Var']}`}>
+                          <span className={`inline-block whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-medium border ${SUPPLY_STATUS_STYLES[row.status] || SUPPLY_STATUS_STYLES['Stokta Var']}`}>
                             {row.status}
                           </span>
                         </div>
@@ -611,7 +611,7 @@ export default function WorkOrders() {
                         </td>
                         <td className="px-6 py-4">{order.assigned_technician || '-'}</td>
                         <td className="px-6 py-4">
-                          <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${PRIORITY_STYLES[order.priority] || PRIORITY_STYLES['Orta']}`}>
+                          <span className={`inline-block whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-medium border ${PRIORITY_STYLES[order.priority] || PRIORITY_STYLES['Orta']}`}>
                             {order.priority}
                           </span>
                         </td>
@@ -622,7 +622,7 @@ export default function WorkOrders() {
                           {usedParts.length > 0 ? `${usedParts.length} kalem` : '-'}
                         </td>
                         <td className="px-6 py-4">
-                          <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${STATUS_STYLES[order.status] || STATUS_STYLES['Beklemede']}`}>
+                          <span className={`inline-block whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-medium border ${STATUS_STYLES[order.status] || STATUS_STYLES['Beklemede']}`}>
                             {order.status}
                           </span>
                         </td>
