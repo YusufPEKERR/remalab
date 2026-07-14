@@ -25,7 +25,7 @@ import { api } from '../services/api';
 const dbTypeConfig = {
   postgresql: { icon: "🐘", color: "text-blue-400", bg: "bg-blue-400/10", border: "border-blue-400/20", label: "PostgreSQL" },
   mysql: { icon: "🐬", color: "text-sky-400", bg: "bg-sky-400/10", border: "border-sky-400/20", label: "MySQL" },
-  mssql: { icon: "🔷", color: "text-red-400", bg: "bg-red-400/10", border: "border-red-400/20", label: "SQL Server" }
+  mssql: { icon: "🗄️", color: "text-red-400", bg: "bg-red-400/10", border: "border-red-400/20", label: "SQL Server" }
 };
 
 export default function Settings() {
@@ -88,37 +88,6 @@ export default function Settings() {
     }
   }, [activeTab]);
 
-  // Departments
-  const [departments, setDepartments] = useState([]);
-  const [showDeptForm, setShowDeptForm] = useState(false);
-  const [editingDept, setEditingDept] = useState(null);
-  const [deptFormData, setDeptFormData] = useState({ name: '', code: '', manager: '', default_location: '', status: 'Aktif' });
-
-  const fetchDepartments = async () => {
-    setDepartments([
-      { id: '1', name: 'Servis', code: 'SRV', manager: 'Ahmet Yılmaz', default_location: 'Servis Depo', status: 'Aktif' },
-      { id: '2', name: 'Teknik Servis', code: 'TS', manager: 'Mehmet Demir', default_location: 'Tamirhane', status: 'Aktif' },
-      { id: '3', name: 'Üretim', code: 'URT', manager: 'Ali Kaya', default_location: 'Üretim Bandı', status: 'Aktif' }
-    ]);
-  };
-
-  useEffect(() => {
-    if (activeTab === 'departments') {
-      fetchDepartments();
-    }
-  }, [activeTab]);
-
-  const handleOpenDeptForm = (dept = null) => {
-    if (dept) {
-      setEditingDept(dept);
-      setDeptFormData(dept);
-    } else {
-      setEditingDept(null);
-      setDeptFormData({ name: '', code: '', manager: '', default_location: '', status: 'Aktif' });
-    }
-    setShowDeptForm(true);
-  };
-
   const handleOpenDbForm = (conn = null) => {
     if (conn) {
       setEditingDb(conn);
@@ -177,14 +146,7 @@ export default function Settings() {
         >
           <HardDrive size={18} /> Lokal DB / Klasörler
         </button>
-        <button
-          onClick={() => setActiveTab('departments')}
-          className={`flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-medium transition-all duration-200
-            ${activeTab === 'departments' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'bg-white dark:bg-[#1e2330] text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#2a3142] border border-slate-200 dark:border-slate-700/50'}
-          `}
-        >
-          <Building2 size={18} /> Departman Yönetimi
-        </button>
+
       </div>
 
       {/* Tab Content Area */}
@@ -226,7 +188,7 @@ export default function Settings() {
                       Açıkken arayüz canlı Vite sunucusundan (127.0.0.1:5173), kapalıyken derlenmiş sabit sürümden yüklenir.
                     </p>
                     {devModeSaved && (
-                      <p className="text-emerald-400 text-xs mt-2">Kaydedildi — değişiklik için uygulamayı yeniden başlatın.</p>
+                      <p className="text-emerald-400 text-xs mt-2">Kaydedildi - değişiklik için uygulamayı yeniden başlatın.</p>
                     )}
                   </div>
                   <button
@@ -322,14 +284,14 @@ export default function Settings() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div>
                       <label className="block text-sm font-medium text-slate-400 mb-1.5">Bağlantı Adı</label>
-                      <input type="text" required className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={dbFormData.name} onChange={e => setDbFormData({...dbFormData, name: e.target.value})} placeholder="Örn: Ana Veritabanı"/>
+                      <input type="text" required className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={dbFormData.name} onChange={e => setDbFormData({...dbFormData, name: e.target.value})} placeholder="├ûrn: Ana Veritabanı"/>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-slate-400 mb-1.5">Veritabanı Türü</label>
                       <select className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={dbFormData.db_type} onChange={e => setDbFormData({...dbFormData, db_type: e.target.value})}>
                         <option value="postgresql">🐘 PostgreSQL</option>
                         <option value="mysql">🐬 MySQL</option>
-                        <option value="mssql">🔷 SQL Server</option>
+                        <option value="mssql">🗄️ SQL Server</option>
                       </select>
                     </div>
                   </div>
@@ -356,13 +318,13 @@ export default function Settings() {
                       <input type="text" required className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={dbFormData.username} onChange={e => setDbFormData({...dbFormData, username: e.target.value})} placeholder="postgres"/>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-slate-400 mb-1.5">Şifre</label>
-                      <input type="password" required className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={dbFormData.password} onChange={e => setDbFormData({...dbFormData, password: e.target.value})} placeholder="••••••••"/>
+                      <label className="block text-sm font-medium text-slate-400 mb-1.5">┼Şifre</label>
+                      <input type="password" required className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={dbFormData.password} onChange={e => setDbFormData({...dbFormData, password: e.target.value})} placeholder="ÔÇóÔÇóÔÇóÔÇóÔÇóÔÇóÔÇóÔÇó"/>
                     </div>
                   </div>
 
                   <div className="flex justify-end gap-3 pt-6 border-t border-slate-200 dark:border-slate-700/50 mt-6">
-                    <button type="button" onClick={() => setShowDbForm(false)} className="px-5 py-2.5 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors border border-slate-300 dark:border-slate-600">İptal</button>
+                    <button type="button" onClick={() => setShowDbForm(false)} className="px-5 py-2.5 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors border border-slate-300 dark:border-slate-600">─░ptal</button>
                     <button type="button" onClick={() => alert("Test Ediliyor...")} className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors shadow-lg shadow-indigo-900/20 flex items-center gap-2"><PlugZap size={18}/> Test Et</button>
                     <button type="submit" className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors shadow-lg shadow-blue-900/20 flex items-center gap-2"><Save size={18}/> Kaydet</button>
                   </div>
@@ -387,7 +349,7 @@ export default function Settings() {
                   <button onClick={async () => { const res = await api.addLocalFile(); if(res.success) fetchLocalData(); else if(res.message !== "Seçim iptal edildi") alert(res.message); }} className="flex items-center gap-2 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-600 px-4 py-2 rounded-xl transition-all font-medium text-sm">
                     Var Olanı Ekle
                   </button>
-                  <button onClick={async () => { const res = await api.createLocalFile(); if(res.success) fetchLocalData(); else if(res.message !== "İşlem iptal edildi") alert(res.message); }} className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl transition-all shadow-lg shadow-purple-900/20 font-medium text-sm">
+                  <button onClick={async () => { const res = await api.createLocalFile(); if(res.success) fetchLocalData(); else if(res.message !== "─░şlem iptal edildi") alert(res.message); }} className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl transition-all shadow-lg shadow-purple-900/20 font-medium text-sm">
                     <Plus size={16} /> Yeni Oluştur
                   </button>
                 </div>
@@ -397,16 +359,16 @@ export default function Settings() {
                 {localFiles.map(file => (
                   <div key={file.id} className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-5 flex gap-4 hover:border-slate-500 transition-colors">
                     <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl shrink-0 ${file.type === 'sql' ? 'bg-green-500/10 text-green-400' : 'bg-purple-500/10 text-purple-400'}`}>
-                      {file.type === 'sql' ? '📜' : '🗄️'}
+                      {file.type === 'sql' ? '­şô£' : '­şùä´©Å'}
                     </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="text-slate-800 dark:text-slate-200 font-semibold truncate text-base">{file.name}</h3>
-                      <p className="text-slate-500 text-xs truncate mb-2">📂 {file.path}</p>
+                      <p className="text-slate-500 text-xs truncate mb-2">­şôé {file.path}</p>
                       <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400">
                         {file.size && <span className="flex items-center gap-1"><HardDrive size={12}/> {file.size}</span>}
-                        {(file.tables !== undefined) && <span>📋 {file.tables} Tablo</span>}
-                        {(file.records !== undefined) && <span>📝 {file.records.toLocaleString()} Kayıt</span>}
-                        {file.modified && <span>🕐 {file.modified}</span>}
+                        {(file.tables !== undefined) && <span>­şôï {file.tables} Tablo</span>}
+                        {(file.records !== undefined) && <span>­şôØ {file.records.toLocaleString()} Kayıt</span>}
+                        {file.modified && <span>­şòÉ {file.modified}</span>}
                       </div>
                     </div>
                     <div className="flex flex-col gap-1 shrink-0 justify-center">
@@ -438,13 +400,13 @@ export default function Settings() {
                   return (
                     <div key={folder.id} className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-4 flex gap-4 hover:border-slate-500 transition-colors items-center">
                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0 ${isBackup ? 'bg-green-500/10 text-green-400' : 'bg-orange-500/10 text-orange-400'}`}>
-                        {isBackup ? '💼' : '📁'}
+                        {isBackup ? '­şÆ╝' : '­şôü'}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <h3 className="text-slate-800 dark:text-slate-200 font-semibold truncate text-sm">{folder.name}</h3>
                           <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${isBackup ? 'bg-green-500/20 text-green-400' : 'bg-orange-500/20 text-orange-400'}`}>
-                            {isBackup ? 'YEDEK' : 'VERİ'}
+                            {isBackup ? 'YEDEK' : 'VER─░'}
                           </span>
                         </div>
                         <p className="text-slate-500 text-xs truncate">{folder.path}</p>
@@ -461,158 +423,7 @@ export default function Settings() {
           </div>
         )}
 
-        {/* --- DEPARTMENTS TAB --- */}
-        {activeTab === 'departments' && (
-          <div className="space-y-6">
-            {!showDeptForm ? (
-              <>
-                <div className="flex justify-between items-center">
-                  <div>
-                    <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200">Departman Yönetimi</h2>
-                    <p className="text-slate-400 text-sm">Departmanları, sorumlularını ve varsayılan lokasyonlarını yönetin.</p>
-                  </div>
-                  <button
-                    onClick={() => handleOpenDeptForm()}
-                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl transition-all shadow-lg shadow-blue-900/20 font-medium text-sm"
-                  >
-                    <Plus size={16} /> Yeni Departman
-                  </button>
-                </div>
 
-                <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden">
-                  <table className="w-full text-left text-sm">
-                    <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs">
-                      <tr>
-                        <th className="px-6 py-4">Departman</th>
-                        <th className="px-6 py-4">Kod</th>
-                        <th className="px-6 py-4">Sorumlu</th>
-                        <th className="px-6 py-4">Varsayılan Lokasyon</th>
-                        <th className="px-6 py-4">Durum</th>
-                        <th className="px-6 py-4 text-center">İşlemler</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-700/50">
-                      {departments.length === 0 ? (
-                        <tr>
-                          <td colSpan="6" className="px-6 py-8 text-center text-slate-500">Kayıt bulunamadı.</td>
-                        </tr>
-                      ) : (
-                        departments.map(dept => (
-                          <tr key={dept.id} className="hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors text-slate-700 dark:text-slate-300">
-                            <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200">{dept.name}</td>
-                            <td className="px-6 py-4 font-mono text-slate-400">{dept.code}</td>
-                            <td className="px-6 py-4">{dept.responsible}</td>
-                            <td className="px-6 py-4">{dept.default_location_name}</td>
-                            <td className="px-6 py-4">
-                              <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${
-                                dept.status === 'Pasif'
-                                  ? 'bg-slate-500/10 text-slate-400 border-slate-500/20'
-                                  : 'bg-green-500/10 text-green-400 border-green-500/20'
-                              }`}>
-                                {dept.status || 'Aktif'}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 text-center">
-                              <div className="flex justify-center gap-3">
-                                <button onClick={() => handleOpenDeptForm(dept)} className="p-1.5 text-blue-400 hover:bg-blue-400/10 rounded-lg transition-colors" title="Düzenle">
-                                  <Edit size={16} />
-                                </button>
-                                <button onClick={() => handleDeleteDept(dept.id)} className="p-1.5 text-red-400 hover:bg-red-400/10 rounded-lg transition-colors" title="Sil">
-                                  <Trash2 size={16} />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </>
-            ) : (
-              <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-xl animate-in fade-in slide-in-from-bottom-4">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                    {editingDept ? 'Departmanı Düzenle' : 'Yeni Departman Ekle'}
-                  </h2>
-                  <button onClick={() => setShowDeptForm(false)} className="text-slate-400 hover:text-white p-1">
-                    <X size={20} />
-                  </button>
-                </div>
-
-                <form onSubmit={handleSaveDept} className="space-y-5">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <div>
-                      <label className="block text-sm font-medium text-slate-400 mb-1.5">Departman <span className="text-red-400">*</span></label>
-                      <input
-                        type="text" required
-                        list="department-names-list"
-                        className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
-                        value={deptFormData.name}
-                        onChange={e => handleDeptNameChange(e.target.value)}
-                        placeholder="Örn: Teknik Servis"
-                      />
-                      <datalist id="department-names-list">
-                        {DEPARTMENT_NAMES.map(d => <option key={d} value={d} />)}
-                      </datalist>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-400 mb-1.5">Kod</label>
-                      <input
-                        type="text"
-                        className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
-                        value={deptFormData.code}
-                        onChange={e => setDeptFormData({...deptFormData, code: e.target.value})}
-                        placeholder="Örn: TS"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-slate-400 mb-1.5">Sorumlu</label>
-                    <input
-                      type="text"
-                      className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
-                      value={deptFormData.responsible}
-                      onChange={e => setDeptFormData({...deptFormData, responsible: e.target.value})}
-                      placeholder="Departman sorumlusunun adı"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <div>
-                      <label className="block text-sm font-medium text-slate-400 mb-1.5">Varsayılan Lokasyon</label>
-                      <select
-                        className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
-                        value={deptFormData.default_location_id}
-                        onChange={e => setDeptFormData({...deptFormData, default_location_id: e.target.value})}
-                      >
-                        <option value="">Seçilmedi</option>
-                        {locations.map(loc => <option key={loc.id} value={loc.id}>{loc.name}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-400 mb-1.5">Durum</label>
-                      <select
-                        className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
-                        value={deptFormData.status}
-                        onChange={e => setDeptFormData({...deptFormData, status: e.target.value})}
-                      >
-                        <option value="Aktif">Aktif</option>
-                        <option value="Pasif">Pasif</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end gap-3 pt-6 border-t border-slate-200 dark:border-slate-700/50 mt-6">
-                    <button type="button" onClick={() => setShowDeptForm(false)} className="px-5 py-2.5 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors border border-slate-300 dark:border-slate-600">İptal</button>
-                    <button type="submit" className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors shadow-lg shadow-blue-900/20 flex items-center gap-2"><Save size={18}/> Kaydet</button>
-                  </div>
-                </form>
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
     </div>
