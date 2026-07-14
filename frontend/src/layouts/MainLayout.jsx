@@ -269,17 +269,27 @@ export default function MainLayout() {
                       <div className="divide-y divide-slate-100 dark:divide-slate-700/50">
                         {notifications.map((notif, idx) => {
                           const notifKey = notif.part_name + '_' + notif.location_name;
-                          return (
-                          <div key={idx} className="p-4 hover:bg-slate-50 dark:hover:bg-[#2a3142] transition-colors cursor-pointer" onClick={() => {
+                          
+                          const markAsRead = () => {
                             const saved = JSON.parse(sessionStorage.getItem('readNotifications') || '[]');
                             if (!saved.includes(notifKey)) {
                               saved.push(notifKey);
                               sessionStorage.setItem('readNotifications', JSON.stringify(saved));
+                              setNotifications(prev => prev.filter(n => (n.part_name + '_' + n.location_name) !== notifKey));
                             }
-                            setNotifications(prev => prev.filter((_, i) => i !== idx));
-                            setShowNotifications(false); 
-                            navigate('/depo');
-                          }}>
+                          };
+
+                          return (
+                          <div 
+                            key={idx} 
+                            className="p-4 hover:bg-slate-50 dark:hover:bg-[#2a3142] transition-colors cursor-pointer" 
+                            onMouseEnter={markAsRead}
+                            onClick={() => {
+                              markAsRead();
+                              setShowNotifications(false); 
+                              navigate('/depo');
+                            }}
+                          >
                             <div className="flex items-start gap-3">
                               <div className="mt-0.5 shrink-0">
                                 <AlertTriangle size={18} className={notif.status === 'Tükendi' ? "text-red-400" : "text-amber-400"} />
