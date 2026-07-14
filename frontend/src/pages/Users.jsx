@@ -101,6 +101,19 @@ export default function Users() {
       }
 
       if (res && res.success) {
+        const currentUserStr = localStorage.getItem('user') || sessionStorage.getItem('user');
+        if (currentUserStr && modalMode !== 'add') {
+          try {
+            const currentUser = JSON.parse(currentUserStr);
+            if (String(currentUser.id) === String(selectedUserId)) {
+              currentUser.username = formData.username;
+              currentUser.role = formData.role;
+              if (localStorage.getItem('user')) localStorage.setItem('user', JSON.stringify(currentUser));
+              if (sessionStorage.getItem('user')) sessionStorage.setItem('user', JSON.stringify(currentUser));
+              window.dispatchEvent(new Event('user:updated'));
+            }
+          } catch(e) {}
+        }
         setIsModalOpen(false);
         fetchUsers();
       } else {
