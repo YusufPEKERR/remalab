@@ -9,8 +9,16 @@ export default function Users() {
   const [searchTerm, setSearchTerm] = useState('');
   
   const [selectedUserId, setSelectedUserId] = useState(null);
+  const [selectedRows, setSelectedRows] = useState([]);
 
   // Modal State
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [selectedExportColumns, setSelectedExportColumns] = useState({
+    "ID": true,
+    "Kullanıcı Adı": true,
+    "E-posta": true,
+    "Rol": true
+  });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState('add'); // 'add', 'edit', 'password'
   const [formData, setFormData] = useState({ username: '', email: '', password: '', role: 'Teknisyen' });
@@ -103,6 +111,45 @@ export default function Users() {
     }
   };
 
+  const toggleSelectAll = () => {
+    if (selectedRows.length === users.length && users.length > 0) {
+      setSelectedRows([]);
+    } else {
+      setSelectedRows(users.map(u => u.id));
+    }
+  };
+
+  const toggleRowSelect = (id, e) => {
+    e.stopPropagation();
+    setSelectedRows(prev => 
+      prev.includes(id) ? prev.filter(rowId => rowId !== id) : [...prev, id]
+    );
+  };
+
+  const executeExport = async () => {
+    const dataToExport = selectedRows.length > 0 
+      ? users.filter(u => selectedRows.includes(u.id))
+      : users;
+
+    if (dataToExport.length === 0) {
+      alert("Dışa aktarılacak veri bulunamadı.");
+      setIsExportModalOpen(false);
+      return;
+    }
+
+    const exportReadyData = dataToExport.map(u => {
+      const row = {};
+      if (selectedExportColumns["ID"]) row["ID"] = u.id;
+      if (selectedExportColumns["Kullanıcı Adı"]) row["Kullanıcı Adı"] = u.username;
+      if (selectedExportColumns["E-posta"]) row["E-posta"] = u.email;
+      if (selectedExportColumns["Rol"]) row["Rol"] = u.role;
+      return row;
+    });
+
+    await api.exportTableToExcel(exportReadyData, 'kullanicilar.xlsx');
+    setIsExportModalOpen(false);
+  };
+
   const filteredUsers = useMemo(() => {
     return users.filter(u => 
       (u.username && u.username.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -146,8 +193,8 @@ export default function Users() {
         </div>
         
         <div className="flex flex-wrap gap-2">
-          <button onClick={() => api.exportTableToExcel(users, "kullanicilar.xlsx")} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl shadow-sm text-sm font-medium transition-colors">
-            <Download size={16} /> Excel
+          <button onClick={() => setIsExportModalOpen(true)} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl shadow-sm text-sm font-medium transition-colors">
+            <Download size={16} /> {selectedRows.length > 0 ? `${selectedRows.length} Seçiliyi Dışa Aktar` : 'Tümünü Dışa Aktar'}
           </button>
           <button onClick={handleAdd} className="flex items-center gap-2 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:hover:bg-[#2a3142] border border-slate-300 dark:border-slate-600 text-slate-800 dark:text-slate-200 px-4 py-2.5 rounded-xl shadow-sm text-sm font-medium transition-colors">
             <Plus size={16} className="text-green-400" /> Ekle
@@ -170,6 +217,14 @@ export default function Users() {
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium border-b border-slate-200 dark:border-slate-700/50 sticky top-0 uppercase text-xs z-10">
               <tr>
+                <th className="px-6 py-4 w-12 text-center">
+                  <input 
+                    type="checkbox" 
+                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-white dark:bg-slate-800"
+                    checked={selectedRows.length === users.length && users.length > 0}
+                    onChange={toggleSelectAll}
+                  />
+                </th>
                 <th className="px-6 py-4 w-16">ID</th>
                 <th className="px-6 py-4">KULLANICI ADI</th>
                 <th className="px-6 py-4">E-POSTA</th>
@@ -191,13 +246,24 @@ export default function Users() {
                   </td>
                 </tr>
               ) : (
-                filteredUsers.map((user) => (
+                filteredUsers.map((user) => {
+                  const isChecked = selectedRows.includes(user.id);
+                  return (
                   <tr 
                     key={user.id} 
                     onClick={() => setSelectedUserId(user.id)}
                     className={`transition-colors cursor-pointer text-slate-700 dark:text-slate-300
-                      ${selectedUserId === user.id ? 'bg-blue-600/10 border-l-2 border-blue-500' : 'hover:bg-slate-100 dark:hover:bg-[#2a3142] border-l-2 border-transparent'}`}
+                      ${selectedUserId === user.id ? 'bg-blue-600/10 border-l-2 border-blue-500' : 'hover:bg-slate-100 dark:hover:bg-[#2a3142] border-l-2 border-transparent'}
+                      ${isChecked ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}
                   >
+                    <td className="px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
+                      <input 
+                        type="checkbox" 
+                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-white dark:bg-slate-800"
+                        checked={isChecked}
+                        onChange={(e) => toggleRowSelect(user.id, e)}
+                      />
+                    </td>
                     <td className="px-6 py-4 font-mono text-slate-400">{user.id}</td>
                     <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200 flex items-center gap-2">
                       <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-xs font-bold text-slate-400 border border-slate-200 dark:border-slate-700 uppercase">
@@ -216,7 +282,8 @@ export default function Users() {
                       </span>
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -304,6 +371,47 @@ export default function Users() {
           </div>
         </div>
       )}
+
+      {/* Dışa Aktar Sütun Seçimi Modalı */}
+      {isExportModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/80 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-sm p-6">
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4">Sütun Seçimi</h2>
+            <p className="text-sm text-slate-500 mb-4">Dışa aktarılacak Excel dosyasında hangi sütunların bulunmasını istediğinizi seçin.</p>
+            
+            <div className="space-y-3 mb-6 max-h-60 overflow-y-auto pr-2">
+              {Object.keys(selectedExportColumns).map((col) => (
+                <label key={col} className="flex items-center gap-3 cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={selectedExportColumns[col]}
+                    onChange={(e) => setSelectedExportColumns(prev => ({...prev, [col]: e.target.checked}))}
+                    className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-slate-50 dark:bg-slate-800"
+                  />
+                  <span className="text-slate-700 dark:text-slate-300 font-medium">{col}</span>
+                </label>
+              ))}
+            </div>
+
+            <div className="flex justify-end gap-3 mt-6">
+              <button 
+                onClick={() => setIsExportModalOpen(false)}
+                className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg transition-colors font-medium"
+              >
+                İptal
+              </button>
+              <button 
+                onClick={executeExport}
+                disabled={!Object.values(selectedExportColumns).some(Boolean)}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors font-medium shadow-md shadow-emerald-500/20 disabled:opacity-50"
+              >
+                Dışa Aktar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

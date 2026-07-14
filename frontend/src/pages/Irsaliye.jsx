@@ -8,6 +8,7 @@ export default function Irsaliye() {
   const [movements, setMovements] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [selectedRows, setSelectedRows] = useState([]);
 
   // Modals
   const [showInboundModal, setShowInboundModal] = useState(false);
@@ -34,6 +35,21 @@ export default function Irsaliye() {
 
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
   const [excelDirection, setExcelDirection] = useState('inbound');
+
+  // Export Modal
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [selectedExportColumns, setSelectedExportColumns] = useState({
+    "Parça Adı": true,
+    "Yön": true,
+    "Miktar": true,
+    "Birim Fiyat": true,
+    "Kaynak Depo": true,
+    "Hedef Depo": true,
+    "Tarih": true,
+    "İşlemi Yapan": true,
+    "Tür": true,
+    "Açıklama": true
+  });
 
   const dbColumns = ["part_id", "loc_id", "qty", "price", "type"];
   const friendlyNames = {
@@ -80,22 +96,52 @@ export default function Irsaliye() {
     const action = e.target.value;
     e.target.value = '';
 
-    if (action === 'template_in' || action === 'template_out') {
-        const isIn = action === 'template_in';
+    if (action === 'template') {
         const templateData = [{
           "Parça ID": "1",
           "Lokasyon ID": "1",
           "Miktar": 10,
           "Birim Fiyat": 150.00,
-          "İşlem Türü": isIn ? "Yeni Alım" : "Çıkış"
+          "İşlem Türü": "Yeni Alım VEYA Çıkış"
         }];
-        await api.exportTableToExcel(templateData, isIn ? "giris_sablon.xlsx" : "cikis_sablon.xlsx");
+        await api.exportTableToExcel(templateData, "irsaliye_sablon.xlsx");
     } else if (action === 'export') {
-        await api.exportTableToExcel(movements, 'irsaliye_hareketleri.xlsx');
+        setIsExportModalOpen(true);
     } else if (action === 'import_in' || action === 'import_out') {
         setExcelDirection(action === 'import_in' ? 'inbound' : 'outbound');
         setIsExcelModalOpen(true);
     }
+  };
+
+  const executeExport = async () => {
+    const dataToExport = selectedRows.length > 0 
+      ? movements.filter(mov => selectedRows.includes(mov.id))
+      : movements;
+
+    if (dataToExport.length === 0) {
+      alert("Dışa aktarılacak veri bulunamadı.");
+      setIsExportModalOpen(false);
+      return;
+    }
+
+    const exportReadyData = dataToExport.map(mov => {
+      const dir = getDirection(mov);
+      const row = {};
+      if (selectedExportColumns["Parça Adı"]) row["Parça Adı"] = mov.part_name;
+      if (selectedExportColumns["Yön"]) row["Yön"] = dir === 'in' ? 'Giriş' : (dir === 'out' ? 'Çıkış' : 'Transfer');
+      if (selectedExportColumns["Miktar"]) row["Miktar"] = mov.quantity;
+      if (selectedExportColumns["Birim Fiyat"]) row["Birim Fiyat"] = mov.unit_price;
+      if (selectedExportColumns["Kaynak Depo"]) row["Kaynak Depo"] = dir === 'in' ? 'Dışarı (Tedarikçi)' : mov.source_location;
+      if (selectedExportColumns["Hedef Depo"]) row["Hedef Depo"] = dir === 'out' ? 'Dışarı' : mov.target_location;
+      if (selectedExportColumns["Tarih"]) row["Tarih"] = mov.created_at;
+      if (selectedExportColumns["İşlemi Yapan"]) row["İşlemi Yapan"] = mov.created_by;
+      if (selectedExportColumns["Tür"]) row["Tür"] = mov.type;
+      if (selectedExportColumns["Açıklama"]) row["Açıklama"] = mov.description || '-';
+      return row;
+    });
+
+    await api.exportTableToExcel(exportReadyData, 'irsaliye_hareketleri.xlsx');
+    setIsExportModalOpen(false);
   };
 
   const fetchData = useCallback(async (silent = false) => {
@@ -126,6 +172,21 @@ export default function Irsaliye() {
     if (dir === 'in') return <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">Giriş</span>;
     if (dir === 'out') return <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-red-500/10 text-red-500 border border-red-500/20">Çıkış</span>;
     return <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-500 border border-blue-500/20">Transfer</span>;
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedRows.length === movements.length && movements.length > 0) {
+      setSelectedRows([]);
+    } else {
+      setSelectedRows(movements.map(mov => mov.id));
+    }
+  };
+
+  const toggleRowSelect = (id, e) => {
+    e.stopPropagation();
+    setSelectedRows(prev => 
+      prev.includes(id) ? prev.filter(rowId => rowId !== id) : [...prev, id]
+    );
   };
 
   const fetchDependencies = async () => {
@@ -293,9 +354,8 @@ export default function Irsaliye() {
               className="appearance-none bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-2 pr-8 transition-colors font-medium cursor-pointer focus:outline-none focus:border-blue-500"
             >
               <option value="">Excel İşlemi Seç...</option>
-              <option value="template_in">Giriş Şablonu İndir</option>
-              <option value="template_out">Çıkış Şablonu İndir</option>
-              <option value="export">Tümünü Dışa Aktar</option>
+              <option value="template">Şablon İndir</option>
+              <option value="export">{selectedRows.length > 0 ? `${selectedRows.length} Seçiliyi Dışa Aktar` : 'Tümünü Dışa Aktar'}</option>
               <option value="import_in">Giriş İçe Aktar</option>
               <option value="import_out">Çıkış İçe Aktar</option>
             </select>
@@ -324,6 +384,14 @@ export default function Irsaliye() {
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-700 dark:text-slate-300 font-semibold border-b border-slate-200 dark:border-slate-700/50 sticky top-0 uppercase tracking-wider text-xs z-10">
               <tr>
+                <th className="px-6 py-4 w-12 text-center">
+                  <input 
+                    type="checkbox" 
+                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-white dark:bg-slate-800"
+                    checked={selectedRows.length === movements.length && movements.length > 0}
+                    onChange={toggleSelectAll}
+                  />
+                </th>
                 <th className="px-6 py-4">PARÇA ADI</th>
                 <th className="px-6 py-4">YÖN</th>
                 <th className="px-6 py-4">MİKTAR</th>
@@ -353,8 +421,17 @@ export default function Irsaliye() {
               ) : (
                 movements.map((mov, index) => {
                   const dir = getDirection(mov);
+                  const isChecked = selectedRows.includes(mov.id);
                   return (
-                    <tr key={`${mov.id}-${index}`} className="hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors group text-slate-800 dark:text-slate-200">
+                    <tr key={`${mov.id}-${index}`} className={`hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors group text-slate-800 dark:text-slate-200 ${isChecked ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}>
+                      <td className="px-6 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                        <input 
+                          type="checkbox" 
+                          className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-white dark:bg-slate-800"
+                          checked={isChecked}
+                          onChange={(e) => toggleRowSelect(mov.id, e)}
+                        />
+                      </td>
                       <td className="px-6 py-3">{mov.part_name}</td>
                       <td className="px-6 py-3">{directionBadge(dir)}</td>
                       <td className={`px-6 py-3 font-mono font-semibold ${dir === 'out' ? 'text-red-500' : 'text-emerald-500'}`}>
@@ -639,6 +716,47 @@ export default function Irsaliye() {
         dbColumns={dbColumns}
         friendlyNames={friendlyNames}
       />
+
+      {/* Dışa Aktar Sütun Seçimi Modalı */}
+      {isExportModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/80 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-sm p-6">
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4">Sütun Seçimi</h2>
+            <p className="text-sm text-slate-500 mb-4">Dışa aktarılacak Excel dosyasında hangi sütunların bulunmasını istediğinizi seçin.</p>
+            
+            <div className="space-y-3 mb-6 max-h-60 overflow-y-auto pr-2">
+              {Object.keys(selectedExportColumns).map((col) => (
+                <label key={col} className="flex items-center gap-3 cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={selectedExportColumns[col]}
+                    onChange={(e) => setSelectedExportColumns(prev => ({...prev, [col]: e.target.checked}))}
+                    className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-slate-50 dark:bg-slate-800"
+                  />
+                  <span className="text-slate-700 dark:text-slate-300 font-medium">{col}</span>
+                </label>
+              ))}
+            </div>
+
+            <div className="flex justify-end gap-3 mt-6">
+              <button 
+                onClick={() => setIsExportModalOpen(false)}
+                className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg transition-colors font-medium"
+              >
+                İptal
+              </button>
+              <button 
+                onClick={executeExport}
+                disabled={!Object.values(selectedExportColumns).some(Boolean)}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors font-medium shadow-md shadow-emerald-500/20 disabled:opacity-50"
+              >
+                Dışa Aktar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <StockTransferModal
         isOpen={isTransferModalOpen}
         onClose={() => setIsTransferModalOpen(false)}
