@@ -56,14 +56,20 @@ export default function MainLayout() {
   };
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('user') || sessionStorage.getItem('user');
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch (e) {
-        console.error("User parsing error", e);
+    const fetchUser = () => {
+      const storedUser = localStorage.getItem('user') || sessionStorage.getItem('user');
+      if (storedUser) {
+        try {
+          setUser(JSON.parse(storedUser));
+        } catch (e) {
+          console.error("User parsing error", e);
+        }
       }
-    }
+    };
+
+    fetchUser();
+    window.addEventListener('user:updated', fetchUser);
+    return () => window.removeEventListener('user:updated', fetchUser);
   }, []);
 
   const handleLogout = () => {
