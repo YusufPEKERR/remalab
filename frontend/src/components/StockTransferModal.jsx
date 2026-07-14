@@ -36,15 +36,6 @@ export default function StockTransferModal({ isOpen, onClose, onTransfer, locati
       const res = await api.getStockStatus();
       if (res.success) {
         setFullStock(res.stock);
-        // sourceLocations: unique locations that have stock > 0 (sistem depoları hariç)
-        const locsMap = new Map();
-        res.stock.forEach(s => {
-          if (s.quantity > 0 && !restrictedIdSet.has(String(s.location_id))) {
-            locsMap.set(s.location_id, s.location_name);
-          }
-        });
-        const locs = Array.from(locsMap, ([id, name]) => ({ id, name }));
-        setSourceLocations(locs);
       }
     } catch (err) {
       console.error(err);
@@ -192,7 +183,7 @@ export default function StockTransferModal({ isOpen, onClose, onTransfer, locati
                   className="w-full bg-white dark:bg-[#1e2330] border border-slate-700/70 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
                 >
                   <option value="">--- Lokasyon Seçin ---</option>
-                  {sourceLocations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                  {locations.filter(l => !restrictedIdSet.has(String(l.id))).map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
                 </select>
               </div>
 
