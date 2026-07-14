@@ -1546,9 +1546,11 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    @Slot(result=str)
-    def get_supply_request_history(self):
-        """Şimdiye kadar oluşturulmuş tüm tedarik taleplerini (durumu ne olursa olsun) getirir (Tedarik Talepleri sayfası)."""
+    @Slot(str, result=str)
+    def get_supply_request_history(self, username):
+        """Oturumdaki kullanıcının kendi oluşturduğu tedarik taleplerini getirir (Tedarik Talepleri sayfası).
+        Başka kullanıcıların talepleri dahil edilmez; depocunun tüm talepleri gördüğü kuyruk için
+        bkz. get_supply_requests (ayrı, kullanıcıya göre filtrelenmeyen bir Slot)."""
         from sqlalchemy import text
         db = SessionLocal()
         try:
@@ -1562,9 +1564,9 @@ class WebBridge(QObject):
                 JOIN warehouse.work_orders w ON w.id = wop.work_order_id
                 LEFT JOIN warehouse.service_records s ON s.id = w.service_record_id
                 LEFT JOIN warehouse.parts p ON p.id = wop.part_id
-                WHERE wop.marked_waiting_at IS NOT NULL
+                WHERE wop.marked_waiting_at IS NOT NULL AND wop.requested_by = :username
                 ORDER BY wop.marked_waiting_at DESC
-            """)).mappings().all()
+            """), {"username": username or None}).mappings().all()
 
             requests = []
             for row in rows:

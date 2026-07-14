@@ -37,7 +37,7 @@ export default function SupplyRequestForm() {
 
   const fetchRequests = async () => {
     setLoading(true);
-    const res = await api.getSupplyRequestHistory();
+    const res = await api.getSupplyRequestHistory(currentUser?.username);
     if (res.success) setRequests(res.requests || []);
     setLoading(false);
   };
@@ -136,7 +136,7 @@ export default function SupplyRequestForm() {
         <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden">
           <div className="p-6 pb-4">
             <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">Talepler</h2>
-            <p className="text-slate-400 text-sm mt-1">Yapılan tüm tedarik talepleri ve güncel durumları.</p>
+            <p className="text-slate-400 text-sm mt-1">Sizin oluşturduğunuz tedarik talepleri ve güncel durumları.</p>
           </div>
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs">

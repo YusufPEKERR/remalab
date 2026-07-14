@@ -588,11 +588,11 @@ export const api = {
         });
     },
 
-    getSupplyRequestHistory: async () => {
+    getSupplyRequestHistory: async (username) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
             if (backend.get_supply_request_history) {
-                backend.get_supply_request_history((res) => resolve(JSON.parse(res)));
+                backend.get_supply_request_history(username || '', (res) => resolve(JSON.parse(res)));
             } else {
                 resolve({ success: true, requests: [] });
             }
