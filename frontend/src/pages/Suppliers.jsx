@@ -174,7 +174,7 @@ export default function Suppliers() {
                     <td className="px-6 py-4 font-mono text-slate-400">{supplier.item_code || '-'}</td>
                     <td className="px-6 py-4 font-mono text-slate-400">{supplier.barcode || '-'}</td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex justify-end gap-2">
                         <button 
                           onClick={() => handleOpenModal(supplier)}
                           className="p-2 text-indigo-400 hover:bg-indigo-500/10 rounded-lg transition-colors border border-transparent hover:border-indigo-500/20"
