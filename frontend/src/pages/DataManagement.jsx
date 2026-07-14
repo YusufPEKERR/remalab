@@ -3,21 +3,50 @@ import { Database, Download, Upload, FileSpreadsheet, AlertTriangle, Eye, Refres
 import { api } from '../services/api';
 import ExcelMappingModal from '../components/ExcelMappingModal';
 
+const KNOWN_TABLE_NAMES = {
+  products: "Ürünler (products)",
+  parts: "Parçalar (parts)",
+  suppliers: "Tedarikçiler (suppliers)",
+  locations: "Depo / Lokasyonlar (locations)",
+  users: "Kullanıcılar (users)",
+  stock: "Stok Durumu (stock)",
+  dispatch_notes: "İrsaliyeler (dispatch_notes)",
+  dispatch_items: "İrsaliye Kalemleri (dispatch_items)",
+  production_runs: "İş Emirleri / Üretim (production_runs)",
+  departments: "Departmanlar (departments)",
+  service_records: "Servis Kayıtları (service_records)",
+  service_parts: "Servis Parçaları (service_parts)"
+};
+
 const KNOWN_FRIENDLY_NAMES = {
+  id: "ID (id)",
   item_code: "Ürün Kodu (item_code)",
   brand: "Marka (brand)",
   model: "Model (model)",
   color: "Renk (color)",
-  part_category: "Parça Tipi",
-  item_category: "Parça Kategorisi",
+  part_category: "Parça Tipi (part_category)",
+  item_category: "Parça Kategorisi (item_category)",
   memory: "Hafıza (memory)",
   name: "Adı (name)",
   supplier: "Tedarikçi Adı (supplier)",
+  contact_info: "İletişim (contact_info)",
+  address: "Adres (address)",
   barcode: "Barkod (barcode)",
   username: "Kullanıcı Adı (username)",
   email: "E-Posta (email)",
-  password: "Şifre (password)",
-  role: "Rol (role)"
+  password_hash: "Şifre Hash (password_hash)",
+  role: "Rol (role)",
+  quantity: "Miktar (quantity)",
+  target_part_id: "Üretilen Parça ID (target_part_id)",
+  quantity_produced: "Üretilen Miktar (quantity_produced)",
+  source_location_id: "Kaynak Lokasyon ID (source_location_id)",
+  target_location_id: "Hedef Lokasyon ID (target_location_id)",
+  location_id: "Lokasyon ID (location_id)",
+  part_id: "Parça ID (part_id)",
+  product_id: "Ürün ID (product_id)",
+  notes: "Notlar (notes)",
+  created_at: "Oluşturulma Tarihi (created_at)",
+  updated_at: "Güncellenme Tarihi (updated_at)"
 };
 
 export default function DataManagement() {
@@ -47,7 +76,7 @@ export default function DataManagement() {
           
           return {
             id: t.id,
-            name: t.name,
+            name: KNOWN_TABLE_NAMES[t.table_name] || t.name,
             schema: t.schema,
             table_name: t.table_name,
             columns: t.columns,
