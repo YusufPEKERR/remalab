@@ -11,6 +11,7 @@ export default function Login() {
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -19,11 +20,15 @@ export default function Login() {
       try {
         const u = JSON.parse(storedUser);
         const userRole = u?.role?.toLowerCase() || 'admin';
-        navigate(userRole === 'depo' ? '/depo' : '/dashboard');
+        // Yönlendirme öncesi biraz bekleyelim ki animasyon görünsün (opsiyonel)
+        setTimeout(() => {
+          navigate(userRole === 'depo' ? '/depo' : '/dashboard');
+        }, 500);
       } catch {
         navigate('/dashboard');
       }
     } else {
+      setIsCheckingAuth(false);
       const savedUsername = localStorage.getItem('saved_username');
       const savedPassword = localStorage.getItem('saved_password');
       if (savedUsername) {
@@ -35,8 +40,11 @@ export default function Login() {
         }
         setRememberMe(true);
       }
-      const el = document.getElementById('username-input');
-      if (el) el.focus();
+      // Form render olduktan sonra focus yapması için setTimeout
+      setTimeout(() => {
+        const el = document.getElementById('username-input');
+        if (el) el.focus();
+      }, 0);
     }
   }, [navigate]);
 
@@ -77,11 +85,23 @@ export default function Login() {
     }
   };
 
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-[#0f1219] relative overflow-hidden text-slate-800 dark:text-slate-200 p-4">
+  // Otomatik giriş kontrol ediliyorsa, form render edilmeden direkt loading ekranı gösterilsin
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-screen bg-slate-900/10 flex flex-col items-center justify-center">
+        <div className="bg-white dark:bg-[#1e2330] p-8 rounded-2xl shadow-2xl flex flex-col items-center gap-4 animate-in fade-in duration-300">
+          <RefreshCw size={40} className="text-blue-600 animate-spin" />
+          <p className="text-slate-800 dark:text-slate-200 font-semibold text-lg">Giriş Yapılıyor...</p>
+        </div>
+      </div>
+    );
+  }
 
-      {/* Background Ornaments */}
-      <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-blue-600/20 blur-[120px] rounded-full pointer-events-none"></div>
+  return (
+    <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50 dark:bg-[#111827] relative overflow-hidden">
+
+      {/* Background Shapes */}
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-blue-600/10 dark:bg-blue-600/5 blur-[120px] pointer-events-none"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-emerald-600/10 blur-[120px] rounded-full pointer-events-none"></div>
 
       {/* Main Container */}
