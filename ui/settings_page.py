@@ -8,17 +8,24 @@ Lokal dosya ekleme, klasör seçme, yeni veritabanı oluşturma.
 import json
 import os
 import sqlite3
-import subprocess
 import uuid
 from datetime import datetime
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QPushButton, QLineEdit, QScrollArea, QFrame,
-    QComboBox, QStackedWidget, QMessageBox,
-    QSpinBox, QSizePolicy, QFileDialog
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QLineEdit,
+    QScrollArea,
+    QFrame,
+    QComboBox,
+    QStackedWidget,
+    QMessageBox,
+    QSpinBox,
+    QFileDialog,
 )
-from PySide6.QtCore import Qt, Signal, QTimer
-from PySide6.QtGui import QColor
+from PySide6.QtCore import Qt, Signal
 
 from ui.translations import tr, get_translator
 
@@ -66,15 +73,26 @@ def _get_sqlite_info(filepath: str) -> dict:
 
 # DB türlerine göre ikonlar, renkler ve varsayılan portlar
 DB_TYPE_CONFIG = {
-    "postgresql": {"icon": "🐘", "color": "#336791", "label": "PostgreSQL", "default_port": 5432},
+    "postgresql": {
+        "icon": "🐘",
+        "color": "#336791",
+        "label": "PostgreSQL",
+        "default_port": 5432,
+    },
     "mysql": {"icon": "🐬", "color": "#4479A1", "label": "MySQL", "default_port": 3306},
-    "mssql": {"icon": "🔷", "color": "#CC2927", "label": "SQL Server", "default_port": 1433},
+    "mssql": {
+        "icon": "🔷",
+        "color": "#CC2927",
+        "label": "SQL Server",
+        "default_port": 1433,
+    },
 }
 
 
 # ============================================================
 #  Database Connection Card (PostgreSQL, MySQL, SQL Server)
 # ============================================================
+
 
 class DatabaseConnectionCard(QWidget):
     """Tek bir veritabanı bağlantısını gösteren kart."""
@@ -118,7 +136,7 @@ class DatabaseConnectionCard(QWidget):
 
         name_row = QHBoxLayout()
         name_label = QLabel(self._connection.get("name", "Unnamed"))
-        name_label.setStyleSheet("color: #F0F6FC; font-size: 16px; font-weight: 700;")
+        name_label
         name_row.addWidget(name_label)
 
         # DB türü badge
@@ -130,7 +148,7 @@ class DatabaseConnectionCard(QWidget):
 
         if self._is_active:
             active_badge = QLabel(f"  ● {tr('db.active')}")
-            active_badge.setStyleSheet("color: #3FB950; font-size: 11px; font-weight: 600;")
+            active_badge
             name_row.addWidget(active_badge)
 
         name_row.addStretch()
@@ -142,7 +160,7 @@ class DatabaseConnectionCard(QWidget):
         user = self._connection.get("username", "")
         detail_text = f"🖥️  {host}:{port}  •  📁  {db}  •  👤  {user}"
         detail_label = QLabel(detail_text)
-        detail_label.setStyleSheet("color: #8B949E; font-size: 12px;")
+        detail_label
         info_layout.addWidget(detail_label)
 
         layout.addWidget(info_section, stretch=1)
@@ -156,10 +174,7 @@ class DatabaseConnectionCard(QWidget):
         if not self._is_active:
             set_active_btn = QPushButton(tr("db.set_active"))
             set_active_btn.setCursor(Qt.PointingHandCursor)
-            set_active_btn.setStyleSheet(
-                "background-color: #238636; color: #fff; border: none; "
-                "border-radius: 8px; padding: 8px 14px; font-size: 12px; font-weight: 600;"
-            )
+            set_active_btn
             set_active_btn.clicked.connect(
                 lambda: self.set_active_requested.emit(self._connection.get("id", ""))
             )
@@ -167,28 +182,32 @@ class DatabaseConnectionCard(QWidget):
 
         test_btn = QPushButton(tr("db.test_connection"))
         test_btn.setCursor(Qt.PointingHandCursor)
-        test_btn.setStyleSheet(
-            "background-color: #1F6FEB; color: #fff; border: none; "
-            "border-radius: 8px; padding: 8px 14px; font-size: 12px; font-weight: 600;"
-        )
+        test_btn
         test_btn.clicked.connect(lambda: self.test_requested.emit(self._connection))
         btn_layout.addWidget(test_btn)
 
         edit_btn = QPushButton("✏️")
         edit_btn.setCursor(Qt.PointingHandCursor)
-        edit_btn.setStyleSheet(
-            "background-color: #21262D; border: 1px solid #30363D; "
-            "border-radius: 8px; padding: 8px 10px; font-size: 14px;"
-        )
+        edit_btn
         edit_btn.clicked.connect(lambda: self.edit_requested.emit(self._connection))
         btn_layout.addWidget(edit_btn)
 
-        delete_btn = QPushButton("🗑️")
-        delete_btn.setCursor(Qt.PointingHandCursor)
-        delete_btn.setStyleSheet(
-            "background-color: #21262D; border: 1px solid #30363D; "
-            "border-radius: 8px; padding: 8px 10px; font-size: 14px;"
+        import os
+        from PySide6.QtGui import QIcon
+        from PySide6.QtCore import QSize
+
+        delete_btn = QPushButton()
+        icon_path = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)), "assets", "trash.svg"
         )
+        if os.path.exists(icon_path):
+            delete_btn.setIcon(QIcon(icon_path))
+            delete_btn.setIconSize(QSize(20, 20))
+        else:
+            delete_btn.setText("🗑️")
+        delete_btn.setObjectName("table_delete_btn")
+        delete_btn.setCursor(Qt.PointingHandCursor)
+        delete_btn
         delete_btn.clicked.connect(
             lambda: self.delete_requested.emit(self._connection.get("id", ""))
         )
@@ -200,6 +219,7 @@ class DatabaseConnectionCard(QWidget):
 # ============================================================
 #  Local Database File Card
 # ============================================================
+
 
 class LocalDbFileCard(QWidget):
     """Lokal veritabanı dosyası kartı."""
@@ -226,7 +246,7 @@ class LocalDbFileCard(QWidget):
         is_sql = path.lower().endswith(".sql")
         icon_char = "📜" if is_sql else "🗄️"
         bg_color = "#3FB95033" if is_sql else "#A371F733"
-        
+
         icon = QLabel(icon_char)
         icon.setFixedSize(44, 44)
         icon.setAlignment(Qt.AlignCenter)
@@ -244,13 +264,13 @@ class LocalDbFileCard(QWidget):
         # İsim
         name = self._file_info.get("name", "Unknown")
         name_label = QLabel(name)
-        name_label.setStyleSheet("color: #F0F6FC; font-size: 15px; font-weight: 700;")
+        name_label
         info_layout.addWidget(name_label)
 
         # Yol
         path = self._file_info.get("path", "")
         path_label = QLabel(f"📂  {path}")
-        path_label.setStyleSheet("color: #8B949E; font-size: 11px;")
+        path_label
         path_label.setWordWrap(True)
         info_layout.addWidget(path_label)
 
@@ -273,7 +293,7 @@ class LocalDbFileCard(QWidget):
 
         if details:
             detail_label = QLabel("  •  ".join(details))
-            detail_label.setStyleSheet("color: #58A6FF; font-size: 11px;")
+            detail_label
             info_layout.addWidget(detail_label)
 
         layout.addWidget(info_section, stretch=1)
@@ -284,13 +304,10 @@ class LocalDbFileCard(QWidget):
         btn_layout.setContentsMargins(0, 0, 0, 0)
         btn_layout.setSpacing(8)
 
-        open_btn = QPushButton(f"📂")
+        open_btn = QPushButton("📂")
         open_btn.setToolTip(tr("local.open_folder"))
         open_btn.setCursor(Qt.PointingHandCursor)
-        open_btn.setStyleSheet(
-            "background-color: #21262D; border: 1px solid #30363D; "
-            "border-radius: 8px; padding: 8px 10px; font-size: 14px;"
-        )
+        open_btn
         open_btn.clicked.connect(
             lambda: self.open_folder_requested.emit(self._file_info.get("path", ""))
         )
@@ -299,22 +316,29 @@ class LocalDbFileCard(QWidget):
         export_btn = QPushButton("📤")
         export_btn.setToolTip(tr("local.export_db"))
         export_btn.setCursor(Qt.PointingHandCursor)
-        export_btn.setStyleSheet(
-            "background-color: #21262D; border: 1px solid #30363D; "
-            "border-radius: 8px; padding: 8px 10px; font-size: 14px;"
-        )
+        export_btn
         export_btn.clicked.connect(
             lambda: self.export_requested.emit(self._file_info.get("path", ""))
         )
         btn_layout.addWidget(export_btn)
 
-        remove_btn = QPushButton("🗑️")
+        import os
+        from PySide6.QtGui import QIcon
+        from PySide6.QtCore import QSize
+
+        remove_btn = QPushButton()
+        icon_path = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)), "assets", "trash.svg"
+        )
+        if os.path.exists(icon_path):
+            remove_btn.setIcon(QIcon(icon_path))
+            remove_btn.setIconSize(QSize(20, 20))
+        else:
+            remove_btn.setText("🗑️")
+        remove_btn.setObjectName("table_delete_btn")
         remove_btn.setToolTip(tr("local.remove"))
         remove_btn.setCursor(Qt.PointingHandCursor)
-        remove_btn.setStyleSheet(
-            "background-color: #21262D; border: 1px solid #30363D; "
-            "border-radius: 8px; padding: 8px 10px; font-size: 14px;"
-        )
+        remove_btn
         remove_btn.clicked.connect(
             lambda: self.remove_requested.emit(self._file_info.get("id", ""))
         )
@@ -326,6 +350,7 @@ class LocalDbFileCard(QWidget):
 # ============================================================
 #  Data Folder Card
 # ============================================================
+
 
 class DataFolderCard(QWidget):
     """Veri klasörü kartı."""
@@ -373,7 +398,7 @@ class DataFolderCard(QWidget):
         name_row = QHBoxLayout()
         name = self._folder_info.get("name", "Unnamed")
         name_label = QLabel(name)
-        name_label.setStyleSheet("color: #F0F6FC; font-size: 14px; font-weight: 600;")
+        name_label
         name_row.addWidget(name_label)
 
         type_badge = QLabel(f"  {tr(f'local.folder_type_{folder_type}')}")
@@ -383,7 +408,7 @@ class DataFolderCard(QWidget):
         info_layout.addLayout(name_row)
 
         path_label = QLabel(self._folder_info.get("path", ""))
-        path_label.setStyleSheet("color: #8B949E; font-size: 11px;")
+        path_label
         info_layout.addWidget(path_label)
 
         layout.addWidget(info_section, stretch=1)
@@ -392,21 +417,28 @@ class DataFolderCard(QWidget):
         open_btn = QPushButton("📂")
         open_btn.setToolTip(tr("local.open_folder"))
         open_btn.setCursor(Qt.PointingHandCursor)
-        open_btn.setStyleSheet(
-            "background-color: #21262D; border: 1px solid #30363D; "
-            "border-radius: 8px; padding: 8px 10px; font-size: 14px;"
-        )
+        open_btn
         open_btn.clicked.connect(
             lambda: self.open_requested.emit(self._folder_info.get("path", ""))
         )
         layout.addWidget(open_btn)
 
-        remove_btn = QPushButton("🗑️")
-        remove_btn.setCursor(Qt.PointingHandCursor)
-        remove_btn.setStyleSheet(
-            "background-color: #21262D; border: 1px solid #30363D; "
-            "border-radius: 8px; padding: 8px 10px; font-size: 14px;"
+        import os
+        from PySide6.QtGui import QIcon
+        from PySide6.QtCore import QSize
+
+        remove_btn = QPushButton()
+        icon_path = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)), "assets", "trash.svg"
         )
+        if os.path.exists(icon_path):
+            remove_btn.setIcon(QIcon(icon_path))
+            remove_btn.setIconSize(QSize(20, 20))
+        else:
+            remove_btn.setText("🗑️")
+        remove_btn.setObjectName("table_delete_btn")
+        remove_btn.setCursor(Qt.PointingHandCursor)
+        remove_btn
         remove_btn.clicked.connect(
             lambda: self.remove_requested.emit(self._folder_info.get("id", ""))
         )
@@ -416,6 +448,7 @@ class DataFolderCard(QWidget):
 # ============================================================
 #  Database Connection Form (PostgreSQL, MySQL, SQL Server)
 # ============================================================
+
 
 def _build_connection_url(data: dict) -> tuple[str, str]:
     """DB türüne göre SQLAlchemy URL ve gerekli paket bilgisi döndür."""
@@ -462,10 +495,9 @@ class DatabaseFormDialog(QWidget):
         layout.setSpacing(16)
 
         title = QLabel(
-            f"✏️  {tr('db.edit')}" if self._editing
-            else f"＋  {tr('db.add_new')}"
+            f"✏️  {tr('db.edit')}" if self._editing else f"＋  {tr('db.add_new')}"
         )
-        title.setStyleSheet("color: #F0F6FC; font-size: 18px; font-weight: 700;")
+        title
         layout.addWidget(title)
 
         form_layout = QVBoxLayout()
@@ -477,7 +509,7 @@ class DatabaseFormDialog(QWidget):
         self._name_input = self._create_field(
             tr("db.connection_name"),
             self._connection.get("name", ""),
-            tr("db.default_name")
+            tr("db.default_name"),
         )
         name_type_row.addWidget(self._name_input["container"], stretch=2)
 
@@ -488,7 +520,7 @@ class DatabaseFormDialog(QWidget):
         type_layout.setSpacing(4)
 
         type_label = QLabel(tr("db.db_type"))
-        type_label.setStyleSheet("color: #8B949E; font-size: 12px; font-weight: 600;")
+        type_label
         type_layout.addWidget(type_label)
 
         self._type_combo = QComboBox()
@@ -531,7 +563,7 @@ class DatabaseFormDialog(QWidget):
         port_layout.setSpacing(4)
 
         port_label = QLabel(tr("db.port"))
-        port_label.setStyleSheet("color: #8B949E; font-size: 12px; font-weight: 600;")
+        port_label
         port_layout.addWidget(port_label)
 
         default_port = DB_TYPE_CONFIG.get(current_type, {}).get("default_port", 5432)
@@ -550,9 +582,7 @@ class DatabaseFormDialog(QWidget):
 
         # Veritabanı adı
         self._db_input = self._create_field(
-            tr("db.database_name"),
-            self._connection.get("database", ""),
-            "remalab_db"
+            tr("db.database_name"), self._connection.get("database", ""), "remalab_db"
         )
         form_layout.addWidget(self._db_input["container"])
 
@@ -563,13 +593,15 @@ class DatabaseFormDialog(QWidget):
         self._user_input = self._create_field(
             tr("db.username"),
             self._connection.get("username", ""),
-            default_user.get(current_type, "postgres")
+            default_user.get(current_type, "postgres"),
         )
         cred_row.addWidget(self._user_input["container"])
 
         self._pass_input = self._create_field(
-            tr("db.password"), self._connection.get("password", ""),
-            "••••••••", is_password=True
+            tr("db.password"),
+            self._connection.get("password", ""),
+            "••••••••",
+            is_password=True,
         )
         cred_row.addWidget(self._pass_input["container"])
 
@@ -578,7 +610,7 @@ class DatabaseFormDialog(QWidget):
 
         # Durum mesajı
         self._status_label = QLabel("")
-        self._status_label.setStyleSheet("font-size: 13px; padding: 8px 0;")
+        self._status_label
         self._status_label.setVisible(False)
         self._status_label.setWordWrap(True)
         layout.addWidget(self._status_label)
@@ -589,28 +621,19 @@ class DatabaseFormDialog(QWidget):
 
         cancel_btn = QPushButton(tr("db.cancel"))
         cancel_btn.setCursor(Qt.PointingHandCursor)
-        cancel_btn.setStyleSheet(
-            "background-color: #21262D; color: #C9D1D9; border: 1px solid #30363D; "
-            "border-radius: 8px; padding: 10px 24px; font-size: 13px; font-weight: 600;"
-        )
+        cancel_btn
         cancel_btn.clicked.connect(self.cancelled.emit)
         btn_row.addWidget(cancel_btn)
 
         test_btn = QPushButton(f"🔌  {tr('db.test_connection')}")
         test_btn.setCursor(Qt.PointingHandCursor)
-        test_btn.setStyleSheet(
-            "background-color: #1F6FEB; color: #fff; border: none; "
-            "border-radius: 8px; padding: 10px 24px; font-size: 13px; font-weight: 600;"
-        )
+        test_btn
         test_btn.clicked.connect(self._test_connection)
         btn_row.addWidget(test_btn)
 
         save_btn = QPushButton(f"💾  {tr('db.save')}")
         save_btn.setCursor(Qt.PointingHandCursor)
-        save_btn.setStyleSheet(
-            "background-color: #238636; color: #fff; border: none; "
-            "border-radius: 8px; padding: 10px 24px; font-size: 13px; font-weight: 600;"
-        )
+        save_btn
         save_btn.clicked.connect(self._save)
         btn_row.addWidget(save_btn)
 
@@ -628,8 +651,7 @@ class DatabaseFormDialog(QWidget):
             self._port_input.setValue(default_port)
 
     def _create_field(
-        self, label_text: str, value: str,
-        placeholder: str, is_password: bool = False
+        self, label_text: str, value: str, placeholder: str, is_password: bool = False
     ) -> dict:
         container = QWidget()
         layout = QVBoxLayout(container)
@@ -637,7 +659,7 @@ class DatabaseFormDialog(QWidget):
         layout.setSpacing(4)
 
         label = QLabel(label_text)
-        label.setStyleSheet("color: #8B949E; font-size: 12px; font-weight: 600;")
+        label
         layout.addWidget(label)
 
         input_field = QLineEdit()
@@ -671,34 +693,33 @@ class DatabaseFormDialog(QWidget):
         data = self._get_connection_data()
         self._status_label.setVisible(True)
         self._status_label.setText(f"⏳  {tr('db.testing')}")
-        self._status_label.setStyleSheet("color: #58A6FF; font-size: 13px; padding: 8px 0;")
+        self._status_label
         self._status_label.repaint()
 
         url, driver_pkg = _build_connection_url(data)
 
         try:
             from sqlalchemy import create_engine, text
+
             engine = create_engine(url, connect_args={"connect_timeout": 5})
             with engine.connect() as conn:
                 conn.execute(text("SELECT 1"))
             self._status_label.setText(f"✅  {tr('db.success')}")
-            self._status_label.setStyleSheet("color: #3FB950; font-size: 13px; padding: 8px 0;")
+            self._status_label
         except ImportError:
-            self._status_label.setText(
-                f"⚠️  {tr('db.driver_missing')}\n{driver_pkg}"
-            )
-            self._status_label.setStyleSheet("color: #D29922; font-size: 13px; padding: 8px 0;")
+            self._status_label.setText(f"⚠️  {tr('db.driver_missing')}\n{driver_pkg}")
+            self._status_label
         except Exception as e:
             error_msg = str(e).split("\n")[0][:100]
             self._status_label.setText(f"❌  {tr('db.failed')}\n{error_msg}")
-            self._status_label.setStyleSheet("color: #F85149; font-size: 13px; padding: 8px 0;")
+            self._status_label
 
     def _save(self):
         data = self._get_connection_data()
         if not data["database"]:
             self._status_label.setVisible(True)
             self._status_label.setText("⚠️  Veritabanı adı gerekli!")
-            self._status_label.setStyleSheet("color: #D29922; font-size: 13px; padding: 8px 0;")
+            self._status_label
             return
         self.saved.emit(data)
 
@@ -706,6 +727,7 @@ class DatabaseFormDialog(QWidget):
 # ============================================================
 #  Settings Page
 # ============================================================
+
 
 class SettingsPage(QWidget):
     """Ayarlar sayfası - Dil, PostgreSQL ve Lokal DB yönetimi."""
@@ -800,15 +822,9 @@ class SettingsPage(QWidget):
 
         for key, btn in self._tab_buttons.items():
             if key == tab_key:
-                btn.setStyleSheet(
-                    "background-color: #1F6FEB; color: #fff; border: none; "
-                    "border-radius: 8px; padding: 8px 20px; font-size: 13px; font-weight: 600;"
-                )
+                btn
             else:
-                btn.setStyleSheet(
-                    "background-color: #21262D; color: #8B949E; border: 1px solid #30363D; "
-                    "border-radius: 8px; padding: 8px 20px; font-size: 13px; font-weight: 500;"
-                )
+                btn
 
     # ============================================================
     #  General Tab
@@ -829,9 +845,7 @@ class SettingsPage(QWidget):
         lang_icon = QLabel("🌐")
         lang_icon.setFixedSize(44, 44)
         lang_icon.setAlignment(Qt.AlignCenter)
-        lang_icon.setStyleSheet(
-            "background-color: #1F6FEB33; border-radius: 10px; font-size: 22px;"
-        )
+        lang_icon
         lang_layout.addWidget(lang_icon)
 
         lang_info = QWidget()
@@ -840,11 +854,11 @@ class SettingsPage(QWidget):
         lang_info_layout.setSpacing(2)
 
         lang_title = QLabel(tr("settings.language"))
-        lang_title.setStyleSheet("color: #F0F6FC; font-size: 15px; font-weight: 600;")
+        lang_title
         lang_info_layout.addWidget(lang_title)
 
         lang_desc = QLabel(tr("settings.language_desc"))
-        lang_desc.setStyleSheet("color: #8B949E; font-size: 12px;")
+        lang_desc
         lang_info_layout.addWidget(lang_desc)
 
         lang_layout.addWidget(lang_info, stretch=1)
@@ -895,11 +909,11 @@ class SettingsPage(QWidget):
         header_info_layout.setSpacing(4)
 
         db_title = QLabel(f"🗄️  {tr('db.title')}")
-        db_title.setStyleSheet("color: #F0F6FC; font-size: 16px; font-weight: 600;")
+        db_title
         header_info_layout.addWidget(db_title)
 
         db_subtitle = QLabel(tr("db.subtitle"))
-        db_subtitle.setStyleSheet("color: #484F58; font-size: 12px;")
+        db_subtitle
         header_info_layout.addWidget(db_subtitle)
 
         header_row.addWidget(header_info)
@@ -907,10 +921,7 @@ class SettingsPage(QWidget):
 
         add_btn = QPushButton(tr("db.add_new"))
         add_btn.setCursor(Qt.PointingHandCursor)
-        add_btn.setStyleSheet(
-            "background-color: #238636; color: #fff; border: none; "
-            "border-radius: 8px; padding: 10px 20px; font-size: 13px; font-weight: 600;"
-        )
+        add_btn
         add_btn.clicked.connect(self._show_add_form)
         header_row.addWidget(add_btn)
 
@@ -936,7 +947,7 @@ class SettingsPage(QWidget):
         if not self._connections:
             empty_label = QLabel(tr("db.no_connections"))
             empty_label.setAlignment(Qt.AlignCenter)
-            empty_label.setStyleSheet("color: #484F58; font-size: 14px; padding: 40px;")
+            empty_label
             self._cards_layout.addWidget(empty_label)
         else:
             for conn in self._connections:
@@ -997,8 +1008,11 @@ class SettingsPage(QWidget):
 
     def _delete_connection(self, conn_id: str):
         reply = QMessageBox.question(
-            self, tr("db.delete"), tr("db.confirm_delete"),
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.No
+            self,
+            tr("db.delete"),
+            tr("db.confirm_delete"),
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
         )
         if reply == QMessageBox.Yes:
             self._connections = [c for c in self._connections if c.get("id") != conn_id]
@@ -1018,15 +1032,13 @@ class SettingsPage(QWidget):
         url, driver_pkg = _build_connection_url(connection)
         try:
             from sqlalchemy import create_engine, text
+
             engine = create_engine(url, connect_args={"connect_timeout": 5})
             with engine.connect() as conn:
                 conn.execute(text("SELECT 1"))
             QMessageBox.information(self, "✅", tr("db.success"))
         except ImportError:
-            QMessageBox.warning(
-                self, "⚠️",
-                f"{tr('db.driver_missing')}\n{driver_pkg}"
-            )
+            QMessageBox.warning(self, "⚠️", f"{tr('db.driver_missing')}\n{driver_pkg}")
         except Exception as e:
             QMessageBox.critical(self, "❌", f"{tr('db.failed')}\n\n{str(e)[:200]}")
 
@@ -1049,11 +1061,11 @@ class SettingsPage(QWidget):
         files_info_layout.setSpacing(4)
 
         files_title = QLabel(f"🗄️  {tr('local.title')}")
-        files_title.setStyleSheet("color: #F0F6FC; font-size: 16px; font-weight: 600;")
+        files_title
         files_info_layout.addWidget(files_title)
 
         files_subtitle = QLabel(tr("local.subtitle"))
-        files_subtitle.setStyleSheet("color: #484F58; font-size: 12px;")
+        files_subtitle
         files_info_layout.addWidget(files_subtitle)
 
         files_header.addWidget(files_info)
@@ -1065,19 +1077,13 @@ class SettingsPage(QWidget):
 
         add_file_btn = QPushButton(tr("local.add_db_file"))
         add_file_btn.setCursor(Qt.PointingHandCursor)
-        add_file_btn.setStyleSheet(
-            "background-color: #1F6FEB; color: #fff; border: none; "
-            "border-radius: 8px; padding: 10px 18px; font-size: 13px; font-weight: 600;"
-        )
+        add_file_btn
         add_file_btn.clicked.connect(self._add_local_db_file)
         btn_container.addWidget(add_file_btn)
 
         create_btn = QPushButton(tr("local.create_new_db"))
         create_btn.setCursor(Qt.PointingHandCursor)
-        create_btn.setStyleSheet(
-            "background-color: #238636; color: #fff; border: none; "
-            "border-radius: 8px; padding: 10px 18px; font-size: 13px; font-weight: 600;"
-        )
+        create_btn
         create_btn.clicked.connect(self._create_new_db)
         btn_container.addWidget(create_btn)
 
@@ -1096,7 +1102,7 @@ class SettingsPage(QWidget):
         # ---- Ayırıcı ----
         sep = QFrame()
         sep.setFrameShape(QFrame.HLine)
-        sep.setStyleSheet("background-color: #21262D; max-height: 1px;")
+        sep
         layout.addWidget(sep)
 
         # ---- Veri Klasörleri Bölümü ----
@@ -1108,11 +1114,11 @@ class SettingsPage(QWidget):
         folders_info_layout.setSpacing(4)
 
         folders_title = QLabel(f"📁  {tr('local.data_folders')}")
-        folders_title.setStyleSheet("color: #F0F6FC; font-size: 16px; font-weight: 600;")
+        folders_title
         folders_info_layout.addWidget(folders_title)
 
         folders_subtitle = QLabel(tr("local.data_folders_subtitle"))
-        folders_subtitle.setStyleSheet("color: #484F58; font-size: 12px;")
+        folders_subtitle
         folders_info_layout.addWidget(folders_subtitle)
 
         folders_header.addWidget(folders_info)
@@ -1120,10 +1126,7 @@ class SettingsPage(QWidget):
 
         add_folder_btn = QPushButton(tr("local.add_folder"))
         add_folder_btn.setCursor(Qt.PointingHandCursor)
-        add_folder_btn.setStyleSheet(
-            "background-color: #1F6FEB; color: #fff; border: none; "
-            "border-radius: 8px; padding: 10px 18px; font-size: 13px; font-weight: 600;"
-        )
+        add_folder_btn
         add_folder_btn.clicked.connect(self._add_data_folder)
         folders_header.addWidget(add_folder_btn)
 
@@ -1151,7 +1154,7 @@ class SettingsPage(QWidget):
         if not self._local_files:
             empty = QLabel(tr("local.no_files"))
             empty.setAlignment(Qt.AlignCenter)
-            empty.setStyleSheet("color: #484F58; font-size: 14px; padding: 30px;")
+            empty
             self._local_files_layout.addWidget(empty)
         else:
             for file_info in self._local_files:
@@ -1188,7 +1191,7 @@ class SettingsPage(QWidget):
         if not self._data_folders:
             empty = QLabel(tr("local.no_folders"))
             empty.setAlignment(Qt.AlignCenter)
-            empty.setStyleSheet("color: #484F58; font-size: 14px; padding: 30px;")
+            empty
             self._folders_layout.addWidget(empty)
         else:
             for folder_info in self._data_folders:
@@ -1203,12 +1206,14 @@ class SettingsPage(QWidget):
             self,
             tr("local.select_db_file"),
             "",
-            "Database & SQL Files (*.db *.sqlite *.sqlite3 *.sdb *.sql);;Database Files (*.db *.sqlite *.sqlite3 *.sdb);;SQL Scripts (*.sql);;All Files (*.*)"
+            "Database & SQL Files (*.db *.sqlite *.sqlite3 *.sdb *.sql);;Database Files (*.db *.sqlite *.sqlite3 *.sdb);;SQL Scripts (*.sql);;All Files (*.*)",
         )
         if filepath:
             # Zaten ekliyse atla
             # Dosyayı projedeki 'database' klasörüne kopyala
-            db_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "database")
+            db_dir = os.path.join(
+                os.path.dirname(os.path.dirname(__file__)), "database"
+            )
             if not os.path.exists(db_dir):
                 os.makedirs(db_dir, exist_ok=True)
 
@@ -1216,6 +1221,7 @@ class SettingsPage(QWidget):
             dest_path = os.path.join(db_dir, filename)
 
             import shutil
+
             try:
                 if os.path.abspath(filepath) != os.path.abspath(dest_path):
                     shutil.copy2(filepath, dest_path)
@@ -1245,7 +1251,7 @@ class SettingsPage(QWidget):
             self,
             tr("local.select_save_location"),
             os.path.join(db_dir, "remalab_local.db"),
-            "SQLite Database (*.db);;All Files (*.*)"
+            "SQLite Database (*.db);;All Files (*.*)",
         )
         if filepath:
             if not filepath.endswith(".db"):
@@ -1282,8 +1288,11 @@ class SettingsPage(QWidget):
     def _remove_local_file(self, file_id: str):
         """Dosyayı listeden kaldır (dosya silinmez)."""
         reply = QMessageBox.question(
-            self, tr("local.remove"), tr("local.confirm_remove"),
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.No
+            self,
+            tr("local.remove"),
+            tr("local.confirm_remove"),
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
         )
         if reply == QMessageBox.Yes:
             self._local_files = [f for f in self._local_files if f.get("id") != file_id]
@@ -1308,10 +1317,11 @@ class SettingsPage(QWidget):
             self,
             tr("local.export_db"),
             os.path.basename(filepath),
-            "Database Files (*.db);;All Files (*.*)"
+            "Database Files (*.db);;All Files (*.*)",
         )
         if dest:
             import shutil
+
             try:
                 shutil.copy2(filepath, dest)
                 QMessageBox.information(self, "✅", f"Dışa aktarıldı: {dest}")
@@ -1353,11 +1363,16 @@ class SettingsPage(QWidget):
     def _remove_folder(self, folder_id: str):
         """Klasörü listeden kaldır."""
         reply = QMessageBox.question(
-            self, tr("local.remove"), tr("local.confirm_remove"),
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.No
+            self,
+            tr("local.remove"),
+            tr("local.confirm_remove"),
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
         )
         if reply == QMessageBox.Yes:
-            self._data_folders = [f for f in self._data_folders if f.get("id") != folder_id]
+            self._data_folders = [
+                f for f in self._data_folders if f.get("id") != folder_id
+            ]
             self._save_local_config()
             self._refresh_folders()
 

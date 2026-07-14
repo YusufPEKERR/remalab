@@ -5,10 +5,14 @@ RemaLab WMS - Top Bar Widget
 """
 
 from PySide6.QtWidgets import (
-    QWidget, QHBoxLayout, QVBoxLayout, QLabel,
-    QPushButton, QLineEdit, QSizePolicy
+    QWidget,
+    QHBoxLayout,
+    QVBoxLayout,
+    QLabel,
+    QPushButton,
 )
 from PySide6.QtCore import Qt, Signal
+from config.session import SessionManager
 
 from ui.translations import tr, get_translator
 
@@ -19,10 +23,13 @@ class TopBar(QWidget):
     search_requested = Signal(str)
     notification_clicked = Signal()
     profile_clicked = Signal()
+    logout_requested = Signal()
+    refresh_requested = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("topbar")
+        self.setAttribute(Qt.WA_StyledBackground, True)
         self.setFixedHeight(60)
         self._current_page_key = "nav.dashboard"
         self._setup_ui()
@@ -56,60 +63,80 @@ class TopBar(QWidget):
         layout.addWidget(title_section)
         layout.addStretch()
 
-        # Orta: Arama kutusu
-        search_container = QWidget()
-        search_layout = QHBoxLayout(search_container)
-        search_layout.setContentsMargins(0, 0, 0, 0)
-
-        self._search_input = QLineEdit()
-        self._search_input.setObjectName("search_input")
-        self._search_input.setPlaceholderText(f"🔍  {tr('topbar.search')}")
-        self._search_input.returnPressed.connect(
-            lambda: self.search_requested.emit(self._search_input.text())
-        )
-        search_layout.addWidget(self._search_input)
-
-        layout.addWidget(search_container)
-        layout.addStretch()
-
         # Sağ: Bildirimler ve Profil
         right_section = QWidget()
         right_layout = QHBoxLayout(right_section)
         right_layout.setContentsMargins(0, 0, 0, 0)
         right_layout.setSpacing(12)
 
-        # Bildirim butonu
-        notification_btn = QPushButton("🔔")
-        notification_btn.setObjectName("topbar_icon_btn")
-        notification_btn.setCursor(Qt.PointingHandCursor)
-        notification_btn.clicked.connect(self.notification_clicked.emit)
-        right_layout.addWidget(notification_btn)
+        minimalist_btn_style = """
+            QPushButton {
+                background-color: transparent;
+                border: none;
+                border-radius: 18px;
+                font-size: 18px;
+            }
+            QPushButton:hover {
+                background-color: rgba(255, 255, 255, 0.1);
+            }
+        """
 
-        # Bildirim badge
-        self._notification_badge = QLabel("3")
-        self._notification_badge.setObjectName("notification_badge")
-        self._notification_badge.setAlignment(Qt.AlignCenter)
-        self._notification_badge.setParent(notification_btn)
-        self._notification_badge.move(24, 2)
+        # Tema butonu
+        self.theme_btn = QPushButton("☾")
+        self.theme_btn.setObjectName("topbar_icon_btn")
+        self.theme_btn.setFixedSize(36, 36)
+        self.theme_btn.setCursor(Qt.PointingHandCursor)
+        from ui.theme_manager import get_theme_manager
 
-        # Ayarlar butonu
-        settings_btn = QPushButton("⚙️")
-        settings_btn.setObjectName("topbar_icon_btn")
-        settings_btn.setCursor(Qt.PointingHandCursor)
-        right_layout.addWidget(settings_btn)
+        self._theme_mgr = get_theme_manager()
+        self.theme_btn.setText("☀" if self._theme_mgr.is_dark else "☾")
+        self.theme_btn.clicked.connect(self._toggle_theme)
+        right_layout.addWidget(self.theme_btn)
 
-        # Ayırıcı
+        # Ayırıcı 1
+        sep1 = QWidget()
+        sep1.setFixedWidth(2)
+        sep1.setFixedHeight(32)
+        sep1.setObjectName("topbar_separator")
+        right_layout.addWidget(sep1)
+
+        # Son Güncelleme Etiketi
+        self._date_label = QLabel()
+        self._date_label.setObjectName("user_role")
+        self._date_label.setStyleSheet("margin-right: 12px;")
+        right_layout.addWidget(self._date_label)
+
+        # Yenile butonu
+
+        refresh_btn = QPushButton("↻")
+        refresh_btn.setFixedSize(36, 36)
+        refresh_btn.setCursor(Qt.PointingHandCursor)
+        refresh_btn.setStyleSheet(minimalist_btn_style)
+        refresh_btn.clicked.connect(self.refresh_requested.emit)
+        refresh_btn.clicked.connect(self.update_last_refresh_time)
+        right_layout.addWidget(refresh_btn)
+
+        self.update_last_refresh_time()
+
+        # Ayırıcı 2
         separator = QWidget()
-        separator.setFixedWidth(1)
+        separator.setFixedWidth(2)
         separator.setFixedHeight(32)
-        separator.setStyleSheet("background-color: #21262D;")
+        separator.setObjectName("topbar_separator")
         right_layout.addWidget(separator)
 
+        # Session Bilgilerini al
+        session = SessionManager()
+        username = session.username if session.username else "Misafir"
+        role = session.role if session.role else "Kullanıcı"
+
+        avatar_letters = username[:2].upper() if username != "Misafir" else "M"
+
         # Kullanıcı avatarı
-        avatar = QLabel("YP")
-        avatar.setObjectName("user_avatar")
-        avatar.setAlignment(Qt.AlignCenter)
-        right_layout.addWidget(avatar)
+        self._avatar = QLabel(avatar_letters)
+        self._avatar.setObjectName("user_avatar")
+        self._avatar.setAlignment(Qt.AlignCenter)
+        right_layout.addWidget(self._avatar)
 
         # Kullanıcı bilgileri
         user_info = QWidget()
@@ -117,25 +144,49 @@ class TopBar(QWidget):
         user_info_layout.setContentsMargins(0, 0, 0, 0)
         user_info_layout.setSpacing(0)
 
-        user_name = QLabel("Yusuf Peker")
-        user_name.setObjectName("user_name")
+        self._user_name = QLabel(f"Hoşgeldiniz , {username}")
+        self._user_name.setObjectName("user_name")
 
-        self._user_role = QLabel(tr("topbar.role_admin"))
+        self._user_role = QLabel(role)
         self._user_role.setObjectName("user_role")
 
         user_info_layout.addStretch()
-        user_info_layout.addWidget(user_name)
+        user_info_layout.addWidget(self._user_name)
         user_info_layout.addWidget(self._user_role)
         user_info_layout.addStretch()
 
         right_layout.addWidget(user_info)
 
-        # Profil dropdown butonu
-        dropdown_btn = QPushButton("▾")
-        dropdown_btn.setObjectName("topbar_icon_btn")
-        dropdown_btn.setCursor(Qt.PointingHandCursor)
-        dropdown_btn.clicked.connect(self.profile_clicked.emit)
-        right_layout.addWidget(dropdown_btn)
+        # Ayırıcı 3
+        sep3 = QWidget()
+        sep3.setFixedWidth(2)
+        sep3.setFixedHeight(32)
+        sep3.setObjectName("topbar_separator")
+        right_layout.addSpacing(8)
+        right_layout.addWidget(sep3)
+        right_layout.addSpacing(8)
+
+        # Profil Çıkış Yap butonu
+        logout_btn = QPushButton()
+        logout_btn.setObjectName("logout_btn")
+
+        import os
+        from PySide6.QtGui import QIcon
+        from PySide6.QtCore import QSize
+
+        icon_path = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)), "assets", "cikis-yap.png"
+        )
+        if os.path.exists(icon_path):
+            logout_btn.setIcon(QIcon(icon_path))
+            logout_btn.setIconSize(QSize(32, 32))
+
+        logout_btn.setCursor(Qt.PointingHandCursor)
+        logout_btn.setToolTip("Çıkış Yap")
+        logout_btn.clicked.connect(self.logout_requested.emit)
+
+        right_layout.addSpacing(16)
+        right_layout.addWidget(logout_btn)
 
         layout.addWidget(right_section)
 
@@ -145,10 +196,53 @@ class TopBar(QWidget):
         self._title.setText(tr(page_tr_key))
         self._breadcrumb.setText(f"{tr('topbar.home')}  ›  {tr(page_tr_key)}")
 
-    def set_notification_count(self, count: int):
-        """Bildirim sayısını güncelle."""
-        self._notification_badge.setText(str(count))
-        self._notification_badge.setVisible(count > 0)
+    def update_last_refresh_time(self):
+        """Son güncelleme zamanını günceller."""
+        from datetime import datetime
+
+        now = datetime.now()
+        aylar = [
+            "",
+            "Ocak",
+            "Şubat",
+            "Mart",
+            "Nisan",
+            "Mayıs",
+            "Haziran",
+            "Temmuz",
+            "Ağustos",
+            "Eylül",
+            "Ekim",
+            "Kasım",
+            "Aralık",
+        ]
+        gunler = [
+            "Pazartesi",
+            "Salı",
+            "Çarşamba",
+            "Perşembe",
+            "Cuma",
+            "Cumartesi",
+            "Pazar",
+        ]
+        date_str = f"{now.day:02d} {aylar[now.month]} {now.year}, {gunler[now.weekday()]} - {now.strftime('%H:%M:%S')}"
+        self._date_label.setText(f"⏱ Son Güncelleme: {date_str}")
+
+    def update_user_info(self):
+        """Kullanıcı bilgilerini session'dan alıp UI'ı günceller."""
+        session = SessionManager()
+        username = session.username if session.username else "Misafir"
+        role = session.role if session.role else "Kullanıcı"
+
+        avatar_letters = username[:2].upper() if username != "Misafir" else "M"
+
+        self._avatar.setText(avatar_letters)
+        self._user_name.setText(f"Hoşgeldiniz , {username}")
+        self._user_role.setText(role)
+
+    def _toggle_theme(self):
+        self._theme_mgr.toggle_theme()
+        self.theme_btn.setText("☀" if self._theme_mgr.is_dark else "☾")
 
     def _retranslate(self):
         """Dil değiştiğinde metinleri güncelle."""
@@ -156,5 +250,3 @@ class TopBar(QWidget):
         self._breadcrumb.setText(
             f"{tr('topbar.home')}  ›  {tr(self._current_page_key)}"
         )
-        self._search_input.setPlaceholderText(f"🔍  {tr('topbar.search')}")
-        self._user_role.setText(tr("topbar.role_admin"))

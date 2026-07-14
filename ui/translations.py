@@ -74,23 +74,25 @@ TRANSLATIONS = {
         "en": "WAREHOUSE MANAGEMENT",
         "tr": "DEPO YÖNETİMİ",
     },
-
     # ---- Sidebar Sections ----
     "section.overview": {"en": "OVERVIEW", "tr": "GENEL BAKIŞ"},
     "section.warehouse": {"en": "WAREHOUSE", "tr": "DEPO"},
     "section.inventory": {"en": "INVENTORY", "tr": "ENVANTER"},
     "section.operations": {"en": "OPERATIONS", "tr": "OPERASYONLAR"},
     "section.quality": {"en": "QUALITY", "tr": "KALİTE"},
-    "section.system": {"en": "SYSTEM", "tr": "SİSTEM"},
-
+    "section.user_and_settings": {
+        "en": "USERS & SETTINGS",
+        "tr": "KULLANICI & AYARLAR",
+    },
     # ---- Sidebar Modules ----
     "nav.dashboard": {"en": "Dashboard", "tr": "Kontrol Paneli"},
     "nav.warehouse": {"en": "Warehouse", "tr": "Depo"},
     "nav.locations": {"en": "Locations", "tr": "Lokasyonlar"},
     "nav.parts": {"en": "Parts", "tr": "Parçalar"},
     "nav.brands": {"en": "Brands", "tr": "Markalar"},
-    "nav.phone_models": {"en": "Phone Models", "tr": "Telefon Modelleri"},
+    "nav.phone_models": {"en": "Product List", "tr": "Ürün Listesi"},
     "nav.suppliers": {"en": "Suppliers", "tr": "Tedarikçiler"},
+    "nav.waybill": {"en": "Waybill", "tr": "İrsaliye"},
     "nav.inbound": {"en": "Inbound", "tr": "Giriş"},
     "nav.outbound": {"en": "Outbound", "tr": "Çıkış"},
     "nav.putaway": {"en": "Putaway", "tr": "Yerleştirme"},
@@ -102,7 +104,6 @@ TRANSLATIONS = {
     "nav.reports": {"en": "Reports", "tr": "Raporlar"},
     "nav.users": {"en": "Users", "tr": "Kullanıcılar"},
     "nav.settings": {"en": "Settings", "tr": "Ayarlar"},
-
     # ---- Topbar ----
     "topbar.search": {
         "en": "Search parts, locations, orders...",
@@ -110,7 +111,10 @@ TRANSLATIONS = {
     },
     "topbar.home": {"en": "Home", "tr": "Ana Sayfa"},
     "topbar.role_admin": {"en": "Admin", "tr": "Yönetici"},
-
+    # ---- Common ----
+    "common.save": {"en": "Save", "tr": "Kaydet"},
+    "common.cancel": {"en": "Cancel", "tr": "İptal"},
+    "common.loading": {"en": "Loading...", "tr": "Yükleniyor..."},
     # ---- Dashboard ----
     "dashboard.title": {"en": "Dashboard Overview", "tr": "Kontrol Paneli"},
     "dashboard.welcome": {
@@ -132,41 +136,76 @@ TRANSLATIONS = {
         "tr": "Tüm lokasyonlardaki son envanter hareketleri",
     },
     "dashboard.view_all": {"en": "View All  →", "tr": "Tümünü Gör  →"},
-    "dashboard.refresh": {"en": "🔄  Refresh", "tr": "🔄  Yenile"},
-    "dashboard.db_error": {"en": "Database Connection Error", "tr": "Veritabanı Bağlantı Hatası"},
-    "dashboard.details_title": {"en": "Detail View: {name}", "tr": "Detaylı Görünüm: {name}"},
+    "dashboard.refresh": {"en": "↻  Refresh", "tr": "↻  Yenile"},
+    "dashboard.db_error": {
+        "en": "Database Connection Error",
+        "tr": "Veritabanı Bağlantı Hatası",
+    },
+    "dashboard.details_title": {
+        "en": "Detail View: {name}",
+        "tr": "Detaylı Görünüm: {name}",
+    },
     "table.part_id": {"en": "Part ID", "tr": "Parça ID"},
     "table.location_id": {"en": "Location ID", "tr": "Lokasyon ID"},
     "table.stock_quantity": {"en": "Stock Quantity", "tr": "Stok Miktarı"},
-    
     # ---- Parts & Warehouse Page translations ----
     "parts.title": {"en": "Parts Management", "tr": "Parça Yönetimi"},
-    "parts.subtitle": {"en": "Add, update or remove warehouse parts", "tr": "Depo parçalarını ekleyin, güncelleyin veya silin"},
+    "parts.subtitle": {
+        "en": "Add, update or remove warehouse parts",
+        "tr": "Depo parçalarını ekleyin, güncelleyin veya silin",
+    },
     "parts.add_new": {"en": "＋ Add Part", "tr": "＋ Parça Ekle"},
     "parts.part_name": {"en": "Part Name", "tr": "Parça Adı"},
     "parts.search_placeholder": {"en": "Search parts...", "tr": "Parça ara..."},
-    "parts.confirm_delete": {"en": "Are you sure you want to delete this part?", "tr": "Bu parçayı silmek istediğinize emin misiniz?"},
-    
+    "parts.confirm_delete": {
+        "en": "Are you sure you want to delete this part?",
+        "tr": "Bu parçayı silmek istediğinize emin misiniz?",
+    },
     "warehouse.title": {"en": "Warehouse Stock", "tr": "Depo Stok Durumu"},
-    "warehouse.subtitle": {"en": "Monitor and transfer stock across warehouse locations", "tr": "Depo lokasyonlarındaki stokları takip edin ve transfer edin"},
-    "warehouse.transfer_stock": {"en": "🔄 Transfer Stock", "tr": "🔄 Stok Transfer Et"},
+    "warehouse.subtitle": {
+        "en": "Monitor and transfer stock across warehouse locations",
+        "tr": "Depo lokasyonlarındaki stokları takip edin ve transfer edin",
+    },
+    "warehouse.transfer_stock": {
+        "en": "↻ Transfer Stock",
+        "tr": "↻ Stok Transfer Et",
+    },
     "warehouse.source_location": {"en": "Source Location", "tr": "Kaynak Lokasyon"},
     "warehouse.target_location": {"en": "Target Location", "tr": "Hedef Lokasyon"},
-    "warehouse.transfer_quantity": {"en": "Quantity to Transfer", "tr": "Transfer Miktarı"},
-    "warehouse.transfer_success": {"en": "Stock transferred successfully!", "tr": "Stok başarıyla transfer edildi!"},
-    "warehouse.insufficient_stock": {"en": "Insufficient stock in source location!", "tr": "Kaynak lokasyonda yetersiz stok var!"},
-
+    "warehouse.transfer_quantity": {
+        "en": "Quantity to Transfer",
+        "tr": "Transfer Miktarı",
+    },
+    "warehouse.transfer_success": {
+        "en": "Stock transferred successfully!",
+        "tr": "Stok başarıyla transfer edildi!",
+    },
+    "warehouse.insufficient_stock": {
+        "en": "Insufficient stock in source location!",
+        "tr": "Kaynak lokasyonda yetersiz stok var!",
+    },
     # ---- Locations Page Translations ----
     "locations.title": {"en": "Location Management", "tr": "Lokasyon Yönetimi"},
-    "locations.subtitle": {"en": "Add, update or remove warehouse storage locations", "tr": "Depo raf ve depolama lokasyonlarını ekleyin, güncelleyin veya silin"},
+    "locations.subtitle": {
+        "en": "Add, update or remove warehouse storage locations",
+        "tr": "Depo raf ve depolama lokasyonlarını ekleyin, güncelleyin veya silin",
+    },
     "locations.add_new": {"en": "＋ Add Location", "tr": "＋ Lokasyon Ekle"},
     "locations.location_name": {"en": "Location Name", "tr": "Lokasyon Adı"},
-    "locations.search_placeholder": {"en": "Search locations...", "tr": "Lokasyon ara..."},
-    "locations.confirm_delete": {"en": "Are you sure you want to delete this location?", "tr": "Bu lokasyonu silmek istediğinize emin misiniz?"},
-
+    "locations.search_placeholder": {
+        "en": "Search locations...",
+        "tr": "Lokasyon ara...",
+    },
+    "locations.confirm_delete": {
+        "en": "Are you sure you want to delete this location?",
+        "tr": "Bu lokasyonu silmek istediğinize emin misiniz?",
+    },
     # ---- Inventory Page Translations ----
     "inventory.title": {"en": "Inventory Status", "tr": "Envanter Durumu"},
-    "inventory.subtitle": {"en": "Comprehensive view of all stock details and status", "tr": "Tüm stok detaylarının ve durumlarının kapsamlı görünümü"},
+    "inventory.subtitle": {
+        "en": "Comprehensive view of all stock details and status",
+        "tr": "Tüm stok detaylarının ve durumlarının kapsamlı görünümü",
+    },
     "table.item_code": {"en": "Item Code", "tr": "Ürün Kodu"},
     "table.barcode": {"en": "Barcode", "tr": "Barkod"},
     "table.brand_model": {"en": "Brand / Model", "tr": "Marka / Model"},
@@ -175,31 +214,41 @@ TRANSLATIONS = {
     "table.item_category": {"en": "Item Category", "tr": "Ürün Kategorisi"},
     "table.part_category": {"en": "Part Category", "tr": "Parça Kategorisi"},
     "table.stock_status": {"en": "Stock Status", "tr": "Stok Durumu"},
-
     # ---- Table Headers ----
     "table.movement_id": {"en": "Movement ID", "tr": "Hareket No"},
     "table.part_name": {"en": "Part Name", "tr": "Parça Adı"},
     "table.location": {"en": "Location", "tr": "Lokasyon"},
     "table.type": {"en": "Type", "tr": "Tür"},
     "table.quantity": {"en": "Quantity", "tr": "Miktar"},
+    "table.date": {"en": "Date", "tr": "Tarih"},
     "table.time": {"en": "Time", "tr": "Zaman"},
     "table.status": {"en": "Status", "tr": "Durum"},
-
     # ---- Movement Types ----
     "movement.inbound": {"en": "Inbound", "tr": "Giriş"},
     "movement.outbound": {"en": "Outbound", "tr": "Çıkış"},
     "movement.transfer": {"en": "Transfer", "tr": "Transfer"},
-
     # ---- Status ----
     "status.completed": {"en": "Completed", "tr": "Tamamlandı"},
     "status.in_progress": {"en": "In Progress", "tr": "Devam Ediyor"},
     "status.pending": {"en": "Pending", "tr": "Beklemede"},
-
     # ---- Time ----
     "time.min_ago": {"en": "min ago", "tr": "dk önce"},
     "time.hour_ago": {"en": "hour ago", "tr": "saat önce"},
     "time.hours_ago": {"en": "hours ago", "tr": "saat önce"},
-
+    # ---- Users Page ----
+    "users.title": {"en": "User Management", "tr": "Kullanıcı Yönetimi"},
+    "users.add_user": {"en": "Add User", "tr": "Kullanıcı Ekle"},
+    "users.edit_user": {"en": "Edit User", "tr": "Kullanıcı Düzenle"},
+    "users.delete_user": {"en": "Delete User", "tr": "Kullanıcı Sil"},
+    "users.register": {"en": "Register", "tr": "Kayıt Ol"},
+    "users.username": {"en": "Username", "tr": "Kullanıcı Adı"},
+    "users.email": {"en": "Email", "tr": "E-posta"},
+    "users.password": {"en": "Password", "tr": "Şifre"},
+    "users.password_placeholder": {
+        "en": "Leave blank to keep same",
+        "tr": "Değiştirmeyecekseniz boş bırakın",
+    },
+    "users.role": {"en": "Role", "tr": "Rol"},
     # ---- Settings / Database ----
     "settings.title": {"en": "Settings", "tr": "Ayarlar"},
     "settings.subtitle": {
@@ -214,7 +263,6 @@ TRANSLATIONS = {
         "en": "Select application language",
         "tr": "Uygulama dilini seçin",
     },
-
     # Database management
     "db.title": {"en": "Database Connections", "tr": "Veritabanı Bağlantıları"},
     "db.subtitle": {
@@ -233,6 +281,7 @@ TRANSLATIONS = {
     "db.save": {"en": "Save", "tr": "Kaydet"},
     "db.cancel": {"en": "Cancel", "tr": "İptal"},
     "db.delete": {"en": "Delete", "tr": "Sil"},
+    "db.refresh": {"en": "Refresh", "tr": "Yenile"},
     "db.edit": {"en": "Edit", "tr": "Düzenle"},
     "db.connected": {"en": "Connected", "tr": "Bağlı"},
     "db.disconnected": {"en": "Disconnected", "tr": "Bağlı Değil"},
@@ -257,52 +306,99 @@ TRANSLATIONS = {
         "en": "Required driver package is missing. Install:",
         "tr": "Gerekli sürücü paketi eksik. Kurun:",
     },
-
-
     # ---- Inbound Stock Entry Page Translations ----
     "inbound.title": {"en": "Inbound Stock Entry", "tr": "Yeni Stok Girişi"},
-    "inbound.subtitle": {"en": "Record and list new inbound inventory stock entries", "tr": "Yeni envanter stok girişlerini listeleyin ve kaydedin"},
+    "inbound.subtitle": {
+        "en": "Record and list new inbound inventory stock entries",
+        "tr": "Yeni envanter stok girişlerini listeleyin ve kaydedin",
+    },
     "inbound.add_new": {"en": "＋ Add New Stock", "tr": "＋ Yeni Stok Ekle"},
     "inbound.unit_price": {"en": "Unit Price", "tr": "Birim Fiyat"},
     "inbound.total_cost": {"en": "Total Cost", "tr": "Toplam Maliyet"},
     "inbound.created_by": {"en": "Processed By", "tr": "İşlemi Yapan"},
     "inbound.date": {"en": "Entry Date", "tr": "Giriş Tarihi"},
-    "inbound.unauthorized": {"en": "You are not authorized to view this page.", "tr": "Bu sayfayı görüntülemek için yetkiniz bulunmamaktadır."},
+    "inbound.unauthorized": {
+        "en": "You are not authorized to view this page.",
+        "tr": "Bu sayfayı görüntülemek için yetkiniz bulunmamaktadır.",
+    },
     "inbound.barcode": {"en": "Barcode Scanner Input", "tr": "Barkod Okuyucu Girişi"},
-    "inbound.barcode_error_title": {"en": "Product Not Found!", "tr": "Ürün Bulunamadı!"},
+    "inbound.barcode_error_title": {
+        "en": "Product Not Found!",
+        "tr": "Ürün Bulunamadı!",
+    },
     "inbound.barcode_error_msg": {
         "en": "ERROR: Product Not Found!\nThis barcode is not registered in the system.\n\nDo you want to add this barcode as a NEW product?",
-        "tr": "HATA: Ürün Bulunamadı!\nBu barkoda ait bir ürün sistemde kayıtlı değil.\n\nBu barkodu YENİ ÜRÜN olarak hızlıca eklemek ister misiniz?"
+        "tr": "HATA: Ürün Bulunamadı!\nBu barkoda ait bir ürün sistemde kayıtlı değil.\n\nBu barkodu YENİ ÜRÜN olarak hızlıca eklemek ister misiniz?",
     },
     "inbound.quick_add_title": {"en": "Quick Add Product", "tr": "Hızlı Ürün Ekleme"},
-    
+    # ---- Reports Page Translations ----
+    "reports.title": {"en": "Warehouse Movement Report", "tr": "Depo Hareket Raporu"},
+    "reports.subtitle": {
+        "en": "Summary of the latest warehouse inbound and outbound movements",
+        "tr": "Son depo giriş ve çıkış işlemlerinin özet listesi",
+    },
+    "reports.start_date": {"en": "Start Date", "tr": "Başlangıç Tarihi"},
+    "reports.end_date": {"en": "End Date", "tr": "Bitiş Tarihi"},
+    "reports.filter": {"en": "Filter", "tr": "Filtrele"},
     # ---- Outbound Stock Entry Page Translations ----
     "outbound.title": {"en": "Outbound Stock Entry", "tr": "Depo Çıkış Modülü"},
-    "outbound.subtitle": {"en": "Record and list inventory outbound stock entries", "tr": "Depodan envanter çıkış işlemlerini kaydedin ve listeleyin"},
+    "outbound.subtitle": {
+        "en": "Record and list inventory outbound stock entries",
+        "tr": "Depodan envanter çıkış işlemlerini kaydedin ve listeleyin",
+    },
     "outbound.add_new": {"en": "＋ Create Outbound", "tr": "＋ Stok Çıkışı Yap"},
-    "outbound.unauthorized": {"en": "You are not authorized to view this page.", "tr": "Bu sayfayı görüntülemek için yetkiniz bulunmamaktadır."},
+    "outbound.unauthorized": {
+        "en": "You are not authorized to view this page.",
+        "tr": "Bu sayfayı görüntülemek için yetkiniz bulunmamaktadır.",
+    },
     "outbound.date": {"en": "Outbound Date", "tr": "Çıkış Tarihi"},
-    "outbound.destination": {"en": "Destination/Client", "tr": "Gönderilen Yer / Alıcı"},
+    "outbound.destination": {
+        "en": "Destination/Client",
+        "tr": "Gönderilen Yer / Alıcı",
+    },
     "outbound.destination_label": {"en": "Destination", "tr": "Alıcı/Müşteri"},
-    "outbound.insufficient_stock": {"en": "Error: Insufficient stock at the selected location!", "tr": "Hata: Seçilen lokasyonda yeterli stok bulunmuyor!"},
-    "outbound.success": {"en": "Outbound stock transaction completed successfully!", "tr": "Stok çıkış işlemi başarıyla tamamlandı!"},
+    "outbound.insufficient_stock": {
+        "en": "Error: Insufficient stock at the selected location!",
+        "tr": "Hata: Seçilen lokasyonda yeterli stok bulunmuyor!",
+    },
+    "outbound.success": {
+        "en": "Outbound stock transaction completed successfully!",
+        "tr": "Stok çıkış işlemi başarıyla tamamlandı!",
+    },
     "excel.import": {"en": "📥 Import Excel", "tr": "📥 Excel'den İçe Aktar"},
     "excel.export": {"en": "📤 Export Excel", "tr": "📤 Excel'e Dışa Aktar"},
-    "excel.mapping_title": {"en": "Excel Column Mapping", "tr": "Excel Sütun Eşleştirme"},
+    "excel.mapping_title": {
+        "en": "Excel Column Mapping",
+        "tr": "Excel Sütun Eşleştirme",
+    },
     "excel.select_file": {"en": "Select Excel File", "tr": "Excel Dosyası Seçin"},
     "excel.db_column": {"en": "Database Column", "tr": "Veritabanı Sütunu"},
     "excel.excel_column": {"en": "Excel Header", "tr": "Excel Sütun Başlığı"},
-    "excel.success": {"en": "Data successfully imported!", "tr": "Veriler başarıyla içe aktarıldı!"},
-    "excel.error": {"en": "An error occurred during Excel operation:", "tr": "Excel işlemi sırasında bir hata oluştu:"},
-    
+    "excel.success": {
+        "en": "Data successfully imported!",
+        "tr": "Veriler başarıyla içe aktarıldı!",
+    },
+    "excel.error": {
+        "en": "An error occurred during Excel operation:",
+        "tr": "Excel işlemi sırasında bir hata oluştu:",
+    },
     # ---- Local Database / File Management ----
-    "local.title": {"en": "Local Database / SQL Files", "tr": "Lokal Veritabanı / SQL Dosyaları"},
+    "local.title": {
+        "en": "Local Database / SQL Files",
+        "tr": "Lokal Veritabanı / SQL Dosyaları",
+    },
     "local.subtitle": {
         "en": "Manage local SQLite database files, SQL scripts, and data folders",
         "tr": "Lokal SQLite veritabanı dosyalarını, SQL scriptlerini ve veri klasörlerini yönetin",
     },
-    "local.add_db_file": {"en": "＋  Add DB / SQL File", "tr": "＋  DB / SQL Dosyası Ekle"},
-    "local.create_new_db": {"en": "＋  Create New Database", "tr": "＋  Yeni Veritabanı Oluştur"},
+    "local.add_db_file": {
+        "en": "＋  Add DB / SQL File",
+        "tr": "＋  DB / SQL Dosyası Ekle",
+    },
+    "local.create_new_db": {
+        "en": "＋  Create New Database",
+        "tr": "＋  Yeni Veritabanı Oluştur",
+    },
     "local.select_folder": {"en": "📁  Select Folder", "tr": "📁  Klasör Seç"},
     "local.browse": {"en": "Browse...", "tr": "Gözat..."},
     "local.file_path": {"en": "File Path", "tr": "Dosya Yolu"},
@@ -363,10 +459,8 @@ TRANSLATIONS = {
     "local.folder_type_data": {"en": "Data", "tr": "Veri"},
     "local.tables": {"en": "Tables", "tr": "Tablolar"},
     "local.records": {"en": "Records", "tr": "Kayıtlar"},
-
     # ---- Settings Tabs ----
     "settings.local_db": {"en": "Local DB", "tr": "Lokal DB"},
-
     "local.db_copied": {
         "en": "File successfully copied to project database folder!",
         "tr": "Dosya proje database klasörüne başarıyla kopyalandı!",
@@ -391,7 +485,6 @@ TRANSLATIONS = {
         "en": "Active Local Database",
         "tr": "Aktif Lokal Veritabanı",
     },
-
     # ---- Placeholder ----
     "placeholder.title": {"en": "Under Development", "tr": "Geliştirme Aşamasında"},
     "placeholder.subtitle": {

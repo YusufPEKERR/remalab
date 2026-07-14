@@ -1,1 +1,17 @@
 PySide6
+PyJWT
+bcrypt
+PySide6
+PyJWT
+bcrypt
+sqlalchemy
+psycopg2-binary
+python-dotenv
+fastapi
+uvicorn
+pydantic
+mkdocs-material
+mkdocstrings[python]
+email-validator
+pandas
+openpyxl
