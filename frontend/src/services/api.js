@@ -495,7 +495,8 @@ export const api = {
                 backend.create_production_run(
                     run.target_part_id || '',
                     String(run.quantity_produced || ''),
-                    run.location_id || '',
+                    run.source_location_id || '',
+                    run.target_location_id || '',
                     run.produced_by || '',
                     run.notes || '',
                     run.materials_json || '[]',

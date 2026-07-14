@@ -24,7 +24,7 @@ const EMPTY_FORM = {
 };
 
 const EMPTY_PRODUCTION_FORM = {
-  target_part_id: '', quantity_produced: 1, location_id: '', produced_by: '', notes: ''
+  target_part_id: '', quantity_produced: 1, source_location_id: '', target_location_id: '', produced_by: '', notes: ''
 };
 
 export default function WorkOrders() {
@@ -173,9 +173,9 @@ export default function WorkOrders() {
     const materials = productionMaterials.filter(r => r.part_id && Number(r.quantity_consumed) > 0);
 
     for (const m of materials) {
-      const available = getStockQty(m.part_id, productionForm.location_id);
+      const available = getStockQty(m.part_id, productionForm.source_location_id);
       if (Number(m.quantity_consumed) > available) {
-        alert('Seçilen lokasyonda bazı hammaddeler için yeterli stok yok. Lütfen miktarları kontrol edin.');
+        alert('Seçilen kaynak lokasyonda bazı hammaddeler için yeterli stok yok. Lütfen miktarları kontrol edin.');
         return;
       }
     }
@@ -444,11 +444,18 @@ export default function WorkOrders() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                 <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1.5">Lokasyon <span className="text-red-400">*</span></label>
-                  <select required className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={productionForm.location_id} onChange={e => setProductionForm({...productionForm, location_id: e.target.value})}>
-                    <option value="">Lokasyon seçiniz...</option>
+                  <label className="block text-sm font-medium text-slate-400 mb-1.5">Kaynak Lokasyon (Hammadde) <span className="text-red-400">*</span></label>
+                  <select required className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={productionForm.source_location_id} onChange={e => setProductionForm({...productionForm, source_location_id: e.target.value})}>
+                    <option value="">Kaynak seçiniz...</option>
+                    {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-400 mb-1.5">Hedef Lokasyon (Ürün) <span className="text-red-400">*</span></label>
+                  <select required className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={productionForm.target_location_id} onChange={e => setProductionForm({...productionForm, target_location_id: e.target.value})}>
+                    <option value="">Hedef seçiniz...</option>
                     {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
                   </select>
                 </div>
@@ -473,8 +480,8 @@ export default function WorkOrders() {
                 ) : (
                   <div className="space-y-2">
                     {productionMaterials.map((row, idx) => {
-                      const available = getStockQty(row.part_id, productionForm.location_id);
-                      const insufficient = row.part_id && productionForm.location_id && Number(row.quantity_consumed) > available;
+                      const available = getStockQty(row.part_id, productionForm.source_location_id);
+                      const insufficient = row.part_id && productionForm.source_location_id && Number(row.quantity_consumed) > available;
                       return (
                         <div key={idx}>
                           <div className="flex gap-2 items-center">
@@ -487,7 +494,7 @@ export default function WorkOrders() {
                               <Trash2 size={16} />
                             </button>
                           </div>
-                          {row.part_id && productionForm.location_id && (
+                          {row.part_id && productionForm.source_location_id && (
                             <p className={`mt-1 text-xs font-medium ${insufficient ? 'text-red-500' : 'text-emerald-500'}`}>
                               Mevcut Stok: {available}{insufficient ? ' — Yetersiz!' : ''}
                             </p>
@@ -567,7 +574,8 @@ export default function WorkOrders() {
                 <tr>
                   <th className="px-6 py-4">Üretilen Parça</th>
                   <th className="px-6 py-4">Miktar</th>
-                  <th className="px-6 py-4">Lokasyon</th>
+                  <th className="px-6 py-4">Kaynak Lokasyon</th>
+                  <th className="px-6 py-4">Hedef Lokasyon</th>
                   <th className="px-6 py-4">Tüketilen Malzemeler</th>
                   <th className="px-6 py-4">Üretici</th>
                   <th className="px-6 py-4">Tarih</th>
@@ -593,6 +601,7 @@ export default function WorkOrders() {
                         <div className="text-xs text-slate-400">{run.target_item_code}</div>
                       </td>
                       <td className="px-6 py-4 font-mono">{run.quantity_produced}</td>
+                      <td className="px-6 py-4">{run.source_location_name || '-'}</td>
                       <td className="px-6 py-4">{run.location_name || '-'}</td>
                       <td className="px-6 py-4 text-xs text-slate-400">
                         {(run.materials || []).length > 0

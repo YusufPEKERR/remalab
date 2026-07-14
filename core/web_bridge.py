@@ -28,10 +28,15 @@ class WebBridge(QObject):
                     target_part_id INTEGER REFERENCES warehouse.parts(id),
                     quantity_produced INTEGER NOT NULL,
                     location_id INTEGER REFERENCES warehouse.locations(id),
+                    source_location_id INTEGER REFERENCES warehouse.locations(id),
                     produced_by VARCHAR(150),
                     notes TEXT,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
+            """))
+            db.execute(text("""
+                ALTER TABLE warehouse.production_runs 
+                ADD COLUMN IF NOT EXISTS source_location_id INTEGER REFERENCES warehouse.locations(id);
             """))
             db.execute(text("""
                 CREATE TABLE IF NOT EXISTS warehouse.production_materials (
@@ -911,14 +916,16 @@ class WebBridge(QObject):
         db = SessionLocal()
         try:
             runs = db.execute(text("""
-                SELECT pr.id, pr.target_part_id, pr.quantity_produced, pr.location_id,
+                SELECT pr.id, pr.target_part_id, pr.quantity_produced, pr.location_id, pr.source_location_id,
                        pr.produced_by, pr.notes, pr.created_at,
                        p.brand AS target_brand, p.model AS target_model,
                        p.item_code AS target_code, p.name AS target_name,
-                       l.name AS location_name
+                       l.name AS location_name,
+                       sl.name AS source_location_name
                 FROM warehouse.production_runs pr
                 LEFT JOIN warehouse.parts p ON p.id = pr.target_part_id
                 LEFT JOIN warehouse.locations l ON l.id = pr.location_id
+                LEFT JOIN warehouse.locations sl ON sl.id = pr.source_location_id
                 ORDER BY pr.id DESC
             """)).mappings().all()
 
@@ -950,6 +957,8 @@ class WebBridge(QObject):
                     "quantity_produced": r["quantity_produced"],
                     "location_id": str(r["location_id"]) if r["location_id"] else "",
                     "location_name": r["location_name"] or "",
+                    "source_location_id": str(r["source_location_id"]) if r["source_location_id"] else "",
+                    "source_location_name": r["source_location_name"] or "",
                     "produced_by": r["produced_by"] or "",
                     "notes": r["notes"] or "",
                     "created_at": r["created_at"].strftime("%Y-%m-%d %H:%M") if r["created_at"] else "",
@@ -961,15 +970,16 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    @Slot(str, str, str, str, str, str, result=str)
-    def create_production_run(self, target_part_id, quantity_produced, location_id, produced_by, notes, materials_json):
+    @Slot(str, str, str, str, str, str, str, result=str)
+    def create_production_run(self, target_part_id, quantity_produced, source_location_id, target_location_id, produced_by, notes, materials_json):
         """Hammadde tüketip yarı mamul/ürün stoku oluşturan bir üretim kaydı ekler."""
         from sqlalchemy import text
         import json as json_module
         db = SessionLocal()
         try:
             qty = int(quantity_produced)
-            loc_id = int(location_id)
+            src_loc_id = int(source_location_id)
+            tgt_loc_id = int(target_location_id)
             tgt_id = int(target_part_id)
             materials = json_module.loads(materials_json or "[]")
 
@@ -982,7 +992,7 @@ class WebBridge(QObject):
                 needed = int(m["quantity_consumed"])
                 row = db.execute(text("""
                     SELECT quantity FROM warehouse.stock WHERE part_id = :pid AND location_id = :lid
-                """), {"pid": part_id, "lid": loc_id}).first()
+                """), {"pid": part_id, "lid": src_loc_id}).first()
                 available = row[0] if row else 0
                 if available < needed:
                     return json.dumps({"success": False, "message": f"Yetersiz stok (parça id {part_id}): mevcut {available}, gerekli {needed}"})
@@ -994,26 +1004,26 @@ class WebBridge(QObject):
                 db.execute(text("""
                     UPDATE warehouse.stock SET quantity = quantity - :qty
                     WHERE part_id = :pid AND location_id = :lid
-                """), {"qty": needed, "pid": part_id, "lid": loc_id})
+                """), {"qty": needed, "pid": part_id, "lid": src_loc_id})
 
             # Üretilen parçanın stokunu artır (yoksa oluştur)
             existing = db.execute(text("""
                 SELECT id FROM warehouse.stock WHERE part_id = :pid AND location_id = :lid
-            """), {"pid": tgt_id, "lid": loc_id}).first()
+            """), {"pid": tgt_id, "lid": tgt_loc_id}).first()
             if existing:
                 db.execute(text("UPDATE warehouse.stock SET quantity = quantity + :qty WHERE id = :id"),
                            {"qty": qty, "id": existing[0]})
             else:
                 db.execute(text("""
                     INSERT INTO warehouse.stock (part_id, location_id, quantity) VALUES (:pid, :lid, :qty)
-                """), {"pid": tgt_id, "lid": loc_id, "qty": qty})
+                """), {"pid": tgt_id, "lid": tgt_loc_id, "qty": qty})
 
             # Üretim kaydını oluştur
             run_id = db.execute(text("""
-                INSERT INTO warehouse.production_runs (target_part_id, quantity_produced, location_id, produced_by, notes)
-                VALUES (:tgt, :qty, :lid, :by, :notes) RETURNING id
+                INSERT INTO warehouse.production_runs (target_part_id, quantity_produced, source_location_id, location_id, produced_by, notes)
+                VALUES (:tgt, :qty, :slid, :tlid, :by, :notes) RETURNING id
             """), {
-                "tgt": tgt_id, "qty": qty, "lid": loc_id,
+                "tgt": tgt_id, "qty": qty, "slid": src_loc_id, "tlid": tgt_loc_id,
                 "by": produced_by or None, "notes": notes or None
             }).scalar()
 
