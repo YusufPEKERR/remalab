@@ -214,7 +214,7 @@ export default function Irsaliye() {
     setInboundBarcode('');
     setInboundBrand('');
     setInboundModel('');
-    setFormData({ part_id: '', loc_id: '', source_loc_id: '', qty: 1, price: 0, type: 'Yeni Alım (Tedarikçiden)', technician: '', description: '' });
+    setFormData({ part_id: '', loc_id: getSystemLocationId('good_stock'), source_loc_id: '', qty: 1, price: 0, type: 'Yeni Alım (Tedarikçiden)', technician: '', description: '' });
     setShowInboundModal(true);
     fetchDependencies();
   };
