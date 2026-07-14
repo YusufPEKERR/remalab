@@ -226,6 +226,9 @@ class WebBridge(QObject):
                     SELECT :name, :kind
                     WHERE NOT EXISTS (SELECT 1 FROM warehouse.locations WHERE kind = :kind)
                 """), {"name": name, "kind": kind})
+                db.execute(text("""
+                    UPDATE warehouse.locations SET name = :name WHERE kind = :kind
+                """), {"name": name, "kind": kind})
             db.commit()
         except Exception as e:
             db.rollback()
@@ -2070,8 +2073,8 @@ class WebBridge(QObject):
             qty = int(qty)
 
             locs = db.query(Location).filter(Location.id.in_([int(from_loc_id), int(to_loc_id)])).all()
-            if any(loc.kind in ("scrap_stock", "doa_stock", "out_stock") for loc in locs):
-                return json.dumps({"success": False, "message": "Bu depo(lar) otomatik yönetiliyor (Hurda/Çıkış), manuel transfer yapılamaz."})
+            # Artık hiçbir depoyu kısıtlamıyoruz
+
 
             source_stock = db.query(Stock).with_for_update().filter(Stock.part_id == part_id, Stock.location_id == from_loc_id).first()
             if not source_stock or source_stock.quantity < qty:
