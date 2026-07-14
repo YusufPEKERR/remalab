@@ -283,7 +283,6 @@ export default function MainLayout() {
                           <div 
                             key={idx} 
                             className="p-4 hover:bg-slate-50 dark:hover:bg-[#2a3142] transition-colors cursor-pointer" 
-                            onMouseEnter={markAsRead}
                             onClick={() => {
                               markAsRead();
                               setShowNotifications(false); 
