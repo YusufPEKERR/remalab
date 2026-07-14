@@ -141,9 +141,11 @@ export default function Depo() {
       const relatedItems = inventory.filter(x => x.part_id === selectedItem.part_id);
       currentQty = relatedItems.reduce((acc, curr) => acc + curr.quantity, 0);
       
+      const goodStockQty = relatedItems.filter(x => x.location_kind === 'good_stock').reduce((acc, curr) => acc + curr.quantity, 0);
+      
       const limit = selectedItem.critical_limit || 10;
       maxCapacity = Math.max(50, limit * 2);
-      isCritical = currentQty <= limit;
+      isCritical = goodStockQty <= limit;
     } else {
       // General warehouse occupancy
       currentQty = inventory.reduce((acc, curr) => acc + curr.quantity, 0);

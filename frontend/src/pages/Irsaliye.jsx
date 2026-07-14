@@ -161,6 +161,12 @@ export default function Irsaliye() {
   }, []);
 
   const getDirection = (mov) => {
+    const outTypes = ['Çıkış', 'Müşteri Satışı', 'Tedarikçiye İade', 'Teknik Servis', 'Fire', 'Kayıp/Çalıntı', 'Outbound'];
+    const inTypes = ['Giriş', 'Yeni Alım', 'Yeni Alım (Tedarikçiden)', 'İade Girişi', 'Inbound'];
+    
+    if (outTypes.includes(mov.type)) return 'out';
+    if (inTypes.includes(mov.type)) return 'in';
+
     const hasSource = mov.source_location && mov.source_location !== '-';
     const hasTarget = mov.target_location && mov.target_location !== '-';
     if (hasSource && hasTarget) return 'transfer';
@@ -378,8 +384,10 @@ export default function Irsaliye() {
               
               if (selectedRows.length === 1) {
                 const mov = movements.find(m => String(m.id) === String(selectedRows[0]));
+                console.log("Selected Movement:", mov);
                 if (mov) {
                   const p = parts.find(x => String(x.id) === String(mov.part_id)) || { item_code: '', brand: '', model: '' };
+                  console.log("Found Part:", p);
                   setOutboundBarcode(String(p.item_code || ''));
                   setOutboundBrand(p.brand || '');
                   setOutboundModel(p.model || '');
@@ -463,7 +471,7 @@ export default function Irsaliye() {
                       </td>
                       <td className="px-6 py-3">{mov.part_name}</td>
                       <td className="px-6 py-3">{directionBadge(dir)}</td>
-                      <td className={`px-6 py-3 font-mono font-semibold ${dir === 'out' ? 'text-red-500' : 'text-emerald-500'}`}>
+                      <td className={`px-6 py-3 font-mono font-semibold ${dir === 'out' ? 'text-red-500' : (dir === 'transfer' ? 'text-blue-500' : 'text-emerald-500')}`}>
                         {dir === 'out' ? '-' : '+'}{mov.quantity}
                       </td>
                       <td className="px-6 py-3 font-mono">{mov.unit_price ? `${mov.unit_price.toFixed(2)} TL` : '-'}</td>

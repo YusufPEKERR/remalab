@@ -1868,20 +1868,19 @@ class WebBridge(QObject):
             db.close()
 
     # --- YENİ EKLENEN ÜRÜN (TELEFON) VE TEDARİKÇİ FONKSİYONLARI ---
-    # Products ve Suppliers verileri, 'parts' tablosundan çekilecek.
-    
+    # Products verileri artik kendi 'products' tablosundan cekiliyor (parts'tan bagimsiz).
+
     @Slot(result=str)
     def get_products(self):
-        from models.part import Part
+        from models.product import Product
         db = SessionLocal()
         try:
-            # Sadece model veya brand dolu olanları telefon ürünü kabul edelim
-            parts = db.query(Part).filter(Part.model != None).all()
+            products = db.query(Product).all()
             res = []
-            for p in parts:
+            for p in products:
                 res.append({
                     "id": p.id,
-                    "item_code": p.item_code or p.barcode,
+                    "item_code": p.item_code,
                     "brand": p.brand,
                     "model": p.model,
                     "memory": p.memory,
@@ -1895,43 +1894,59 @@ class WebBridge(QObject):
 
     @Slot(str, str, str, str, str, str, result=str)
     def create_product(self, item_code, brand, model, memory, color, name):
-        from models.part import Part
+        from models.product import Product
         db = SessionLocal()
         try:
-            part = Part(
-                item_code=item_code,
+            product = Product(
+                item_code=item_code or None,
                 brand=brand,
                 model=model,
                 memory=memory,
-                color=color,
-                name=name or f"{brand} {model}"
+                color=color
             )
-            db.add(part)
+            db.add(product)
             db.commit()
-            return json.dumps({"success": True, "id": part.id})
+            return json.dumps({"success": True, "id": product.id})
         except Exception as e:
             db.rollback()
             return json.dumps({"success": False, "message": str(e)})
         finally:
             db.close()
-            
+
     @Slot(str, str, str, str, str, str, str, result=str)
     def update_product(self, product_id_str, item_code, brand, model, memory, color, name):
-        from models.part import Part
+        from models.product import Product
         db = SessionLocal()
         try:
-            part_id = int(product_id_str)
-            part = db.query(Part).filter(Part.id == part_id).first()
-            if not part:
+            product_id = int(product_id_str)
+            product = db.query(Product).filter(Product.id == product_id).first()
+            if not product:
                 return json.dumps({"success": False, "message": "Ürün bulunamadı"})
-            
-            part.item_code = item_code
-            part.brand = brand
-            part.model = model
-            part.memory = memory
-            part.color = color
-            part.name = name or f"{brand} {model}"
-            
+
+            product.item_code = item_code or None
+            product.brand = brand
+            product.model = model
+            product.memory = memory
+            product.color = color
+
+            db.commit()
+            return json.dumps({"success": True})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
+    def delete_product(self, product_id_str):
+        from models.product import Product
+        db = SessionLocal()
+        try:
+            product_id = int(product_id_str)
+            product = db.query(Product).filter(Product.id == product_id).first()
+            if not product:
+                return json.dumps({"success": False, "message": "Ürün bulunamadı"})
+            db.delete(product)
             db.commit()
             return json.dumps({"success": True})
         except Exception as e:
@@ -2006,6 +2021,7 @@ class WebBridge(QObject):
                     "part_name": f"{p.brand} {p.model} {p.name}",
                     "location_id": l.id,
                     "location_name": l.name,
+                    "location_kind": l.kind,
                     "quantity": s.quantity,
                     "critical_limit": p.critical_limit or 10
                 })
@@ -2312,7 +2328,12 @@ class WebBridge(QObject):
         try:
             total_parts = db.query(func.count(Part.id)).scalar() or 0
             
-            stocks = db.query(Stock, Part).join(Part, Stock.part_id == Part.id).all()
+            good_stock_id = _get_system_location_id(db, "good_stock")
+            if good_stock_id:
+                stocks = db.query(Stock, Part).join(Part, Stock.part_id == Part.id).filter(Stock.location_id == good_stock_id).all()
+            else:
+                stocks = []
+            
             critical_count = sum(1 for s, p in stocks if s.quantity <= (p.critical_limit or 10))
             
             today = date.today()
@@ -2352,7 +2373,12 @@ class WebBridge(QObject):
         from models.location import Location
         db = SessionLocal()
         try:
-            stocks = db.query(Stock, Part, Location).join(Part, Stock.part_id == Part.id).join(Location, Stock.location_id == Location.id).all()
+            good_stock_id = _get_system_location_id(db, "good_stock")
+            if good_stock_id:
+                stocks = db.query(Stock, Part, Location).join(Part, Stock.part_id == Part.id).join(Location, Stock.location_id == Location.id).filter(Stock.location_id == good_stock_id).all()
+            else:
+                stocks = []
+
             res = []
             for s, p, l in stocks:
                 limit = p.critical_limit or 10
