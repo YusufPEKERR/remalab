@@ -26,16 +26,22 @@ export default function StockTransferModal({ isOpen, onClose, onTransfer, locati
     }
   }, [isOpen]);
 
-  const restrictedKinds = new Set(['scrap_stock', 'doa_stock', 'out_stock']);
-  const restrictedIdSet = new Set(
-    systemLocations.filter(loc => restrictedKinds.has(loc.kind)).map(l => String(l.id))
-  );
+  // Tüm depoları gösteriyoruz, herhangi bir kısıtlama yok.
+
 
   const loadStock = async () => {
     try {
       const res = await api.getStockStatus();
       if (res.success) {
         setFullStock(res.stock);
+        const locsMap = new Map();
+        res.stock.forEach(s => {
+          if (s.quantity > 0) {
+            locsMap.set(s.location_id, s.location_name);
+          }
+        });
+        const locs = Array.from(locsMap, ([id, name]) => ({ id, name }));
+        setSourceLocations(locs);
       }
     } catch (err) {
       console.error(err);

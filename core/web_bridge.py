@@ -7,11 +7,11 @@ from models.user import User
 # Otomatik iş akışıyla yönetilen sabit sistem depoları. Bu depolar arasında
 # kullanıcı manuel transfer yapamaz (bkz. transfer_stock).
 SYSTEM_LOCATION_KINDS = {
-    "good_stock": "Ana Depo (Sağlam)",
-    "doa_stock": "DOA (Arızalı İade)",
-    "repair_stock": "Tamir / Onarım",
-    "scrap_stock": "Hurda",
-    "out_stock": "Sistem Dışı (Çıkış)",
+    "good_stock": "Good Stock",
+    "doa_stock": "DOA Stock",
+    "repair_stock": "Repair Stock",
+    "scrap_stock": "Scrap Stock",
+    "out_stock": "Out Stock",
 }
 
 
@@ -2073,8 +2073,8 @@ class WebBridge(QObject):
             qty = int(qty)
 
             locs = db.query(Location).filter(Location.id.in_([int(from_loc_id), int(to_loc_id)])).all()
-            if any(loc.kind in ("scrap_stock", "doa_stock", "out_stock") for loc in locs):
-                return json.dumps({"success": False, "message": "Bu depo(lar) otomatik yönetiliyor (Hurda/Çıkış), manuel transfer yapılamaz."})
+            # Artık hiçbir depoyu kısıtlamıyoruz
+
 
             source_stock = db.query(Stock).with_for_update().filter(Stock.part_id == part_id, Stock.location_id == from_loc_id).first()
             if not source_stock or source_stock.quantity < qty:
