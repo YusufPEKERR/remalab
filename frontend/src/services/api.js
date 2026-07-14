@@ -136,12 +136,14 @@ export const api = {
         const backend = await getBackend();
         return new Promise((resolve) => {
             backend.create_part(
+                partData.name || '',
                 partData.item_code || '',
+                partData.barcode || '',
                 partData.brand || '',
                 partData.model || '',
-                partData.color || '',
-                partData.part_category || '',
                 partData.item_category || '',
+                partData.part_category || '',
+                partData.part_category_id ? String(partData.part_category_id) : '',
                 partData.stock_tracking_type || 'Stok Takipli',
                 Array.isArray(partData.department) ? partData.department.join(', ') : (partData.department || ''),
                 partData.status || 'Aktif',
@@ -155,12 +157,14 @@ export const api = {
         return new Promise((resolve) => {
             backend.update_part(
                 String(id),
+                partData.name || '',
                 partData.item_code || '',
+                partData.barcode || '',
                 partData.brand || '',
                 partData.model || '',
-                partData.color || '',
-                partData.part_category || '',
                 partData.item_category || '',
+                partData.part_category || '',
+                partData.part_category_id ? String(partData.part_category_id) : '',
                 partData.stock_tracking_type || 'Stok Takipli',
                 Array.isArray(partData.department) ? partData.department.join(', ') : (partData.department || ''),
                 partData.status || 'Aktif',
@@ -291,11 +295,40 @@ export const api = {
         });
     },
 
-    createPartCategory: async (name) => {
+    createPartCategory: async (cat) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
             if (backend.create_part_category) {
-                backend.create_part_category(name, (res) => resolve(JSON.parse(res)));
+                backend.create_part_category(
+                    cat.name || '',
+                    cat.part_type || '',
+                    Array.isArray(cat.departments) ? cat.departments.join(', ') : (cat.departments || ''),
+                    cat.stock_tracking_type || 'Stok Takipli',
+                    cat.default_location_id ? String(cat.default_location_id) : '',
+                    cat.description || '',
+                    (res) => resolve(JSON.parse(res))
+                );
+            } else {
+                resolve({ success: true });
+            }
+        });
+    },
+
+    updatePartCategory: async (id, cat) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.update_part_category) {
+                backend.update_part_category(
+                    String(id),
+                    cat.name || '',
+                    cat.part_type || '',
+                    Array.isArray(cat.departments) ? cat.departments.join(', ') : (cat.departments || ''),
+                    cat.stock_tracking_type || 'Stok Takipli',
+                    cat.default_location_id ? String(cat.default_location_id) : '',
+                    cat.is_active === false ? 'false' : 'true',
+                    cat.description || '',
+                    (res) => resolve(JSON.parse(res))
+                );
             } else {
                 resolve({ success: true });
             }

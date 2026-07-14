@@ -37,6 +37,8 @@ class WebBridge(QObject):
         self._ensure_work_order_parts_table()
         self._ensure_location_kind_column()
         self._ensure_system_locations()
+        self._ensure_part_category_columns()
+        self._ensure_part_extra_columns()
 
     def _ensure_production_tables(self):
         """warehouse.production_runs ve production_materials tablolarını yoksa oluşturur."""
@@ -231,6 +233,38 @@ class WebBridge(QObject):
         finally:
             db.close()
 
+    def _ensure_part_category_columns(self):
+        """warehouse.part_categories tablosuna Parça Kategorisi modülü sütunlarını ekler."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            db.execute(text("ALTER TABLE warehouse.part_categories ADD COLUMN IF NOT EXISTS part_type VARCHAR(100);"))
+            db.execute(text("ALTER TABLE warehouse.part_categories ADD COLUMN IF NOT EXISTS departments VARCHAR(255);"))
+            db.execute(text("ALTER TABLE warehouse.part_categories ADD COLUMN IF NOT EXISTS stock_tracking_type VARCHAR(20) DEFAULT 'Stok Takipli';"))
+            db.execute(text("ALTER TABLE warehouse.part_categories ADD COLUMN IF NOT EXISTS default_location_id INTEGER REFERENCES warehouse.locations(id);"))
+            db.execute(text("ALTER TABLE warehouse.part_categories ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;"))
+            db.execute(text("ALTER TABLE warehouse.part_categories ADD COLUMN IF NOT EXISTS description TEXT;"))
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            print(f"[WebBridge] part_categories kolonları eklenemedi: {e}")
+        finally:
+            db.close()
+
+    def _ensure_part_extra_columns(self):
+        """warehouse.parts tablosuna part_category_id ve barcode sütunlarını ekler."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            db.execute(text("ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS part_category_id INTEGER REFERENCES warehouse.part_categories(id);"))
+            db.execute(text("ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS barcode VARCHAR(100);"))
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            print(f"[WebBridge] parts ek kolonları eklenemedi: {e}")
+        finally:
+            db.close()
+
     def _ensure_department_column(self):
         """warehouse.parts tablosuna department sütunu yoksa ekler."""
         from sqlalchemy import text
@@ -408,25 +442,44 @@ class WebBridge(QObject):
 
     @Slot(result=str)
     def get_parts(self):
-        """Tüm parçaları getirir."""
+        """Tüm parçaları, bağlı Parça Kategorisi'nden gelen (Parça Tipi/Departman/Stok Takibi/
+        Varsayılan Lokasyon) canlı değerlerle birlikte getirir. Kategoriye bağlı olmayan eski
+        parçalarda kendi serbest-metin sütunlarına düşer (COALESCE)."""
         from sqlalchemy import text
         db = SessionLocal()
         try:
-            # item_category vs de eklenebilir. Tablodaki alanlara göre çekiyoruz.
-            result = db.execute(text("SELECT id, name, item_code, brand, model, color, part_category, item_category, stock_tracking_type, department, status FROM warehouse.parts ORDER BY id DESC")).mappings().all()
+            result = db.execute(text("""
+                SELECT p.id, p.name, p.item_code, p.barcode, p.brand, p.model, p.color,
+                       p.item_category, p.part_category_id,
+                       COALESCE(pc.name, p.part_category) AS part_category,
+                       COALESCE(pc.part_type, '') AS part_type,
+                       COALESCE(pc.departments, p.department, '') AS department,
+                       COALESCE(pc.stock_tracking_type, p.stock_tracking_type, 'Stok Takipli') AS stock_tracking_type,
+                       pc.default_location_id, loc.name AS default_location_name,
+                       p.status
+                FROM warehouse.parts p
+                LEFT JOIN warehouse.part_categories pc ON pc.id = p.part_category_id
+                LEFT JOIN warehouse.locations loc ON loc.id = pc.default_location_id
+                ORDER BY p.id DESC
+            """)).mappings().all()
             parts_list = []
             for row in result:
                 parts_list.append({
                     "id": str(row["id"]),
                     "name": row["name"] or "",
                     "item_code": row["item_code"] or "",
+                    "barcode": row["barcode"] or "",
                     "brand": row["brand"] or "",
                     "model": row["model"] or "",
                     "color": row["color"] or "",
-                    "part_category": row["part_category"] or "",
                     "item_category": row["item_category"] or "",
-                    "stock_tracking_type": row["stock_tracking_type"] or "Stok Takipli",
+                    "part_category_id": str(row["part_category_id"]) if row["part_category_id"] else "",
+                    "part_category": row["part_category"] or "",
+                    "part_type": row["part_type"] or "",
                     "department": row["department"] or "",
+                    "stock_tracking_type": row["stock_tracking_type"] or "Stok Takipli",
+                    "default_location_id": str(row["default_location_id"]) if row["default_location_id"] else "",
+                    "default_location_name": row["default_location_name"] or "",
                     "status": row["status"] or "Aktif"
                 })
             return json.dumps({"success": True, "parts": parts_list})
@@ -435,8 +488,8 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    @Slot(str, str, str, str, str, str, str, str, str, result=str)
-    def create_part(self, item_code, brand, model, color, part_category, item_category, stock_tracking_type, department, status):
+    @Slot(str, str, str, str, str, str, str, str, str, str, str, result=str)
+    def create_part(self, name, item_code, barcode, brand, model, item_category, part_category, part_category_id, stock_tracking_type, department, status):
         """Yeni parça ekler."""
         from sqlalchemy import text
         db = SessionLocal()
@@ -445,18 +498,19 @@ class WebBridge(QObject):
             if not code:
                 return json.dumps({"success": False, "message": "Parça Kodu zorunludur"})
 
-            auto_name = f"{brand.strip()} {model.strip()} {color.strip()}".strip()
-            if not auto_name:
-                auto_name = code
+            part_name = name.strip()
+            if not part_name:
+                part_name = f"{brand.strip()} {model.strip()}".strip() or code
 
             sql = """
-                INSERT INTO warehouse.parts (name, item_code, brand, model, color, part_category, item_category, stock_tracking_type, department, status)
-                VALUES (:name, :code, :brand, :model, :color, :pcat, :icat, :stt, :dept, :status)
+                INSERT INTO warehouse.parts (name, item_code, barcode, brand, model, item_category, part_category, part_category_id, stock_tracking_type, department, status)
+                VALUES (:name, :code, :barcode, :brand, :model, :icat, :pcat, :pcat_id, :stt, :dept, :status)
             """
             db.execute(text(sql), {
-                "name": auto_name, "code": code, "brand": brand or None,
-                "model": model or None, "color": color or None,
-                "pcat": part_category or None, "icat": item_category or None,
+                "name": part_name, "code": code, "barcode": barcode or None,
+                "brand": brand or None, "model": model or None,
+                "icat": item_category or None, "pcat": part_category or None,
+                "pcat_id": int(part_category_id) if part_category_id.strip() else None,
                 "stt": stock_tracking_type or "Stok Takipli",
                 "dept": department or None,
                 "status": status or "Aktif"
@@ -469,8 +523,8 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    @Slot(str, str, str, str, str, str, str, str, str, str, result=str)
-    def update_part(self, part_id_str, item_code, brand, model, color, part_category, item_category, stock_tracking_type, department, status):
+    @Slot(str, str, str, str, str, str, str, str, str, str, str, str, result=str)
+    def update_part(self, part_id_str, name, item_code, barcode, brand, model, item_category, part_category, part_category_id, stock_tracking_type, department, status):
         """Var olan bir parçayı günceller."""
         from sqlalchemy import text
         db = SessionLocal()
@@ -480,21 +534,23 @@ class WebBridge(QObject):
             if not code:
                 return json.dumps({"success": False, "message": "Parça Kodu zorunludur"})
 
-            auto_name = f"{brand.strip()} {model.strip()} {color.strip()}".strip()
-            if not auto_name:
-                auto_name = code
+            part_name = name.strip()
+            if not part_name:
+                part_name = f"{brand.strip()} {model.strip()}".strip() or code
 
             sql = """
                 UPDATE warehouse.parts
-                SET name = :name, item_code = :code, brand = :brand,
-                    model = :model, color = :color, part_category = :pcat, item_category = :icat,
-                    stock_tracking_type = :stt, department = :dept, status = :status
+                SET name = :name, item_code = :code, barcode = :barcode, brand = :brand,
+                    model = :model, item_category = :icat, part_category = :pcat,
+                    part_category_id = :pcat_id, stock_tracking_type = :stt,
+                    department = :dept, status = :status
                 WHERE id = :id
             """
             db.execute(text(sql), {
-                "name": auto_name, "code": code, "brand": brand or None,
-                "model": model or None, "color": color or None,
-                "pcat": part_category or None, "icat": item_category or None,
+                "name": part_name, "code": code, "barcode": barcode or None,
+                "brand": brand or None, "model": model or None,
+                "icat": item_category or None, "pcat": part_category or None,
+                "pcat_id": int(part_category_id) if part_category_id.strip() else None,
                 "stt": stock_tracking_type or "Stok Takipli",
                 "dept": department or None,
                 "status": status or "Aktif",
@@ -641,14 +697,35 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    # --- YENİ EKLENEN PARÇA KATEGORİSİ FONKSİYONLARI ---
+    # --- PARÇA KATEGORİSİ MODÜLÜ ---
     @Slot(result=str)
     def get_part_categories(self):
-        from models.part_category import PartCategory
+        """Tüm Parça Kategorilerini, varsayılan lokasyon adıyla birlikte getirir."""
+        from sqlalchemy import text
         db = SessionLocal()
         try:
-            cats = db.query(PartCategory).order_by(PartCategory.name).all()
-            return json.dumps({"success": True, "categories": [{"id": c.id, "name": c.name} for c in cats]})
+            rows = db.execute(text("""
+                SELECT pc.id, pc.name, pc.part_type, pc.departments, pc.stock_tracking_type,
+                       pc.default_location_id, loc.name AS default_location_name,
+                       pc.is_active, pc.description
+                FROM warehouse.part_categories pc
+                LEFT JOIN warehouse.locations loc ON loc.id = pc.default_location_id
+                ORDER BY pc.name
+            """)).mappings().all()
+            categories = []
+            for r in rows:
+                categories.append({
+                    "id": r["id"],
+                    "name": r["name"],
+                    "part_type": r["part_type"] or "",
+                    "departments": r["departments"] or "",
+                    "stock_tracking_type": r["stock_tracking_type"] or "Stok Takipli",
+                    "default_location_id": str(r["default_location_id"]) if r["default_location_id"] else "",
+                    "default_location_name": r["default_location_name"] or "",
+                    "is_active": r["is_active"] if r["is_active"] is not None else True,
+                    "description": r["description"] or ""
+                })
+            return json.dumps({"success": True, "categories": categories})
         except Exception as e:
             return json.dumps({"success": False, "message": str(e)})
         finally:
@@ -709,8 +786,9 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    @Slot(str, result=str)
-    def create_part_category(self, name):
+    @Slot(str, str, str, str, str, str, result=str)
+    def create_part_category(self, name, part_type, departments, stock_tracking_type, default_location_id, description):
+        """Yeni Parça Kategorisi ekler."""
         from models.part_category import PartCategory
         db = SessionLocal()
         try:
@@ -719,10 +797,48 @@ class WebBridge(QObject):
                 return json.dumps({"success": False, "message": "Kategori adı zorunludur"})
             if db.query(PartCategory).filter(PartCategory.name == name).first():
                 return json.dumps({"success": False, "message": "Bu kategori zaten var"})
-            cat = PartCategory(name=name)
+            cat = PartCategory(
+                name=name,
+                part_type=part_type or None,
+                departments=departments or None,
+                stock_tracking_type=stock_tracking_type or "Stok Takipli",
+                default_location_id=int(default_location_id) if default_location_id.strip() else None,
+                is_active=True,
+                description=description or None
+            )
             db.add(cat)
             db.commit()
             return json.dumps({"success": True, "message": "Kategori eklendi", "id": cat.id})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, str, str, str, str, str, str, result=str)
+    def update_part_category(self, id_str, name, part_type, departments, stock_tracking_type, default_location_id, is_active, description):
+        """Var olan bir Parça Kategorisini günceller."""
+        from models.part_category import PartCategory
+        db = SessionLocal()
+        try:
+            cat_id = int(id_str)
+            name = (name or "").strip()
+            if not name:
+                return json.dumps({"success": False, "message": "Kategori adı zorunludur"})
+            cat = db.query(PartCategory).filter(PartCategory.id == cat_id).first()
+            if not cat:
+                return json.dumps({"success": False, "message": "Kategori bulunamadı"})
+            if db.query(PartCategory).filter(PartCategory.name == name, PartCategory.id != cat_id).first():
+                return json.dumps({"success": False, "message": "Bu isimde başka bir kategori zaten var"})
+            cat.name = name
+            cat.part_type = part_type or None
+            cat.departments = departments or None
+            cat.stock_tracking_type = stock_tracking_type or "Stok Takipli"
+            cat.default_location_id = int(default_location_id) if default_location_id.strip() else None
+            cat.is_active = (is_active == "true" or is_active == "1" or is_active == "True")
+            cat.description = description or None
+            db.commit()
+            return json.dumps({"success": True, "message": "Kategori güncellendi"})
         except Exception as e:
             db.rollback()
             return json.dumps({"success": False, "message": str(e)})
@@ -747,16 +863,20 @@ class WebBridge(QObject):
 
     @Slot(str, result=str)
     def delete_part_category(self, id_str):
+        from sqlalchemy import text
         from models.part_category import PartCategory
         db = SessionLocal()
         try:
             cat_id = int(id_str)
             cat = db.query(PartCategory).filter(PartCategory.id == cat_id).first()
-            if cat:
-                db.delete(cat)
-                db.commit()
-                return json.dumps({"success": True})
-            return json.dumps({"success": False, "message": "Bulunamadı"})
+            if not cat:
+                return json.dumps({"success": False, "message": "Bulunamadı"})
+            linked = db.execute(text("SELECT COUNT(*) FROM warehouse.parts WHERE part_category_id = :id"), {"id": cat_id}).scalar()
+            if linked:
+                return json.dumps({"success": False, "message": f"Bu kategoriye bağlı {linked} parça var, önce onları başka kategoriye taşıyın."})
+            db.delete(cat)
+            db.commit()
+            return json.dumps({"success": True})
         except Exception as e:
             db.rollback()
             return json.dumps({"success": False, "message": str(e)})

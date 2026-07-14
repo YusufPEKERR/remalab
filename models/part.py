@@ -22,3 +22,4 @@ class Part(Base):
     stock_tracking_type = Column(String(20), default="Stok Takipli", nullable=True)
     department = Column(String(255), nullable=True)
     status = Column(String(20), default="Aktif", nullable=True)
+    part_category_id = Column(Integer, nullable=True)

@@ -4,6 +4,14 @@ import { Plus, Search, Trash2, Edit, AlertCircle, RefreshCw, X, Download, Upload
 import { api } from '../services/api';
 import ExcelMappingModal from '../components/ExcelMappingModal';
 
+const KALITE_OPTIONS = ['Orijinal', 'Muadil', 'Çıkma'];
+
+const EMPTY_FORM = {
+  item_code: '', barcode: '', name: '', brand: '', model: '',
+  item_category: '', part_category_id: '',
+  department: [], stock_tracking_type: 'Stok Takipli', status: 'Aktif'
+};
+
 export default function Parts() {
   const [parts, setParts] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -13,81 +21,46 @@ export default function Parts() {
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(50);
-  
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentPart, setCurrentPart] = useState(null);
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
-  
+
   // Selection and Export States
   const [selectedRows, setSelectedRows] = useState([]);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [selectedExportColumns, setSelectedExportColumns] = useState({
     "ID": true,
     "Parça Kodu": true,
+    "Barkod": true,
+    "Parça Adı": true,
     "Marka": true,
     "Model": true,
-    "Renk": true,
-    "Parça Tipi": true,
+    "Kalite": true,
     "Parça Kategorisi": true,
+    "Parça Tipi": true,
     "Stok Takibi": true,
     "Departman": true,
     "Parça Statüsü": true
   });
-  
-  const [formData, setFormData] = useState({
-    item_code: '', brand: '', model: '', color: '', part_category: '', item_category: '', stock_tracking_type: 'Stok Takipli', department: [], status: 'Aktif'
-  });
 
-  const [categories, _setCategories] = useState(['Orijinal', 'Muadil', 'Çıkma', 'Yan Sanayi', 'A Kalite', 'B Kalite']); // Mock
+  const [formData, setFormData] = useState(EMPTY_FORM);
+
   const [partCategories, setPartCategories] = useState([]);
+  const [departmentList, setDepartmentList] = useState([]);
   const [products, setProducts] = useState([]);
-
-  const DEPARTMENTS = ['Servis', 'Teknik Servis', 'Üretim', 'Kalite'];
 
   const PART_STATUSES = ['Aktif', 'Pasif', 'Beklemede', 'Hurda'];
 
-  // Parça Tipine göre ilgili departmanların otomatik işaretlenmesi için varsayılan eşleştirme.
-  const PART_CATEGORY_DEPARTMENTS = {
-    'Ekran': ['Teknik Servis'],
-    'Batarya': ['Teknik Servis'],
-    'Kasa': ['Teknik Servis'],
-    'Anakart': ['Teknik Servis'],
-    'Kamera': ['Teknik Servis'],
-    'Şarj Soketi': ['Teknik Servis'],
-    'Hoparlör': ['Teknik Servis'],
-    'Mikrofon': ['Teknik Servis'],
-    'Ön Cam': ['Teknik Servis'],
-    'Arka Cam': ['Teknik Servis'],
-    'Buton': ['Teknik Servis'],
-    'Titreşim Motoru': ['Teknik Servis'],
-    'Sim Tepsi': ['Teknik Servis'],
-    'Flex Kablo': ['Teknik Servis'],
-    'Kılıf': ['Servis'],
-    'Ekran Koruyucu': ['Servis'],
-    'Şarj Aleti': ['Servis'],
-    'Kablo': ['Servis'],
-    'Kulaklık': ['Servis'],
-    'Ambalaj': ['Servis'],
-    'Hammadde': ['Üretim'],
-    'Yarı Mamül': ['Üretim'],
-    'OCA Film': ['Üretim'],
-    'Polarizer': ['Üretim'],
-    'Çerçeve': ['Üretim'],
-    'Lens': ['Üretim'],
-    'Test Cihazı': ['Kalite'],
-    'Kalibrasyon Malzemesi': ['Kalite'],
-    'Ölçüm Aleti': ['Kalite'],
-    'Numune': ['Kalite'],
-  };
-
-  const dbColumns = ["item_code", "brand", "model", "color", "part_category", "item_category", "stock_tracking_type", "department", "status"];
+  const dbColumns = ["item_code", "barcode", "name", "brand", "model", "item_category", "part_category", "stock_tracking_type", "department", "status"];
   const friendlyNames = {
     item_code: "Parça Kodu (item_code) *",
+    barcode: "Barkod (barcode)",
+    name: "Parça Adı (name)",
     brand: "Marka (brand)",
     model: "Model (model)",
-    color: "Renk (color)",
-    part_category: "Parça Tipi (part_category)",
-    item_category: "Parça Kategorisi (item_category)",
+    item_category: "Kalite (item_category)",
+    part_category: "Parça Kategorisi (part_category)",
     stock_tracking_type: "Stok Takip Tipi (stock_tracking_type)",
     department: "Departman (department)",
     status: "Parça Statüsü (status)"
@@ -97,7 +70,18 @@ export default function Parts() {
     try {
       const res = await api.getPartCategories();
       if (res.success) {
-        setPartCategories((res.categories || []).map(c => c.name));
+        setPartCategories(res.categories || []);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const fetchDepartments = async () => {
+    try {
+      const res = await api.getDepartments();
+      if (res.success) {
+        setDepartmentList((res.departments || []).map(d => d.name));
       }
     } catch (err) {
       console.error(err);
@@ -132,23 +116,36 @@ export default function Parts() {
   useEffect(() => {
     fetchParts();
     fetchPartCategories();
+    fetchDepartments();
     fetchProducts();
     // Başka bilgisayarlardan yapılan değişiklikleri yakalamak için periyodik, sessiz yenileme
     const interval = setInterval(() => fetchParts(true), 8000);
     return () => clearInterval(interval);
   }, []);
 
+  const selectedCategory = useMemo(
+    () => partCategories.find(c => String(c.id) === String(formData.part_category_id)) || null,
+    [partCategories, formData.part_category_id]
+  );
+
   const handleOpenModal = (part = null) => {
     if (part) {
       setCurrentPart(part);
       setFormData({
-        ...part,
+        item_code: part.item_code || '',
+        barcode: part.barcode || '',
+        name: part.name || '',
+        brand: part.brand || '',
+        model: part.model || '',
+        item_category: part.item_category || '',
+        part_category_id: part.part_category_id || '',
         department: part.department ? part.department.split(',').map(d => d.trim()).filter(Boolean) : [],
+        stock_tracking_type: part.stock_tracking_type || 'Stok Takipli',
         status: part.status || 'Aktif'
       });
     } else {
       setCurrentPart(null);
-      setFormData({ item_code: '', brand: '', model: '', color: '', part_category: '', item_category: '', stock_tracking_type: 'Stok Takipli', department: [], status: 'Aktif' });
+      setFormData(EMPTY_FORM);
     }
     setIsModalOpen(true);
   };
@@ -162,24 +159,22 @@ export default function Parts() {
     }));
   };
 
-  const handlePartCategoryChange = (value) => {
-    const mapped = PART_CATEGORY_DEPARTMENTS[value.trim()] || [];
-    setFormData(prev => ({
-      ...prev,
-      part_category: value,
-      department: Array.from(new Set([...prev.department, ...mapped]))
-    }));
-  };
-
   const handleSearchBarcode = (e) => {
     if (e && e.preventDefault) e.preventDefault();
     if (!formData.item_code) return;
     const existing = parts.find(p => p.item_code === formData.item_code);
     if (existing) {
       setFormData({
-        ...existing,
-        // Ensure department is correctly formatted as an array for the form
-        department: existing.department ? String(existing.department).split(',').map(d => d.trim()).filter(Boolean) : []
+        item_code: existing.item_code || '',
+        barcode: existing.barcode || '',
+        name: existing.name || '',
+        brand: existing.brand || '',
+        model: existing.model || '',
+        item_category: existing.item_category || '',
+        part_category_id: existing.part_category_id || '',
+        department: existing.department ? String(existing.department).split(',').map(d => d.trim()).filter(Boolean) : [],
+        stock_tracking_type: existing.stock_tracking_type || 'Stok Takipli',
+        status: existing.status || 'Aktif'
       });
     } else {
       alert("Bu parça koduna ait mevcut bir kayıt bulunamadı.");
@@ -189,9 +184,14 @@ export default function Parts() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      const payload = {
+        ...formData,
+        department: selectedCategory ? selectedCategory.departments : formData.department,
+        stock_tracking_type: selectedCategory ? selectedCategory.stock_tracking_type : formData.stock_tracking_type
+      };
       const res = currentPart
-        ? await api.updatePart(currentPart.id, formData)
-        : await api.createPart(formData);
+        ? await api.updatePart(currentPart.id, payload)
+        : await api.createPart(payload);
       if (res.success) {
         setIsModalOpen(false);
         fetchParts();
@@ -223,9 +223,9 @@ export default function Parts() {
   const handleExcelAction = async (e) => {
     const action = e.target.value;
     e.target.value = '';
-    
+
     if (action === 'download_template') {
-      const templateData = [{ item_code: 'ORNEK-KOD-001', brand: 'Örnek Marka', model: 'Örnek Model', color: 'Örnek Renk', part_category: 'Ekran', item_category: 'Orijinal', stock_tracking_type: 'Stok Takipli', department: 'Servis, Kalite', status: 'Aktif' }];
+      const templateData = [{ item_code: 'ORNEK-KOD-001', barcode: '', name: 'Örnek Parça', brand: 'Örnek Marka', model: 'Örnek Model', item_category: 'Orijinal', part_category: 'Ekran', stock_tracking_type: 'Stok Takipli', department: 'Servis, Kalite', status: 'Aktif' }];
       await api.exportTableToExcel(templateData, "stok_karti_sablonu.xlsx");
     } else if (action === 'export') {
       setIsExportModalOpen(true);
@@ -235,7 +235,6 @@ export default function Parts() {
   };
 
   const toggleSelectAll = () => {
-    // Determine the data currently viewed (all or paginated? Usually it's better to select from filtered parts across all pages, but to avoid huge arrays, let's select all filtered parts)
     if (selectedRows.length === filteredParts.length && filteredParts.length > 0) {
       setSelectedRows([]);
     } else {
@@ -245,13 +244,13 @@ export default function Parts() {
 
   const toggleRowSelect = (id, e) => {
     e.stopPropagation();
-    setSelectedRows(prev => 
+    setSelectedRows(prev =>
       prev.includes(id) ? prev.filter(rowId => rowId !== id) : [...prev, id]
     );
   };
 
   const executeExport = async () => {
-    const dataToExport = selectedRows.length > 0 
+    const dataToExport = selectedRows.length > 0
       ? parts.filter(p => selectedRows.includes(p.id))
       : filteredParts;
 
@@ -265,11 +264,13 @@ export default function Parts() {
       const row = {};
       if (selectedExportColumns["ID"]) row["ID"] = p.id;
       if (selectedExportColumns["Parça Kodu"]) row["Parça Kodu"] = p.item_code;
+      if (selectedExportColumns["Barkod"]) row["Barkod"] = p.barcode;
+      if (selectedExportColumns["Parça Adı"]) row["Parça Adı"] = p.name;
       if (selectedExportColumns["Marka"]) row["Marka"] = p.brand;
       if (selectedExportColumns["Model"]) row["Model"] = p.model;
-      if (selectedExportColumns["Renk"]) row["Renk"] = p.color;
-      if (selectedExportColumns["Parça Tipi"]) row["Parça Tipi"] = p.part_category;
-      if (selectedExportColumns["Parça Kategorisi"]) row["Parça Kategorisi"] = p.item_category;
+      if (selectedExportColumns["Kalite"]) row["Kalite"] = p.item_category;
+      if (selectedExportColumns["Parça Kategorisi"]) row["Parça Kategorisi"] = p.part_category;
+      if (selectedExportColumns["Parça Tipi"]) row["Parça Tipi"] = p.part_type;
       if (selectedExportColumns["Stok Takibi"]) row["Stok Takibi"] = p.stock_tracking_type;
       if (selectedExportColumns["Departman"]) row["Departman"] = p.department;
       if (selectedExportColumns["Parça Statüsü"]) row["Parça Statüsü"] = p.status;
@@ -281,7 +282,6 @@ export default function Parts() {
   };
 
   const handleExcelImport = async (data) => {
-    console.log("Mapped Excel Data to Import:", data);
     for (const item of data) {
       await api.createPart(item);
     }
@@ -293,13 +293,15 @@ export default function Parts() {
   const filteredParts = useMemo(() => {
     const q = searchTerm.toLowerCase();
     return parts.filter(p => {
-      const matchesSearch = 
+      const matchesSearch =
         (p.item_code && p.item_code.toLowerCase().includes(q)) ||
+        (p.barcode && p.barcode.toLowerCase().includes(q)) ||
+        (p.name && p.name.toLowerCase().includes(q)) ||
         (p.brand && p.brand.toLowerCase().includes(q)) ||
         (p.model && p.model.toLowerCase().includes(q)) ||
         (p.part_category && p.part_category.toLowerCase().includes(q));
-      
-      const matchesDepartment = filterDepartment 
+
+      const matchesDepartment = filterDepartment
         ? (p.department && p.department.includes(filterDepartment))
         : true;
 
@@ -312,21 +314,22 @@ export default function Parts() {
 
   const uniqueBrands = [...new Set(products.map(p => p.brand).filter(Boolean))].sort();
   const uniqueModels = [...new Set(products.filter(p => p.brand === formData.brand).map(p => p.model).filter(Boolean))].sort();
-  const uniqueColors = [...new Set(products.filter(p => p.brand === formData.brand && p.model === formData.model).map(p => p.color).filter(Boolean))].sort();
+
+  const categoryOptions = partCategories.filter(c => c.is_active !== false || String(c.id) === String(formData.part_category_id));
 
   return (
     <div className="h-full flex flex-col space-y-6 overflow-hidden">
-      
+
       {/* Header */}
       <div className="flex justify-between items-center bg-white dark:bg-[#1e2330] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm shrink-0">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">Stok Kartları (Parçalar)</h1>
           <p className="text-slate-400 mt-1">Depodaki parçaların tanımlarını yönetin ve listeleyin.</p>
         </div>
-        
+
         <div className="flex gap-3 items-center">
           <div className="relative">
-            <select 
+            <select
               onChange={handleExcelAction}
               className="appearance-none bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-2 pr-8 transition-colors font-medium cursor-pointer focus:outline-none focus:border-blue-500"
             >
@@ -339,8 +342,8 @@ export default function Parts() {
               <FileSpreadsheet size={16} />
             </div>
           </div>
-          
-          <button 
+
+          <button
             onClick={() => handleOpenModal()}
             className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl transition-all shadow-lg shadow-blue-900/20 font-medium"
           >
@@ -358,7 +361,7 @@ export default function Parts() {
           <input
             type="text"
             className="w-full bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:border-blue-500 shadow-sm"
-            placeholder="Parça Ara (Kod, Marka, Model, Tip)..."
+            placeholder="Parça Ara (Kod, Barkod, Ad, Marka, Model, Kategori)..."
             value={searchTerm}
             onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
           />
@@ -370,7 +373,7 @@ export default function Parts() {
             className="w-full h-full bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 shadow-sm appearance-none"
           >
             <option value="">Tüm Departmanlar</option>
-            {DEPARTMENTS.map(d => (
+            {departmentList.map(d => (
               <option key={d} value={d}>{d}</option>
             ))}
           </select>
@@ -384,8 +387,8 @@ export default function Parts() {
             <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs sticky top-0 z-10">
               <tr>
                 <th className="px-6 py-4 w-12 text-center">
-                  <input 
-                    type="checkbox" 
+                  <input
+                    type="checkbox"
                     className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-white dark:bg-slate-800"
                     checked={selectedRows.length === filteredParts.length && filteredParts.length > 0}
                     onChange={toggleSelectAll}
@@ -393,11 +396,13 @@ export default function Parts() {
                 </th>
                 <th className="px-6 py-4">ID</th>
                 <th className="px-6 py-4">Parça Kodu</th>
+                <th className="px-6 py-4">Barkod</th>
+                <th className="px-6 py-4">Parça Adı</th>
                 <th className="px-6 py-4">Marka</th>
                 <th className="px-6 py-4">Model</th>
-                <th className="px-6 py-4">Renk</th>
-                <th className="px-6 py-4">Parça Tipi</th>
+                <th className="px-6 py-4">Kalite</th>
                 <th className="px-6 py-4">Parça Kategorisi</th>
+                <th className="px-6 py-4">Parça Tipi</th>
                 <th className="px-6 py-4">Stok Takibi</th>
                 <th className="px-6 py-4">Departman</th>
                 <th className="px-6 py-4">Parça Statüsü</th>
@@ -407,14 +412,14 @@ export default function Parts() {
             <tbody className="divide-y divide-slate-700/50">
               {loading ? (
                 <tr>
-                  <td colSpan="11" className="px-6 py-8 text-center text-slate-400">
+                  <td colSpan="14" className="px-6 py-8 text-center text-slate-400">
                     <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-400" />
                     Yükleniyor...
                   </td>
                 </tr>
               ) : paginatedParts.length === 0 ? (
                 <tr>
-                  <td colSpan="11" className="px-6 py-8 text-center text-slate-500">
+                  <td colSpan="14" className="px-6 py-8 text-center text-slate-500">
                     Kayıt bulunamadı.
                   </td>
                 </tr>
@@ -424,8 +429,8 @@ export default function Parts() {
                   return (
                   <tr key={part.id} className={`hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors group text-slate-800 dark:text-slate-200 ${isChecked ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}>
                     <td className="px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
-                      <input 
-                        type="checkbox" 
+                      <input
+                        type="checkbox"
                         className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-white dark:bg-slate-800"
                         checked={isChecked}
                         onChange={(e) => toggleRowSelect(part.id, e)}
@@ -433,10 +438,10 @@ export default function Parts() {
                     </td>
                     <td className="px-6 py-4 font-mono text-slate-400">{part.id}</td>
                     <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200">{part.item_code}</td>
+                    <td className="px-6 py-4 font-mono text-slate-400">{part.barcode || '-'}</td>
+                    <td className="px-6 py-4">{part.name}</td>
                     <td className="px-6 py-4">{part.brand}</td>
                     <td className="px-6 py-4">{part.model}</td>
-                    <td className="px-6 py-4">{part.color}</td>
-                    <td className="px-6 py-4">{part.part_category}</td>
                     <td className="px-6 py-4">
                       {part.item_category && (
                         <span className="px-2.5 py-1 rounded-full text-xs font-medium border bg-blue-500/10 text-blue-400 border-blue-500/20">
@@ -444,6 +449,8 @@ export default function Parts() {
                         </span>
                       )}
                     </td>
+                    <td className="px-6 py-4">{part.part_category || '-'}</td>
+                    <td className="px-6 py-4">{part.part_type || '-'}</td>
                     <td className="px-6 py-4">
                       <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${
                         part.stock_tracking_type === 'Stok Takipsiz'
@@ -495,13 +502,13 @@ export default function Parts() {
             </tbody>
           </table>
         </div>
-        
+
         {/* Pagination Footer */}
         <div className="bg-slate-50 dark:bg-[#242a38] border-t border-slate-200 dark:border-slate-700/50 px-6 py-4 flex items-center justify-between text-slate-400 text-sm">
           <div className="flex items-center gap-2">
             <span>Sayfa Başına:</span>
-            <select 
-              value={itemsPerPage} 
+            <select
+              value={itemsPerPage}
               onChange={(e) => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }}
               className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-slate-500"
             >
@@ -511,9 +518,9 @@ export default function Parts() {
               <option value={100}>100</option>
             </select>
           </div>
-          
+
           <div className="flex items-center gap-4">
-            <button 
+            <button
               onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
               disabled={currentPage === 1}
               className="px-3 py-1.5 bg-white dark:bg-[#1e2330] hover:bg-slate-100 dark:hover:bg-[#2a3142] disabled:opacity-50 disabled:cursor-not-allowed border border-slate-200 dark:border-slate-700 rounded-lg transition-colors text-slate-700 dark:text-slate-300"
@@ -523,7 +530,7 @@ export default function Parts() {
             <span className="font-medium">
               Sayfa {currentPage} / {totalPages} ({filteredParts.length} Kayıt)
             </span>
-            <button 
+            <button
               onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
               disabled={currentPage === totalPages}
               className="px-3 py-1.5 bg-white dark:bg-[#1e2330] hover:bg-slate-100 dark:hover:bg-[#2a3142] disabled:opacity-50 disabled:cursor-not-allowed border border-slate-200 dark:border-slate-700 rounded-lg transition-colors text-slate-700 dark:text-slate-300"
@@ -546,12 +553,12 @@ export default function Parts() {
                 <X size={20} />
               </button>
             </div>
-            
+
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-1">Parça Kodu (Barkod) <span className="text-red-400">*</span></label>
+                <label className="block text-sm font-medium text-slate-400 mb-1">Parça Kodu <span className="text-red-400">*</span></label>
                 <div className="relative">
-                  <input 
+                  <input
                     type="text" required
                     className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg pl-3 pr-10 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
                     value={formData.item_code}
@@ -573,6 +580,29 @@ export default function Parts() {
                   </button>
                 </div>
               </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-1">Barkod</label>
+                <input
+                  type="text"
+                  className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                  value={formData.barcode}
+                  onChange={e => setFormData({...formData, barcode: e.target.value})}
+                  placeholder="Ayrı bir barkod numarası varsa girin"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-1">Parça Adı <span className="text-red-400">*</span></label>
+                <input
+                  type="text" required
+                  className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                  value={formData.name}
+                  onChange={e => setFormData({...formData, name: e.target.value})}
+                  placeholder="Örn: iPhone 13 Ekran"
+                />
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-400 mb-1">Marka</label>
@@ -598,106 +628,99 @@ export default function Parts() {
                   </select>
                 </div>
               </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1">Renk</label>
+                  <label className="block text-sm font-medium text-slate-400 mb-1">Kalite</label>
                   <select
-                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 appearance-none disabled:opacity-50"
-                    value={formData.color}
-                    onChange={e => setFormData({...formData, color: e.target.value})}
-                    disabled={!formData.model}
+                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 appearance-none"
+                    value={formData.item_category}
+                    onChange={e => setFormData({...formData, item_category: e.target.value})}
                   >
-                    <option value="">Renk Seçiniz...</option>
-                    {uniqueColors.map(c => <option key={c} value={c}>{c}</option>)}
+                    <option value="">Seçiniz...</option>
+                    {KALITE_OPTIONS.map(k => <option key={k} value={k}>{k}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-400 mb-1">Parça Kategorisi</label>
-                  <div className="relative">
-                    <select
-                      className="w-full appearance-none bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 pr-8 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 cursor-pointer"
-                      value={formData.item_category}
-                      onChange={e => setFormData({...formData, item_category: e.target.value})}
-                    >
-                      <option value="">Kategori seçiniz...</option>
-                      {partCategories.map(c => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
-                    </select>
-                    <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-slate-500">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-400 mb-1">Parça Tipi</label>
-                <div className="relative">
                   <select
-                    className="w-full appearance-none bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 pr-8 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 cursor-pointer"
-                    value={formData.part_category}
-                    onChange={e => handlePartCategoryChange(e.target.value)}
+                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 appearance-none"
+                    value={formData.part_category_id}
+                    onChange={e => setFormData({...formData, part_category_id: e.target.value})}
                   >
-                    <option value="">Parça tipi seçiniz...</option>
-                    {categories.map(c => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
-                  <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-slate-500">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                  </div>
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-400 mb-2">Departman</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {DEPARTMENTS.map(dept => (
-                    <label key={dept} className="flex items-center gap-2 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 cursor-pointer hover:border-slate-500 transition-colors">
-                      <input
-                        type="checkbox"
-                        checked={formData.department.includes(dept)}
-                        onChange={() => toggleDepartment(dept)}
-                        className="accent-blue-600"
-                      />
-                      <span className="text-slate-800 dark:text-slate-200 text-sm">{dept}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-              <div className={currentPart ? "grid grid-cols-2 gap-4" : ""}>
-                <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1">Stok Takip Tipi</label>
-                  <select
-                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
-                    value={formData.stock_tracking_type}
-                    onChange={e => setFormData({...formData, stock_tracking_type: e.target.value})}
-                  >
-                    <option value="Stok Takipli">Stok Takipli</option>
-                    <option value="Stok Takipsiz">Stok Takipsiz</option>
+                    <option value="">Seçilmedi</option>
+                    {categoryOptions.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </div>
-                {currentPart && (
-                  <div>
-                    <label className="block text-sm font-medium text-slate-400 mb-1">Parça Statüsü</label>
-                    <select
-                      className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
-                      value={formData.status}
-                      onChange={e => setFormData({...formData, status: e.target.value})}
-                    >
-                      {PART_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                  </div>
-                )}
               </div>
 
+              {selectedCategory ? (
+                <div className="bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg p-4 space-y-2">
+                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Kategoriden Otomatik Gelen Bilgiler</p>
+                  <div className="grid grid-cols-2 gap-y-2 text-sm">
+                    <span className="text-slate-400">Parça Tipi</span>
+                    <span className="text-slate-800 dark:text-slate-200">{selectedCategory.part_type || '-'}</span>
+                    <span className="text-slate-400">Departmanlar</span>
+                    <span className="text-slate-800 dark:text-slate-200">{selectedCategory.departments || '-'}</span>
+                    <span className="text-slate-400">Stok Takibi</span>
+                    <span className="text-slate-800 dark:text-slate-200">{selectedCategory.stock_tracking_type === 'Stok Takipsiz' ? 'Hayır' : 'Evet'}</span>
+                    <span className="text-slate-400">Varsayılan Lokasyon</span>
+                    <span className="text-slate-800 dark:text-slate-200">{selectedCategory.default_location_name || '-'}</span>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-400 mb-2">Departman</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {departmentList.map(dept => (
+                        <label key={dept} className="flex items-center gap-2 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 cursor-pointer hover:border-slate-500 transition-colors">
+                          <input
+                            type="checkbox"
+                            checked={formData.department.includes(dept)}
+                            onChange={() => toggleDepartment(dept)}
+                            className="accent-blue-600"
+                          />
+                          <span className="text-slate-800 dark:text-slate-200 text-sm">{dept}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-400 mb-1">Stok Takip Tipi</label>
+                    <select
+                      className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                      value={formData.stock_tracking_type}
+                      onChange={e => setFormData({...formData, stock_tracking_type: e.target.value})}
+                    >
+                      <option value="Stok Takipli">Stok Takipli</option>
+                      <option value="Stok Takipsiz">Stok Takipsiz</option>
+                    </select>
+                  </div>
+                </>
+              )}
+
+              {currentPart && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-400 mb-1">Parça Statüsü</label>
+                  <select
+                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                    value={formData.status}
+                    onChange={e => setFormData({...formData, status: e.target.value})}
+                  >
+                    {PART_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+              )}
+
               <div className="pt-2 flex justify-end gap-3 mt-6 border-t border-slate-200 dark:border-slate-700/50">
-                <button 
+                <button
                   type="button" onClick={() => setIsModalOpen(false)}
                   className="mt-4 px-5 py-2.5 text-slate-700 dark:text-slate-300 hover:bg-slate-800 rounded-lg transition-colors font-medium"
                 >
                   İptal
                 </button>
-                <button 
+                <button
                   type="submit"
                   className="mt-4 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium shadow-lg shadow-blue-500/30"
                 >
@@ -710,7 +733,7 @@ export default function Parts() {
       )}
 
       {/* Excel Mapping Modal */}
-      <ExcelMappingModal 
+      <ExcelMappingModal
         isOpen={isExcelModalOpen}
         onClose={() => setIsExcelModalOpen(false)}
         onImport={handleExcelImport}

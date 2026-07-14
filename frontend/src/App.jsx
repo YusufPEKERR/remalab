@@ -3,6 +3,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Users from './pages/Users';
 import Parts from './pages/Parts';
+import PartCategories from './pages/PartCategories';
 import Products from './pages/Products';
 import Suppliers from './pages/Suppliers';
 import Locations from './pages/Locations';
@@ -42,6 +43,7 @@ function App() {
 
           {/* ENVANTER */}
           <Route path="/parts" element={<Parts />} />
+          <Route path="/part-categories" element={<PartCategories />} />
           <Route path="/products" element={<Products />} />
           <Route path="/suppliers" element={<Suppliers />} />
           <Route path="/locations" element={<Locations />} />
