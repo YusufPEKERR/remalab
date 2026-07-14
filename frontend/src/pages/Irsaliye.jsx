@@ -378,8 +378,10 @@ export default function Irsaliye() {
               
               if (selectedRows.length === 1) {
                 const mov = movements.find(m => String(m.id) === String(selectedRows[0]));
+                console.log("Selected Movement:", mov);
                 if (mov) {
                   const p = parts.find(x => String(x.id) === String(mov.part_id)) || { item_code: '', brand: '', model: '' };
+                  console.log("Found Part:", p);
                   setOutboundBarcode(String(p.item_code || ''));
                   setOutboundBrand(p.brand || '');
                   setOutboundModel(p.model || '');
