@@ -704,6 +704,17 @@ export const api = {
         });
     },
 
+    deleteProduct: async (id) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.delete_product) {
+                backend.delete_product(String(id), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true });
+            }
+        });
+    },
+
     // ==========================
     // SUPPLIERS (TEDARİKÇİLER)
     // ==========================

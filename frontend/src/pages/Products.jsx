@@ -95,7 +95,7 @@ export default function Products() {
     if (window.confirm('Bu telefonu/modeli silmek istediğinize emin misiniz?')) {
       console.log("Deleting product:", id);
       try {
-        const res = await api.deletePart(id);
+        const res = await api.deleteProduct(id);
         if (res.success) {
           fetchProducts();
         } else {
@@ -193,7 +193,7 @@ export default function Products() {
       <div className="flex justify-between items-center bg-white dark:bg-[#1e2330] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm shrink-0">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">Telefon Modelleri (Ürünler)</h1>
-          <p className="text-slate-400 mt-1">Marka, model, hafıza ve renk bilgilerini yönetin.</p>
+          <p className="text-slate-400 mt-1">Marka, model ve hafıza bilgilerini yönetin.</p>
         </div>
         
         <div className="flex gap-3 items-center">
@@ -230,7 +230,7 @@ export default function Products() {
           <input
             type="text"
             className="w-full bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:border-blue-500 shadow-sm"
-            placeholder="Ara (ID, Marka, Model, Hafıza, Renk)..."
+            placeholder="Ara (ID, Marka, Model, Hafıza)..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -255,21 +255,20 @@ export default function Products() {
                 <th className="px-6 py-4">Marka</th>
                 <th className="px-6 py-4">Model</th>
                 <th className="px-6 py-4">Hafıza</th>
-                <th className="px-6 py-4">Renk</th>
                 <th className="px-6 py-4 text-center">İşlemler</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-700/50">
               {loading ? (
                 <tr>
-                  <td colSpan="6" className="px-6 py-8 text-center text-slate-400">
+                  <td colSpan="5" className="px-6 py-8 text-center text-slate-400">
                     <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-400" />
                     Yükleniyor...
                   </td>
                 </tr>
               ) : filteredProducts.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="px-6 py-8 text-center text-slate-500">
+                  <td colSpan="5" className="px-6 py-8 text-center text-slate-500">
                     Kayıt bulunamadı.
                   </td>
                 </tr>
@@ -290,7 +289,6 @@ export default function Products() {
                     <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200">{product.brand || '-'}</td>
                     <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200">{product.model || '-'}</td>
                     <td className="px-6 py-4">{product.memory || '-'}</td>
-                    <td className="px-6 py-4">{product.color || '-'}</td>
                     <td className="px-6 py-4 text-center">
                       <div className="flex justify-center gap-2">
                         <button onClick={(e) => { e.stopPropagation(); handleOpenModal(product); }} className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg transition-colors" title="Düzenle">

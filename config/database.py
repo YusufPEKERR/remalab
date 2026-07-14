@@ -41,6 +41,7 @@ def init_database_schema():
     """Veritabanı tablolarını oluşturur."""
     from models.user import User # Modellerin kaydolması için import
     from models.item_bom import ItemBOM
+    from models.product import Product
     # Diğer modeller de buraya eklenebilir
     Base.metadata.create_all(bind=engine)
 
