@@ -567,7 +567,7 @@ export default function Parts() {
                   ))}
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className={currentPart ? "grid grid-cols-2 gap-4" : ""}>
                 <div>
                   <label className="block text-sm font-medium text-slate-400 mb-1">Stok Takip Tipi</label>
                   <select
@@ -579,16 +579,18 @@ export default function Parts() {
                     <option value="Stok Takipsiz">Stok Takipsiz</option>
                   </select>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1">Parça Statüsü</label>
-                  <select
-                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
-                    value={formData.status}
-                    onChange={e => setFormData({...formData, status: e.target.value})}
-                  >
-                    {PART_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </div>
+                {currentPart && (
+                  <div>
+                    <label className="block text-sm font-medium text-slate-400 mb-1">Parça Statüsü</label>
+                    <select
+                      className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                      value={formData.status}
+                      onChange={e => setFormData({...formData, status: e.target.value})}
+                    >
+                      {PART_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                )}
               </div>
 
               <div className="pt-2 flex justify-end gap-3 mt-6 border-t border-slate-200 dark:border-slate-700/50">

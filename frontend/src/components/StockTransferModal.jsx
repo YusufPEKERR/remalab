@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { ArrowRightLeft, X, QrCode, Search, Package, MapPin, DatabaseZap } from 'lucide-react';
 import { api } from '../services/api';
 
-export default function StockTransferModal({ isOpen, onClose, onTransfer, locations = [] }) {
+export default function StockTransferModal({ isOpen, onClose, onTransfer, locations = [], systemLocationIds = [] }) {
   // State for Form fields
   const [qrCode, setQrCode] = useState('');
   
@@ -26,15 +26,17 @@ export default function StockTransferModal({ isOpen, onClose, onTransfer, locati
     }
   }, [isOpen]);
 
+  const systemIdSet = new Set(systemLocationIds.map(String));
+
   const loadStock = async () => {
     try {
       const res = await api.getStockStatus();
       if (res.success) {
         setFullStock(res.stock);
-        // sourceLocations: unique locations that have stock > 0
+        // sourceLocations: unique locations that have stock > 0 (sistem depoları hariç)
         const locsMap = new Map();
         res.stock.forEach(s => {
-          if (s.quantity > 0) {
+          if (s.quantity > 0 && !systemIdSet.has(String(s.location_id))) {
             locsMap.set(s.location_id, s.location_name);
           }
         });
@@ -234,7 +236,7 @@ export default function StockTransferModal({ isOpen, onClose, onTransfer, locati
                   className="w-full bg-white dark:bg-[#1e2330] border border-slate-700/70 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-yellow-500"
                 >
                   <option value="">--- Lokasyon Seçin ---</option>
-                  {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                  {locations.filter(l => !systemIdSet.has(String(l.id))).map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
                 </select>
               </div>
 
