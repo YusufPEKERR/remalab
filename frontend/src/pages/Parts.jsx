@@ -366,12 +366,28 @@ export default function Parts() {
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex flex-wrap gap-1">
-                        {part.department && part.department.split(',').map(d => d.trim()).filter(Boolean).map(d => (
-                          <span key={d} className="px-2.5 py-1 rounded-full text-xs font-medium border bg-purple-500/10 text-purple-400 border-purple-500/20">
-                            {d}
-                          </span>
-                        ))}
+                      <div className="flex flex-wrap gap-1" title={part.department}>
+                        {(() => {
+                          if (!part.department) return null;
+                          const uniqueDepts = Array.from(new Set(part.department.split(',').map(d => d.trim()).filter(Boolean)));
+                          const displayDepts = uniqueDepts.slice(0, 2);
+                          const remainingCount = uniqueDepts.length - 2;
+                          
+                          return (
+                            <>
+                              {displayDepts.map((d, i) => (
+                                <span key={i} className="px-2.5 py-1 rounded-full text-xs font-medium border bg-purple-500/10 text-purple-400 border-purple-500/20">
+                                  {d}
+                                </span>
+                              ))}
+                              {remainingCount > 0 && (
+                                <span className="px-2.5 py-1 rounded-full text-xs font-medium border bg-slate-500/10 text-slate-400 border-slate-500/20 cursor-help">
+                                  +{remainingCount} daha
+                                </span>
+                              )}
+                            </>
+                          );
+                        })()}
                       </div>
                     </td>
                     <td className="px-6 py-4">
