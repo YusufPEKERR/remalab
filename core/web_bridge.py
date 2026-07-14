@@ -1886,6 +1886,7 @@ class WebBridge(QObject):
                     "part_name": f"{p.brand} {p.model} {p.name}",
                     "location_id": l.id,
                     "location_name": l.name,
+                    "location_kind": l.kind,
                     "quantity": s.quantity,
                     "critical_limit": p.critical_limit or 10
                 })
@@ -1968,8 +1969,11 @@ class WebBridge(QObject):
                     "id": mov.id,
                     "type": mov.type,
                     "quantity": mov.quantity,
+                    "part_id": mov.part_id,
                     "part_name": f"{p.brand} {p.model} {p.name}" if p else "Silinmiş Parça",
+                    "source_location_id": mov.source_location_id,
                     "source_location": sloc.name if sloc else "-",
+                    "target_location_id": mov.target_location_id,
                     "target_location": tloc.name if tloc else "-",
                     "created_by": mov.created_by,
                     "technician": mov.technician or "-",
@@ -2189,7 +2193,12 @@ class WebBridge(QObject):
         try:
             total_parts = db.query(func.count(Part.id)).scalar() or 0
             
-            stocks = db.query(Stock, Part).join(Part, Stock.part_id == Part.id).all()
+            good_stock_id = _get_system_location_id(db, "good_stock")
+            if good_stock_id:
+                stocks = db.query(Stock, Part).join(Part, Stock.part_id == Part.id).filter(Stock.location_id == good_stock_id).all()
+            else:
+                stocks = []
+            
             critical_count = sum(1 for s, p in stocks if s.quantity <= (p.critical_limit or 10))
             
             today = date.today()
@@ -2229,7 +2238,12 @@ class WebBridge(QObject):
         from models.location import Location
         db = SessionLocal()
         try:
-            stocks = db.query(Stock, Part, Location).join(Part, Stock.part_id == Part.id).join(Location, Stock.location_id == Location.id).all()
+            good_stock_id = _get_system_location_id(db, "good_stock")
+            if good_stock_id:
+                stocks = db.query(Stock, Part, Location).join(Part, Stock.part_id == Part.id).join(Location, Stock.location_id == Location.id).filter(Stock.location_id == good_stock_id).all()
+            else:
+                stocks = []
+
             res = []
             for s, p, l in stocks:
                 limit = p.critical_limit or 10
