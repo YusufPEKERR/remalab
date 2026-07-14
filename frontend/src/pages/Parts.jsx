@@ -367,11 +367,17 @@ export default function Parts() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-wrap gap-1">
-                        {part.department && Array.from(new Set(String(part.department).split(',').map(d => d.trim()).filter(Boolean))).map((d, i) => (
-                          <span key={i} className="px-2.5 py-1 rounded-full text-xs font-medium border bg-purple-500/10 text-purple-400 border-purple-500/20">
-                            {d}
+                        {part.department ? (
+                          Array.from(new Set(String(part.department).split(',').map(d => d.trim()).filter(Boolean))).map((d, i) => (
+                            <span key={i} className="px-2.5 py-1 rounded-full text-xs font-medium border bg-purple-500/10 text-purple-400 border-purple-500/20">
+                              {d}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="px-2.5 py-1 rounded-full text-xs font-medium border bg-slate-500/10 text-slate-400 border-slate-500/20">
+                            Belirtilmedi
                           </span>
-                        ))}
+                        )}
                       </div>
                     </td>
                     <td className="px-6 py-4">
