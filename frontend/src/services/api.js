@@ -435,7 +435,7 @@ export const api = {
                     (res) => resolve(JSON.parse(res))
                 );
             } else {
-                resolve({ success: true });
+                resolve({ success: true, id: null });
             }
         });
     },
@@ -467,6 +467,131 @@ export const api = {
         return new Promise((resolve) => {
             if (backend.delete_work_order) {
                 backend.delete_work_order(String(id), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true });
+            }
+        });
+    },
+
+    // ==========================
+    // PARÇA TEDARİK DURUMU (İş Emri Parça Satırları)
+    // ==========================
+
+    getWorkOrderParts: async (workOrderId) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_work_order_parts) {
+                backend.get_work_order_parts(String(workOrderId), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true, parts: [] });
+            }
+        });
+    },
+
+    addWorkOrderPartsBulk: async (workOrderId, rows, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.add_work_order_parts_bulk) {
+                backend.add_work_order_parts_bulk(String(workOrderId), JSON.stringify(rows || []), username || '', (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true, inserted: 0 });
+            }
+        });
+    },
+
+    addWorkOrderPart: async (workOrderId, partId, quantity, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.add_work_order_part) {
+                backend.add_work_order_part(String(workOrderId), String(partId), String(quantity), username || '', (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true, part: null });
+            }
+        });
+    },
+
+    deliverWorkOrderPart: async (wopId, locationId, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.deliver_work_order_part) {
+                backend.deliver_work_order_part(String(wopId), String(locationId), username || '', (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true });
+            }
+        });
+    },
+
+    markWorkOrderPartWaiting: async (wopId, notes, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.mark_work_order_part_waiting) {
+                backend.mark_work_order_part_waiting(String(wopId), notes || '', username || '', (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true });
+            }
+        });
+    },
+
+    revertWorkOrderPartStatus: async (wopId, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.revert_work_order_part_status) {
+                backend.revert_work_order_part_status(String(wopId), username || '', (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true });
+            }
+        });
+    },
+
+    removeWorkOrderPart: async (wopId) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.remove_work_order_part) {
+                backend.remove_work_order_part(String(wopId), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true });
+            }
+        });
+    },
+
+    createSupplyRequest: async (workOrderId, partId, quantity, notes, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.create_supply_request) {
+                backend.create_supply_request(String(workOrderId), String(partId), String(quantity), notes || '', username || '', (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true });
+            }
+        });
+    },
+
+    getSupplyRequests: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_supply_requests) {
+                backend.get_supply_requests((res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true, requests: [] });
+            }
+        });
+    },
+
+    getSupplyRequestHistory: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_supply_request_history) {
+                backend.get_supply_request_history((res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true, requests: [] });
+            }
+        });
+    },
+
+    cancelSupplyRequest: async (wopId, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.cancel_supply_request) {
+                backend.cancel_supply_request(String(wopId), username || '', (res) => resolve(JSON.parse(res)));
             } else {
                 resolve({ success: true });
             }

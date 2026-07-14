@@ -9,11 +9,13 @@ import Locations from './pages/Locations';
 import Depo from './pages/Depo';
 import Irsaliye from './pages/Irsaliye';
 import WorkOrders from './pages/WorkOrders';
+import SupplyRequests from './pages/SupplyRequests';
 import Raporlar from './pages/Raporlar';
 import Settings from './pages/Settings';
 import Departments from './pages/Departments';
 import ServiceRecords from './pages/ServiceRecords';
 import DataManagement from './pages/DataManagement';
+import SupplyRequestForm from './pages/SupplyRequestForm';
 import MainLayout from './layouts/MainLayout';
 
 function App() {
@@ -34,6 +36,7 @@ function App() {
           <Route path="/depo" element={<Depo />} />
           <Route path="/irsaliye" element={<Irsaliye />} />
           <Route path="/work-orders" element={<WorkOrders />} />
+          <Route path="/supply-requests" element={<SupplyRequests />} />
           <Route path="/raporlar" element={<Raporlar />} />
 
           {/* ENVANTER */}
@@ -48,6 +51,7 @@ function App() {
           <Route path="/departments" element={<Departments />} />
           <Route path="/service-records" element={<ServiceRecords />} />
           <Route path="/data-management" element={<DataManagement />} />
+          <Route path="/tedarik-talepleri" element={<SupplyRequestForm />} />
         </Route>
       </Routes>
     </BrowserRouter>

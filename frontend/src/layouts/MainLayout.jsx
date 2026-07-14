@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { 
+import {
   LogOut, LayoutDashboard, Users, Package, Settings, Bell,
   Warehouse, FileText, BarChart2, Box, Truck, MapPin,
-  CheckCircle, Search, AlertTriangle, Zap, RefreshCw, Sun, Moon, Database, Building2, Wrench, ClipboardList
+  CheckCircle, Search, AlertTriangle, Zap, RefreshCw, Sun, Moon, Database, Building2, Wrench, ClipboardList, PackageSearch, PackagePlus
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useTheme } from '../context/ThemeContext';
@@ -76,9 +76,9 @@ export default function MainLayout() {
 
   // Permission maps based on Python code:
   const allowedPaths = {
-    'admin': ['/dashboard', '/depo', '/irsaliye', '/work-orders', '/raporlar', '/parts', '/products', '/suppliers', '/locations', '/users', '/settings', '/departments', '/service-records', '/data-management', '/quality', '/refurbishment', '/priority'],
-    'depo': ['/depo', '/irsaliye', '/work-orders', '/raporlar'],
-    'depo müdürü': ['/dashboard', '/depo', '/irsaliye', '/work-orders', '/raporlar', '/parts', '/products', '/suppliers', '/locations'],
+    'admin': ['/dashboard', '/depo', '/irsaliye', '/work-orders', '/supply-requests', '/raporlar', '/parts', '/products', '/suppliers', '/locations', '/users', '/settings', '/departments', '/service-records', '/data-management', '/tedarik-talepleri', '/quality', '/refurbishment', '/priority'],
+    'depo': ['/depo', '/irsaliye', '/work-orders', '/supply-requests', '/raporlar'],
+    'depo müdürü': ['/dashboard', '/depo', '/irsaliye', '/work-orders', '/supply-requests', '/raporlar', '/parts', '/products', '/suppliers', '/locations'],
     'teknisyen': ['/dashboard', '/quality', '/refurbishment', '/priority']
   };
 
@@ -97,6 +97,7 @@ export default function MainLayout() {
         { name: 'Depo', icon: Warehouse, path: '/depo' },
         { name: 'İrsaliye', icon: FileText, path: '/irsaliye' },
         { name: 'İş Emirleri', icon: ClipboardList, path: '/work-orders' },
+        { name: 'Tedarik İstekleri', icon: PackageSearch, path: '/supply-requests' },
         { name: 'Raporlar', icon: BarChart2, path: '/raporlar' }
       ]
     },
@@ -116,7 +117,8 @@ export default function MainLayout() {
         { name: 'Ayarlar', icon: Settings, path: '/settings' },
         { name: 'Veri Yönetimi', icon: Database, path: '/data-management' },
         { name: 'Departman Yönetimi', icon: Building2, path: '/departments' },
-        { name: 'Servis Kaydı', icon: Wrench, path: '/service-records' }
+        { name: 'Servis Kaydı', icon: Wrench, path: '/service-records' },
+        { name: 'Tedarik Talepleri', icon: PackagePlus, path: '/tedarik-talepleri' }
       ]
     }
   ];

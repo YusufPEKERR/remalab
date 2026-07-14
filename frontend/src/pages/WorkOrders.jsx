@@ -1,6 +1,16 @@
 import { useState, useEffect } from 'react';
 import { ClipboardList, Plus, Trash2, Edit, X, Save, Factory, Package, TrendingUp } from 'lucide-react';
 import { api } from '../services/api';
+import PartSupplyMenu from '../components/PartSupplyMenu';
+import DeliverPartPopover from '../components/DeliverPartPopover';
+
+function getCurrentUser() {
+  try {
+    return JSON.parse(localStorage.getItem('user') || sessionStorage.getItem('user') || 'null');
+  } catch (_e) {
+    return null;
+  }
+}
 
 const PRIORITY_OPTIONS = ['Düşük', 'Orta', 'Yüksek', 'Acil'];
 const PRIORITY_STYLES = {
@@ -27,6 +37,13 @@ const EMPTY_PRODUCTION_FORM = {
   target_part_id: '', quantity_produced: 1, source_location_id: '', target_location_id: '', produced_by: '', notes: ''
 };
 
+const SUPPLY_STATUS_STYLES = {
+  'Stokta Var': 'bg-slate-500/10 text-slate-400 border-slate-500/20',
+  'Teslim Edildi': 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+  'Tedarik Bekleniyor': 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+  'İptal Edildi': 'bg-red-500/10 text-red-400 border-red-500/20'
+};
+
 export default function WorkOrders() {
   const [activeTab, setActiveTab] = useState('new');
 
@@ -42,6 +59,13 @@ export default function WorkOrders() {
   const [parts, setParts] = useState([]);
   const [locations, setLocations] = useState([]);
   const [stockStatus, setStockStatus] = useState([]);
+  const currentUser = getCurrentUser();
+
+  // --- Parça Tedarik Durumu (live, kayıtlı iş emri için) state ---
+  const [workOrderParts, setWorkOrderParts] = useState([]);
+  const [liveNewPart, setLiveNewPart] = useState({ part_id: '', quantity: 1 });
+  const [contextMenu, setContextMenu] = useState(null); // {wopId, status, x, y} | null
+  const [deliverPopover, setDeliverPopover] = useState(null); // {wopId, partId, partName, quantity, x, y} | null
 
   // --- Üretim (production) state ---
   const [productionRuns, setProductionRuns] = useState([]);
@@ -77,6 +101,90 @@ export default function WorkOrders() {
     if (!partId || !locId) return 0;
     const entry = stockStatus.find(s => String(s.part_id) === String(partId) && String(s.location_id) === String(locId));
     return entry ? entry.quantity : 0;
+  };
+
+  const fetchWorkOrderParts = async (workOrderId) => {
+    const res = await api.getWorkOrderParts(workOrderId);
+    if (res.success) setWorkOrderParts(res.parts || []);
+  };
+
+  const refreshStockStatus = () => {
+    api.getStockStatus().then(r => { if (r.success) setStockStatus(r.stock || []); });
+  };
+
+  useEffect(() => {
+    if (editingOrder?.id) {
+      fetchWorkOrderParts(editingOrder.id);
+    } else {
+      setWorkOrderParts([]);
+    }
+    setLiveNewPart({ part_id: '', quantity: 1 });
+  }, [editingOrder?.id]);
+
+  // ===================== Parça Tedarik Durumu handlers =====================
+
+  const handleAddLivePart = async () => {
+    if (!editingOrder?.id || !liveNewPart.part_id) return;
+    const res = await api.addWorkOrderPart(editingOrder.id, liveNewPart.part_id, liveNewPart.quantity || 1, currentUser?.username);
+    if (res.success && res.part) {
+      setWorkOrderParts(prev => [...prev, res.part]);
+      setLiveNewPart({ part_id: '', quantity: 1 });
+    } else {
+      alert(res.message || 'Parça eklenemedi.');
+    }
+  };
+
+  const handleOpenContextMenu = (row, e) => {
+    e.preventDefault();
+    setContextMenu({ wopId: row.id, status: row.status, x: e.clientX, y: e.clientY });
+  };
+
+  const handleOpenDeliverPopover = (row) => {
+    const pos = contextMenu || { x: 200, y: 200 };
+    setDeliverPopover({ wopId: row.id, partId: row.part_id, partName: row.part_name, quantity: row.quantity, x: pos.x, y: pos.y });
+  };
+
+  const handleConfirmDeliver = async (locationId) => {
+    if (!deliverPopover) return;
+    const res = await api.deliverWorkOrderPart(deliverPopover.wopId, locationId, currentUser?.username);
+    if (res.success) {
+      setDeliverPopover(null);
+      fetchWorkOrderParts(editingOrder.id);
+      refreshStockStatus();
+    } else {
+      alert(res.message || 'Teslim işlemi başarısız oldu.');
+    }
+  };
+
+  const handleMarkWaiting = async (row) => {
+    const notes = window.prompt('Tedarik bekleme notu (opsiyonel):', '') || '';
+    const res = await api.markWorkOrderPartWaiting(row.id, notes, currentUser?.username);
+    if (res.success) {
+      fetchWorkOrderParts(editingOrder.id);
+    } else {
+      alert(res.message || 'İşlem başarısız oldu.');
+    }
+  };
+
+  const handleRevertPart = async (row) => {
+    if (!window.confirm('Bu durumu geri almak istediğinize emin misiniz?')) return;
+    const res = await api.revertWorkOrderPartStatus(row.id, currentUser?.username);
+    if (res.success) {
+      fetchWorkOrderParts(editingOrder.id);
+      refreshStockStatus();
+    } else {
+      alert(res.message || 'Geri alma işlemi başarısız oldu.');
+    }
+  };
+
+  const handleRemoveLivePart = async (row) => {
+    if (!window.confirm('Bu parça satırını silmek istediğinize emin misiniz?')) return;
+    const res = await api.removeWorkOrderPart(row.id);
+    if (res.success) {
+      setWorkOrderParts(prev => prev.filter(p => p.id !== row.id));
+    } else {
+      alert(res.message || 'Silme işlemi başarısız oldu.');
+    }
   };
 
   // ===================== İş Emri handlers =====================
@@ -120,11 +228,28 @@ export default function WorkOrders() {
 
   const handleSave = async (e) => {
     e.preventDefault();
-    const payload = { ...formData, parts_used: JSON.stringify(partsUsed.filter(r => r.part_id)) };
-    const res = editingOrder
-      ? await api.updateWorkOrder(editingOrder.id, payload)
-      : await api.createWorkOrder(payload);
+    const payload = { ...formData, parts_used: '[]' };
+
+    if (editingOrder) {
+      const res = await api.updateWorkOrder(editingOrder.id, payload);
+      if (res.success) {
+        setEditingOrder(null);
+        setFormData(EMPTY_FORM);
+        setPartsUsed([]);
+        fetchOrders();
+        setActiveTab('list');
+      } else {
+        alert(res.message || 'İşlem başarısız oldu.');
+      }
+      return;
+    }
+
+    const res = await api.createWorkOrder(payload);
     if (res.success) {
+      const staged = partsUsed.filter(r => r.part_id);
+      if (res.id && staged.length > 0) {
+        await api.addWorkOrderPartsBulk(res.id, staged, currentUser?.username);
+      }
       setEditingOrder(null);
       setFormData(EMPTY_FORM);
       setPartsUsed([]);
@@ -318,26 +443,66 @@ export default function WorkOrders() {
               <div>
                 <div className="flex justify-between items-center mb-1.5">
                   <label className="block text-sm font-medium text-slate-400">Kullanılan Parçalar</label>
-                  <button type="button" onClick={handleAddPartRow} className="text-xs text-blue-400 hover:text-blue-300 font-medium flex items-center gap-1">
-                    <Plus size={14} /> Parça Ekle
-                  </button>
+                  {!editingOrder && (
+                    <button type="button" onClick={handleAddPartRow} className="text-xs text-blue-400 hover:text-blue-300 font-medium flex items-center gap-1">
+                      <Plus size={14} /> Parça Ekle
+                    </button>
+                  )}
                 </div>
-                {partsUsed.length === 0 ? (
-                  <p className="text-xs text-slate-500">Henüz parça eklenmedi.</p>
+
+                {!editingOrder ? (
+                  // Yeni (kaydedilmemiş) iş emri: yerel taslak satırlar, kaydedilince toplu olarak persist edilir.
+                  partsUsed.length === 0 ? (
+                    <p className="text-xs text-slate-500">Henüz parça eklenmedi.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {partsUsed.map((row, idx) => (
+                        <div key={idx} className="flex gap-2 items-center">
+                          <select className="flex-1 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-blue-500" value={row.part_id} onChange={e => handlePartRowChange(idx, 'part_id', e.target.value)}>
+                            <option value="">Parça seçiniz...</option>
+                            {parts.map(p => <option key={p.id} value={p.id}>{p.brand} {p.model} {p.color} {p.part_category} {p.item_code ? `- ${p.item_code}` : ''}</option>)}
+                          </select>
+                          <input type="number" min="1" className="w-20 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-blue-500" value={row.quantity} onChange={e => handlePartRowChange(idx, 'quantity', e.target.value)} />
+                          <button type="button" onClick={() => handleRemovePartRow(idx)} className="p-2 text-red-400 hover:bg-red-400/10 rounded-lg transition-colors">
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )
                 ) : (
+                  // Kayıtlı iş emri: canlı, API destekli satırlar — tedarik durumu rozeti + sağ tık menüsü.
                   <div className="space-y-2">
-                    {partsUsed.map((row, idx) => (
-                      <div key={idx} className="flex gap-2 items-center">
-                        <select className="flex-1 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-blue-500" value={row.part_id} onChange={e => handlePartRowChange(idx, 'part_id', e.target.value)}>
-                          <option value="">Parça seçiniz...</option>
-                          {parts.map(p => <option key={p.id} value={p.id}>{p.brand} {p.model} {p.color} {p.part_category} {p.item_code ? `- ${p.item_code}` : ''}</option>)}
-                        </select>
-                        <input type="number" min="1" className="w-20 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-blue-500" value={row.quantity} onChange={e => handlePartRowChange(idx, 'quantity', e.target.value)} />
-                        <button type="button" onClick={() => handleRemovePartRow(idx)} className="p-2 text-red-400 hover:bg-red-400/10 rounded-lg transition-colors">
-                          <Trash2 size={16} />
-                        </button>
+                    {workOrderParts.length === 0 && (
+                      <p className="text-xs text-slate-500">Henüz parça eklenmedi.</p>
+                    )}
+                    {workOrderParts.map(row => (
+                      <div
+                        key={row.id}
+                        onContextMenu={(e) => handleOpenContextMenu(row, e)}
+                        className="flex gap-2 items-center bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 cursor-context-menu"
+                        title="Aksiyonlar için sağ tıklayın"
+                      >
+                        <div className="flex-1 text-sm text-slate-800 dark:text-slate-200">
+                          {row.part_name} {row.item_code ? <span className="text-slate-400">- {row.item_code}</span> : null}
+                        </div>
+                        <div className="text-sm text-slate-500 dark:text-slate-400 w-14 text-center">{row.quantity} ad.</div>
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${SUPPLY_STATUS_STYLES[row.status] || SUPPLY_STATUS_STYLES['Stokta Var']}`}>
+                          {row.status}
+                        </span>
                       </div>
                     ))}
+
+                    <div className="flex gap-2 items-center pt-1">
+                      <select className="flex-1 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-blue-500" value={liveNewPart.part_id} onChange={e => setLiveNewPart({ ...liveNewPart, part_id: e.target.value })}>
+                        <option value="">Parça seçiniz...</option>
+                        {parts.map(p => <option key={p.id} value={p.id}>{p.brand} {p.model} {p.color} {p.part_category} {p.item_code ? `- ${p.item_code}` : ''}</option>)}
+                      </select>
+                      <input type="number" min="1" className="w-20 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-blue-500" value={liveNewPart.quantity} onChange={e => setLiveNewPart({ ...liveNewPart, quantity: e.target.value })} />
+                      <button type="button" onClick={handleAddLivePart} className="p-2 text-blue-400 hover:bg-blue-400/10 rounded-lg transition-colors" title="Parça Ekle">
+                        <Plus size={16} />
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -647,6 +812,44 @@ export default function WorkOrders() {
           </div>
         )}
       </div>
+
+      <PartSupplyMenu
+        position={contextMenu ? { x: contextMenu.x, y: contextMenu.y } : null}
+        currentStatus={contextMenu?.status}
+        onDeliver={() => {
+          const row = workOrderParts.find(p => p.id === contextMenu.wopId);
+          if (row) handleOpenDeliverPopover(row);
+        }}
+        onMarkWaiting={() => {
+          const row = workOrderParts.find(p => p.id === contextMenu.wopId);
+          if (row) handleMarkWaiting(row);
+        }}
+        onRevert={() => {
+          const row = workOrderParts.find(p => p.id === contextMenu.wopId);
+          if (row) handleRevertPart(row);
+        }}
+        onRemove={() => {
+          const row = workOrderParts.find(p => p.id === contextMenu.wopId);
+          if (row) handleRemoveLivePart(row);
+        }}
+        onClose={() => setContextMenu(null)}
+      />
+
+      <DeliverPartPopover
+        isOpen={!!deliverPopover}
+        position={deliverPopover ? { x: deliverPopover.x, y: deliverPopover.y } : null}
+        partName={deliverPopover?.partName}
+        quantity={deliverPopover?.quantity}
+        locations={
+          deliverPopover
+            ? stockStatus
+                .filter(s => String(s.part_id) === String(deliverPopover.partId) && s.quantity > 0)
+                .map(s => ({ id: s.location_id, name: s.location_name, quantity: s.quantity }))
+            : []
+        }
+        onConfirm={handleConfirmDeliver}
+        onClose={() => setDeliverPopover(null)}
+      />
     </div>
   );
 }

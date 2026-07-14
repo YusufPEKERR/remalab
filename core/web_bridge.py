@@ -16,6 +16,7 @@ class WebBridge(QObject):
         self._ensure_service_records_table()
         self._ensure_work_orders_table()
         self._ensure_production_tables()
+        self._ensure_work_order_parts_table()
 
     def _ensure_production_tables(self):
         """warehouse.production_runs ve production_materials tablolarını yoksa oluşturur."""
@@ -76,6 +77,54 @@ class WebBridge(QObject):
         except Exception as e:
             db.rollback()
             print(f"[WebBridge] work_orders tablosu oluşturulamadı: {e}")
+        finally:
+            db.close()
+
+    def _ensure_work_order_parts_table(self):
+        """warehouse.work_order_parts tablosu yoksa oluşturur (Parça Tedarik Durumu modülü)."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            db.execute(text("""
+                CREATE TABLE IF NOT EXISTS warehouse.work_order_parts (
+                    id SERIAL PRIMARY KEY,
+                    work_order_id INTEGER NOT NULL REFERENCES warehouse.work_orders(id) ON DELETE CASCADE,
+                    part_id INTEGER NOT NULL REFERENCES warehouse.parts(id),
+                    quantity INTEGER NOT NULL DEFAULT 1,
+                    status VARCHAR(30) NOT NULL DEFAULT 'Stokta Var',
+                    delivered_location_id INTEGER REFERENCES warehouse.locations(id),
+                    delivery_movement_id INTEGER REFERENCES warehouse.stock_movements(id),
+                    delivered_by VARCHAR(150),
+                    delivered_at TIMESTAMP,
+                    waiting_notes TEXT,
+                    marked_waiting_by VARCHAR(150),
+                    marked_waiting_at TIMESTAMP,
+                    reversal_movement_id INTEGER REFERENCES warehouse.stock_movements(id),
+                    reverted_by VARCHAR(150),
+                    reverted_at TIMESTAMP,
+                    requested_by VARCHAR(150),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            """))
+            db.execute(text("""
+                ALTER TABLE warehouse.work_order_parts
+                ADD COLUMN IF NOT EXISTS delivered_location_id INTEGER REFERENCES warehouse.locations(id);
+            """))
+            db.execute(text("""
+                ALTER TABLE warehouse.work_order_parts
+                ADD COLUMN IF NOT EXISTS delivery_movement_id INTEGER REFERENCES warehouse.stock_movements(id);
+            """))
+            db.execute(text("""
+                ALTER TABLE warehouse.work_order_parts
+                ADD COLUMN IF NOT EXISTS reversal_movement_id INTEGER REFERENCES warehouse.stock_movements(id);
+            """))
+            db.execute(text("CREATE INDEX IF NOT EXISTS idx_wop_work_order_id ON warehouse.work_order_parts(work_order_id);"))
+            db.execute(text("CREATE INDEX IF NOT EXISTS idx_wop_status ON warehouse.work_order_parts(status);"))
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            print(f"[WebBridge] work_order_parts tablosu oluşturulamadı: {e}")
         finally:
             db.close()
 
@@ -831,13 +880,13 @@ class WebBridge(QObject):
         from sqlalchemy import text
         db = SessionLocal()
         try:
-            db.execute(text("""
+            new_id = db.execute(text("""
                 INSERT INTO warehouse.work_orders (
                     service_record_id, description, assigned_technician, priority,
                     start_date, end_date, parts_used, status
                 ) VALUES (
                     :sr_id, :desc, :tech, :priority, :start, :end, :parts, :status
-                )
+                ) RETURNING id
             """), {
                 "sr_id": int(service_record_id) if service_record_id.strip() else None,
                 "desc": description or None,
@@ -847,9 +896,9 @@ class WebBridge(QObject):
                 "end": end_date or None,
                 "parts": parts_used or None,
                 "status": status or "Beklemede"
-            })
+            }).scalar()
             db.commit()
-            return json.dumps({"success": True, "message": "İş emri eklendi"})
+            return json.dumps({"success": True, "message": "İş emri eklendi", "id": str(new_id)})
         except Exception as e:
             db.rollback()
             return json.dumps({"success": False, "message": f"Kayıt hatası: {str(e)}"})
@@ -896,12 +945,460 @@ class WebBridge(QObject):
         db = SessionLocal()
         try:
             order_id = int(order_id_str)
+            delivered_count = db.execute(text("""
+                SELECT COUNT(*) FROM warehouse.work_order_parts
+                WHERE work_order_id = :id AND status = 'Teslim Edildi'
+            """), {"id": order_id}).scalar()
+            if delivered_count:
+                return json.dumps({"success": False, "message": "Teslim edilmiş parçaları olan bir iş emri silinemez. Önce parça teslimatlarını geri alın."})
             db.execute(text("DELETE FROM warehouse.work_orders WHERE id = :id"), {"id": order_id})
             db.commit()
             return json.dumps({"success": True, "message": "İş emri silindi"})
         except Exception as e:
             db.rollback()
             return json.dumps({"success": False, "message": f"Silme hatası: {str(e)}"})
+        finally:
+            db.close()
+
+    # ==========================
+    # PARÇA TEDARİK DURUMU (İş Emri Parça Satırları / Stok Teslim-Bekleme-Geri Alma)
+    # ==========================
+
+    @Slot(str, result=str)
+    def get_work_order_parts(self, work_order_id_str):
+        """Bir iş emrine ait parça satırlarını, parça/lokasyon bilgileriyle birlikte getirir."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            work_order_id = int(work_order_id_str)
+            rows = db.execute(text("""
+                SELECT wop.id, wop.work_order_id, wop.part_id, wop.quantity, wop.status,
+                       wop.delivered_location_id, wop.delivery_movement_id, wop.delivered_by, wop.delivered_at,
+                       wop.waiting_notes, wop.marked_waiting_by, wop.marked_waiting_at,
+                       wop.reversal_movement_id, wop.reverted_by, wop.reverted_at,
+                       wop.requested_by, wop.created_at,
+                       p.brand, p.model, p.color, p.part_category, p.item_code, p.name AS part_name_raw,
+                       dl.name AS delivered_location_name
+                FROM warehouse.work_order_parts wop
+                LEFT JOIN warehouse.parts p ON p.id = wop.part_id
+                LEFT JOIN warehouse.locations dl ON dl.id = wop.delivered_location_id
+                WHERE wop.work_order_id = :wid
+                ORDER BY wop.id ASC
+            """), {"wid": work_order_id}).mappings().all()
+
+            parts = []
+            for row in rows:
+                part_name = " ".join(filter(None, [row["brand"], row["model"], row["color"], row["part_category"]])) or (row["part_name_raw"] or "")
+                parts.append({
+                    "id": str(row["id"]),
+                    "work_order_id": str(row["work_order_id"]),
+                    "part_id": str(row["part_id"]),
+                    "part_name": part_name,
+                    "item_code": row["item_code"] or "",
+                    "quantity": row["quantity"],
+                    "status": row["status"] or "Stokta Var",
+                    "delivered_location_id": str(row["delivered_location_id"]) if row["delivered_location_id"] else "",
+                    "delivered_location_name": row["delivered_location_name"] or "",
+                    "delivery_movement_id": str(row["delivery_movement_id"]) if row["delivery_movement_id"] else "",
+                    "delivered_by": row["delivered_by"] or "",
+                    "delivered_at": row["delivered_at"].strftime("%Y-%m-%d %H:%M") if row["delivered_at"] else "",
+                    "waiting_notes": row["waiting_notes"] or "",
+                    "marked_waiting_by": row["marked_waiting_by"] or "",
+                    "marked_waiting_at": row["marked_waiting_at"].strftime("%Y-%m-%d %H:%M") if row["marked_waiting_at"] else "",
+                    "reverted_by": row["reverted_by"] or "",
+                    "reverted_at": row["reverted_at"].strftime("%Y-%m-%d %H:%M") if row["reverted_at"] else "",
+                    "requested_by": row["requested_by"] or "",
+                    "created_at": row["created_at"].strftime("%Y-%m-%d %H:%M") if row["created_at"] else ""
+                })
+            return json.dumps({"success": True, "parts": parts})
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, str, result=str)
+    def add_work_order_parts_bulk(self, work_order_id_str, rows_json, username):
+        """Yeni oluşturulan bir iş emri için taslak parça satırlarını toplu olarak kaydeder."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            work_order_id = int(work_order_id_str)
+            try:
+                rows = json.loads(rows_json or "[]")
+            except (ValueError, TypeError):
+                rows = []
+
+            inserted = 0
+            for row in rows:
+                part_id = row.get("part_id")
+                try:
+                    qty = int(row.get("quantity") or 0)
+                except (ValueError, TypeError):
+                    qty = 0
+                if not part_id or qty < 1:
+                    continue
+                db.execute(text("""
+                    INSERT INTO warehouse.work_order_parts (work_order_id, part_id, quantity, status, requested_by)
+                    VALUES (:wid, :pid, :qty, 'Stokta Var', :req)
+                """), {"wid": work_order_id, "pid": int(part_id), "qty": qty, "req": username or None})
+                inserted += 1
+            db.commit()
+            return json.dumps({"success": True, "inserted": inserted})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, str, str, result=str)
+    def add_work_order_part(self, work_order_id_str, part_id_str, quantity_str, username):
+        """Kayıtlı bir iş emrine tek bir parça satırı ekler ve eklenen satırı döner."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            work_order_id = int(work_order_id_str)
+            part_id = int(part_id_str)
+            qty = int(quantity_str) if quantity_str and int(quantity_str) > 0 else 1
+
+            new_id = db.execute(text("""
+                INSERT INTO warehouse.work_order_parts (work_order_id, part_id, quantity, status, requested_by)
+                VALUES (:wid, :pid, :qty, 'Stokta Var', :req)
+                RETURNING id
+            """), {"wid": work_order_id, "pid": part_id, "qty": qty, "req": username or None}).scalar()
+            db.commit()
+
+            row = db.execute(text("""
+                SELECT wop.id, wop.work_order_id, wop.part_id, wop.quantity, wop.status, wop.created_at,
+                       p.brand, p.model, p.color, p.part_category, p.item_code, p.name AS part_name_raw
+                FROM warehouse.work_order_parts wop
+                LEFT JOIN warehouse.parts p ON p.id = wop.part_id
+                WHERE wop.id = :id
+            """), {"id": new_id}).mappings().first()
+
+            part_name = " ".join(filter(None, [row["brand"], row["model"], row["color"], row["part_category"]])) or (row["part_name_raw"] or "")
+            part = {
+                "id": str(row["id"]),
+                "work_order_id": str(row["work_order_id"]),
+                "part_id": str(row["part_id"]),
+                "part_name": part_name,
+                "item_code": row["item_code"] or "",
+                "quantity": row["quantity"],
+                "status": row["status"],
+                "delivered_location_id": "", "delivered_location_name": "", "delivery_movement_id": "",
+                "delivered_by": "", "delivered_at": "",
+                "waiting_notes": "", "marked_waiting_by": "", "marked_waiting_at": "",
+                "reverted_by": "", "reverted_at": "",
+                "requested_by": username or "",
+                "created_at": row["created_at"].strftime("%Y-%m-%d %H:%M") if row["created_at"] else ""
+            }
+            return json.dumps({"success": True, "part": part})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, str, result=str)
+    def deliver_work_order_part(self, wop_id_str, location_id_str, username):
+        """'Depodan Teslim Al': stoktan düşer, StockMovement kaydı açar, satırı 'Teslim Edildi' yapar."""
+        from sqlalchemy import text
+        from models.stock import Stock
+        from models.stock_movement import StockMovement
+        db = SessionLocal()
+        try:
+            wop_id = int(wop_id_str)
+            location_id = int(location_id_str)
+
+            row = db.execute(
+                text("SELECT id, work_order_id, part_id, quantity, status FROM warehouse.work_order_parts WHERE id = :id FOR UPDATE"),
+                {"id": wop_id}
+            ).mappings().first()
+            if not row:
+                return json.dumps({"success": False, "message": "Parça satırı bulunamadı."})
+            if row["status"] == "Teslim Edildi":
+                return json.dumps({"success": False, "message": "Bu parça zaten teslim edilmiş."})
+
+            qty = row["quantity"]
+            stock = db.query(Stock).filter(Stock.part_id == row["part_id"], Stock.location_id == location_id).first()
+            if not stock or stock.quantity < qty:
+                return json.dumps({"success": False, "message": "Seçilen lokasyonda yeterli stok yok."})
+
+            stock.quantity -= qty
+            movement = StockMovement(
+                type="Servis Kullanımı",
+                quantity=qty,
+                part_id=row["part_id"],
+                source_location_id=location_id,
+                created_by=username or None,
+                technician=username or None,
+                description=f"İş Emri #{row['work_order_id']} için teslim edildi"
+            )
+            db.add(movement)
+            db.flush()
+
+            db.execute(text("""
+                UPDATE warehouse.work_order_parts
+                SET status = 'Teslim Edildi', delivered_location_id = :loc, delivery_movement_id = :mov,
+                    delivered_by = :user, delivered_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+                WHERE id = :id
+            """), {"loc": location_id, "mov": movement.id, "user": username or None, "id": wop_id})
+            db.commit()
+            return json.dumps({"success": True})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, str, result=str)
+    def mark_work_order_part_waiting(self, wop_id_str, notes, username):
+        """Sağ tık aksiyonu: parçayı 'Tedarik Bekleniyor' olarak işaretler (stok hareketi yok)."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            wop_id = int(wop_id_str)
+            result = db.execute(text("""
+                UPDATE warehouse.work_order_parts
+                SET status = 'Tedarik Bekleniyor', waiting_notes = :notes,
+                    marked_waiting_by = :user, marked_waiting_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+                WHERE id = :id AND status != 'Teslim Edildi'
+            """), {"notes": notes or None, "user": username or None, "id": wop_id})
+            if result.rowcount == 0:
+                db.rollback()
+                return json.dumps({"success": False, "message": "Zaten teslim edilmiş bir parça bekliyor olarak işaretlenemez."})
+            db.commit()
+            return json.dumps({"success": True})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, result=str)
+    def revert_work_order_part_status(self, wop_id_str, username):
+        """Durumu geri alır: Tedarik Bekleniyor -> Stokta Var, veya Teslim Edildi -> Stokta Var (stok iadeli)."""
+        from sqlalchemy import text
+        from models.stock import Stock
+        from models.stock_movement import StockMovement
+        db = SessionLocal()
+        try:
+            wop_id = int(wop_id_str)
+            row = db.execute(
+                text("""SELECT id, work_order_id, part_id, quantity, status, delivered_location_id, delivery_movement_id
+                        FROM warehouse.work_order_parts WHERE id = :id FOR UPDATE"""),
+                {"id": wop_id}
+            ).mappings().first()
+            if not row:
+                return json.dumps({"success": False, "message": "Parça satırı bulunamadı."})
+
+            if row["status"] == "Stokta Var":
+                return json.dumps({"success": False, "message": "Bu parça zaten başlangıç durumunda."})
+
+            if row["status"] in ("Tedarik Bekleniyor", "İptal Edildi"):
+                # waiting_notes/marked_waiting_by/marked_waiting_at kasıtlı olarak silinmiyor:
+                # Tedarik Talepleri geçmişinde bu satırın bir talep olduğu bilgisi korunur (Onaylandı olarak görünür).
+                db.execute(text("""
+                    UPDATE warehouse.work_order_parts
+                    SET status = 'Stokta Var',
+                        reverted_by = :user, reverted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+                    WHERE id = :id
+                """), {"user": username or None, "id": wop_id})
+                db.commit()
+                return json.dumps({"success": True})
+
+            # status == 'Teslim Edildi' -> stok iadesi + telafi hareketi
+            qty = row["quantity"]
+            location_id = row["delivered_location_id"]
+            stock = db.query(Stock).filter(Stock.part_id == row["part_id"], Stock.location_id == location_id).first()
+            if stock:
+                stock.quantity += qty
+            else:
+                stock = Stock(part_id=row["part_id"], location_id=location_id, quantity=qty)
+                db.add(stock)
+
+            reversal = StockMovement(
+                type="Teslimat İptali",
+                quantity=qty,
+                part_id=row["part_id"],
+                target_location_id=location_id,
+                created_by=username or None,
+                description=f"İş Emri #{row['work_order_id']} teslimatı geri alındı (orijinal hareket #{row['delivery_movement_id']})"
+            )
+            db.add(reversal)
+            db.flush()
+
+            db.execute(text("""
+                UPDATE warehouse.work_order_parts
+                SET status = 'Stokta Var', delivered_location_id = NULL, delivery_movement_id = NULL,
+                    delivered_by = NULL, delivered_at = NULL,
+                    reversal_movement_id = :rev, reverted_by = :user, reverted_at = CURRENT_TIMESTAMP,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = :id
+            """), {"rev": reversal.id, "user": username or None, "id": wop_id})
+            db.commit()
+            return json.dumps({"success": True})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
+    def remove_work_order_part(self, wop_id_str):
+        """Bir parça satırını siler. Teslim edilmiş satırlar önce geri alınmadan silinemez."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            wop_id = int(wop_id_str)
+            result = db.execute(text("""
+                DELETE FROM warehouse.work_order_parts WHERE id = :id AND status != 'Teslim Edildi'
+            """), {"id": wop_id})
+            if result.rowcount == 0:
+                db.rollback()
+                return json.dumps({"success": False, "message": "Teslim edilmiş bir parça silinemez, önce geri alın."})
+            db.commit()
+            return json.dumps({"success": True})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, result=str)
+    def cancel_supply_request(self, wop_id_str, username):
+        """Bir tedarik talebini iptal eder (satır silinmez, durum 'İptal Edildi' olur; geçmişte görünmeye devam eder)."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            wop_id = int(wop_id_str)
+            result = db.execute(text("""
+                UPDATE warehouse.work_order_parts
+                SET status = 'İptal Edildi', reverted_by = :user, reverted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+                WHERE id = :id AND status != 'Teslim Edildi'
+            """), {"user": username or None, "id": wop_id})
+            if result.rowcount == 0:
+                db.rollback()
+                return json.dumps({"success": False, "message": "Teslim edilmiş bir talep iptal edilemez, önce geri alın."})
+            db.commit()
+            return json.dumps({"success": True})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, str, str, str, result=str)
+    def create_supply_request(self, work_order_id_str, part_id_str, quantity_str, notes, username):
+        """Teknisyenin doğrudan tedarik talebi oluşturması: satır doğrudan 'Tedarik Bekleniyor' olarak eklenir."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            work_order_id = int(work_order_id_str)
+            part_id = int(part_id_str)
+            qty = int(quantity_str) if quantity_str and int(quantity_str) > 0 else 1
+            db.execute(text("""
+                INSERT INTO warehouse.work_order_parts
+                    (work_order_id, part_id, quantity, status, waiting_notes, marked_waiting_by, marked_waiting_at, requested_by)
+                VALUES
+                    (:wid, :pid, :qty, 'Tedarik Bekleniyor', :notes, :user, CURRENT_TIMESTAMP, :user)
+            """), {"wid": work_order_id, "pid": part_id, "qty": qty, "notes": notes or None, "user": username or None})
+            db.commit()
+            return json.dumps({"success": True})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(result=str)
+    def get_supply_requests(self):
+        """Tüm iş emirlerinde 'Tedarik Bekleniyor' durumundaki parça satırlarını getirir (Tedarik İstekleri sayfası)."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            rows = db.execute(text("""
+                SELECT wop.id, wop.work_order_id, wop.quantity, wop.waiting_notes, wop.marked_waiting_by, wop.marked_waiting_at,
+                       p.id AS part_id, p.brand, p.model, p.color, p.part_category, p.item_code, p.name AS part_name_raw,
+                       w.assigned_technician, w.priority, w.status AS work_order_status,
+                       s.customer_name, s.brand AS device_brand, s.model AS device_model
+                FROM warehouse.work_order_parts wop
+                JOIN warehouse.work_orders w ON w.id = wop.work_order_id
+                LEFT JOIN warehouse.service_records s ON s.id = w.service_record_id
+                LEFT JOIN warehouse.parts p ON p.id = wop.part_id
+                WHERE wop.status = 'Tedarik Bekleniyor'
+                ORDER BY wop.marked_waiting_at ASC
+            """)).mappings().all()
+
+            requests = []
+            for row in rows:
+                part_name = " ".join(filter(None, [row["brand"], row["model"], row["color"], row["part_category"]])) or (row["part_name_raw"] or "")
+                requests.append({
+                    "id": str(row["id"]),
+                    "work_order_id": str(row["work_order_id"]),
+                    "part_id": str(row["part_id"]) if row["part_id"] else "",
+                    "part_name": part_name,
+                    "item_code": row["item_code"] or "",
+                    "quantity": row["quantity"],
+                    "customer_name": row["customer_name"] or "",
+                    "device_brand": row["device_brand"] or "",
+                    "device_model": row["device_model"] or "",
+                    "assigned_technician": row["assigned_technician"] or "",
+                    "priority": row["priority"] or "Orta",
+                    "work_order_status": row["work_order_status"] or "",
+                    "waiting_notes": row["waiting_notes"] or "",
+                    "marked_waiting_by": row["marked_waiting_by"] or "",
+                    "marked_waiting_at": row["marked_waiting_at"].strftime("%Y-%m-%d %H:%M") if row["marked_waiting_at"] else ""
+                })
+            return json.dumps({"success": True, "requests": requests})
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(result=str)
+    def get_supply_request_history(self):
+        """Şimdiye kadar oluşturulmuş tüm tedarik taleplerini (durumu ne olursa olsun) getirir (Tedarik Talepleri sayfası)."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            rows = db.execute(text("""
+                SELECT wop.id, wop.work_order_id, wop.quantity, wop.status, wop.waiting_notes,
+                       wop.marked_waiting_by, wop.marked_waiting_at,
+                       p.id AS part_id, p.brand, p.model, p.color, p.part_category, p.item_code, p.name AS part_name_raw,
+                       w.assigned_technician, w.priority, w.status AS work_order_status,
+                       s.customer_name, s.brand AS device_brand, s.model AS device_model
+                FROM warehouse.work_order_parts wop
+                JOIN warehouse.work_orders w ON w.id = wop.work_order_id
+                LEFT JOIN warehouse.service_records s ON s.id = w.service_record_id
+                LEFT JOIN warehouse.parts p ON p.id = wop.part_id
+                WHERE wop.marked_waiting_at IS NOT NULL
+                ORDER BY wop.marked_waiting_at DESC
+            """)).mappings().all()
+
+            requests = []
+            for row in rows:
+                part_name = " ".join(filter(None, [row["brand"], row["model"], row["color"], row["part_category"]])) or (row["part_name_raw"] or "")
+                requests.append({
+                    "id": str(row["id"]),
+                    "work_order_id": str(row["work_order_id"]),
+                    "part_id": str(row["part_id"]) if row["part_id"] else "",
+                    "part_name": part_name,
+                    "item_code": row["item_code"] or "",
+                    "quantity": row["quantity"],
+                    "status": row["status"] or "Tedarik Bekleniyor",
+                    "customer_name": row["customer_name"] or "",
+                    "device_brand": row["device_brand"] or "",
+                    "device_model": row["device_model"] or "",
+                    "assigned_technician": row["assigned_technician"] or "",
+                    "priority": row["priority"] or "Orta",
+                    "work_order_status": row["work_order_status"] or "",
+                    "waiting_notes": row["waiting_notes"] or "",
+                    "marked_waiting_by": row["marked_waiting_by"] or "",
+                    "marked_waiting_at": row["marked_waiting_at"].strftime("%Y-%m-%d %H:%M") if row["marked_waiting_at"] else ""
+                })
+            return json.dumps({"success": True, "requests": requests})
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
         finally:
             db.close()
 
