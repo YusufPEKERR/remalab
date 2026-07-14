@@ -685,6 +685,17 @@ export const api = {
         });
     },
 
+    getHistoricalStock: async (targetDate) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_historical_stock) {
+                backend.get_historical_stock(targetDate, (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true, historical_stock: [] });
+            }
+        });
+    },
+
     exportTableToExcel: async (data, filename) => {
         const backend = await getBackend();
         return new Promise((resolve) => {

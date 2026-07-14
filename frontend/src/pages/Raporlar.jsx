@@ -5,6 +5,7 @@ import { api } from '../services/api';
 export default function Raporlar() {
   const [generalReports, setGeneralReports] = useState([]);
   const [criticalReports, setCriticalReports] = useState([]);
+  const [historicalStock, setHistoricalStock] = useState([]);
   const [loading, setLoading] = useState(false);
   
   // Date filters
@@ -55,10 +56,14 @@ export default function Raporlar() {
     try {
       if (activeTab === 'general') {
         const res = await api.getReports(startDate, endDate);
+        const histRes = await api.getHistoricalStock(endDate);
         if (res.success) {
           setGeneralReports(res.reports);
         } else {
           alert("Genel raporlar alınamadı: " + (res.message || "Bilinmeyen hata"));
+        }
+        if (histRes.success) {
+          setHistoricalStock(histRes.historical_stock || []);
         }
       } else {
         const res = await api.getCriticalStock();
@@ -198,8 +203,43 @@ export default function Raporlar() {
             </div>
           </div>
 
+          {/* Snapshot Table */}
+          <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl shadow-lg overflow-hidden flex flex-col mb-4">
+            <div className="px-6 py-3 bg-slate-50 dark:bg-[#242a38] border-b border-slate-200 dark:border-slate-700/50 flex justify-between items-center">
+              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                Dönem Sonu Stok Durumu <span className="text-slate-500 font-normal ml-2">({endDate.replace('T', ' ')})</span>
+              </h3>
+            </div>
+            <div className="max-h-64 overflow-auto">
+              <table className="w-full text-left text-sm whitespace-nowrap">
+                <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs sticky top-0 z-10">
+                  <tr>
+                    <th className="px-6 py-3">PARÇA ADI</th>
+                    <th className="px-6 py-3">LOKASYON</th>
+                    <th className="px-6 py-3">STOK MİKTARI</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-700/50">
+                  {historicalStock.map((item, idx) => (
+                    <tr key={idx} className="hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors text-slate-700 dark:text-slate-300">
+                      <td className="px-6 py-3 font-medium text-slate-800 dark:text-slate-200">{item.part_name || item.name}</td>
+                      <td className="px-6 py-3">{item.location}</td>
+                      <td className="px-6 py-3 font-mono font-bold">{item.quantity}</td>
+                    </tr>
+                  ))}
+                  {historicalStock.length === 0 && (
+                    <tr><td colSpan="3" className="px-6 py-6 text-center text-slate-500">Seçili döneme ait stok verisi bulunamadı veya hesaplanamıyor.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
           {/* Table General */}
           <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl shadow-lg flex-1 overflow-hidden flex flex-col">
+            <div className="px-6 py-3 bg-slate-50 dark:bg-[#242a38] border-b border-slate-200 dark:border-slate-700/50">
+              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">Seçili Dönemdeki Hareket Detayları</h3>
+            </div>
             <div className="overflow-auto flex-1">
               <table className="w-full text-left text-sm whitespace-nowrap">
                 <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs sticky top-0 z-10">
