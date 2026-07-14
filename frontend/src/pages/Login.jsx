@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react';
 import { Eye, EyeOff, User, Lock, ArrowRight, Activity, Box, MapPin, AlertCircle, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
+import { useTheme } from '../context/ThemeContext';
 import amblem from '../assets/Uygulama-Amblemi.png';
+import amblemLacivert from '../assets/remalab-logo.png';
 
 export default function Login() {
   const [username, setUsername] = useState('');
@@ -13,6 +15,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const navigate = useNavigate();
+  const { theme } = useTheme();
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user') || sessionStorage.getItem('user');
@@ -108,12 +111,13 @@ export default function Login() {
       <div className="flex w-full max-w-[1000px] h-auto min-h-[600px] rounded-[24px] overflow-hidden relative z-10 border border-slate-300 dark:border-slate-800/50 shadow-2xl bg-white dark:bg-[#1e2330]/80 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-500 flex-col md:flex-row">
 
         {/* Left Side: Branding / Graphic */}
-        <div className="flex-1 hidden md:flex flex-col justify-between px-12 py-14 bg-gradient-to-br from-[#161b26] to-[#0f1219] border-r border-slate-300 dark:border-slate-800/50 relative overflow-hidden">
+        <div className="flex-1 hidden md:flex flex-col justify-between px-12 py-14 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-[#161b26] dark:to-[#0f1219] border-r border-slate-300 dark:border-slate-800/50 relative overflow-hidden">
 
           <div className="relative z-10">
             <div className="flex items-center gap-3 mb-6">
               <div className="flex items-center justify-center">
-                <img src={amblem} alt="Remalab Amblemi" className="w-16 h-16 object-contain drop-shadow-xl" />
+                <img src={amblemLacivert} alt="Remalab Amblemi" className="w-16 h-16 object-contain drop-shadow-xl dark:hidden" />
+                <img src={amblem} alt="Remalab Amblemi" className="w-16 h-16 object-contain drop-shadow-xl hidden dark:block" />
               </div>
               <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white mt-2">REMALAB <span className="text-blue-500 font-medium">TEKNOLOJİ</span></h1>
             </div>
@@ -133,20 +137,20 @@ export default function Login() {
           {/* Abstract Graphic */}
           <div className="relative z-10 mt-12">
             <div className="flex gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-slate-800/50 flex items-center justify-center border border-slate-200 dark:border-slate-700/50 backdrop-blur-sm animate-pulse" style={{ animationDelay: '0ms' }}>
+              <div className="w-12 h-12 rounded-2xl bg-slate-200/60 dark:bg-slate-800/50 flex items-center justify-center border border-slate-200 dark:border-slate-700/50 backdrop-blur-sm animate-pulse" style={{ animationDelay: '0ms' }}>
                 <Activity size={20} className="text-emerald-400" />
               </div>
-              <div className="w-12 h-12 rounded-2xl bg-slate-800/50 flex items-center justify-center border border-slate-200 dark:border-slate-700/50 backdrop-blur-sm animate-pulse" style={{ animationDelay: '300ms' }}>
+              <div className="w-12 h-12 rounded-2xl bg-slate-200/60 dark:bg-slate-800/50 flex items-center justify-center border border-slate-200 dark:border-slate-700/50 backdrop-blur-sm animate-pulse" style={{ animationDelay: '300ms' }}>
                 <Box size={20} className="text-blue-400" />
               </div>
-              <div className="w-12 h-12 rounded-2xl bg-slate-800/50 flex items-center justify-center border border-slate-200 dark:border-slate-700/50 backdrop-blur-sm animate-pulse" style={{ animationDelay: '600ms' }}>
+              <div className="w-12 h-12 rounded-2xl bg-slate-200/60 dark:bg-slate-800/50 flex items-center justify-center border border-slate-200 dark:border-slate-700/50 backdrop-blur-sm animate-pulse" style={{ animationDelay: '600ms' }}>
                 <MapPin size={20} className="text-purple-400" />
               </div>
             </div>
           </div>
 
           {/* Background grid pattern */}
-          <div className="absolute inset-0 z-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(#ffffff 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
+          <div className="absolute inset-0 z-0 opacity-[0.03]" style={{ backgroundImage: `radial-gradient(${theme === 'dark' ? '#ffffff' : '#000000'} 1px, transparent 1px)`, backgroundSize: '20px 20px' }}></div>
         </div>
 
         {/* Right Side: Form */}
