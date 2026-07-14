@@ -4,6 +4,24 @@ from config.database import SessionLocal
 from config.auth import verify_password
 from models.user import User
 
+# Otomatik iş akışıyla yönetilen sabit sistem depoları. Bu depolar arasında
+# kullanıcı manuel transfer yapamaz (bkz. transfer_stock).
+SYSTEM_LOCATION_KINDS = {
+    "good_stock": "Good Stock",
+    "doa_stock": "DOA Stock",
+    "repair_stock": "Repair Stock",
+    "scrap_stock": "Scrap Stock",
+    "out_stock": "Out Stock",
+}
+
+
+def _get_system_location_id(db, kind):
+    """Verilen kind'a ('good_stock' vb.) sahip sistem deposunun id'sini döner."""
+    from models.location import Location
+    loc = db.query(Location).filter(Location.kind == kind).first()
+    return loc.id if loc else None
+
+
 class WebBridge(QObject):
     """React (JavaScript) ile Python (PySide6) arasındaki köprü sınıfı."""
 
@@ -16,6 +34,8 @@ class WebBridge(QObject):
         self._ensure_service_records_table()
         self._ensure_work_orders_table()
         self._ensure_production_tables()
+        self._ensure_location_kind_column()
+        self._ensure_system_locations()
 
     def _ensure_production_tables(self):
         """warehouse.production_runs ve production_materials tablolarını yoksa oluşturur."""
@@ -72,6 +92,8 @@ class WebBridge(QObject):
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
             """))
+            db.execute(text("ALTER TABLE warehouse.work_orders ADD COLUMN IF NOT EXISTS source_location_id INTEGER REFERENCES warehouse.locations(id);"))
+            db.execute(text("ALTER TABLE warehouse.work_orders ADD COLUMN IF NOT EXISTS stock_settled_at TIMESTAMP;"))
             db.commit()
         except Exception as e:
             db.rollback()
@@ -115,16 +137,48 @@ class WebBridge(QObject):
             db.close()
 
     def _ensure_stock_movement_columns(self):
-        """warehouse.stock_movements tablosuna technician ve description sütunlarını ekler."""
+        """warehouse.stock_movements tablosuna technician, description ve movement_kind sütunlarını ekler."""
         from sqlalchemy import text
         db = SessionLocal()
         try:
             db.execute(text("ALTER TABLE warehouse.stock_movements ADD COLUMN IF NOT EXISTS technician VARCHAR(150);"))
             db.execute(text("ALTER TABLE warehouse.stock_movements ADD COLUMN IF NOT EXISTS description TEXT;"))
+            db.execute(text("ALTER TABLE warehouse.stock_movements ADD COLUMN IF NOT EXISTS movement_kind VARCHAR(20);"))
             db.commit()
         except Exception as e:
             db.rollback()
             print(f"[WebBridge] stock_movements kolonları eklenemedi: {e}")
+        finally:
+            db.close()
+
+    def _ensure_location_kind_column(self):
+        """warehouse.locations tablosuna kind sütunu yoksa ekler."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            db.execute(text("ALTER TABLE warehouse.locations ADD COLUMN IF NOT EXISTS kind VARCHAR(20);"))
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            print(f"[WebBridge] locations.kind kolonu eklenemedi: {e}")
+        finally:
+            db.close()
+
+    def _ensure_system_locations(self):
+        """Good/DOA/Repair/Scrap/Out Stock sistem depolarını yoksa oluşturur."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            for kind, name in SYSTEM_LOCATION_KINDS.items():
+                db.execute(text("""
+                    INSERT INTO warehouse.locations (name, kind)
+                    SELECT :name, :kind
+                    WHERE NOT EXISTS (SELECT 1 FROM warehouse.locations WHERE kind = :kind)
+                """), {"name": name, "kind": kind})
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            print(f"[WebBridge] sistem depoları oluşturulamadı: {e}")
         finally:
             db.close()
 
@@ -451,7 +505,20 @@ class WebBridge(QObject):
         db = SessionLocal()
         try:
             locs = db.query(Location).all()
-            return json.dumps({"success": True, "locations": [{"id": l.id, "name": l.name} for l in locs]})
+            return json.dumps({"success": True, "locations": [{"id": l.id, "name": l.name, "kind": l.kind} for l in locs]})
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(result=str)
+    def get_system_locations(self):
+        """Good/DOA/Repair/Scrap/Out Stock sistem depolarını döner."""
+        from models.location import Location
+        db = SessionLocal()
+        try:
+            locs = db.query(Location).filter(Location.kind.isnot(None)).all()
+            return json.dumps({"success": True, "locations": [{"id": l.id, "name": l.name, "kind": l.kind} for l in locs]})
         except Exception as e:
             return json.dumps({"success": False, "message": str(e)})
         finally:
@@ -482,6 +549,8 @@ class WebBridge(QObject):
             loc_id = int(id_str)
             loc = db.query(Location).filter(Location.id == loc_id).first()
             if loc:
+                if loc.kind:
+                    return json.dumps({"success": False, "message": "Bu depo sistem tarafından otomatik yönetiliyor, silinemez."})
                 db.delete(loc)
                 db.commit()
                 return json.dumps({"success": True})
@@ -794,6 +863,7 @@ class WebBridge(QObject):
             rows = db.execute(text("""
                 SELECT w.id, w.service_record_id, w.description, w.assigned_technician, w.priority,
                        w.start_date, w.end_date, w.parts_used, w.status, w.created_at,
+                       w.source_location_id, w.stock_settled_at,
                        s.customer_name, s.brand, s.model, s.fault_category, s.fault_type
                 FROM warehouse.work_orders w
                 LEFT JOIN warehouse.service_records s ON s.id = w.service_record_id
@@ -816,6 +886,8 @@ class WebBridge(QObject):
                     "end_date": row["end_date"].strftime("%Y-%m-%d") if row["end_date"] else "",
                     "parts_used": row["parts_used"] or "[]",
                     "status": row["status"] or "Beklemede",
+                    "source_location_id": str(row["source_location_id"]) if row["source_location_id"] else "",
+                    "stock_settled_at": row["stock_settled_at"].strftime("%Y-%m-%d %H:%M") if row["stock_settled_at"] else "",
                     "created_at": row["created_at"].strftime("%Y-%m-%d %H:%M") if row["created_at"] else ""
                 })
             return json.dumps({"success": True, "work_orders": orders})
@@ -824,19 +896,66 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    @Slot(str, str, str, str, str, str, str, str, result=str)
+    @Slot(str, str, str, str, str, str, str, str, str, result=str)
     def create_work_order(self, service_record_id, description, assigned_technician, priority,
-                           start_date, end_date, parts_used, status):
-        """Yeni iş emri ekler."""
+                           start_date, end_date, parts_used, status, source_location_id):
+        """Yeni iş emri ekler. parts_used doluysa kaynak depodan (Good/DOA Stock) Repair Stock'a
+        otomatik transfer yapar; stok yetersizse iş emri hiç oluşturulmaz."""
         from sqlalchemy import text
+        from models.stock import Stock
+        from models.stock_movement import StockMovement
         db = SessionLocal()
         try:
+            lines = []
+            if parts_used and parts_used.strip():
+                try:
+                    lines = [l for l in json.loads(parts_used) if l.get("part_id") and int(l.get("quantity") or 0) > 0]
+                except (ValueError, TypeError):
+                    lines = []
+
+            src_loc_id = int(source_location_id) if source_location_id and source_location_id.strip() else None
+
+            if lines:
+                if not src_loc_id:
+                    return json.dumps({"success": False, "message": "Parça kullanılan bir iş emri için kaynak depo seçmelisiniz."})
+                repair_stock_id = _get_system_location_id(db, "repair_stock")
+                if not repair_stock_id:
+                    return json.dumps({"success": False, "message": "Repair Stock deposu bulunamadı."})
+
+                agg = {}
+                for line in lines:
+                    pid = int(line["part_id"])
+                    agg[pid] = agg.get(pid, 0) + int(line["quantity"])
+
+                for part_id, qty in agg.items():
+                    stock = db.query(Stock).filter(Stock.part_id == part_id, Stock.location_id == src_loc_id).first()
+                    if not stock or stock.quantity < qty:
+                        return json.dumps({"success": False, "message": f"Parça #{part_id} için seçilen depoda yeterli stok yok."})
+
+                for part_id, qty in agg.items():
+                    stock = db.query(Stock).filter(Stock.part_id == part_id, Stock.location_id == src_loc_id).first()
+                    stock.quantity -= qty
+                    target_stock = db.query(Stock).filter(Stock.part_id == part_id, Stock.location_id == repair_stock_id).first()
+                    if target_stock:
+                        target_stock.quantity += qty
+                    else:
+                        db.add(Stock(part_id=part_id, location_id=repair_stock_id, quantity=qty))
+                    db.add(StockMovement(
+                        type="İş Emri: Tamire Alındı",
+                        movement_kind="Transfer",
+                        quantity=qty,
+                        part_id=part_id,
+                        source_location_id=src_loc_id,
+                        target_location_id=repair_stock_id,
+                        created_by=assigned_technician or "system"
+                    ))
+
             db.execute(text("""
                 INSERT INTO warehouse.work_orders (
                     service_record_id, description, assigned_technician, priority,
-                    start_date, end_date, parts_used, status
+                    start_date, end_date, parts_used, status, source_location_id
                 ) VALUES (
-                    :sr_id, :desc, :tech, :priority, :start, :end, :parts, :status
+                    :sr_id, :desc, :tech, :priority, :start, :end, :parts, :status, :src_loc
                 )
             """), {
                 "sr_id": int(service_record_id) if service_record_id.strip() else None,
@@ -846,7 +965,8 @@ class WebBridge(QObject):
                 "start": start_date or None,
                 "end": end_date or None,
                 "parts": parts_used or None,
-                "status": status or "Beklemede"
+                "status": status or "Beklemede",
+                "src_loc": src_loc_id
             })
             db.commit()
             return json.dumps({"success": True, "message": "İş emri eklendi"})
@@ -859,16 +979,87 @@ class WebBridge(QObject):
     @Slot(str, str, str, str, str, str, str, str, str, result=str)
     def update_work_order(self, order_id_str, service_record_id, description, assigned_technician, priority,
                            start_date, end_date, parts_used, status):
-        """Var olan bir iş emrini günceller."""
+        """Var olan bir iş emrini günceller. Durum Tamamlandı/Başarısız/İptal'e geçerse Repair
+        Stock'taki parçaları otomatik olarak ilgili depoya taşır (yalnızca bir kez, stock_settled_at guard'ı)."""
         from sqlalchemy import text
+        from models.stock import Stock
+        from models.stock_movement import StockMovement
         db = SessionLocal()
         try:
             order_id = int(order_id_str)
-            db.execute(text("""
+            current = db.execute(text("""
+                SELECT status, parts_used, source_location_id, stock_settled_at
+                FROM warehouse.work_orders WHERE id = :id
+            """), {"id": order_id}).mappings().first()
+            if not current:
+                return json.dumps({"success": False, "message": "İş emri bulunamadı."})
+
+            new_status = status or "Beklemede"
+            settle_now = False
+
+            if (new_status != current["status"] and current["stock_settled_at"] is None
+                    and new_status in ("Tamamlandı", "Başarısız", "İptal")):
+                lines = []
+                if current["parts_used"]:
+                    try:
+                        lines = [l for l in json.loads(current["parts_used"]) if l.get("part_id") and int(l.get("quantity") or 0) > 0]
+                    except (ValueError, TypeError):
+                        lines = []
+                src_loc_id = current["source_location_id"]
+
+                if lines and src_loc_id:
+                    repair_stock_id = _get_system_location_id(db, "repair_stock")
+                    if new_status == "Tamamlandı":
+                        target_id = _get_system_location_id(db, "good_stock")
+                        movement_kind = "Repair"
+                        mov_type = "Tamir Başarılı: Good Stock'a Alındı"
+                    elif new_status == "Başarısız":
+                        target_id = _get_system_location_id(db, "scrap_stock")
+                        movement_kind = "Scrap"
+                        mov_type = "Tamir Başarısız: Scrap Stock'a Alındı"
+                    else:  # İptal
+                        target_id = src_loc_id
+                        movement_kind = "Transfer"
+                        mov_type = "İş Emri İptal: Depoya İade"
+
+                    if not repair_stock_id or not target_id:
+                        return json.dumps({"success": False, "message": "Sistem depoları bulunamadı."})
+
+                    agg = {}
+                    for line in lines:
+                        pid = int(line["part_id"])
+                        agg[pid] = agg.get(pid, 0) + int(line["quantity"])
+
+                    for part_id, qty in agg.items():
+                        repair_stock = db.query(Stock).filter(Stock.part_id == part_id, Stock.location_id == repair_stock_id).first()
+                        if not repair_stock or repair_stock.quantity < qty:
+                            return json.dumps({"success": False, "message": f"Repair Stock'ta parça #{part_id} için yeterli miktar yok."})
+
+                    for part_id, qty in agg.items():
+                        repair_stock = db.query(Stock).filter(Stock.part_id == part_id, Stock.location_id == repair_stock_id).first()
+                        repair_stock.quantity -= qty
+                        target_stock = db.query(Stock).filter(Stock.part_id == part_id, Stock.location_id == target_id).first()
+                        if target_stock:
+                            target_stock.quantity += qty
+                        else:
+                            db.add(Stock(part_id=part_id, location_id=target_id, quantity=qty))
+                        db.add(StockMovement(
+                            type=mov_type,
+                            movement_kind=movement_kind,
+                            quantity=qty,
+                            part_id=part_id,
+                            source_location_id=repair_stock_id,
+                            target_location_id=target_id,
+                            created_by=assigned_technician or "system"
+                        ))
+                settle_now = True
+
+            settle_clause = ", stock_settled_at = NOW()" if settle_now else ""
+            db.execute(text(f"""
                 UPDATE warehouse.work_orders
                 SET service_record_id = :sr_id, description = :desc, assigned_technician = :tech,
                     priority = :priority, start_date = :start, end_date = :end,
-                    parts_used = :parts, status = :status
+                    parts_used = :parts, status = :status{settle_clause}
                 WHERE id = :id
             """), {
                 "sr_id": int(service_record_id) if service_record_id.strip() else None,
@@ -878,7 +1069,7 @@ class WebBridge(QObject):
                 "start": start_date or None,
                 "end": end_date or None,
                 "parts": parts_used or None,
-                "status": status or "Beklemede",
+                "status": new_status,
                 "id": order_id
             })
             db.commit()
@@ -1209,13 +1400,19 @@ class WebBridge(QObject):
     def transfer_stock(self, part_id, from_loc_id, to_loc_id, qty, username):
         from models.stock import Stock
         from models.stock_movement import StockMovement
+        from models.location import Location
         db = SessionLocal()
         try:
             qty = int(qty)
+
+            locs = db.query(Location).filter(Location.id.in_([int(from_loc_id), int(to_loc_id)])).all()
+            if any(loc.kind for loc in locs):
+                return json.dumps({"success": False, "message": "Bu depo(lar) otomatik yönetiliyor, manuel transfer yapılamaz."})
+
             source_stock = db.query(Stock).filter(Stock.part_id == part_id, Stock.location_id == from_loc_id).first()
             if not source_stock or source_stock.quantity < qty:
                 return json.dumps({"success": False, "message": "Yetersiz stok veya lokasyon bulunamadı."})
-            
+
             source_stock.quantity -= qty
             
             target_stock = db.query(Stock).filter(Stock.part_id == part_id, Stock.location_id == to_loc_id).first()
@@ -1291,20 +1488,25 @@ class WebBridge(QObject):
     def add_inbound_entry(self, part_id, location_id, qty, unit_price, type_str, username):
         from models.stock import Stock
         from models.stock_movement import StockMovement
+        from models.location import Location
         db = SessionLocal()
         try:
             qty = int(qty)
             price = float(unit_price) if unit_price else 0.0
-            
+
             stock = db.query(Stock).filter(Stock.part_id == part_id, Stock.location_id == location_id).first()
             if stock:
                 stock.quantity += qty
             else:
                 stock = Stock(part_id=part_id, location_id=location_id, quantity=qty)
                 db.add(stock)
-                
+
+            target_loc = db.query(Location).filter(Location.id == int(location_id)).first()
+            movement_kind = "Inbound" if target_loc and target_loc.kind in ("good_stock", "doa_stock") else None
+
             mov = StockMovement(
                 type=type_str or "Giriş",
+                movement_kind=movement_kind,
                 quantity=qty,
                 part_id=part_id,
                 target_location_id=location_id,
@@ -1325,21 +1527,38 @@ class WebBridge(QObject):
     def add_outbound_entry(self, part_id, location_id, qty, type_str, username, technician, description):
         from models.stock import Stock
         from models.stock_movement import StockMovement
+        from models.location import Location
         db = SessionLocal()
         try:
             qty = int(qty)
-            
+
             stock = db.query(Stock).filter(Stock.part_id == part_id, Stock.location_id == location_id).first()
             if not stock or stock.quantity < qty:
                 return json.dumps({"success": False, "message": "Yetersiz stok."})
-                
+
             stock.quantity -= qty
-            
+
+            source_loc = db.query(Location).filter(Location.id == int(location_id)).first()
+            target_location_id = None
+            movement_kind = None
+            if source_loc and source_loc.kind in ("good_stock", "doa_stock"):
+                target_kind = "scrap_stock" if type_str == "Fire" else "out_stock"
+                target_location_id = _get_system_location_id(db, target_kind)
+                movement_kind = "Scrap" if target_kind == "scrap_stock" else "Outbound"
+                if target_location_id:
+                    target_stock = db.query(Stock).filter(Stock.part_id == part_id, Stock.location_id == target_location_id).first()
+                    if target_stock:
+                        target_stock.quantity += qty
+                    else:
+                        db.add(Stock(part_id=part_id, location_id=target_location_id, quantity=qty))
+
             mov = StockMovement(
                 type=type_str or "Çıkış",
+                movement_kind=movement_kind,
                 quantity=qty,
                 part_id=part_id,
                 source_location_id=location_id,
+                target_location_id=target_location_id,
                 created_by=username,
                 technician=technician or None,
                 description=description or None

@@ -9,6 +9,7 @@ class StockMovement(Base):
 
     id = Column(Integer, primary_key=True)
     type = Column(String(50), nullable=False)
+    movement_kind = Column(String(20), nullable=True)
     quantity = Column(Integer, nullable=False)
     part_id = Column(Integer, nullable=True)
     source_location_id = Column(Integer, nullable=True)
