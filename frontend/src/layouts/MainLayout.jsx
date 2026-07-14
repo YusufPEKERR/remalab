@@ -83,8 +83,8 @@ export default function MainLayout() {
   // Permission maps based on Python code:
   const allowedPaths = {
     'admin': ['/dashboard', '/depo', '/irsaliye', '/work-orders', '/supply-requests', '/raporlar', '/parts', '/products', '/suppliers', '/locations', '/users', '/settings', '/departments', '/service-records', '/data-management', '/tedarik-talepleri', '/quality', '/refurbishment', '/priority'],
-    'depo': ['/depo', '/irsaliye', '/work-orders', '/supply-requests', '/raporlar'],
-    'depo müdürü': ['/dashboard', '/depo', '/irsaliye', '/work-orders', '/supply-requests', '/raporlar', '/parts', '/products', '/suppliers', '/locations'],
+    'depo': ['/depo', '/irsaliye', '/work-orders', '/supply-requests', '/raporlar', '/tedarik-talepleri'],
+    'depo müdürü': ['/dashboard', '/depo', '/irsaliye', '/work-orders', '/supply-requests', '/raporlar', '/parts', '/products', '/suppliers', '/locations', '/tedarik-talepleri'],
     'teknisyen': ['/dashboard', '/quality', '/refurbishment', '/priority']
   };
 
