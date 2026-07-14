@@ -192,13 +192,10 @@ export default function Depo() {
                 <th className="px-6 py-4">PARÇA ADI</th>
                 <th className="px-6 py-4">LOKASYON</th>
                 <th className="px-6 py-4">STOK MİKTARI</th>
-                <th className="px-6 py-4">DURUM</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-700/50">
               {filteredInventory.map((item) => {
-                const limit = item.critical_limit || 10;
-                const isCritical = item.quantity <= limit;
                 const isSelected = selectedItem?.id === item.id;
 
                 return (
@@ -211,22 +208,11 @@ export default function Depo() {
                     <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200">{item.name}</td>
                     <td className="px-6 py-4 text-slate-400">{item.location}</td>
                     <td className="px-6 py-4 font-mono font-medium">{item.quantity}</td>
-                    <td className="px-6 py-4">
-                      {isCritical ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold bg-red-500/10 text-red-400 border border-red-500/20">
-                          <AlertTriangle size={14}/> Kritik Stok
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-400"></div> Yeterli
-                        </span>
-                      )}
-                    </td>
                   </tr>
                 );
               })}
               {filteredInventory.length === 0 && (
-                <tr><td colSpan="4" className="px-6 py-12 text-center text-slate-500">Kayıt bulunamadı.</td></tr>
+                <tr><td colSpan="3" className="px-6 py-12 text-center text-slate-500">Kayıt bulunamadı.</td></tr>
               )}
             </tbody>
           </table>
