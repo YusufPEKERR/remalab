@@ -366,10 +366,11 @@ export default function Parts() {
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex flex-wrap gap-1" title={part.department}>
+                      <div className="flex flex-wrap gap-1" title={String(part.department || '')}>
                         {(() => {
                           if (!part.department) return null;
-                          const uniqueDepts = Array.from(new Set(part.department.split(',').map(d => d.trim()).filter(Boolean)));
+                          const deptStr = String(part.department);
+                          const uniqueDepts = Array.from(new Set(deptStr.split(',').map(d => d.trim()).filter(Boolean)));
                           const displayDepts = uniqueDepts.slice(0, 2);
                           const remainingCount = uniqueDepts.length - 2;
                           
