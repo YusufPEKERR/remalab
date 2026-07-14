@@ -44,7 +44,9 @@ export default function MainLayout() {
     try {
       const res = await api.getCriticalStock();
       if (res && res.success) {
-        setNotifications(res.critical_stock || []);
+        const stock = res.critical_stock || [];
+        const saved = JSON.parse(sessionStorage.getItem('readNotifications') || '[]');
+        setNotifications(stock.filter(n => !saved.includes(n.part_name + '_' + n.location_name)));
       }
     } catch (err) {
       console.error('Bildirimler alınamadı', err);
@@ -244,7 +246,16 @@ export default function MainLayout() {
                         <div className="flex items-center gap-2">
                           <span className="bg-red-500/20 text-red-600 dark:text-red-400 text-xs font-bold px-2 py-0.5 rounded-md">{notifications.length} Uyarı</span>
                           <button 
-                            onClick={(e) => { e.stopPropagation(); setNotifications([]); }}
+                            onClick={(e) => { 
+                              e.stopPropagation(); 
+                              const saved = JSON.parse(sessionStorage.getItem('readNotifications') || '[]');
+                              notifications.forEach(n => {
+                                const key = n.part_name + '_' + n.location_name;
+                                if (!saved.includes(key)) saved.push(key);
+                              });
+                              sessionStorage.setItem('readNotifications', JSON.stringify(saved));
+                              setNotifications([]); 
+                            }}
                             className="text-xs text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 font-medium px-2 py-1 bg-red-50 dark:bg-red-500/10 rounded-md transition-colors"
                           >
                             Tümünü Sil
@@ -256,8 +267,19 @@ export default function MainLayout() {
                   <div className="max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-[#30363D] scrollbar-track-transparent">
                     {notifications.length > 0 ? (
                       <div className="divide-y divide-slate-100 dark:divide-slate-700/50">
-                        {notifications.map((notif, idx) => (
-                          <div key={idx} className="p-4 hover:bg-slate-50 dark:hover:bg-[#2a3142] transition-colors cursor-pointer" onClick={() => {setShowNotifications(false); navigate('/depo');}}>
+                        {notifications.map((notif, idx) => {
+                          const notifKey = notif.part_name + '_' + notif.location_name;
+                          return (
+                          <div key={idx} className="p-4 hover:bg-slate-50 dark:hover:bg-[#2a3142] transition-colors cursor-pointer" onClick={() => {
+                            const saved = JSON.parse(sessionStorage.getItem('readNotifications') || '[]');
+                            if (!saved.includes(notifKey)) {
+                              saved.push(notifKey);
+                              sessionStorage.setItem('readNotifications', JSON.stringify(saved));
+                            }
+                            setNotifications(prev => prev.filter((_, i) => i !== idx));
+                            setShowNotifications(false); 
+                            navigate('/depo');
+                          }}>
                             <div className="flex items-start gap-3">
                               <div className="mt-0.5 shrink-0">
                                 <AlertTriangle size={18} className={notif.status === 'Tükendi' ? "text-red-400" : "text-amber-400"} />
@@ -274,7 +296,7 @@ export default function MainLayout() {
                               </div>
                             </div>
                           </div>
-                        ))}
+                        )})}
                       </div>
                     ) : (
                       <div className="p-8 text-center text-slate-500 dark:text-slate-400 flex flex-col items-center">
