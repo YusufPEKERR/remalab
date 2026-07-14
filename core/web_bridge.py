@@ -1571,6 +1571,68 @@ class WebBridge(QObject):
         except Exception as e:
             return json.dumps({"success": False, "message": str(e)})
 
+    @Slot(str, str, result=str)
+    def export_all_tables_to_excel(self, sheets_json_str, filename):
+        """
+        Tüm tabloları tek bir excel dosyasında farklı sheet'lerde dışa aktarır.
+        """
+        from ui.excel_utils import style_excel_file
+        import json
+        import pandas as pd
+        import os
+        import re
+        from pathlib import Path
+        try:
+            sheets_data = json.loads(sheets_json_str)
+            if not sheets_data:
+                return json.dumps({"success": False, "message": "Dışa aktarılacak veri yok."})
+                
+            downloads_path = str(Path.home() / "Downloads")
+            file_path = os.path.join(downloads_path, filename)
+            
+            # Eğer dosya varsa ismini değiştir
+            counter = 1
+            base_name, ext = os.path.splitext(filename)
+            while os.path.exists(file_path):
+                file_path = os.path.join(downloads_path, f"{base_name}_{counter}{ext}")
+                counter += 1
+                
+            # Sheet adlarını temizleme fonksiyonu
+            def clean_sheet_name(name):
+                # Excel kısıtlamaları: max 31 karakter, : \ / ? * [ ] yasak
+                name = re.sub(r'[:\\/?*\[\]]', '_', name)
+                return name[:31]
+                
+            with pd.ExcelWriter(file_path, engine='openpyxl') as writer:
+                used_sheet_names = set()
+                for sheet_name, data in sheets_data.items():
+                    cleaned_name = clean_sheet_name(sheet_name)
+                    
+                    # Aynı isim çakışmasını önle
+                    original_clean = cleaned_name
+                    suffix = 1
+                    while cleaned_name in used_sheet_names:
+                        suffix_str = f"_{suffix}"
+                        cleaned_name = f"{original_clean[:31-len(suffix_str)]}{suffix_str}"
+                        suffix += 1
+                        
+                    used_sheet_names.add(cleaned_name)
+                    
+                    df = pd.DataFrame(data)
+                    df.to_excel(writer, sheet_name=cleaned_name, index=False)
+                    
+            try:
+                style_excel_file(file_path)
+            except:
+                pass
+                
+            # Dosyayı otomatik aç (Windows)
+            os.startfile(file_path)
+            
+            return json.dumps({"success": True})
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+
     # ==========================================
     # LOCAL DB & DATA FOLDERS (AYARLAR SEKME)
     # ==========================================
