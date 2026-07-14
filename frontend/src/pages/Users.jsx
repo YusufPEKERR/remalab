@@ -22,6 +22,14 @@ export default function Users() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState('add'); // 'add', 'edit', 'password'
   const [formData, setFormData] = useState({ username: '', email: '', password: '', role: 'Teknisyen' });
+  const [currentUser, setCurrentUser] = useState(null);
+
+  useEffect(() => {
+    const stored = localStorage.getItem('user') || sessionStorage.getItem('user');
+    if (stored) {
+       try { setCurrentUser(JSON.parse(stored)); } catch(e) {}
+    }
+  }, []);
 
   const fetchUsers = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -350,14 +358,18 @@ export default function Users() {
                       <Shield size={14}/> Rol
                     </label>
                     <select 
-                      className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" 
+                      className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed" 
                       value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})}
+                      disabled={modalMode === 'edit' && currentUser && String(currentUser.id) === String(selectedUserId)}
                     >
                       <option value="Admin">Admin</option>
                       <option value="Depo Müdürü">Depo Müdürü</option>
                       <option value="Depo">Depo</option>
                       <option value="Teknisyen">Teknisyen</option>
                     </select>
+                    {modalMode === 'edit' && currentUser && String(currentUser.id) === String(selectedUserId) && (
+                      <p className="text-[10px] text-amber-500 mt-1">Kendi rolünüzü değiştiremezsiniz.</p>
+                    )}
                   </div>
                 </>
               )}
