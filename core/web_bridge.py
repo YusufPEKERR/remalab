@@ -568,9 +568,21 @@ class WebBridge(QObject):
     def delete_part(self, part_id_str):
         """Belirtilen id'ye sahip parçayı siler."""
         from sqlalchemy import text
+        from models.stock import Stock
+        from models.stock_movement import StockMovement
         db = SessionLocal()
         try:
             part_id = int(part_id_str)
+            
+            # Orphan kontrolü
+            stock_count = db.query(Stock).filter(Stock.part_id == part_id, Stock.quantity > 0).count()
+            if stock_count > 0:
+                return json.dumps({"success": False, "message": "Bu parçanın stokta ürünü var, silinemez."})
+            
+            movement_count = db.query(StockMovement).filter(StockMovement.part_id == part_id).count()
+            if movement_count > 0:
+                return json.dumps({"success": False, "message": "Bu parçanın geçmiş stok hareketi var, silinemez."})
+
             db.execute(text("DELETE FROM warehouse.parts WHERE id = :id"), {"id": part_id})
             db.commit()
             return json.dumps({"success": True, "message": "Parça silindi"})
@@ -586,6 +598,7 @@ class WebBridge(QObject):
         import sys
         print(f"[WebBridge] delete_user called with ID: {user_id_str}")
         sys.stdout.flush()
+        from models.user import User
         db = SessionLocal()
         try:
             user_id = int(user_id_str)
@@ -593,7 +606,11 @@ class WebBridge(QObject):
             if not user:
                 return json.dumps({"success": False, "message": "Kullanıcı bulunamadı"})
             
-            # TODO: Belki SuperAdmin silinemez gibi kurallar koyulabilir.
+            if user.role == "Admin":
+                admin_count = db.query(User).filter(User.role == "Admin").count()
+                if admin_count <= 1:
+                    return json.dumps({"success": False, "message": "Sistemdeki son Admin kullanıcısı silinemez!"})
+            
             db.delete(user)
             db.commit()
             return json.dumps({"success": True, "message": "Kullanıcı silindi"})
@@ -649,6 +666,9 @@ class WebBridge(QObject):
     @Slot(str, result=str)
     def delete_location(self, id_str):
         from models.location import Location
+        from models.stock import Stock
+        from models.stock_movement import StockMovement
+        from sqlalchemy import or_
         db = SessionLocal()
         try:
             loc_id = int(id_str)
@@ -656,6 +676,15 @@ class WebBridge(QObject):
             if loc:
                 if loc.kind:
                     return json.dumps({"success": False, "message": "Bu depo sistem tarafından otomatik yönetiliyor, silinemez."})
+                
+                stock_count = db.query(Stock).filter(Stock.location_id == loc_id, Stock.quantity > 0).count()
+                if stock_count > 0:
+                    return json.dumps({"success": False, "message": "Bu depoda stoklu ürünler var, silinemez."})
+                
+                movement_count = db.query(StockMovement).filter(or_(StockMovement.source_location_id == loc_id, StockMovement.target_location_id == loc_id)).count()
+                if movement_count > 0:
+                    return json.dumps({"success": False, "message": "Bu deponun geçmiş stok hareketi var, silinemez."})
+
                 db.delete(loc)
                 db.commit()
                 return json.dumps({"success": True})
@@ -2044,13 +2073,13 @@ class WebBridge(QObject):
             if any(loc.kind for loc in locs):
                 return json.dumps({"success": False, "message": "Bu depo(lar) otomatik yönetiliyor, manuel transfer yapılamaz."})
 
-            source_stock = db.query(Stock).filter(Stock.part_id == part_id, Stock.location_id == from_loc_id).first()
+            source_stock = db.query(Stock).with_for_update().filter(Stock.part_id == part_id, Stock.location_id == from_loc_id).first()
             if not source_stock or source_stock.quantity < qty:
                 return json.dumps({"success": False, "message": "Yetersiz stok veya lokasyon bulunamadı."})
 
             source_stock.quantity -= qty
             
-            target_stock = db.query(Stock).filter(Stock.part_id == part_id, Stock.location_id == to_loc_id).first()
+            target_stock = db.query(Stock).with_for_update().filter(Stock.part_id == part_id, Stock.location_id == to_loc_id).first()
             if target_stock:
                 target_stock.quantity += qty
             else:
@@ -2170,7 +2199,7 @@ class WebBridge(QObject):
         try:
             qty = int(qty)
 
-            stock = db.query(Stock).filter(Stock.part_id == part_id, Stock.location_id == location_id).first()
+            stock = db.query(Stock).with_for_update().filter(Stock.part_id == part_id, Stock.location_id == location_id).first()
             if not stock or stock.quantity < qty:
                 return json.dumps({"success": False, "message": "Yetersiz stok."})
 
