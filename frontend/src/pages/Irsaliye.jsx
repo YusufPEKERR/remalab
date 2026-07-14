@@ -312,6 +312,9 @@ export default function Irsaliye() {
 
   const handleOutbound = async (e) => {
     e.preventDefault();
+    if (!window.confirm("Bu stok çıkışını yapmak istediğinize emin misiniz?")) {
+      return;
+    }
     const user = "admin";
     const res = await api.addOutboundEntry(formData.part_id, formData.loc_id, formData.qty, formData.type || 'Teknik Servis', user, formData.technician, formData.description);
     if (res && res.success) {
@@ -370,7 +373,33 @@ export default function Irsaliye() {
             <Plus size={16} /> Giriş Yap
           </button>
           <button
-            onClick={() => { setOutboundBarcode(''); setOutboundBrand(''); setOutboundModel(''); setFormData({ part_id: '', loc_id: '', qty: 1, price: 0, type: 'Teknik Servis', technician: '', description: '' }); setShowOutboundModal(true); fetchDependencies(); }}
+            onClick={async () => {
+              await fetchDependencies();
+              
+              if (selectedRows.length === 1) {
+                const mov = movements.find(m => m.id === selectedRows[0]);
+                if (mov) {
+                  const p = parts.find(x => x.id === mov.part_id) || { item_code: '', brand: '', model: '' };
+                  setOutboundBarcode(String(p.item_code || ''));
+                  setOutboundBrand(p.brand || '');
+                  setOutboundModel(p.model || '');
+                  
+                  const dir = getDirection(mov);
+                  let locId = '';
+                  if (dir === 'in' || dir === 'transfer') {
+                    locId = mov.target_location_id || '';
+                  } else if (dir === 'out') {
+                    locId = mov.source_location_id || '';
+                  }
+
+                  setFormData({ part_id: mov.part_id || '', loc_id: locId, qty: mov.quantity || 1, price: 0, type: 'Teknik Servis', technician: '', description: '' });
+                  setShowOutboundModal(true);
+                  return;
+                }
+              }
+              
+              setOutboundBarcode(''); setOutboundBrand(''); setOutboundModel(''); setFormData({ part_id: '', loc_id: '', qty: 1, price: 0, type: 'Teknik Servis', technician: '', description: '' }); setShowOutboundModal(true); 
+            }}
             className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-colors"
           >
             <Plus size={16} /> Stok Çıkışı Yap
