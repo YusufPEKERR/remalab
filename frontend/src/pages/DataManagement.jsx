@@ -165,20 +165,13 @@ export default function DataManagement() {
   const handleExportAllTables = async () => {
     setLoading(true);
     try {
-      const allSheets = {};
-      for (const t of tables) {
-        try {
-          const res = await t.fetch();
-          const dataArray = Object.values(res).find(val => Array.isArray(val)) || [];
-          allSheets[t.table_name] = dataArray;
-        } catch (e) {
-          console.error(`Tablo alınırken hata (${t.table_name}):`, e);
-        }
+      const res = await api.exportAllTablesToExcel("tum_tablolar.xlsx");
+      if (res && res.success === false) {
+        throw new Error(res.message || "Tüm tablolar dışa aktarılamadı.");
       }
-      await api.exportAllTablesToExcel(allSheets, "tum_tablolar.xlsx");
     } catch (err) {
       console.error(err);
-      alert("Tüm tablolar dışa aktarılırken hata oluştu.");
+      alert("Tüm tablolar dışa aktarılırken hata oluştu: " + err.message);
     } finally {
       setLoading(false);
     }
