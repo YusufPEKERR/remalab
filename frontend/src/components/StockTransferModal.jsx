@@ -122,6 +122,11 @@ export default function StockTransferModal({ isOpen, onClose, onTransfer, locati
       return;
     }
     
+    if (sourceLocId === targetLocId) {
+      alert("Aynı lokasyondan (depodan) aynı lokasyona transfer yapılamaz!");
+      return;
+    }
+    
     onTransfer({
       sourceStockId: productId, // actually part_id
       sourceLocId: sourceLocId,
