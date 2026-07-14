@@ -1571,10 +1571,11 @@ class WebBridge(QObject):
         except Exception as e:
             return json.dumps({"success": False, "message": str(e)})
 
-    @Slot(str, str, result=str)
-    def export_all_tables_to_excel(self, sheets_json_str, filename):
+    @Slot(str, result=str)
+    def export_all_tables_to_excel(self, filename):
         """
-        Tüm tabloları tek bir excel dosyasında farklı sheet'lerde dışa aktarır.
+        Tüm veritabanı tablolarını tek bir excel dosyasında farklı sheet'lerde dışa aktarır.
+        JS üzerinden veri transferini atlayarak (size limitleri aşmamak için) direkt db'den çeker.
         """
         from ui.excel_utils import style_excel_file
         import json
@@ -1582,11 +1583,9 @@ class WebBridge(QObject):
         import os
         import re
         from pathlib import Path
+        from sqlalchemy import text
+        from config.database import get_db
         try:
-            sheets_data = json.loads(sheets_json_str)
-            if not sheets_data:
-                return json.dumps({"success": False, "message": "Dışa aktarılacak veri yok."})
-                
             downloads_path = str(Path.home() / "Downloads")
             file_path = os.path.join(downloads_path, filename)
             
@@ -1603,23 +1602,43 @@ class WebBridge(QObject):
                 name = re.sub(r'[:\\/?*\[\]]', '_', name)
                 return name[:31]
                 
-            with pd.ExcelWriter(file_path, engine='openpyxl') as writer:
-                used_sheet_names = set()
-                for sheet_name, data in sheets_data.items():
-                    cleaned_name = clean_sheet_name(sheet_name)
+            with get_db() as db:
+                tables_query = text('''
+                    SELECT table_schema, table_name 
+                    FROM information_schema.tables 
+                    WHERE table_schema IN ('public', 'warehouse', 'auth') 
+                      AND table_type = 'BASE TABLE'
+                ''')
+                tables_result = db.execute(tables_query).fetchall()
+
+                with pd.ExcelWriter(file_path, engine='openpyxl') as writer:
+                    used_sheet_names = set()
                     
-                    # Aynı isim çakışmasını önle
-                    original_clean = cleaned_name
-                    suffix = 1
-                    while cleaned_name in used_sheet_names:
-                        suffix_str = f"_{suffix}"
-                        cleaned_name = f"{original_clean[:31-len(suffix_str)]}{suffix_str}"
-                        suffix += 1
+                    for schema, t_name in tables_result:
+                        query = text(f'SELECT * FROM "{schema}"."{t_name}"')
+                        result = db.execute(query).fetchall()
+                        keys = result[0]._mapping.keys() if result else []
+                        data = [dict(zip(keys, row)) for row in result]
                         
-                    used_sheet_names.add(cleaned_name)
-                    
-                    df = pd.DataFrame(data)
-                    df.to_excel(writer, sheet_name=cleaned_name, index=False)
+                        for row in data:
+                            for k, v in row.items():
+                                if hasattr(v, 'isoformat'):
+                                    row[k] = v.isoformat()
+                                    
+                        cleaned_name = clean_sheet_name(t_name)
+                        
+                        # Aynı isim çakışmasını önle
+                        original_clean = cleaned_name
+                        suffix = 1
+                        while cleaned_name in used_sheet_names:
+                            suffix_str = f"_{suffix}"
+                            cleaned_name = f"{original_clean[:31-len(suffix_str)]}{suffix_str}"
+                            suffix += 1
+                            
+                        used_sheet_names.add(cleaned_name)
+                        
+                        df = pd.DataFrame(data)
+                        df.to_excel(writer, sheet_name=cleaned_name, index=False)
                     
             try:
                 style_excel_file(file_path)

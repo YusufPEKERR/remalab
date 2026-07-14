@@ -707,11 +707,11 @@ export const api = {
         });
     },
 
-    exportAllTablesToExcel: async (sheetsObj, filename) => {
+    exportAllTablesToExcel: async (filename) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
             if (backend.export_all_tables_to_excel) {
-                backend.export_all_tables_to_excel(JSON.stringify(sheetsObj), filename, (res) => resolve(JSON.parse(res)));
+                backend.export_all_tables_to_excel(filename, (res) => resolve(JSON.parse(res)));
             } else {
                 resolve({ success: false, message: "Excel export not available in mock mode" });
             }
