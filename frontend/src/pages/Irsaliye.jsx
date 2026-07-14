@@ -377,9 +377,9 @@ export default function Irsaliye() {
               await fetchDependencies();
               
               if (selectedRows.length === 1) {
-                const mov = movements.find(m => m.id === selectedRows[0]);
+                const mov = movements.find(m => String(m.id) === String(selectedRows[0]));
                 if (mov) {
-                  const p = parts.find(x => x.id === mov.part_id) || { item_code: '', brand: '', model: '' };
+                  const p = parts.find(x => String(x.id) === String(mov.part_id)) || { item_code: '', brand: '', model: '' };
                   setOutboundBarcode(String(p.item_code || ''));
                   setOutboundBrand(p.brand || '');
                   setOutboundModel(p.model || '');
@@ -392,7 +392,7 @@ export default function Irsaliye() {
                     locId = mov.source_location_id || '';
                   }
 
-                  setFormData({ part_id: mov.part_id || '', loc_id: locId, qty: mov.quantity || 1, price: 0, type: 'Teknik Servis', technician: '', description: '' });
+                  setFormData({ part_id: String(mov.part_id || ''), loc_id: String(locId), qty: mov.quantity || 1, price: 0, type: 'Teknik Servis', technician: '', description: '' });
                   setShowOutboundModal(true);
                   return;
                 }
