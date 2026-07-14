@@ -5,6 +5,8 @@ import { api } from '../services/api';
 export default function Raporlar() {
   const [generalReports, setGeneralReports] = useState([]);
   const [criticalReports, setCriticalReports] = useState([]);
+  const [locations, setLocations] = useState([]);
+  const [selectedLocation, setSelectedLocation] = useState('');
   const [loading, setLoading] = useState(false);
   
   // Date filters
@@ -81,12 +83,23 @@ export default function Raporlar() {
     fetchReportsRef.current = fetchReports;
   }, [fetchReports]);
 
+  useEffect(() => {
+    const loadLocations = async () => {
+      const res = await api.getLocations();
+      if (res.success) setLocations(res.locations);
+    };
+    loadLocations();
+  }, []);
+
+  const filteredGeneralReports = generalReports.filter(r => selectedLocation === '' || r.location === selectedLocation);
+  const filteredCriticalReports = criticalReports.filter(r => selectedLocation === '' || r.location === selectedLocation);
+
   const handleExportGeneral = async () => {
-    await api.exportTableToExcel(generalReports, "genel_raporlar.xlsx");
+    await api.exportTableToExcel(filteredGeneralReports, "genel_raporlar.xlsx");
   };
 
   const handleExportCritical = async () => {
-    await api.exportTableToExcel(criticalReports, "kritik_raporlar.xlsx");
+    await api.exportTableToExcel(filteredCriticalReports, "kritik_raporlar.xlsx");
   };
 
   useEffect(() => {
@@ -105,6 +118,19 @@ export default function Raporlar() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">Raporlar</h1>
           <p className="text-slate-400 mt-1">Tüm hareketleri ve kritik stok durumlarını raporlayın.</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <label className="text-sm font-medium text-slate-500">Depo Filtresi:</label>
+          <select
+            value={selectedLocation}
+            onChange={(e) => setSelectedLocation(e.target.value)}
+            className="bg-slate-50 dark:bg-[#242a38] text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-blue-500"
+          >
+            <option value="">Tüm Depolar</option>
+            {locations.map(loc => (
+              <option key={loc.id} value={loc.name}>{loc.name}</option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -220,14 +246,14 @@ export default function Raporlar() {
                         Yükleniyor...
                       </td>
                     </tr>
-                  ) : generalReports.length === 0 ? (
+                  ) : filteredGeneralReports.length === 0 ? (
                     <tr>
                       <td colSpan="6" className="px-6 py-8 text-center text-slate-500">
                         Kayıt bulunamadı.
                       </td>
                     </tr>
                   ) : (
-                    generalReports.map((r) => (
+                    filteredGeneralReports.map((r) => (
                       <tr key={r.id} className="hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors group text-slate-700 dark:text-slate-300">
                         <td className="px-6 py-4 font-mono text-slate-400">{r.date}</td>
                         <td className="px-6 py-4">
@@ -287,14 +313,14 @@ export default function Raporlar() {
                         Yükleniyor...
                       </td>
                     </tr>
-                  ) : criticalReports.length === 0 ? (
+                  ) : filteredCriticalReports.length === 0 ? (
                     <tr>
                       <td colSpan="4" className="px-6 py-8 text-center text-slate-500">
                         Kritik stok uyarısı bulunmamaktadır.
                       </td>
                     </tr>
                   ) : (
-                    criticalReports.map((r) => (
+                    filteredCriticalReports.map((r) => (
                       <tr key={r.id} className="hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors group text-slate-700 dark:text-slate-300">
                         <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200">{r.part_name}</td>
                         <td className="px-6 py-4 text-slate-400">{r.location}</td>

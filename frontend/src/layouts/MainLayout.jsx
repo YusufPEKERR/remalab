@@ -46,7 +46,9 @@ export default function MainLayout() {
       if (res && res.success) {
         const stock = res.critical_stock || [];
         const saved = JSON.parse(localStorage.getItem('readNotifications') || '[]');
-        setNotifications(stock.filter(n => !saved.includes(n.part_name + '_' + n.location_name)));
+        // Benzersiz ID ile filtrele — aynı part_name/location_name'e sahip
+        // farklı stok kayıtlarının birbirini silmesini önler
+        setNotifications(stock.filter(n => !saved.includes(String(n.id))));
       }
     } catch (err) {
       console.error('Bildirimler alınamadı', err);
@@ -250,7 +252,7 @@ export default function MainLayout() {
                               e.stopPropagation(); 
                               const saved = JSON.parse(localStorage.getItem('readNotifications') || '[]');
                               notifications.forEach(n => {
-                                const key = n.part_name + '_' + n.location_name;
+                                const key = String(n.id);
                                 if (!saved.includes(key)) saved.push(key);
                               });
                               localStorage.setItem('readNotifications', JSON.stringify(saved));
@@ -268,45 +270,45 @@ export default function MainLayout() {
                     {notifications.length > 0 ? (
                       <div className="divide-y divide-slate-100 dark:divide-slate-700/50">
                         {notifications.map((notif, idx) => {
-                          const markAsRead = (index) => {
-                            const n = notifications[index];
-                            const key = n.part_name + '_' + n.location_name;
+                          const notifKey = String(notif.id);
+                          
+                          const markAsRead = () => {
                             const saved = JSON.parse(localStorage.getItem('readNotifications') || '[]');
-                            if (!saved.includes(key)) {
-                              saved.push(key);
+                            if (!saved.includes(notifKey)) {
+                              saved.push(notifKey);
                               localStorage.setItem('readNotifications', JSON.stringify(saved));
+                              // ID ile filtrele — her bildirim benzersiz şekilde kaldırılır
+                              setNotifications(prev => prev.filter(n => String(n.id) !== notifKey));
                             }
-                            setNotifications(prev => prev.filter((_, i) => i !== index));
                           };
 
                           return (
-                            <div 
-                              key={idx} 
-                              className="p-4 hover:bg-slate-50 dark:hover:bg-[#2a3142] transition-colors cursor-pointer" 
-                              onClick={() => {
-                                markAsRead(idx);
-                                setShowNotifications(false); 
-                                navigate('/depo');
-                              }}
-                            >
-                              <div className="flex items-start gap-3">
-                                <div className="mt-0.5 shrink-0">
-                                  <AlertTriangle size={18} className={notif.status === 'Tükendi' ? "text-red-400" : "text-amber-400"} />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium text-slate-800 dark:text-slate-200 mb-1 leading-snug line-clamp-2" title={notif.part_name}>{notif.part_name}</p>
-                                  <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">Lokasyon: <strong className="text-slate-700 dark:text-slate-300">{notif.location_name}</strong></p>
-                                  <div className="flex items-center justify-between mt-2">
-                                    <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">Stok: {notif.quantity}</span>
-                                    <span className={`text-[10px] font-bold uppercase tracking-wider ${notif.status === 'Tükendi' ? 'text-red-500 dark:text-red-400' : 'text-amber-500 dark:text-amber-400'}`}>
-                                      {notif.status === 'Tükendi' ? 'STOK TÜKENDİ' : 'KRİTİK SEVİYE'}
-                                    </span>
-                                  </div>
+                          <div 
+                            key={idx} 
+                            className="p-4 hover:bg-slate-50 dark:hover:bg-[#2a3142] transition-colors cursor-pointer" 
+                            onClick={() => {
+                              markAsRead();
+                              setShowNotifications(false); 
+                              navigate('/depo');
+                            }}
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className="mt-0.5 shrink-0">
+                                <AlertTriangle size={18} className={notif.status === 'Tükendi' ? "text-red-400" : "text-amber-400"} />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-slate-800 dark:text-slate-200 mb-1 leading-snug line-clamp-2" title={notif.part_name}>{notif.part_name}</p>
+                                <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">Lokasyon: <strong className="text-slate-700 dark:text-slate-300">{notif.location_name}</strong></p>
+                                <div className="flex items-center justify-between mt-2">
+                                  <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">Stok: {notif.quantity}</span>
+                                  <span className={`text-[10px] font-bold uppercase tracking-wider ${notif.status === 'Tükendi' ? 'text-red-500 dark:text-red-400' : 'text-amber-500 dark:text-amber-400'}`}>
+                                    {notif.status === 'Tükendi' ? 'STOK TÜKENDİ' : 'KRİTİK SEVİYE'}
+                                  </span>
                                 </div>
                               </div>
                             </div>
-                          );
-                        })}
+                          </div>
+                        )})}
                       </div>
                     ) : (
                       <div className="p-8 text-center text-slate-500 dark:text-slate-400 flex flex-col items-center">
