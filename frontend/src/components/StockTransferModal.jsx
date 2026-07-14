@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { ArrowRightLeft, X, QrCode, Search, Package, MapPin, DatabaseZap } from 'lucide-react';
 import { api } from '../services/api';
 
-export default function StockTransferModal({ isOpen, onClose, onTransfer, locations = [], systemLocationIds = [] }) {
+export default function StockTransferModal({ isOpen, onClose, onTransfer, locations = [], systemLocations = [] }) {
   // State for Form fields
   const [qrCode, setQrCode] = useState('');
   
@@ -26,7 +26,10 @@ export default function StockTransferModal({ isOpen, onClose, onTransfer, locati
     }
   }, [isOpen]);
 
-  const systemIdSet = new Set(systemLocationIds.map(String));
+  const restrictedKinds = new Set(['scrap_stock', 'doa_stock', 'out_stock']);
+  const restrictedIdSet = new Set(
+    systemLocations.filter(loc => restrictedKinds.has(loc.kind)).map(l => String(l.id))
+  );
 
   const loadStock = async () => {
     try {
@@ -36,7 +39,7 @@ export default function StockTransferModal({ isOpen, onClose, onTransfer, locati
         // sourceLocations: unique locations that have stock > 0 (sistem depoları hariç)
         const locsMap = new Map();
         res.stock.forEach(s => {
-          if (s.quantity > 0 && !systemIdSet.has(String(s.location_id))) {
+          if (s.quantity > 0 && !restrictedIdSet.has(String(s.location_id))) {
             locsMap.set(s.location_id, s.location_name);
           }
         });
@@ -236,7 +239,7 @@ export default function StockTransferModal({ isOpen, onClose, onTransfer, locati
                   className="w-full bg-white dark:bg-[#1e2330] border border-slate-700/70 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-yellow-500"
                 >
                   <option value="">--- Lokasyon Seçin ---</option>
-                  {locations.filter(l => !systemIdSet.has(String(l.id))).map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                  {locations.filter(l => !restrictedIdSet.has(String(l.id))).map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
                 </select>
               </div>
 

@@ -845,7 +845,7 @@ export default function Irsaliye() {
         onClose={() => setIsTransferModalOpen(false)}
         onTransfer={handleTransferSubmit}
         locations={locations}
-        systemLocationIds={systemLocations.map(l => l.id)}
+        systemLocations={systemLocations}
       />
     </div>
   );
