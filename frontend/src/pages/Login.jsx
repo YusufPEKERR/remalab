@@ -19,7 +19,7 @@ export default function Login() {
       try {
         const u = JSON.parse(storedUser);
         const userRole = u?.role?.toLowerCase() || 'admin';
-        navigate(['depo', 'depo müdürü'].includes(userRole) ? '/depo' : '/dashboard');
+        navigate(userRole === 'depo' ? '/depo' : '/dashboard');
       } catch {
         navigate('/dashboard');
       }
