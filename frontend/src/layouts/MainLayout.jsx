@@ -45,7 +45,7 @@ export default function MainLayout() {
       const res = await api.getCriticalStock();
       if (res && res.success) {
         const stock = res.critical_stock || [];
-        const saved = JSON.parse(sessionStorage.getItem('readNotifications') || '[]');
+        const saved = JSON.parse(localStorage.getItem('readNotifications') || '[]');
         setNotifications(stock.filter(n => !saved.includes(n.part_name + '_' + n.location_name)));
       }
     } catch (err) {
@@ -248,12 +248,12 @@ export default function MainLayout() {
                           <button 
                             onClick={(e) => { 
                               e.stopPropagation(); 
-                              const saved = JSON.parse(sessionStorage.getItem('readNotifications') || '[]');
+                              const saved = JSON.parse(localStorage.getItem('readNotifications') || '[]');
                               notifications.forEach(n => {
                                 const key = n.part_name + '_' + n.location_name;
                                 if (!saved.includes(key)) saved.push(key);
                               });
-                              sessionStorage.setItem('readNotifications', JSON.stringify(saved));
+                              localStorage.setItem('readNotifications', JSON.stringify(saved));
                               setNotifications([]); 
                             }}
                             className="text-xs text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 font-medium px-2 py-1 bg-red-50 dark:bg-red-500/10 rounded-md transition-colors"
@@ -271,10 +271,10 @@ export default function MainLayout() {
                           const notifKey = notif.part_name + '_' + notif.location_name;
                           
                           const markAsRead = () => {
-                            const saved = JSON.parse(sessionStorage.getItem('readNotifications') || '[]');
+                            const saved = JSON.parse(localStorage.getItem('readNotifications') || '[]');
                             if (!saved.includes(notifKey)) {
                               saved.push(notifKey);
-                              sessionStorage.setItem('readNotifications', JSON.stringify(saved));
+                              localStorage.setItem('readNotifications', JSON.stringify(saved));
                               setNotifications(prev => prev.filter(n => (n.part_name + '_' + n.location_name) !== notifKey));
                             }
                           };
