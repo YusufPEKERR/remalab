@@ -587,7 +587,9 @@ export default function WorkOrders() {
                   productionRuns.map(run => (
                     <tr key={run.id} className="hover:bg-slate-100 dark:bg-[#2a3142] transition-colors text-slate-700 dark:text-slate-300">
                       <td className="px-6 py-4">
-                        <div className="font-medium text-slate-800 dark:text-slate-200">{run.target_part_name || '-'}</div>
+                        <div className="font-medium text-slate-800 dark:text-slate-200">
+                          {run.target_part_name || '-'} {parts.find(p => p.id == run.target_part_id)?.part_category ? `(${parts.find(p => p.id == run.target_part_id).part_category})` : ''}
+                        </div>
                         <div className="text-xs text-slate-400">{run.target_item_code}</div>
                       </td>
                       <td className="px-6 py-4 font-mono">{run.quantity_produced}</td>
