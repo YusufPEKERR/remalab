@@ -131,24 +131,37 @@ export default function Locations() {
                 filteredLocations.map((loc) => (
                   <tr key={loc.id} className="hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors group text-slate-800 dark:text-slate-200">
                     <td className="px-6 py-3 font-mono">{loc.id}</td>
-                    <td className="px-6 py-3">{loc.name}</td>
-                    <td className="px-6 py-3 text-right">
-                      <div className="flex justify-end gap-3">
-                        <button 
-                          onClick={() => alert('Düzenleme işlevi eklenebilir')}
-                          className="p-1.5 text-orange-400 hover:bg-orange-400/10 rounded transition-colors"
-                          title="Düzenle"
-                        >
-                          <Edit size={16} />
-                        </button>
-                        <button 
-                          onClick={() => handleDelete(loc.id)}
-                          className="p-1.5 text-red-400 hover:bg-red-400/10 rounded transition-colors"
-                          title="Sil"
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                    <td className="px-6 py-3">
+                      <div className="flex items-center gap-2">
+                        {loc.name}
+                        {loc.kind && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 uppercase tracking-wider">
+                            Sistem Deposu
+                          </span>
+                        )}
                       </div>
+                    </td>
+                    <td className="px-6 py-3 text-right">
+                      {loc.kind ? (
+                        <span className="text-xs text-slate-400">Otomatik yönetiliyor</span>
+                      ) : (
+                        <div className="flex justify-end gap-3">
+                          <button
+                            onClick={() => alert('Düzenleme işlevi eklenebilir')}
+                            className="p-1.5 text-orange-400 hover:bg-orange-400/10 rounded transition-colors"
+                            title="Düzenle"
+                          >
+                            <Edit size={16} />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(loc.id)}
+                            className="p-1.5 text-red-400 hover:bg-red-400/10 rounded transition-colors"
+                            title="Sil"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))

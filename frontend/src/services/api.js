@@ -214,6 +214,17 @@ export const api = {
         });
     },
 
+    getSystemLocations: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_system_locations) {
+                backend.get_system_locations((res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true, locations: [] });
+            }
+        });
+    },
+
     // ==========================
     // DEPARTMANLAR
     // ===================
@@ -432,6 +443,7 @@ export const api = {
                     order.end_date || '',
                     order.parts_used || '[]',
                     order.status || 'Beklemede',
+                    order.source_location_id || '',
                     (res) => resolve(JSON.parse(res))
                 );
             } else {
@@ -827,16 +839,64 @@ export const api = {
             if (backend.export_table_to_excel) {
                 backend.export_table_to_excel(JSON.stringify(data), filename, (res) => resolve(JSON.parse(res)));
             } else {
-                resolve({ success: false, message: "Excel export not available in mock mode" });
+                console.warn("export_table_to_excel metodu bulunamadı, mock çalışıyor.");
+                resolve({ success: true, file_path: `C:/mock/path/${filename}` });
             }
         });
     },
 
-    exportAllTablesToExcel: async (sheetsObj, filename) => {
+    // ==========================
+    // ITEM BOM (ÜRÜN AĞACI)
+    // ==========================
+    getItemBOMs: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_item_boms) {
+                backend.get_item_boms((res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true, item_boms: [] });
+            }
+        });
+    },
+
+    createItemBOM: async (data) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.create_item_bom) {
+                backend.create_item_bom(JSON.stringify(data), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true });
+            }
+        });
+    },
+
+    updateItemBOM: async (id, data) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.update_item_bom) {
+                backend.update_item_bom(String(id), JSON.stringify(data), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true });
+            }
+        });
+    },
+
+    deleteItemBOM: async (id) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.delete_item_bom) {
+                backend.delete_item_bom(String(id), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true });
+            }
+        });
+    },
+
+    exportAllTablesToExcel: async (filename) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
             if (backend.export_all_tables_to_excel) {
-                backend.export_all_tables_to_excel(JSON.stringify(sheetsObj), filename, (res) => resolve(JSON.parse(res)));
+                backend.export_all_tables_to_excel(filename, (res) => resolve(JSON.parse(res)));
             } else {
                 resolve({ success: false, message: "Excel export not available in mock mode" });
             }

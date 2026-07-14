@@ -67,10 +67,16 @@ class MainWindow(QMainWindow):
         storage_path = os.path.join(os.path.expanduser("~"), ".remalab", "webengine_data")
         self.profile.setPersistentStoragePath(storage_path)
         self.profile.setCachePath(storage_path)
-        self.profile.setHttpCacheType(QWebEngineProfile.HttpCacheType.NoCache)
+        # Disk hatası almamak ama performansı artırmak için RAM'e önbellekle
+        self.profile.setHttpCacheType(QWebEngineProfile.HttpCacheType.MemoryHttpCache)
 
         # Custom page for JS logs (Kalıcı profili kullanarak)
         self.web_page = WebPage(self.profile, self.web_view)
+        
+        # Siyah arkaplan ayarla (Beyaz ekran parlamasını önlemek için)
+        from PySide6.QtGui import QColor
+        self.web_page.setBackgroundColor(QColor("#0f1219"))
+        
         self.web_view.setPage(self.web_page)
         
         self._layout.addWidget(self.web_view)

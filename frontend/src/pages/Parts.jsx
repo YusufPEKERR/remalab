@@ -9,7 +9,7 @@ export default function Parts() {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterDepartment, setFilterDepartment] = useState('');
-  
+
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(50);
@@ -127,13 +127,7 @@ export default function Parts() {
     if (part) {
       setCurrentPart(part);
       setFormData({
-        item_code: part.item_code || '',
-        brand: part.brand || '',
-        model: part.model || '',
-        color: part.color || '',
-        part_category: part.part_category || '',
-        item_category: part.item_category || '',
-        stock_tracking_type: part.stock_tracking_type || 'Stok Takipli',
+        ...part,
         department: part.department ? part.department.split(',').map(d => d.trim()).filter(Boolean) : [],
         status: part.status || 'Aktif'
       });
@@ -160,6 +154,21 @@ export default function Parts() {
       part_category: value,
       department: Array.from(new Set([...prev.department, ...mapped]))
     }));
+  };
+
+  const handleSearchBarcode = (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!formData.item_code) return;
+    const existing = parts.find(p => p.item_code === formData.item_code);
+    if (existing) {
+      setFormData({
+        ...existing,
+        // Ensure department is correctly formatted as an array for the form
+        department: existing.department ? String(existing.department).split(',').map(d => d.trim()).filter(Boolean) : []
+      });
+    } else {
+      alert("Bu parça koduna ait mevcut bir kayıt bulunamadı.");
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -468,13 +477,29 @@ export default function Parts() {
             
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-1">Parça Kodu <span className="text-red-400">*</span></label>
-                <input 
-                  type="text" required
-                  className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
-                  value={formData.item_code}
-                  onChange={e => setFormData({...formData, item_code: e.target.value})}
-                />
+                <label className="block text-sm font-medium text-slate-400 mb-1">Parça Kodu (Barkod) <span className="text-red-400">*</span></label>
+                <div className="relative">
+                  <input 
+                    type="text" required
+                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg pl-3 pr-10 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                    value={formData.item_code}
+                    onChange={e => setFormData({...formData, item_code: e.target.value})}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleSearchBarcode();
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSearchBarcode}
+                    className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 hover:text-blue-500 transition-colors"
+                    title="Bilgileri Getir"
+                  >
+                    <Search size={18} />
+                  </button>
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -567,7 +592,7 @@ export default function Parts() {
                   ))}
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className={currentPart ? "grid grid-cols-2 gap-4" : ""}>
                 <div>
                   <label className="block text-sm font-medium text-slate-400 mb-1">Stok Takip Tipi</label>
                   <select
@@ -579,16 +604,18 @@ export default function Parts() {
                     <option value="Stok Takipsiz">Stok Takipsiz</option>
                   </select>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1">Parça Statüsü</label>
-                  <select
-                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
-                    value={formData.status}
-                    onChange={e => setFormData({...formData, status: e.target.value})}
-                  >
-                    {PART_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </div>
+                {currentPart && (
+                  <div>
+                    <label className="block text-sm font-medium text-slate-400 mb-1">Parça Statüsü</label>
+                    <select
+                      className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                      value={formData.status}
+                      onChange={e => setFormData({...formData, status: e.target.value})}
+                    >
+                      {PART_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                )}
               </div>
 
               <div className="pt-2 flex justify-end gap-3 mt-6 border-t border-slate-200 dark:border-slate-700/50">
@@ -600,7 +627,7 @@ export default function Parts() {
                 </button>
                 <button 
                   type="submit"
-                  className="mt-4 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors shadow-lg shadow-blue-900/20"
+                  className="mt-4 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium shadow-lg shadow-blue-500/30"
                 >
                   {currentPart ? 'Güncelle' : 'Kaydet'}
                 </button>
