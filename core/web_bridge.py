@@ -7,11 +7,11 @@ from models.user import User
 # Otomatik iş akışıyla yönetilen sabit sistem depoları. Bu depolar arasında
 # kullanıcı manuel transfer yapamaz (bkz. transfer_stock).
 SYSTEM_LOCATION_KINDS = {
-    "good_stock": "Good Stock",
-    "doa_stock": "DOA Stock",
-    "repair_stock": "Repair Stock",
-    "scrap_stock": "Scrap Stock",
-    "out_stock": "Out Stock",
+    "good_stock": "Ana Depo (Sağlam)",
+    "doa_stock": "DOA (Arızalı İade)",
+    "repair_stock": "Tamir / Onarım",
+    "scrap_stock": "Hurda",
+    "out_stock": "Sistem Dışı (Çıkış)",
 }
 
 
@@ -225,6 +225,9 @@ class WebBridge(QObject):
                     INSERT INTO warehouse.locations (name, kind)
                     SELECT :name, :kind
                     WHERE NOT EXISTS (SELECT 1 FROM warehouse.locations WHERE kind = :kind)
+                """), {"name": name, "kind": kind})
+                db.execute(text("""
+                    UPDATE warehouse.locations SET name = :name WHERE kind = :kind
                 """), {"name": name, "kind": kind})
             db.commit()
         except Exception as e:
