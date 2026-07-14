@@ -50,14 +50,6 @@ export default function Locations() {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm('Bu lokasyonu silmek istediğinize emin misiniz?')) {
-      const res = await api.deleteLocation(id);
-      if (res && res.success) fetchLocations();
-      else alert(res ? res.message : "Hata");
-    }
-  };
-
   const filteredLocations = useMemo(() => {
     return locations.filter(l => 
       (l.name && l.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -110,20 +102,19 @@ export default function Locations() {
               <tr>
                 <th className="px-6 py-4 w-32">LOKASYON ID</th>
                 <th className="px-6 py-4">LOKASYON ADI</th>
-                <th className="px-6 py-4 text-right w-24">SİL</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-700/50">
               {loading ? (
                 <tr>
-                  <td colSpan="3" className="px-6 py-8 text-center text-slate-400">
+                  <td colSpan="2" className="px-6 py-8 text-center text-slate-400">
                     <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-indigo-400" />
                     Yükleniyor...
                   </td>
                 </tr>
               ) : filteredLocations.length === 0 ? (
                 <tr>
-                  <td colSpan="3" className="px-6 py-8 text-center text-slate-400">
+                  <td colSpan="2" className="px-6 py-8 text-center text-slate-400">
                     Kayıt bulunamadı.
                   </td>
                 </tr>
@@ -140,28 +131,6 @@ export default function Locations() {
                           </span>
                         )}
                       </div>
-                    </td>
-                    <td className="px-6 py-3 text-right">
-                      {loc.kind ? (
-                        <span className="text-xs text-slate-400">Otomatik yönetiliyor</span>
-                      ) : (
-                        <div className="flex justify-end gap-3">
-                          <button
-                            onClick={() => alert('Düzenleme işlevi eklenebilir')}
-                            className="p-1.5 text-orange-400 hover:bg-orange-400/10 rounded transition-colors"
-                            title="Düzenle"
-                          >
-                            <Edit size={16} />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(loc.id)}
-                            className="p-1.5 text-red-400 hover:bg-red-400/10 rounded transition-colors"
-                            title="Sil"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      )}
                     </td>
                   </tr>
                 ))

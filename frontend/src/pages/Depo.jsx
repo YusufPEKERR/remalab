@@ -8,9 +8,18 @@ export default function Depo() {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedItem, setSelectedItem] = useState(null);
+  const [selectedRows, setSelectedRows] = useState([]);
   
   // Modals
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [selectedExportColumns, setSelectedExportColumns] = useState({
+    "Parça Adı": true,
+    "Lokasyon": true,
+    "Stok Miktarı": true,
+    "Kritik Limit": true
+  });
+
   const dbColumns = ["name", "location", "quantity", "critical_limit"];
   const friendlyNames = {
     name: "Parça Adı",
@@ -43,7 +52,28 @@ export default function Depo() {
   };
 
   const handleExport = async () => {
-    await api.exportTableToExcel(inventory, "depo_stok.xlsx");
+    // Sadece seçili olanları veya hiçbiri seçili değilse filtredeki listeyi dışa aktar
+    const dataToExport = selectedRows.length > 0 
+      ? inventory.filter(item => selectedRows.includes(item.id))
+      : filteredInventory;
+
+    if (dataToExport.length === 0) {
+      alert("Dışa aktarılacak veri bulunamadı.");
+      setIsExportModalOpen(false);
+      return;
+    }
+
+    const exportReadyData = dataToExport.map(item => {
+      const row = {};
+      if (selectedExportColumns["Parça Adı"]) row["Parça Adı"] = item.name;
+      if (selectedExportColumns["Lokasyon"]) row["Lokasyon"] = item.location;
+      if (selectedExportColumns["Stok Miktarı"]) row["Stok Miktarı"] = item.quantity;
+      if (selectedExportColumns["Kritik Limit"]) row["Kritik Limit"] = item.critical_limit;
+      return row;
+    });
+
+    await api.exportTableToExcel(exportReadyData, "depo_stok.xlsx");
+    setIsExportModalOpen(false);
   };
 
   const handleDownloadTemplate = async () => {
@@ -81,6 +111,21 @@ export default function Depo() {
       (item.location && item.location.toLowerCase().includes(q))
     );
   }, [inventory, searchTerm]);
+
+  const toggleSelectAll = () => {
+    if (selectedRows.length === filteredInventory.length && filteredInventory.length > 0) {
+      setSelectedRows([]);
+    } else {
+      setSelectedRows(filteredInventory.map(item => item.id));
+    }
+  };
+
+  const toggleRowSelect = (id, e) => {
+    e.stopPropagation();
+    setSelectedRows(prev => 
+      prev.includes(id) ? prev.filter(rowId => rowId !== id) : [...prev, id]
+    );
+  };
 
   // Calculate Occupancy
   const calculateOccupancy = () => {
@@ -134,10 +179,10 @@ export default function Depo() {
             <FileSpreadsheet size={18} /> İçe Aktar
           </button>
           <button 
-            onClick={handleExport}
+            onClick={() => setIsExportModalOpen(true)}
             className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl transition-colors font-medium flex items-center gap-2 shadow-sm shadow-emerald-900/20"
           >
-            <Upload size={18} /> Dışa Aktar
+            <Upload size={18} /> {selectedRows.length > 0 ? `${selectedRows.length} Seçiliyi Dışa Aktar` : 'Tümünü Dışa Aktar'}
           </button>
         </div>
       </div>
@@ -189,6 +234,14 @@ export default function Depo() {
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase text-xs sticky top-0 z-10">
               <tr>
+                <th className="px-6 py-4 w-12 text-center">
+                  <input 
+                    type="checkbox" 
+                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-white dark:bg-slate-800"
+                    checked={selectedRows.length === filteredInventory.length && filteredInventory.length > 0}
+                    onChange={toggleSelectAll}
+                  />
+                </th>
                 <th className="px-6 py-4">PARÇA ADI</th>
                 <th className="px-6 py-4">LOKASYON</th>
                 <th className="px-6 py-4">STOK MİKTARI</th>
@@ -197,14 +250,24 @@ export default function Depo() {
             <tbody className="divide-y divide-slate-700/50">
               {filteredInventory.map((item) => {
                 const isSelected = selectedItem?.id === item.id;
+                const isChecked = selectedRows.includes(item.id);
 
                 return (
                   <tr 
                     key={item.id} 
                     onClick={() => setSelectedItem(isSelected ? null : item)}
                     className={`cursor-pointer transition-colors
-                      ${isSelected ? 'bg-blue-600/10 border-l-2 border-blue-500' : 'hover:bg-slate-100 dark:hover:bg-[#2a3142] border-l-2 border-transparent text-slate-700 dark:text-slate-300'}`}
+                      ${isSelected ? 'bg-blue-600/10 border-l-2 border-blue-500' : 'hover:bg-slate-100 dark:hover:bg-[#2a3142] border-l-2 border-transparent text-slate-700 dark:text-slate-300'}
+                      ${isChecked ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}
                   >
+                    <td className="px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
+                      <input 
+                        type="checkbox" 
+                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-white dark:bg-slate-800"
+                        checked={isChecked}
+                        onChange={(e) => toggleRowSelect(item.id, e)}
+                      />
+                    </td>
                     <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200">{item.name}</td>
                     <td className="px-6 py-4 text-slate-400">{item.location}</td>
                     <td className="px-6 py-4 font-mono font-medium">{item.quantity}</td>
@@ -212,7 +275,7 @@ export default function Depo() {
                 );
               })}
               {filteredInventory.length === 0 && (
-                <tr><td colSpan="3" className="px-6 py-12 text-center text-slate-500">Kayıt bulunamadı.</td></tr>
+                <tr><td colSpan="4" className="px-6 py-12 text-center text-slate-500">Kayıt bulunamadı.</td></tr>
               )}
             </tbody>
           </table>
@@ -226,6 +289,46 @@ export default function Depo() {
         dbColumns={dbColumns}
         friendlyNames={friendlyNames}
       />
+
+      {/* Dışa Aktar Sütun Seçimi Modalı */}
+      {isExportModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/80 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-sm p-6">
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4">Sütun Seçimi</h2>
+            <p className="text-sm text-slate-500 mb-4">Dışa aktarılacak Excel dosyasında hangi sütunların bulunmasını istediğinizi seçin.</p>
+            
+            <div className="space-y-3 mb-6">
+              {Object.keys(selectedExportColumns).map((col) => (
+                <label key={col} className="flex items-center gap-3 cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={selectedExportColumns[col]}
+                    onChange={(e) => setSelectedExportColumns(prev => ({...prev, [col]: e.target.checked}))}
+                    className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-slate-50 dark:bg-slate-800"
+                  />
+                  <span className="text-slate-700 dark:text-slate-300 font-medium">{col}</span>
+                </label>
+              ))}
+            </div>
+
+            <div className="flex justify-end gap-3 mt-6">
+              <button 
+                onClick={() => setIsExportModalOpen(false)}
+                className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg transition-colors font-medium"
+              >
+                İptal
+              </button>
+              <button 
+                onClick={handleExport}
+                disabled={!Object.values(selectedExportColumns).some(Boolean)}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors font-medium shadow-md shadow-emerald-500/20 disabled:opacity-50"
+              >
+                Dışa Aktar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

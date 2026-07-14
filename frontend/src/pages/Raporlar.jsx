@@ -9,6 +9,24 @@ export default function Raporlar() {
   const [selectedLocation, setSelectedLocation] = useState('');
   const [loading, setLoading] = useState(false);
   
+  // Selection and Export States
+  const [selectedRows, setSelectedRows] = useState([]);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [selectedGeneralCols, setSelectedGeneralCols] = useState({
+    "Tarih": true,
+    "Hareket Tipi": true,
+    "Parça Adı": true,
+    "Lokasyon": true,
+    "Miktar": true,
+    "İşlemi Yapan": true
+  });
+  const [selectedCriticalCols, setSelectedCriticalCols] = useState({
+    "Parça Adı": true,
+    "Lokasyon": true,
+    "Mevcut Stok": true,
+    "Kritik Limit": true
+  });
+  
   // Date filters
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
@@ -52,6 +70,10 @@ export default function Raporlar() {
   
   const [activeTab, setActiveTab] = useState('general');
 
+  useEffect(() => {
+    setSelectedRows([]);
+  }, [activeTab]);
+
   const fetchReports = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
@@ -94,12 +116,63 @@ export default function Raporlar() {
   const filteredGeneralReports = generalReports.filter(r => selectedLocation === '' || r.location === selectedLocation);
   const filteredCriticalReports = criticalReports.filter(r => selectedLocation === '' || r.location === selectedLocation);
 
-  const handleExportGeneral = async () => {
-    await api.exportTableToExcel(filteredGeneralReports, "genel_raporlar.xlsx");
+  const toggleSelectAll = () => {
+    const dataList = activeTab === 'general' ? filteredGeneralReports : filteredCriticalReports;
+    if (selectedRows.length === dataList.length && dataList.length > 0) {
+      setSelectedRows([]);
+    } else {
+      setSelectedRows(dataList.map(item => item.id));
+    }
   };
 
-  const handleExportCritical = async () => {
-    await api.exportTableToExcel(filteredCriticalReports, "kritik_raporlar.xlsx");
+  const toggleRowSelect = (id, e) => {
+    e.stopPropagation();
+    setSelectedRows(prev => 
+      prev.includes(id) ? prev.filter(rowId => rowId !== id) : [...prev, id]
+    );
+  };
+
+  const executeExport = async () => {
+    const dataList = activeTab === 'general' ? filteredGeneralReports : filteredCriticalReports;
+    const baseReports = activeTab === 'general' ? generalReports : criticalReports;
+    
+    const dataToExport = selectedRows.length > 0 
+      ? baseReports.filter(r => selectedRows.includes(r.id))
+      : dataList;
+
+    if (dataToExport.length === 0) {
+      alert("Dışa aktarılacak veri bulunamadı.");
+      setIsExportModalOpen(false);
+      return;
+    }
+
+    let exportReadyData = [];
+
+    if (activeTab === 'general') {
+      exportReadyData = dataToExport.map(r => {
+        const row = {};
+        if (selectedGeneralCols["Tarih"]) row["Tarih"] = r.date;
+        if (selectedGeneralCols["Hareket Tipi"]) row["Hareket Tipi"] = r.type;
+        if (selectedGeneralCols["Parça Adı"]) row["Parça Adı"] = r.part_name;
+        if (selectedGeneralCols["Lokasyon"]) row["Lokasyon"] = r.location;
+        if (selectedGeneralCols["Miktar"]) row["Miktar"] = r.quantity;
+        if (selectedGeneralCols["İşlemi Yapan"]) row["İşlemi Yapan"] = r.user;
+        return row;
+      });
+      await api.exportTableToExcel(exportReadyData, 'genel_raporlar.xlsx');
+    } else {
+      exportReadyData = dataToExport.map(r => {
+        const row = {};
+        if (selectedCriticalCols["Parça Adı"]) row["Parça Adı"] = r.part_name;
+        if (selectedCriticalCols["Lokasyon"]) row["Lokasyon"] = r.location;
+        if (selectedCriticalCols["Mevcut Stok"]) row["Mevcut Stok"] = r.quantity;
+        if (selectedCriticalCols["Kritik Limit"]) row["Kritik Limit"] = r.critical_limit;
+        return row;
+      });
+      await api.exportTableToExcel(exportReadyData, 'kritik_raporlar.xlsx');
+    }
+    
+    setIsExportModalOpen(false);
   };
 
   useEffect(() => {
@@ -216,10 +289,10 @@ export default function Raporlar() {
               </button>
 
               <button 
-                onClick={handleExportGeneral}
+                onClick={() => setIsExportModalOpen(true)}
                 className="flex items-center gap-2 px-5 py-2 bg-slate-100 dark:bg-[#2a3142] hover:bg-[#323a4d] border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors ml-auto"
               >
-                <Download size={16} /> 📊 Excel'e Aktar
+                <Download size={16} /> {selectedRows.length > 0 ? `${selectedRows.length} Seçiliyi Dışa Aktar` : "Tümünü Dışa Aktar"}
               </button>
             </div>
           </div>
@@ -230,6 +303,14 @@ export default function Raporlar() {
               <table className="w-full text-left text-sm whitespace-nowrap">
                 <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs sticky top-0 z-10">
                   <tr>
+                    <th className="px-6 py-4 w-12 text-center">
+                      <input 
+                        type="checkbox" 
+                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-white dark:bg-slate-800"
+                        checked={selectedRows.length === filteredGeneralReports.length && filteredGeneralReports.length > 0}
+                        onChange={toggleSelectAll}
+                      />
+                    </th>
                     <th className="px-6 py-4">TARİH</th>
                     <th className="px-6 py-4">HAREKET TİPİ</th>
                     <th className="px-6 py-4">PARÇA ADI</th>
@@ -253,8 +334,18 @@ export default function Raporlar() {
                       </td>
                     </tr>
                   ) : (
-                    filteredGeneralReports.map((r) => (
-                      <tr key={r.id} className="hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors group text-slate-700 dark:text-slate-300">
+                    filteredGeneralReports.map((r) => {
+                      const isChecked = selectedRows.includes(r.id);
+                      return (
+                      <tr key={r.id} className={`hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors group text-slate-700 dark:text-slate-300 ${isChecked ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}>
+                        <td className="px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
+                          <input 
+                            type="checkbox" 
+                            className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-white dark:bg-slate-800"
+                            checked={isChecked}
+                            onChange={(e) => toggleRowSelect(r.id, e)}
+                          />
+                        </td>
                         <td className="px-6 py-4 font-mono text-slate-400">{r.date}</td>
                         <td className="px-6 py-4">
                           <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${
@@ -272,7 +363,8 @@ export default function Raporlar() {
                         <td className="px-6 py-4 font-mono text-slate-800 dark:text-slate-200">{r.quantity}</td>
                         <td className="px-6 py-4">{r.user}</td>
                       </tr>
-                    ))
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -286,10 +378,10 @@ export default function Raporlar() {
           {/* Toolbar Critical */}
           <div className="bg-white dark:bg-[#1e2330] p-4 rounded-xl border border-slate-200 dark:border-slate-700/50 shadow-sm flex items-center shrink-0">
             <button 
-              onClick={handleExportCritical}
-              className="flex items-center gap-2 px-5 py-2 bg-slate-100 dark:bg-[#2a3142] hover:bg-[#323a4d] border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors"
+              onClick={() => setIsExportModalOpen(true)}
+              className="flex items-center gap-2 px-5 py-2 bg-slate-100 dark:bg-[#2a3142] hover:bg-[#323a4d] border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors ml-auto"
             >
-              <Download size={16} /> 📊 Excel'e Aktar
+              <Download size={16} /> {selectedRows.length > 0 ? `${selectedRows.length} Seçiliyi Dışa Aktar` : "Tümünü Dışa Aktar"}
             </button>
           </div>
 
@@ -299,6 +391,14 @@ export default function Raporlar() {
               <table className="w-full text-left text-sm whitespace-nowrap">
                 <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs sticky top-0 z-10">
                   <tr>
+                    <th className="px-6 py-4 w-12 text-center">
+                      <input 
+                        type="checkbox" 
+                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-white dark:bg-slate-800"
+                        checked={selectedRows.length === filteredCriticalReports.length && filteredCriticalReports.length > 0}
+                        onChange={toggleSelectAll}
+                      />
+                    </th>
                     <th className="px-6 py-4">PARÇA ADI</th>
                     <th className="px-6 py-4">LOKASYON</th>
                     <th className="px-6 py-4">MEVCUT STOK</th>
@@ -320,8 +420,18 @@ export default function Raporlar() {
                       </td>
                     </tr>
                   ) : (
-                    filteredCriticalReports.map((r) => (
-                      <tr key={r.id} className="hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors group text-slate-700 dark:text-slate-300">
+                    filteredCriticalReports.map((r) => {
+                      const isChecked = selectedRows.includes(r.id);
+                      return (
+                      <tr key={r.id} className={`hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors group text-slate-700 dark:text-slate-300 ${isChecked ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}>
+                        <td className="px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
+                          <input 
+                            type="checkbox" 
+                            className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-white dark:bg-slate-800"
+                            checked={isChecked}
+                            onChange={(e) => toggleRowSelect(r.id, e)}
+                          />
+                        </td>
                         <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200">{r.part_name}</td>
                         <td className="px-6 py-4 text-slate-400">{r.location}</td>
                         <td className="px-6 py-4 font-mono">
@@ -331,13 +441,60 @@ export default function Raporlar() {
                         </td>
                         <td className="px-6 py-4 font-mono text-slate-400">{r.critical_limit}</td>
                       </tr>
-                    ))
+                      );
+                    })
                   )}
                 </tbody>
               </table>
             </div>
           </div>
         </>
+      )}
+
+      {/* Dışa Aktar Sütun Seçimi Modalı */}
+      {isExportModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/80 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-sm p-6">
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4">Sütun Seçimi</h2>
+            <p className="text-sm text-slate-500 mb-4">Dışa aktarılacak Excel dosyasında hangi sütunların bulunmasını istediğinizi seçin.</p>
+            
+            <div className="space-y-3 mb-6 max-h-60 overflow-y-auto pr-2">
+              {Object.keys(activeTab === 'general' ? selectedGeneralCols : selectedCriticalCols).map((col) => (
+                <label key={col} className="flex items-center gap-3 cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={activeTab === 'general' ? selectedGeneralCols[col] : selectedCriticalCols[col]}
+                    onChange={(e) => {
+                      if (activeTab === 'general') {
+                        setSelectedGeneralCols(prev => ({...prev, [col]: e.target.checked}));
+                      } else {
+                        setSelectedCriticalCols(prev => ({...prev, [col]: e.target.checked}));
+                      }
+                    }}
+                    className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-slate-50 dark:bg-slate-800"
+                  />
+                  <span className="text-slate-700 dark:text-slate-300 font-medium">{col}</span>
+                </label>
+              ))}
+            </div>
+
+            <div className="flex justify-end gap-3 mt-6">
+              <button 
+                onClick={() => setIsExportModalOpen(false)}
+                className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg transition-colors font-medium"
+              >
+                İptal
+              </button>
+              <button 
+                onClick={executeExport}
+                disabled={!Object.values(activeTab === 'general' ? selectedGeneralCols : selectedCriticalCols).some(Boolean)}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors font-medium shadow-md shadow-emerald-500/20 disabled:opacity-50"
+              >
+                Dışa Aktar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
     </div>
