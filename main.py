@@ -18,7 +18,7 @@ def main():
     QLocale.setDefault(QLocale(QLocale.Turkish, QLocale.Turkey))
     
     import os
-    os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--lang=tr-TR --disable-disk-cache --disable-gpu-shader-disk-cache"
+    os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--lang=tr-TR"
 
     app = QApplication(sys.argv)
 
@@ -33,12 +33,19 @@ def main():
     if os.path.exists(icon_path):
         app.setWindowIcon(QIcon(icon_path))
 
-    # Veritabanını hazırla
-    try:
-        init_database_schema()
-        register_db_error_listener()
-    except Exception as db_err:
-        print(f"[WARN] Database tables could not be auto-initialized: {db_err}")
+    # Veritabanı şema kontrolünü arka planda yap ki pencere hemen açılsın
+    # (uzak DB'ye bağlanıp tüm tabloları introspect etmek pencerenin
+    # görünmesini bloklamamalı).
+    import threading
+
+    def _init_db_background():
+        try:
+            init_database_schema()
+            register_db_error_listener()
+        except Exception as db_err:
+            print(f"[WARN] Database tables could not be auto-initialized: {db_err}")
+
+    threading.Thread(target=_init_db_background, daemon=True).start()
 
     # Ana pencereyi (WebEngine) aç
     window = MainWindow()
