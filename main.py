@@ -18,7 +18,7 @@ def main():
     QLocale.setDefault(QLocale(QLocale.Turkish, QLocale.Turkey))
     
     import os
-    os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--lang=tr-TR"
+    os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--lang=tr-TR --disable-disk-cache --disable-gpu-shader-disk-cache"
 
     app = QApplication(sys.argv)
 

@@ -66,6 +66,8 @@ class MainWindow(QMainWindow):
         # Windows/Linux/Mac için standart veri yoluna kaydet
         storage_path = os.path.join(os.path.expanduser("~"), ".remalab", "webengine_data")
         self.profile.setPersistentStoragePath(storage_path)
+        self.profile.setCachePath(storage_path)
+        self.profile.setHttpCacheType(QWebEngineProfile.HttpCacheType.NoCache)
 
         # Custom page for JS logs (Kalıcı profili kullanarak)
         self.web_page = WebPage(self.profile, self.web_view)
