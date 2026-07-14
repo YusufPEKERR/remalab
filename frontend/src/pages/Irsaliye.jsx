@@ -250,7 +250,10 @@ export default function Irsaliye() {
   };
 
   const handleBarcodeSearch = () => {
-    const p = parts.find(x => x.item_code === inboundBarcode || String(x.item_code) === inboundBarcode);
+    const p = parts.find(x => 
+      x.item_code === inboundBarcode || String(x.item_code) === inboundBarcode ||
+      x.barcode === inboundBarcode || String(x.barcode) === inboundBarcode
+    );
     if (p) {
       setInboundBrand(p.brand || '');
       setInboundModel(p.model || '');
@@ -261,7 +264,10 @@ export default function Irsaliye() {
   };
 
   const handleOutboundBarcodeSearch = () => {
-    const p = parts.find(x => x.item_code === outboundBarcode || String(x.item_code) === outboundBarcode);
+    const p = parts.find(x => 
+      x.item_code === outboundBarcode || String(x.item_code) === outboundBarcode ||
+      x.barcode === outboundBarcode || String(x.barcode) === outboundBarcode
+    );
     if (p) {
       setOutboundBrand(p.brand || '');
       setOutboundModel(p.model || '');

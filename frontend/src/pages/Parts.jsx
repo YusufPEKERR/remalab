@@ -163,7 +163,7 @@ export default function Parts() {
   const handleSearchBarcode = (e) => {
     if (e && e.preventDefault) e.preventDefault();
     if (!formData.item_code) return;
-    const existing = parts.find(p => p.item_code === formData.item_code);
+    const existing = parts.find(p => p.item_code === formData.item_code || p.barcode === formData.item_code);
     if (existing) {
       setFormData({
         item_code: existing.item_code || '',
