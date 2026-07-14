@@ -228,6 +228,13 @@ export default function WorkOrders() {
     { key: 'history', label: 'Üretim Geçmişi', icon: TrendingUp }
   ];
 
+  const uniqueBrands = [...new Set(parts.map(p => p.brand).filter(Boolean))].sort();
+  const uniqueModels = [...new Set(parts.filter(p => p.brand === productionForm.target_brand).map(p => p.model).filter(Boolean))].sort();
+  const targetPartsList = parts.filter(p => 
+    (!productionForm.target_brand || p.brand === productionForm.target_brand) &&
+    (!productionForm.target_model || p.model === productionForm.target_model)
+  );
+
   return (
     <div className="h-full flex flex-col space-y-6 overflow-hidden">
 
@@ -430,16 +437,30 @@ export default function WorkOrders() {
             <p className="text-slate-400 text-sm mb-6">Hammadde/parça tüketerek yeni bir parça stoku oluşturun. Seçilen lokasyondaki hammaddeler otomatik düşülür, üretilen parçanın stoku artırılır.</p>
 
             <form onSubmit={handleSaveProduction} className="space-y-5">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
                 <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1.5">Üretilen Parça <span className="text-red-400">*</span></label>
-                  <select required className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={productionForm.target_part_id} onChange={e => setProductionForm({...productionForm, target_part_id: e.target.value})}>
-                    <option value="">Parça seçiniz...</option>
-                    {parts.map(p => <option key={p.id} value={p.id}>{p.brand} {p.model} {p.color} {p.part_category} {p.item_code ? `- ${p.item_code}` : ''}</option>)}
+                  <label className="block text-sm font-medium text-slate-400 mb-1.5">Marka <span className="text-red-400">*</span></label>
+                  <select className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={productionForm.target_brand} onChange={e => setProductionForm({...productionForm, target_brand: e.target.value, target_model: '', target_part_id: ''})}>
+                    <option value="">Tümü</option>
+                    {uniqueBrands.map(b => <option key={b} value={b}>{b}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1.5">Üretilen Miktar <span className="text-red-400">*</span></label>
+                  <label className="block text-sm font-medium text-slate-400 mb-1.5">Model <span className="text-red-400">*</span></label>
+                  <select className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 disabled:opacity-50" value={productionForm.target_model} onChange={e => setProductionForm({...productionForm, target_model: e.target.value, target_part_id: ''})} disabled={!productionForm.target_brand}>
+                    <option value="">Tümü</option>
+                    {uniqueModels.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-400 mb-1.5">Üretilen Parça <span className="text-red-400">*</span></label>
+                  <select required className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 disabled:opacity-50" value={productionForm.target_part_id} onChange={e => setProductionForm({...productionForm, target_part_id: e.target.value})} disabled={!productionForm.target_model && productionForm.target_brand}>
+                    <option value="">Parça seçiniz...</option>
+                    {targetPartsList.map(p => <option key={p.id} value={p.id}>{p.brand} {p.model} {p.color} {p.part_category} {p.item_code ? `- ${p.item_code}` : ''}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-400 mb-1.5">Miktar <span className="text-red-400">*</span></label>
                   <input type="number" required min="1" className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={productionForm.quantity_produced} onChange={e => setProductionForm({...productionForm, quantity_produced: e.target.value})} />
                 </div>
               </div>
@@ -487,7 +508,10 @@ export default function WorkOrders() {
                           <div className="flex gap-2 items-center">
                             <select className="flex-1 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-blue-500" value={row.part_id} onChange={e => handleMaterialRowChange(idx, 'part_id', e.target.value)}>
                               <option value="">Parça seçiniz...</option>
-                              {parts.map(p => <option key={p.id} value={p.id}>{p.brand} {p.model} {p.color} {p.part_category} {p.item_code ? `- ${p.item_code}` : ''}</option>)}
+                              {parts
+                                .filter(p => !productionForm.target_brand || p.brand === productionForm.target_brand)
+                                .filter(p => !productionForm.target_model || p.model === productionForm.target_model)
+                                .map(p => <option key={p.id} value={p.id}>{p.brand} {p.model} {p.color} {p.part_category} {p.item_code ? `- ${p.item_code}` : ''}</option>)}
                             </select>
                             <input type="number" min="1" className="w-20 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-blue-500" value={row.quantity_consumed} onChange={e => handleMaterialRowChange(idx, 'quantity_consumed', e.target.value)} />
                             <button type="button" onClick={() => handleRemoveMaterialRow(idx)} className="p-2 text-red-400 hover:bg-red-400/10 rounded-lg transition-colors">
