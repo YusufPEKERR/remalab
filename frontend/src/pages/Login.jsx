@@ -227,6 +227,16 @@ export default function Login() {
           </div>
         </div>
       </div>
+
+      {/* Loading Overlay */}
+      {loading && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex flex-col items-center justify-center z-[100] animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-[#1e2330] p-6 rounded-2xl shadow-2xl flex flex-col items-center gap-4">
+            <RefreshCw size={32} className="text-blue-600 animate-spin" />
+            <p className="text-slate-800 dark:text-slate-200 font-medium">Giriş Yapılıyor, lütfen bekleyin...</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
