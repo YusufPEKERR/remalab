@@ -178,6 +178,29 @@ export default function Parts() {
     }));
   };
 
+  const handleSearchBarcode = (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!formData.item_code) return;
+    const existing = parts.find(p => p.item_code === formData.item_code);
+    if (existing) {
+      setFormData({
+        ...existing,
+        // Ensure department is correctly formatted as an array for the form
+        department: existing.department ? String(existing.department).split(',').map(d => d.trim()).filter(Boolean) : []
+      });
+      // Update compatibleList
+      const brands = (existing.brand || '').split(',').map(s => s.trim()).filter(Boolean);
+      const models = (existing.model || '').split(',').map(s => s.trim()).filter(Boolean);
+      const list = [];
+      for (let i = 0; i < Math.max(brands.length, models.length); i++) {
+        list.push({ brand: brands[i] || '', model: models[i] || '' });
+      }
+      setCompatibleList(list);
+    } else {
+      alert("Bu parça koduna ait mevcut bir kayıt bulunamadı.");
+    }
+  };
+
   const handleAddCompatibleModel = () => {
     if (!tempBrand || !tempModel) return;
     const exists = compatibleList.find(c => c.brand === tempBrand && c.model === tempModel);
@@ -512,13 +535,29 @@ export default function Parts() {
             
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-1">Parça Kodu <span className="text-red-400">*</span></label>
-                <input 
-                  type="text" required
-                  className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
-                  value={formData.item_code}
-                  onChange={e => setFormData({...formData, item_code: e.target.value})}
-                />
+                <label className="block text-sm font-medium text-slate-400 mb-1">Parça Kodu (Barkod) <span className="text-red-400">*</span></label>
+                <div className="relative">
+                  <input 
+                    type="text" required
+                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg pl-3 pr-10 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                    value={formData.item_code}
+                    onChange={e => setFormData({...formData, item_code: e.target.value})}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleSearchBarcode();
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSearchBarcode}
+                    className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 hover:text-blue-500 transition-colors"
+                    title="Bilgileri Getir"
+                  >
+                    <Search size={18} />
+                  </button>
+                </div>
               </div>
               <div className="bg-slate-50 dark:bg-[#242a38] p-4 rounded-xl border border-slate-200 dark:border-slate-700/50 space-y-3">
                 <label className="block text-sm font-bold text-slate-800 dark:text-slate-200">Uyumlu Cihazlar (BOM) <span className="text-red-400">*</span></label>
