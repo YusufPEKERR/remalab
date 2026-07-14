@@ -10,17 +10,20 @@ const PRIORITY_STYLES = {
   'Acil': 'bg-red-500/10 text-red-400 border-red-500/20'
 };
 
-const STATUS_OPTIONS = ['Beklemede', 'Devam Ediyor', 'Tamamlandı', 'İptal'];
+const STATUS_OPTIONS = ['Beklemede', 'Devam Ediyor', 'Tamamlandı', 'Başarısız', 'İptal'];
 const STATUS_STYLES = {
   'Beklemede': 'bg-slate-500/10 text-slate-400 border-slate-500/20',
   'Devam Ediyor': 'bg-blue-500/10 text-blue-400 border-blue-500/20',
   'Tamamlandı': 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-  'İptal': 'bg-red-500/10 text-red-400 border-red-500/20'
+  'Başarısız': 'bg-red-500/10 text-red-400 border-red-500/20',
+  'İptal': 'bg-slate-500/10 text-slate-400 border-slate-500/20'
 };
+// Bu duruma geçişte iş emrindeki parçalar otomatik olarak taşınır (bkz. update_work_order).
+const TERMINAL_STATUSES = ['Tamamlandı', 'Başarısız', 'İptal'];
 
 const EMPTY_FORM = {
   service_record_id: '', description: '', assigned_technician: '', priority: 'Orta',
-  start_date: '', end_date: '', status: 'Beklemede'
+  start_date: '', end_date: '', status: 'Beklemede', source_location_id: ''
 };
 
 const EMPTY_PRODUCTION_FORM = {
@@ -42,6 +45,7 @@ export default function WorkOrders() {
   const [parts, setParts] = useState([]);
   const [locations, setLocations] = useState([]);
   const [stockStatus, setStockStatus] = useState([]);
+  const [systemLocations, setSystemLocations] = useState([]);
 
   // --- Üretim (production) state ---
   const [productionRuns, setProductionRuns] = useState([]);
@@ -71,6 +75,7 @@ export default function WorkOrders() {
     api.getParts().then(res => { if (res.success) setParts(res.parts || []); });
     api.getLocations().then(res => { if (res.success) setLocations(res.locations || []); });
     api.getStockStatus().then(res => { if (res.success) setStockStatus(res.stock || []); });
+    api.getSystemLocations().then(res => { if (res.success) setSystemLocations(res.locations || []); });
   }, []);
 
   const getStockQty = (partId, locId) => {
@@ -78,6 +83,9 @@ export default function WorkOrders() {
     const entry = stockStatus.find(s => String(s.part_id) === String(partId) && String(s.location_id) === String(locId));
     return entry ? entry.quantity : 0;
   };
+
+  // İş emri parçaları sadece Good/DOA Stock'tan (Repair Stock'a) beslenebilir.
+  const workOrderSourceLocations = systemLocations.filter(l => l.kind === 'good_stock' || l.kind === 'doa_stock');
 
   // ===================== İş Emri handlers =====================
 
@@ -91,7 +99,8 @@ export default function WorkOrders() {
         priority: order.priority || 'Orta',
         start_date: order.start_date || '',
         end_date: order.end_date || '',
-        status: order.status || 'Beklemede'
+        status: order.status || 'Beklemede',
+        source_location_id: order.source_location_id || ''
       });
       try {
         setPartsUsed(JSON.parse(order.parts_used || '[]'));
@@ -120,7 +129,28 @@ export default function WorkOrders() {
 
   const handleSave = async (e) => {
     e.preventDefault();
-    const payload = { ...formData, parts_used: JSON.stringify(partsUsed.filter(r => r.part_id)) };
+    const usedParts = partsUsed.filter(r => r.part_id && Number(r.quantity) > 0);
+
+    if (!editingOrder && usedParts.length > 0) {
+      if (!formData.source_location_id) {
+        alert('Parça kullanılan bir iş emri için Kaynak Depo seçmelisiniz.');
+        return;
+      }
+      for (const row of usedParts) {
+        const available = getStockQty(row.part_id, formData.source_location_id);
+        if (Number(row.quantity) > available) {
+          alert('Seçilen kaynak depoda bazı parçalar için yeterli stok yok. Lütfen miktarları kontrol edin.');
+          return;
+        }
+      }
+    }
+
+    if (editingOrder && TERMINAL_STATUSES.includes(formData.status) && formData.status !== editingOrder.status && !editingOrder.stock_settled_at) {
+      const ok = window.confirm('Bu işlem, iş emrindeki parçaları otomatik olarak ilgili depoya (Good/Scrap Stock veya kaynak depo) taşıyacak. Onaylıyor musunuz?');
+      if (!ok) return;
+    }
+
+    const payload = { ...formData, parts_used: JSON.stringify(usedParts) };
     const res = editingOrder
       ? await api.updateWorkOrder(editingOrder.id, payload)
       : await api.createWorkOrder(payload);
@@ -129,6 +159,7 @@ export default function WorkOrders() {
       setFormData(EMPTY_FORM);
       setPartsUsed([]);
       fetchOrders();
+      api.getStockStatus().then(r => { if (r.success) setStockStatus(r.stock || []); });
       setActiveTab('list');
     } else {
       alert(res.message || 'İşlem başarısız oldu.');
@@ -315,29 +346,62 @@ export default function WorkOrders() {
                 </div>
               </div>
 
+              {!editingOrder && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-400 mb-1.5">Kaynak Depo (Kullanılan Parçalar İçin)</label>
+                  <select className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={formData.source_location_id} onChange={e => setFormData({...formData, source_location_id: e.target.value})}>
+                    <option value="">Seçiniz...</option>
+                    {workOrderSourceLocations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                  </select>
+                  <p className="text-xs text-slate-500 mt-1">Aşağıda eklenen parçalar, iş emri oluşturulduğunda bu depodan Repair Stock'a otomatik taşınır.</p>
+                </div>
+              )}
+
               <div>
                 <div className="flex justify-between items-center mb-1.5">
                   <label className="block text-sm font-medium text-slate-400">Kullanılan Parçalar</label>
-                  <button type="button" onClick={handleAddPartRow} className="text-xs text-blue-400 hover:text-blue-300 font-medium flex items-center gap-1">
-                    <Plus size={14} /> Parça Ekle
-                  </button>
+                  {!editingOrder && (
+                    <button type="button" onClick={handleAddPartRow} className="text-xs text-blue-400 hover:text-blue-300 font-medium flex items-center gap-1">
+                      <Plus size={14} /> Parça Ekle
+                    </button>
+                  )}
                 </div>
                 {partsUsed.length === 0 ? (
                   <p className="text-xs text-slate-500">Henüz parça eklenmedi.</p>
+                ) : editingOrder ? (
+                  <div className="space-y-1">
+                    {partsUsed.map((row, idx) => (
+                      <p key={idx} className="text-xs text-slate-400">
+                        {parts.find(p => String(p.id) === String(row.part_id))?.name || `Parça #${row.part_id}`} — {row.quantity} adet
+                      </p>
+                    ))}
+                    <p className="text-xs text-slate-500 italic">Parçalar iş emri oluşturulurken rezerve edildi, buradan değiştirilemez.</p>
+                  </div>
                 ) : (
                   <div className="space-y-2">
-                    {partsUsed.map((row, idx) => (
-                      <div key={idx} className="flex gap-2 items-center">
-                        <select className="flex-1 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-blue-500" value={row.part_id} onChange={e => handlePartRowChange(idx, 'part_id', e.target.value)}>
-                          <option value="">Parça seçiniz...</option>
-                          {parts.map(p => <option key={p.id} value={p.id}>{p.brand} {p.model} {p.color} {p.part_category} {p.item_code ? `- ${p.item_code}` : ''}</option>)}
-                        </select>
-                        <input type="number" min="1" className="w-20 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-blue-500" value={row.quantity} onChange={e => handlePartRowChange(idx, 'quantity', e.target.value)} />
-                        <button type="button" onClick={() => handleRemovePartRow(idx)} className="p-2 text-red-400 hover:bg-red-400/10 rounded-lg transition-colors">
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    ))}
+                    {partsUsed.map((row, idx) => {
+                      const available = getStockQty(row.part_id, formData.source_location_id);
+                      const insufficient = row.part_id && formData.source_location_id && Number(row.quantity) > available;
+                      return (
+                        <div key={idx}>
+                          <div className="flex gap-2 items-center">
+                            <select className="flex-1 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-blue-500" value={row.part_id} onChange={e => handlePartRowChange(idx, 'part_id', e.target.value)}>
+                              <option value="">Parça seçiniz...</option>
+                              {parts.map(p => <option key={p.id} value={p.id}>{p.brand} {p.model} {p.color} {p.part_category} {p.item_code ? `- ${p.item_code}` : ''}</option>)}
+                            </select>
+                            <input type="number" min="1" className="w-20 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-blue-500" value={row.quantity} onChange={e => handlePartRowChange(idx, 'quantity', e.target.value)} />
+                            <button type="button" onClick={() => handleRemovePartRow(idx)} className="p-2 text-red-400 hover:bg-red-400/10 rounded-lg transition-colors">
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                          {row.part_id && formData.source_location_id && (
+                            <p className={`mt-1 text-xs font-medium ${insufficient ? 'text-red-500' : 'text-emerald-500'}`}>
+                              Kaynak depoda mevcut: {available}{insufficient ? ' — Yetersiz!' : ''}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>

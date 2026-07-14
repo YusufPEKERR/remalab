@@ -5,7 +5,6 @@ import ExcelMappingModal from '../components/ExcelMappingModal';
 import StockTransferModal from '../components/StockTransferModal';
 
 export default function Irsaliye() {
-  const [activeTab, setActiveTab] = useState('inbound'); // 'inbound' or 'outbound'
   const [movements, setMovements] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -20,6 +19,7 @@ export default function Irsaliye() {
   const [locations, setLocations] = useState([]);
   const [stockStatus, setStockStatus] = useState([]);
   const [users, setUsers] = useState([]);
+  const [systemLocations, setSystemLocations] = useState([]);
   const [formData, setFormData] = useState({ part_id: '', loc_id: '', source_loc_id: '', qty: 1, price: 0, type: '', technician: '', description: '' });
 
   // Inbound Form States
@@ -33,6 +33,7 @@ export default function Irsaliye() {
   const [outboundModel, setOutboundModel] = useState('');
 
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
+  const [excelDirection, setExcelDirection] = useState('inbound');
 
   const dbColumns = ["part_id", "loc_id", "qty", "price", "type"];
   const friendlyNames = {
@@ -49,22 +50,22 @@ export default function Irsaliye() {
     
     for (const row of data) {
         if (!row.part_id || !row.loc_id || !row.qty) continue;
-        
-        if (activeTab === 'inbound') {
+
+        if (excelDirection === 'inbound') {
             await api.addInboundEntry(
-                row.part_id, 
-                row.loc_id, 
-                row.qty, 
-                row.price || 0, 
-                row.type || 'Yeni Alım', 
+                row.part_id,
+                row.loc_id,
+                row.qty,
+                row.price || 0,
+                row.type || 'Yeni Alım',
                 'admin'
             );
         } else {
             await api.addOutboundEntry(
-                row.part_id, 
-                row.loc_id, 
-                row.qty, 
-                row.type || 'Çıkış', 
+                row.part_id,
+                row.loc_id,
+                row.qty,
+                row.type || 'Çıkış',
                 'admin'
             );
         }
@@ -78,20 +79,21 @@ export default function Irsaliye() {
   const handleExcelAction = async (e) => {
     const action = e.target.value;
     e.target.value = '';
-    
-    if (action === 'download_template') {
+
+    if (action === 'template_in' || action === 'template_out') {
+        const isIn = action === 'template_in';
         const templateData = [{
           "Parça ID": "1",
           "Lokasyon ID": "1",
           "Miktar": 10,
           "Birim Fiyat": 150.00,
-          "İşlem Türü": activeTab === 'inbound' ? "Yeni Alım" : "Çıkış"
+          "İşlem Türü": isIn ? "Yeni Alım" : "Çıkış"
         }];
-        await api.exportTableToExcel(templateData, "irsaliye_sablon.xlsx");
+        await api.exportTableToExcel(templateData, isIn ? "giris_sablon.xlsx" : "cikis_sablon.xlsx");
     } else if (action === 'export') {
-        const filename = activeTab === 'inbound' ? 'giris_irsaliyeleri.xlsx' : 'cikis_irsaliyeleri.xlsx';
-        await api.exportTableToExcel(movements, filename);
-    } else if (action === 'import') {
+        await api.exportTableToExcel(movements, 'irsaliye_hareketleri.xlsx');
+    } else if (action === 'import_in' || action === 'import_out') {
+        setExcelDirection(action === 'import_in' ? 'inbound' : 'outbound');
         setIsExcelModalOpen(true);
     }
   };
@@ -99,8 +101,7 @@ export default function Irsaliye() {
   const fetchData = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      const typeStr = activeTab === 'inbound' ? 'in' : 'out';
-      const res = await api.getStockMovements(typeStr);
+      const res = await api.getStockMovements('all');
       if (res && res.success) {
         setMovements(res.movements || []);
       } else {
@@ -111,7 +112,21 @@ export default function Irsaliye() {
     } finally {
       if (!silent) setLoading(false);
     }
-  }, [activeTab]);
+  }, []);
+
+  const getDirection = (mov) => {
+    const hasSource = mov.source_location && mov.source_location !== '-';
+    const hasTarget = mov.target_location && mov.target_location !== '-';
+    if (hasSource && hasTarget) return 'transfer';
+    if (hasSource) return 'out';
+    return 'in';
+  };
+
+  const directionBadge = (dir) => {
+    if (dir === 'in') return <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">Giriş</span>;
+    if (dir === 'out') return <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-red-500/10 text-red-500 border border-red-500/20">Çıkış</span>;
+    return <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-500 border border-blue-500/20">Transfer</span>;
+  };
 
   const fetchDependencies = async () => {
     const resP = await api.getParts();
@@ -122,6 +137,13 @@ export default function Irsaliye() {
     if (resS && resS.success) setStockStatus(resS.stock);
     const resU = await api.getUsers();
     if (resU && resU.success) setUsers(resU.users);
+    const resSys = await api.getSystemLocations();
+    if (resSys && resSys.success) setSystemLocations(resSys.locations || []);
+  };
+
+  const getSystemLocationId = (kind) => {
+    const loc = systemLocations.find(l => l.kind === kind);
+    return loc ? String(loc.id) : '';
   };
 
   const getStockQty = (partId, locId) => {
@@ -244,34 +266,8 @@ export default function Irsaliye() {
       <div className="flex justify-between items-start">
         <div>
           <h1 className="text-2xl font-bold text-slate-800 tracking-tight">İrsaliye</h1>
-          <p className="text-slate-500 mt-1">
-            {activeTab === 'inbound' 
-              ? 'Yeni stok girişlerini (Giriş İrsaliyesi) kaydedin' 
-              : 'Depodan çıkış işlemlerini (Çıkış İrsaliyesi) kaydedin'}
-          </p>
+          <p className="text-slate-500 mt-1">Stok giriş ve çıkış hareketlerini tek ekrandan yönetin</p>
         </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="border-b border-slate-200 dark:border-slate-700 mt-2">
-        <nav className="-mb-px flex space-x-8">
-          <button
-            onClick={() => setActiveTab('inbound')}
-            className={`whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm transition-colors
-              ${activeTab === 'inbound' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}
-            `}
-          >
-            Giriş
-          </button>
-          <button
-            onClick={() => setActiveTab('outbound')}
-            className={`whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm transition-colors
-              ${activeTab === 'outbound' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}
-            `}
-          >
-            Çıkış
-          </button>
-        </nav>
       </div>
 
       {error && (
@@ -282,116 +278,98 @@ export default function Irsaliye() {
       {/* Actions */}
       <div className="flex justify-between items-center bg-white dark:bg-[#1e2330] p-4 rounded-xl border border-slate-200 dark:border-slate-700/50 shadow-sm">
         <div className="text-slate-700 dark:text-slate-300 text-sm">
-          {activeTab === 'inbound' ? 'Yeni Stok Girişi' : 'Depo Çıkış Modülü'}
+          Stok Giriş / Çıkış Modülü
         </div>
         <div className="flex gap-3 items-center">
-          <button 
+          <button
             onClick={() => setIsTransferModalOpen(true)}
             className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-slate-900 rounded-lg transition-colors font-bold flex items-center gap-2 shadow-sm"
           >
             <ArrowRightLeft size={16} /> Stok Transferi
           </button>
           <div className="relative">
-            <select 
+            <select
               onChange={handleExcelAction}
               className="appearance-none bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-2 pr-8 transition-colors font-medium cursor-pointer focus:outline-none focus:border-blue-500"
             >
               <option value="">Excel İşlemi Seç...</option>
-              <option value="download_template">Boş Şablon İndir</option>
-              <option value="export">Excel'e Dışa Aktar</option>
-              <option value="import">Excel'den İçe Aktar</option>
+              <option value="template_in">Giriş Şablonu İndir</option>
+              <option value="template_out">Çıkış Şablonu İndir</option>
+              <option value="export">Tümünü Dışa Aktar</option>
+              <option value="import_in">Giriş İçe Aktar</option>
+              <option value="import_out">Çıkış İçe Aktar</option>
             </select>
             <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-slate-400">
               <FileSpreadsheet size={16} />
             </div>
           </div>
-          {activeTab === 'inbound' ? (
-            <button 
-              onClick={resetInboundForm}
-              className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-sm font-medium transition-colors"
-            >
-              <Plus size={16} /> Yeni Stok Ekle
-            </button>
-          ) : (
-            <button 
-              onClick={() => { setOutboundBarcode(''); setOutboundBrand(''); setOutboundModel(''); setFormData({ part_id: '', loc_id: '', qty: 1, price: 0, type: 'Teknik Servis', technician: '', description: '' }); setShowOutboundModal(true); fetchDependencies(); }}
-              className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-colors"
-            >
-              <Plus size={16} /> Stok Çıkışı Yap
-            </button>
-          )}
+          <button
+            onClick={resetInboundForm}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors"
+          >
+            <Plus size={16} /> Giriş Yap
+          </button>
+          <button
+            onClick={() => { setOutboundBarcode(''); setOutboundBrand(''); setOutboundModel(''); setFormData({ part_id: '', loc_id: '', qty: 1, price: 0, type: 'Teknik Servis', technician: '', description: '' }); setShowOutboundModal(true); fetchDependencies(); }}
+            className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-colors"
+          >
+            <Plus size={16} /> Stok Çıkışı Yap
+          </button>
         </div>
       </div>
 
       {/* Table */}
       <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-xl shadow-lg flex-1 overflow-hidden flex flex-col">
-        <div className="overflow-y-auto flex-1">
+        <div className="overflow-auto flex-1">
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-700 dark:text-slate-300 font-semibold border-b border-slate-200 dark:border-slate-700/50 sticky top-0 uppercase tracking-wider text-xs z-10">
-              {activeTab === 'inbound' ? (
-                <tr>
-                  <th className="px-6 py-4">PARÇA ADI</th>
-                  <th className="px-6 py-4">MİKTAR</th>
-                  <th className="px-6 py-4">BİRİM FİYAT</th>
-                  <th className="px-6 py-4">GİRİŞ TARİHİ</th>
-                  <th className="px-6 py-4">İŞLEMİ YAPAN</th>
-                  <th className="px-6 py-4">TÜR / DETAY</th>
-                </tr>
-              ) : (
-                <tr>
-                  <th className="px-6 py-4">PARÇA ADI</th>
-                  <th className="px-6 py-4">MİKTAR</th>
-                  <th className="px-6 py-4">KAYNAK -&gt; HEDEF</th>
-                  <th className="px-6 py-4">ÇIKIŞ TARİHİ</th>
-                  <th className="px-6 py-4">İŞLEMİ YAPAN</th>
-                  <th className="px-6 py-4">TÜR</th>
-                  <th className="px-6 py-4">AÇIKLAMA</th>
-                </tr>
-              )}
+              <tr>
+                <th className="px-6 py-4">PARÇA ADI</th>
+                <th className="px-6 py-4">YÖN</th>
+                <th className="px-6 py-4">MİKTAR</th>
+                <th className="px-6 py-4">BİRİM FİYAT</th>
+                <th className="px-6 py-4">KAYNAK DEPO</th>
+                <th className="px-6 py-4">HEDEF DEPO</th>
+                <th className="px-6 py-4">TARİH</th>
+                <th className="px-6 py-4">İŞLEMİ YAPAN</th>
+                <th className="px-6 py-4">TÜR</th>
+                <th className="px-6 py-4">AÇIKLAMA</th>
+              </tr>
             </thead>
             <tbody className="divide-y divide-slate-700/50">
               {loading ? (
                 <tr>
-                  <td colSpan={activeTab === 'inbound' ? 6 : 7} className="px-6 py-8 text-center text-slate-400">
+                  <td colSpan={10} className="px-6 py-8 text-center text-slate-400">
                     <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-indigo-400" />
                     Yükleniyor...
                   </td>
                 </tr>
               ) : movements.length === 0 ? (
                 <tr>
-                  <td colSpan={activeTab === 'inbound' ? 6 : 7} className="px-6 py-8 text-center text-slate-400">
+                  <td colSpan={10} className="px-6 py-8 text-center text-slate-400">
                     Kayıt bulunamadı.
                   </td>
                 </tr>
               ) : (
-                movements.map((mov, index) => (
-                  <tr key={`${mov.id}-${index}`} className="hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors group text-slate-800 dark:text-slate-200">
-                    {activeTab === 'inbound' ? (
-                      <>
-                        <td className="px-6 py-3">{mov.part_name}</td>
-                        <td className="px-6 py-3 font-mono">{mov.quantity}</td>
-                        <td className="px-6 py-3 font-mono">{mov.unit_price ? `${mov.unit_price.toFixed(2)} TL` : '-'}</td>
-                        <td className="px-6 py-3 text-slate-400">{mov.created_at}</td>
-                        <td className="px-6 py-3">{mov.created_by}</td>
-                        <td className="px-6 py-3">
-                          {mov.type === 'İç Transfer' ? `İç Transfer: ${mov.source_location} -> ${mov.target_location}` : mov.type}
-                        </td>
-                      </>
-                    ) : (
-                      <>
-                        <td className="px-6 py-3">{mov.part_name}</td>
-                        <td className="px-6 py-3 font-mono">{mov.quantity}</td>
-                        <td className="px-6 py-3">
-                          {mov.source_location} &rarr; {mov.type === 'İç Transfer' ? mov.target_location : 'Dışarı'}
-                        </td>
-                        <td className="px-6 py-3 text-slate-400">{mov.created_at}</td>
-                        <td className="px-6 py-3">{mov.created_by}</td>
-                        <td className="px-6 py-3">{mov.type}</td>
-                        <td className="px-6 py-3 text-slate-400">{mov.description || '-'}</td>
-                      </>
-                    )}
-                  </tr>
-                ))
+                movements.map((mov, index) => {
+                  const dir = getDirection(mov);
+                  return (
+                    <tr key={`${mov.id}-${index}`} className="hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors group text-slate-800 dark:text-slate-200">
+                      <td className="px-6 py-3">{mov.part_name}</td>
+                      <td className="px-6 py-3">{directionBadge(dir)}</td>
+                      <td className={`px-6 py-3 font-mono font-semibold ${dir === 'out' ? 'text-red-500' : 'text-emerald-500'}`}>
+                        {dir === 'out' ? '-' : '+'}{mov.quantity}
+                      </td>
+                      <td className="px-6 py-3 font-mono">{mov.unit_price ? `${mov.unit_price.toFixed(2)} TL` : '-'}</td>
+                      <td className="px-6 py-3">{dir === 'in' ? 'Dışarı (Tedarikçi)' : mov.source_location}</td>
+                      <td className="px-6 py-3">{dir === 'out' ? 'Dışarı' : mov.target_location}</td>
+                      <td className="px-6 py-3 text-slate-400">{mov.created_at}</td>
+                      <td className="px-6 py-3">{mov.created_by}</td>
+                      <td className="px-6 py-3">{mov.type}</td>
+                      <td className="px-6 py-3 text-slate-400">{mov.description || '-'}</td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -403,7 +381,7 @@ export default function Irsaliye() {
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
           <div className="bg-white dark:bg-[#1e2330] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700/50 w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200 my-8 max-h-[90vh] flex flex-col">
             <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 flex justify-between items-center bg-slate-50 dark:bg-[#242a38] shrink-0">
-              <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2"><Plus size={18}/> Yeni Stok Ekle</h2>
+              <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2"><Plus size={18}/> Stok Girişi Yap</h2>
               <button onClick={() => setShowInboundModal(false)} className="text-slate-400 hover:text-slate-900 dark:text-white">&times;</button>
             </div>
             <form onSubmit={handleInbound} className="p-6 space-y-4 overflow-y-auto flex-1 min-h-0">
@@ -417,6 +395,28 @@ export default function Irsaliye() {
                   <button type="button" onClick={handleBarcodeSearch} className="px-4 bg-slate-100 dark:bg-[#2a3142] hover:bg-blue-600 border border-slate-300 dark:border-slate-600 rounded-lg text-white transition-colors"><Search size={18} /></button>
                 </div>
               </div>
+
+              {(getSystemLocationId('good_stock') || getSystemLocationId('doa_stock')) && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Durum (hızlı seçim)</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, loc_id: getSystemLocationId('good_stock') }))}
+                      className={`px-4 py-2.5 rounded-lg text-sm font-medium border transition-colors ${formData.loc_id && formData.loc_id === getSystemLocationId('good_stock') ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-slate-50 dark:bg-[#0f1219] border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-emerald-500'}`}
+                    >
+                      ✅ Sağlam (Good Stock)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, loc_id: getSystemLocationId('doa_stock') }))}
+                      className={`px-4 py-2.5 rounded-lg text-sm font-medium border transition-colors ${formData.loc_id && formData.loc_id === getSystemLocationId('doa_stock') ? 'bg-amber-600 text-white border-amber-600' : 'bg-slate-50 dark:bg-[#0f1219] border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-amber-500'}`}
+                    >
+                      ⚠️ Arızalı (DOA Stock)
+                    </button>
+                  </div>
+                </div>
+              )}
 
               <div className="border-t border-slate-200 dark:border-slate-700/50 pt-4"></div>
 
@@ -639,11 +639,12 @@ export default function Irsaliye() {
         dbColumns={dbColumns}
         friendlyNames={friendlyNames}
       />
-      <StockTransferModal 
+      <StockTransferModal
         isOpen={isTransferModalOpen}
         onClose={() => setIsTransferModalOpen(false)}
         onTransfer={handleTransferSubmit}
         locations={locations}
+        systemLocationIds={systemLocations.map(l => l.id)}
       />
     </div>
   );

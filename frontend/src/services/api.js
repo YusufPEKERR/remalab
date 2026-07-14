@@ -214,6 +214,17 @@ export const api = {
         });
     },
 
+    getSystemLocations: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_system_locations) {
+                backend.get_system_locations((res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true, locations: [] });
+            }
+        });
+    },
+
     // ==========================
     // DEPARTMANLAR
     // ===================
@@ -432,6 +443,7 @@ export const api = {
                     order.end_date || '',
                     order.parts_used || '[]',
                     order.status || 'Beklemede',
+                    order.source_location_id || '',
                     (res) => resolve(JSON.parse(res))
                 );
             } else {
