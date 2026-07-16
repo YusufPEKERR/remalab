@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-// eslint-disable-next-line no-unused-vars
-import { Plus, Search, Trash2, Edit, AlertCircle, RefreshCw, X, Download, Upload, FileSpreadsheet } from 'lucide-react';
+import { Plus, Search, Trash2, Edit, AlertCircle, RefreshCw, X, Download, Upload, FileSpreadsheet, ArrowUpDown } from 'lucide-react';
 import { api } from '../services/api';
 import ExcelMappingModal from '../components/ExcelMappingModal';
 
@@ -31,6 +30,7 @@ export default function Parts() {
 
   // Selection and Export States
   const [selectedRows, setSelectedRows] = useState([]);
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [selectedExportColumns, setSelectedExportColumns] = useState({
     "ID": true,
@@ -293,10 +293,18 @@ export default function Parts() {
     fetchParts();
   };
 
+  const handleSort = (key) => {
+    setSortConfig(prev =>
+      prev.key === key
+        ? { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' }
+        : { key, direction: 'asc' }
+    );
+  };
+
   // Filter and Pagination Logic
   const filteredParts = useMemo(() => {
     const q = searchTerm.toLowerCase();
-    return parts.filter(p => {
+    let result = parts.filter(p => {
       const matchesSearch =
         (p.item_code && p.item_code.toLowerCase().includes(q)) ||
         (p.barcode && p.barcode.toLowerCase().includes(q)) ||
@@ -305,7 +313,19 @@ export default function Parts() {
 
       return matchesSearch;
     });
-  }, [parts, searchTerm]);
+
+    if (sortConfig.key) {
+      result = [...result].sort((a, b) => {
+        const valA = (a[sortConfig.key] || '').toString().toLocaleLowerCase('tr-TR');
+        const valB = (b[sortConfig.key] || '').toString().toLocaleLowerCase('tr-TR');
+        if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return result;
+  }, [parts, searchTerm, sortConfig]);
 
   const totalPages = Math.ceil(filteredParts.length / itemsPerPage) || 1;
   const paginatedParts = filteredParts.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
@@ -377,15 +397,60 @@ export default function Parts() {
                     onChange={toggleSelectAll}
                   />
                 </th>
-                <th className="px-6 py-4">ID</th>
-                <th className="px-6 py-4">Parça Kodu</th>
-                <th className="px-6 py-4">Barkod</th>
-                <th className="px-6 py-4">Parça Adı</th>
-                <th className="px-6 py-4">Kalite</th>
-                <th className="px-6 py-4">Item Code</th>
-                <th className="px-6 py-4">Item Category</th>
-                <th className="px-6 py-4">Parça Tipi</th>
-                <th className="px-6 py-4">Parça Statüsü</th>
+                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('id')}>
+                  <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                    ID
+                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'id' ? 'text-blue-500' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
+                  </div>
+                </th>
+                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('item_code')}>
+                  <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                    PARÇA KODU
+                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'item_code' ? 'text-blue-500' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
+                  </div>
+                </th>
+                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('barcode')}>
+                  <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                    BARKOD
+                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'barcode' ? 'text-blue-500' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
+                  </div>
+                </th>
+                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('name')}>
+                  <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                    PARÇA ADI
+                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'name' ? 'text-blue-500' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
+                  </div>
+                </th>
+                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('item_category')}>
+                  <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                    KALİTE
+                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'item_category' ? 'text-blue-500' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
+                  </div>
+                </th>
+                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('part_category')}>
+                  <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                    ITEM CODE
+                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'part_category' ? 'text-blue-500' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
+                  </div>
+                </th>
+                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('part_type')}>
+                  <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                    ITEM CATEGORY
+                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'part_type' ? 'text-blue-500' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
+                  </div>
+                </th>
+                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('part_type')}>
+                  <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                    PARÇA TİPİ
+                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'part_type' ? 'text-blue-500' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
+                  </div>
+                </th>
+                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('status')}>
+                  <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                    PARÇA STATÜSÜ
+                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'status' ? 'text-blue-500' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
+                  </div>
+                </th>
                 <th className="px-6 py-4 text-center">İşlemler</th>
               </tr>
             </thead>
