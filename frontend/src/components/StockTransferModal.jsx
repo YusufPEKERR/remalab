@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { ArrowRightLeft, X, QrCode, Search, Package, MapPin, DatabaseZap } from 'lucide-react';
 import { api } from '../services/api';
 
@@ -19,6 +19,18 @@ export default function StockTransferModal({ isOpen, onClose, onTransfer, locati
   const [brands, setBrands] = useState([]);
   const [fullStock, setFullStock] = useState([]);
   const [products, setProducts] = useState([]);
+
+  // Veritabanında aynı isimli lokasyon birden fazla kayıtla var olabiliyor
+  // (eski/yeni sistem kodları) — dropdown'da isme göre tekilleştiriyoruz.
+  const uniqueLocations = useMemo(() => {
+    const seen = new Set();
+    return locations.filter(l => {
+      const key = (l.name || '').trim().toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [locations]);
 
   useEffect(() => {
     if (isOpen) {
@@ -189,7 +201,7 @@ export default function StockTransferModal({ isOpen, onClose, onTransfer, locati
                   className="w-full bg-white dark:bg-[#1e2330] border border-slate-700/70 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
                 >
                   <option value="">--- Lokasyon Seçin ---</option>
-                  {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                  {uniqueLocations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
                 </select>
               </div>
 
@@ -236,7 +248,7 @@ export default function StockTransferModal({ isOpen, onClose, onTransfer, locati
                   className="w-full bg-white dark:bg-[#1e2330] border border-slate-700/70 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-yellow-500"
                 >
                   <option value="">--- Lokasyon Seçin ---</option>
-                  {locations.filter(l => systemLocations.find(sl => sl.id === l.id)?.kind === 'good_stock').map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                  {uniqueLocations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
                 </select>
               </div>
 
