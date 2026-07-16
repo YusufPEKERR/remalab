@@ -22,7 +22,7 @@ const DEPARTMENTS = [
 
 const EMPTY_FORM = {
   name: '', part_type: '', departments: [], stock_tracking_type: 'Stok Takipli',
-  default_location_id: '', is_active: true, description: ''
+  is_active: true, description: ''
 };
 
 export default function PartCategories() {
@@ -79,13 +79,12 @@ export default function PartCategories() {
         part_type: cat.part_type || '',
         departments: cat.departments ? cat.departments.split(',').map(d => d.trim()).filter(Boolean) : [],
         stock_tracking_type: cat.stock_tracking_type || 'Stok Takipli',
-        default_location_id: cat.default_location_id || '',
         is_active: cat.is_active !== false,
         description: cat.description || ''
       });
     } else {
       setEditingCat(null);
-      setFormData({ ...EMPTY_FORM, default_location_id: getSystemLocationId('good_stock') });
+      setFormData(EMPTY_FORM);
     }
     setShowForm(true);
   };
@@ -179,7 +178,6 @@ export default function PartCategories() {
                       <th className="px-6 py-4">Parça Tipi</th>
                       <th className="px-6 py-4">Departmanlar</th>
                       <th className="px-6 py-4">Stok Takibi</th>
-                      <th className="px-6 py-4">Varsayılan Lokasyon</th>
                       <th className="px-6 py-4">Durum</th>
                       <th className="px-6 py-4 text-center">İşlemler</th>
                     </tr>
@@ -187,11 +185,11 @@ export default function PartCategories() {
                   <tbody className="divide-y divide-slate-700/50">
                     {loading ? (
                       <tr>
-                        <td colSpan="7" className="px-6 py-8 text-center text-slate-400">Yükleniyor...</td>
+                        <td colSpan="6" className="px-6 py-8 text-center text-slate-400">Yükleniyor...</td>
                       </tr>
                     ) : filteredCategories.length === 0 ? (
                       <tr>
-                        <td colSpan="7" className="px-6 py-8 text-center text-slate-500">Kayıt bulunamadı.</td>
+                        <td colSpan="6" className="px-6 py-8 text-center text-slate-500">Kayıt bulunamadı.</td>
                       </tr>
                     ) : (
                       filteredCategories.map(cat => (
@@ -214,7 +212,6 @@ export default function PartCategories() {
                               {cat.stock_tracking_type === 'Stok Takipsiz' ? 'Hayır' : 'Evet'}
                             </span>
                           </td>
-                          <td className="px-6 py-4">{cat.default_location_name || '-'}</td>
                           <td className="px-6 py-4">
                             <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${
                               cat.is_active === false
@@ -289,29 +286,16 @@ export default function PartCategories() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1.5">Stok Takibi</label>
-                  <select
-                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
-                    value={formData.stock_tracking_type}
-                    onChange={e => setFormData({...formData, stock_tracking_type: e.target.value})}
-                  >
-                    <option value="Stok Takipli">Evet</option>
-                    <option value="Stok Takipsiz">Hayır</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1.5">Varsayılan Lokasyon</label>
-                  <select
-                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
-                    value={formData.default_location_id}
-                    onChange={e => setFormData({...formData, default_location_id: e.target.value})}
-                  >
-                    <option value="">Seçilmedi</option>
-                    {locations.map(loc => <option key={loc.id} value={loc.id}>{loc.name}</option>)}
-                  </select>
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-1.5">Stok Takibi</label>
+                <select
+                  className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                  value={formData.stock_tracking_type}
+                  onChange={e => setFormData({...formData, stock_tracking_type: e.target.value})}
+                >
+                  <option value="Stok Takipli">Evet</option>
+                  <option value="Stok Takipsiz">Hayır</option>
+                </select>
               </div>
 
               <div>

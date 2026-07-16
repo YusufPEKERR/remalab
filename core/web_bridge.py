@@ -272,7 +272,6 @@ class WebBridge(QObject):
             db.execute(text("ALTER TABLE warehouse.part_categories ADD COLUMN IF NOT EXISTS part_type VARCHAR(100);"))
             db.execute(text("ALTER TABLE warehouse.part_categories ADD COLUMN IF NOT EXISTS departments VARCHAR(255);"))
             db.execute(text("ALTER TABLE warehouse.part_categories ADD COLUMN IF NOT EXISTS stock_tracking_type VARCHAR(20) DEFAULT 'Stok Takipli';"))
-            db.execute(text("ALTER TABLE warehouse.part_categories ADD COLUMN IF NOT EXISTS default_location_id INTEGER REFERENCES warehouse.locations(id);"))
             db.execute(text("ALTER TABLE warehouse.part_categories ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;"))
             db.execute(text("ALTER TABLE warehouse.part_categories ADD COLUMN IF NOT EXISTS description TEXT;"))
             db.commit()
@@ -504,17 +503,16 @@ class WebBridge(QObject):
         db = SessionLocal()
         try:
             result = db.execute(text("""
-                SELECT p.id, p.name, p.item_code, p.barcode, p.brand, p.model, p.color,
+				SELECT p.id, p.name, p.item_code, p.barcode, p.brand, p.model, p.color,
                        p.item_category, p.part_category_id,
                        COALESCE(pc.name, p.part_category) AS part_category,
                        COALESCE(pc.part_type, '') AS part_type,
                        COALESCE(pc.departments, p.department, '') AS department,
                        COALESCE(pc.stock_tracking_type, p.stock_tracking_type, 'Stok Takipli') AS stock_tracking_type,
-                       pc.default_location_id, loc.name AS default_location_name,
+                       NULL AS default_location_id, '' AS default_location_name,
                        p.status, p.critical_limit
                 FROM warehouse.parts p
                 LEFT JOIN warehouse.part_categories pc ON pc.id = p.part_category_id
-                LEFT JOIN warehouse.locations loc ON loc.id = pc.default_location_id
                 ORDER BY p.id DESC
             """)).mappings().all()
             parts_list = []
@@ -792,10 +790,9 @@ class WebBridge(QObject):
         try:
             rows = db.execute(text("""
                 SELECT pc.id, pc.name, pc.part_type, pc.departments, pc.stock_tracking_type,
-                       pc.default_location_id, loc.name AS default_location_name,
+                       NULL AS default_location_id, '' AS default_location_name,
                        pc.is_active, pc.description
                 FROM warehouse.part_categories pc
-                LEFT JOIN warehouse.locations loc ON loc.id = pc.default_location_id
                 ORDER BY pc.id ASC
             """)).mappings().all()
             categories = []
@@ -888,7 +885,6 @@ class WebBridge(QObject):
                 part_type=part_type or None,
                 departments=departments or None,
                 stock_tracking_type=stock_tracking_type or "Stok Takipli",
-                default_location_id=int(default_location_id) if default_location_id.strip() else None,
                 is_active=True,
                 description=description or None
             )
@@ -920,7 +916,6 @@ class WebBridge(QObject):
             cat.part_type = part_type or None
             cat.departments = departments or None
             cat.stock_tracking_type = stock_tracking_type or "Stok Takipli"
-            cat.default_location_id = int(default_location_id) if default_location_id.strip() else None
             cat.is_active = (is_active == "true" or is_active == "1" or is_active == "True")
             cat.description = description or None
             db.commit()
