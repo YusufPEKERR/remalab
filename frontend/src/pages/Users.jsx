@@ -1,4 +1,6 @@
+import { useState, useEffect, useMemo } from 'react';
 import { Download, Search, Plus, Edit, Key, Trash2, RefreshCw, AlertCircle, X, Users as UsersIcon, Shield, User, Fingerprint, ArrowUpDown } from 'lucide-react';
+import { api } from '../services/api';
 
 export default function Users() {
   const [users, setUsers] = useState([]);
