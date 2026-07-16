@@ -435,12 +435,6 @@ export default function Parts() {
                 </th>
                 <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('part_type')}>
                   <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
-                    ITEM CATEGORY
-                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'part_type' ? 'text-blue-500' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
-                  </div>
-                </th>
-                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('part_type')}>
-                  <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
                     PARÇA TİPİ
                     <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'part_type' ? 'text-blue-500' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
                   </div>
@@ -457,14 +451,14 @@ export default function Parts() {
             <tbody className="divide-y divide-slate-700/50">
               {loading ? (
                 <tr>
-                  <td colSpan="11" className="px-6 py-8 text-center text-slate-400">
+                  <td colSpan="10" className="px-6 py-8 text-center text-slate-400">
                     <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-400" />
                     Yükleniyor...
                   </td>
                 </tr>
               ) : paginatedParts.length === 0 ? (
                 <tr>
-                  <td colSpan="11" className="px-6 py-8 text-center text-slate-500">
+                  <td colSpan="10" className="px-6 py-8 text-center text-slate-500">
                     Kayıt bulunamadı.
                   </td>
                 </tr>
@@ -493,7 +487,6 @@ export default function Parts() {
                       )}
                     </td>
                     <td className="px-6 py-4">{part.part_category || '-'}</td>
-                    <td className="px-6 py-4">{part.part_type || '-'}</td>
                     <td className="px-6 py-4">{part.part_type || '-'}</td>
                     <td className="px-6 py-4">
                       <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${
