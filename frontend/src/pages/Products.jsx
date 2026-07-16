@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, Search, Trash2, Edit, RefreshCw, X, FileSpreadsheet } from 'lucide-react';
+import { Plus, Search, Trash2, Edit, RefreshCw, X, FileSpreadsheet, ArrowUpDown } from 'lucide-react';
 import { api } from '../services/api';
 import ExcelMappingModal from '../components/ExcelMappingModal';
 
@@ -14,9 +14,9 @@ export default function Products() {
   const [currentProduct, setCurrentProduct] = useState(null);
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
   
-  // Selection and Export States
   const [selectedRows, setSelectedRows] = useState([]);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [selectedExportColumns, setSelectedExportColumns] = useState({
     "Ürün Kodu": true,
     "Marka": true,
@@ -175,16 +175,36 @@ export default function Products() {
     fetchProducts();
   };
 
+  const handleSort = (key) => {
+    setSortConfig(prev =>
+      prev.key === key
+        ? { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' }
+        : { key, direction: 'asc' }
+    );
+  };
+
   const filteredProducts = useMemo(() => {
     const q = searchTerm.toLowerCase();
-    return products.filter(p => 
+    let result = products.filter(p =>
       (p.item_code && p.item_code.toLowerCase().includes(q)) ||
       (p.brand && p.brand.toLowerCase().includes(q)) ||
       (p.model && p.model.toLowerCase().includes(q)) ||
       (p.memory && p.memory.toLowerCase().includes(q)) ||
       (p.color && p.color.toLowerCase().includes(q))
     );
-  }, [products, searchTerm]);
+
+    if (sortConfig.key) {
+      result = [...result].sort((a, b) => {
+        const valA = (a[sortConfig.key] || '').toString().toLocaleLowerCase('tr-TR');
+        const valB = (b[sortConfig.key] || '').toString().toLocaleLowerCase('tr-TR');
+        if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return result;
+  }, [products, searchTerm, sortConfig]);
 
   return (
     <div className="h-full flex flex-col space-y-6 overflow-hidden">
@@ -241,7 +261,7 @@ export default function Products() {
       <div className="bg-white dark:bg-[#1e2330] rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-lg flex-1 overflow-hidden flex flex-col">
         <div className="overflow-auto flex-1">
           <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs sticky top-0 z-10">
+            <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-semibold uppercase tracking-wider text-xs sticky top-0 z-10">
               <tr>
                 <th className="px-6 py-4 w-12 text-center">
                   <input 
@@ -251,11 +271,31 @@ export default function Products() {
                     onChange={toggleSelectAll}
                   />
                 </th>
-                <th className="px-6 py-4">Ürün Kodu</th>
-                <th className="px-6 py-4">Marka</th>
-                <th className="px-6 py-4">Model</th>
-                <th className="px-6 py-4">Hafıza</th>
-                <th className="px-6 py-4 text-center">İşlemler</th>
+                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('item_code')}>
+                  <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                    ÜRÜN KODU
+                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'item_code' ? 'text-blue-500' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
+                  </div>
+                </th>
+                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('brand')}>
+                  <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                    MARKA
+                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'brand' ? 'text-blue-500' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
+                  </div>
+                </th>
+                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('model')}>
+                  <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                    MODEL
+                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'model' ? 'text-blue-500' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
+                  </div>
+                </th>
+                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('memory')}>
+                  <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                    HAFIZA
+                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'memory' ? 'text-blue-500' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
+                  </div>
+                </th>
+                <th className="px-6 py-4 text-center text-slate-700 dark:text-slate-300">İşLEMLER</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-700/50">
