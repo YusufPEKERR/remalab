@@ -1,6 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
-import { Download, Search, Plus, Edit, Key, Trash2, RefreshCw, AlertCircle, X, Users as UsersIcon, Shield, User, Fingerprint } from 'lucide-react';
-import { api } from '../services/api';
+import { Download, Search, Plus, Edit, Key, Trash2, RefreshCw, AlertCircle, X, Users as UsersIcon, Shield, User, Fingerprint, ArrowUpDown } from 'lucide-react';
 
 export default function Users() {
   const [users, setUsers] = useState([]);
@@ -526,7 +524,7 @@ export default function Users() {
       <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl shadow-lg flex-1 overflow-hidden flex flex-col">
         <div className="overflow-y-auto flex-1">
           <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium border-b border-slate-200 dark:border-slate-700/50 sticky top-0 uppercase text-xs z-10">
+            <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-semibold border-b border-slate-200 dark:border-slate-700/50 sticky top-0 uppercase text-xs z-10">
               <tr>
                 <th className="px-6 py-4 w-12 text-center select-none">
                   <input 
@@ -536,139 +534,119 @@ export default function Users() {
                     onChange={toggleSelectAll}
                   />
                 </th>
-                <th className="px-6 py-4 w-16 cursor-pointer select-none group" onClick={() => handleSort('id')}>
-                  <div className="flex items-center gap-1">
+                <th className="px-6 py-4 w-20 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('id')}>
+                  <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
                     ID
-                    <span className="text-[10px] text-slate-400 group-hover:text-blue-500 transition-colors">
-                      {sortConfig.key === 'id' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : '⇅'}
-                    </span>
+                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'id' ? 'text-blue-500 font-bold' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
                   </div>
                 </th>
-                <th className="px-6 py-4 cursor-pointer select-none group" onClick={() => handleSort('username')}>
-                  <div className="flex items-center gap-1">
+                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('username')}>
+                  <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
                     KULLANICI ADI
-                    <span className="text-[10px] text-slate-400 group-hover:text-blue-500 transition-colors">
-                      {sortConfig.key === 'username' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : '⇅'}
-                    </span>
+                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'username' ? 'text-blue-500 font-bold' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
                   </div>
                 </th>
-                <th className="px-6 py-4 cursor-pointer select-none group" onClick={() => handleSort('fullname')}>
-                  <div className="flex items-center gap-1">
+                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('fullname')}>
+                  <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
                     İSİM SOYİSİM
-                    <span className="text-[10px] text-slate-400 group-hover:text-blue-500 transition-colors">
-                      {sortConfig.key === 'fullname' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : '⇅'}
-                    </span>
+                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'fullname' ? 'text-blue-500 font-bold' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
                   </div>
                 </th>
-                <th className="px-6 py-4 cursor-pointer select-none group" onClick={() => handleSort('tc_no')}>
-                  <div className="flex items-center gap-1">
+                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('tc_no')}>
+                  <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
                     TC NO
-                    <span className="text-[10px] text-slate-400 group-hover:text-blue-500 transition-colors">
-                      {sortConfig.key === 'tc_no' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : '⇅'}
-                    </span>
+                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'tc_no' ? 'text-blue-500 font-bold' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
                   </div>
                 </th>
-                <th className="px-6 py-4 cursor-pointer select-none group" onClick={() => handleSort('role')}>
-                  <div className="flex items-center gap-1">
+                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('role')}>
+                  <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
                     HESAP TİPİ
-                    <span className="text-[10px] text-slate-400 group-hover:text-blue-500 transition-colors">
-                      {sortConfig.key === 'role' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : '⇅'}
-                    </span>
+                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'role' ? 'text-blue-500 font-bold' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
                   </div>
                 </th>
-                <th className="px-6 py-4 cursor-pointer select-none group" onClick={() => handleSort('gorev')}>
-                  <div className="flex items-center gap-1">
+                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('gorev')}>
+                  <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
                     GÖREVLER
-                    <span className="text-[10px] text-slate-400 group-hover:text-blue-500 transition-colors">
-                      {sortConfig.key === 'gorev' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : '⇅'}
-                    </span>
+                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'gorev' ? 'text-blue-500 font-bold' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
                   </div>
                 </th>
-                <th className="px-6 py-4 cursor-pointer select-none group" onClick={() => handleSort('account_enabled')}>
-                  <div className="flex items-center gap-1">
+                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('account_enabled')}>
+                  <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
                     DURUM
-                    <span className="text-[10px] text-slate-400 group-hover:text-blue-500 transition-colors">
-                      {sortConfig.key === 'account_enabled' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : '⇅'}
-                    </span>
+                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'account_enabled' ? 'text-blue-500 font-bold' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
                   </div>
                 </th>
-                <th className="px-6 py-4 cursor-pointer select-none group" onClick={() => handleSort('team_leader')}>
-                  <div className="flex items-center gap-1">
+                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('team_leader')}>
+                  <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
                     TEAM LEADER
-                    <span className="text-[10px] text-slate-400 group-hover:text-blue-500 transition-colors">
-                      {sortConfig.key === 'team_leader' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : '⇅'}
-                    </span>
+                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'team_leader' ? 'text-blue-500 font-bold' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
                   </div>
                 </th>
-                <th className="px-6 py-4 cursor-pointer select-none group" onClick={() => handleSort('operation_manager')}>
-                  <div className="flex items-center gap-1">
+                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('operation_manager')}>
+                  <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
                     OPERATION MANAGER
-                    <span className="text-[10px] text-slate-400 group-hover:text-blue-500 transition-colors">
-                      {sortConfig.key === 'operation_manager' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : '⇅'}
-                    </span>
+                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'operation_manager' ? 'text-blue-500 font-bold' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
                   </div>
                 </th>
-                <th className="px-6 py-4 cursor-pointer select-none group" onClick={() => handleSort('administrative_manager')}>
-                  <div className="flex items-center gap-1">
+                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('administrative_manager')}>
+                  <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
                     ADMINISTRATIVE MANAGER
-                    <span className="text-[10px] text-slate-400 group-hover:text-blue-500 transition-colors">
-                      {sortConfig.key === 'administrative_manager' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : '⇅'}
-                    </span>
+                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'administrative_manager' ? 'text-blue-500 font-bold' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
                   </div>
                 </th>
               </tr>
               {/* Filtre Satırı */}
-              <tr className="bg-slate-100/50 dark:bg-[#1a1f2c] border-b border-slate-200 dark:border-slate-700/50">
-                <td className="px-6 py-2"></td>
+              <tr className="bg-slate-100/60 dark:bg-[#1a202c]/50 border-b border-slate-200 dark:border-slate-700/50 backdrop-blur-sm">
+                <td className="px-6 py-3"></td>
                 
                 {/* ID Filtresi */}
-                <td className="px-6 py-2">
+                <td className="px-6 py-3">
                   <input
                     type="text"
-                    placeholder="Filtre..."
-                    className="w-16 px-2 py-1 text-xs bg-white dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded focus:outline-none focus:border-blue-500 text-slate-800 dark:text-slate-200"
+                    placeholder="Ara..."
+                    className="w-16 px-2.5 py-1.5 text-xs bg-white dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 text-slate-700 dark:text-slate-300 placeholder-slate-400/50 transition-all font-normal"
                     value={columnFilters.id}
                     onChange={e => setColumnFilters({ ...columnFilters, id: e.target.value })}
                   />
                 </td>
 
                 {/* Kullanıcı Adı Filtresi */}
-                <td className="px-6 py-2">
+                <td className="px-6 py-3">
                   <input
                     type="text"
-                    placeholder="Filtre..."
-                    className="w-full px-2 py-1 text-xs bg-white dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded focus:outline-none focus:border-blue-500 text-slate-800 dark:text-slate-200"
+                    placeholder="Ara..."
+                    className="w-full min-w-[110px] px-2.5 py-1.5 text-xs bg-white dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 text-slate-700 dark:text-slate-300 placeholder-slate-400/50 transition-all font-normal"
                     value={columnFilters.username}
                     onChange={e => setColumnFilters({ ...columnFilters, username: e.target.value })}
                   />
                 </td>
 
                 {/* İsim Soyisim Filtresi */}
-                <td className="px-6 py-2">
+                <td className="px-6 py-3">
                   <input
                     type="text"
-                    placeholder="Filtre..."
-                    className="w-full px-2 py-1 text-xs bg-white dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded focus:outline-none focus:border-blue-500 text-slate-800 dark:text-slate-200"
+                    placeholder="Ara..."
+                    className="w-full min-w-[120px] px-2.5 py-1.5 text-xs bg-white dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 text-slate-700 dark:text-slate-300 placeholder-slate-400/50 transition-all font-normal"
                     value={columnFilters.fullname}
                     onChange={e => setColumnFilters({ ...columnFilters, fullname: e.target.value })}
                   />
                 </td>
 
                 {/* TC No Filtresi */}
-                <td className="px-6 py-2">
+                <td className="px-6 py-3">
                   <input
                     type="text"
-                    placeholder="Filtre..."
-                    className="w-full px-2 py-1 text-xs bg-white dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded focus:outline-none focus:border-blue-500 text-slate-800 dark:text-slate-200"
+                    placeholder="Ara..."
+                    className="w-full min-w-[100px] px-2.5 py-1.5 text-xs bg-white dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 text-slate-700 dark:text-slate-300 placeholder-slate-400/50 transition-all font-normal"
                     value={columnFilters.tc_no}
                     onChange={e => setColumnFilters({ ...columnFilters, tc_no: e.target.value })}
                   />
                 </td>
 
                 {/* Hesap Tipi Filtresi */}
-                <td className="px-6 py-2">
+                <td className="px-6 py-3">
                   <select
-                    className="w-full px-2 py-1 text-xs bg-white dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded focus:outline-none focus:border-blue-500 text-slate-800 dark:text-slate-200"
+                    className="w-full min-w-[110px] px-2 py-1.5 text-xs bg-white dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 text-slate-700 dark:text-slate-300 transition-all font-normal cursor-pointer"
                     value={columnFilters.role}
                     onChange={e => setColumnFilters({ ...columnFilters, role: e.target.value })}
                   >
@@ -678,20 +656,20 @@ export default function Users() {
                 </td>
 
                 {/* Görevler Filtresi */}
-                <td className="px-6 py-2">
+                <td className="px-6 py-3">
                   <input
                     type="text"
-                    placeholder="Filtre..."
-                    className="w-full px-2 py-1 text-xs bg-white dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded focus:outline-none focus:border-blue-500 text-slate-800 dark:text-slate-200"
+                    placeholder="Ara..."
+                    className="w-full min-w-[120px] px-2.5 py-1.5 text-xs bg-white dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 text-slate-700 dark:text-slate-300 placeholder-slate-400/50 transition-all font-normal"
                     value={columnFilters.gorev}
                     onChange={e => setColumnFilters({ ...columnFilters, gorev: e.target.value })}
                   />
                 </td>
 
                 {/* Durum Filtresi */}
-                <td className="px-6 py-2">
+                <td className="px-6 py-3">
                   <select
-                    className="w-full px-2 py-1 text-xs bg-white dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded focus:outline-none focus:border-blue-500 text-slate-800 dark:text-slate-200"
+                    className="w-full min-w-[100px] px-2 py-1.5 text-xs bg-white dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 text-slate-700 dark:text-slate-300 transition-all font-normal cursor-pointer"
                     value={columnFilters.account_enabled}
                     onChange={e => setColumnFilters({ ...columnFilters, account_enabled: e.target.value })}
                   >
@@ -702,9 +680,9 @@ export default function Users() {
                 </td>
 
                 {/* Team Leader Filtresi */}
-                <td className="px-6 py-2">
+                <td className="px-6 py-3">
                   <select
-                    className="w-full px-2 py-1 text-xs bg-white dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded focus:outline-none focus:border-blue-500 text-slate-800 dark:text-slate-200"
+                    className="w-full min-w-[120px] px-2 py-1.5 text-xs bg-white dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 text-slate-700 dark:text-slate-300 transition-all font-normal cursor-pointer"
                     value={columnFilters.team_leader}
                     onChange={e => setColumnFilters({ ...columnFilters, team_leader: e.target.value })}
                   >
@@ -716,22 +694,22 @@ export default function Users() {
                 </td>
 
                 {/* Operation Manager Filtresi */}
-                <td className="px-6 py-2">
+                <td className="px-6 py-3">
                   <input
                     type="text"
-                    placeholder="Filtre..."
-                    className="w-full px-2 py-1 text-xs bg-white dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded focus:outline-none focus:border-blue-500 text-slate-800 dark:text-slate-200"
+                    placeholder="Ara..."
+                    className="w-full min-w-[120px] px-2.5 py-1.5 text-xs bg-white dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 text-slate-700 dark:text-slate-300 placeholder-slate-400/50 transition-all font-normal"
                     value={columnFilters.operation_manager}
                     onChange={e => setColumnFilters({ ...columnFilters, operation_manager: e.target.value })}
                   />
                 </td>
 
                 {/* Administrative Manager Filtresi */}
-                <td className="px-6 py-2">
+                <td className="px-6 py-3">
                   <input
                     type="text"
-                    placeholder="Filtre..."
-                    className="w-full px-2 py-1 text-xs bg-white dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded focus:outline-none focus:border-blue-500 text-slate-800 dark:text-slate-200"
+                    placeholder="Ara..."
+                    className="w-full min-w-[120px] px-2.5 py-1.5 text-xs bg-white dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 text-slate-700 dark:text-slate-300 placeholder-slate-400/50 transition-all font-normal"
                     value={columnFilters.administrative_manager}
                     onChange={e => setColumnFilters({ ...columnFilters, administrative_manager: e.target.value })}
                   />
