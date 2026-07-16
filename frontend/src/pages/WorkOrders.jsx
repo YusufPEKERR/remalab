@@ -48,7 +48,7 @@ const SUPPLY_STATUS_STYLES = {
 };
 
 export default function WorkOrders() {
-  const [activeTab, setActiveTab] = useState('new');
+  const [activeTab, setActiveTab] = useState('production');
 
   // --- İş Emirleri (work orders) state ---
   const [orders, setOrders] = useState([]);
@@ -60,7 +60,6 @@ export default function WorkOrders() {
   const [serviceRecords, setServiceRecords] = useState([]);
   const [users, setUsers] = useState([]);
   const [parts, setParts] = useState([]);
-  const [locations, setLocations] = useState([]);
   const [stockStatus, setStockStatus] = useState([]);
   const [systemLocations, setSystemLocations] = useState([]);
   const currentUser = getCurrentUser();
@@ -97,7 +96,6 @@ export default function WorkOrders() {
     api.getServiceRecords().then(res => { if (res.success) setServiceRecords(res.records || []); });
     api.getUsers().then(res => { if (res.success) setUsers(res.users || []); });
     api.getParts().then(res => { if (res.success) setParts(res.parts || []); });
-    api.getLocations().then(res => { if (res.success) setLocations(res.locations || []); });
     api.getStockStatus().then(res => { if (res.success) setStockStatus(res.stock || []); });
     api.getSystemLocations().then(res => { if (res.success) setSystemLocations(res.locations || []); });
   }, []);
@@ -194,6 +192,9 @@ export default function WorkOrders() {
 
   // İş emri parçaları sadece Good/DOA Stock'tan (Repair Stock'a) beslenebilir.
   const workOrderSourceLocations = systemLocations.filter(l => l.kind === 'good_stock' || l.kind === 'doa_stock');
+
+  // Yarı mamul üretiminde hammadde düşümü ve üretilen parça girişi her zaman Good Stock'ta yapılır.
+  const goodStockLocationId = systemLocations.find(l => l.kind === 'good_stock')?.id || '';
 
   // ===================== İş Emri handlers =====================
 
@@ -312,18 +313,24 @@ export default function WorkOrders() {
 
   const handleSaveProduction = async (e) => {
     e.preventDefault();
+    if (!goodStockLocationId) {
+      alert('Good Stock lokasyonu bulunamadı. Lütfen sistem lokasyonlarını kontrol edin.');
+      return;
+    }
     const materials = productionMaterials.filter(r => r.part_id && Number(r.quantity_consumed) > 0);
 
     for (const m of materials) {
-      const available = getStockQty(m.part_id, productionForm.source_location_id);
+      const available = getStockQty(m.part_id, goodStockLocationId);
       if (Number(m.quantity_consumed) > available) {
-        alert('Seçilen kaynak lokasyonda bazı hammaddeler için yeterli stok yok. Lütfen miktarları kontrol edin.');
+        alert('Good Stock\'ta bazı hammaddeler için yeterli stok yok. Lütfen miktarları kontrol edin.');
         return;
       }
     }
 
     const res = await api.createProductionRun({
       ...productionForm,
+      source_location_id: goodStockLocationId,
+      target_location_id: goodStockLocationId,
       materials_json: JSON.stringify(materials)
     });
     if (res.success) {
@@ -363,19 +370,10 @@ export default function WorkOrders() {
   };
 
   const TABS = [
-    { key: 'new', label: 'Yeni İş Emri', icon: Plus },
-    { key: 'list', label: 'İş Emri Listesi', icon: ClipboardList },
     { key: 'production', label: 'Yarı Mamul Üretimi', icon: Factory },
     { key: 'consumption', label: 'Malzeme Tüketimi', icon: Package },
     { key: 'history', label: 'Üretim Geçmişi', icon: TrendingUp }
   ];
-
-  const uniqueBrands = [...new Set(parts.map(p => p.brand).filter(Boolean))].sort();
-  const uniqueModels = [...new Set(parts.filter(p => p.brand === productionForm.target_brand).map(p => p.model).filter(Boolean))].sort();
-  const targetPartsList = parts.filter(p => 
-    (!productionForm.target_brand || p.brand === productionForm.target_brand) &&
-    (!productionForm.target_model || p.model === productionForm.target_model)
-  );
 
   return (
     <div className="h-full flex flex-col space-y-6 overflow-hidden">
@@ -654,26 +652,12 @@ export default function WorkOrders() {
             <p className="text-slate-400 text-sm mb-6">Hammadde/parça tüketerek yeni bir parça stoku oluşturun. Seçilen lokasyondaki hammaddeler otomatik düşülür, üretilen parçanın stoku artırılır.</p>
 
             <form onSubmit={handleSaveProduction} className="space-y-5">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
-                <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1.5">Marka <span className="text-red-400">*</span></label>
-                  <select className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={productionForm.target_brand} onChange={e => setProductionForm({...productionForm, target_brand: e.target.value, target_model: '', target_part_id: ''})}>
-                    <option value="">Tümü</option>
-                    {uniqueBrands.map(b => <option key={b} value={b}>{b}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1.5">Model <span className="text-red-400">*</span></label>
-                  <select className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 disabled:opacity-50" value={productionForm.target_model} onChange={e => setProductionForm({...productionForm, target_model: e.target.value, target_part_id: ''})} disabled={!productionForm.target_brand}>
-                    <option value="">Tümü</option>
-                    {uniqueModels.map(m => <option key={m} value={m}>{m}</option>)}
-                  </select>
-                </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
                   <label className="block text-sm font-medium text-slate-400 mb-1.5">Üretilen Parça <span className="text-red-400">*</span></label>
-                  <select required className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 disabled:opacity-50" value={productionForm.target_part_id} onChange={e => setProductionForm({...productionForm, target_part_id: e.target.value})} disabled={!productionForm.target_model && productionForm.target_brand}>
+                  <select required className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={productionForm.target_part_id} onChange={e => setProductionForm({...productionForm, target_part_id: e.target.value})}>
                     <option value="">Parça seçiniz...</option>
-                    {targetPartsList.map(p => <option key={p.id} value={p.id}>{p.brand} {p.model} {p.color} {p.part_category} {p.item_code ? `- ${p.item_code}` : ''}</option>)}
+                    {parts.map(p => <option key={p.id} value={p.id}>{p.item_code || p.name}</option>)}
                   </select>
                 </div>
                 <div>
@@ -682,21 +666,7 @@ export default function WorkOrders() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1.5">Kaynak Lokasyon (Hammadde) <span className="text-red-400">*</span></label>
-                  <select required className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={productionForm.source_location_id} onChange={e => setProductionForm({...productionForm, source_location_id: e.target.value})}>
-                    <option value="">Kaynak seçiniz...</option>
-                    {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1.5">Hedef Lokasyon (Ürün) <span className="text-red-400">*</span></label>
-                  <select required className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={productionForm.target_location_id} onChange={e => setProductionForm({...productionForm, target_location_id: e.target.value})}>
-                    <option value="">Hedef seçiniz...</option>
-                    {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-                  </select>
-                </div>
+              <div className="grid grid-cols-1 gap-5">
                 <div>
                   <label className="block text-sm font-medium text-slate-400 mb-1.5">Üretici / Sorumlu</label>
                   <select className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={productionForm.produced_by} onChange={e => setProductionForm({...productionForm, produced_by: e.target.value})}>
@@ -718,24 +688,21 @@ export default function WorkOrders() {
                 ) : (
                   <div className="space-y-2">
                     {productionMaterials.map((row, idx) => {
-                      const available = getStockQty(row.part_id, productionForm.source_location_id);
-                      const insufficient = row.part_id && productionForm.source_location_id && Number(row.quantity_consumed) > available;
+                      const available = getStockQty(row.part_id, goodStockLocationId);
+                      const insufficient = row.part_id && goodStockLocationId && Number(row.quantity_consumed) > available;
                       return (
                         <div key={idx}>
                           <div className="flex gap-2 items-center">
                             <select className="flex-1 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-blue-500" value={row.part_id} onChange={e => handleMaterialRowChange(idx, 'part_id', e.target.value)}>
                               <option value="">Parça seçiniz...</option>
-                              {parts
-                                .filter(p => !productionForm.target_brand || p.brand === productionForm.target_brand)
-                                .filter(p => !productionForm.target_model || p.model === productionForm.target_model)
-                                .map(p => <option key={p.id} value={p.id}>{p.brand} {p.model} {p.color} {p.part_category} {p.item_code ? `- ${p.item_code}` : ''}</option>)}
+                              {parts.map(p => <option key={p.id} value={p.id}>{p.item_code || p.name}</option>)}
                             </select>
                             <input type="number" min="1" className="w-20 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-blue-500" value={row.quantity_consumed} onChange={e => handleMaterialRowChange(idx, 'quantity_consumed', e.target.value)} />
                             <button type="button" onClick={() => handleRemoveMaterialRow(idx)} className="p-2 text-red-400 hover:bg-red-400/10 rounded-lg transition-colors">
                               <Trash2 size={16} />
                             </button>
                           </div>
-                          {row.part_id && productionForm.source_location_id && (
+                          {row.part_id && goodStockLocationId && (
                             <p className={`mt-1 text-xs font-medium ${insufficient ? 'text-red-500' : 'text-emerald-500'}`}>
                               Mevcut Stok: {available}{insufficient ? ' — Yetersiz!' : ''}
                             </p>
