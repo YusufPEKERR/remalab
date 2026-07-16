@@ -126,7 +126,6 @@ export default function MainLayout() {
       colorTheme: 'purple',
       items: [
         { name: 'Parçalar', icon: Package, path: '/parts' },
-        { name: 'Parça Kategorileri', icon: Tags, path: '/part-categories' },
         { name: 'Ürün Listesi', icon: Box, path: '/products' },
         { name: 'Tedarikçiler', icon: Truck, path: '/suppliers' },
         { name: 'Lokasyonlar', icon: MapPin, path: '/locations' }
@@ -137,6 +136,7 @@ export default function MainLayout() {
       colorTheme: 'emerald',
       items: [
         { name: 'Kullanıcılar', icon: Users, path: '/users' },
+        { name: 'Parça Kategorileri', icon: Tags, path: '/part-categories' },
         { name: 'Ayarlar', icon: Settings, path: '/settings' },
         { name: 'Veri Yönetimi', icon: Database, path: '/data-management' },
         { name: 'Departman Yönetimi', icon: Building2, path: '/departments' },
