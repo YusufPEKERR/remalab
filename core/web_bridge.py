@@ -844,7 +844,8 @@ class WebBridge(QObject):
             if not safe_ids:
                 return json.dumps({"success": False, "message": "Seçilen parçaların hiçbirisi silinmeye uygun değil (Stok veya geçmiş hareket mevcut)." })
                 
-            db.execute(text("DELETE FROM warehouse.parts WHERE id = any(:ids)"), {"ids": safe_ids})
+            ids_placeholder = ",".join(str(x) for x in safe_ids)
+            db.execute(text(f"DELETE FROM warehouse.parts WHERE id IN ({ids_placeholder})"))
             db.commit()
             
             msg = f"{len(safe_ids)} parça başarıyla silindi."
