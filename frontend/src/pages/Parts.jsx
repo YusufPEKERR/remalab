@@ -217,15 +217,14 @@ export default function Parts() {
       }
     }
   };
-
   const handleBulkDelete = async () => {
-    if (selectedRows.length === 0) return;
-    if (window.confirm(`Seçilen ${selectedRows.length} parçayı silmek istediğinize emin misiniz?`)) {
+    if (selectedOnCurrentPage.length === 0) return;
+    if (window.confirm(`Mevcut sayfada seçilen ${selectedOnCurrentPage.length} parçayı silmek istediğinize emin misiniz?`)) {
       try {
-        const res = await api.deletePartsBulk(selectedRows);
+        const res = await api.deletePartsBulk(selectedOnCurrentPage);
         if (res.success) {
           alert(res.message || 'Seçilen parçalar silindi.');
-          setSelectedRows([]);
+          setSelectedRows(prev => prev.filter(id => !selectedOnCurrentPage.includes(id)));
           fetchParts();
         } else {
           alert(res.message || 'Silme işlemi başarısız oldu.');
@@ -354,6 +353,11 @@ export default function Parts() {
   const totalPages = Math.ceil(filteredParts.length / itemsPerPage) || 1;
   const paginatedParts = filteredParts.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
+  const selectedOnCurrentPage = useMemo(() => {
+    const currentPageIds = paginatedParts.map(p => p.id);
+    return selectedRows.filter(id => currentPageIds.includes(id));
+  }, [selectedRows, paginatedParts]);
+
   const categoryOptions = partCategories.filter(c => c.is_active !== false || String(c.id) === String(formData.part_category_id));
 
   return (
@@ -382,12 +386,12 @@ export default function Parts() {
             </div>
           </div>
 
-          {selectedRows.length > 0 && (
+          {selectedOnCurrentPage.length > 1 && (
             <button
               onClick={handleBulkDelete}
               className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl transition-all shadow-lg shadow-red-900/20 font-medium"
             >
-              <Trash2 size={18} /> Seçilenleri Sil ({selectedRows.length})
+              <Trash2 size={18} /> Seçilenleri Sil ({selectedOnCurrentPage.length})
             </button>
           )}
 
