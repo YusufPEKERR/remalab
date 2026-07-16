@@ -10,6 +10,7 @@ export default function Locations() {
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newLocationName, setNewLocationName] = useState('');
+  const [newLocationDesc, setNewLocationDesc] = useState('');
 
   const fetchLocations = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -37,9 +38,10 @@ export default function Locations() {
   const handleAdd = async (e) => {
     e.preventDefault();
     try {
-      const res = await api.createLocation(newLocationName);
+      const res = await api.createLocation(newLocationName, newLocationDesc);
       if (res && res.success) {
         setNewLocationName('');
+        setNewLocationDesc('');
         setIsModalOpen(false);
         fetchLocations();
       } else {
@@ -102,19 +104,20 @@ export default function Locations() {
               <tr>
                 <th className="px-6 py-4 w-32">LOKASYON ID</th>
                 <th className="px-6 py-4">LOKASYON ADI</th>
+                <th className="px-6 py-4">AÇIKLAMA</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-700/50">
               {loading ? (
                 <tr>
-                  <td colSpan="2" className="px-6 py-8 text-center text-slate-400">
+                  <td colSpan="3" className="px-6 py-8 text-center text-slate-400">
                     <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-indigo-400" />
                     Yükleniyor...
                   </td>
                 </tr>
               ) : filteredLocations.length === 0 ? (
                 <tr>
-                  <td colSpan="2" className="px-6 py-8 text-center text-slate-400">
+                  <td colSpan="3" className="px-6 py-8 text-center text-slate-400">
                     Kayıt bulunamadı.
                   </td>
                 </tr>
@@ -126,12 +129,24 @@ export default function Locations() {
                       <div className="flex items-center gap-2">
                         {loc.name}
                         {loc.kind && (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 uppercase tracking-wider">
-                            Sistem Deposu
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wider ${
+                            loc.kind === 'good_stock' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
+                            loc.kind === 'doa_stock' ? 'bg-purple-500/10 text-purple-500 border-purple-500/20' :
+                            loc.kind === 'repair_stock' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' :
+                            loc.kind === 'scrap_stock' ? 'bg-stone-500/10 text-stone-500 border-stone-500/20' :
+                            loc.kind === 'out_stock' ? 'bg-teal-500/10 text-teal-500 border-teal-500/20' :
+                            'bg-slate-500/10 text-slate-500 border-slate-500/20'
+                          }`}>
+                            {loc.kind === 'good_stock' ? 'İyi' : 
+                             loc.kind === 'doa_stock' ? 'DOA' : 
+                             loc.kind === 'repair_stock' ? 'Tamir' : 
+                             loc.kind === 'scrap_stock' ? 'Hurda' : 
+                             loc.kind === 'out_stock' ? 'Çıkış' : 'Sistem'}
                           </span>
                         )}
                       </div>
                     </td>
+                    <td className="px-6 py-3 text-slate-500">{loc.description || '-'}</td>
                   </tr>
                 ))
               )}
@@ -157,6 +172,17 @@ export default function Locations() {
                   className="w-full px-3 py-2 border rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-500" 
                   value={newLocationName} 
                   onChange={e => setNewLocationName(e.target.value)} 
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-slate-700">Açıklama (Opsiyonel)</label>
+                <input 
+                  type="text" 
+                  placeholder="Örn: Yedek parçalar için raf"
+                  className="w-full px-3 py-2 border rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-500" 
+                  value={newLocationDesc} 
+                  onChange={e => setNewLocationDesc(e.target.value)} 
                 />
               </div>
 

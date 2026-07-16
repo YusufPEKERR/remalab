@@ -19,7 +19,9 @@ const EMPTY_FORM = {
 
 export default function PartCategories() {
   const [categories, setCategories] = useState([]);
+  const [dynamicPartTypes, setDynamicPartTypes] = useState(PART_TYPES);
   const [locations, setLocations] = useState([]);
+  const [systemLocations, setSystemLocations] = useState([]);
   const [departmentList, setDepartmentList] = useState(DEPARTMENTS);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -38,6 +40,7 @@ export default function PartCategories() {
   useEffect(() => {
     fetchCategories();
     api.getLocations().then(res => { if (res.success) setLocations(res.locations || []); });
+    api.getSystemLocations().then(res => { if (res.success) setSystemLocations(res.locations || []); });
     api.getDepartments().then(res => {
       if (res.success && (res.departments || []).length > 0) {
         setDepartmentList(res.departments.map(d => d.name));
@@ -46,6 +49,19 @@ export default function PartCategories() {
     const interval = setInterval(() => fetchCategories(true), 8000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    const uniqueTypes = Array.from(new Set([
+      ...PART_TYPES, 
+      ...categories.map(c => c.part_type || c.name).filter(Boolean)
+    ]));
+    setDynamicPartTypes(uniqueTypes);
+  }, [categories]);
+
+  const getSystemLocationId = (kind) => {
+    const loc = systemLocations.find(l => l.kind === kind);
+    return loc ? String(loc.id) : '';
+  };
 
   const handleOpenForm = (cat = null) => {
     if (cat) {
@@ -61,7 +77,7 @@ export default function PartCategories() {
       });
     } else {
       setEditingCat(null);
-      setFormData(EMPTY_FORM);
+      setFormData({ ...EMPTY_FORM, default_location_id: getSystemLocationId('good_stock') });
     }
     setShowForm(true);
   };
@@ -77,9 +93,10 @@ export default function PartCategories() {
 
   const handleSave = async (e) => {
     e.preventDefault();
+    const payload = { ...formData, name: formData.part_type };
     const res = editingCat
-      ? await api.updatePartCategory(editingCat.id, formData)
-      : await api.createPartCategory(formData);
+      ? await api.updatePartCategory(editingCat.id, payload)
+      : await api.createPartCategory(payload);
     if (res.success) {
       setShowForm(false);
       fetchCategories();
@@ -229,27 +246,21 @@ export default function PartCategories() {
             </div>
 
             <form onSubmit={handleSave} className="space-y-5">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1.5">Kategori Adı <span className="text-red-400">*</span></label>
+              <div className="grid grid-cols-1 gap-5">
+                <div className="relative">
+                  <label className="block text-sm font-medium text-slate-400 mb-1.5">Parça Kategorisi <span className="text-red-400">*</span></label>
                   <input
-                    type="text" required
-                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
-                    value={formData.name}
-                    onChange={e => setFormData({...formData, name: e.target.value})}
-                    placeholder="Örn: NFC IC200VB111"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1.5">Parça Tipi</label>
-                  <select
+                    type="text"
+                    list="part-types-list"
+                    required
                     className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
                     value={formData.part_type}
                     onChange={e => setFormData({...formData, part_type: e.target.value})}
-                  >
-                    <option value="">Seçilmedi</option>
-                    {PART_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
+                    placeholder="Örn: Ekran, Batarya..."
+                  />
+                  <datalist id="part-types-list">
+                    {dynamicPartTypes.map(t => <option key={t} value={t} />)}
+                  </datalist>
                 </div>
               </div>
 

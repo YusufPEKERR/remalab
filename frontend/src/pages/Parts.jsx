@@ -7,7 +7,7 @@ import ExcelMappingModal from '../components/ExcelMappingModal';
 const KALITE_OPTIONS = ['Orijinal', 'Muadil', 'Çıkma'];
 
 const EMPTY_FORM = {
-  item_code: '', barcode: '', name: '', brand: '', model: '',
+  item_code: '', barcode: '', name: '',
   item_category: '', part_category_id: '',
   department: [], stock_tracking_type: 'Stok Takipli', status: 'Aktif'
 };
@@ -35,13 +35,9 @@ export default function Parts() {
     "Parça Kodu": true,
     "Barkod": true,
     "Parça Adı": true,
-    "Marka": true,
-    "Model": true,
     "Kalite": true,
     "Parça Kategorisi": true,
     "Parça Tipi": true,
-    "Stok Takibi": true,
-    "Departman": true,
     "Parça Statüsü": true
   });
 
@@ -53,17 +49,13 @@ export default function Parts() {
 
   const PART_STATUSES = ['Aktif', 'Pasif', 'Beklemede', 'Hurda'];
 
-  const dbColumns = ["item_code", "barcode", "name", "brand", "model", "item_category", "part_category", "stock_tracking_type", "department", "status"];
+  const dbColumns = ["item_code", "barcode", "name", "item_category", "part_category", "status"];
   const friendlyNames = {
     item_code: "Parça Kodu (item_code) *",
     barcode: "Barkod (barcode)",
     name: "Parça Adı (name)",
-    brand: "Marka (brand)",
-    model: "Model (model)",
     item_category: "Kalite (item_category)",
     part_category: "Parça Kategorisi (part_category)",
-    stock_tracking_type: "Stok Takip Tipi (stock_tracking_type)",
-    department: "Departman (department)",
     status: "Parça Statüsü (status)"
   };
 
@@ -136,11 +128,9 @@ export default function Parts() {
         item_code: part.item_code || '',
         barcode: part.barcode || '',
         name: part.name || '',
-        brand: part.brand || '',
-        model: part.model || '',
         item_category: part.item_category || '',
         part_category_id: part.part_category_id || '',
-        department: part.department ? part.department.split(',').map(d => d.trim()).filter(Boolean) : [],
+        department: part.department ? String(part.department).split(',').map(d => d.trim()).filter(Boolean) : [],
         stock_tracking_type: part.stock_tracking_type || 'Stok Takipli',
         status: part.status || 'Aktif'
       });
@@ -151,32 +141,22 @@ export default function Parts() {
     setIsModalOpen(true);
   };
 
-  const toggleDepartment = (dept) => {
-    setFormData(prev => ({
-      ...prev,
-      department: prev.department.includes(dept)
-        ? prev.department.filter(d => d !== dept)
-        : [...prev.department, dept]
-    }));
-  };
-
   const handleSearchBarcode = (e) => {
     if (e && e.preventDefault) e.preventDefault();
     if (!formData.item_code) return;
     const existing = parts.find(p => p.item_code === formData.item_code || p.barcode === formData.item_code);
     if (existing) {
-      setFormData({
+      setFormData(prev => ({
+        ...prev,
         item_code: existing.item_code || '',
         barcode: existing.barcode || '',
         name: existing.name || '',
-        brand: existing.brand || '',
-        model: existing.model || '',
         item_category: existing.item_category || '',
         part_category_id: existing.part_category_id || '',
         department: existing.department ? String(existing.department).split(',').map(d => d.trim()).filter(Boolean) : [],
         stock_tracking_type: existing.stock_tracking_type || 'Stok Takipli',
         status: existing.status || 'Aktif'
-      });
+      }));
     } else {
       alert("Bu parça koduna ait mevcut bir kayıt bulunamadı.");
     }
@@ -230,7 +210,7 @@ export default function Parts() {
     e.target.value = '';
 
     if (action === 'download_template') {
-      const templateData = [{ item_code: 'ORNEK-KOD-001', barcode: '', name: 'Örnek Parça', brand: 'Örnek Marka', model: 'Örnek Model', item_category: 'Orijinal', part_category: 'Ekran', stock_tracking_type: 'Stok Takipli', department: 'Servis, Kalite', status: 'Aktif' }];
+      const templateData = [{ item_code: 'ORNEK-KOD-001', barcode: '', name: 'Örnek Parça', item_category: 'Orijinal', part_category: 'Ekran', stock_tracking_type: 'Stok Takipli', department: 'Servis, Kalite', status: 'Aktif' }];
       await api.exportTableToExcel(templateData, "stok_karti_sablonu.xlsx");
     } else if (action === 'export') {
       setIsExportModalOpen(true);
@@ -271,13 +251,9 @@ export default function Parts() {
       if (selectedExportColumns["Parça Kodu"]) row["Parça Kodu"] = p.item_code;
       if (selectedExportColumns["Barkod"]) row["Barkod"] = p.barcode;
       if (selectedExportColumns["Parça Adı"]) row["Parça Adı"] = p.name;
-      if (selectedExportColumns["Marka"]) row["Marka"] = p.brand;
-      if (selectedExportColumns["Model"]) row["Model"] = p.model;
       if (selectedExportColumns["Kalite"]) row["Kalite"] = p.item_category;
       if (selectedExportColumns["Parça Kategorisi"]) row["Parça Kategorisi"] = p.part_category;
       if (selectedExportColumns["Parça Tipi"]) row["Parça Tipi"] = p.part_type;
-      if (selectedExportColumns["Stok Takibi"]) row["Stok Takibi"] = p.stock_tracking_type;
-      if (selectedExportColumns["Departman"]) row["Departman"] = p.department;
       if (selectedExportColumns["Parça Statüsü"]) row["Parça Statüsü"] = p.status;
       return row;
     });
@@ -302,23 +278,14 @@ export default function Parts() {
         (p.item_code && p.item_code.toLowerCase().includes(q)) ||
         (p.barcode && p.barcode.toLowerCase().includes(q)) ||
         (p.name && p.name.toLowerCase().includes(q)) ||
-        (p.brand && p.brand.toLowerCase().includes(q)) ||
-        (p.model && p.model.toLowerCase().includes(q)) ||
-        (p.part_category && p.part_category.toLowerCase().includes(q));
+        (p.item_category && p.item_category.toLowerCase().includes(q));
 
-      const matchesDepartment = filterDepartment
-        ? (p.department && p.department.includes(filterDepartment))
-        : true;
-
-      return matchesSearch && matchesDepartment;
+      return matchesSearch;
     });
-  }, [parts, searchTerm, filterDepartment]);
+  }, [parts, searchTerm]);
 
   const totalPages = Math.ceil(filteredParts.length / itemsPerPage) || 1;
   const paginatedParts = filteredParts.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-
-  const uniqueBrands = [...new Set(products.map(p => p.brand).filter(Boolean))].sort();
-  const uniqueModels = [...new Set(products.filter(p => p.brand === formData.brand).map(p => p.model).filter(Boolean))].sort();
 
   const categoryOptions = partCategories.filter(c => c.is_active !== false || String(c.id) === String(formData.part_category_id));
 
@@ -366,22 +333,10 @@ export default function Parts() {
           <input
             type="text"
             className="w-full bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:border-blue-500 shadow-sm"
-            placeholder="Parça Ara (Kod, Barkod, Ad, Marka, Model, Kategori)..."
+            placeholder="Parça Ara (Kod, Barkod, Ad, Kategori)..."
             value={searchTerm}
             onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
           />
-        </div>
-        <div className="w-56 relative shrink-0">
-          <select
-            value={filterDepartment}
-            onChange={(e) => { setFilterDepartment(e.target.value); setCurrentPage(1); }}
-            className="w-full h-full bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 shadow-sm appearance-none"
-          >
-            <option value="">Tüm Departmanlar</option>
-            {departmentList.map(d => (
-              <option key={d} value={d}>{d}</option>
-            ))}
-          </select>
         </div>
       </div>
 
@@ -403,13 +358,9 @@ export default function Parts() {
                 <th className="px-6 py-4">Parça Kodu</th>
                 <th className="px-6 py-4">Barkod</th>
                 <th className="px-6 py-4">Parça Adı</th>
-                <th className="px-6 py-4">Marka</th>
-                <th className="px-6 py-4">Model</th>
                 <th className="px-6 py-4">Kalite</th>
                 <th className="px-6 py-4">Parça Kategorisi</th>
                 <th className="px-6 py-4">Parça Tipi</th>
-                <th className="px-6 py-4">Stok Takibi</th>
-                <th className="px-6 py-4">Departman</th>
                 <th className="px-6 py-4">Parça Statüsü</th>
                 <th className="px-6 py-4 text-center">İşlemler</th>
               </tr>
@@ -417,14 +368,14 @@ export default function Parts() {
             <tbody className="divide-y divide-slate-700/50">
               {loading ? (
                 <tr>
-                  <td colSpan="14" className="px-6 py-8 text-center text-slate-400">
+                  <td colSpan="10" className="px-6 py-8 text-center text-slate-400">
                     <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-400" />
                     Yükleniyor...
                   </td>
                 </tr>
               ) : paginatedParts.length === 0 ? (
                 <tr>
-                  <td colSpan="14" className="px-6 py-8 text-center text-slate-500">
+                  <td colSpan="10" className="px-6 py-8 text-center text-slate-500">
                     Kayıt bulunamadı.
                   </td>
                 </tr>
@@ -445,8 +396,6 @@ export default function Parts() {
                     <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200">{part.item_code}</td>
                     <td className="px-6 py-4 font-mono text-slate-400">{part.barcode || '-'}</td>
                     <td className="px-6 py-4">{part.name}</td>
-                    <td className="px-6 py-4">{part.brand}</td>
-                    <td className="px-6 py-4">{part.model}</td>
                     <td className="px-6 py-4">
                       {part.item_category && (
                         <span className="px-2.5 py-1 rounded-full text-xs font-medium border bg-blue-500/10 text-blue-400 border-blue-500/20">
@@ -455,31 +404,6 @@ export default function Parts() {
                       )}
                     </td>
                     <td className="px-6 py-4">{part.part_category || '-'}</td>
-                    <td className="px-6 py-4">{part.part_type || '-'}</td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${
-                        part.stock_tracking_type === 'Stok Takipsiz'
-                          ? 'bg-slate-500/10 text-slate-400 border-slate-500/20'
-                          : 'bg-green-500/10 text-green-400 border-green-500/20'
-                      }`}>
-                        {part.stock_tracking_type || 'Stok Takipli'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-wrap gap-1">
-                        {part.department ? (
-                          Array.from(new Set(String(part.department).split(',').map(d => d.trim()).filter(Boolean))).map((d, i) => (
-                            <span key={i} className="px-2.5 py-1 rounded-full text-xs font-medium border bg-purple-500/10 text-purple-400 border-purple-500/20">
-                              {d}
-                            </span>
-                          ))
-                        ) : (
-                          <span className="px-2.5 py-1 rounded-full text-xs font-medium border bg-slate-500/10 text-slate-400 border-slate-500/20">
-                            Belirtilmedi
-                          </span>
-                        )}
-                      </div>
-                    </td>
                     <td className="px-6 py-4">
                       <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${
                         part.status === 'Pasif' ? 'bg-slate-500/10 text-slate-400 border-slate-500/20' :
@@ -608,37 +532,13 @@ export default function Parts() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1">Marka</label>
-                  <select
-                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 appearance-none"
-                    value={formData.brand}
-                    onChange={e => setFormData({...formData, brand: e.target.value, model: ''})}
-                  >
-                    <option value="">Marka Seçiniz...</option>
-                    {uniqueBrands.map(b => <option key={b} value={b}>{b}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1">Model</label>
-                  <select
-                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 appearance-none disabled:opacity-50"
-                    value={formData.model}
-                    onChange={e => setFormData({...formData, model: e.target.value})}
-                    disabled={!formData.brand}
-                  >
-                    <option value="">Model Seçiniz...</option>
-                    {uniqueModels.map(m => <option key={m} value={m}>{m}</option>)}
-                  </select>
-                </div>
-              </div>
+
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-400 mb-1">Kalite</label>
                   <select
-                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 appearance-none"
+                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
                     value={formData.item_category}
                     onChange={e => setFormData({...formData, item_category: e.target.value})}
                   >
@@ -649,7 +549,7 @@ export default function Parts() {
                 <div>
                   <label className="block text-sm font-medium text-slate-400 mb-1">Parça Kategorisi</label>
                   <select
-                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 appearance-none"
+                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
                     value={formData.part_category_id}
                     onChange={e => setFormData({...formData, part_category_id: e.target.value})}
                   >
@@ -665,45 +565,11 @@ export default function Parts() {
                   <div className="grid grid-cols-2 gap-y-2 text-sm">
                     <span className="text-slate-400">Parça Tipi</span>
                     <span className="text-slate-800 dark:text-slate-200">{selectedCategory.part_type || '-'}</span>
-                    <span className="text-slate-400">Departmanlar</span>
-                    <span className="text-slate-800 dark:text-slate-200">{selectedCategory.departments || '-'}</span>
-                    <span className="text-slate-400">Stok Takibi</span>
-                    <span className="text-slate-800 dark:text-slate-200">{selectedCategory.stock_tracking_type === 'Stok Takipsiz' ? 'Hayır' : 'Evet'}</span>
                     <span className="text-slate-400">Varsayılan Lokasyon</span>
                     <span className="text-slate-800 dark:text-slate-200">{selectedCategory.default_location_name || '-'}</span>
                   </div>
                 </div>
-              ) : (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-400 mb-2">Departman</label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {departmentList.map(dept => (
-                        <label key={dept} className="flex items-center gap-2 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 cursor-pointer hover:border-slate-500 transition-colors">
-                          <input
-                            type="checkbox"
-                            checked={formData.department.includes(dept)}
-                            onChange={() => toggleDepartment(dept)}
-                            className="accent-blue-600"
-                          />
-                          <span className="text-slate-800 dark:text-slate-200 text-sm">{dept}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-400 mb-1">Stok Takip Tipi</label>
-                    <select
-                      className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
-                      value={formData.stock_tracking_type}
-                      onChange={e => setFormData({...formData, stock_tracking_type: e.target.value})}
-                    >
-                      <option value="Stok Takipli">Stok Takipli</option>
-                      <option value="Stok Takipsiz">Stok Takipsiz</option>
-                    </select>
-                  </div>
-                </>
-              )}
+              ) : null}
 
               {currentPart && (
                 <div>

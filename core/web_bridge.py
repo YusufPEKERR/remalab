@@ -630,7 +630,7 @@ class WebBridge(QObject):
         db = SessionLocal()
         try:
             locs = db.query(Location).all()
-            return json.dumps({"success": True, "locations": [{"id": l.id, "name": l.name, "kind": l.kind} for l in locs]})
+            return json.dumps({"success": True, "locations": [{"id": l.id, "name": l.name, "kind": l.kind, "description": l.description} for l in locs]})
         except Exception as e:
             return json.dumps({"success": False, "message": str(e)})
         finally:
@@ -649,14 +649,14 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    @Slot(str, result=str)
-    def create_location(self, name):
+    @Slot(str, str, result=str)
+    def create_location(self, name, description):
         from models.location import Location
         db = SessionLocal()
         try:
             if db.query(Location).filter(Location.name == name).first():
                 return json.dumps({"success": False, "message": "Bu lokasyon zaten var"})
-            loc = Location(name=name)
+            loc = Location(name=name, description=description)
             db.add(loc)
             db.commit()
             return json.dumps({"success": True, "message": "Lokasyon eklendi", "id": loc.id})
@@ -742,7 +742,7 @@ class WebBridge(QObject):
                        pc.is_active, pc.description
                 FROM warehouse.part_categories pc
                 LEFT JOIN warehouse.locations loc ON loc.id = pc.default_location_id
-                ORDER BY pc.name
+                ORDER BY pc.id ASC
             """)).mappings().all()
             categories = []
             for r in rows:

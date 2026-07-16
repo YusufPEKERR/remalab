@@ -10,3 +10,4 @@ class Location(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String(100), nullable=False)
     kind = Column(String(20), nullable=True)
+    description = Column(String(255), nullable=True)

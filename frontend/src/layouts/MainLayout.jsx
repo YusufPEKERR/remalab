@@ -84,7 +84,7 @@ export default function MainLayout() {
   const allowedPaths = {
     'admin': ['/dashboard', '/depo', '/irsaliye', '/work-orders', '/supply-requests', '/raporlar', '/parts', '/part-categories', '/products', '/suppliers', '/locations', '/users', '/settings', '/departments', '/service-records', '/data-management', '/tedarik-talepleri', '/quality', '/refurbishment', '/priority'],
     'depo': ['/depo', '/irsaliye', '/work-orders', '/supply-requests', '/raporlar', '/tedarik-talepleri'],
-    'depo müdürü': ['/dashboard', '/depo', '/irsaliye', '/work-orders', '/supply-requests', '/raporlar', '/parts', '/part-categories', '/products', '/suppliers', '/locations', '/tedarik-talepleri'],
+    'depo müdürü': ['/dashboard', '/depo', '/irsaliye', '/work-orders', '/supply-requests', '/raporlar', '/parts', '/products', '/suppliers', '/locations', '/tedarik-talepleri'],
     'teknisyen': ['/dashboard', '/quality', '/refurbishment', '/priority']
   };
 
@@ -103,7 +103,7 @@ export default function MainLayout() {
         { name: 'Depo', icon: Warehouse, path: '/depo' },
         { name: 'İrsaliye', icon: FileText, path: '/irsaliye' },
         { name: 'İş Emirleri', icon: ClipboardList, path: '/work-orders' },
-        { name: 'Tedarik İstekleri', icon: PackageSearch, path: '/supply-requests' },
+        // { name: 'Tedarik İstekleri', icon: PackageSearch, path: '/supply-requests' },
         { name: 'Raporlar', icon: BarChart2, path: '/raporlar' }
       ]
     },
@@ -124,8 +124,8 @@ export default function MainLayout() {
         { name: 'Ayarlar', icon: Settings, path: '/settings' },
         { name: 'Veri Yönetimi', icon: Database, path: '/data-management' },
         { name: 'Departman Yönetimi', icon: Building2, path: '/departments' },
-        { name: 'Servis Kaydı', icon: Wrench, path: '/service-records' },
-        { name: 'Tedarik Talepleri', icon: PackagePlus, path: '/tedarik-talepleri' }
+        { name: 'Servis Kaydı', icon: Wrench, path: '/service-records' }
+        // { name: 'Tedarik Talepleri', icon: PackagePlus, path: '/tedarik-talepleri' }
       ]
     }
   ];

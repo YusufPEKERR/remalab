@@ -48,9 +48,9 @@ export default function Irsaliye() {
     "Açıklama": true
   });
 
-  const dbColumns = ["part_id", "loc_id", "qty", "price", "type"];
+  const dbColumns = ["barcode", "loc_id", "qty", "price", "type"];
   const friendlyNames = {
-    part_id: "Parça ID (Zorunlu)",
+    barcode: "Barkod (Zorunlu)",
     loc_id: "Lokasyon ID (Zorunlu)",
     qty: "Miktar (Zorunlu)",
     price: "Birim Fiyat",
@@ -62,11 +62,17 @@ export default function Irsaliye() {
     let successCount = 0;
     
     for (const row of data) {
-        if (!row.part_id || !row.loc_id || !row.qty) continue;
+        if (!row.barcode || !row.loc_id || !row.qty) continue;
+
+        const part = parts.find(p => String(p.barcode) === String(row.barcode));
+        if (!part) {
+            alert(`Barkodu ${row.barcode} olan parça bulunamadı. Bu satır atlandı.`);
+            continue;
+        }
 
         if (excelDirection === 'inbound') {
             await api.addInboundEntry(
-                row.part_id,
+                part.id,
                 row.loc_id,
                 row.qty,
                 row.price || 0,
@@ -75,7 +81,7 @@ export default function Irsaliye() {
             );
         } else {
             await api.addOutboundEntry(
-                row.part_id,
+                part.id,
                 row.loc_id,
                 row.qty,
                 row.type || 'Çıkış',
@@ -95,17 +101,17 @@ export default function Irsaliye() {
 
     if (action === 'template') {
         const templateData = [{
-          "Parça ID": "1",
+          "Barkod": "123456789",
           "Lokasyon ID": "1",
           "Miktar": 10,
           "Birim Fiyat": 150.00,
-          "İşlem Türü": "Yeni Alım VEYA Çıkış"
+          "İşlem Türü": "Yeni Alım"
         }];
         await api.exportTableToExcel(templateData, "irsaliye_sablon.xlsx");
     } else if (action === 'export') {
         setIsExportModalOpen(true);
-    } else if (action === 'import_in' || action === 'import_out') {
-        setExcelDirection(action === 'import_in' ? 'inbound' : 'outbound');
+    } else if (action === 'import_in') {
+        setExcelDirection('inbound');
         setIsExcelModalOpen(true);
     }
   };
@@ -385,7 +391,6 @@ export default function Irsaliye() {
               <option value="template">Şablon İndir</option>
               <option value="export">{selectedRows.length > 0 ? `${selectedRows.length} Seçiliyi Dışa Aktar` : 'Tümünü Dışa Aktar'}</option>
               <option value="import_in">Giriş İçe Aktar</option>
-              <option value="import_out">Çıkış İçe Aktar</option>
             </select>
             <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-slate-400">
               <FileSpreadsheet size={16} />
@@ -423,7 +428,7 @@ export default function Irsaliye() {
                 }
               }
               
-              setOutboundBarcode(''); setFormData({ part_id: '', loc_id: '', qty: 1, price: 0, type: 'Teknik Servis', technician: '', description: '' }); setShowOutboundModal(true);
+              setOutboundBarcode(''); setOutboundBrand(''); setOutboundModel(''); setFormData({ part_id: '', loc_id: getSystemLocationId('good_stock'), qty: 1, price: 0, type: 'Teknik Servis', technician: '', description: '' }); setShowOutboundModal(true); 
             }}
             className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-colors"
           >
@@ -551,6 +556,8 @@ export default function Irsaliye() {
 
               <div className="border-t border-slate-200 dark:border-slate-700/50 pt-4"></div>
 
+
+
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Parça Adı / Parça</label>
                 <select required className="w-full px-3 py-2 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.part_id} onChange={(e) => {
@@ -560,7 +567,7 @@ export default function Irsaliye() {
                     ...prev,
                     part_id: partId,
                     source_loc_id: prev.type === 'Depodan Depoya' ? bestLoc : prev.source_loc_id,
-                    loc_id: prev.type === 'Depodan Depoya' ? prev.loc_id : bestLoc
+                    loc_id: prev.type === 'Depodan Depoya' ? prev.loc_id : getSystemLocationId('good_stock')
                   }));
                 }}>
                   <option value="">Parça seçiniz...</option>
@@ -576,7 +583,7 @@ export default function Irsaliye() {
                     ...prev,
                     type,
                     source_loc_id: type === 'Depodan Depoya' ? findBestSourceLocation(prev.part_id) : prev.source_loc_id,
-                    loc_id: type === 'Depodan Depoya' ? prev.loc_id : findBestSourceLocation(prev.part_id)
+                    loc_id: type === 'Depodan Depoya' ? prev.loc_id : getSystemLocationId('good_stock')
                   }));
                 }}>
                   <option value="Yeni Alım (Tedarikçiden)">Yeni Alım (Tedarikçiden)</option>
@@ -671,11 +678,13 @@ export default function Irsaliye() {
 
               <div className="border-t border-slate-200 dark:border-slate-700/50 pt-4"></div>
 
+
+
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Parça Adı / Parça</label>
                 <select required className="w-full px-3 py-2 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.part_id} onChange={(e) => {
                   const partId = e.target.value;
-                  setFormData(prev => ({ ...prev, part_id: partId, loc_id: findBestSourceLocation(partId) }));
+                  setFormData(prev => ({ ...prev, part_id: partId, loc_id: getSystemLocationId('good_stock') }));
                 }}>
                   <option value="">Parça seçiniz...</option>
                   {parts.map(p => <option key={p.id} value={p.id}>{p.brand} {p.model} {p.name ? `- ${p.name}` : ''}</option>)}

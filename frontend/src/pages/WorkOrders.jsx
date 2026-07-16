@@ -100,6 +100,11 @@ export default function WorkOrders() {
     api.getSystemLocations().then(res => { if (res.success) setSystemLocations(res.locations || []); });
   }, []);
 
+  const getSystemLocationId = (kind) => {
+    const loc = systemLocations.find(l => l.kind === kind);
+    return loc ? String(loc.id) : '';
+  };
+
   const getStockQty = (partId, locId) => {
     if (!partId || !locId) return 0;
     const entry = stockStatus.find(s => String(s.part_id) === String(partId) && String(s.location_id) === String(locId));
@@ -218,7 +223,7 @@ export default function WorkOrders() {
       }
     } else {
       setEditingOrder(null);
-      setFormData(EMPTY_FORM);
+      setFormData({ ...EMPTY_FORM, source_location_id: getSystemLocationId('good_stock') });
       setPartsUsed([]);
     }
     setActiveTab('new');
@@ -268,7 +273,7 @@ export default function WorkOrders() {
         await api.addWorkOrderPartsBulk(res.id, usedParts, currentUser?.username);
       }
       setEditingOrder(null);
-      setFormData(EMPTY_FORM);
+      setFormData({ ...EMPTY_FORM, source_location_id: getSystemLocationId('good_stock') });
       setPartsUsed([]);
       fetchOrders();
       api.getStockStatus().then(r => { if (r.success) setStockStatus(r.stock || []); });
@@ -334,7 +339,7 @@ export default function WorkOrders() {
       materials_json: JSON.stringify(materials)
     });
     if (res.success) {
-      setProductionForm(EMPTY_PRODUCTION_FORM);
+      setProductionForm({ ...EMPTY_PRODUCTION_FORM, source_location_id: getSystemLocationId('good_stock'), target_location_id: getSystemLocationId('good_stock') });
       setProductionMaterials([]);
       fetchProductionRuns();
       api.getStockStatus().then(r => { if (r.success) setStockStatus(r.stock || []); });
@@ -566,7 +571,7 @@ export default function WorkOrders() {
 
               <div className="flex justify-end gap-3 pt-6 border-t border-slate-200 dark:border-slate-700/50 mt-6">
                 {editingOrder && (
-                  <button type="button" onClick={() => { setEditingOrder(null); setFormData(EMPTY_FORM); setPartsUsed([]); }} className="px-5 py-2.5 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:bg-[#2a3142] text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors border border-slate-300 dark:border-slate-600">İptal</button>
+                  <button type="button" onClick={() => { setEditingOrder(null); setFormData({ ...EMPTY_FORM, source_location_id: getSystemLocationId('good_stock') }); setPartsUsed([]); }} className="px-5 py-2.5 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:bg-[#2a3142] text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors border border-slate-300 dark:border-slate-600">İptal</button>
                 )}
                 <button type="submit" className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors shadow-lg shadow-blue-900/20 flex items-center gap-2"><Save size={18}/> Kaydet</button>
               </div>

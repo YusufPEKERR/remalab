@@ -356,18 +356,30 @@ export default function Products() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-1">Hafıza</label>
-                <input 
-                  type="text"
-                  list="memory-options"
-                  placeholder="Seçiniz veya yazınız..."
-                  className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
-                  value={formData.memory} 
-                  onChange={e => setFormData({...formData, memory: e.target.value})} 
-                />
-                <datalist id="memory-options">
-                  {MEMORY_OPTIONS.filter(m => m !== "").map(m => <option key={m} value={m} />)}
-                </datalist>
+                <label className="block text-sm font-medium text-slate-400 mb-2">Hafıza Seçenekleri</label>
+                <div className="flex flex-wrap gap-2">
+                  {MEMORY_OPTIONS.filter(m => m !== "").map(m => {
+                    const currentMemories = formData.memory ? formData.memory.split(',').map(s => s.trim()).filter(Boolean) : [];
+                    const isChecked = currentMemories.includes(m);
+                    return (
+                      <label key={m} className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer border transition-colors ${isChecked ? 'bg-blue-600/10 border-blue-600 text-blue-500' : 'bg-slate-50 dark:bg-[#242a38] border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-slate-400'}`}>
+                        <input
+                          type="checkbox"
+                          className="hidden"
+                          checked={isChecked}
+                          onChange={() => {
+                            if (isChecked) {
+                              setFormData({ ...formData, memory: currentMemories.filter(x => x !== m).join(', ') });
+                            } else {
+                              setFormData({ ...formData, memory: [...currentMemories, m].join(', ') });
+                            }
+                          }}
+                        />
+                        <span className="text-sm font-medium">{m}</span>
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
 
               <div>

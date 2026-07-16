@@ -196,11 +196,11 @@ export const api = {
         });
     },
 
-    createLocation: async (name) => {
+    createLocation: async (name, description = "") => {
         const backend = await getBackend();
         return new Promise((resolve) => {
             if (backend.create_location) {
-                backend.create_location(name, (res) => resolve(JSON.parse(res)));
+                backend.create_location(name, description, (res) => resolve(JSON.parse(res)));
             } else {
                 resolve({ success: true });
             }
