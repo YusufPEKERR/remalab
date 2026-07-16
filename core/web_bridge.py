@@ -1864,25 +1864,34 @@ class WebBridge(QObject):
             if qty <= 0:
                 return json.dumps({"success": False, "message": "Üretilecek miktar sıfırdan büyük olmalıdır."})
 
-            # Stok yeterliliğini kontrol et
+            # Stok yeterliliğini kontrol et (hangi lokasyonda olursa olsun toplam stok esas alınır)
             for m in materials:
                 part_id = int(m["part_id"])
                 needed = int(m["quantity_consumed"])
-                row = db.execute(text("""
-                    SELECT quantity FROM warehouse.stock WHERE part_id = :pid AND location_id = :lid
-                """), {"pid": part_id, "lid": src_loc_id}).first()
-                available = row[0] if row else 0
-                if available < needed:
-                    return json.dumps({"success": False, "message": f"Yetersiz stok (parça id {part_id}): mevcut {available}, gerekli {needed}"})
+                total_available = db.execute(text("""
+                    SELECT COALESCE(SUM(quantity), 0) FROM warehouse.stock WHERE part_id = :pid
+                """), {"pid": part_id}).scalar()
+                if total_available < needed:
+                    return json.dumps({"success": False, "message": f"Yetersiz stok (parça id {part_id}): mevcut {total_available}, gerekli {needed}"})
 
-            # Hammaddeleri seçilen lokasyondan düş
+            # Hammaddeleri, stoğu nerede varsa oradan düş (birden fazla lokasyona/satıra yayılmış olabilir)
             for m in materials:
                 part_id = int(m["part_id"])
-                needed = int(m["quantity_consumed"])
-                db.execute(text("""
-                    UPDATE warehouse.stock SET quantity = quantity - :qty
-                    WHERE part_id = :pid AND location_id = :lid
-                """), {"qty": needed, "pid": part_id, "lid": src_loc_id})
+                remaining = int(m["quantity_consumed"])
+                rows = db.execute(text("""
+                    SELECT id, quantity FROM warehouse.stock
+                    WHERE part_id = :pid AND quantity > 0
+                    ORDER BY id
+                    FOR UPDATE
+                """), {"pid": part_id}).all()
+                for stock_id, qty in rows:
+                    if remaining <= 0:
+                        break
+                    take = min(qty, remaining)
+                    db.execute(text("""
+                        UPDATE warehouse.stock SET quantity = quantity - :take WHERE id = :id
+                    """), {"take": take, "id": stock_id})
+                    remaining -= take
 
             # Üretilen parçanın stokunu artır (yoksa oluştur)
             existing = db.execute(text("""
