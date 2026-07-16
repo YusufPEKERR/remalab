@@ -460,6 +460,7 @@ export default function WorkOrders() {
 
   const TABS = [
     { key: 'production', label: 'Yarı Mamul Üretimi', icon: Factory },
+    { key: 'recent_productions', label: 'Hızlı Tekrar Üretim', icon: Repeat },
     { key: 'consumption', label: 'Malzeme Tüketimi', icon: Package },
     { key: 'history', label: 'Üretim Geçmişi', icon: TrendingUp }
   ];
@@ -733,8 +734,7 @@ export default function WorkOrders() {
 
         {/* --- YARI MAMUL ÜRETİMİ --- */}
         {activeTab === 'production' && (
-          <div className="space-y-6">
-            <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-sm">
+          <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-sm">
             <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2 mb-2">
               <Factory size={20} className="text-orange-400" /> Yarı Mamul Üretimi
             </h2>
@@ -842,12 +842,19 @@ export default function WorkOrders() {
               </div>
             </form>
           </div>
+        )}
 
-          {recentProductions.length > 0 && (
-            <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
-              <h3 className="text-md font-bold text-slate-800 dark:text-slate-100 mb-4 flex items-center gap-2">
-                <TrendingUp size={18} className="text-blue-400" /> Son Üretilenler
-              </h3>
+        {/* --- HIZLI TEKRAR ÜRETİM --- */}
+        {activeTab === 'recent_productions' && (
+          <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-2 flex items-center gap-2">
+              <Repeat size={20} className="text-blue-400" /> Hızlı Tekrar Üretim
+            </h3>
+            <p className="text-slate-400 text-sm mb-6">
+              Aynı seansta (uygulama açıkken) yaptığınız üretimler burada listelenir. "Yeniden Yap" butonuna basarak formu doldurmadan aynı parametrelerle (parça, hammaddeler) tekrar üretim yapabilirsiniz.
+            </p>
+            
+            {recentProductions.length > 0 ? (
               <div className="space-y-3">
                 {recentProductions.map(run => (
                   <div key={run.id} className="flex items-center justify-between bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 p-4 rounded-xl">
@@ -871,8 +878,15 @@ export default function WorkOrders() {
                   </div>
                 ))}
               </div>
-            </div>
-          )}
+            ) : (
+              <div className="text-center py-10">
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 mb-4">
+                  <Factory className="text-slate-400" size={32} />
+                </div>
+                <h3 className="text-slate-500 dark:text-slate-400 font-medium">Henüz son üretim kaydı yok.</h3>
+                <p className="text-slate-400 dark:text-slate-500 text-sm mt-1">"Yarı Mamul Üretimi" sekmesinden yeni bir üretim kaydettiğinizde burada görünecektir.</p>
+              </div>
+            )}
           </div>
         )}
 
