@@ -23,3 +23,4 @@ class Part(Base):
     department = Column(String(255), nullable=True)
     status = Column(String(20), default="Aktif", nullable=True)
     part_category_id = Column(Integer, nullable=True)
+    part_type = Column(String(100), nullable=True)

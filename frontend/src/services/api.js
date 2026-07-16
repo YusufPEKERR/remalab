@@ -161,6 +161,7 @@ export const api = {
                 partData.status || 'Aktif',
                 partData.critical_limit !== undefined ? String(partData.critical_limit) : '',
                 partData.memory || '',
+                partData.part_type || '',
                 (res) => resolve(JSON.parse(res))
             );
         });
@@ -184,6 +185,7 @@ export const api = {
                 partData.status || 'Aktif',
                 partData.critical_limit !== undefined ? String(partData.critical_limit) : '',
                 partData.memory || '',
+                partData.part_type || '',
                 (res) => resolve(JSON.parse(res))
             );
         });

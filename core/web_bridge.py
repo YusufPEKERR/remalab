@@ -66,20 +66,25 @@ class WebBridge(QObject):
             fname = files[0]
             wb = openpyxl.load_workbook(fname, data_only=True)
             
-            # Read Item sheet for names
+            # Read Item sheet for names, types
             ws_item = wb['Item']
             item_rows = list(ws_item.iter_rows(values_only=True))
             h_idx = next(i for i, r in enumerate(item_rows) if r and 'code' in [str(x).lower() for x in r])
             headers_item = item_rows[h_idx]
-            code_col = next(i for i, h in enumerate(headers_item) if h == 'code')
-            name_col = next(i for i, h in enumerate(headers_item) if h == 'shortName')
+            shortname_col = next(i for i, h in enumerate(headers_item) if h == 'shortName')
+            category_col = next(i for i, h in enumerate(headers_item) if h == 'itemCategory')
+            type_col = next(i for i, h in enumerate(headers_item) if h == 'itemType')
             
-            item_name_map = {}
+            item_info_map = {}
             for r in item_rows[h_idx+1:]:
-                code = r[code_col]
-                name = r[name_col]
-                if code:
-                    item_name_map[str(code)] = str(name) if name else str(code)
+                s_name = r[shortname_col]
+                cat_val = r[category_col]
+                type_val = r[type_col]
+                if s_name:
+                    item_info_map[str(s_name)] = {
+                        "name": str(cat_val) if cat_val else str(s_name),
+                        "part_type": str(type_val) if type_val else None
+                    }
             
             # Read ItemBom sheet
             ws_bom = wb['ItemBom']
@@ -128,10 +133,11 @@ class WebBridge(QObject):
             missing_codes = unique_codes - existing_codes
             
             for code in missing_codes:
-                name = item_name_map.get(code, code)
+                info = item_info_map.get(code, {"name": code, "part_type": None})
                 new_part = Part(
                     item_code=code,
-                    name=name,
+                    name=info["name"],
+                    part_type=info["part_type"],
                     status="Aktif",
                     stock_tracking_type="Stok Takipli",
                     critical_limit=10
@@ -399,12 +405,13 @@ class WebBridge(QObject):
             db.close()
 
     def _ensure_part_extra_columns(self):
-        """warehouse.parts tablosuna part_category_id ve barcode sütunlarını ekler."""
+        """warehouse.parts tablosuna part_category_id, barcode ve part_type sütunlarını ekler."""
         from sqlalchemy import text
         db = SessionLocal()
         try:
             db.execute(text("ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS part_category_id INTEGER REFERENCES warehouse.part_categories(id);"))
             db.execute(text("ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS barcode VARCHAR(100);"))
+            db.execute(text("ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS part_type VARCHAR(100);"))
             db.commit()
         except Exception as e:
             db.rollback()
@@ -623,7 +630,7 @@ class WebBridge(QObject):
 				SELECT p.id, p.name, p.item_code, p.barcode, p.brand, p.model, p.color,
                        p.item_category, p.part_category_id,
                        COALESCE(pc.name, p.part_category) AS part_category,
-                       '' AS part_type,
+                       COALESCE(p.part_type, '') AS part_type,
                        COALESCE(pc.departments, p.department, '') AS department,
                        COALESCE(pc.stock_tracking_type, p.stock_tracking_type, 'Stok Takipli') AS stock_tracking_type,
                        NULL AS default_location_id, '' AS default_location_name,
@@ -698,8 +705,8 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    @Slot(str, str, str, str, str, str, str, str, str, str, str, str, str, result=str)
-    def create_part(self, name, item_code, barcode, brand, model, item_category, part_category, part_category_id, stock_tracking_type, department, status, critical_limit, memory):
+    @Slot(str, str, str, str, str, str, str, str, str, str, str, str, str, str, result=str)
+    def create_part(self, name, item_code, barcode, brand, model, item_category, part_category, part_category_id, stock_tracking_type, department, status, critical_limit, memory, part_type):
         """Yeni parça ekler."""
         from sqlalchemy import text
         db = SessionLocal()
@@ -713,8 +720,8 @@ class WebBridge(QObject):
                 part_name = f"{brand.strip()} {model.strip()}".strip() or code
 
             sql = """
-                INSERT INTO warehouse.parts (name, item_code, barcode, brand, model, item_category, part_category, part_category_id, stock_tracking_type, department, status, critical_limit, memory)
-                VALUES (:name, :code, :barcode, :brand, :model, :icat, :pcat, :pcat_id, :stt, :dept, :status, :critical_limit, :memory)
+                INSERT INTO warehouse.parts (name, item_code, barcode, brand, model, item_category, part_category, part_category_id, stock_tracking_type, department, status, critical_limit, memory, part_type)
+                VALUES (:name, :code, :barcode, :brand, :model, :icat, :pcat, :pcat_id, :stt, :dept, :status, :critical_limit, :memory, :part_type)
             """
             db.execute(text(sql), {
                 "name": part_name, "code": code, "barcode": barcode or None,
@@ -725,7 +732,8 @@ class WebBridge(QObject):
                 "dept": department or None,
                 "status": status or "Aktif",
                 "critical_limit": int(critical_limit) if critical_limit.strip() else 50,
-                "memory": memory or None
+                "memory": memory or None,
+                "part_type": part_type or None
             })
             db.commit()
             return json.dumps({"success": True, "message": "Parça eklendi"})
@@ -735,8 +743,8 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    @Slot(str, str, str, str, str, str, str, str, str, str, str, str, str, str, result=str)
-    def update_part(self, part_id_str, name, item_code, barcode, brand, model, item_category, part_category, part_category_id, stock_tracking_type, department, status, critical_limit, memory):
+    @Slot(str, str, str, str, str, str, str, str, str, str, str, str, str, str, str, result=str)
+    def update_part(self, part_id_str, name, item_code, barcode, brand, model, item_category, part_category, part_category_id, stock_tracking_type, department, status, critical_limit, memory, part_type):
         """Var olan bir parçayı günceller."""
         from sqlalchemy import text
         db = SessionLocal()
@@ -756,7 +764,7 @@ class WebBridge(QObject):
                     model = :model, item_category = :icat, part_category = :pcat,
                     part_category_id = :pcat_id, stock_tracking_type = :stt,
                     department = :dept, status = :status, critical_limit = :critical_limit,
-                    memory = :memory
+                    memory = :memory, part_type = :part_type
                 WHERE id = :id
             """
             db.execute(text(sql), {
@@ -769,6 +777,7 @@ class WebBridge(QObject):
                 "status": status or "Aktif",
                 "critical_limit": int(critical_limit) if critical_limit.strip() else 50,
                 "memory": memory or None,
+                "part_type": part_type or None,
                 "id": part_id
             })
             db.commit()

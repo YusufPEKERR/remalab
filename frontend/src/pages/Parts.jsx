@@ -11,7 +11,7 @@ const EMPTY_FORM = {
   item_code: '', barcode: '', name: '',
   item_category: '', part_category_id: '',
   department: [], stock_tracking_type: 'Stok Takipli', status: 'Aktif', critical_limit: '',
-  memory: []
+  memory: [], part_type: ''
 };
 
 export default function Parts() {
@@ -51,14 +51,15 @@ export default function Parts() {
 
   const PART_STATUSES = ['Aktif', 'Pasif', 'Beklemede', 'Hurda'];
 
-  const dbColumns = ["item_code", "barcode", "name", "item_category", "part_category", "status"];
+  const dbColumns = ["item_code", "barcode", "name", "item_category", "part_category", "status", "part_type"];
   const friendlyNames = {
     item_code: "Parça Kodu (item_code) *",
     barcode: "Barkod (barcode)",
     name: "Parça Adı (name)",
     item_category: "Kalite (item_category)",
     part_category: "Item Code (part_category)",
-    status: "Parça Statüsü (status)"
+    status: "Parça Statüsü (status)",
+    part_type: "Parça Tipi (part_type)"
   };
 
   const fetchPartCategories = async () => {
@@ -136,7 +137,8 @@ export default function Parts() {
         stock_tracking_type: part.stock_tracking_type || 'Stok Takipli',
         status: part.status || 'Aktif',
         critical_limit: part.critical_limit || '',
-        memory: part.memory ? String(part.memory).split(',').map(m => m.trim()).filter(Boolean) : []
+        memory: part.memory ? String(part.memory).split(',').map(m => m.trim()).filter(Boolean) : [],
+        part_type: part.part_type || ''
       });
     } else {
       setCurrentPart(null);
@@ -159,7 +161,8 @@ export default function Parts() {
         part_category_id: existing.part_category_id || '',
         department: existing.department ? String(existing.department).split(',').map(d => d.trim()).filter(Boolean) : [],
         stock_tracking_type: existing.stock_tracking_type || 'Stok Takipli',
-        status: existing.status || 'Aktif'
+        status: existing.status || 'Aktif',
+        part_type: existing.part_type || ''
       }));
     } else {
       alert("Bu parça koduna ait mevcut bir kayıt bulunamadı.");
@@ -381,6 +384,7 @@ export default function Parts() {
                 <th className="px-6 py-4">Kalite</th>
                 <th className="px-6 py-4">Item Code</th>
                 <th className="px-6 py-4">Item Category</th>
+                <th className="px-6 py-4">Parça Tipi</th>
                 <th className="px-6 py-4">Parça Statüsü</th>
                 <th className="px-6 py-4 text-center">İşlemler</th>
               </tr>
@@ -388,14 +392,14 @@ export default function Parts() {
             <tbody className="divide-y divide-slate-700/50">
               {loading ? (
                 <tr>
-                  <td colSpan="10" className="px-6 py-8 text-center text-slate-400">
+                  <td colSpan="11" className="px-6 py-8 text-center text-slate-400">
                     <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-400" />
                     Yükleniyor...
                   </td>
                 </tr>
               ) : paginatedParts.length === 0 ? (
                 <tr>
-                  <td colSpan="10" className="px-6 py-8 text-center text-slate-500">
+                  <td colSpan="11" className="px-6 py-8 text-center text-slate-500">
                     Kayıt bulunamadı.
                   </td>
                 </tr>
@@ -424,6 +428,7 @@ export default function Parts() {
                       )}
                     </td>
                     <td className="px-6 py-4">{part.part_category || '-'}</td>
+                    <td className="px-6 py-4">{part.part_type || '-'}</td>
                     <td className="px-6 py-4">{part.part_type || '-'}</td>
                     <td className="px-6 py-4">
                       <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${
@@ -618,6 +623,17 @@ export default function Parts() {
                   value={formData.critical_limit}
                   onChange={e => setFormData({...formData, critical_limit: e.target.value})}
                   placeholder="Opsiyonel (Varsayılan: 50)"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-1">Parça Tipi</label>
+                <input
+                  type="text"
+                  className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                  value={formData.part_type}
+                  onChange={e => setFormData({...formData, part_type: e.target.value})}
+                  placeholder="Örn: SparePart, Labour vb."
                 />
               </div>
 
