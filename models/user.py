@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String, Boolean
 
 from config.database import Base
 
@@ -14,3 +14,7 @@ class User(Base):
     role = Column(String(50), nullable=False, default="Teknisyen")
     gorev = Column(String(100), nullable=True)
     fullname = Column(String(150), nullable=True)
+    account_enabled = Column(Boolean, nullable=False, default=True)
+    team_leader = Column(String(150), nullable=True)
+    operation_manager = Column(String(150), nullable=True)
+    administrative_manager = Column(String(150), nullable=True)

@@ -364,7 +364,11 @@ class WebBridge(QObject):
                 "tc_no": user.tc_no or "",
                 "fullname": user.fullname or "",
                 "role": user.role,
-                "gorev": user.gorev or ""
+                "gorev": user.gorev or "",
+                "account_enabled": user.account_enabled if user.account_enabled is not None else True,
+                "team_leader": user.team_leader or "",
+                "operation_manager": user.operation_manager or "",
+                "administrative_manager": user.administrative_manager or ""
             }
             return json.dumps({"success": True, "user": user_data})
         except Exception as e:
@@ -386,7 +390,11 @@ class WebBridge(QObject):
                     "tc_no": u.tc_no or "",
                     "fullname": u.fullname or "",
                     "role": u.role,
-                    "gorev": u.gorev or ""
+                    "gorev": u.gorev or "",
+                    "account_enabled": u.account_enabled if u.account_enabled is not None else True,
+                    "team_leader": u.team_leader or "",
+                    "operation_manager": u.operation_manager or "",
+                    "administrative_manager": u.administrative_manager or ""
                 })
             return json.dumps({"success": True, "users": users_list})
         except Exception as e:
@@ -394,8 +402,8 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    @Slot(str, str, str, str, str, str, result=str)
-    def create_user(self, username, tc_no, password, role, gorev, fullname):
+    @Slot(str, str, str, str, str, str, bool, str, str, str, result=str)
+    def create_user(self, username, tc_no, password, role, gorev, fullname, account_enabled, team_leader, operation_manager, administrative_manager):
         """Yeni bir kullanıcı oluşturur."""
         from config.auth import get_password_hash
         db = SessionLocal()
@@ -413,7 +421,11 @@ class WebBridge(QObject):
                 password_hash=hashed_pwd,
                 role=role,
                 gorev=gorev or None,
-                fullname=fullname or None
+                fullname=fullname or None,
+                account_enabled=account_enabled,
+                team_leader=team_leader or None,
+                operation_manager=operation_manager or None,
+                administrative_manager=administrative_manager or None
             )
             db.add(new_user)
             db.commit()
@@ -424,11 +436,11 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    @Slot(str, str, str, str, str, str, str, result=str)
-    def update_user(self, user_id_str, username, tc_no, password, role, gorev, fullname):
+    @Slot(str, str, str, str, str, str, str, bool, str, str, str, result=str)
+    def update_user(self, user_id_str, username, tc_no, password, role, gorev, fullname, account_enabled, team_leader, operation_manager, administrative_manager):
         """Var olan bir kullanıcıyı günceller."""
         import sys
-        print(f"[WebBridge] update_user called with ID: '{user_id_str}', username: '{username}', tc_no: '{tc_no}', gorev: '{gorev}', fullname: '{fullname}'")
+        print(f"[WebBridge] update_user called with ID: '{user_id_str}', username: '{username}', tc_no: '{tc_no}', gorev: '{gorev}', fullname: '{fullname}', account_enabled: {account_enabled}")
         sys.stdout.flush()
         from config.auth import get_password_hash
         db = SessionLocal()
@@ -456,6 +468,10 @@ class WebBridge(QObject):
             user.role = role
             user.gorev = gorev or None
             user.fullname = fullname or None
+            user.account_enabled = account_enabled
+            user.team_leader = team_leader or None
+            user.operation_manager = operation_manager or None
+            user.administrative_manager = administrative_manager or None
             
             # Şifre gönderilmişse güncelle
             if password and len(password.strip()) > 0:

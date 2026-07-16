@@ -71,3 +71,6 @@ frontend/dist/
 *.db
 *.sqlite
 
+# Excel Data Files
+*.xlsx
+

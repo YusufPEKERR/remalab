@@ -12,6 +12,7 @@ export default function Users() {
   const [selectedRows, setSelectedRows] = useState([]);
 
   // Modal State
+  // Modal State
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [selectedExportColumns, setSelectedExportColumns] = useState({
     "ID": true,
@@ -19,12 +20,39 @@ export default function Users() {
     "İsim Soyisim": true,
     "TC No": true,
     "Hesap Tipi": true,
-    "Görev": true
+    "Görevler": true,
+    "Durum": true,
+    "Team Leader": true,
+    "Operation Manager": true,
+    "Administrative Manager": true
   });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState('add'); // 'add', 'edit', 'password'
-  const [formData, setFormData] = useState({ username: '', fullname: '', tc_no: '', password: '', role: 'Teknisyen', gorev: '' });
+  const [formData, setFormData] = useState({ username: '', fullname: '', tc_no: '', password: '', role: 'Teknisyen', gorev: '', account_enabled: true, team_leader: '', operation_manager: '', administrative_manager: '' });
   const [currentUser, setCurrentUser] = useState(null);
+  const [isCustomRole, setIsCustomRole] = useState(false);
+  const [isCustomGorev, setIsCustomGorev] = useState(false);
+
+  const [deletedRoles, setDeletedRoles] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('deletedRoles')) || [];
+    } catch(e) {
+      return [];
+    }
+  });
+
+  const [deletedGorevs, setDeletedGorevs] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('deletedGorevs')) || [];
+    } catch(e) {
+      return [];
+    }
+  });
+
+  const [isDeletingRole, setIsDeletingRole] = useState(false);
+  const [roleToDelete, setRoleToDelete] = useState('');
+  const [isDeletingGorev, setIsDeletingGorev] = useState(false);
+  const [gorevToDelete, setGorevToDelete] = useState('');
 
   const defaultRoles = useMemo(() => [
     'DEVELOPER',
@@ -53,18 +81,103 @@ export default function Users() {
   ], []);
 
   const existingRoles = useMemo(() => {
-    return Array.from(new Set([
+    const list = Array.from(new Set([
       ...defaultRoles,
       ...users.map(u => u.role).filter(Boolean)
     ]));
-  }, [users, defaultRoles]);
+    return list.filter(r => !deletedRoles.includes(r));
+  }, [users, defaultRoles, deletedRoles]);
 
   const existingGorevs = useMemo(() => {
-    return Array.from(new Set([
+    const allGorevs = [];
+    users.forEach(u => {
+      if (u.gorev) {
+        u.gorev.split(',').map(s => s.trim()).filter(Boolean).forEach(g => {
+          allGorevs.push(g);
+        });
+      }
+    });
+    const list = Array.from(new Set([
       ...defaultGorevs,
-      ...users.map(u => u.gorev).filter(Boolean)
+      ...allGorevs
     ]));
-  }, [users, defaultGorevs]);
+    return list.filter(g => !deletedGorevs.includes(g));
+  }, [users, defaultGorevs, deletedGorevs]);
+
+  const handleDeleteRole = async () => {
+    if (!roleToDelete) return alert("Lütfen silinecek bir hesap tipi seçin.");
+    if (window.confirm(`"${roleToDelete}" hesap tipini silmek istediğinize emin misiniz? Bu hesap tipine sahip kullanıcıların hesap tipi "Teknisyen" olarak değiştirilecektir.`)) {
+      setLoading(true);
+      try {
+        const targetUsers = users.filter(u => u.role === roleToDelete);
+        for (const u of targetUsers) {
+          await api.updateUser(u.id, {
+            username: u.username,
+            tc_no: u.tc_no,
+            role: 'Teknisyen',
+            gorev: u.gorev,
+            fullname: u.fullname,
+            account_enabled: u.account_enabled,
+            team_leader: u.team_leader,
+            operation_manager: u.operation_manager,
+            administrative_manager: u.administrative_manager
+          });
+        }
+        const updatedDeleted = [...deletedRoles, roleToDelete];
+        setDeletedRoles(updatedDeleted);
+        localStorage.setItem('deletedRoles', JSON.stringify(updatedDeleted));
+        setIsDeletingRole(false);
+        setRoleToDelete('');
+        setFormData(prev => ({ ...prev, role: 'Teknisyen' }));
+        await fetchUsers();
+        alert("Hesap tipi başarıyla silindi.");
+      } catch(err) {
+        alert("Hesap tipi silinirken hata oluştu.");
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
+  const handleDeleteGorev = async () => {
+    if (!gorevToDelete) return alert("Lütfen silinecek bir görev seçin.");
+    if (window.confirm(`"${gorevToDelete}" görevini silmek istediğinize emin misiniz?`)) {
+      setLoading(true);
+      try {
+        for (const u of users) {
+          if (!u.gorev) continue;
+          const list = u.gorev.split(',').map(s => s.trim()).filter(Boolean);
+          if (list.includes(gorevToDelete)) {
+            const newList = list.filter(g => g !== gorevToDelete);
+            const newGorevStr = newList.join(', ');
+            await api.updateUser(u.id, {
+              username: u.username,
+              tc_no: u.tc_no,
+              role: u.role,
+              gorev: newGorevStr,
+              fullname: u.fullname,
+              account_enabled: u.account_enabled,
+              team_leader: u.team_leader,
+              operation_manager: u.operation_manager,
+              administrative_manager: u.administrative_manager
+            });
+          }
+        }
+        const updatedDeleted = [...deletedGorevs, gorevToDelete];
+        setDeletedGorevs(updatedDeleted);
+        localStorage.setItem('deletedGorevs', JSON.stringify(updatedDeleted));
+        setIsDeletingGorev(false);
+        setGorevToDelete('');
+        setFormData(prev => ({ ...prev, gorev: '' }));
+        await fetchUsers();
+        alert("Görev başarıyla silindi.");
+      } catch(err) {
+        alert("Görev silinirken hata oluştu.");
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
 
   useEffect(() => {
     const stored = localStorage.getItem('user') || sessionStorage.getItem('user');
@@ -103,12 +216,29 @@ export default function Users() {
 
   const openModal = (mode) => {
     setModalMode(mode);
+    setIsCustomRole(false);
+    setIsCustomGorev(false);
+    setIsDeletingRole(false);
+    setRoleToDelete('');
+    setIsDeletingGorev(false);
+    setGorevToDelete('');
     if (mode === 'add') {
-      setFormData({ username: '', fullname: '', tc_no: '', password: '', role: 'Teknisyen', gorev: '' });
+      setFormData({ username: '', fullname: '', tc_no: '', password: '', role: 'Teknisyen', gorev: '', account_enabled: true, team_leader: '', operation_manager: '', administrative_manager: '' });
     } else {
       const u = users.find(x => x.id === selectedUserId);
       if (u) {
-        setFormData({ username: u.username, fullname: u.fullname || '', tc_no: u.tc_no || '', password: '', role: u.role, gorev: u.gorev || '' });
+        setFormData({
+          username: u.username,
+          fullname: u.fullname || '',
+          tc_no: u.tc_no || '',
+          password: '',
+          role: u.role,
+          gorev: u.gorev || '',
+          account_enabled: u.account_enabled !== undefined ? u.account_enabled : true,
+          team_leader: u.team_leader || '',
+          operation_manager: u.operation_manager || '',
+          administrative_manager: u.administrative_manager || ''
+        });
       }
     }
     setIsModalOpen(true);
@@ -207,7 +337,11 @@ export default function Users() {
       if (selectedExportColumns["İsim Soyisim"]) row["İsim Soyisim"] = u.fullname;
       if (selectedExportColumns["TC No"]) row["TC No"] = u.tc_no;
       if (selectedExportColumns["Hesap Tipi"]) row["Hesap Tipi"] = u.role;
-      if (selectedExportColumns["Görev"]) row["Görev"] = u.gorev || '';
+      if (selectedExportColumns["Görevler"]) row["Görevler"] = u.gorev || '';
+      if (selectedExportColumns["Durum"]) row["Durum"] = u.account_enabled ? "Aktif" : "Pasif";
+      if (selectedExportColumns["Team Leader"]) row["Team Leader"] = u.team_leader || '';
+      if (selectedExportColumns["Operation Manager"]) row["Operation Manager"] = u.operation_manager || '';
+      if (selectedExportColumns["Administrative Manager"]) row["Administrative Manager"] = u.administrative_manager || '';
       return row;
     });
 
@@ -222,6 +356,9 @@ export default function Users() {
       (u.tc_no && u.tc_no.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (u.role && u.role.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (u.gorev && u.gorev.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (u.team_leader && u.team_leader.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (u.operation_manager && u.operation_manager.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (u.administrative_manager && u.administrative_manager.toLowerCase().includes(searchTerm.toLowerCase())) ||
       String(u.id).includes(searchTerm)
     );
   }, [users, searchTerm]);
@@ -297,20 +434,24 @@ export default function Users() {
                 <th className="px-6 py-4">İSİM SOYİSİM</th>
                 <th className="px-6 py-4">TC NO</th>
                 <th className="px-6 py-4">HESAP TİPİ</th>
-                <th className="px-6 py-4">GÖREV</th>
+                <th className="px-6 py-4">GÖREVLER</th>
+                <th className="px-6 py-4">DURUM</th>
+                <th className="px-6 py-4">TEAM LEADER</th>
+                <th className="px-6 py-4">OPERATION MANAGER</th>
+                <th className="px-6 py-4">ADMINISTRATIVE MANAGER</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-700/50">
               {loading ? (
                 <tr>
-                  <td colSpan="6" className="px-6 py-12 text-center text-slate-400">
+                  <td colSpan="10" className="px-6 py-12 text-center text-slate-400">
                     <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-3 text-blue-400" />
                     <span className="font-medium">Yükleniyor...</span>
                   </td>
                 </tr>
               ) : filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="px-6 py-12 text-center text-slate-500">
+                  <td colSpan="10" className="px-6 py-12 text-center text-slate-500">
                     Kayıt bulunamadı.
                   </td>
                 </tr>
@@ -341,7 +482,7 @@ export default function Users() {
                       {user.username}
                     </td>
                     <td className="px-6 py-4 text-slate-800 dark:text-slate-200">{user.fullname || '-'}</td>
-                    <td className="px-6 py-4 text-slate-400 font-mono">{user.tc_no || '-'}</td>
+                    <td className="px-6 py-4 font-mono text-slate-400">{user.tc_no || '-'}</td>
                     <td className="px-6 py-4">
                       <span className={`px-2.5 py-1 rounded-md text-xs font-bold
                         ${user.role === 'Admin' ? 'bg-purple-500/20 text-purple-400 border border-purple-500/20' : 
@@ -351,7 +492,7 @@ export default function Users() {
                         {user.role}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-slate-400">
+                    <td className="px-6 py-4 text-slate-400 max-w-xs truncate" title={user.gorev}>
                       {user.gorev ? (
                         <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700/50 text-xs font-semibold">
                           {user.gorev}
@@ -360,6 +501,16 @@ export default function Users() {
                         <span className="text-slate-500">-</span>
                       )}
                     </td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2.5 py-1 rounded-md text-xs font-bold ${
+                        user.account_enabled ? 'bg-green-500/20 text-green-400 border border-green-500/20' : 'bg-red-500/20 text-red-400 border border-red-500/20'
+                      }`}>
+                        {user.account_enabled ? "Aktif" : "Pasif"}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-slate-400">{user.team_leader || '-'}</td>
+                    <td className="px-6 py-4 text-slate-400">{user.operation_manager || '-'}</td>
+                    <td className="px-6 py-4 text-slate-400">{user.administrative_manager || '-'}</td>
                   </tr>
                   );
                 })
@@ -431,18 +582,72 @@ export default function Users() {
                     <label className="text-sm font-medium text-slate-400 flex items-center gap-2">
                       <Shield size={14}/> Hesap Tipi
                     </label>
-                    <input
-                      type="text" required
-                      list="roles-datalist"
-                      className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                      value={formData.role}
-                      onChange={e => setFormData({...formData, role: e.target.value})}
-                      disabled={modalMode === 'edit' && currentUser && String(currentUser.id) === String(selectedUserId)}
-                      placeholder="Hesap tipi seçin veya yazın..."
-                    />
-                    <datalist id="roles-datalist">
-                      {existingRoles.map(r => <option key={r} value={r} />)}
-                    </datalist>
+                    {isDeletingRole ? (
+                      <div className="space-y-2 p-3 bg-red-500/5 rounded-xl border border-red-500/20">
+                        <label className="text-xs font-semibold text-red-400">Silinecek Hesap Tipini Seçin</label>
+                        <div className="flex gap-2">
+                          <select
+                            className="flex-1 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-red-500"
+                            value={roleToDelete}
+                            onChange={e => setRoleToDelete(e.target.value)}
+                          >
+                            <option value="">Seçin...</option>
+                            {existingRoles.filter(r => r !== 'Admin' && r !== 'Teknisyen').map(r => <option key={r} value={r}>{r}</option>)}
+                          </select>
+                          <button
+                            type="button"
+                            onClick={handleDeleteRole}
+                            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs transition-colors font-semibold"
+                          >
+                            Sil
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setIsDeletingRole(false)}
+                            className="px-3 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-xl text-xs transition-colors"
+                          >
+                            İptal
+                          </button>
+                        </div>
+                      </div>
+                    ) : isCustomRole ? (
+                      <div className="flex gap-2">
+                        <input
+                          type="text" required
+                          placeholder="Yeni Hesap Tipi Yazın..."
+                          className="flex-1 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                          value={formData.role}
+                          onChange={e => setFormData({...formData, role: e.target.value})}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => { setIsCustomRole(false); setFormData({...formData, role: existingRoles[0] || 'Teknisyen'}); }}
+                          className="px-3 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-xl text-xs transition-colors"
+                        >
+                          Listeden Seç
+                        </button>
+                      </div>
+                    ) : (
+                      <select
+                        className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                        value={formData.role}
+                        onChange={e => {
+                          if (e.target.value === '__NEW__') {
+                            setIsCustomRole(true);
+                            setFormData({...formData, role: ''});
+                          } else if (e.target.value === '__DELETE__') {
+                            setIsDeletingRole(true);
+                          } else {
+                            setFormData({...formData, role: e.target.value});
+                          }
+                        }}
+                        disabled={modalMode === 'edit' && currentUser && String(currentUser.id) === String(selectedUserId)}
+                      >
+                        {existingRoles.map(r => <option key={r} value={r}>{r}</option>)}
+                        <option value="__NEW__">+ Yeni Hesap Tipi Tanımla...</option>
+                        <option value="__DELETE__">🗑️ Hesap Tipi Sil...</option>
+                      </select>
+                    )}
                     {modalMode === 'edit' && currentUser && String(currentUser.id) === String(selectedUserId) && (
                       <p className="text-[10px] text-amber-500 mt-1">Kendi hesap tipinizi değiştiremezsiniz.</p>
                     )}
@@ -450,19 +655,127 @@ export default function Users() {
 
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium text-slate-400 flex items-center gap-2">
-                      <Shield size={14}/> Görev
+                      <Shield size={14}/> Görevler (Virgülle Ayırın)
+                    </label>
+                    {isDeletingGorev ? (
+                      <div className="space-y-2 p-3 bg-red-500/5 rounded-xl border border-red-500/20">
+                        <label className="text-xs font-semibold text-red-400">Silinecek Görevi Seçin</label>
+                        <div className="flex gap-2">
+                          <select
+                            className="flex-1 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-red-500"
+                            value={gorevToDelete}
+                            onChange={e => setGorevToDelete(e.target.value)}
+                          >
+                            <option value="">Seçin...</option>
+                            {existingGorevs.map(g => <option key={g} value={g}>{g}</option>)}
+                          </select>
+                          <button
+                            type="button"
+                            onClick={handleDeleteGorev}
+                            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs transition-colors font-semibold"
+                          >
+                            Sil
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setIsDeletingGorev(false)}
+                            className="px-3 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-xl text-xs transition-colors"
+                          >
+                            İptal
+                          </button>
+                        </div>
+                      </div>
+                    ) : isCustomGorev ? (
+                      <div className="flex gap-2">
+                        <input
+                          type="text" required
+                          placeholder="Yeni Görev Yazın..."
+                          className="flex-1 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                          value={formData.gorev}
+                          onChange={e => setFormData({...formData, gorev: e.target.value})}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => { setIsCustomGorev(false); setFormData({...formData, gorev: existingGorevs[0] || ''}); }}
+                          className="px-3 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-xl text-xs transition-colors"
+                        >
+                          Listeden Seç
+                        </button>
+                      </div>
+                    ) : (
+                      <select
+                        className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                        value={formData.gorev}
+                        onChange={e => {
+                          if (e.target.value === '__NEW__') {
+                            setIsCustomGorev(true);
+                            setFormData({...formData, gorev: ''});
+                          } else if (e.target.value === '__DELETE__') {
+                            setIsDeletingGorev(true);
+                          } else {
+                            setFormData({...formData, gorev: e.target.value});
+                          }
+                        }}
+                      >
+                        <option value="">Görev Yok</option>
+                        {existingGorevs.map(g => <option key={g} value={g}>{g}</option>)}
+                        <option value="__NEW__">+ Yeni Görev Tanımla...</option>
+                        <option value="__DELETE__">🗑️ Görev Sil...</option>
+                      </select>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-slate-400 flex items-center gap-2">
+                      <Shield size={14}/> Hesap Durumu
+                    </label>
+                    <select
+                      className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                      value={formData.account_enabled}
+                      onChange={e => setFormData({...formData, account_enabled: e.target.value === 'true'})}
+                    >
+                      <option value="true">Aktif</option>
+                      <option value="false">Pasif</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-slate-400 flex items-center gap-2">
+                      <User size={14}/> Team Leader
                     </label>
                     <input
                       type="text"
-                      list="gorevs-datalist"
                       className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
-                      value={formData.gorev}
-                      onChange={e => setFormData({...formData, gorev: e.target.value})}
-                      placeholder="Görev seçin veya yazın..."
+                      value={formData.team_leader}
+                      onChange={e => setFormData({...formData, team_leader: e.target.value})}
+                      placeholder="Team Leader ismi..."
                     />
-                    <datalist id="gorevs-datalist">
-                      {existingGorevs.map(g => <option key={g} value={g} />)}
-                    </datalist>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-slate-400 flex items-center gap-2">
+                      <User size={14}/> Operation Manager
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                      value={formData.operation_manager}
+                      onChange={e => setFormData({...formData, operation_manager: e.target.value})}
+                      placeholder="Operation Manager ismi..."
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-slate-400 flex items-center gap-2">
+                      <User size={14}/> Administrative Manager
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                      value={formData.administrative_manager}
+                      onChange={e => setFormData({...formData, administrative_manager: e.target.value})}
+                      placeholder="Administrative Manager ismi..."
+                    />
                   </div>
                 </>
               )}

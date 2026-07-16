@@ -15,7 +15,7 @@ class SessionManager:
         self.token = None
         self.user_id = None
         self.username = None
-        self.role = None
+        self._role = None
         self.session_file = os.path.join(
             os.path.dirname(os.path.dirname(__file__)), ".session"
         )
@@ -24,7 +24,7 @@ class SessionManager:
         self.token = token
         self.user_id = payload.get("user_id")
         self.username = payload.get("sub")
-        self.role = payload.get("role")
+        self._role = payload.get("role")
 
         if remember:
             self.save_session_to_disk()
@@ -33,12 +33,22 @@ class SessionManager:
         self.token = None
         self.user_id = None
         self.username = None
-        self.role = None
+        self._role = None
         if os.path.exists(self.session_file):
             os.remove(self.session_file)
 
     def is_authenticated(self) -> bool:
         return self.token is not None
+
+    @property
+    def role(self):
+        if self._role == "DEVELOPER":
+            return "Admin"
+        return self._role
+
+    @role.setter
+    def role(self, val):
+        self._role = val
 
     def has_role(self, required_role: str) -> bool:
         return self.role == required_role

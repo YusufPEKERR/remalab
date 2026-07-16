@@ -33,7 +33,7 @@ class UserDialog(QDialog):
         self.setWindowTitle(
             tr("users.edit_user") if user_data else tr("users.add_user")
         )
-        self.resize(400, 300)
+        self.resize(400, 480)
         
         # Dinamik olarak roller ve görevleri veritabanından ve varsayılanlardan topla
         from config.database import SessionLocal
@@ -90,12 +90,23 @@ class UserDialog(QDialog):
         self.gorev_combo.setEditable(True)
         self.gorev_combo.addItems(self.gorevs_list)
 
+        self.team_leader_input = QLineEdit()
+        self.operation_manager_input = QLineEdit()
+        self.administrative_manager_input = QLineEdit()
+        
+        self.status_combo = QComboBox()
+        self.status_combo.addItems(["Aktif", "Pasif"])
+
         form_layout.addRow(tr("users.username") + ":", self.username_input)
         form_layout.addRow("İsim Soyisim:", self.fullname_input)
         form_layout.addRow("TC Kimlik No:", self.tc_no_input)
         form_layout.addRow(tr("users.password") + ":", self.password_input)
         form_layout.addRow("Hesap Tipi:", self.role_combo)
-        form_layout.addRow("Görev:", self.gorev_combo)
+        form_layout.addRow("Görevler:", self.gorev_combo)
+        form_layout.addRow("Durum:", self.status_combo)
+        form_layout.addRow("Team Leader:", self.team_leader_input)
+        form_layout.addRow("Operation Manager:", self.operation_manager_input)
+        form_layout.addRow("Administrative Manager:", self.administrative_manager_input)
 
         layout.addLayout(form_layout)
 
@@ -118,6 +129,10 @@ class UserDialog(QDialog):
             self.tc_no_input.setText(self.user_data.get("tc_no", ""))
             self.role_combo.setCurrentText(self.user_data.get("role", ""))
             self.gorev_combo.setCurrentText(self.user_data.get("gorev", ""))
+            self.status_combo.setCurrentText("Aktif" if self.user_data.get("account_enabled", True) else "Pasif")
+            self.team_leader_input.setText(self.user_data.get("team_leader", ""))
+            self.operation_manager_input.setText(self.user_data.get("operation_manager", ""))
+            self.administrative_manager_input.setText(self.user_data.get("administrative_manager", ""))
 
     def get_data(self):
         return {
@@ -127,6 +142,10 @@ class UserDialog(QDialog):
             "password": self.password_input.text().strip(),
             "role": self.role_combo.currentText().strip(),
             "gorev": self.gorev_combo.currentText().strip(),
+            "account_enabled": self.status_combo.currentText() == "Aktif",
+            "team_leader": self.team_leader_input.text().strip(),
+            "operation_manager": self.operation_manager_input.text().strip(),
+            "administrative_manager": self.administrative_manager_input.text().strip(),
         }
 
 
@@ -184,9 +203,9 @@ class UsersPage(QWidget):
 
         # Tablo
         self.table = QTableWidget()
-        self.table.setColumnCount(6)
+        self.table.setColumnCount(10)
         self.table.setHorizontalHeaderLabels(
-            ["ID", tr("users.username"), "İsim Soyisim", "TC No", "Hesap Tipi", "Görev"]
+            ["ID", tr("users.username"), "İsim Soyisim", "TC No", "Hesap Tipi", "Görevler", "Durum", "Team Leader", "Operation Manager", "Administrative Manager"]
         )
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
@@ -213,6 +232,10 @@ class UsersPage(QWidget):
             self.table.setItem(row_idx, 3, QTableWidgetItem(user.get("tc_no", "")))
             self.table.setItem(row_idx, 4, QTableWidgetItem(user["role"]))
             self.table.setItem(row_idx, 5, QTableWidgetItem(user.get("gorev", "")))
+            self.table.setItem(row_idx, 6, QTableWidgetItem("Aktif" if user.get("account_enabled", True) else "Pasif"))
+            self.table.setItem(row_idx, 7, QTableWidgetItem(user.get("team_leader", "")))
+            self.table.setItem(row_idx, 8, QTableWidgetItem(user.get("operation_manager", "")))
+            self.table.setItem(row_idx, 9, QTableWidgetItem(user.get("administrative_manager", "")))
 
     def _filter_users(self, text: str):
         text = text.lower()
@@ -247,7 +270,29 @@ class UsersPage(QWidget):
                 if self.table.item(row, 5)
                 else ""
             )
-            if text in u_id or text in username or text in fullname or text in tc_no or text in role or text in gorev:
+            status = (
+                self.table.item(row, 6).text().lower()
+                if self.table.item(row, 6)
+                else ""
+            )
+            team_leader = (
+                self.table.item(row, 7).text().lower()
+                if self.table.item(row, 7)
+                else ""
+            )
+            operation_manager = (
+                self.table.item(row, 8).text().lower()
+                if self.table.item(row, 8)
+                else ""
+            )
+            administrative_manager = (
+                self.table.item(row, 9).text().lower()
+                if self.table.item(row, 9)
+                else ""
+            )
+            if (text in u_id or text in username or text in fullname or text in tc_no or 
+                    text in role or text in gorev or text in status or text in team_leader or 
+                    text in operation_manager or text in administrative_manager):
                 self.table.setRowHidden(row, False)
             else:
                 self.table.setRowHidden(row, True)
@@ -258,7 +303,8 @@ class UsersPage(QWidget):
             data = dialog.get_data()
             try:
                 self.service.add_user(
-                    data["username"], data["tc_no"], data["password"], data["role"], data.get("gorev", ""), data.get("fullname", "")
+                    data["username"], data["tc_no"], data["password"], data["role"], data.get("gorev", ""), data.get("fullname", ""),
+                    data["account_enabled"], data["team_leader"], data["operation_manager"], data["administrative_manager"]
                 )
                 self._load_data()
             except ServiceError as e:
@@ -282,6 +328,10 @@ class UsersPage(QWidget):
             "tc_no": self.table.item(row, 3).text(),
             "role": self.table.item(row, 4).text(),
             "gorev": self.table.item(row, 5).text() if self.table.item(row, 5) else "",
+            "account_enabled": self.table.item(row, 6).text() == "Aktif",
+            "team_leader": self.table.item(row, 7).text(),
+            "operation_manager": self.table.item(row, 8).text(),
+            "administrative_manager": self.table.item(row, 9).text(),
         }
 
         dialog = UserDialog(self, user_data)
@@ -296,6 +346,10 @@ class UsersPage(QWidget):
                     data.get("gorev", ""),
                     data.get("fullname", ""),
                     data["password"] or None,
+                    data["account_enabled"],
+                    data["team_leader"],
+                    data["operation_manager"],
+                    data["administrative_manager"],
                 )
                 self._load_data()
             except ServiceError as e:
