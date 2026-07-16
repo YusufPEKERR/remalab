@@ -2,8 +2,24 @@ import { useState, useEffect } from 'react';
 import { Building2, Plus, Trash2, Edit, X, Save } from 'lucide-react';
 import { api } from '../services/api';
 
-const DEPARTMENT_NAMES = ['Servis', 'Teknik Servis', 'Üretim', 'Kalite'];
-const DEPARTMENT_CODES = { 'Servis': 'SRV', 'Teknik Servis': 'TS', 'Üretim': 'URT', 'Kalite': 'KAL' };
+const DEPARTMENT_NAMES = [
+  'TEC_BATTERY',
+  'TEC_CAMERA',
+  'TEC_CASE',
+  'TEC_DISPLAY',
+  'TEC_L1REPAIR',
+  'TEC_L2REPAIR',
+  'TEC_L3REPAIR'
+];
+const DEPARTMENT_CODES = {
+  'TEC_BATTERY': 'BAT',
+  'TEC_CAMERA': 'CAM',
+  'TEC_CASE': 'CAS',
+  'TEC_DISPLAY': 'DISP',
+  'TEC_L1REPAIR': 'L1',
+  'TEC_L2REPAIR': 'L2',
+  'TEC_L3REPAIR': 'L3'
+};
 
 export default function Departments() {
   const [departments, setDepartments] = useState([]);

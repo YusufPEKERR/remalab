@@ -208,7 +208,7 @@ class Sidebar(QWidget):
                     user_role == "Depo Müdürü" and module_tr_key in depo_muduru_modules
                 ):
                     allowed_items.append((icon, module_tr_key))
-                elif user_role == "Teknisyen" and module_tr_key in teknisyen_modules:
+                elif (user_role == "Teknisyen" or (user_role and user_role.startswith("TEC_"))) and module_tr_key in teknisyen_modules:
                     allowed_items.append((icon, module_tr_key))
 
             # Eğer bu bölümde gösterilecek hiçbir öğe yoksa bölüm başlığını da çizme

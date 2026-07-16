@@ -525,7 +525,7 @@ class AddOutboundStockDialog(QDialog):
             try:
                 rows = db.execute(
                     text(
-                        "SELECT username FROM warehouse.users WHERE role = 'Teknisyen' ORDER BY username;"
+                        "SELECT username FROM warehouse.users WHERE role = 'Teknisyen' OR role LIKE 'TEC_%' ORDER BY username;"
                     )
                 ).fetchall()
                 for (username,) in rows:

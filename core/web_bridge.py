@@ -39,6 +39,34 @@ class WebBridge(QObject):
         self._ensure_system_locations()
         self._ensure_part_category_columns()
         self._ensure_part_extra_columns()
+        self._ensure_user_gorev_column()
+        self._ensure_user_fullname_column()
+
+    def _ensure_user_gorev_column(self):
+        """warehouse.users tablosuna gorev sütunu yoksa ekler."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            db.execute(text("ALTER TABLE warehouse.users ADD COLUMN IF NOT EXISTS gorev VARCHAR(100);"))
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            print(f"[WebBridge] users.gorev kolonu eklenemedi: {e}")
+        finally:
+            db.close()
+
+    def _ensure_user_fullname_column(self):
+        """warehouse.users tablosuna fullname sütunu yoksa ekler."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            db.execute(text("ALTER TABLE warehouse.users ADD COLUMN IF NOT EXISTS fullname VARCHAR(150);"))
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            print(f"[WebBridge] users.fullname kolonu eklenemedi: {e}")
+        finally:
+            db.close()
 
     def _ensure_production_tables(self):
         """warehouse.production_runs ve production_materials tablolarını yoksa oluşturur."""
@@ -333,8 +361,10 @@ class WebBridge(QObject):
             user_data = {
                 "id": user.id,
                 "username": user.username,
-                "email": user.email,
-                "role": user.role
+                "tc_no": user.tc_no or "",
+                "fullname": user.fullname or "",
+                "role": user.role,
+                "gorev": user.gorev or ""
             }
             return json.dumps({"success": True, "user": user_data})
         except Exception as e:
@@ -353,8 +383,10 @@ class WebBridge(QObject):
                 users_list.append({
                     "id": u.id,
                     "username": u.username,
-                    "email": u.email,
-                    "role": u.role
+                    "tc_no": u.tc_no or "",
+                    "fullname": u.fullname or "",
+                    "role": u.role,
+                    "gorev": u.gorev or ""
                 })
             return json.dumps({"success": True, "users": users_list})
         except Exception as e:
@@ -362,8 +394,8 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    @Slot(str, str, str, str, result=str)
-    def create_user(self, username, email, password, role):
+    @Slot(str, str, str, str, str, str, result=str)
+    def create_user(self, username, tc_no, password, role, gorev, fullname):
         """Yeni bir kullanıcı oluşturur."""
         from config.auth import get_password_hash
         db = SessionLocal()
@@ -371,15 +403,17 @@ class WebBridge(QObject):
             # Var olanı kontrol et
             if db.query(User).filter(User.username == username).first():
                 return json.dumps({"success": False, "message": "Bu kullanıcı adı zaten alınmış"})
-            if db.query(User).filter(User.email == email).first():
-                return json.dumps({"success": False, "message": "Bu e-posta adresi zaten kullanımda"})
+            if db.query(User).filter(User.tc_no == tc_no).first():
+                return json.dumps({"success": False, "message": "Bu TC kimlik numarası zaten kullanımda"})
             
             hashed_pwd = get_password_hash(password)
             new_user = User(
                 username=username,
-                email=email,
+                tc_no=tc_no,
                 password_hash=hashed_pwd,
-                role=role
+                role=role,
+                gorev=gorev or None,
+                fullname=fullname or None
             )
             db.add(new_user)
             db.commit()
@@ -390,11 +424,11 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    @Slot(str, str, str, str, str, result=str)
-    def update_user(self, user_id_str, username, email, password, role):
+    @Slot(str, str, str, str, str, str, str, result=str)
+    def update_user(self, user_id_str, username, tc_no, password, role, gorev, fullname):
         """Var olan bir kullanıcıyı günceller."""
         import sys
-        print(f"[WebBridge] update_user called with ID: '{user_id_str}', username: '{username}', role: '{role}'")
+        print(f"[WebBridge] update_user called with ID: '{user_id_str}', username: '{username}', tc_no: '{tc_no}', gorev: '{gorev}', fullname: '{fullname}'")
         sys.stdout.flush()
         from config.auth import get_password_hash
         db = SessionLocal()
@@ -412,14 +446,16 @@ class WebBridge(QObject):
                 sys.stdout.flush()
                 return json.dumps({"success": False, "message": "Bu kullanıcı adı zaten alınmış"})
                 
-            if email != user.email and db.query(User).filter(User.email == email).first():
-                print("[WebBridge] Email already taken.")
+            if tc_no != user.tc_no and db.query(User).filter(User.tc_no == tc_no).first():
+                print("[WebBridge] TC No already taken.")
                 sys.stdout.flush()
-                return json.dumps({"success": False, "message": "Bu e-posta adresi zaten kullanımda"})
+                return json.dumps({"success": False, "message": "Bu TC kimlik numarası zaten kullanımda"})
             
             user.username = username
-            user.email = email
+            user.tc_no = tc_no
             user.role = role
+            user.gorev = gorev or None
+            user.fullname = fullname or None
             
             # Şifre gönderilmişse güncelle
             if password and len(password.strip()) > 0:

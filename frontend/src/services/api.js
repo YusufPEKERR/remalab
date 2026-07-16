@@ -92,9 +92,11 @@ export const api = {
         return new Promise((resolve) => {
             backend.create_user(
                 userData.username,
-                userData.email,
+                userData.tc_no || '',
                 userData.password,
                 userData.role,
+                userData.gorev || '',
+                userData.fullname || '',
                 (res) => resolve(JSON.parse(res))
             );
         });
@@ -106,9 +108,11 @@ export const api = {
             backend.update_user(
                 String(id),
                 userData.username,
-                userData.email,
+                userData.tc_no || '',
                 userData.password || '',
                 userData.role,
+                userData.gorev || '',
+                userData.fullname || '',
                 (res) => resolve(JSON.parse(res))
             );
         });

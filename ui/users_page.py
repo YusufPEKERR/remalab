@@ -33,7 +33,33 @@ class UserDialog(QDialog):
         self.setWindowTitle(
             tr("users.edit_user") if user_data else tr("users.add_user")
         )
-        self.resize(400, 250)
+        self.resize(400, 300)
+        
+        # Dinamik olarak roller ve görevleri veritabanından ve varsayılanlardan topla
+        from config.database import SessionLocal
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            db_roles = [r[0] for r in db.execute(text("SELECT DISTINCT role FROM warehouse.users WHERE role IS NOT NULL")).fetchall() if r[0]]
+            db_gorevs = [r[0] for r in db.execute(text("SELECT DISTINCT gorev FROM warehouse.users WHERE gorev IS NOT NULL")).fetchall() if r[0]]
+        except Exception:
+            db_roles = []
+            db_gorevs = []
+        finally:
+            db.close()
+
+        default_roles = [
+            "DEVELOPER", "LOG_P", "QAC", "STAFF", "TEC_CASE", "TEC_L3REPAIR", "TEC_TL_L3REPAIR",
+            "Admin", "Depo Müdürü", "Depo", "Teknisyen"
+        ]
+        self.roles_list = sorted(list(set(default_roles + db_roles)))
+        
+        default_gorevs = [
+            "Batarya Tamiri", "Kamera Değişimi", "Kasa Onarımı", "Ekran Değişimi",
+            "L1 Onarım", "L2 Onarım", "L3 Onarım", "Yazılım Geliştirici", "Depo Sorumlusu"
+        ]
+        self.gorevs_list = sorted(list(set(default_gorevs + db_gorevs)))
+
         self._setup_ui()
 
     def _setup_ui(self):
@@ -42,7 +68,14 @@ class UserDialog(QDialog):
         form_layout = QFormLayout()
 
         self.username_input = QLineEdit()
-        self.email_input = QLineEdit()
+        self.fullname_input = QLineEdit()
+        self.tc_no_input = QLineEdit()
+        self.tc_no_input.setMaxLength(11)
+        
+        from PySide6.QtGui import QRegularExpressionValidator
+        from PySide6.QtCore import QRegularExpression
+        self.tc_no_input.setValidator(QRegularExpressionValidator(QRegularExpression("^[0-9]*$")))
+
         self.password_input = QLineEdit()
         self.password_input.setEchoMode(QLineEdit.Password)
         self.password_input.setPlaceholderText(
@@ -50,12 +83,19 @@ class UserDialog(QDialog):
         )
 
         self.role_combo = QComboBox()
-        self.role_combo.addItems(["Admin", "Depo Müdürü", "Depo", "Teknisyen"])
+        self.role_combo.setEditable(True)
+        self.role_combo.addItems(self.roles_list)
+        
+        self.gorev_combo = QComboBox()
+        self.gorev_combo.setEditable(True)
+        self.gorev_combo.addItems(self.gorevs_list)
 
         form_layout.addRow(tr("users.username") + ":", self.username_input)
-        form_layout.addRow(tr("users.email") + ":", self.email_input)
+        form_layout.addRow("İsim Soyisim:", self.fullname_input)
+        form_layout.addRow("TC Kimlik No:", self.tc_no_input)
         form_layout.addRow(tr("users.password") + ":", self.password_input)
-        form_layout.addRow(tr("users.role") + ":", self.role_combo)
+        form_layout.addRow("Hesap Tipi:", self.role_combo)
+        form_layout.addRow("Görev:", self.gorev_combo)
 
         layout.addLayout(form_layout)
 
@@ -73,16 +113,20 @@ class UserDialog(QDialog):
         layout.addLayout(btn_layout)
 
         if self.user_data:
-            self.username_input.setText(self.user_data["username"])
-            self.email_input.setText(self.user_data["email"])
-            self.role_combo.setCurrentText(self.user_data["role"])
+            self.username_input.setText(self.user_data.get("username", ""))
+            self.fullname_input.setText(self.user_data.get("fullname", ""))
+            self.tc_no_input.setText(self.user_data.get("tc_no", ""))
+            self.role_combo.setCurrentText(self.user_data.get("role", ""))
+            self.gorev_combo.setCurrentText(self.user_data.get("gorev", ""))
 
     def get_data(self):
         return {
             "username": self.username_input.text().strip(),
-            "email": self.email_input.text().strip(),
+            "fullname": self.fullname_input.text().strip(),
+            "tc_no": self.tc_no_input.text().strip(),
             "password": self.password_input.text().strip(),
-            "role": self.role_combo.currentText(),
+            "role": self.role_combo.currentText().strip(),
+            "gorev": self.gorev_combo.currentText().strip(),
         }
 
 
@@ -140,9 +184,9 @@ class UsersPage(QWidget):
 
         # Tablo
         self.table = QTableWidget()
-        self.table.setColumnCount(4)
+        self.table.setColumnCount(6)
         self.table.setHorizontalHeaderLabels(
-            ["ID", tr("users.username"), tr("users.email"), tr("users.role")]
+            ["ID", tr("users.username"), "İsim Soyisim", "TC No", "Hesap Tipi", "Görev"]
         )
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
@@ -165,8 +209,10 @@ class UsersPage(QWidget):
             id_item.setData(Qt.UserRole, user["id"])
             self.table.setItem(row_idx, 0, id_item)
             self.table.setItem(row_idx, 1, QTableWidgetItem(user["username"]))
-            self.table.setItem(row_idx, 2, QTableWidgetItem(user["email"]))
-            self.table.setItem(row_idx, 3, QTableWidgetItem(user["role"]))
+            self.table.setItem(row_idx, 2, QTableWidgetItem(user.get("fullname", "")))
+            self.table.setItem(row_idx, 3, QTableWidgetItem(user.get("tc_no", "")))
+            self.table.setItem(row_idx, 4, QTableWidgetItem(user["role"]))
+            self.table.setItem(row_idx, 5, QTableWidgetItem(user.get("gorev", "")))
 
     def _filter_users(self, text: str):
         text = text.lower()
@@ -181,12 +227,27 @@ class UsersPage(QWidget):
                 if self.table.item(row, 1)
                 else ""
             )
-            email = (
+            fullname = (
                 self.table.item(row, 2).text().lower()
                 if self.table.item(row, 2)
                 else ""
             )
-            if text in u_id or text in username or text in email:
+            tc_no = (
+                self.table.item(row, 3).text().lower()
+                if self.table.item(row, 3)
+                else ""
+            )
+            role = (
+                self.table.item(row, 4).text().lower()
+                if self.table.item(row, 4)
+                else ""
+            )
+            gorev = (
+                self.table.item(row, 5).text().lower()
+                if self.table.item(row, 5)
+                else ""
+            )
+            if text in u_id or text in username or text in fullname or text in tc_no or text in role or text in gorev:
                 self.table.setRowHidden(row, False)
             else:
                 self.table.setRowHidden(row, True)
@@ -197,7 +258,7 @@ class UsersPage(QWidget):
             data = dialog.get_data()
             try:
                 self.service.add_user(
-                    data["username"], data["email"], data["password"], data["role"]
+                    data["username"], data["tc_no"], data["password"], data["role"], data.get("gorev", ""), data.get("fullname", "")
                 )
                 self._load_data()
             except ServiceError as e:
@@ -217,8 +278,10 @@ class UsersPage(QWidget):
         user_id = int(self.table.item(row, 0).data(Qt.UserRole))
         user_data = {
             "username": self.table.item(row, 1).text(),
-            "email": self.table.item(row, 2).text(),
-            "role": self.table.item(row, 3).text(),
+            "fullname": self.table.item(row, 2).text(),
+            "tc_no": self.table.item(row, 3).text(),
+            "role": self.table.item(row, 4).text(),
+            "gorev": self.table.item(row, 5).text() if self.table.item(row, 5) else "",
         }
 
         dialog = UserDialog(self, user_data)
@@ -228,8 +291,10 @@ class UsersPage(QWidget):
                 self.service.update_user(
                     user_id,
                     data["username"],
-                    data["email"],
+                    data["tc_no"],
                     data["role"],
+                    data.get("gorev", ""),
+                    data.get("fullname", ""),
                     data["password"] or None,
                 )
                 self._load_data()
