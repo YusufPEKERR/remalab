@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ClipboardList, Plus, Trash2, Edit, X, Save, Factory, Package, TrendingUp, Repeat } from 'lucide-react';
+import { ClipboardList, Plus, Trash2, Edit, X, Save, Factory, Package, TrendingUp, Repeat, AlertTriangle } from 'lucide-react';
 import { api } from '../services/api';
 import PartSupplyMenu from '../components/PartSupplyMenu';
 import DeliverPartPopover from '../components/DeliverPartPopover';
@@ -728,11 +728,19 @@ export default function WorkOrders() {
 
               <div>
                 <div className="flex justify-between items-center mb-1.5">
-                  <label className="block text-sm font-medium text-slate-400">Tüketilen Hammaddeler</label>
-                  <button type="button" onClick={handleAddMaterialRow} className="text-xs text-blue-400 hover:text-blue-300 font-medium flex items-center gap-1">
+                  <label className={`block text-sm font-medium ${productionMaterials.filter(r => r.part_id && Number(r.quantity_consumed) > 0).length === 0 ? 'text-red-400' : 'text-slate-400'}`}>
+                    Tüketilen Hammaddeler <span className="text-red-400">*</span>
+                  </label>
+                  <button type="button" onClick={handleAddMaterialRow} className="text-xs text-blue-400 hover:text-blue-300 font-medium flex items-center gap-1 bg-blue-500/10 border border-blue-500/20 px-2 py-1 rounded-lg">
                     <Plus size={14} /> Hammadde Ekle
                   </button>
                 </div>
+                {productionMaterials.filter(r => r.part_id && Number(r.quantity_consumed) > 0).length === 0 && (
+                  <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2 mb-2">
+                    <AlertTriangle size={14} className="text-red-400 shrink-0" />
+                    <p className="text-xs text-red-400 font-medium">En az bir hammadde girmeniz zorunludur.</p>
+                  </div>
+                )}
                 {productionMaterials.length === 0 ? (
                   <p className="text-xs text-slate-500">Henüz hammadde eklenmedi.</p>
                 ) : (
@@ -770,7 +778,13 @@ export default function WorkOrders() {
               </div>
 
               <div className="flex justify-end gap-3 pt-6 border-t border-slate-200 dark:border-slate-700/50 mt-6">
-                <button type="submit" className="px-5 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-xl font-medium transition-colors shadow-lg shadow-orange-900/20 flex items-center gap-2"><Save size={18}/> Üretimi Kaydet</button>
+                <button
+                  type="submit"
+                  disabled={productionMaterials.filter(r => r.part_id && Number(r.quantity_consumed) > 0).length === 0}
+                  className="px-5 py-2.5 bg-orange-600 hover:bg-orange-700 disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors shadow-lg shadow-orange-900/20 flex items-center gap-2"
+                >
+                  <Save size={18}/> Üretimi Kaydet
+                </button>
               </div>
             </form>
           </div>
