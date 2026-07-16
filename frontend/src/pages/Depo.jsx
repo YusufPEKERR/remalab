@@ -54,20 +54,18 @@ export default function Depo() {
     let isCritical = false;
 
     if (selectedItem) {
-      // Calculate for selected part
-      title = `Seçili Parça (${selectedItem.name}) Doluluk:`;
+      // Calculate for selected part and specific location ONLY
+      title = `${selectedItem.name} (${selectedItem.location}) Doluluk:`;
       
-      const relatedItems = inventory.filter(x => x.part_id === selectedItem.part_id);
-      currentQty = relatedItems.reduce((acc, curr) => acc + curr.quantity, 0);
+      currentQty = Number(selectedItem.quantity) || 0;
       
-      const goodStockQty = relatedItems.filter(x => x.location_kind === 'good_stock').reduce((acc, curr) => acc + curr.quantity, 0);
-      
-      const limit = selectedItem.critical_limit || 10;
+      const limit = Number(selectedItem.critical_limit) || 10;
       maxCapacity = Math.max(50, limit * 2);
-      isCritical = goodStockQty <= limit;
+      isCritical = currentQty <= limit;
     } else {
       // General warehouse occupancy
-      currentQty = inventory.reduce((acc, curr) => acc + curr.quantity, 0);
+      currentQty = inventory.reduce((acc, curr) => acc + Number(curr.quantity), 0);
+      maxCapacity = Math.max(1000, currentQty * 1.5);
     }
 
     const percentage = Math.min(Math.round((currentQty / maxCapacity) * 100), 100);
@@ -93,16 +91,12 @@ export default function Depo() {
         <div className="flex justify-between items-end">
           <label className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
             <Info size={16} className="text-blue-400"/>
-            {occupancy.title}
+            {occupancy.isCritical && selectedItem ? (
+              <span className="flex items-center gap-2 text-red-500"><AlertTriangle size={24} /> {occupancy.title} Kritik Stok! ({occupancy.currentQty})</span>
+            ) : (
+              <span>{occupancy.title} {occupancy.currentQty} / {occupancy.maxCapacity}</span>
+            )}
           </label>
-          <div className="text-right">
-            <span className="text-xs text-slate-400 font-medium mr-2">
-              {selectedItem ? `Kritik Limit: ${selectedItem.critical_limit || 10}` : `Kapasite: ${occupancy.maxCapacity}`}
-            </span>
-            <span className={`text-sm font-bold ${occupancy.isCritical ? 'text-red-400' : 'text-slate-800 dark:text-slate-200'}`}>
-              {occupancy.currentQty} / {occupancy.maxCapacity} {selectedItem && occupancy.isCritical && "(⚠️ Kritik Stok)"}
-            </span>
-          </div>
         </div>
         
         <div className="w-full bg-slate-50 dark:bg-[#0f1219] rounded-full h-3.5 border border-slate-200 dark:border-slate-700/50 overflow-hidden relative">
