@@ -104,6 +104,25 @@ export default function Users() {
     return list.filter(g => !deletedGorevs.includes(g));
   }, [users, defaultGorevs, deletedGorevs]);
 
+  const teamLeaders = useMemo(() => {
+    const tlMissions = [
+      'QAC_TL',
+      'TEC_TL_BATTERY',
+      'TEC_TL_CAMERA',
+      'TEC_TL_DISMANTLE',
+      'TEC_TL_DISPLAY',
+      'TEC_TL_CASE',
+      'TEC_TL_L1REPAIR',
+      'TEC_TL_L2REPAIR',
+      'TEC_TL_L3REPAIR'
+    ];
+    return users.filter(u => {
+      if (!u.gorev) return false;
+      const userMissions = u.gorev.split(',').map(s => s.trim());
+      return userMissions.some(m => tlMissions.includes(m));
+    });
+  }, [users]);
+
   const handleDeleteRole = async () => {
     if (!roleToDelete) return alert("Lütfen silinecek bir hesap tipi seçin.");
     if (window.confirm(`"${roleToDelete}" hesap tipini silmek istediğinize emin misiniz? Bu hesap tipine sahip kullanıcıların hesap tipi "Teknisyen" olarak değiştirilecektir.`)) {
@@ -743,13 +762,21 @@ export default function Users() {
                     <label className="text-sm font-medium text-slate-400 flex items-center gap-2">
                       <User size={14}/> Team Leader
                     </label>
-                    <input
-                      type="text"
+                    <select
                       className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
                       value={formData.team_leader}
                       onChange={e => setFormData({...formData, team_leader: e.target.value})}
-                      placeholder="Team Leader ismi..."
-                    />
+                    >
+                      <option value="">Lider Yok / Seçin...</option>
+                      {teamLeaders.map(tl => (
+                        <option key={tl.id} value={tl.fullname || tl.username}>
+                          {tl.fullname ? `${tl.fullname} (${tl.username})` : tl.username}
+                        </option>
+                      ))}
+                      {formData.team_leader && !teamLeaders.some(tl => (tl.fullname || tl.username) === formData.team_leader) && (
+                        <option value={formData.team_leader}>{formData.team_leader}</option>
+                      )}
+                    </select>
                   </div>
 
                   <div className="space-y-1.5">
