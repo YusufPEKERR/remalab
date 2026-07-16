@@ -89,8 +89,35 @@ class UserDialog(QDialog):
         self.gorev_combo = QComboBox()
         self.gorev_combo.setEditable(True)
         self.gorev_combo.addItems(self.gorevs_list)
+        self.prev_gorev_text = ""
+        self.gorev_combo.lineEdit().textEdited.connect(self.on_gorev_edited)
+        self.gorev_combo.activated.connect(self.on_gorev_selected)
 
-        self.team_leader_input = QLineEdit()
+        self.team_leader_input = QComboBox()
+        self.team_leader_input.setEditable(True)
+        # Populate Team Leaders
+        tl_list = []
+        tl_missions = [
+            "QAC_TL", "TEC_TL_BATTERY", "TEC_TL_CAMERA", "TEC_TL_DISMANTLE",
+            "TEC_TL_DISPLAY", "TEC_TL_CASE", "TEC_TL_L1REPAIR", "TEC_TL_L2REPAIR", "TEC_TL_L3REPAIR"
+        ]
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            db_users = db.execute(text("SELECT username, fullname, gorev FROM warehouse.users")).fetchall()
+            for u in db_users:
+                if u[2]:
+                    user_missions = [m.strip() for m in u[2].split(",")]
+                    if any(m in tl_missions for m in user_missions):
+                        name = u[1] if u[1] else u[0]
+                        tl_list.append(name)
+        except Exception:
+            pass
+        finally:
+            db.close()
+        self.team_leader_input.addItem("")
+        self.team_leader_input.addItems(sorted(list(set(tl_list))))
+
         self.operation_manager_input = QLineEdit()
         self.administrative_manager_input = QLineEdit()
         
@@ -129,10 +156,27 @@ class UserDialog(QDialog):
             self.tc_no_input.setText(self.user_data.get("tc_no", ""))
             self.role_combo.setCurrentText(self.user_data.get("role", ""))
             self.gorev_combo.setCurrentText(self.user_data.get("gorev", ""))
+            self.prev_gorev_text = self.user_data.get("gorev", "")
             self.status_combo.setCurrentText("Aktif" if self.user_data.get("account_enabled", True) else "Pasif")
-            self.team_leader_input.setText(self.user_data.get("team_leader", ""))
+            self.team_leader_input.setCurrentText(self.user_data.get("team_leader", ""))
             self.operation_manager_input.setText(self.user_data.get("operation_manager", ""))
             self.administrative_manager_input.setText(self.user_data.get("administrative_manager", ""))
+
+    def on_gorev_edited(self, text):
+        self.prev_gorev_text = text
+
+    def on_gorev_selected(self, index):
+        selected_text = self.gorev_combo.itemText(index)
+        if not selected_text:
+            return
+        
+        current_list = [g.strip() for g in self.prev_gorev_text.split(",") if g.strip()]
+        if selected_text not in current_list:
+            current_list.append(selected_text)
+            
+        new_text = ", ".join(current_list)
+        self.gorev_combo.setCurrentText(new_text)
+        self.prev_gorev_text = new_text
 
     def get_data(self):
         return {
@@ -143,7 +187,7 @@ class UserDialog(QDialog):
             "role": self.role_combo.currentText().strip(),
             "gorev": self.gorev_combo.currentText().strip(),
             "account_enabled": self.status_combo.currentText() == "Aktif",
-            "team_leader": self.team_leader_input.text().strip(),
+            "team_leader": self.team_leader_input.currentText().strip(),
             "operation_manager": self.operation_manager_input.text().strip(),
             "administrative_manager": self.administrative_manager_input.text().strip(),
         }

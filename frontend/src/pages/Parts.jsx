@@ -9,7 +9,7 @@ const KALITE_OPTIONS = ['Orijinal', 'Muadil', 'Çıkma'];
 const EMPTY_FORM = {
   item_code: '', barcode: '', name: '',
   item_category: '', part_category_id: '',
-  department: [], stock_tracking_type: 'Stok Takipli', status: 'Aktif'
+  department: [], stock_tracking_type: 'Stok Takipli', status: 'Aktif', critical_limit: ''
 };
 
 export default function Parts() {
@@ -132,7 +132,8 @@ export default function Parts() {
         part_category_id: part.part_category_id || '',
         department: part.department ? String(part.department).split(',').map(d => d.trim()).filter(Boolean) : [],
         stock_tracking_type: part.stock_tracking_type || 'Stok Takipli',
-        status: part.status || 'Aktif'
+        status: part.status || 'Aktif',
+        critical_limit: part.critical_limit || ''
       });
     } else {
       setCurrentPart(null);
@@ -583,6 +584,17 @@ export default function Parts() {
                   </select>
                 </div>
               )}
+
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-1">Kritik Stok Limiti</label>
+                <input
+                  type="number" min="0"
+                  className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                  value={formData.critical_limit}
+                  onChange={e => setFormData({...formData, critical_limit: e.target.value})}
+                  placeholder="Opsiyonel (Varsayılan: 50)"
+                />
+              </div>
 
               <div className="pt-2 flex justify-end gap-3 mt-6 border-t border-slate-200 dark:border-slate-700/50">
                 <button
