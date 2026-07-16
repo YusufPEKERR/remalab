@@ -158,36 +158,36 @@ export default function Locations() {
       {/* Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
-              <h2 className="text-lg font-bold text-slate-800">Yeni Lokasyon Ekle</h2>
+          <div className="bg-white dark:bg-[#1e2330] rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200 border border-slate-200 dark:border-slate-700/50">
+            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 flex justify-between items-center bg-slate-50 dark:bg-[#242a38]">
+              <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">Yeni Lokasyon Ekle</h2>
             </div>
-            
+
             <form onSubmit={handleAdd} className="p-6 space-y-4">
               <div className="space-y-1">
-                <label className="text-sm font-medium text-slate-700">Lokasyon Adı</label>
-                <input 
-                  type="text" required 
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Lokasyon Adı</label>
+                <input
+                  type="text" required
                   placeholder="Örn: A-01-01"
-                  className="w-full px-3 py-2 border rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-500" 
-                  value={newLocationName} 
-                  onChange={e => setNewLocationName(e.target.value)} 
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-500"
+                  value={newLocationName}
+                  onChange={e => setNewLocationName(e.target.value)}
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="text-sm font-medium text-slate-700">Açıklama (Opsiyonel)</label>
-                <input 
-                  type="text" 
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Açıklama (Opsiyonel)</label>
+                <input
+                  type="text"
                   placeholder="Örn: Yedek parçalar için raf"
-                  className="w-full px-3 py-2 border rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-500" 
-                  value={newLocationDesc} 
-                  onChange={e => setNewLocationDesc(e.target.value)} 
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-500"
+                  value={newLocationDesc}
+                  onChange={e => setNewLocationDesc(e.target.value)}
                 />
               </div>
 
-              <div className="pt-4 flex justify-end gap-3 border-t border-slate-100 mt-6">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 text-sm font-medium">İptal</button>
+              <div className="pt-4 flex justify-end gap-3 border-t border-slate-100 dark:border-slate-700/50 mt-6">
+                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-slate-600 dark:text-slate-300 bg-white dark:bg-[#242a38] border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-[#2a3142] text-sm font-medium">İptal</button>
                 <button type="submit" className="px-4 py-2 text-white bg-green-600 hover:bg-green-700 rounded-lg text-sm font-medium shadow-sm">Kaydet</button>
               </div>
             </form>
