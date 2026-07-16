@@ -18,9 +18,9 @@ class UserRepository:
     def get_by_id(self, user_id: int) -> User | None:
         return self.db.get(User, user_id)
 
-    def create(self, username: str, email: str, password_hash: str, role: str) -> User:
+    def create(self, username: str, tc_no: str, password_hash: str, role: str, gorev: Optional[str] = None, fullname: Optional[str] = None) -> User:
         user = User(
-            username=username, email=email, password_hash=password_hash, role=role
+            username=username, tc_no=tc_no, password_hash=password_hash, role=role, gorev=gorev, fullname=fullname
         )
         self.db.add(user)
         self.db.flush()
@@ -30,16 +30,22 @@ class UserRepository:
         self,
         user_id: int,
         username: str,
-        email: str,
+        tc_no: str,
         role: str,
+        gorev: Optional[str] = None,
+        fullname: Optional[str] = None,
         password_hash: Optional[str] = None,
     ) -> Optional[User]:
         user = self.db.get(User, user_id)
         if user is None:
             return None
         user.username = username
-        user.email = email
+        user.tc_no = tc_no
         user.role = role
+        if gorev is not None:
+            user.gorev = gorev
+        if fullname is not None:
+            user.fullname = fullname
         if password_hash is not None:
             user.password_hash = password_hash
         self.db.flush()

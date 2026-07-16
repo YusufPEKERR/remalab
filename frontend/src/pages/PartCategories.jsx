@@ -10,7 +10,15 @@ const PART_TYPES = [
   'Test Cihazı', 'Kalibrasyon Malzemesi', 'Ölçüm Aleti', 'Numune'
 ];
 
-const DEPARTMENTS = ['Servis', 'Teknik Servis', 'Üretim', 'Kalite'];
+const DEPARTMENTS = [
+  'TEC_BATTERY',
+  'TEC_CAMERA',
+  'TEC_CASE',
+  'TEC_DISPLAY',
+  'TEC_L1REPAIR',
+  'TEC_L2REPAIR',
+  'TEC_L3REPAIR'
+];
 
 const EMPTY_FORM = {
   name: '', part_type: '', departments: [], stock_tracking_type: 'Stok Takipli',

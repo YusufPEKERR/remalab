@@ -78,7 +78,8 @@ export default function MainLayout() {
     navigate('/login');
   };
 
-  const userRole = (user?.role || 'Admin').toLowerCase();
+  const rawRole = (user?.role || 'Admin').toLowerCase();
+  const userRole = rawRole.startsWith('tec_') ? 'teknisyen' : rawRole;
 
   // Permission maps based on Python code:
   const allowedPaths = {
