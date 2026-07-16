@@ -54,6 +54,19 @@ export default function Users() {
   const [isDeletingGorev, setIsDeletingGorev] = useState(false);
   const [gorevToDelete, setGorevToDelete] = useState('');
   const [tempCustomGorev, setTempCustomGorev] = useState('');
+  const [sortConfig, setSortConfig] = useState({ key: 'username', direction: 'asc' });
+  const [columnFilters, setColumnFilters] = useState({
+    id: '',
+    username: '',
+    fullname: '',
+    tc_no: '',
+    role: '',
+    gorev: '',
+    account_enabled: '',
+    team_leader: '',
+    operation_manager: '',
+    administrative_manager: ''
+  });
 
   const defaultRoles = useMemo(() => [
     'DEVELOPER',
@@ -123,6 +136,19 @@ export default function Users() {
       return userMissions.some(m => tlMissions.includes(m));
     });
   }, [users]);
+
+  const handleSort = (key) => {
+    setSortConfig(prev => {
+      if (prev.key === key) {
+        if (prev.direction === 'asc') {
+          return { key, direction: 'desc' };
+        } else {
+          return { key: null, direction: null };
+        }
+      }
+      return { key, direction: 'asc' };
+    });
+  };
 
   const handleAddMission = (missionName) => {
     if (!missionName) return;
@@ -386,18 +412,63 @@ export default function Users() {
   };
 
   const filteredUsers = useMemo(() => {
-    return users.filter(u => 
-      (u.username && u.username.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (u.fullname && u.fullname.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (u.tc_no && u.tc_no.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (u.role && u.role.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (u.gorev && u.gorev.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (u.team_leader && u.team_leader.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (u.operation_manager && u.operation_manager.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (u.administrative_manager && u.administrative_manager.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      String(u.id).includes(searchTerm)
-    );
-  }, [users, searchTerm]);
+    let result = users.filter(u => {
+      // 1. Global Arama Filtresi
+      const matchGlobal = !searchTerm ? true : (
+        (u.username && u.username.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (u.fullname && u.fullname.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (u.tc_no && u.tc_no.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (u.role && u.role.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (u.gorev && u.gorev.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (u.team_leader && u.team_leader.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (u.operation_manager && u.operation_manager.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (u.administrative_manager && u.administrative_manager.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        String(u.id).includes(searchTerm)
+      );
+      if (!matchGlobal) return false;
+
+      // 2. Sütun Bazlı Filtreler
+      for (const [key, value] of Object.entries(columnFilters)) {
+        if (!value) continue;
+        const lowerVal = value.toLowerCase();
+        if (key === 'id') {
+          if (!String(u.id).includes(lowerVal)) return false;
+        } else if (key === 'account_enabled') {
+          const statusStr = u.account_enabled ? 'aktif' : 'pasif';
+          if (statusStr !== lowerVal) return false;
+        } else {
+          const fieldVal = (u[key] || '').toString().toLowerCase();
+          if (!fieldVal.includes(lowerVal)) return false;
+        }
+      }
+      return true;
+    });
+
+    // 3. Sıralama Fonksiyonu
+    if (sortConfig.key) {
+      result = [...result].sort((a, b) => {
+        let valA = a[sortConfig.key];
+        let valB = b[sortConfig.key];
+
+        if (sortConfig.key === 'id') {
+          valA = Number(valA) || 0;
+          valB = Number(valB) || 0;
+        } else if (sortConfig.key === 'account_enabled') {
+          valA = valA ? 1 : 0;
+          valB = valB ? 1 : 0;
+        } else {
+          valA = (valA || '').toString().toLocaleLowerCase('tr-TR');
+          valB = (valB || '').toString().toLocaleLowerCase('tr-TR');
+        }
+
+        if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return result;
+  }, [users, searchTerm, columnFilters, sortConfig]);
 
   return (
     <div className="h-full flex flex-col space-y-6 overflow-hidden">
@@ -457,7 +528,7 @@ export default function Users() {
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium border-b border-slate-200 dark:border-slate-700/50 sticky top-0 uppercase text-xs z-10">
               <tr>
-                <th className="px-6 py-4 w-12 text-center">
+                <th className="px-6 py-4 w-12 text-center select-none">
                   <input 
                     type="checkbox" 
                     className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-white dark:bg-slate-800"
@@ -465,29 +536,219 @@ export default function Users() {
                     onChange={toggleSelectAll}
                   />
                 </th>
-                <th className="px-6 py-4 w-16">ID</th>
-                <th className="px-6 py-4">KULLANICI ADI</th>
-                <th className="px-6 py-4">İSİM SOYİSİM</th>
-                <th className="px-6 py-4">TC NO</th>
-                <th className="px-6 py-4">HESAP TİPİ</th>
-                <th className="px-6 py-4">GÖREVLER</th>
-                <th className="px-6 py-4">DURUM</th>
-                <th className="px-6 py-4">TEAM LEADER</th>
-                <th className="px-6 py-4">OPERATION MANAGER</th>
-                <th className="px-6 py-4">ADMINISTRATIVE MANAGER</th>
+                <th className="px-6 py-4 w-16 cursor-pointer select-none group" onClick={() => handleSort('id')}>
+                  <div className="flex items-center gap-1">
+                    ID
+                    <span className="text-[10px] text-slate-400 group-hover:text-blue-500 transition-colors">
+                      {sortConfig.key === 'id' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : '⇅'}
+                    </span>
+                  </div>
+                </th>
+                <th className="px-6 py-4 cursor-pointer select-none group" onClick={() => handleSort('username')}>
+                  <div className="flex items-center gap-1">
+                    KULLANICI ADI
+                    <span className="text-[10px] text-slate-400 group-hover:text-blue-500 transition-colors">
+                      {sortConfig.key === 'username' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : '⇅'}
+                    </span>
+                  </div>
+                </th>
+                <th className="px-6 py-4 cursor-pointer select-none group" onClick={() => handleSort('fullname')}>
+                  <div className="flex items-center gap-1">
+                    İSİM SOYİSİM
+                    <span className="text-[10px] text-slate-400 group-hover:text-blue-500 transition-colors">
+                      {sortConfig.key === 'fullname' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : '⇅'}
+                    </span>
+                  </div>
+                </th>
+                <th className="px-6 py-4 cursor-pointer select-none group" onClick={() => handleSort('tc_no')}>
+                  <div className="flex items-center gap-1">
+                    TC NO
+                    <span className="text-[10px] text-slate-400 group-hover:text-blue-500 transition-colors">
+                      {sortConfig.key === 'tc_no' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : '⇅'}
+                    </span>
+                  </div>
+                </th>
+                <th className="px-6 py-4 cursor-pointer select-none group" onClick={() => handleSort('role')}>
+                  <div className="flex items-center gap-1">
+                    HESAP TİPİ
+                    <span className="text-[10px] text-slate-400 group-hover:text-blue-500 transition-colors">
+                      {sortConfig.key === 'role' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : '⇅'}
+                    </span>
+                  </div>
+                </th>
+                <th className="px-6 py-4 cursor-pointer select-none group" onClick={() => handleSort('gorev')}>
+                  <div className="flex items-center gap-1">
+                    GÖREVLER
+                    <span className="text-[10px] text-slate-400 group-hover:text-blue-500 transition-colors">
+                      {sortConfig.key === 'gorev' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : '⇅'}
+                    </span>
+                  </div>
+                </th>
+                <th className="px-6 py-4 cursor-pointer select-none group" onClick={() => handleSort('account_enabled')}>
+                  <div className="flex items-center gap-1">
+                    DURUM
+                    <span className="text-[10px] text-slate-400 group-hover:text-blue-500 transition-colors">
+                      {sortConfig.key === 'account_enabled' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : '⇅'}
+                    </span>
+                  </div>
+                </th>
+                <th className="px-6 py-4 cursor-pointer select-none group" onClick={() => handleSort('team_leader')}>
+                  <div className="flex items-center gap-1">
+                    TEAM LEADER
+                    <span className="text-[10px] text-slate-400 group-hover:text-blue-500 transition-colors">
+                      {sortConfig.key === 'team_leader' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : '⇅'}
+                    </span>
+                  </div>
+                </th>
+                <th className="px-6 py-4 cursor-pointer select-none group" onClick={() => handleSort('operation_manager')}>
+                  <div className="flex items-center gap-1">
+                    OPERATION MANAGER
+                    <span className="text-[10px] text-slate-400 group-hover:text-blue-500 transition-colors">
+                      {sortConfig.key === 'operation_manager' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : '⇅'}
+                    </span>
+                  </div>
+                </th>
+                <th className="px-6 py-4 cursor-pointer select-none group" onClick={() => handleSort('administrative_manager')}>
+                  <div className="flex items-center gap-1">
+                    ADMINISTRATIVE MANAGER
+                    <span className="text-[10px] text-slate-400 group-hover:text-blue-500 transition-colors">
+                      {sortConfig.key === 'administrative_manager' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : '⇅'}
+                    </span>
+                  </div>
+                </th>
+              </tr>
+              {/* Filtre Satırı */}
+              <tr className="bg-slate-100/50 dark:bg-[#1a1f2c] border-b border-slate-200 dark:border-slate-700/50">
+                <td className="px-6 py-2"></td>
+                
+                {/* ID Filtresi */}
+                <td className="px-6 py-2">
+                  <input
+                    type="text"
+                    placeholder="Filtre..."
+                    className="w-16 px-2 py-1 text-xs bg-white dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded focus:outline-none focus:border-blue-500 text-slate-800 dark:text-slate-200"
+                    value={columnFilters.id}
+                    onChange={e => setColumnFilters({ ...columnFilters, id: e.target.value })}
+                  />
+                </td>
+
+                {/* Kullanıcı Adı Filtresi */}
+                <td className="px-6 py-2">
+                  <input
+                    type="text"
+                    placeholder="Filtre..."
+                    className="w-full px-2 py-1 text-xs bg-white dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded focus:outline-none focus:border-blue-500 text-slate-800 dark:text-slate-200"
+                    value={columnFilters.username}
+                    onChange={e => setColumnFilters({ ...columnFilters, username: e.target.value })}
+                  />
+                </td>
+
+                {/* İsim Soyisim Filtresi */}
+                <td className="px-6 py-2">
+                  <input
+                    type="text"
+                    placeholder="Filtre..."
+                    className="w-full px-2 py-1 text-xs bg-white dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded focus:outline-none focus:border-blue-500 text-slate-800 dark:text-slate-200"
+                    value={columnFilters.fullname}
+                    onChange={e => setColumnFilters({ ...columnFilters, fullname: e.target.value })}
+                  />
+                </td>
+
+                {/* TC No Filtresi */}
+                <td className="px-6 py-2">
+                  <input
+                    type="text"
+                    placeholder="Filtre..."
+                    className="w-full px-2 py-1 text-xs bg-white dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded focus:outline-none focus:border-blue-500 text-slate-800 dark:text-slate-200"
+                    value={columnFilters.tc_no}
+                    onChange={e => setColumnFilters({ ...columnFilters, tc_no: e.target.value })}
+                  />
+                </td>
+
+                {/* Hesap Tipi Filtresi */}
+                <td className="px-6 py-2">
+                  <select
+                    className="w-full px-2 py-1 text-xs bg-white dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded focus:outline-none focus:border-blue-500 text-slate-800 dark:text-slate-200"
+                    value={columnFilters.role}
+                    onChange={e => setColumnFilters({ ...columnFilters, role: e.target.value })}
+                  >
+                    <option value="">Hepsi</option>
+                    {existingRoles.map(r => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                </td>
+
+                {/* Görevler Filtresi */}
+                <td className="px-6 py-2">
+                  <input
+                    type="text"
+                    placeholder="Filtre..."
+                    className="w-full px-2 py-1 text-xs bg-white dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded focus:outline-none focus:border-blue-500 text-slate-800 dark:text-slate-200"
+                    value={columnFilters.gorev}
+                    onChange={e => setColumnFilters({ ...columnFilters, gorev: e.target.value })}
+                  />
+                </td>
+
+                {/* Durum Filtresi */}
+                <td className="px-6 py-2">
+                  <select
+                    className="w-full px-2 py-1 text-xs bg-white dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded focus:outline-none focus:border-blue-500 text-slate-800 dark:text-slate-200"
+                    value={columnFilters.account_enabled}
+                    onChange={e => setColumnFilters({ ...columnFilters, account_enabled: e.target.value })}
+                  >
+                    <option value="">Hepsi</option>
+                    <option value="aktif">Aktif</option>
+                    <option value="pasif">Pasif</option>
+                  </select>
+                </td>
+
+                {/* Team Leader Filtresi */}
+                <td className="px-6 py-2">
+                  <select
+                    className="w-full px-2 py-1 text-xs bg-white dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded focus:outline-none focus:border-blue-500 text-slate-800 dark:text-slate-200"
+                    value={columnFilters.team_leader}
+                    onChange={e => setColumnFilters({ ...columnFilters, team_leader: e.target.value })}
+                  >
+                    <option value="">Hepsi</option>
+                    {Array.from(new Set(users.map(u => u.team_leader).filter(Boolean))).map(tl => (
+                      <option key={tl} value={tl}>{tl}</option>
+                    ))}
+                  </select>
+                </td>
+
+                {/* Operation Manager Filtresi */}
+                <td className="px-6 py-2">
+                  <input
+                    type="text"
+                    placeholder="Filtre..."
+                    className="w-full px-2 py-1 text-xs bg-white dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded focus:outline-none focus:border-blue-500 text-slate-800 dark:text-slate-200"
+                    value={columnFilters.operation_manager}
+                    onChange={e => setColumnFilters({ ...columnFilters, operation_manager: e.target.value })}
+                  />
+                </td>
+
+                {/* Administrative Manager Filtresi */}
+                <td className="px-6 py-2">
+                  <input
+                    type="text"
+                    placeholder="Filtre..."
+                    className="w-full px-2 py-1 text-xs bg-white dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded focus:outline-none focus:border-blue-500 text-slate-800 dark:text-slate-200"
+                    value={columnFilters.administrative_manager}
+                    onChange={e => setColumnFilters({ ...columnFilters, administrative_manager: e.target.value })}
+                  />
+                </td>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-700/50">
               {loading ? (
                 <tr>
-                  <td colSpan="10" className="px-6 py-12 text-center text-slate-400">
+                  <td colSpan="11" className="px-6 py-12 text-center text-slate-400">
                     <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-3 text-blue-400" />
                     <span className="font-medium">Yükleniyor...</span>
                   </td>
                 </tr>
               ) : filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan="10" className="px-6 py-12 text-center text-slate-500">
+                  <td colSpan="11" className="px-6 py-12 text-center text-slate-500">
                     Kayıt bulunamadı.
                   </td>
                 </tr>
