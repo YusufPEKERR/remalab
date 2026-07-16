@@ -75,6 +75,8 @@ export default function WorkOrders() {
   const [productionLoading, setProductionLoading] = useState(false);
   const [productionForm, setProductionForm] = useState(EMPTY_PRODUCTION_FORM);
   const [productionMaterials, setProductionMaterials] = useState([]);
+  const [recentProductions, setRecentProductions] = useState([]);
+  const [repeatLoading, setRepeatLoading] = useState(false);
 
   const fetchOrders = async () => {
     setOrdersLoading(true);
@@ -353,14 +355,65 @@ export default function WorkOrders() {
       materials_json: JSON.stringify(materials)
     });
     if (res.success) {
+      const targetPart = parts.find(p => String(p.id) === String(productionForm.target_part_id));
+      const recentRun = {
+        id: Date.now(),
+        target_part_id: productionForm.target_part_id,
+        target_part_name: targetPart ? targetPart.name : `Parça #${productionForm.target_part_id}`,
+        quantity_produced: productionForm.quantity_produced,
+        source_location_id: goodStockLocationId,
+        target_location_id: goodStockLocationId,
+        materials: materials,
+        produced_by: productionForm.produced_by,
+        notes: productionForm.notes,
+        time: new Date().toLocaleTimeString()
+      };
+      setRecentProductions(prev => [recentRun, ...prev].slice(0, 5));
+
       setProductionForm(EMPTY_PRODUCTION_FORM);
       setProductionMaterials([]);
       fetchProductionRuns();
       api.getStockStatus().then(r => { if (r.success) setStockStatus(r.stock || []); });
-      setActiveTab('history');
     } else {
       alert(res.message || 'Üretim kaydı oluşturulamadı.');
     }
+  };
+
+  const handleInstantRepeatProduction = async (run) => {
+    for (const m of run.materials) {
+      const available = getTotalStockQty(m.part_id);
+      if (Number(m.quantity_consumed) > available) {
+        alert(`Yeterli stok yok. ${parts.find(p => String(p.id) === String(m.part_id))?.name || 'Bazı hammaddeler'} için mevcut stok: ${available}`);
+        return;
+      }
+    }
+    
+    if (repeatLoading) return;
+    setRepeatLoading(true);
+
+    const payload = {
+      target_part_id: run.target_part_id,
+      quantity_produced: run.quantity_produced,
+      source_location_id: run.source_location_id,
+      target_location_id: run.target_location_id,
+      materials_json: JSON.stringify(run.materials),
+      produced_by: run.produced_by || (getCurrentUser()?.username || 'admin'),
+      notes: run.notes || ''
+    };
+
+    const res = await api.createProductionRun(payload);
+    if (res.success) {
+      const updatedRun = { ...run, id: Date.now(), time: new Date().toLocaleTimeString() };
+      setRecentProductions(prev => {
+        const others = prev.filter(p => p.id !== run.id);
+        return [updatedRun, ...others].slice(0, 5);
+      });
+      fetchProductionRuns();
+      api.getStockStatus().then(r => { if (r.success) setStockStatus(r.stock || []); });
+    } else {
+      alert(res.message || 'Yeniden üretim kaydı oluşturulamadı.');
+    }
+    setRepeatLoading(false);
   };
 
   const handleDeleteProduction = async (id) => {
@@ -680,7 +733,8 @@ export default function WorkOrders() {
 
         {/* --- YARI MAMUL ÜRETİMİ --- */}
         {activeTab === 'production' && (
-          <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-sm">
+          <div className="space-y-6">
+            <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-sm">
             <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2 mb-2">
               <Factory size={20} className="text-orange-400" /> Yarı Mamul Üretimi
             </h2>
@@ -787,6 +841,38 @@ export default function WorkOrders() {
                 </button>
               </div>
             </form>
+          </div>
+
+          {recentProductions.length > 0 && (
+            <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <h3 className="text-md font-bold text-slate-800 dark:text-slate-100 mb-4 flex items-center gap-2">
+                <TrendingUp size={18} className="text-blue-400" /> Son Üretilenler
+              </h3>
+              <div className="space-y-3">
+                {recentProductions.map(run => (
+                  <div key={run.id} className="flex items-center justify-between bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 p-4 rounded-xl">
+                    <div>
+                      <div className="font-medium text-slate-800 dark:text-slate-200">
+                        {run.quantity_produced} adet <span className="text-orange-500">{run.target_part_name}</span>
+                      </div>
+                      <div className="text-xs text-slate-500 mt-1">
+                        Kullanılan: {run.materials.map(m => `${m.quantity_consumed}x ${parts.find(p => String(p.id) === String(m.part_id))?.name || 'Parça'}`).join(', ')}
+                      </div>
+                      <div className="text-xs text-slate-400 mt-1">Saat: {run.time}</div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleInstantRepeatProduction(run)}
+                      disabled={repeatLoading}
+                      className="px-4 py-2 bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed rounded-lg font-bold transition-colors flex items-center gap-2 border border-blue-500/20"
+                    >
+                      <Repeat size={16} /> Yeniden Yap
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           </div>
         )}
 
