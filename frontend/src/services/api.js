@@ -159,6 +159,7 @@ export const api = {
                 partData.stock_tracking_type || 'Stok Takipli',
                 Array.isArray(partData.department) ? partData.department.join(', ') : (partData.department || ''),
                 partData.status || 'Aktif',
+                partData.critical_limit !== undefined ? String(partData.critical_limit) : '',
                 (res) => resolve(JSON.parse(res))
             );
         });
@@ -180,6 +181,7 @@ export const api = {
                 partData.stock_tracking_type || 'Stok Takipli',
                 Array.isArray(partData.department) ? partData.department.join(', ') : (partData.department || ''),
                 partData.status || 'Aktif',
+                partData.critical_limit !== undefined ? String(partData.critical_limit) : '',
                 (res) => resolve(JSON.parse(res))
             );
         });

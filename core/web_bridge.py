@@ -511,7 +511,7 @@ class WebBridge(QObject):
                        COALESCE(pc.departments, p.department, '') AS department,
                        COALESCE(pc.stock_tracking_type, p.stock_tracking_type, 'Stok Takipli') AS stock_tracking_type,
                        pc.default_location_id, loc.name AS default_location_name,
-                       p.status
+                       p.status, p.critical_limit
                 FROM warehouse.parts p
                 LEFT JOIN warehouse.part_categories pc ON pc.id = p.part_category_id
                 LEFT JOIN warehouse.locations loc ON loc.id = pc.default_location_id
@@ -543,8 +543,8 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    @Slot(str, str, str, str, str, str, str, str, str, str, str, result=str)
-    def create_part(self, name, item_code, barcode, brand, model, item_category, part_category, part_category_id, stock_tracking_type, department, status):
+    @Slot(str, str, str, str, str, str, str, str, str, str, str, str, result=str)
+    def create_part(self, name, item_code, barcode, brand, model, item_category, part_category, part_category_id, stock_tracking_type, department, status, critical_limit):
         """Yeni parça ekler."""
         from sqlalchemy import text
         db = SessionLocal()
@@ -558,8 +558,8 @@ class WebBridge(QObject):
                 part_name = f"{brand.strip()} {model.strip()}".strip() or code
 
             sql = """
-                INSERT INTO warehouse.parts (name, item_code, barcode, brand, model, item_category, part_category, part_category_id, stock_tracking_type, department, status)
-                VALUES (:name, :code, :barcode, :brand, :model, :icat, :pcat, :pcat_id, :stt, :dept, :status)
+                INSERT INTO warehouse.parts (name, item_code, barcode, brand, model, item_category, part_category, part_category_id, stock_tracking_type, department, status, critical_limit)
+                VALUES (:name, :code, :barcode, :brand, :model, :icat, :pcat, :pcat_id, :stt, :dept, :status, :critical_limit)
             """
             db.execute(text(sql), {
                 "name": part_name, "code": code, "barcode": barcode or None,
@@ -568,7 +568,8 @@ class WebBridge(QObject):
                 "pcat_id": int(part_category_id) if part_category_id.strip() else None,
                 "stt": stock_tracking_type or "Stok Takipli",
                 "dept": department or None,
-                "status": status or "Aktif"
+                "status": status or "Aktif",
+                "critical_limit": int(critical_limit) if critical_limit.strip() else 50
             })
             db.commit()
             return json.dumps({"success": True, "message": "Parça eklendi"})
@@ -578,8 +579,8 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    @Slot(str, str, str, str, str, str, str, str, str, str, str, str, result=str)
-    def update_part(self, part_id_str, name, item_code, barcode, brand, model, item_category, part_category, part_category_id, stock_tracking_type, department, status):
+    @Slot(str, str, str, str, str, str, str, str, str, str, str, str, str, result=str)
+    def update_part(self, part_id_str, name, item_code, barcode, brand, model, item_category, part_category, part_category_id, stock_tracking_type, department, status, critical_limit):
         """Var olan bir parçayı günceller."""
         from sqlalchemy import text
         db = SessionLocal()
@@ -598,7 +599,7 @@ class WebBridge(QObject):
                 SET name = :name, item_code = :code, barcode = :barcode, brand = :brand,
                     model = :model, item_category = :icat, part_category = :pcat,
                     part_category_id = :pcat_id, stock_tracking_type = :stt,
-                    department = :dept, status = :status
+                    department = :dept, status = :status, critical_limit = :critical_limit
                 WHERE id = :id
             """
             db.execute(text(sql), {
@@ -609,6 +610,7 @@ class WebBridge(QObject):
                 "stt": stock_tracking_type or "Stok Takipli",
                 "dept": department or None,
                 "status": status or "Aktif",
+                "critical_limit": int(critical_limit) if critical_limit.strip() else 50,
                 "id": part_id
             })
             db.commit()
