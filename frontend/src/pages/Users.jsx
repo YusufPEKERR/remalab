@@ -30,6 +30,8 @@ export default function Users() {
   const [modalMode, setModalMode] = useState('add'); // 'add', 'edit', 'password'
   const [formData, setFormData] = useState({ username: '', fullname: '', tc_no: '', password: '', role: 'Teknisyen', gorev: '', account_enabled: true, team_leader: '', operation_manager: '', administrative_manager: '' });
   const [currentUser, setCurrentUser] = useState(null);
+  const [isCustomRole, setIsCustomRole] = useState(false);
+  const [isCustomGorev, setIsCustomGorev] = useState(false);
 
   const defaultRoles = useMemo(() => [
     'DEVELOPER',
@@ -108,6 +110,8 @@ export default function Users() {
 
   const openModal = (mode) => {
     setModalMode(mode);
+    setIsCustomRole(false);
+    setIsCustomGorev(false);
     if (mode === 'add') {
       setFormData({ username: '', fullname: '', tc_no: '', password: '', role: 'Teknisyen', gorev: '', account_enabled: true, team_leader: '', operation_manager: '', administrative_manager: '' });
     } else {
@@ -468,18 +472,41 @@ export default function Users() {
                     <label className="text-sm font-medium text-slate-400 flex items-center gap-2">
                       <Shield size={14}/> Hesap Tipi
                     </label>
-                    <input
-                      type="text" required
-                      list="roles-datalist"
-                      className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                      value={formData.role}
-                      onChange={e => setFormData({...formData, role: e.target.value})}
-                      disabled={modalMode === 'edit' && currentUser && String(currentUser.id) === String(selectedUserId)}
-                      placeholder="Hesap tipi seçin veya yazın..."
-                    />
-                    <datalist id="roles-datalist">
-                      {existingRoles.map(r => <option key={r} value={r} />)}
-                    </datalist>
+                    {isCustomRole ? (
+                      <div className="flex gap-2">
+                        <input
+                          type="text" required
+                          placeholder="Yeni Hesap Tipi Yazın..."
+                          className="flex-1 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                          value={formData.role}
+                          onChange={e => setFormData({...formData, role: e.target.value})}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => { setIsCustomRole(false); setFormData({...formData, role: existingRoles[0] || 'Teknisyen'}); }}
+                          className="px-3 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-xl text-xs transition-colors"
+                        >
+                          Listeden Seç
+                        </button>
+                      </div>
+                    ) : (
+                      <select
+                        className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                        value={formData.role}
+                        onChange={e => {
+                          if (e.target.value === '__NEW__') {
+                            setIsCustomRole(true);
+                            setFormData({...formData, role: ''});
+                          } else {
+                            setFormData({...formData, role: e.target.value});
+                          }
+                        }}
+                        disabled={modalMode === 'edit' && currentUser && String(currentUser.id) === String(selectedUserId)}
+                      >
+                        {existingRoles.map(r => <option key={r} value={r}>{r}</option>)}
+                        <option value="__NEW__">+ Yeni Hesap Tipi Tanımla...</option>
+                      </select>
+                    )}
                     {modalMode === 'edit' && currentUser && String(currentUser.id) === String(selectedUserId) && (
                       <p className="text-[10px] text-amber-500 mt-1">Kendi hesap tipinizi değiştiremezsiniz.</p>
                     )}
@@ -489,17 +516,41 @@ export default function Users() {
                     <label className="text-sm font-medium text-slate-400 flex items-center gap-2">
                       <Shield size={14}/> Görevler (Virgülle Ayırın)
                     </label>
-                    <input
-                      type="text"
-                      list="gorevs-datalist"
-                      className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
-                      value={formData.gorev}
-                      onChange={e => setFormData({...formData, gorev: e.target.value})}
-                      placeholder="Görevleri girin..."
-                    />
-                    <datalist id="gorevs-datalist">
-                      {existingGorevs.map(g => <option key={g} value={g} />)}
-                    </datalist>
+                    {isCustomGorev ? (
+                      <div className="flex gap-2">
+                        <input
+                          type="text" required
+                          placeholder="Yeni Görev Yazın..."
+                          className="flex-1 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                          value={formData.gorev}
+                          onChange={e => setFormData({...formData, gorev: e.target.value})}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => { setIsCustomGorev(false); setFormData({...formData, gorev: existingGorevs[0] || ''}); }}
+                          className="px-3 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-xl text-xs transition-colors"
+                        >
+                          Listeden Seç
+                        </button>
+                      </div>
+                    ) : (
+                      <select
+                        className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                        value={formData.gorev}
+                        onChange={e => {
+                          if (e.target.value === '__NEW__') {
+                            setIsCustomGorev(true);
+                            setFormData({...formData, gorev: ''});
+                          } else {
+                            setFormData({...formData, gorev: e.target.value});
+                          }
+                        }}
+                      >
+                        <option value="">Görev Yok</option>
+                        {existingGorevs.map(g => <option key={g} value={g}>{g}</option>)}
+                        <option value="__NEW__">+ Yeni Görev Tanımla...</option>
+                      </select>
+                    )}
                   </div>
 
                   <div className="space-y-1.5">
