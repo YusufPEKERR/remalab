@@ -36,8 +36,8 @@ export default function Parts() {
     "Barkod": true,
     "Parça Adı": true,
     "Kalite": true,
-    "Parça Kategorisi": true,
-    "Parça Tipi": true,
+    "Item Code": true,
+    "Item Category": true,
     "Parça Statüsü": true
   });
 
@@ -55,7 +55,7 @@ export default function Parts() {
     barcode: "Barkod (barcode)",
     name: "Parça Adı (name)",
     item_category: "Kalite (item_category)",
-    part_category: "Parça Kategorisi (part_category)",
+    part_category: "Item Code (part_category)",
     status: "Parça Statüsü (status)"
   };
 
@@ -236,12 +236,27 @@ export default function Parts() {
   };
 
   const executeExport = async () => {
-    const dataToExport = selectedRows.length > 0
+    let dataToExport = selectedRows.length > 0
       ? parts.filter(p => selectedRows.includes(p.id))
       : filteredParts;
 
+    try {
+      const res = await api.getStockStatus();
+      if (res.success) {
+        const stockMap = {};
+        res.stock.forEach(s => {
+          if (!stockMap[s.part_id]) stockMap[s.part_id] = 0;
+          stockMap[s.part_id] += Number(s.quantity);
+        });
+        
+        dataToExport = dataToExport.filter(p => stockMap[p.id] > 0);
+      }
+    } catch (err) {
+      console.error("Stock status fetch failed during export", err);
+    }
+
     if (dataToExport.length === 0) {
-      alert("Dışa aktarılacak veri bulunamadı.");
+      alert("Stokta mevcut dışa aktarılacak veri bulunamadı.");
       setIsExportModalOpen(false);
       return;
     }
@@ -253,8 +268,8 @@ export default function Parts() {
       if (selectedExportColumns["Barkod"]) row["Barkod"] = p.barcode;
       if (selectedExportColumns["Parça Adı"]) row["Parça Adı"] = p.name;
       if (selectedExportColumns["Kalite"]) row["Kalite"] = p.item_category;
-      if (selectedExportColumns["Parça Kategorisi"]) row["Parça Kategorisi"] = p.part_category;
-      if (selectedExportColumns["Parça Tipi"]) row["Parça Tipi"] = p.part_type;
+      if (selectedExportColumns["Item Code"]) row["Item Code"] = p.part_category;
+      if (selectedExportColumns["Item Category"]) row["Item Category"] = p.part_type;
       if (selectedExportColumns["Parça Statüsü"]) row["Parça Statüsü"] = p.status;
       return row;
     });
@@ -360,8 +375,8 @@ export default function Parts() {
                 <th className="px-6 py-4">Barkod</th>
                 <th className="px-6 py-4">Parça Adı</th>
                 <th className="px-6 py-4">Kalite</th>
-                <th className="px-6 py-4">Parça Kategorisi</th>
-                <th className="px-6 py-4">Parça Tipi</th>
+                <th className="px-6 py-4">Item Code</th>
+                <th className="px-6 py-4">Item Category</th>
                 <th className="px-6 py-4">Parça Statüsü</th>
                 <th className="px-6 py-4 text-center">İşlemler</th>
               </tr>
@@ -405,6 +420,7 @@ export default function Parts() {
                       )}
                     </td>
                     <td className="px-6 py-4">{part.part_category || '-'}</td>
+                    <td className="px-6 py-4">{part.part_type || '-'}</td>
                     <td className="px-6 py-4">
                       <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${
                         part.status === 'Pasif' ? 'bg-slate-500/10 text-slate-400 border-slate-500/20' :
@@ -548,14 +564,19 @@ export default function Parts() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1">Parça Kategorisi</label>
+                  <label className="block text-sm font-medium text-slate-400 mb-1.5">
+                    Item Code <span className="text-red-400">*</span>
+                  </label>
                   <select
-                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                    required
+                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
                     value={formData.part_category_id}
-                    onChange={e => setFormData({...formData, part_category_id: e.target.value})}
+                    onChange={(e) => setFormData({...formData, part_category_id: e.target.value})}
                   >
-                    <option value="">Seçilmedi</option>
-                    {categoryOptions.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    <option value="">Seçiniz</option>
+                    {partCategories.map(cat => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -564,7 +585,7 @@ export default function Parts() {
                 <div className="bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg p-4 space-y-2">
                   <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Kategoriden Otomatik Gelen Bilgiler</p>
                   <div className="grid grid-cols-2 gap-y-2 text-sm">
-                    <span className="text-slate-400">Parça Tipi</span>
+                    <span className="text-slate-400">Item Category</span>
                     <span className="text-slate-800 dark:text-slate-200">{selectedCategory.part_type || '-'}</span>
                     <span className="text-slate-400">Varsayılan Lokasyon</span>
                     <span className="text-slate-800 dark:text-slate-200">{selectedCategory.default_location_name || '-'}</span>

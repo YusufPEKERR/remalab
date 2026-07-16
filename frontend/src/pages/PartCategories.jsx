@@ -34,6 +34,9 @@ export default function PartCategories() {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
+  const user = JSON.parse(localStorage.getItem('user'));
+  const isAdmin = user?.role === 'admin';
+
   const [showForm, setShowForm] = useState(false);
   const [editingCat, setEditingCat] = useState(null);
   const [formData, setFormData] = useState(EMPTY_FORM);
@@ -101,7 +104,7 @@ export default function PartCategories() {
 
   const handleSave = async (e) => {
     e.preventDefault();
-    const payload = { ...formData, name: formData.part_type };
+    const payload = { ...formData };
     const res = editingCat
       ? await api.updatePartCategory(editingCat.id, payload)
       : await api.createPartCategory(payload);
@@ -157,17 +160,19 @@ export default function PartCategories() {
                 <input
                   type="text"
                   className="w-full bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:border-blue-500 shadow-sm"
-                  placeholder="Kategori Ara (Ad, Parça Tipi)..."
+                  placeholder="Kategori Ara (Item Code, Item Category)..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
-              <button
-                onClick={() => handleOpenForm()}
-                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-blue-900/20 font-medium text-sm shrink-0"
-              >
-                <Plus size={16} /> Yeni Kategori
-              </button>
+              {isAdmin && (
+                <button
+                  onClick={() => handleOpenForm()}
+                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-blue-900/20 font-medium text-sm shrink-0"
+                >
+                  <Plus size={16} /> Yeni Kategori
+                </button>
+              )}
             </div>
 
             <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden">
@@ -175,8 +180,8 @@ export default function PartCategories() {
                 <table className="w-full text-left text-sm whitespace-nowrap">
                   <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs sticky top-0 z-10">
                     <tr>
-                      <th className="px-6 py-4">Kategori Adı</th>
-                      <th className="px-6 py-4">Parça Tipi</th>
+                      <th className="px-6 py-4">Item Code</th>
+                      <th className="px-6 py-4">Item Category</th>
                       <th className="px-6 py-4">Departmanlar</th>
                       <th className="px-6 py-4">Stok Takibi</th>
                       <th className="px-6 py-4">Varsayılan Lokasyon</th>
@@ -254,9 +259,20 @@ export default function PartCategories() {
             </div>
 
             <form onSubmit={handleSave} className="space-y-5">
-              <div className="grid grid-cols-1 gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div className="relative">
-                  <label className="block text-sm font-medium text-slate-400 mb-1.5">Parça Kategorisi <span className="text-red-400">*</span></label>
+                  <label className="block text-sm font-medium text-slate-400 mb-1.5">Item Code <span className="text-red-400">*</span></label>
+                  <input
+                    type="text"
+                    required
+                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                    value={formData.name}
+                    onChange={e => setFormData({...formData, name: e.target.value})}
+                    placeholder="Örn: SC001"
+                  />
+                </div>
+                <div className="relative">
+                  <label className="block text-sm font-medium text-slate-400 mb-1.5">Item Category <span className="text-red-400">*</span></label>
                   <input
                     type="text"
                     list="part-types-list"

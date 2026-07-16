@@ -236,7 +236,7 @@ export default function StockTransferModal({ isOpen, onClose, onTransfer, locati
                   className="w-full bg-white dark:bg-[#1e2330] border border-slate-700/70 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-yellow-500"
                 >
                   <option value="">--- Lokasyon Seçin ---</option>
-                  {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                  {locations.filter(l => systemLocations.find(sl => sl.id === l.id)?.kind === 'good_stock').map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
                 </select>
               </div>
 
@@ -245,7 +245,7 @@ export default function StockTransferModal({ isOpen, onClose, onTransfer, locati
                   <label className="block text-sm font-medium text-slate-400 mb-1.5">Transfer Miktarı</label>
                   <input 
                     type="number" 
-                    min="0" 
+                    min="1" 
                     max={maxQuantity}
                     value={quantity} 
                     onChange={e => setQuantity(Number(e.target.value))}

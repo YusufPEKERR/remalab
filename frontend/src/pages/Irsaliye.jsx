@@ -48,21 +48,30 @@ export default function Irsaliye() {
     "Açıklama": true
   });
 
-  const dbColumns = ["barcode", "loc_id", "qty", "price", "type"];
+  const dbColumns = ["item_code", "item_category", "part_name", "barcode", "qty", "price", "type", "who"];
   const friendlyNames = {
+    item_code: "Item Code",
+    item_category: "Item Category",
+    part_name: "Ürün Adı",
     barcode: "Barkod (Zorunlu)",
-    loc_id: "Lokasyon ID (Zorunlu)",
     qty: "Miktar (Zorunlu)",
     price: "Birim Fiyat",
-    type: "İşlem Türü"
+    type: "İşlem Türü",
+    who: "Kim (Zorunlu)"
   };
 
   const handleExcelImport = async (data) => {
     setIsExcelModalOpen(false);
     let successCount = 0;
     
+    // Her zaman 'good_stock' kullanacağız
+    const defaultLocId = getSystemLocationId('good_stock') || 1;
+    
     for (const row of data) {
-        if (!row.barcode || !row.loc_id || !row.qty) continue;
+        if (!row.barcode || !row.qty || !row.who) {
+            console.log("Skipping row, missing mandatory fields:", row);
+            continue;
+        }
 
         const part = parts.find(p => String(p.barcode) === String(row.barcode));
         if (!part) {
@@ -73,19 +82,19 @@ export default function Irsaliye() {
         if (excelDirection === 'inbound') {
             await api.addInboundEntry(
                 part.id,
-                row.loc_id,
+                defaultLocId,
                 row.qty,
                 row.price || 0,
                 row.type || 'Yeni Alım',
-                'admin'
+                row.who
             );
         } else {
             await api.addOutboundEntry(
                 part.id,
-                row.loc_id,
+                defaultLocId,
                 row.qty,
                 row.type || 'Çıkış',
-                'admin'
+                row.who
             );
         }
         successCount++;
@@ -101,11 +110,14 @@ export default function Irsaliye() {
 
     if (action === 'template') {
         const templateData = [{
+          "Item Code": "SC001",
+          "Item Category": "Ekran",
+          "Ürün Adı": "iPhone 13 Ekran",
           "Barkod": "123456789",
-          "Lokasyon ID": "1",
           "Miktar": 10,
           "Birim Fiyat": 150.00,
-          "İşlem Türü": "Yeni Alım"
+          "İşlem Türü": "Yeni Alım",
+          "Kim": "Ahmet Yılmaz"
         }];
         await api.exportTableToExcel(templateData, "irsaliye_sablon.xlsx");
     } else if (action === 'export') {
@@ -294,28 +306,15 @@ export default function Irsaliye() {
 
   const handleInbound = async (e) => {
     e.preventDefault();
-    
     if (!formData.part_id) {
       alert("Lütfen önce barkod okutarak veya aratarak bir parça seçin.");
       return;
     }
-    
+    const payloadLocId = getSystemLocationId('good_stock') || 1;
     if (isSubmitting) return;
     setIsSubmitting(true);
-    
     try {
-      const user = "admin";
-      const isTransfer = formData.type === 'Depodan Depoya';
-
-      if (isTransfer && Number(formData.qty) > getStockQty(formData.part_id, formData.source_loc_id)) {
-        alert("Kaynak lokasyonda yeterli stok yok.");
-        return;
-      }
-
-      const res = isTransfer
-        ? await api.transferStock(formData.part_id, formData.source_loc_id, formData.loc_id, formData.qty, user)
-        : await api.addInboundEntry(formData.part_id, formData.loc_id, formData.qty, formData.price, formData.type || 'Yeni Alım', user);
-
+      const res = await api.addInboundEntry(formData.part_id, payloadLocId, formData.qty, formData.price || 0, formData.type || 'Yeni Alım', formData.who || 'admin', formData.description);
       if (res && res.success) {
         setShowInboundModal(false);
         fetchData();
@@ -327,24 +326,20 @@ export default function Irsaliye() {
 
   const handleOutbound = async (e) => {
     e.preventDefault();
-    
     if (!formData.part_id) {
       alert("Lütfen önce barkod okutarak veya aratarak bir parça seçin.");
       return;
     }
-
-    const available = getStockQty(formData.part_id, formData.source_loc_id || formData.loc_id);
+    const payloadLocId = getSystemLocationId('good_stock') || 1;
+    const available = getStockQty(formData.part_id, payloadLocId);
     if (Number(formData.qty) > available) {
-      alert("Seçili lokasyonda yeterli stok yok!");
+      alert("Seçili lokasyonda (Good Stok) yeterli stok yok!");
       return;
     }
-    
     if (isSubmitting) return;
     setIsSubmitting(true);
-    
     try {
-      const user = "admin";
-      const res = await api.addOutboundEntry(formData.part_id, formData.loc_id, formData.qty, formData.type || 'Teknik Servis', user, formData.technician, formData.description);
+      const res = await api.addOutboundEntry(formData.part_id, payloadLocId, formData.qty, formData.type || 'Teknik Servis', formData.who || 'admin', formData.description);
       if (res && res.success) {
         setShowOutboundModal(false);
         fetchData();
@@ -428,7 +423,7 @@ export default function Irsaliye() {
                 }
               }
               
-              setOutboundBarcode(''); setOutboundBrand(''); setOutboundModel(''); setFormData({ part_id: '', loc_id: getSystemLocationId('good_stock'), qty: 1, price: 0, type: 'Teknik Servis', technician: '', description: '' }); setShowOutboundModal(true); 
+              setOutboundBarcode(''); setOutboundBrand(''); setOutboundModel(''); setFormData({ part_id: '', loc_id: getSystemLocationId('good_stock'), qty: 1, price: 0, type: 'Teknik Servis', who: '', description: '' }); setShowOutboundModal(true); 
             }}
             className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-colors"
           >
@@ -532,27 +527,7 @@ export default function Irsaliye() {
                 </div>
               </div>
 
-              {(getSystemLocationId('good_stock') || getSystemLocationId('doa_stock')) && (
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Durum (hızlı seçim)</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setFormData(prev => ({ ...prev, loc_id: getSystemLocationId('good_stock') }))}
-                      className={`px-4 py-2.5 rounded-lg text-sm font-medium border transition-colors ${formData.loc_id && formData.loc_id === getSystemLocationId('good_stock') ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-slate-50 dark:bg-[#0f1219] border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-emerald-500'}`}
-                    >
-                      ✅ Sağlam (Good Stock)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setFormData(prev => ({ ...prev, loc_id: getSystemLocationId('doa_stock') }))}
-                      className={`px-4 py-2.5 rounded-lg text-sm font-medium border transition-colors ${formData.loc_id && formData.loc_id === getSystemLocationId('doa_stock') ? 'bg-amber-600 text-white border-amber-600' : 'bg-slate-50 dark:bg-[#0f1219] border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-amber-500'}`}
-                    >
-                      ⚠️ Arızalı (DOA Stock)
-                    </button>
-                  </div>
-                </div>
-              )}
+
 
               <div className="border-t border-slate-200 dark:border-slate-700/50 pt-4"></div>
 
@@ -588,7 +563,6 @@ export default function Irsaliye() {
                 }}>
                   <option value="Yeni Alım (Tedarikçiden)">Yeni Alım (Tedarikçiden)</option>
                   <option value="İade Girişi">İade Girişi</option>
-                  <option value="Depodan Depoya">Depodan Depoya</option>
                   <option value="Diğer">Diğer</option>
                 </select>
               </div>
@@ -607,43 +581,15 @@ export default function Irsaliye() {
                 </div>
               </div>
 
-              {formData.type === 'Depodan Depoya' ? (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Kaynak Lokasyon</label>
-                    <select required className="w-full px-3 py-2 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.source_loc_id} onChange={(e) => setFormData({...formData, source_loc_id: e.target.value})}>
-                      <option value="">Kaynak lokasyon seçiniz...</option>
-                      {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-                    </select>
-                    {formData.part_id && formData.source_loc_id && (
-                      <p className={`mt-1.5 text-xs font-medium ${getStockQty(formData.part_id, formData.source_loc_id) > 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                        Mevcut Stok: {getStockQty(formData.part_id, formData.source_loc_id)}
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Hedef Lokasyon</label>
-                    <select required className="w-full px-3 py-2 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.loc_id} onChange={(e) => setFormData({...formData, loc_id: e.target.value})}>
-                      <option value="">Hedef lokasyon seçiniz...</option>
-                      {locations.filter(l => String(l.id) !== String(formData.source_loc_id)).map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-                    </select>
-                  </div>
-                </>
-              ) : (
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Lokasyon</label>
-                  <select required className="w-full px-3 py-2 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.loc_id} onChange={(e) => setFormData({...formData, loc_id: e.target.value})}>
-                    <option value="">Lokasyon seçiniz...</option>
-                    {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">İşlemi Yapan (Kim) <span className="text-red-500">*</span></label>
+                  <select required className="w-full px-3 py-2 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.who || ''} onChange={(e) => setFormData({...formData, who: e.target.value})}>
+                    <option value="">Seçiniz...</option>
+                    {users.map(u => <option key={u.id} value={u.username}>{u.username}</option>)}
                   </select>
-                  {formData.part_id && formData.loc_id && (
-                    <p className={`mt-1.5 text-xs font-medium ${getStockQty(formData.part_id, formData.loc_id) > 0 ? 'text-emerald-500' : 'text-slate-400'}`}>
-                      Mevcut Stok: {getStockQty(formData.part_id, formData.loc_id)}
-                    </p>
-                  )}
                 </div>
-              )}
+              </div>
 
               <div className="flex justify-end gap-3 mt-6 border-t border-slate-200 dark:border-slate-700 pt-4">
                 <button type="button" onClick={() => setShowInboundModal(false)} className="px-5 py-2.5 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors font-medium">İptal</button>
@@ -691,18 +637,7 @@ export default function Irsaliye() {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Kaynak Lokasyon</label>
-                <select required className="w-full px-3 py-2 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.loc_id} onChange={(e) => setFormData({...formData, loc_id: e.target.value})}>
-                  <option value="">Lokasyon seçiniz...</option>
-                  {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-                </select>
-                {formData.part_id && formData.loc_id && (
-                  <p className={`mt-1.5 text-xs font-medium ${getStockQty(formData.part_id, formData.loc_id) > 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                    Mevcut Stok: {getStockQty(formData.part_id, formData.loc_id)}
-                  </p>
-                )}
-              </div>
+
 
               <div className="flex gap-4">
                 <div className="flex-1">
@@ -722,8 +657,8 @@ export default function Irsaliye() {
 
               <div className="flex gap-4">
                 <div className="flex-1">
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Teknisyen</label>
-                  <select className="w-full px-3 py-2 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.technician} onChange={(e) => setFormData({...formData, technician: e.target.value})}>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">İşlemi Yapan (Kim) <span className="text-red-500">*</span></label>
+                  <select required className="w-full px-3 py-2 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.who || ''} onChange={(e) => setFormData({...formData, who: e.target.value})}>
                     <option value="">Seçiniz...</option>
                     {users.map(u => <option key={u.id} value={u.username}>{u.username}</option>)}
                   </select>
