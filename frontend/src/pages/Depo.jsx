@@ -59,9 +59,9 @@ export default function Depo() {
       
       currentQty = Number(selectedItem.quantity) || 0;
       
-      const limit = Number(selectedItem.critical_limit) || 10;
-      maxCapacity = Math.max(50, limit * 2);
-      isCritical = currentQty <= limit;
+      const limit = Number(selectedItem.critical_limit) || 50;
+      maxCapacity = Math.max(100, limit * 2);
+      isCritical = currentQty < limit;
     } else {
       // General warehouse occupancy
       currentQty = inventory.reduce((acc, curr) => acc + Number(curr.quantity), 0);

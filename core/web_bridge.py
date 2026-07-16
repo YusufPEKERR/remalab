@@ -2116,7 +2116,7 @@ class WebBridge(QObject):
                     "location_name": l.name,
                     "location_kind": l.kind,
                     "quantity": s.quantity,
-                    "critical_limit": p.critical_limit or 10
+                    "critical_limit": p.critical_limit or 50
                 })
             return json.dumps({"success": True, "stock": res})
         except Exception as e:
@@ -2427,7 +2427,7 @@ class WebBridge(QObject):
             else:
                 stocks = []
             
-            critical_count = sum(1 for s, p in stocks if s.quantity <= (p.critical_limit or 10))
+            critical_count = sum(1 for s, p in stocks if s.quantity < (p.critical_limit or 50))
             
             today = date.today()
             todays_inbound = db.query(func.sum(StockMovement.quantity)).filter(
@@ -2474,8 +2474,8 @@ class WebBridge(QObject):
 
             res = []
             for s, p, l in stocks:
-                limit = p.critical_limit or 10
-                if s.quantity <= limit:
+                limit = p.critical_limit or 50
+                if s.quantity < limit:
                     res.append({
                         "id": s.id,
                         "part_name": f"{p.brand} {p.model} {p.name}",
