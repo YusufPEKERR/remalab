@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ClipboardList, Plus, Trash2, Edit, X, Save, Factory, Package, TrendingUp } from 'lucide-react';
+import { ClipboardList, Plus, Trash2, Edit, X, Save, Factory, Package, TrendingUp, Repeat } from 'lucide-react';
 import { api } from '../services/api';
 import PartSupplyMenu from '../components/PartSupplyMenu';
 import DeliverPartPopover from '../components/DeliverPartPopover';
@@ -324,6 +324,11 @@ export default function WorkOrders() {
     }
     const materials = productionMaterials.filter(r => r.part_id && Number(r.quantity_consumed) > 0);
 
+    if (materials.length === 0) {
+      alert('Lütfen en az bir tane tüketilen madde (hammadde) giriniz.');
+      return;
+    }
+
     for (const m of materials) {
       const available = getStockQty(m.part_id, goodStockLocationId);
       if (Number(m.quantity_consumed) > available) {
@@ -355,9 +360,26 @@ export default function WorkOrders() {
       if (res.success) {
         fetchProductionRuns();
       } else {
-        alert(res.message || 'Silme işlemi başarısız oldu.');
+        alert(res.message || 'Üretim kaydı silinemedi.');
       }
     }
+  };
+
+  const handleRepeatProduction = (run) => {
+    setProductionForm({
+      target_part_id: run.target_part_id,
+      quantity_produced: run.quantity_produced,
+      source_location_id: run.source_location_id,
+      target_location_id: run.target_location_id,
+      produced_by: getCurrentUser()?.username || 'admin',
+      notes: run.notes || ''
+    });
+    // Duplicate the materials list so it's a new reference, mapping it correctly
+    setProductionMaterials((run.materials || []).map(m => ({
+      part_id: m.part_id,
+      quantity_consumed: m.quantity_consumed
+    })));
+    setActiveTab('production');
   };
 
   const materialConsumption = () => {
@@ -824,9 +846,14 @@ export default function WorkOrders() {
                       <td className="px-6 py-4">{run.produced_by || '-'}</td>
                       <td className="px-6 py-4 text-slate-400">{run.created_at}</td>
                       <td className="px-6 py-4 text-center">
-                        <button onClick={() => handleDeleteProduction(run.id)} className="p-1.5 text-red-400 hover:bg-red-400/10 rounded-lg transition-colors" title="Sil">
-                          <Trash2 size={16} />
-                        </button>
+                        <div className="flex justify-center gap-2">
+                          <button onClick={() => handleRepeatProduction(run)} className="p-1.5 text-blue-400 hover:bg-blue-400/10 rounded-lg transition-colors" title="İşlemi Tekrarla">
+                            <Repeat size={16} />
+                          </button>
+                          <button onClick={() => handleDeleteProduction(run.id)} className="p-1.5 text-red-400 hover:bg-red-400/10 rounded-lg transition-colors" title="Sil">
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
