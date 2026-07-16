@@ -1,0 +1,21 @@
+2026-07-16 09:17:16,034 [INFO] apple_catalog_scraper.discovery: İndeks sayfasında 62 iPhone modeli bulundu.
+2026-07-16 09:18:09,648 [WARNING] apple_catalog_scraper.discovery: Teknik özellik bağlantısı bulunamadı, model atlanıyor: iPhone 5c (8GB) (https://support.apple.com/en-us/docs/iphone/134505)
+2026-07-16 09:18:12,851 [WARNING] apple_catalog_scraper.discovery: Teknik özellik bağlantısı bulunamadı, model atlanıyor: iPhone 4s (8GB) (https://support.apple.com/en-us/docs/iphone/134093)
+2026-07-16 09:18:15,644 [WARNING] apple_catalog_scraper.discovery: Teknik özellik bağlantısı bulunamadı, model atlanıyor: iPhone 5c (https://support.apple.com/en-us/docs/iphone/134095)
+2026-07-16 09:18:21,082 [WARNING] apple_catalog_scraper.discovery: Teknik özellik bağlantısı bulunamadı, model atlanıyor: iPhone 5 (GSM, CDMA) (https://support.apple.com/en-us/docs/iphone/133779)
+2026-07-16 09:18:22,311 [WARNING] apple_catalog_scraper.discovery: Teknik özellik bağlantısı bulunamadı, model atlanıyor: iPhone 4 (8GB) (https://support.apple.com/en-us/docs/iphone/133477)
+2026-07-16 09:18:25,787 [WARNING] apple_catalog_scraper.discovery: Teknik özellik bağlantısı bulunamadı, model atlanıyor: iPhone 4 CDMA (8GB) (https://support.apple.com/en-us/docs/iphone/133466)
+2026-07-16 09:18:28,577 [WARNING] apple_catalog_scraper.discovery: Teknik özellik bağlantısı bulunamadı, model atlanıyor: iPhone 3GS (8GB) (https://support.apple.com/en-us/docs/iphone/132932)
+2026-07-16 09:18:32,454 [WARNING] apple_catalog_scraper.discovery: Teknik özellik bağlantısı bulunamadı, model atlanıyor: iPhone 3GS (China Mainland) (https://support.apple.com/en-us/docs/iphone/132740)
+2026-07-16 09:18:35,419 [INFO] apple_catalog_scraper.discovery: 54 / 62 model için teknik özellik sayfası bulundu.
+2026-07-16 09:19:47,310 [WARNING] apple_catalog_scraper.spec_parser: 'Finish/Color' bölümü bulunamadı, model atlanıyor: iPhone 5 (https://support.apple.com/en-us/112016)
+2026-07-16 09:19:49,270 [WARNING] apple_catalog_scraper.spec_parser: 'Finish/Color' bölümü bulunamadı, model atlanıyor: iPhone 4 (CDMA) (https://support.apple.com/en-us/112562)
+2026-07-16 09:19:51,508 [WARNING] apple_catalog_scraper.spec_parser: 'Finish/Color' bölümü bulunamadı, model atlanıyor: iPhone 4 (https://support.apple.com/en-us/112562)
+2026-07-16 09:19:53,156 [WARNING] apple_catalog_scraper.normalize: Alışılmadık depolama metni bulundu, en iyi çaba ile ayrıştırılıyor: '8GB flash drive'
+2026-07-16 09:19:53,784 [WARNING] apple_catalog_scraper.normalize: Alışılmadık 'Finish/Color' metni bulundu, en iyi çaba ile ayrıştırılıyor: '8GB model: Black'
+2026-07-16 09:19:53,784 [WARNING] apple_catalog_scraper.normalize: Alışılmadık 'Finish/Color' metni bulundu, en iyi çaba ile ayrıştırılıyor: '16GB model: Black or white'
+2026-07-16 09:19:53,785 [WARNING] apple_catalog_scraper.normalize: Alışılmadık depolama metni bulundu, en iyi çaba ile ayrıştırılıyor: '8GB or 16GB flash drive'
+2026-07-16 09:19:55,414 [WARNING] apple_catalog_scraper.spec_parser: 'Finish/Color' bölümü bulunamadı, model atlanıyor: iPhone (original) (https://support.apple.com/en-us/112445)
+2026-07-16 09:19:55,915 [INFO] apple_catalog_scraper.catalog_builder: Toplam 634 benzersiz katalog satırı üretildi.
+2026-07-16 09:19:56,078 [INFO] apple_catalog_scraper.excel_writer: Excel dosyası yazıldı: C:\Users\90541\OneDrive\Masaüstü\Remalab\apple_catalog_scraper\apple_device_catalog.xlsx (634 satır)
+2026-07-16 09:19:56,078 [INFO] apple_catalog_scraper: Tamamlandı. 634 satır 'C:\Users\90541\OneDrive\Masaüstü\Remalab\apple_catalog_scraper\apple_device_catalog.xlsx' dosyasına yazıldı.

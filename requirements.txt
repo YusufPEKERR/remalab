@@ -15,3 +15,5 @@ mkdocstrings[python]
 email-validator
 pandas
 openpyxl
+pytest
+httpx

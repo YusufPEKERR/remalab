@@ -53,6 +53,18 @@ export const getBackend = () => {
                     },
                     set_dev_mode: (enabled, cb) => {
                         setTimeout(() => cb(JSON.stringify({ success: true })), 200);
+                    },
+                    get_device_catalog_brands: (cb) => {
+                        setTimeout(() => cb(JSON.stringify({
+                            success: true,
+                            brands: [
+                                { brand: 'Apple', device_count: 206 },
+                                { brand: 'Samsung', device_count: 69 }
+                            ]
+                        })), 400);
+                    },
+                    get_device_catalog_devices: (brand, cb) => {
+                        setTimeout(() => cb(JSON.stringify({ success: true, devices: [] })), 400);
                     }
                 });
                 return;
@@ -144,6 +156,20 @@ export const api = {
         });
     },
 
+    getDeviceCatalogBrands: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_device_catalog_brands((res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    getDeviceCatalogDevicesByBrand: async (brand) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_device_catalog_devices(brand, (res) => resolve(JSON.parse(res)));
+        });
+    },
+
     createPart: async (partData) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
@@ -160,6 +186,7 @@ export const api = {
                 Array.isArray(partData.department) ? partData.department.join(', ') : (partData.department || ''),
                 partData.status || 'Aktif',
                 partData.critical_limit !== undefined ? String(partData.critical_limit) : '',
+                partData.device_catalog_id ? String(partData.device_catalog_id) : '',
                 (res) => resolve(JSON.parse(res))
             );
         });

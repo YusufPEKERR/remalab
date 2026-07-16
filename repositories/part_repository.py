@@ -25,8 +25,23 @@ class PartRepository:
     def get_by_id(self, part_id: int) -> Optional[Part]:
         return self.db.get(Part, part_id)
 
-    def create(self, name: str, barcode: Optional[str] = None) -> Part:
-        part = Part(name=name, barcode=barcode)
+    def create(
+        self,
+        name: str,
+        barcode: Optional[str] = None,
+        brand: Optional[str] = None,
+        model: Optional[str] = None,
+        memory: Optional[str] = None,
+        color: Optional[str] = None,
+    ) -> Part:
+        part = Part(
+            name=name,
+            barcode=barcode,
+            brand=brand,
+            model=model,
+            memory=memory,
+            color=color,
+        )
         self.db.add(part)
         self.db.flush()
         return part

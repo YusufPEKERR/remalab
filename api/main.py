@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from api.routers import users, parts
+from api.routers import users, parts, device_catalog
 
 app = FastAPI(
     title="RemaLab WMS API",
@@ -19,6 +19,7 @@ app.add_middleware(
 
 app.include_router(users.router)
 app.include_router(parts.router)
+app.include_router(device_catalog.router)
 
 @app.get("/")
 def read_root():

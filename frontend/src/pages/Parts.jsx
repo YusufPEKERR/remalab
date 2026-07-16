@@ -47,6 +47,21 @@ export default function Parts() {
   const [departmentList, setDepartmentList] = useState([]);
   const [products, setProducts] = useState([]);
 
+  // DeviceCatalog - "Yeni Parça" ekranında Marka/Model/Depolama/Renk kademeli seçimi
+  const [dcBrands, setDcBrands] = useState([]);
+  const [dcBrandsLoading, setDcBrandsLoading] = useState(false);
+  const [dcBrandsError, setDcBrandsError] = useState('');
+  const [dcDevices, setDcDevices] = useState([]); // seçilen markaya ait tüm cihazlar (model/depolama/renk)
+  const [dcDevicesLoading, setDcDevicesLoading] = useState(false);
+  const [dcDevicesError, setDcDevicesError] = useState('');
+  const [dcBrand, setDcBrand] = useState('');
+  const [dcModel, setDcModel] = useState('');
+  const [dcStorage, setDcStorage] = useState('');
+  const [dcColor, setDcColor] = useState('');
+  const [dcDeviceId, setDcDeviceId] = useState('');
+
+  const UNSPECIFIED = 'Belirtilmemiş';
+
   const PART_STATUSES = ['Aktif', 'Pasif', 'Beklemede', 'Hurda'];
 
   const dbColumns = ["item_code", "barcode", "name", "item_category", "part_category", "status"];
@@ -121,6 +136,104 @@ export default function Parts() {
     [partCategories, formData.part_category_id]
   );
 
+  // DeviceCatalog kademeli seçim: her aşama bir öncekinden türetilir
+  const dcModelOptions = useMemo(
+    () => [...new Set(dcDevices.map(d => d.model))],
+    [dcDevices]
+  );
+  const dcStorageOptions = useMemo(
+    () => [...new Set(
+      dcDevices.filter(d => d.model === dcModel).map(d => d.storage || UNSPECIFIED)
+    )],
+    [dcDevices, dcModel]
+  );
+  const dcColorOptions = useMemo(
+    () => [...new Set(
+      dcDevices
+        .filter(d => d.model === dcModel && (d.storage || UNSPECIFIED) === dcStorage)
+        .map(d => d.color || UNSPECIFIED)
+    )],
+    [dcDevices, dcModel, dcStorage]
+  );
+  const dcSelectedDevice = useMemo(
+    () => dcDevices.find(d =>
+      d.model === dcModel &&
+      (d.storage || UNSPECIFIED) === dcStorage &&
+      (d.color || UNSPECIFIED) === dcColor
+    ) || null,
+    [dcDevices, dcModel, dcStorage, dcColor]
+  );
+
+  useEffect(() => {
+    setDcDeviceId(dcSelectedDevice ? String(dcSelectedDevice.id) : '');
+  }, [dcSelectedDevice]);
+
+  const resetDeviceCatalogSelection = () => {
+    setDcBrand('');
+    setDcDevices([]);
+    setDcDevicesError('');
+    setDcModel('');
+    setDcStorage('');
+    setDcColor('');
+    setDcDeviceId('');
+  };
+
+  const loadDeviceCatalogBrands = async () => {
+    setDcBrandsLoading(true);
+    setDcBrandsError('');
+    try {
+      const res = await api.getDeviceCatalogBrands();
+      if (res.success) {
+        setDcBrands(res.brands || []);
+      } else {
+        setDcBrandsError(res.message || 'Cihaz kataloğu markaları alınamadı.');
+      }
+    } catch (err) {
+      console.error(err);
+      setDcBrandsError('Cihaz kataloğu servisine ulaşılamadı.');
+    } finally {
+      setDcBrandsLoading(false);
+    }
+  };
+
+  const handleDcBrandChange = async (brand) => {
+    setDcBrand(brand);
+    setDcDevices([]);
+    setDcModel('');
+    setDcStorage('');
+    setDcColor('');
+    setDcDeviceId('');
+    setDcDevicesError('');
+
+    if (!brand) return;
+
+    setDcDevicesLoading(true);
+    try {
+      const res = await api.getDeviceCatalogDevicesByBrand(brand);
+      if (res.success) {
+        setDcDevices(res.devices || []);
+      } else {
+        setDcDevicesError(res.message || `${brand} cihazları alınamadı.`);
+      }
+    } catch (err) {
+      console.error(err);
+      setDcDevicesError('Cihaz kataloğu servisine ulaşılamadı.');
+    } finally {
+      setDcDevicesLoading(false);
+    }
+  };
+
+  const handleDcModelChange = (model) => {
+    setDcModel(model);
+    setDcStorage('');
+    setDcColor('');
+  };
+
+  const handleDcStorageChange = (storage) => {
+    setDcStorage(storage);
+    setDcColor('');
+  };
+
   const handleOpenModal = (part = null) => {
     if (part) {
       setCurrentPart(part);
@@ -138,6 +251,8 @@ export default function Parts() {
     } else {
       setCurrentPart(null);
       setFormData(EMPTY_FORM);
+      resetDeviceCatalogSelection();
+      loadDeviceCatalogBrands();
     }
     setIsModalOpen(true);
   };
@@ -171,7 +286,8 @@ export default function Parts() {
       const payload = {
         ...formData,
         department: selectedCategory ? selectedCategory.departments : formData.department,
-        stock_tracking_type: selectedCategory ? selectedCategory.stock_tracking_type : formData.stock_tracking_type
+        stock_tracking_type: selectedCategory ? selectedCategory.stock_tracking_type : formData.stock_tracking_type,
+        device_catalog_id: currentPart ? '' : dcDeviceId
       };
       const res = currentPart
         ? await api.updatePart(currentPart.id, payload)
@@ -533,6 +649,95 @@ export default function Parts() {
                 />
               </div>
 
+              {!currentPart && (
+                <div className="bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg p-4 space-y-3">
+                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+                    Cihaz Kataloğundan Seç (Opsiyonel)
+                  </p>
+
+                  {dcBrandsError && (
+                    <div className="flex items-start gap-2 text-amber-500 text-xs bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+                      <AlertCircle size={14} className="mt-0.5 shrink-0" />
+                      <span>{dcBrandsError} Marka/model bilgisi olmadan devam edebilirsiniz.</span>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-400 mb-1">Marka</label>
+                      <select
+                        className="w-full bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 disabled:opacity-50"
+                        value={dcBrand}
+                        disabled={dcBrandsLoading || !!dcBrandsError}
+                        onChange={e => handleDcBrandChange(e.target.value)}
+                      >
+                        <option value="">{dcBrandsLoading ? 'Yükleniyor...' : 'Seçilmedi'}</option>
+                        {dcBrands.map(b => (
+                          <option key={b.brand} value={b.brand}>{b.brand}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-400 mb-1">Model</label>
+                      <select
+                        className="w-full bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 disabled:opacity-50"
+                        value={dcModel}
+                        disabled={!dcBrand || dcDevicesLoading}
+                        onChange={e => handleDcModelChange(e.target.value)}
+                      >
+                        <option value="">{dcDevicesLoading ? 'Yükleniyor...' : 'Seçilmedi'}</option>
+                        {dcModelOptions.map(m => (
+                          <option key={m} value={m}>{m}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {dcDevicesError && (
+                    <div className="flex items-start gap-2 text-amber-500 text-xs bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+                      <AlertCircle size={14} className="mt-0.5 shrink-0" />
+                      <span>{dcDevicesError}</span>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-400 mb-1">Depolama</label>
+                      <select
+                        className="w-full bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 disabled:opacity-50"
+                        value={dcStorage}
+                        disabled={!dcModel}
+                        onChange={e => handleDcStorageChange(e.target.value)}
+                      >
+                        <option value="">Seçilmedi</option>
+                        {dcStorageOptions.map(s => (
+                          <option key={s} value={s}>{s}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-400 mb-1">Renk</label>
+                      <select
+                        className="w-full bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 disabled:opacity-50"
+                        value={dcColor}
+                        disabled={!dcStorage}
+                        onChange={e => setDcColor(e.target.value)}
+                      >
+                        <option value="">Seçilmedi</option>
+                        {dcColorOptions.map(c => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {dcSelectedDevice && (
+                    <p className="text-xs text-emerald-500">
+                      Seçilen cihaz: {dcBrand} {dcSelectedDevice.model} · {dcSelectedDevice.storage || UNSPECIFIED} · {dcSelectedDevice.color || UNSPECIFIED}
+                    </p>
+                  )}
+                </div>
+              )}
 
 
               <div className="grid grid-cols-2 gap-4">

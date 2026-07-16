@@ -1,8 +1,25 @@
 import json
-from PySide6.QtCore import QObject, Slot
+from PySide6.QtCore import QObject, QEventLoop, QThread, Slot
 from config.database import SessionLocal
 from config.auth import verify_password
 from models.user import User
+
+
+class _BackgroundJob(QThread):
+    """Bloklayıcı bir fonksiyonu (örn. DeviceCatalog HTTP çağrısı) ayrı bir
+    thread'de çalıştırır. Sonuç/istisna run() içinde saklanır."""
+
+    def __init__(self, fn, parent=None):
+        super().__init__(parent)
+        self._fn = fn
+        self.result = None
+        self.error = None
+
+    def run(self):
+        try:
+            self.result = self._fn()
+        except Exception as exc:  # noqa: BLE001 - hatayı çağırana taşımak için yakalanıyor
+            self.error = exc
 
 # Otomatik iş akışıyla yönetilen sabit sistem depoları. Bu depolar arasında
 # kullanıcı manuel transfer yapamaz (bkz. transfer_stock).
@@ -344,6 +361,24 @@ class WebBridge(QObject):
         finally:
             db.close()
 
+    def _run_in_background(self, fn):
+        """fn'i ayrı bir thread'de çalıştırır ve sonucu bekler.
+
+        Bekleme, ana thread'i tamamen bloklamak yerine yerel bir QEventLoop ile
+        yapılır; böylece DeviceCatalog gibi dış servislere yapılan HTTP
+        çağrıları sırasında da QWebEngineView/QWebChannel olayları işlenmeye
+        devam eder ve arayüz donmaz. fn içinde bir istisna oluşursa burada
+        yeniden fırlatılır.
+        """
+        job = _BackgroundJob(fn, parent=self)
+        loop = QEventLoop()
+        job.finished.connect(loop.quit)
+        job.start()
+        loop.exec()
+        if job.error is not None:
+            raise job.error
+        return job.result
+
     @Slot(str, str, result=str)
     def login(self, username, password):
         """React üzerinden gelen giriş isteğini işler."""
@@ -543,20 +578,148 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    @Slot(str, str, str, str, str, str, str, str, str, str, str, str, result=str)
-    def create_part(self, name, item_code, barcode, brand, model, item_category, part_category, part_category_id, stock_tracking_type, department, status, critical_limit):
-        """Yeni parça ekler."""
+    @Slot(result=str)
+    def get_device_catalog_brands(self):
+        """DeviceCatalog'daki (en az bir cihazı olan) markaları döner.
+
+        "Yeni Parça" ekranındaki Marka seçim kutusunu doldurmak için kullanılır.
+        HTTP çağrısı arka planda yapılır, arayüz donmaz.
+        """
+        def fetch():
+            from services import device_catalog_client
+            brands = device_catalog_client.get_brands()
+            return [
+                {"brand": b.brand, "device_count": b.device_count}
+                for b in brands
+                if b.device_count > 0
+            ]
+
+        try:
+            brands = self._run_in_background(fetch)
+            return json.dumps({"success": True, "brands": brands})
+        except Exception as e:
+            return json.dumps({
+                "success": False,
+                "message": f"DeviceCatalog servisine ulaşılamadı: {e}",
+            })
+
+    @Slot(str, result=str)
+    def get_device_catalog_devices(self, brand):
+        """Bir markaya ait tüm cihazları (model/depolama/renk kombinasyonları
+        dahil) döner. React tarafı Model/Depolama/Renk seçim kutularını bu tek
+        listeden kademeli olarak (cascading) türetir.
+        """
+        def fetch():
+            from services import device_catalog_client
+
+            devices = []
+            offset = 0
+            limit = 200
+            while True:
+                page = device_catalog_client.get_devices(brand=brand, limit=limit, offset=offset)
+                devices.extend(page.items)
+                offset += limit
+                if offset >= page.total or not page.items:
+                    break
+
+            return [
+                {
+                    "id": d.id,
+                    "model": d.model,
+                    "storage": d.storage,
+                    "color": d.color,
+                }
+                for d in devices
+            ]
+
+        try:
+            devices = self._run_in_background(fetch)
+            return json.dumps({"success": True, "devices": devices})
+        except Exception as e:
+            return json.dumps({
+                "success": False,
+                "message": f"DeviceCatalog servisine ulaşılamadı: {e}",
+            })
+
+    @Slot(str, str, str, str, str, str, str, str, str, str, str, str, str, result=str)
+    def create_part(self, name, item_code, barcode, brand, model, item_category, part_category, part_category_id, stock_tracking_type, department, status, critical_limit, device_catalog_id=""):
+        """Yeni parça ekler.
+
+        `device_catalog_id` doluysa (kullanıcı Marka/Model/Depolama/Renk
+        kutularından bir DeviceCatalog cihazı seçtiyse), brand/model/memory/color
+        alanları mevcut PartService.add_part() üzerinden DeviceCatalog'dan
+        doğrulanarak çekilir ve kaydedilir; kalan alanlar (item_code, kategori
+        vb.) burada tamamlanır. Boşsa eski (manuel/Excel içe aktarma) davranış
+        değişmeden çalışmaya devam eder.
+        """
         from sqlalchemy import text
+
+        code = item_code.strip()
+        if not code:
+            return json.dumps({"success": False, "message": "Parça Kodu zorunludur"})
+
+        part_name = name.strip()
+        if not part_name:
+            part_name = f"{brand.strip()} {model.strip()}".strip() or code
+
+        if device_catalog_id and device_catalog_id.strip():
+            try:
+                dc_id = int(device_catalog_id.strip())
+            except ValueError:
+                return json.dumps({"success": False, "message": "Geçersiz DeviceCatalog cihaz id'si."})
+
+            def create_via_service():
+                from services.exceptions import ServiceError
+                from services.part_service import PartService
+                try:
+                    return PartService().add_part(
+                        name=part_name,
+                        barcode=barcode or None,
+                        device_catalog_id=dc_id,
+                    )
+                except ServiceError as exc:
+                    raise RuntimeError(str(exc)) from exc
+
+            try:
+                new_part_id = self._run_in_background(create_via_service)
+            except Exception as exc:
+                return json.dumps({"success": False, "message": str(exc)})
+
+            db = SessionLocal()
+            try:
+                db.execute(text("""
+                    UPDATE warehouse.parts
+                    SET item_code = :code, item_category = :icat, part_category = :pcat,
+                        part_category_id = :pcat_id, stock_tracking_type = :stt,
+                        department = :dept, status = :status, critical_limit = :critical_limit
+                    WHERE id = :id
+                """), {
+                    "code": code,
+                    "icat": item_category or None,
+                    "pcat": part_category or None,
+                    "pcat_id": int(part_category_id) if part_category_id.strip() else None,
+                    "stt": stock_tracking_type or "Stok Takipli",
+                    "dept": department or None,
+                    "status": status or "Aktif",
+                    "critical_limit": int(critical_limit) if critical_limit.strip() else 50,
+                    "id": new_part_id,
+                })
+                db.commit()
+                return json.dumps({"success": True, "message": "Parça eklendi"})
+            except Exception as exc:
+                db.rollback()
+                # Yarım kalan (item_code'suz) kaydı bırakmamak için geri al.
+                try:
+                    db.execute(text("DELETE FROM warehouse.parts WHERE id = :id"), {"id": new_part_id})
+                    db.commit()
+                except Exception:
+                    db.rollback()
+                return json.dumps({"success": False, "message": f"Kayıt tamamlanamadı: {exc}"})
+            finally:
+                db.close()
+
         db = SessionLocal()
         try:
-            code = item_code.strip()
-            if not code:
-                return json.dumps({"success": False, "message": "Parça Kodu zorunludur"})
-
-            part_name = name.strip()
-            if not part_name:
-                part_name = f"{brand.strip()} {model.strip()}".strip() or code
-
             sql = """
                 INSERT INTO warehouse.parts (name, item_code, barcode, brand, model, item_category, part_category, part_category_id, stock_tracking_type, department, status, critical_limit)
                 VALUES (:name, :code, :barcode, :brand, :model, :icat, :pcat, :pcat_id, :stt, :dept, :status, :critical_limit)
