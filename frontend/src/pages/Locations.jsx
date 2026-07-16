@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { Search, Plus, Trash2, Edit, AlertCircle, RefreshCw } from 'lucide-react';
 import { api } from '../services/api';
 
+const KNOWN_SYSTEM_KINDS = ['good_stock', 'doa_stock', 'repair_stock', 'scrap_stock', 'out_stock'];
+
 export default function Locations() {
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -52,12 +54,27 @@ export default function Locations() {
     }
   };
 
+  // Eski sistem kayıtları tanınmayan (büyük harfli) bir "kind" değeriyle
+  // genel "Sistem" etiketiyle gösteriliyordu — bunlar kaldırılır. İyi/DOA/
+  // Tamir/Hurda/Çıkış etiketli olanlar ve kullanıcı tanımlı lokasyonlar kalır.
+  // Aynı isimli lokasyon birden fazla kayıtla var olabiliyor — isme göre tekilleştiriyoruz.
+  const uniqueLocations = useMemo(() => {
+    const seen = new Set();
+    return locations.filter(l => {
+      if (l.kind && !KNOWN_SYSTEM_KINDS.includes(l.kind)) return false;
+      const key = (l.name || '').trim().toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [locations]);
+
   const filteredLocations = useMemo(() => {
-    return locations.filter(l => 
+    return uniqueLocations.filter(l =>
       (l.name && l.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
       String(l.id).includes(searchTerm)
     );
-  }, [locations, searchTerm]);
+  }, [uniqueLocations, searchTerm]);
 
   return (
     <div className="h-full flex flex-col space-y-6">
