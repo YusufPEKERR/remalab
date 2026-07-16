@@ -118,6 +118,8 @@ export default function MainLayout() {
         { name: 'Depo', icon: Warehouse, path: '/depo' },
         { name: 'İrsaliye', icon: FileText, path: '/irsaliye' },
         { name: 'İş Emirleri', icon: ClipboardList, path: '/work-orders' },
+        { name: 'Tedarik İstekleri', icon: PackageSearch, path: '/supply-requests' },
+        { name: 'Tedarik Talepleri', icon: PackagePlus, path: '/tedarik-talepleri' },
         { name: 'Raporlar', icon: BarChart2, path: '/raporlar' }
       ]
     },

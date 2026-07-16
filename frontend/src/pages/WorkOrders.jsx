@@ -755,21 +755,6 @@ export default function WorkOrders() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1.5">Kaynak Depo (Hammadde Çıkışı) <span className="text-red-400">*</span></label>
-                  <select required disabled className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={productionForm.source_location_id} onChange={e => setProductionForm({...productionForm, source_location_id: e.target.value})}>
-                    {systemLocations.filter(l => l.kind === 'good_stock').map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1.5">Hedef Depo (Ürün Girişi) <span className="text-red-400">*</span></label>
-                  <select required disabled className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={productionForm.target_location_id} onChange={e => setProductionForm({...productionForm, target_location_id: e.target.value})}>
-                    {systemLocations.filter(l => l.kind === 'good_stock').map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-                  </select>
-                </div>
-
-
 
               <div className="grid grid-cols-1 gap-5">
                 <div>
