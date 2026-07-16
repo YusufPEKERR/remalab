@@ -21,7 +21,7 @@ const DEPARTMENTS = [
 ];
 
 const EMPTY_FORM = {
-  name: '', part_type: '', departments: [], stock_tracking_type: 'Stok Takipli',
+  name: '', departments: [], stock_tracking_type: 'Stok Takipli',
   is_active: true, description: ''
 };
 
@@ -61,7 +61,7 @@ export default function PartCategories() {
   useEffect(() => {
     const uniqueTypes = Array.from(new Set([
       ...PART_TYPES, 
-      ...categories.map(c => c.part_type || c.name).filter(Boolean)
+      ...categories.map(c => c.name).filter(Boolean)
     ]));
     setDynamicPartTypes(uniqueTypes);
   }, [categories]);
@@ -76,7 +76,6 @@ export default function PartCategories() {
       setEditingCat(cat);
       setFormData({
         name: cat.name || '',
-        part_type: cat.part_type || '',
         departments: cat.departments ? cat.departments.split(',').map(d => d.trim()).filter(Boolean) : [],
         stock_tracking_type: cat.stock_tracking_type || 'Stok Takipli',
         is_active: cat.is_active !== false,
@@ -100,7 +99,7 @@ export default function PartCategories() {
 
   const handleSave = async (e) => {
     e.preventDefault();
-    const payload = { ...formData, name: formData.part_type };
+    const payload = { ...formData, part_type: formData.name };
     const res = editingCat
       ? await api.updatePartCategory(editingCat.id, payload)
       : await api.createPartCategory(payload);
@@ -126,8 +125,7 @@ export default function PartCategories() {
   const filteredCategories = useMemo(() => {
     const q = searchTerm.toLowerCase();
     return categories.filter(c =>
-      (c.name && c.name.toLowerCase().includes(q)) ||
-      (c.part_type && c.part_type.toLowerCase().includes(q))
+      (c.name && c.name.toLowerCase().includes(q))
     );
   }, [categories, searchTerm]);
 
@@ -140,7 +138,7 @@ export default function PartCategories() {
           <Tags className="text-blue-400" size={24} /> Parça Kategorileri
         </h1>
         <p className="text-slate-400 mt-1">
-          Parça tipi, kullanabilecek departmanlar, stok takibi ve varsayılan lokasyon kurallarını tek bir yerden yönetin —
+          Kullanabilecek departmanlar ve stok takibi kurallarını tek bir yerden yönetin —
           parça kaydederken sadece kategori seçilir, bu bilgiler otomatik gelir.
         </p>
       </div>
@@ -156,7 +154,7 @@ export default function PartCategories() {
                 <input
                   type="text"
                   className="w-full bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:border-blue-500 shadow-sm"
-                  placeholder="Kategori Ara (Ad, Parça Tipi)..."
+                  placeholder="Kategori Ara..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
@@ -175,7 +173,6 @@ export default function PartCategories() {
                   <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs sticky top-0 z-10">
                     <tr>
                       <th className="px-6 py-4">Kategori Adı</th>
-                      <th className="px-6 py-4">Parça Tipi</th>
                       <th className="px-6 py-4">Departmanlar</th>
                       <th className="px-6 py-4">Stok Takibi</th>
                       <th className="px-6 py-4">Durum</th>
@@ -185,17 +182,16 @@ export default function PartCategories() {
                   <tbody className="divide-y divide-slate-700/50">
                     {loading ? (
                       <tr>
-                        <td colSpan="6" className="px-6 py-8 text-center text-slate-400">Yükleniyor...</td>
+                        <td colSpan="5" className="px-6 py-8 text-center text-slate-400">Yükleniyor...</td>
                       </tr>
                     ) : filteredCategories.length === 0 ? (
                       <tr>
-                        <td colSpan="6" className="px-6 py-8 text-center text-slate-500">Kayıt bulunamadı.</td>
+                        <td colSpan="5" className="px-6 py-8 text-center text-slate-500">Kayıt bulunamadı.</td>
                       </tr>
                     ) : (
                       filteredCategories.map(cat => (
                         <tr key={cat.id} className="hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors text-slate-700 dark:text-slate-300">
                           <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200">{cat.name}</td>
-                          <td className="px-6 py-4">{cat.part_type || '-'}</td>
                           <td className="px-6 py-4">
                             <div className="flex flex-wrap gap-1">
                               {cat.departments ? cat.departments.split(',').map(d => d.trim()).filter(Boolean).map((d, i) => (
@@ -253,14 +249,14 @@ export default function PartCategories() {
             <form onSubmit={handleSave} className="space-y-5">
               <div className="grid grid-cols-1 gap-5">
                 <div className="relative">
-                  <label className="block text-sm font-medium text-slate-400 mb-1.5">Parça Kategorisi <span className="text-red-400">*</span></label>
+                  <label className="block text-sm font-medium text-slate-400 mb-1.5">Parça Kategorisi Adı <span className="text-red-400">*</span></label>
                   <input
                     type="text"
                     list="part-types-list"
                     required
                     className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
-                    value={formData.part_type}
-                    onChange={e => setFormData({...formData, part_type: e.target.value})}
+                    value={formData.name}
+                    onChange={e => setFormData({...formData, name: e.target.value})}
                     placeholder="Örn: Ekran, Batarya..."
                   />
                   <datalist id="part-types-list">
