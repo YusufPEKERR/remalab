@@ -191,13 +191,23 @@ export default function MainLayout() {
               }
             };
             
+            const getHeaderHoverBg = (theme) => {
+              switch(theme) {
+                case 'blue': return 'hover:bg-blue-50 dark:hover:bg-blue-500/10';
+                case 'orange': return 'hover:bg-orange-50 dark:hover:bg-orange-500/10';
+                case 'purple': return 'hover:bg-purple-50 dark:hover:bg-purple-500/10';
+                case 'emerald': return 'hover:bg-emerald-50 dark:hover:bg-emerald-500/10';
+                default: return 'hover:bg-blue-50 dark:hover:bg-blue-500/10';
+              }
+            };
+            
             return (
               <div key={idx} className="px-4">
                 <button 
                   onClick={() => toggleGroup(group.title)}
-                  className="w-full flex items-center justify-between px-2 mb-2 group outline-none"
+                  className={`w-full flex items-center justify-between px-3 py-2 mb-1 rounded-lg group outline-none transition-colors ${getHeaderHoverBg(group.colorTheme)}`}
                 >
-                  <h3 className={`text-[10px] font-bold uppercase tracking-widest transition-colors ${getHeaderColors(group.colorTheme)}`}>
+                  <h3 className={`text-[11px] font-bold uppercase tracking-widest transition-colors ${getHeaderColors(group.colorTheme)}`}>
                     {group.title}
                   </h3>
                   {isOpen ? (
@@ -207,31 +217,33 @@ export default function MainLayout() {
                   )}
                 </button>
                 
-                {isOpen && (
-                  <nav className="space-y-1 mt-1 transition-all">
-                    {group.items.map((item) => {
-                      const isActive = location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path));
-                      return (
-                        <a
-                          key={item.name}
-                          href={item.path}
-                          className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
-                            isActive 
-                              ? getActiveColors(group.colorTheme)
-                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#2a3142]'
-                          }`}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            navigate(item.path);
-                          }}
-                        >
-                          <item.icon size={18} strokeWidth={isActive ? 2.5 : 2} />
-                          {item.name}
-                        </a>
-                      );
-                    })}
-                  </nav>
-                )}
+                <div className={`grid transition-all duration-300 ease-in-out ${isOpen ? 'grid-rows-[1fr] opacity-100 mt-1 mb-4' : 'grid-rows-[0fr] opacity-0 mb-0'}`}>
+                  <div className="overflow-hidden">
+                    <nav className="space-y-1">
+                      {group.items.map((item) => {
+                        const isActive = location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path));
+                        return (
+                          <a
+                            key={item.name}
+                            href={item.path}
+                            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
+                              isActive 
+                                ? getActiveColors(group.colorTheme)
+                                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#2a3142]'
+                            }`}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              navigate(item.path);
+                            }}
+                          >
+                            <item.icon size={18} strokeWidth={isActive ? 2.5 : 2} />
+                            {item.name}
+                          </a>
+                        );
+                      })}
+                    </nav>
+                  </div>
+                </div>
               </div>
             );
           })}
