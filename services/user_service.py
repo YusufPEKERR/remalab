@@ -18,19 +18,23 @@ class UserService:
                     "tc_no": u.tc_no,
                     "role": u.role,
                     "gorev": u.gorev or "",
-                    "fullname": u.fullname or ""
+                    "fullname": u.fullname or "",
+                    "account_enabled": u.account_enabled if u.account_enabled is not None else True,
+                    "team_leader": u.team_leader or "",
+                    "operation_manager": u.operation_manager or "",
+                    "administrative_manager": u.administrative_manager or ""
                 }
                 for u in UserRepository(db).get_all()
             ]
 
-    def add_user(self, username: str, tc_no: str, password: str, role: str, gorev: Optional[str] = None, fullname: Optional[str] = None) -> None:
+    def add_user(self, username: str, tc_no: str, password: str, role: str, gorev: Optional[str] = None, fullname: Optional[str] = None, account_enabled: bool = True, team_leader: Optional[str] = None, operation_manager: Optional[str] = None, administrative_manager: Optional[str] = None) -> None:
         if not username or not password:
             raise ValidationError("Kullanıcı adı ve şifre zorunludur.")
 
         password_hash = get_password_hash(password)
         with get_db() as db:
             try:
-                UserRepository(db).create(username, tc_no, password_hash, role, gorev, fullname)
+                UserRepository(db).create(username, tc_no, password_hash, role, gorev, fullname, account_enabled, team_leader, operation_manager, administrative_manager)
                 db.commit()
             except IntegrityError:
                 db.rollback()
@@ -47,6 +51,10 @@ class UserService:
         gorev: Optional[str] = None,
         fullname: Optional[str] = None,
         password: Optional[str] = None,
+        account_enabled: Optional[bool] = None,
+        team_leader: Optional[str] = None,
+        operation_manager: Optional[str] = None,
+        administrative_manager: Optional[str] = None,
     ) -> None:
         if not username:
             raise ValidationError("Kullanıcı adı zorunludur.")
@@ -55,14 +63,14 @@ class UserService:
         with get_db() as db:
             repo = UserRepository(db)
             try:
-                user = repo.update(user_id, username, tc_no, role, gorev, fullname, password_hash)
+                user = repo.update(user_id, username, tc_no, role, gorev, fullname, password_hash, account_enabled, team_leader, operation_manager, administrative_manager)
                 if user is None:
                     raise NotFoundError("Kullanıcı bulunamadı.")
                 db.commit()
             except IntegrityError:
                 db.rollback()
                 raise DuplicateUsernameError(
-                    f"'{username}' kullanıcı adı veya e-posta zaten kayıtlı."
+                    f"'{username}' kullanıcı adı veya TC kimlik numarası zaten kayıtlı."
                 )
 
     def reset_password(self, user_id: int, new_password: str) -> None:

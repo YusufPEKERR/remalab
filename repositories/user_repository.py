@@ -18,9 +18,10 @@ class UserRepository:
     def get_by_id(self, user_id: int) -> User | None:
         return self.db.get(User, user_id)
 
-    def create(self, username: str, tc_no: str, password_hash: str, role: str, gorev: Optional[str] = None, fullname: Optional[str] = None) -> User:
+    def create(self, username: str, tc_no: str, password_hash: str, role: str, gorev: Optional[str] = None, fullname: Optional[str] = None, account_enabled: bool = True, team_leader: Optional[str] = None, operation_manager: Optional[str] = None, administrative_manager: Optional[str] = None) -> User:
         user = User(
-            username=username, tc_no=tc_no, password_hash=password_hash, role=role, gorev=gorev, fullname=fullname
+            username=username, tc_no=tc_no, password_hash=password_hash, role=role, gorev=gorev, fullname=fullname,
+            account_enabled=account_enabled, team_leader=team_leader, operation_manager=operation_manager, administrative_manager=administrative_manager
         )
         self.db.add(user)
         self.db.flush()
@@ -35,6 +36,10 @@ class UserRepository:
         gorev: Optional[str] = None,
         fullname: Optional[str] = None,
         password_hash: Optional[str] = None,
+        account_enabled: Optional[bool] = None,
+        team_leader: Optional[str] = None,
+        operation_manager: Optional[str] = None,
+        administrative_manager: Optional[str] = None,
     ) -> Optional[User]:
         user = self.db.get(User, user_id)
         if user is None:
@@ -48,6 +53,14 @@ class UserRepository:
             user.fullname = fullname
         if password_hash is not None:
             user.password_hash = password_hash
+        if account_enabled is not None:
+            user.account_enabled = account_enabled
+        if team_leader is not None:
+            user.team_leader = team_leader
+        if operation_manager is not None:
+            user.operation_manager = operation_manager
+        if administrative_manager is not None:
+            user.administrative_manager = administrative_manager
         self.db.flush()
         return user
 

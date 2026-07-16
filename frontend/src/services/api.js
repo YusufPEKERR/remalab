@@ -97,6 +97,10 @@ export const api = {
                 userData.role,
                 userData.gorev || '',
                 userData.fullname || '',
+                userData.account_enabled !== undefined ? userData.account_enabled : true,
+                userData.team_leader || '',
+                userData.operation_manager || '',
+                userData.administrative_manager || '',
                 (res) => resolve(JSON.parse(res))
             );
         });
@@ -113,6 +117,10 @@ export const api = {
                 userData.role,
                 userData.gorev || '',
                 userData.fullname || '',
+                userData.account_enabled !== undefined ? userData.account_enabled : true,
+                userData.team_leader || '',
+                userData.operation_manager || '',
+                userData.administrative_manager || '',
                 (res) => resolve(JSON.parse(res))
             );
         });

@@ -12,6 +12,7 @@ export default function Users() {
   const [selectedRows, setSelectedRows] = useState([]);
 
   // Modal State
+  // Modal State
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [selectedExportColumns, setSelectedExportColumns] = useState({
     "ID": true,
@@ -19,11 +20,15 @@ export default function Users() {
     "İsim Soyisim": true,
     "TC No": true,
     "Hesap Tipi": true,
-    "Görev": true
+    "Görevler": true,
+    "Durum": true,
+    "Team Leader": true,
+    "Operation Manager": true,
+    "Administrative Manager": true
   });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState('add'); // 'add', 'edit', 'password'
-  const [formData, setFormData] = useState({ username: '', fullname: '', tc_no: '', password: '', role: 'Teknisyen', gorev: '' });
+  const [formData, setFormData] = useState({ username: '', fullname: '', tc_no: '', password: '', role: 'Teknisyen', gorev: '', account_enabled: true, team_leader: '', operation_manager: '', administrative_manager: '' });
   const [currentUser, setCurrentUser] = useState(null);
 
   const defaultRoles = useMemo(() => [
@@ -104,11 +109,22 @@ export default function Users() {
   const openModal = (mode) => {
     setModalMode(mode);
     if (mode === 'add') {
-      setFormData({ username: '', fullname: '', tc_no: '', password: '', role: 'Teknisyen', gorev: '' });
+      setFormData({ username: '', fullname: '', tc_no: '', password: '', role: 'Teknisyen', gorev: '', account_enabled: true, team_leader: '', operation_manager: '', administrative_manager: '' });
     } else {
       const u = users.find(x => x.id === selectedUserId);
       if (u) {
-        setFormData({ username: u.username, fullname: u.fullname || '', tc_no: u.tc_no || '', password: '', role: u.role, gorev: u.gorev || '' });
+        setFormData({
+          username: u.username,
+          fullname: u.fullname || '',
+          tc_no: u.tc_no || '',
+          password: '',
+          role: u.role,
+          gorev: u.gorev || '',
+          account_enabled: u.account_enabled !== undefined ? u.account_enabled : true,
+          team_leader: u.team_leader || '',
+          operation_manager: u.operation_manager || '',
+          administrative_manager: u.administrative_manager || ''
+        });
       }
     }
     setIsModalOpen(true);
@@ -207,7 +223,11 @@ export default function Users() {
       if (selectedExportColumns["İsim Soyisim"]) row["İsim Soyisim"] = u.fullname;
       if (selectedExportColumns["TC No"]) row["TC No"] = u.tc_no;
       if (selectedExportColumns["Hesap Tipi"]) row["Hesap Tipi"] = u.role;
-      if (selectedExportColumns["Görev"]) row["Görev"] = u.gorev || '';
+      if (selectedExportColumns["Görevler"]) row["Görevler"] = u.gorev || '';
+      if (selectedExportColumns["Durum"]) row["Durum"] = u.account_enabled ? "Aktif" : "Pasif";
+      if (selectedExportColumns["Team Leader"]) row["Team Leader"] = u.team_leader || '';
+      if (selectedExportColumns["Operation Manager"]) row["Operation Manager"] = u.operation_manager || '';
+      if (selectedExportColumns["Administrative Manager"]) row["Administrative Manager"] = u.administrative_manager || '';
       return row;
     });
 
@@ -222,6 +242,9 @@ export default function Users() {
       (u.tc_no && u.tc_no.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (u.role && u.role.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (u.gorev && u.gorev.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (u.team_leader && u.team_leader.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (u.operation_manager && u.operation_manager.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (u.administrative_manager && u.administrative_manager.toLowerCase().includes(searchTerm.toLowerCase())) ||
       String(u.id).includes(searchTerm)
     );
   }, [users, searchTerm]);
@@ -297,20 +320,24 @@ export default function Users() {
                 <th className="px-6 py-4">İSİM SOYİSİM</th>
                 <th className="px-6 py-4">TC NO</th>
                 <th className="px-6 py-4">HESAP TİPİ</th>
-                <th className="px-6 py-4">GÖREV</th>
+                <th className="px-6 py-4">GÖREVLER</th>
+                <th className="px-6 py-4">DURUM</th>
+                <th className="px-6 py-4">TEAM LEADER</th>
+                <th className="px-6 py-4">OPERATION MANAGER</th>
+                <th className="px-6 py-4">ADMINISTRATIVE MANAGER</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-700/50">
               {loading ? (
                 <tr>
-                  <td colSpan="6" className="px-6 py-12 text-center text-slate-400">
+                  <td colSpan="10" className="px-6 py-12 text-center text-slate-400">
                     <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-3 text-blue-400" />
                     <span className="font-medium">Yükleniyor...</span>
                   </td>
                 </tr>
               ) : filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="px-6 py-12 text-center text-slate-500">
+                  <td colSpan="10" className="px-6 py-12 text-center text-slate-500">
                     Kayıt bulunamadı.
                   </td>
                 </tr>
@@ -341,7 +368,7 @@ export default function Users() {
                       {user.username}
                     </td>
                     <td className="px-6 py-4 text-slate-800 dark:text-slate-200">{user.fullname || '-'}</td>
-                    <td className="px-6 py-4 text-slate-400 font-mono">{user.tc_no || '-'}</td>
+                    <td className="px-6 py-4 font-mono text-slate-400">{user.tc_no || '-'}</td>
                     <td className="px-6 py-4">
                       <span className={`px-2.5 py-1 rounded-md text-xs font-bold
                         ${user.role === 'Admin' ? 'bg-purple-500/20 text-purple-400 border border-purple-500/20' : 
@@ -351,7 +378,7 @@ export default function Users() {
                         {user.role}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-slate-400">
+                    <td className="px-6 py-4 text-slate-400 max-w-xs truncate" title={user.gorev}>
                       {user.gorev ? (
                         <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700/50 text-xs font-semibold">
                           {user.gorev}
@@ -360,6 +387,16 @@ export default function Users() {
                         <span className="text-slate-500">-</span>
                       )}
                     </td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2.5 py-1 rounded-md text-xs font-bold ${
+                        user.account_enabled ? 'bg-green-500/20 text-green-400 border border-green-500/20' : 'bg-red-500/20 text-red-400 border border-red-500/20'
+                      }`}>
+                        {user.account_enabled ? "Aktif" : "Pasif"}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-slate-400">{user.team_leader || '-'}</td>
+                    <td className="px-6 py-4 text-slate-400">{user.operation_manager || '-'}</td>
+                    <td className="px-6 py-4 text-slate-400">{user.administrative_manager || '-'}</td>
                   </tr>
                   );
                 })
@@ -450,7 +487,7 @@ export default function Users() {
 
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium text-slate-400 flex items-center gap-2">
-                      <Shield size={14}/> Görev
+                      <Shield size={14}/> Görevler (Virgülle Ayırın)
                     </label>
                     <input
                       type="text"
@@ -458,11 +495,64 @@ export default function Users() {
                       className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
                       value={formData.gorev}
                       onChange={e => setFormData({...formData, gorev: e.target.value})}
-                      placeholder="Görev seçin veya yazın..."
+                      placeholder="Görevleri girin..."
                     />
                     <datalist id="gorevs-datalist">
                       {existingGorevs.map(g => <option key={g} value={g} />)}
                     </datalist>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-slate-400 flex items-center gap-2">
+                      <Shield size={14}/> Hesap Durumu
+                    </label>
+                    <select
+                      className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                      value={formData.account_enabled}
+                      onChange={e => setFormData({...formData, account_enabled: e.target.value === 'true'})}
+                    >
+                      <option value="true">Aktif</option>
+                      <option value="false">Pasif</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-slate-400 flex items-center gap-2">
+                      <User size={14}/> Team Leader
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                      value={formData.team_leader}
+                      onChange={e => setFormData({...formData, team_leader: e.target.value})}
+                      placeholder="Team Leader ismi..."
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-slate-400 flex items-center gap-2">
+                      <User size={14}/> Operation Manager
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                      value={formData.operation_manager}
+                      onChange={e => setFormData({...formData, operation_manager: e.target.value})}
+                      placeholder="Operation Manager ismi..."
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-slate-400 flex items-center gap-2">
+                      <User size={14}/> Administrative Manager
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                      value={formData.administrative_manager}
+                      onChange={e => setFormData({...formData, administrative_manager: e.target.value})}
+                      placeholder="Administrative Manager ismi..."
+                    />
                   </div>
                 </>
               )}
