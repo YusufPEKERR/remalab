@@ -77,6 +77,9 @@ export default function WorkOrders() {
   const [productionMaterials, setProductionMaterials] = useState([]);
   const [recentProductions, setRecentProductions] = useState([]);
   const [repeatLoading, setRepeatLoading] = useState(false);
+  const [itemBoms, setItemBoms] = useState([]);
+  const [bomsLoading, setBomsLoading] = useState(false);
+  const [bomSearchQuery, setBomSearchQuery] = useState('');
 
   const fetchOrders = async () => {
     setOrdersLoading(true);
@@ -92,9 +95,17 @@ export default function WorkOrders() {
     setProductionLoading(false);
   };
 
+  const fetchItemBoms = async () => {
+    setBomsLoading(true);
+    const res = await api.getItemBOMs();
+    if (res.success) setItemBoms(res.item_boms || []);
+    setBomsLoading(false);
+  };
+
   useEffect(() => {
     fetchOrders();
     fetchProductionRuns();
+    fetchItemBoms();
     api.getServiceRecords().then(res => { if (res.success) setServiceRecords(res.records || []); });
     api.getUsers().then(res => { if (res.success) setUsers(res.users || []); });
     api.getParts().then(res => { if (res.success) setParts(res.parts || []); });
@@ -444,6 +455,85 @@ export default function WorkOrders() {
     setActiveTab('production');
   };
 
+  const handleProduceFromBOM = async (bom) => {
+    const qtyStr = window.prompt(`"${bom.parent_name || bom.parent_item_id}" üretilecek. Miktar girin:`, "1");
+    if (!qtyStr) return;
+    const qty = parseInt(qtyStr, 10);
+    if (isNaN(qty) || qty <= 0) {
+      alert("Geçersiz miktar.");
+      return;
+    }
+
+    if (!goodStockLocationId) {
+      alert("Good Stock lokasyonu bulunamadı.");
+      return;
+    }
+
+    if (!bom.parent_part_id) {
+      alert("Hata: Üretilecek parçanın veritabanı ID'si bulunamadı.");
+      return;
+    }
+
+    const materials = bom.materials.map(m => ({
+      part_id: m.child_part_id,
+      quantity_consumed: m.quantity * qty
+    }));
+
+    for (const m of materials) {
+      if (!m.part_id) {
+        alert("Hata: Hammaddelerden bazılarının veritabanı ID'si bulunamadı.");
+        return;
+      }
+      const available = getTotalStockQty(m.part_id);
+      if (m.quantity_consumed > available) {
+        alert(`Yetersiz stok! Gerekli: ${m.quantity_consumed}, Mevcut: ${available}`);
+        return;
+      }
+    }
+
+    if (repeatLoading) return;
+    setRepeatLoading(true);
+
+    const res = await api.createProductionRun({
+      target_part_id: bom.parent_part_id,
+      quantity_produced: qty,
+      source_location_id: goodStockLocationId,
+      target_location_id: goodStockLocationId,
+      materials_json: JSON.stringify(materials),
+      produced_by: currentUser?.username || 'admin',
+      notes: 'BOM tablosundan hızlı üretim'
+    });
+
+    if (res.success) {
+      alert("Üretim başarıyla tamamlandı!");
+      fetchProductionRuns();
+      refreshStockStatus();
+    } else {
+      alert(res.message || "Üretim başarısız oldu.");
+    }
+    setRepeatLoading(false);
+  };
+
+  const handleFillFormFromBOM = (bom) => {
+    if (!bom.parent_part_id) {
+      alert("Üretilecek parça veritabanında bulunamadı.");
+      return;
+    }
+    setProductionForm({
+      target_part_id: bom.parent_part_id,
+      quantity_produced: 1,
+      source_location_id: goodStockLocationId,
+      target_location_id: goodStockLocationId,
+      produced_by: currentUser?.username || 'admin',
+      notes: 'BOM tablosundan aktarıldı'
+    });
+    setProductionMaterials(bom.materials.map(m => ({
+      part_id: m.child_part_id,
+      quantity_consumed: m.quantity
+    })));
+    setActiveTab('production');
+  };
+
   const materialConsumption = () => {
     const map = new Map();
     productionRuns.forEach(run => {
@@ -457,6 +547,15 @@ export default function WorkOrders() {
     });
     return Array.from(map.values()).sort((a, b) => b.total - a.total);
   };
+
+  const filteredBoms = itemBoms.filter(bom => {
+    const q = bomSearchQuery.toLowerCase();
+    const parentMatch = bom.parent_item_id.toLowerCase().includes(q) || bom.parent_name.toLowerCase().includes(q);
+    const childMatch = bom.materials.some(m => 
+      m.child_item_id.toLowerCase().includes(q) || m.child_name.toLowerCase().includes(q)
+    );
+    return parentMatch || childMatch;
+  });
 
   const TABS = [
     { key: 'production', label: 'Yarı Mamul Üretimi', icon: Factory },
@@ -832,47 +931,97 @@ export default function WorkOrders() {
 
         {/* --- HIZLI TEKRAR ÜRETİM --- */}
         {activeTab === 'recent_productions' && (
-          <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-2 flex items-center gap-2">
-              <Repeat size={20} className="text-blue-400" /> Hızlı Tekrar Üretim
+          <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300 flex flex-col h-full overflow-hidden">
+            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-2 flex items-center gap-2 shrink-0">
+              <Repeat size={20} className="text-blue-400" /> Hızlı Tekrar Üretim (BOM)
             </h3>
-            <p className="text-slate-400 text-sm mb-6">
-              Aynı seansta (uygulama açıkken) yaptığınız üretimler burada listelenir. "Yeniden Yap" butonuna basarak formu doldurmadan aynı parametrelerle (parça, hammaddeler) tekrar üretim yapabilirsiniz.
+            <p className="text-slate-400 text-sm mb-6 shrink-0">
+              Sistemdeki ürün reçeteleri (BOM) listelenmektedir. Hızlı üretim yapmak istediğiniz ürünün yanındaki "Hızlı Üret" butonuna basarak tek tıkla üretim gerçekleştirebilir veya "Forma Aktar" seçeneğiyle parametreleri forma doldurabilirsiniz.
             </p>
             
-            {recentProductions.length > 0 ? (
-              <div className="space-y-3">
-                {recentProductions.map(run => (
-                  <div key={run.id} className="flex items-center justify-between bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 p-4 rounded-xl">
-                    <div>
-                      <div className="font-medium text-slate-800 dark:text-slate-200">
-                        {run.quantity_produced} adet <span className="text-orange-500">{run.target_part_name}</span>
-                      </div>
-                      <div className="text-xs text-slate-500 mt-1">
-                        Kullanılan: {run.materials.map(m => `${m.quantity_consumed}x ${parts.find(p => String(p.id) === String(m.part_id))?.name || 'Parça'}`).join(', ')}
-                      </div>
-                      <div className="text-xs text-slate-400 mt-1">Saat: {run.time}</div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleInstantRepeatProduction(run)}
-                      disabled={repeatLoading}
-                      className="px-4 py-2 bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed rounded-lg font-bold transition-colors flex items-center gap-2 border border-blue-500/20"
-                    >
-                      <Repeat size={16} /> Yeniden Yap
-                    </button>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-10">
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 mb-4">
-                  <Factory className="text-slate-400" size={32} />
-                </div>
-                <h3 className="text-slate-500 dark:text-slate-400 font-medium">Henüz son üretim kaydı yok.</h3>
-                <p className="text-slate-400 dark:text-slate-500 text-sm mt-1">"Yarı Mamul Üretimi" sekmesinden yeni bir üretim kaydettiğinizde burada görünecektir.</p>
-              </div>
-            )}
+            <div className="flex items-center gap-3 mb-6 shrink-0">
+              <input
+                type="text"
+                placeholder="Üretilecek parça veya hammadde adına/koduna göre ara..."
+                className="flex-1 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700/60 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 text-sm"
+                value={bomSearchQuery}
+                onChange={e => setBomSearchQuery(e.target.value)}
+              />
+            </div>
+            
+            <div className="flex-1 overflow-y-auto border border-slate-200 dark:border-slate-700/50 rounded-2xl">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs sticky top-0 z-10">
+                  <tr>
+                    <th className="px-6 py-4">Üretilecek Parça Kodu</th>
+                    <th className="px-6 py-4">Üretilecek Parça Adı</th>
+                    <th className="px-6 py-4">Tüketilen Parça 1</th>
+                    <th className="px-6 py-4 w-28">Miktar 1</th>
+                    <th className="px-6 py-4">Tüketilen Parça 2</th>
+                    <th className="px-6 py-4 w-28">Miktar 2</th>
+                    <th className="px-6 py-4 text-center w-48">Aksiyonlar</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-700/50">
+                  {bomsLoading ? (
+                    <tr>
+                      <td colSpan="7" className="px-6 py-8 text-center text-slate-400">Yükleniyor...</td>
+                    </tr>
+                  ) : filteredBoms.length === 0 ? (
+                    <tr>
+                      <td colSpan="7" className="px-6 py-8 text-center text-slate-500">Reçete kaydı bulunamadı.</td>
+                    </tr>
+                  ) : (
+                    filteredBoms.map((bom, index) => {
+                      const mat1 = bom.materials[0];
+                      const mat2 = bom.materials[1];
+                      return (
+                        <tr key={index} className="hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors text-slate-700 dark:text-slate-300">
+                          <td className="px-6 py-4 font-mono font-semibold text-blue-500 dark:text-blue-400">{bom.parent_item_id}</td>
+                          <td className="px-6 py-4 text-xs max-w-xs truncate" title={bom.parent_name}>{bom.parent_name}</td>
+                          <td className="px-6 py-4">
+                            {mat1 ? (
+                              <div>
+                                <span className="font-mono font-medium text-slate-800 dark:text-slate-200">{mat1.child_item_id}</span>
+                                <div className="text-[10px] text-slate-400 truncate max-w-xs" title={mat1.child_name}>{mat1.child_name}</div>
+                              </div>
+                            ) : '-'}
+                          </td>
+                          <td className="px-6 py-4 font-mono">{mat1 ? mat1.quantity : '-'}</td>
+                          <td className="px-6 py-4">
+                            {mat2 ? (
+                              <div>
+                                <span className="font-mono font-medium text-slate-800 dark:text-slate-200">{mat2.child_item_id}</span>
+                                <div className="text-[10px] text-slate-400 truncate max-w-xs" title={mat2.child_name}>{mat2.child_name}</div>
+                              </div>
+                            ) : '-'}
+                          </td>
+                          <td className="px-6 py-4 font-mono">{mat2 ? mat2.quantity : '-'}</td>
+                          <td className="px-6 py-4 text-center">
+                            <div className="flex gap-2 justify-center">
+                              <button
+                                type="button"
+                                onClick={() => handleFillFormFromBOM(bom)}
+                                className="px-2.5 py-1.5 bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white rounded-lg text-xs font-bold transition-colors"
+                              >
+                                Forma Aktar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleProduceFromBOM(bom)}
+                                className="px-2.5 py-1.5 bg-orange-500/10 text-orange-500 hover:bg-orange-500 hover:text-white rounded-lg text-xs font-bold transition-colors"
+                              >
+                                Hızlı Üret
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 

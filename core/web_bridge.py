@@ -41,6 +41,124 @@ class WebBridge(QObject):
         self._ensure_part_extra_columns()
         self._ensure_user_gorev_column()
         self._ensure_user_fullname_column()
+        self._ensure_item_bom_data()
+
+    def _ensure_item_bom_data(self):
+        """ItemBOM tablosunun verilerini Excel dosyasından okuyarak veri tabanına senkronize eder."""
+        from sqlalchemy import text
+        from models.part import Part
+        from models.item_bom import ItemBOM
+        import openpyxl
+        import os
+        
+        db = SessionLocal()
+        try:
+            # Check if table already has data
+            count = db.execute(text("SELECT COUNT(*) FROM warehouse.item_bom;")).scalar()
+            if count > 0:
+                return
+            
+            print("[WebBridge] ItemBOM tablosu boş. Excel'den veri içe aktarılıyor...")
+            files = [f for f in os.listdir('.') if 'dosya' in f.lower() and not f.startswith('~$')]
+            if not files:
+                return
+            
+            fname = files[0]
+            wb = openpyxl.load_workbook(fname, data_only=True)
+            
+            # Read Item sheet for names
+            ws_item = wb['Item']
+            item_rows = list(ws_item.iter_rows(values_only=True))
+            h_idx = next(i for i, r in enumerate(item_rows) if r and 'code' in [str(x).lower() for x in r])
+            headers_item = item_rows[h_idx]
+            code_col = next(i for i, h in enumerate(headers_item) if h == 'code')
+            name_col = next(i for i, h in enumerate(headers_item) if h == 'shortName')
+            
+            item_name_map = {}
+            for r in item_rows[h_idx+1:]:
+                code = r[code_col]
+                name = r[name_col]
+                if code:
+                    item_name_map[str(code)] = str(name) if name else str(code)
+            
+            # Read ItemBom sheet
+            ws_bom = wb['ItemBom']
+            bom_rows = list(ws_bom.iter_rows(values_only=True))
+            h_idx_bom = next(i for i, r in enumerate(bom_rows) if r and 'UretilenParcaKodu' in [str(x) for x in r])
+            headers_bom = bom_rows[h_idx_bom]
+            
+            parent_col = next(i for i, h in enumerate(headers_bom) if h == 'UretilenParcaKodu')
+            child1_col = next(i for i, h in enumerate(headers_bom) if h == 'Tuketilen Parca_1')
+            qty1_col = next(i for i, h in enumerate(headers_bom) if h == 'Tuketilen Parca_1_Miktar')
+            child2_col = next(i for i, h in enumerate(headers_bom) if h == 'Tuketilen Parca_2')
+            qty2_col = next(i for i, h in enumerate(headers_bom) if h == 'Tuketilen Parca_2_Miktar')
+            
+            bom_data = []
+            unique_codes = set()
+            
+            for r in bom_rows[h_idx_bom+1:]:
+                parent = r[parent_col]
+                child1 = r[child1_col]
+                qty1 = r[qty1_col]
+                child2 = r[child2_col]
+                qty2 = r[qty2_col]
+                
+                if not parent:
+                    continue
+                
+                unique_codes.add(parent)
+                children = []
+                if child1:
+                    unique_codes.add(child1)
+                    children.append((child1, int(qty1) if qty1 else 1))
+                if child2:
+                    unique_codes.add(child2)
+                    children.append((child2, int(qty2) if qty2 else 1))
+                    
+                bom_data.append({
+                    'parent': parent,
+                    'children': children
+                })
+            
+            wb.close()
+            
+            # Insert missing parts
+            existing_parts = db.query(Part).filter(Part.item_code.in_(list(unique_codes))).all()
+            existing_codes = {p.item_code for p in existing_parts}
+            missing_codes = unique_codes - existing_codes
+            
+            for code in missing_codes:
+                name = item_name_map.get(code, code)
+                new_part = Part(
+                    item_code=code,
+                    name=name,
+                    status="Aktif",
+                    stock_tracking_type="Stok Takipli",
+                    critical_limit=10
+                )
+                db.add(new_part)
+            
+            if missing_codes:
+                db.commit()
+            
+            # Insert BOMs
+            for item in bom_data:
+                parent = item['parent']
+                for child, qty in item['children']:
+                    new_bom = ItemBOM(
+                        parent_item_id=parent,
+                        child_item_id=child,
+                        quantity=qty
+                    )
+                    db.add(new_bom)
+            
+            db.commit()
+            print(f"[WebBridge] ItemBOM Excel verisi başarıyla senkronize edildi. Toplam {len(bom_data)} reçete eklendi.")
+        except Exception as e:
+            db.rollback()
+            print(f"[WebBridge] ItemBOM senkronizasyon hatası: {e}")
+        finally:
+            db.close()
 
     def _ensure_user_gorev_column(self):
         """warehouse.users tablosuna gorev sütunu yoksa ekler."""
@@ -536,6 +654,46 @@ class WebBridge(QObject):
                 })
             return json.dumps({"success": True, "parts": parts_list})
         except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(result=str)
+    def get_item_boms(self):
+        """Tüm ItemBOM kayıtlarını (parent ve child bilgileriyle birlikte) getirir."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            result = db.execute(text("""
+                SELECT b.id, b.parent_item_id, b.child_item_id, b.quantity,
+                       p_parent.name AS parent_name, p_parent.id AS parent_part_id,
+                       p_child.name AS child_name, p_child.id AS child_part_id
+                FROM warehouse.item_bom b
+                LEFT JOIN warehouse.parts p_parent ON p_parent.item_code = b.parent_item_id
+                LEFT JOIN warehouse.parts p_child ON p_child.item_code = b.child_item_id
+                ORDER BY b.parent_item_id, b.child_item_id;
+            """)).mappings().all()
+            
+            bom_map = {}
+            for row in result:
+                parent_code = row["parent_item_id"]
+                if parent_code not in bom_map:
+                    bom_map[parent_code] = {
+                        "parent_item_id": parent_code,
+                        "parent_part_id": str(row["parent_part_id"]) if row["parent_part_id"] else "",
+                        "parent_name": row["parent_name"] or parent_code,
+                        "materials": []
+                    }
+                bom_map[parent_code]["materials"].append({
+                    "child_item_id": row["child_item_id"],
+                    "child_part_id": str(row["child_part_id"]) if row["child_part_id"] else "",
+                    "child_name": row["child_name"] or row["child_item_id"],
+                    "quantity": int(row["quantity"])
+                })
+            
+            return json.dumps({"success": True, "item_boms": list(bom_map.values())}, ensure_ascii=False)
+        except Exception as e:
+            print(f"[WebBridge] get_item_boms hatası: {e}")
             return json.dumps({"success": False, "message": str(e)})
         finally:
             db.close()
