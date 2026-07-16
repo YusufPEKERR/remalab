@@ -180,6 +180,16 @@ export default function MainLayout() {
                 default: return 'bg-blue-600 text-white shadow-lg shadow-blue-900/20';
               }
             };
+
+            const getHeaderColors = (theme) => {
+              switch(theme) {
+                case 'blue': return 'text-blue-500 dark:text-blue-400 group-hover:text-blue-600 dark:group-hover:text-blue-300';
+                case 'orange': return 'text-orange-500 dark:text-orange-400 group-hover:text-orange-600 dark:group-hover:text-orange-300';
+                case 'purple': return 'text-purple-500 dark:text-purple-400 group-hover:text-purple-600 dark:group-hover:text-purple-300';
+                case 'emerald': return 'text-emerald-500 dark:text-emerald-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-300';
+                default: return 'text-blue-500 dark:text-blue-400 group-hover:text-blue-600 dark:group-hover:text-blue-300';
+              }
+            };
             
             return (
               <div key={idx} className="px-4">
@@ -187,13 +197,13 @@ export default function MainLayout() {
                   onClick={() => toggleGroup(group.title)}
                   className="w-full flex items-center justify-between px-2 mb-2 group outline-none"
                 >
-                  <h3 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors">
+                  <h3 className={`text-[10px] font-bold uppercase tracking-widest transition-colors ${getHeaderColors(group.colorTheme)}`}>
                     {group.title}
                   </h3>
                   {isOpen ? (
-                    <ChevronDown size={14} className="text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors" />
+                    <ChevronDown size={14} className={`${getHeaderColors(group.colorTheme)} transition-colors`} />
                   ) : (
-                    <ChevronRight size={14} className="text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors" />
+                    <ChevronRight size={14} className={`${getHeaderColors(group.colorTheme)} transition-colors`} />
                   )}
                 </button>
                 
