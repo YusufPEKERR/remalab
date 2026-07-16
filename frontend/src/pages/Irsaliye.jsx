@@ -25,13 +25,9 @@ export default function Irsaliye() {
 
   // Inbound Form States
   const [inboundBarcode, setInboundBarcode] = useState('');
-  const [inboundBrand, setInboundBrand] = useState('');
-  const [inboundModel, setInboundModel] = useState('');
 
   // Outbound Form States
   const [outboundBarcode, setOutboundBarcode] = useState('');
-  const [outboundBrand, setOutboundBrand] = useState('');
-  const [outboundModel, setOutboundModel] = useState('');
 
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
   const [excelDirection, setExcelDirection] = useState('inbound');
@@ -255,8 +251,6 @@ export default function Irsaliye() {
       x.barcode === inboundBarcode || String(x.barcode) === inboundBarcode
     );
     if (p) {
-      setInboundBrand(p.brand || '');
-      setInboundModel(p.model || '');
       setFormData(prev => ({...prev, part_id: p.id}));
     } else {
       alert('Barkod bulunamadı!');
@@ -264,36 +258,19 @@ export default function Irsaliye() {
   };
 
   const handleOutboundBarcodeSearch = () => {
-    const p = parts.find(x => 
+    const p = parts.find(x =>
       x.item_code === outboundBarcode || String(x.item_code) === outboundBarcode ||
       x.barcode === outboundBarcode || String(x.barcode) === outboundBarcode
     );
     if (p) {
-      setOutboundBrand(p.brand || '');
-      setOutboundModel(p.model || '');
       setFormData(prev => ({...prev, part_id: p.id}));
     } else {
       alert('Barkod bulunamadı!');
     }
   };
 
-  const uniqueBrands = Array.from(new Set(parts.map(p => p.brand).filter(Boolean)));
-  const uniqueModels = Array.from(new Set(parts.filter(p => p.brand === inboundBrand).map(p => p.model).filter(Boolean)));
-  const filteredParts = parts.filter(p => 
-    (!inboundBrand || p.brand === inboundBrand) && 
-    (!inboundModel || p.model === inboundModel)
-  );
-
-  const outboundUniqueModels = Array.from(new Set(parts.filter(p => p.brand === outboundBrand).map(p => p.model).filter(Boolean)));
-  const outboundFilteredParts = parts.filter(p => 
-    (!outboundBrand || p.brand === outboundBrand) && 
-    (!outboundModel || p.model === outboundModel)
-  );
-
   const resetInboundForm = () => {
     setInboundBarcode('');
-    setInboundBrand('');
-    setInboundModel('');
     setFormData({ part_id: '', loc_id: getSystemLocationId('good_stock'), source_loc_id: '', qty: 1, price: 0, type: 'Yeni Alım (Tedarikçiden)', technician: '', description: '' });
     setShowInboundModal(true);
     fetchDependencies();
@@ -428,12 +405,10 @@ export default function Irsaliye() {
                 const mov = movements.find(m => String(m.id) === String(selectedRows[0]));
                 console.log("Selected Movement:", mov);
                 if (mov) {
-                  const p = parts.find(x => String(x.id) === String(mov.part_id)) || { item_code: '', brand: '', model: '' };
+                  const p = parts.find(x => String(x.id) === String(mov.part_id)) || { item_code: '' };
                   console.log("Found Part:", p);
                   setOutboundBarcode(String(p.item_code || ''));
-                  setOutboundBrand(p.brand || '');
-                  setOutboundModel(p.model || '');
-                  
+
                   const dir = getDirection(mov);
                   let locId = '';
                   if (dir === 'in' || dir === 'transfer') {
@@ -448,7 +423,7 @@ export default function Irsaliye() {
                 }
               }
               
-              setOutboundBarcode(''); setOutboundBrand(''); setOutboundModel(''); setFormData({ part_id: '', loc_id: '', qty: 1, price: 0, type: 'Teknik Servis', technician: '', description: '' }); setShowOutboundModal(true); 
+              setOutboundBarcode(''); setFormData({ part_id: '', loc_id: '', qty: 1, price: 0, type: 'Teknik Servis', technician: '', description: '' }); setShowOutboundModal(true);
             }}
             className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-colors"
           >
@@ -577,22 +552,6 @@ export default function Irsaliye() {
               <div className="border-t border-slate-200 dark:border-slate-700/50 pt-4"></div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Marka</label>
-                <select className="w-full px-3 py-2 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={inboundBrand} onChange={(e) => { setInboundBrand(e.target.value); setInboundModel(''); setFormData({...formData, part_id: ''}); }}>
-                  <option value="">Marka seçiniz...</option>
-                  {uniqueBrands.map(b => <option key={b} value={b}>{b}</option>)}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Telefon Modeli</label>
-                <select className="w-full px-3 py-2 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={inboundModel} onChange={(e) => { setInboundModel(e.target.value); setFormData({...formData, part_id: ''}); }}>
-                  <option value="">Model seçiniz...</option>
-                  {uniqueModels.map(m => <option key={m} value={m}>{m}</option>)}
-                </select>
-              </div>
-
-              <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Parça Adı / Parça</label>
                 <select required className="w-full px-3 py-2 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.part_id} onChange={(e) => {
                   const partId = e.target.value;
@@ -605,7 +564,7 @@ export default function Irsaliye() {
                   }));
                 }}>
                   <option value="">Parça seçiniz...</option>
-                  {filteredParts.map(p => <option key={p.id} value={p.id}>{p.brand} {p.model} {p.name ? `- ${p.name}` : ''}</option>)}
+                  {parts.map(p => <option key={p.id} value={p.id}>{p.brand} {p.model} {p.name ? `- ${p.name}` : ''}</option>)}
                 </select>
               </div>
 
@@ -713,29 +672,13 @@ export default function Irsaliye() {
               <div className="border-t border-slate-200 dark:border-slate-700/50 pt-4"></div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Marka</label>
-                <select className="w-full px-3 py-2 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={outboundBrand} onChange={(e) => { setOutboundBrand(e.target.value); setOutboundModel(''); setFormData({...formData, part_id: ''}); }}>
-                  <option value="">Marka seçiniz...</option>
-                  {uniqueBrands.map(b => <option key={b} value={b}>{b}</option>)}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Telefon Modeli</label>
-                <select className="w-full px-3 py-2 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={outboundModel} onChange={(e) => { setOutboundModel(e.target.value); setFormData({...formData, part_id: ''}); }}>
-                  <option value="">Model seçiniz...</option>
-                  {outboundUniqueModels.map(m => <option key={m} value={m}>{m}</option>)}
-                </select>
-              </div>
-
-              <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Parça Adı / Parça</label>
                 <select required className="w-full px-3 py-2 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.part_id} onChange={(e) => {
                   const partId = e.target.value;
                   setFormData(prev => ({ ...prev, part_id: partId, loc_id: findBestSourceLocation(partId) }));
                 }}>
                   <option value="">Parça seçiniz...</option>
-                  {outboundFilteredParts.map(p => <option key={p.id} value={p.id}>{p.brand} {p.model} {p.name ? `- ${p.name}` : ''}</option>)}
+                  {parts.map(p => <option key={p.id} value={p.id}>{p.brand} {p.model} {p.name ? `- ${p.name}` : ''}</option>)}
                 </select>
               </div>
 
