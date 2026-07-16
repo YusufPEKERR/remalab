@@ -21,6 +21,7 @@ export default function Parts() {
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageInput, setPageInput] = useState('1');
   const [itemsPerPage, setItemsPerPage] = useState(50);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -118,6 +119,10 @@ export default function Parts() {
     const interval = setInterval(() => fetchParts(true), 8000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    setPageInput(String(currentPage));
+  }, [currentPage]);
 
   const selectedCategory = useMemo(
     () => partCategories.find(c => String(c.id) === String(formData.part_category_id)) || null,
@@ -529,6 +534,9 @@ export default function Parts() {
               <option value={20}>20</option>
               <option value={50}>50</option>
               <option value={100}>100</option>
+              <option value={250}>250</option>
+              <option value={500}>500</option>
+              <option value={1000}>1000</option>
             </select>
           </div>
 
@@ -540,9 +548,39 @@ export default function Parts() {
             >
               ← Önceki
             </button>
-            <span className="font-medium">
-              Sayfa {currentPage} / {totalPages} ({filteredParts.length} Kayıt)
-            </span>
+            
+            <div className="flex items-center gap-1.5 font-medium">
+              <span>Sayfa:</span>
+              <input
+                type="number"
+                min="1"
+                max={totalPages}
+                value={pageInput}
+                onChange={(e) => setPageInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    const pageNum = parseInt(pageInput, 10);
+                    if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= totalPages) {
+                      setCurrentPage(pageNum);
+                    } else {
+                      setPageInput(String(currentPage));
+                    }
+                  }
+                }}
+                onBlur={() => {
+                  const pageNum = parseInt(pageInput, 10);
+                  if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= totalPages) {
+                    setCurrentPage(pageNum);
+                  } else {
+                    setPageInput(String(currentPage));
+                  }
+                }}
+                className="w-16 bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-center text-slate-800 dark:text-slate-200 focus:outline-none focus:border-slate-500 font-semibold"
+              />
+              <span>/ {totalPages}</span>
+              <span className="text-xs text-slate-500 ml-1">({filteredParts.length} Kayıt)</span>
+            </div>
+
             <button
               onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
               disabled={currentPage === totalPages}
