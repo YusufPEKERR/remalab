@@ -60,10 +60,17 @@ export default function ExcelMappingModal({
         const initialMapping = {};
         dbColumns.forEach(dbCol => {
           const friendlyName = (friendlyNames?.[dbCol] || dbCol).split('(')[0].trim().toLowerCase();
-          const match = headers.find(h => 
-            h.toLowerCase() === dbCol.toLowerCase() || 
-            h.toLowerCase().includes(friendlyName)
-          );
+          
+          let aliases = [dbCol.toLowerCase(), friendlyName];
+          if (dbCol === 'item_code') aliases.push('shortname', 'code');
+          if (dbCol === 'name') aliases.push('itemcategory');
+          if (dbCol === 'part_type') aliases.push('itemtype', 'parça tipi');
+
+          const match = headers.find(h => {
+            const hLower = String(h).toLowerCase();
+            return aliases.some(alias => hLower === alias || hLower.includes(alias));
+          });
+          
           if (match) {
             initialMapping[dbCol] = match;
           } else {

@@ -39,7 +39,7 @@ export default function Parts() {
     "Parça Adı": true,
     "Kalite": true,
     "Item Code": true,
-    "Item Category": true,
+    "Parça Tipi": true,
     "Parça Statüsü": true
   });
 
@@ -276,7 +276,7 @@ export default function Parts() {
       if (selectedExportColumns["Parça Adı"]) row["Parça Adı"] = p.name;
       if (selectedExportColumns["Kalite"]) row["Kalite"] = p.item_category;
       if (selectedExportColumns["Item Code"]) row["Item Code"] = p.part_category;
-      if (selectedExportColumns["Item Category"]) row["Item Category"] = p.part_type;
+      if (selectedExportColumns["Parça Tipi"]) row["Parça Tipi"] = p.part_type;
       if (selectedExportColumns["Parça Statüsü"]) row["Parça Statüsü"] = p.status;
       return row;
     });
