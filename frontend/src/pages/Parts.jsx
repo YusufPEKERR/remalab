@@ -5,11 +5,13 @@ import { api } from '../services/api';
 import ExcelMappingModal from '../components/ExcelMappingModal';
 
 const KALITE_OPTIONS = ['Orijinal', 'Muadil', 'Çıkma'];
+const MEMORY_OPTIONS = ['64GB', '128GB', '256GB', '512GB', '1TB'];
 
 const EMPTY_FORM = {
   item_code: '', barcode: '', name: '',
   item_category: '', part_category_id: '',
-  department: [], stock_tracking_type: 'Stok Takipli', status: 'Aktif', critical_limit: ''
+  department: [], stock_tracking_type: 'Stok Takipli', status: 'Aktif', critical_limit: '',
+  memory: []
 };
 
 export default function Parts() {
@@ -133,7 +135,8 @@ export default function Parts() {
         department: part.department ? String(part.department).split(',').map(d => d.trim()).filter(Boolean) : [],
         stock_tracking_type: part.stock_tracking_type || 'Stok Takipli',
         status: part.status || 'Aktif',
-        critical_limit: part.critical_limit || ''
+        critical_limit: part.critical_limit || '',
+        memory: part.memory ? String(part.memory).split(',').map(m => m.trim()).filter(Boolean) : []
       });
     } else {
       setCurrentPart(null);
@@ -171,7 +174,8 @@ export default function Parts() {
       const payload = {
         ...formData,
         department: selectedCategory ? selectedCategory.departments : formData.department,
-        stock_tracking_type: selectedCategory ? selectedCategory.stock_tracking_type : formData.stock_tracking_type
+        stock_tracking_type: selectedCategory ? selectedCategory.stock_tracking_type : formData.stock_tracking_type,
+        memory: Array.isArray(formData.memory) ? formData.memory.join(', ') : (formData.memory || '')
       };
       const res = currentPart
         ? await api.updatePart(currentPart.id, payload)
@@ -615,6 +619,54 @@ export default function Parts() {
                   onChange={e => setFormData({...formData, critical_limit: e.target.value})}
                   placeholder="Opsiyonel (Varsayılan: 50)"
                 />
+              </div>
+
+              {/* Hafıza Multi-Select */}
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-2">
+                  Hafıza
+                  {formData.memory.length > 0 && (
+                    <span className="ml-2 text-xs text-blue-400 font-normal">
+                      ({formData.memory.join(', ')})
+                    </span>
+                  )}
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {MEMORY_OPTIONS.map(opt => {
+                    const selected = formData.memory.includes(opt);
+                    return (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => {
+                          setFormData(prev => ({
+                            ...prev,
+                            memory: selected
+                              ? prev.memory.filter(m => m !== opt)
+                              : [...prev.memory, opt]
+                          }));
+                        }}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all duration-150 ${
+                          selected
+                            ? 'bg-blue-500/20 border-blue-500/50 text-blue-400'
+                            : 'bg-slate-50 dark:bg-[#242a38] border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:border-blue-400/50 hover:text-blue-400'
+                        }`}
+                      >
+                        {selected && <span className="mr-1">✓</span>}
+                        {opt}
+                      </button>
+                    );
+                  })}
+                </div>
+                {formData.memory.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, memory: [] }))}
+                    className="mt-2 text-xs text-slate-400 hover:text-red-400 transition-colors"
+                  >
+                    Tümünü Temizle
+                  </button>
+                )}
               </div>
 
               <div className="pt-2 flex justify-end gap-3 mt-6 border-t border-slate-200 dark:border-slate-700/50">

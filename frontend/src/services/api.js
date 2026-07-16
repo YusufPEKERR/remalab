@@ -160,6 +160,7 @@ export const api = {
                 Array.isArray(partData.department) ? partData.department.join(', ') : (partData.department || ''),
                 partData.status || 'Aktif',
                 partData.critical_limit !== undefined ? String(partData.critical_limit) : '',
+                partData.memory || '',
                 (res) => resolve(JSON.parse(res))
             );
         });
@@ -182,6 +183,7 @@ export const api = {
                 Array.isArray(partData.department) ? partData.department.join(', ') : (partData.department || ''),
                 partData.status || 'Aktif',
                 partData.critical_limit !== undefined ? String(partData.critical_limit) : '',
+                partData.memory || '',
                 (res) => resolve(JSON.parse(res))
             );
         });

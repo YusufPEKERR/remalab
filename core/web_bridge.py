@@ -540,8 +540,8 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    @Slot(str, str, str, str, str, str, str, str, str, str, str, str, result=str)
-    def create_part(self, name, item_code, barcode, brand, model, item_category, part_category, part_category_id, stock_tracking_type, department, status, critical_limit):
+    @Slot(str, str, str, str, str, str, str, str, str, str, str, str, str, result=str)
+    def create_part(self, name, item_code, barcode, brand, model, item_category, part_category, part_category_id, stock_tracking_type, department, status, critical_limit, memory):
         """Yeni parça ekler."""
         from sqlalchemy import text
         db = SessionLocal()
@@ -555,8 +555,8 @@ class WebBridge(QObject):
                 part_name = f"{brand.strip()} {model.strip()}".strip() or code
 
             sql = """
-                INSERT INTO warehouse.parts (name, item_code, barcode, brand, model, item_category, part_category, part_category_id, stock_tracking_type, department, status, critical_limit)
-                VALUES (:name, :code, :barcode, :brand, :model, :icat, :pcat, :pcat_id, :stt, :dept, :status, :critical_limit)
+                INSERT INTO warehouse.parts (name, item_code, barcode, brand, model, item_category, part_category, part_category_id, stock_tracking_type, department, status, critical_limit, memory)
+                VALUES (:name, :code, :barcode, :brand, :model, :icat, :pcat, :pcat_id, :stt, :dept, :status, :critical_limit, :memory)
             """
             db.execute(text(sql), {
                 "name": part_name, "code": code, "barcode": barcode or None,
@@ -566,7 +566,8 @@ class WebBridge(QObject):
                 "stt": stock_tracking_type or "Stok Takipli",
                 "dept": department or None,
                 "status": status or "Aktif",
-                "critical_limit": int(critical_limit) if critical_limit.strip() else 50
+                "critical_limit": int(critical_limit) if critical_limit.strip() else 50,
+                "memory": memory or None
             })
             db.commit()
             return json.dumps({"success": True, "message": "Parça eklendi"})
@@ -576,8 +577,8 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    @Slot(str, str, str, str, str, str, str, str, str, str, str, str, str, result=str)
-    def update_part(self, part_id_str, name, item_code, barcode, brand, model, item_category, part_category, part_category_id, stock_tracking_type, department, status, critical_limit):
+    @Slot(str, str, str, str, str, str, str, str, str, str, str, str, str, str, result=str)
+    def update_part(self, part_id_str, name, item_code, barcode, brand, model, item_category, part_category, part_category_id, stock_tracking_type, department, status, critical_limit, memory):
         """Var olan bir parçayı günceller."""
         from sqlalchemy import text
         db = SessionLocal()
@@ -596,7 +597,8 @@ class WebBridge(QObject):
                 SET name = :name, item_code = :code, barcode = :barcode, brand = :brand,
                     model = :model, item_category = :icat, part_category = :pcat,
                     part_category_id = :pcat_id, stock_tracking_type = :stt,
-                    department = :dept, status = :status, critical_limit = :critical_limit
+                    department = :dept, status = :status, critical_limit = :critical_limit,
+                    memory = :memory
                 WHERE id = :id
             """
             db.execute(text(sql), {
@@ -608,6 +610,7 @@ class WebBridge(QObject):
                 "dept": department or None,
                 "status": status or "Aktif",
                 "critical_limit": int(critical_limit) if critical_limit.strip() else 50,
+                "memory": memory or None,
                 "id": part_id
             })
             db.commit()
