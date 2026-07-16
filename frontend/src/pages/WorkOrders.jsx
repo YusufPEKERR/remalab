@@ -330,17 +330,15 @@ export default function WorkOrders() {
     }
 
     for (const m of materials) {
-      const available = getStockQty(m.part_id, goodStockLocationId);
+      const available = getStockQty(m.part_id, productionForm.source_location_id);
       if (Number(m.quantity_consumed) > available) {
-        alert('Good Stock\'ta bazı hammaddeler için yeterli stok yok. Lütfen miktarları kontrol edin.');
+        alert('Seçilen kaynak lokasyonda bazı hammaddeler için yeterli stok yok. Lütfen miktarları kontrol edin.');
         return;
       }
     }
 
     const res = await api.createProductionRun({
       ...productionForm,
-      source_location_id: goodStockLocationId,
-      target_location_id: goodStockLocationId,
       materials_json: JSON.stringify(materials)
     });
     if (res.success) {
@@ -693,6 +691,23 @@ export default function WorkOrders() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div>
+                  <label className="block text-sm font-medium text-slate-400 mb-1.5">Kaynak Lokasyon (Hammaddeler) <span className="text-red-400">*</span></label>
+                  <select required className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={productionForm.source_location_id} onChange={e => setProductionForm({...productionForm, source_location_id: e.target.value})}>
+                    <option value="">Lokasyon seçiniz...</option>
+                    {systemLocations.map(l => <option key={l.id} value={l.id}>{l.name} {l.kind ? `(${l.kind})` : ''}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-400 mb-1.5">Hedef Lokasyon (Üretilen Parça) <span className="text-red-400">*</span></label>
+                  <select required className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={productionForm.target_location_id} onChange={e => setProductionForm({...productionForm, target_location_id: e.target.value})}>
+                    <option value="">Lokasyon seçiniz...</option>
+                    {systemLocations.map(l => <option key={l.id} value={l.id}>{l.name} {l.kind ? `(${l.kind})` : ''}</option>)}
+                  </select>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 gap-5">
                 <div>
                   <label className="block text-sm font-medium text-slate-400 mb-1.5">Üretici / Sorumlu</label>
@@ -715,8 +730,8 @@ export default function WorkOrders() {
                 ) : (
                   <div className="space-y-2">
                     {productionMaterials.map((row, idx) => {
-                      const available = getStockQty(row.part_id, goodStockLocationId);
-                      const insufficient = row.part_id && goodStockLocationId && Number(row.quantity_consumed) > available;
+                      const available = getStockQty(row.part_id, productionForm.source_location_id);
+                      const insufficient = row.part_id && productionForm.source_location_id && Number(row.quantity_consumed) > available;
                       return (
                         <div key={idx}>
                           <div className="flex gap-2 items-center">
@@ -729,7 +744,7 @@ export default function WorkOrders() {
                               <Trash2 size={16} />
                             </button>
                           </div>
-                          {row.part_id && goodStockLocationId && (
+                          {row.part_id && productionForm.source_location_id && (
                             <p className={`mt-1 text-xs font-medium ${insufficient ? 'text-red-500' : 'text-emerald-500'}`}>
                               Mevcut Stok: {available}{insufficient ? ' — Yetersiz!' : ''}
                             </p>
