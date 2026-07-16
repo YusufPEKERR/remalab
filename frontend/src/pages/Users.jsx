@@ -33,6 +33,27 @@ export default function Users() {
   const [isCustomRole, setIsCustomRole] = useState(false);
   const [isCustomGorev, setIsCustomGorev] = useState(false);
 
+  const [deletedRoles, setDeletedRoles] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('deletedRoles')) || [];
+    } catch(e) {
+      return [];
+    }
+  });
+
+  const [deletedGorevs, setDeletedGorevs] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('deletedGorevs')) || [];
+    } catch(e) {
+      return [];
+    }
+  });
+
+  const [isDeletingRole, setIsDeletingRole] = useState(false);
+  const [roleToDelete, setRoleToDelete] = useState('');
+  const [isDeletingGorev, setIsDeletingGorev] = useState(false);
+  const [gorevToDelete, setGorevToDelete] = useState('');
+
   const defaultRoles = useMemo(() => [
     'DEVELOPER',
     'LOG_P',
@@ -60,18 +81,103 @@ export default function Users() {
   ], []);
 
   const existingRoles = useMemo(() => {
-    return Array.from(new Set([
+    const list = Array.from(new Set([
       ...defaultRoles,
       ...users.map(u => u.role).filter(Boolean)
     ]));
-  }, [users, defaultRoles]);
+    return list.filter(r => !deletedRoles.includes(r));
+  }, [users, defaultRoles, deletedRoles]);
 
   const existingGorevs = useMemo(() => {
-    return Array.from(new Set([
+    const allGorevs = [];
+    users.forEach(u => {
+      if (u.gorev) {
+        u.gorev.split(',').map(s => s.trim()).filter(Boolean).forEach(g => {
+          allGorevs.push(g);
+        });
+      }
+    });
+    const list = Array.from(new Set([
       ...defaultGorevs,
-      ...users.map(u => u.gorev).filter(Boolean)
+      ...allGorevs
     ]));
-  }, [users, defaultGorevs]);
+    return list.filter(g => !deletedGorevs.includes(g));
+  }, [users, defaultGorevs, deletedGorevs]);
+
+  const handleDeleteRole = async () => {
+    if (!roleToDelete) return alert("Lütfen silinecek bir hesap tipi seçin.");
+    if (window.confirm(`"${roleToDelete}" hesap tipini silmek istediğinize emin misiniz? Bu hesap tipine sahip kullanıcıların hesap tipi "Teknisyen" olarak değiştirilecektir.`)) {
+      setLoading(true);
+      try {
+        const targetUsers = users.filter(u => u.role === roleToDelete);
+        for (const u of targetUsers) {
+          await api.updateUser(u.id, {
+            username: u.username,
+            tc_no: u.tc_no,
+            role: 'Teknisyen',
+            gorev: u.gorev,
+            fullname: u.fullname,
+            account_enabled: u.account_enabled,
+            team_leader: u.team_leader,
+            operation_manager: u.operation_manager,
+            administrative_manager: u.administrative_manager
+          });
+        }
+        const updatedDeleted = [...deletedRoles, roleToDelete];
+        setDeletedRoles(updatedDeleted);
+        localStorage.setItem('deletedRoles', JSON.stringify(updatedDeleted));
+        setIsDeletingRole(false);
+        setRoleToDelete('');
+        setFormData(prev => ({ ...prev, role: 'Teknisyen' }));
+        await fetchUsers();
+        alert("Hesap tipi başarıyla silindi.");
+      } catch(err) {
+        alert("Hesap tipi silinirken hata oluştu.");
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
+  const handleDeleteGorev = async () => {
+    if (!gorevToDelete) return alert("Lütfen silinecek bir görev seçin.");
+    if (window.confirm(`"${gorevToDelete}" görevini silmek istediğinize emin misiniz?`)) {
+      setLoading(true);
+      try {
+        for (const u of users) {
+          if (!u.gorev) continue;
+          const list = u.gorev.split(',').map(s => s.trim()).filter(Boolean);
+          if (list.includes(gorevToDelete)) {
+            const newList = list.filter(g => g !== gorevToDelete);
+            const newGorevStr = newList.join(', ');
+            await api.updateUser(u.id, {
+              username: u.username,
+              tc_no: u.tc_no,
+              role: u.role,
+              gorev: newGorevStr,
+              fullname: u.fullname,
+              account_enabled: u.account_enabled,
+              team_leader: u.team_leader,
+              operation_manager: u.operation_manager,
+              administrative_manager: u.administrative_manager
+            });
+          }
+        }
+        const updatedDeleted = [...deletedGorevs, gorevToDelete];
+        setDeletedGorevs(updatedDeleted);
+        localStorage.setItem('deletedGorevs', JSON.stringify(updatedDeleted));
+        setIsDeletingGorev(false);
+        setGorevToDelete('');
+        setFormData(prev => ({ ...prev, gorev: '' }));
+        await fetchUsers();
+        alert("Görev başarıyla silindi.");
+      } catch(err) {
+        alert("Görev silinirken hata oluştu.");
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
 
   useEffect(() => {
     const stored = localStorage.getItem('user') || sessionStorage.getItem('user');
@@ -112,6 +218,10 @@ export default function Users() {
     setModalMode(mode);
     setIsCustomRole(false);
     setIsCustomGorev(false);
+    setIsDeletingRole(false);
+    setRoleToDelete('');
+    setIsDeletingGorev(false);
+    setGorevToDelete('');
     if (mode === 'add') {
       setFormData({ username: '', fullname: '', tc_no: '', password: '', role: 'Teknisyen', gorev: '', account_enabled: true, team_leader: '', operation_manager: '', administrative_manager: '' });
     } else {
@@ -472,7 +582,35 @@ export default function Users() {
                     <label className="text-sm font-medium text-slate-400 flex items-center gap-2">
                       <Shield size={14}/> Hesap Tipi
                     </label>
-                    {isCustomRole ? (
+                    {isDeletingRole ? (
+                      <div className="space-y-2 p-3 bg-red-500/5 rounded-xl border border-red-500/20">
+                        <label className="text-xs font-semibold text-red-400">Silinecek Hesap Tipini Seçin</label>
+                        <div className="flex gap-2">
+                          <select
+                            className="flex-1 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-red-500"
+                            value={roleToDelete}
+                            onChange={e => setRoleToDelete(e.target.value)}
+                          >
+                            <option value="">Seçin...</option>
+                            {existingRoles.filter(r => r !== 'Admin' && r !== 'Teknisyen').map(r => <option key={r} value={r}>{r}</option>)}
+                          </select>
+                          <button
+                            type="button"
+                            onClick={handleDeleteRole}
+                            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs transition-colors font-semibold"
+                          >
+                            Sil
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setIsDeletingRole(false)}
+                            className="px-3 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-xl text-xs transition-colors"
+                          >
+                            İptal
+                          </button>
+                        </div>
+                      </div>
+                    ) : isCustomRole ? (
                       <div className="flex gap-2">
                         <input
                           type="text" required
@@ -497,6 +635,8 @@ export default function Users() {
                           if (e.target.value === '__NEW__') {
                             setIsCustomRole(true);
                             setFormData({...formData, role: ''});
+                          } else if (e.target.value === '__DELETE__') {
+                            setIsDeletingRole(true);
                           } else {
                             setFormData({...formData, role: e.target.value});
                           }
@@ -505,6 +645,7 @@ export default function Users() {
                       >
                         {existingRoles.map(r => <option key={r} value={r}>{r}</option>)}
                         <option value="__NEW__">+ Yeni Hesap Tipi Tanımla...</option>
+                        <option value="__DELETE__">🗑️ Hesap Tipi Sil...</option>
                       </select>
                     )}
                     {modalMode === 'edit' && currentUser && String(currentUser.id) === String(selectedUserId) && (
@@ -516,7 +657,35 @@ export default function Users() {
                     <label className="text-sm font-medium text-slate-400 flex items-center gap-2">
                       <Shield size={14}/> Görevler (Virgülle Ayırın)
                     </label>
-                    {isCustomGorev ? (
+                    {isDeletingGorev ? (
+                      <div className="space-y-2 p-3 bg-red-500/5 rounded-xl border border-red-500/20">
+                        <label className="text-xs font-semibold text-red-400">Silinecek Görevi Seçin</label>
+                        <div className="flex gap-2">
+                          <select
+                            className="flex-1 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-red-500"
+                            value={gorevToDelete}
+                            onChange={e => setGorevToDelete(e.target.value)}
+                          >
+                            <option value="">Seçin...</option>
+                            {existingGorevs.map(g => <option key={g} value={g}>{g}</option>)}
+                          </select>
+                          <button
+                            type="button"
+                            onClick={handleDeleteGorev}
+                            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs transition-colors font-semibold"
+                          >
+                            Sil
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setIsDeletingGorev(false)}
+                            className="px-3 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-xl text-xs transition-colors"
+                          >
+                            İptal
+                          </button>
+                        </div>
+                      </div>
+                    ) : isCustomGorev ? (
                       <div className="flex gap-2">
                         <input
                           type="text" required
@@ -541,6 +710,8 @@ export default function Users() {
                           if (e.target.value === '__NEW__') {
                             setIsCustomGorev(true);
                             setFormData({...formData, gorev: ''});
+                          } else if (e.target.value === '__DELETE__') {
+                            setIsDeletingGorev(true);
                           } else {
                             setFormData({...formData, gorev: e.target.value});
                           }
@@ -549,6 +720,7 @@ export default function Users() {
                         <option value="">Görev Yok</option>
                         {existingGorevs.map(g => <option key={g} value={g}>{g}</option>)}
                         <option value="__NEW__">+ Yeni Görev Tanımla...</option>
+                        <option value="__DELETE__">🗑️ Görev Sil...</option>
                       </select>
                     )}
                   </div>
