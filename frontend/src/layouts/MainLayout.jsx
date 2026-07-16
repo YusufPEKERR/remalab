@@ -3,7 +3,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
   LogOut, LayoutDashboard, Users, Package, Settings, Bell,
   Warehouse, FileText, BarChart2, Box, Truck, MapPin,
-  CheckCircle, Search, AlertTriangle, Zap, RefreshCw, Sun, Moon, Database, Building2, Wrench, ClipboardList, PackageSearch, PackagePlus, Tags
+  CheckCircle, Search, AlertTriangle, Zap, RefreshCw, Sun, Moon, Database, Building2, Wrench, ClipboardList, PackageSearch, PackagePlus, Tags, ChevronDown, ChevronRight
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useTheme } from '../context/ThemeContext';
@@ -17,6 +17,17 @@ export default function MainLayout() {
   const [showNotifications, setShowNotifications] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const notifRef = useRef(null);
+
+  const [openGroups, setOpenGroups] = useState({
+    'GENEL BAKIŞ': true,
+    'DEPO': true,
+    'ENVANTER': true,
+    'KULLANICI & AYARLAR': true
+  });
+
+  const toggleGroup = (title) => {
+    setOpenGroups(prev => ({ ...prev, [title]: !prev[title] }));
+  };
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -95,22 +106,24 @@ export default function MainLayout() {
   const menuGroups = [
     {
       title: 'GENEL BAKIŞ',
+      colorTheme: 'blue',
       items: [
         { name: 'Kontrol Paneli', icon: LayoutDashboard, path: '/dashboard' }
       ]
     },
     {
       title: 'DEPO',
+      colorTheme: 'orange',
       items: [
         { name: 'Depo', icon: Warehouse, path: '/depo' },
         { name: 'İrsaliye', icon: FileText, path: '/irsaliye' },
         { name: 'İş Emirleri', icon: ClipboardList, path: '/work-orders' },
-        // { name: 'Tedarik İstekleri', icon: PackageSearch, path: '/supply-requests' },
         { name: 'Raporlar', icon: BarChart2, path: '/raporlar' }
       ]
     },
     {
       title: 'ENVANTER',
+      colorTheme: 'purple',
       items: [
         { name: 'Parçalar', icon: Package, path: '/parts' },
         { name: 'Parça Kategorileri', icon: Tags, path: '/part-categories' },
@@ -121,13 +134,13 @@ export default function MainLayout() {
     },
     {
       title: 'KULLANICI & AYARLAR',
+      colorTheme: 'emerald',
       items: [
         { name: 'Kullanıcılar', icon: Users, path: '/users' },
         { name: 'Ayarlar', icon: Settings, path: '/settings' },
         { name: 'Veri Yönetimi', icon: Database, path: '/data-management' },
         { name: 'Departman Yönetimi', icon: Building2, path: '/departments' },
         { name: 'Servis Kaydı', icon: Wrench, path: '/service-records' }
-        // { name: 'Tedarik Talepleri', icon: PackagePlus, path: '/tedarik-talepleri' }
       ]
     }
   ];
@@ -154,36 +167,64 @@ export default function MainLayout() {
         </div>
         
         <div className="flex-1 overflow-y-auto py-6 space-y-6 scrollbar-thin scrollbar-thumb-[#30363D] scrollbar-track-transparent">
-          {filteredGroups.map((group, idx) => (
-            <div key={idx} className="px-4">
-              <h3 className="px-2 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">
-                {group.title}
-              </h3>
-              <nav className="space-y-1">
-                {group.items.map((item) => {
-                  const isActive = location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path));
-                  return (
-                    <a
-                      key={item.name}
-                      href={item.path}
-                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
-                        isActive 
-                          ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' 
-                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#2a3142]'
-                      }`}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        navigate(item.path);
-                      }}
-                    >
-                      <item.icon size={18} strokeWidth={isActive ? 2.5 : 2} />
-                      {item.name}
-                    </a>
-                  );
-                })}
-              </nav>
-            </div>
-          ))}
+          {filteredGroups.map((group, idx) => {
+            const isOpen = openGroups[group.title];
+            
+            // Define active colors based on theme
+            const getActiveColors = (theme) => {
+              switch(theme) {
+                case 'blue': return 'bg-blue-600 text-white shadow-lg shadow-blue-900/20';
+                case 'orange': return 'bg-orange-500 text-white shadow-lg shadow-orange-900/20';
+                case 'purple': return 'bg-purple-600 text-white shadow-lg shadow-purple-900/20';
+                case 'emerald': return 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/20';
+                default: return 'bg-blue-600 text-white shadow-lg shadow-blue-900/20';
+              }
+            };
+            
+            return (
+              <div key={idx} className="px-4">
+                <button 
+                  onClick={() => toggleGroup(group.title)}
+                  className="w-full flex items-center justify-between px-2 mb-2 group outline-none"
+                >
+                  <h3 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors">
+                    {group.title}
+                  </h3>
+                  {isOpen ? (
+                    <ChevronDown size={14} className="text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors" />
+                  ) : (
+                    <ChevronRight size={14} className="text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors" />
+                  )}
+                </button>
+                
+                {isOpen && (
+                  <nav className="space-y-1 mt-1 transition-all">
+                    {group.items.map((item) => {
+                      const isActive = location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path));
+                      return (
+                        <a
+                          key={item.name}
+                          href={item.path}
+                          className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
+                            isActive 
+                              ? getActiveColors(group.colorTheme)
+                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#2a3142]'
+                          }`}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            navigate(item.path);
+                          }}
+                        >
+                          <item.icon size={18} strokeWidth={isActive ? 2.5 : 2} />
+                          {item.name}
+                        </a>
+                      );
+                    })}
+                  </nav>
+                )}
+              </div>
+            );
+          })}
         </div>
         
         <div className="p-4 border-t border-slate-200 dark:border-[#30363D]">
