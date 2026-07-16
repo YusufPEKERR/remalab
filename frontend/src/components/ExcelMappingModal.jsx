@@ -65,6 +65,7 @@ export default function ExcelMappingModal({
           if (dbCol === 'item_code') aliases.push('shortname', 'code');
           if (dbCol === 'name') aliases.push('itemcategory');
           if (dbCol === 'part_type') aliases.push('itemtype', 'parça tipi');
+          if (dbCol === 'item_category') aliases.push('kalite');
 
           const match = headers.find(h => {
             const hLower = String(h).toLowerCase();

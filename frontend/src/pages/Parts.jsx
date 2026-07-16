@@ -37,7 +37,7 @@ export default function Parts() {
     "Parça Kodu": true,
     "Barkod": true,
     "Parça Adı": true,
-    "Kalite": true,
+    "Parça Kategorisi": true,
     "Item Code": true,
     "Parça Tipi": true,
     "Parça Statüsü": true
@@ -56,7 +56,7 @@ export default function Parts() {
     item_code: "Parça Kodu (item_code) *",
     barcode: "Barkod (barcode)",
     name: "Parça Adı (name)",
-    item_category: "Kalite (item_category)",
+    item_category: "Parça Kategorisi (item_category)",
     part_category: "Item Code (part_category)",
     status: "Parça Statüsü (status)",
     part_type: "Parça Tipi (part_type)"
@@ -274,7 +274,7 @@ export default function Parts() {
       if (selectedExportColumns["Parça Kodu"]) row["Parça Kodu"] = p.item_code;
       if (selectedExportColumns["Barkod"]) row["Barkod"] = p.barcode;
       if (selectedExportColumns["Parça Adı"]) row["Parça Adı"] = p.name;
-      if (selectedExportColumns["Kalite"]) row["Kalite"] = p.item_category;
+      if (selectedExportColumns["Parça Kategorisi"]) row["Parça Kategorisi"] = p.item_category;
       if (selectedExportColumns["Item Code"]) row["Item Code"] = p.part_category;
       if (selectedExportColumns["Parça Tipi"]) row["Parça Tipi"] = p.part_type;
       if (selectedExportColumns["Parça Statüsü"]) row["Parça Statüsü"] = p.status;
@@ -423,7 +423,7 @@ export default function Parts() {
                 </th>
                 <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('item_category')}>
                   <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
-                    KALİTE
+                    PARÇA KATEGORİSİ
                     <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'item_category' ? 'text-blue-500' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
                   </div>
                 </th>
@@ -620,7 +620,7 @@ export default function Parts() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1">Kalite</label>
+                  <label className="block text-sm font-medium text-slate-400 mb-1">Parça Kategorisi</label>
                   <select
                     className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
                     value={formData.item_category}
