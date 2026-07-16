@@ -91,12 +91,24 @@ export default function Depo() {
         <div className="flex justify-between items-end">
           <label className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
             <Info size={16} className="text-blue-400"/>
-            {occupancy.isCritical && selectedItem ? (
-              <span className="flex items-center gap-2 text-red-500"><AlertTriangle size={24} /> {occupancy.title} Kritik Stok! ({occupancy.currentQty})</span>
+            {selectedItem ? (
+              <span className="flex items-center gap-2">
+                {occupancy.title} 
+                <span className={occupancy.isCritical ? "text-red-500 font-bold" : "text-emerald-600 font-bold"}>
+                  {occupancy.currentQty} Adet
+                </span>
+                {occupancy.isCritical && <span className="text-red-500 text-xs ml-1">(⚠️ Kritik Stok)</span>}
+              </span>
             ) : (
               <span>{occupancy.title} {occupancy.currentQty} / {occupancy.maxCapacity}</span>
             )}
           </label>
+          
+          {selectedItem && (
+            <div className="text-xs text-slate-400 font-medium">
+              Kritik Sınır: {Number(selectedItem.critical_limit) || 50}
+            </div>
+          )}
         </div>
         
         <div className="w-full bg-slate-50 dark:bg-[#0f1219] rounded-full h-3.5 border border-slate-200 dark:border-slate-700/50 overflow-hidden relative">
