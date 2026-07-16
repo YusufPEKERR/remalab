@@ -53,6 +53,7 @@ export default function Users() {
   const [roleToDelete, setRoleToDelete] = useState('');
   const [isDeletingGorev, setIsDeletingGorev] = useState(false);
   const [gorevToDelete, setGorevToDelete] = useState('');
+  const [tempCustomGorev, setTempCustomGorev] = useState('');
 
   const defaultRoles = useMemo(() => [
     'DEVELOPER',
@@ -122,6 +123,21 @@ export default function Users() {
       return userMissions.some(m => tlMissions.includes(m));
     });
   }, [users]);
+
+  const handleAddMission = (missionName) => {
+    if (!missionName) return;
+    const currentList = formData.gorev ? formData.gorev.split(',').map(s => s.trim()).filter(Boolean) : [];
+    if (!currentList.includes(missionName)) {
+      const newList = [...currentList, missionName];
+      setFormData({ ...formData, gorev: newList.join(', ') });
+    }
+  };
+
+  const handleRemoveMission = (missionName) => {
+    const currentList = formData.gorev ? formData.gorev.split(',').map(s => s.trim()).filter(Boolean) : [];
+    const newList = currentList.filter(g => g !== missionName);
+    setFormData({ ...formData, gorev: newList.join(', ') });
+  };
 
   const handleDeleteRole = async () => {
     if (!roleToDelete) return alert("Lütfen silinecek bir hesap tipi seçin.");
@@ -241,6 +257,7 @@ export default function Users() {
     setRoleToDelete('');
     setIsDeletingGorev(false);
     setGorevToDelete('');
+    setTempCustomGorev('');
     if (mode === 'add') {
       setFormData({ username: '', fullname: '', tc_no: '', password: '', role: 'Teknisyen', gorev: '', account_enabled: true, team_leader: '', operation_manager: '', administrative_manager: '' });
     } else {
@@ -674,7 +691,7 @@ export default function Users() {
 
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium text-slate-400 flex items-center gap-2">
-                      <Shield size={14}/> Görevler (Virgülle Ayırın)
+                      <Shield size={14}/> Görevler (Birden Fazla Seçebilirsiniz)
                     </label>
                     {isDeletingGorev ? (
                       <div className="space-y-2 p-3 bg-red-500/5 rounded-xl border border-red-500/20">
@@ -710,38 +727,67 @@ export default function Users() {
                           type="text" required
                           placeholder="Yeni Görev Yazın..."
                           className="flex-1 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
-                          value={formData.gorev}
-                          onChange={e => setFormData({...formData, gorev: e.target.value})}
+                          value={tempCustomGorev}
+                          onChange={e => setTempCustomGorev(e.target.value)}
                         />
                         <button
                           type="button"
-                          onClick={() => { setIsCustomGorev(false); setFormData({...formData, gorev: existingGorevs[0] || ''}); }}
+                          onClick={() => {
+                            if (tempCustomGorev.trim()) {
+                              handleAddMission(tempCustomGorev.trim());
+                              setTempCustomGorev('');
+                              setIsCustomGorev(false);
+                            }
+                          }}
+                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs transition-colors font-semibold"
+                        >
+                          Ekle
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setIsCustomGorev(false); setTempCustomGorev(''); }}
                           className="px-3 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-xl text-xs transition-colors"
                         >
-                          Listeden Seç
+                          İptal
                         </button>
                       </div>
                     ) : (
                       <select
                         className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
-                        value={formData.gorev}
+                        value=""
                         onChange={e => {
                           if (e.target.value === '__NEW__') {
                             setIsCustomGorev(true);
-                            setFormData({...formData, gorev: ''});
                           } else if (e.target.value === '__DELETE__') {
                             setIsDeletingGorev(true);
-                          } else {
-                            setFormData({...formData, gorev: e.target.value});
+                          } else if (e.target.value) {
+                            handleAddMission(e.target.value);
                           }
                         }}
                       >
-                        <option value="">Görev Yok</option>
-                        {existingGorevs.map(g => <option key={g} value={g}>{g}</option>)}
-                        <option value="__NEW__">+ Yeni Görev Tanımla...</option>
+                        <option value="">Görev Seçin ve Ekleyin...</option>
+                        {existingGorevs.filter(g => !(formData.gorev ? formData.gorev.split(',').map(s => s.trim()) : []).includes(g)).map(g => <option key={g} value={g}>{g}</option>)}
+                        <option value="__NEW__">+ Yeni Görev Tanımla ve Ekle...</option>
                         <option value="__DELETE__">🗑️ Görev Sil...</option>
                       </select>
                     )}
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {(formData.gorev ? formData.gorev.split(',').map(s => s.trim()).filter(Boolean) : []).map(m => (
+                        <span key={m} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 text-xs font-semibold">
+                          {m}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveMission(m)}
+                            className="w-3.5 h-3.5 rounded-full flex items-center justify-center bg-blue-500/20 hover:bg-red-500/20 hover:text-red-400 text-blue-400 font-bold text-[10px] transition-colors ml-1"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                      {!(formData.gorev ? formData.gorev.split(',').map(s => s.trim()).filter(Boolean) : []).length && (
+                        <span className="text-xs text-slate-500 italic">Seçili görev yok.</span>
+                      )}
+                    </div>
                   </div>
 
                   <div className="space-y-1.5">
