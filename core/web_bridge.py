@@ -82,7 +82,8 @@ class WebBridge(QObject):
                 type_val = r[type_col]
                 if s_name:
                     item_info_map[str(s_name)] = {
-                        "name": str(cat_val) if cat_val else str(s_name),
+                        "name": str(s_name),
+                        "item_category": str(cat_val) if cat_val else None,
                         "part_type": str(type_val) if type_val else None
                     }
             
@@ -133,10 +134,11 @@ class WebBridge(QObject):
             missing_codes = unique_codes - existing_codes
             
             for code in missing_codes:
-                info = item_info_map.get(code, {"name": code, "part_type": None})
+                info = item_info_map.get(code, {"name": code, "item_category": None, "part_type": None})
                 new_part = Part(
                     item_code=code,
                     name=info["name"],
+                    item_category=info.get("item_category"),
                     part_type=info["part_type"],
                     status="Aktif",
                     stock_tracking_type="Stok Takipli",
