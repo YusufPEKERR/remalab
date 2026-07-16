@@ -198,6 +198,13 @@ export const api = {
         });
     },
 
+    deletePartsBulk: async (ids) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.delete_parts_bulk(ids.join(','), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
 
     // ==========================
     // LOCATIONS (LOKASYONLAR)

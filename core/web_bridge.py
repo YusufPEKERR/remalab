@@ -819,6 +819,45 @@ class WebBridge(QObject):
             db.close()
 
     @Slot(str, result=str)
+    def delete_parts_bulk(self, part_ids_csv):
+        """Birden fazla parçayı toplu olarak siler."""
+        from sqlalchemy import text
+        from models.stock import Stock
+        from models.stock_movement import StockMovement
+        db = SessionLocal()
+        try:
+            ids = [int(x.strip()) for x in part_ids_csv.split(",") if x.strip()]
+            if not ids:
+                return json.dumps({"success": False, "message": "Silinecek parça seçilmedi."})
+            
+            # Orphan kontrolü
+            safe_ids = []
+            skipped_count = 0
+            for pid in ids:
+                stock_count = db.query(Stock).filter(Stock.part_id == pid, Stock.quantity > 0).count()
+                movement_count = db.query(StockMovement).filter(StockMovement.part_id == pid).count()
+                if stock_count == 0 and movement_count == 0:
+                    safe_ids.append(pid)
+                else:
+                    skipped_count += 1
+                    
+            if not safe_ids:
+                return json.dumps({"success": False, "message": "Seçilen parçaların hiçbirisi silinmeye uygun değil (Stok veya geçmiş hareket mevcut)." })
+                
+            db.execute(text("DELETE FROM warehouse.parts WHERE id = any(:ids)"), {"ids": safe_ids})
+            db.commit()
+            
+            msg = f"{len(safe_ids)} parça başarıyla silindi."
+            if skipped_count > 0:
+                msg += f" {skipped_count} adet parça stok veya hareket geçmişi olduğu için silinemedi."
+            return json.dumps({"success": True, "message": msg})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": f"Toplu silme hatası: {str(e)}"})
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
     def delete_user(self, user_id_str):
         """Belirtilen id'ye sahip kullanıcıyı siler."""
         import sys

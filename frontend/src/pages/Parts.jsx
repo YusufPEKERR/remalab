@@ -218,6 +218,25 @@ export default function Parts() {
     }
   };
 
+  const handleBulkDelete = async () => {
+    if (selectedRows.length === 0) return;
+    if (window.confirm(`Seçilen ${selectedRows.length} parçayı silmek istediğinize emin misiniz?`)) {
+      try {
+        const res = await api.deletePartsBulk(selectedRows);
+        if (res.success) {
+          alert(res.message || 'Seçilen parçalar silindi.');
+          setSelectedRows([]);
+          fetchParts();
+        } else {
+          alert(res.message || 'Silme işlemi başarısız oldu.');
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Bir hata oluştu.');
+      }
+    }
+  };
+
   const handleExcelAction = async (e) => {
     const action = e.target.value;
     e.target.value = '';
@@ -362,6 +381,15 @@ export default function Parts() {
               <FileSpreadsheet size={16} />
             </div>
           </div>
+
+          {selectedRows.length > 0 && (
+            <button
+              onClick={handleBulkDelete}
+              className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl transition-all shadow-lg shadow-red-900/20 font-medium"
+            >
+              <Trash2 size={18} /> Seçilenleri Sil ({selectedRows.length})
+            </button>
+          )}
 
           <button
             onClick={() => handleOpenModal()}
