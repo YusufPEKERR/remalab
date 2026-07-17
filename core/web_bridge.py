@@ -3052,21 +3052,25 @@ class WebBridge(QObject):
             
             good_stock_id = _get_system_location_id(db, "good_stock")
             if good_stock_id:
-                stocks = db.query(Stock, Part).join(Part, Stock.part_id == Part.id).filter(Stock.location_id == good_stock_id).all()
+                critical_count = db.query(func.count(Stock.id)).join(Part, Stock.part_id == Part.id).filter(
+                    Stock.location_id == good_stock_id,
+                    Stock.quantity < func.coalesce(Part.critical_limit, 50)
+                ).scalar() or 0
             else:
-                stocks = []
+                critical_count = 0
             
-            critical_count = sum(1 for s, p in stocks if s.quantity < (p.critical_limit or 50))
-            
+            from datetime import datetime, time
             today = date.today()
+            today_start = datetime.combine(today, time.min)
+            
             todays_inbound = db.query(func.sum(StockMovement.quantity)).filter(
                 StockMovement.type.in_(["Giriş", "İç Transfer", "Yeni Alım", "Inbound", "Transfer"]),
-                func.date(StockMovement.created_at) == today
+                StockMovement.created_at >= today_start
             ).scalar() or 0
             
             todays_outbound = db.query(func.sum(StockMovement.quantity)).filter(
                 StockMovement.type.in_(["Çıkış", "İç Transfer", "Müşteri Satışı", "Tedarikçiye İade", "Outbound", "Transfer"]),
-                func.date(StockMovement.created_at) == today
+                StockMovement.created_at >= today_start
             ).scalar() or 0
             
             active_locations = db.query(func.count(Location.id)).scalar() or 0
@@ -3101,24 +3105,27 @@ class WebBridge(QObject):
         from models.location import Location
         db = SessionLocal()
         try:
+            from sqlalchemy import func
             good_stock_id = _get_system_location_id(db, "good_stock")
             if good_stock_id:
-                stocks = db.query(Stock, Part, Location).join(Part, Stock.part_id == Part.id).join(Location, Stock.location_id == Location.id).filter(Stock.location_id == good_stock_id).all()
+                stocks = db.query(Stock, Part, Location).join(Part, Stock.part_id == Part.id).join(Location, Stock.location_id == Location.id).filter(
+                    Stock.location_id == good_stock_id,
+                    Stock.quantity < func.coalesce(Part.critical_limit, 50)
+                ).all()
             else:
                 stocks = []
 
             res = []
             for s, p, l in stocks:
                 limit = p.critical_limit or 50
-                if s.quantity < limit:
-                    res.append({
-                        "id": s.id,
-                        "part_name": f"{p.brand} {p.model} {p.name}",
-                        "location_name": l.name,
-                        "quantity": s.quantity,
-                        "critical_limit": limit,
-                        "status": "Kritik" if s.quantity > 0 else "Tükendi"
-                    })
+                res.append({
+                    "id": s.id,
+                    "part_name": f"{p.brand} {p.model} {p.name}",
+                    "location_name": l.name,
+                    "quantity": s.quantity,
+                    "critical_limit": limit,
+                    "status": "Kritik" if s.quantity > 0 else "Tükendi"
+                })
             import json
             return json.dumps({"success": True, "critical_stock": res})
         except Exception as e:
