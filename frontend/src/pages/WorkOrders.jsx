@@ -428,10 +428,11 @@ export default function WorkOrders() {
   };
 
   const handleDeleteProduction = async (id) => {
-    if (window.confirm('Bu üretim kaydını silmek istediğinize emin misiniz? (Stok hareketleri geri alınmaz, sadece geçmiş kaydı silinir.)')) {
+    if (window.confirm('Bu üretim işlemini geri almak (iptal etmek) istediğinize emin misiniz? (Üretilen ürün miktarı stoktan düşülecek ve tüketilen malzemeler stoğa geri eklenecektir.)')) {
       const res = await api.deleteProductionRun(id);
       if (res.success) {
         fetchProductionRuns();
+        api.getStockStatus().then(r => { if (r.success) setStockStatus(r.stock || []); });
       } else {
         alert(res.message || 'Üretim kaydı silinemedi.');
       }

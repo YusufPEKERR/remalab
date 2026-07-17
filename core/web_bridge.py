@@ -2188,14 +2188,84 @@ class WebBridge(QObject):
 
     @Slot(str, result=str)
     def delete_production_run(self, run_id_str):
-        """Belirtilen üretim kaydını siler (stok hareketlerini geri almaz, sadece geçmiş kaydını kaldırır)."""
+        """Belirtilen üretim kaydını siler ve stok hareketlerini geri alır (üretilen ürünü düşer, hammaddeleri iade eder)."""
         from sqlalchemy import text
         db = SessionLocal()
         try:
             run_id = int(run_id_str)
+            
+            # 1. Üretim kaydını çek
+            run = db.execute(text("""
+                SELECT target_part_id, quantity_produced, location_id, source_location_id
+                FROM warehouse.production_runs
+                WHERE id = :id
+            """), {"id": run_id}).first()
+            
+            if not run:
+                return json.dumps({"success": False, "message": "Üretim kaydı bulunamadı."})
+                
+            target_part_id = run[0]
+            quantity_produced = run[1]
+            location_id = run[2]
+            source_location_id = run[3]
+            
+            # 2. Üretilen parçanın stoğunu kontrol et
+            target_stock = db.execute(text("""
+                SELECT id, quantity FROM warehouse.stock
+                WHERE part_id = :pid AND location_id = :lid
+                FOR UPDATE
+            """), {"pid": target_part_id, "lid": location_id}).first()
+            
+            if not target_stock or target_stock[1] < quantity_produced:
+                current_qty = target_stock[1] if target_stock else 0
+                return json.dumps({
+                    "success": False, 
+                    "message": f"Üretilen parçanın bu lokasyondaki stoğu yetersiz ({current_qty} adet var, {quantity_produced} adet üretilmişti). Üretim geri alınamaz."
+                })
+                
+            # 3. Tüketilen malzemeleri çek
+            materials = db.execute(text("""
+                SELECT part_id, quantity_consumed
+                FROM warehouse.production_materials
+                WHERE production_run_id = :run_id
+            """), {"run_id": run_id}).all()
+            
+            # 4. Üretilen parçanın stoğunu düş
+            db.execute(text("""
+                UPDATE warehouse.stock
+                SET quantity = quantity - :qty
+                WHERE id = :id
+            """), {"qty": quantity_produced, "id": target_stock[0]})
+            
+            # 5. Tüketilen malzemeleri kaynak lokasyona geri ekle
+            for m in materials:
+                m_part_id = m[0]
+                m_qty = m[1]
+                
+                existing_m = db.execute(text("""
+                    SELECT id FROM warehouse.stock
+                    WHERE part_id = :pid AND location_id = :lid
+                    FOR UPDATE
+                """), {"pid": m_part_id, "lid": source_location_id}).first()
+                
+                if existing_m:
+                    db.execute(text("""
+                        UPDATE warehouse.stock
+                        SET quantity = quantity + :qty
+                        WHERE id = :id
+                    """), {"qty": m_qty, "id": existing_m[0]})
+                else:
+                    db.execute(text("""
+                        INSERT INTO warehouse.stock (part_id, location_id, quantity)
+                        VALUES (:pid, :lid, :qty)
+                    """), {"pid": m_part_id, "lid": source_location_id, "qty": m_qty})
+            
+            # 6. Malzeme tüketim ve üretim kayıtlarını sil
+            db.execute(text("DELETE FROM warehouse.production_materials WHERE production_run_id = :run_id"), {"run_id": run_id})
             db.execute(text("DELETE FROM warehouse.production_runs WHERE id = :id"), {"id": run_id})
+            
             db.commit()
-            return json.dumps({"success": True, "message": "Üretim kaydı silindi"})
+            return json.dumps({"success": True, "message": "Üretim kaydı başarıyla silindi ve stok hareketleri geri alındı."})
         except Exception as e:
             db.rollback()
             return json.dumps({"success": False, "message": f"Silme hatası: {str(e)}"})
