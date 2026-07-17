@@ -1996,7 +1996,7 @@ export default function WorkOrders() {
             </div>
             
             <p className="text-sm text-slate-500 dark:text-slate-400 mb-5">
-              <span className="font-semibold text-slate-800 dark:text-slate-200">{returnDialog.serial_number}</span> kimlik numaralı cihaz iade ediliyor.
+              <span className="font-semibold text-slate-800 dark:text-slate-200">{returnDialog.serial_number}</span> kimlik numaralı ve <span className="font-semibold text-slate-800 dark:text-slate-200">{returnDialog.quantity_produced} adetlik</span> üretim grubu iade ediliyor.
             </p>
 
             <div className="space-y-5 mb-6">
@@ -2121,6 +2121,10 @@ export default function WorkOrders() {
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-400">Üretim Tarihi:</span>
                   <span className="text-slate-800 dark:text-slate-200">{detailDialog.created_at}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-400">Üretim Miktarı:</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">{detailDialog.quantity_produced} adet</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-400">Üretim Deposu:</span>

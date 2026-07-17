@@ -2601,20 +2601,20 @@ class WebBridge(QObject):
                 target_label = f'{u["target_brand"] or ""} {u["target_model"] or ""}'.strip() or (u["target_name"] or "")
                 run_qty = u["quantity_produced"]
                 
-                # Her bir cihaz için malzeme tüketimini adet bazlı hesapla
+                # Tüm parti için toplam malzeme tüketimini ekle
                 unit_materials = []
                 for m in materials_by_run.get(u["run_id"], []):
-                    qty_per_unit = float(m["quantity_consumed"]) / run_qty if run_qty > 0 else 0
-                    if qty_per_unit.is_integer():
-                        qty_per_unit = int(qty_per_unit)
+                    qty = float(m["quantity_consumed"])
+                    if qty.is_integer():
+                        qty = int(qty)
                     else:
-                        qty_per_unit = round(qty_per_unit, 2)
+                        qty = round(qty, 2)
                         
                     unit_materials.append({
                         "part_id": m["part_id"],
                         "part_name": m["part_name"],
                         "item_code": m["item_code"],
-                        "quantity_consumed": qty_per_unit
+                        "quantity_consumed": qty
                     })
 
                 result.append({
@@ -2629,7 +2629,7 @@ class WebBridge(QObject):
                     "target_part_id": str(u["target_part_id"]) if u["target_part_id"] else "",
                     "target_part_name": target_label,
                     "target_item_code": u["target_code"] or "",
-                    "quantity_produced": 1,  # Rapor satırında cihaz adedi her zaman 1'dir
+                    "quantity_produced": u["quantity_produced"],
                     "location_id": str(u["location_id"]) if u["location_id"] else "",
                     "location_name": u["location_name"] or "",
                     "source_location_id": str(u["source_location_id"]) if u["source_location_id"] else "",
@@ -2711,22 +2711,14 @@ class WebBridge(QObject):
                 "by": produced_by or None, "notes": notes or None
             }).scalar()
 
-            # Tek bir ortak serial number (Cihaz Kimlik ID) oluştur
+            # Tek bir ortak serial number (Cihaz Kimlik ID) oluştur ve tek satır olarak ekle
             next_id = db.execute(text("SELECT nextval(pg_get_serial_sequence('warehouse.produced_units', 'id'))")).scalar()
             serial_num = f"REM-PRD-{next_id:06d}"
             
-            # İlk birimi bu next_id ile ekle
             db.execute(text("""
                 INSERT INTO warehouse.produced_units (id, production_run_id, serial_number)
                 VALUES (:id, :run_id, :serial)
             """), {"id": next_id, "run_id": run_id, "serial": serial_num})
-            
-            # Diğer birimleri otomatik id ile ekle
-            for idx in range(qty - 1):
-                db.execute(text("""
-                    INSERT INTO warehouse.produced_units (production_run_id, serial_number)
-                    VALUES (:run_id, :serial)
-                """), {"run_id": run_id, "serial": serial_num})
 
             for m in materials:
                 db.execute(text("""
@@ -2804,11 +2796,11 @@ class WebBridge(QObject):
                 FOR UPDATE
             """), {"pid": target_part_id, "lid": location_id}).first()
             
-            if not target_stock or target_stock[1] < 1:
+            if not target_stock or target_stock[1] < quantity_produced:
                 current_qty = target_stock[1] if target_stock else 0
                 result_str = json.dumps({
                     "success": False, 
-                    "message": f"Üretilen parçanın stoğu yetersiz ({current_qty} adet var). İade gerçekleştirilemez."
+                    "message": f"Üretilen parçanın stoğu yetersiz ({current_qty} adet var, {quantity_produced} adet gerekli). İade gerçekleştirilemez."
                 })
                 return result_str
                 
@@ -2819,19 +2811,17 @@ class WebBridge(QObject):
                 WHERE production_run_id = :run_id
             """), {"run_id": run_id}).all()
             
-            # 4. Üretilen parçanın stoğunu 1 adet düş
+            # 4. Üretilen parçanın stoğunu batch miktarı kadar düş
             db.execute(text("""
                 UPDATE warehouse.stock
-                SET quantity = quantity - 1
+                SET quantity = quantity - :qty
                 WHERE id = :id
-            """), {"id": target_stock[0]})
+            """), {"qty": quantity_produced, "id": target_stock[0]})
             
             # 5. Her malzemeyi sorunlu/sorunsuz durumuna göre farklı depoya ekle
             for m in materials:
                 m_part_id = m[0]
-                total_consumed = m[1]
-                qty_per_unit = float(total_consumed) / quantity_produced if quantity_produced > 0 else 0
-                qty_to_return = max(1, int(round(qty_per_unit)))
+                qty_to_return = m[1] # Tüm batch iade edildiği için tüketilen miktarın tamamı iade edilir
                 
                 # Sorunlu ise seçilen depoya, değilse Good Stock'a
                 dest_loc_id = return_location_id if m_part_id in defective_set else GOOD_STOCK_ID
