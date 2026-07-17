@@ -581,21 +581,9 @@ export default function WorkOrders() {
 
   const handleRepeatProduction = (run) => {
     const targetPart = parts.find(p => String(p.id) === String(run.target_part_id));
-    setProductionForm({
-      target_part_id: run.target_part_id,
-      target_part_code: targetPart ? (targetPart.item_code || targetPart.name) : run.target_part_id,
-      quantity_produced: run.quantity_produced,
-      source_location_id: run.source_location_id,
-      target_location_id: run.target_location_id,
-      produced_by: getCurrentUser()?.username || 'admin',
-      notes: run.notes || ''
-    });
-    // Duplicate the materials list so it's a new reference, mapping it correctly
-    setProductionMaterials((run.materials || []).map(m => ({
-      part_id: m.part_id,
-      quantity_consumed: m.quantity_consumed
-    })));
-    setActiveTab('production');
+    const searchQuery = targetPart ? (targetPart.item_code || targetPart.name) : (run.target_item_code || run.target_part_name);
+    setBomSearchQuery(searchQuery);
+    setActiveTab('recent_productions');
   };
 
   const handleProduceFromBOM = async (bom) => {
