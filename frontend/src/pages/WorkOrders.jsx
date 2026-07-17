@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ClipboardList, Plus, Trash2, Edit, X, Save, Factory, Package, TrendingUp, Repeat, AlertTriangle, Layers } from 'lucide-react';
+import { ClipboardList, Plus, Trash2, Edit, X, Save, Factory, Package, TrendingUp, Repeat, AlertTriangle, Layers, Search } from 'lucide-react';
 import { api } from '../services/api';
 import PartSupplyMenu from '../components/PartSupplyMenu';
 import DeliverPartPopover from '../components/DeliverPartPopover';
@@ -95,6 +95,8 @@ export default function WorkOrders() {
   const [bomSearchQuery, setBomSearchQuery] = useState('');
   const [showBomDropdown, setShowBomDropdown] = useState(false);
   const [filterByBrandModel, setFilterByBrandModel] = useState(true);
+  const [searchResults, setSearchResults] = useState([]);
+  const [showResultsDropdown, setShowResultsDropdown] = useState(false);
 
   // --- Production Work Order state (work_orders, work_order_type = 'PRODUCTION') ---
   const [showProductionWOForm, setShowProductionWOForm] = useState(false);
@@ -386,6 +388,25 @@ export default function WorkOrders() {
     }
   }, [selectedTargetPart?.id]);
 
+  const handleSearchTargetPart = (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    const q = (productionForm.target_part_code || '').toLowerCase().trim();
+    if (!q) {
+      setSearchResults([]);
+      setShowResultsDropdown(false);
+      return;
+    }
+    const matches = parts.filter(p => 
+      (p.name || '').toLowerCase().includes(q) || 
+      (p.item_code || '').toLowerCase().includes(q)
+    );
+    setSearchResults(matches);
+    setShowResultsDropdown(true);
+  };
+
   // ===================== Üretim handlers =====================
 
   const handleAddMaterialRow = () => {
@@ -458,6 +479,8 @@ export default function WorkOrders() {
 
       setProductionForm(EMPTY_PRODUCTION_FORM);
       setProductionMaterials([]);
+      setSearchResults([]);
+      setShowResultsDropdown(false);
       fetchProductionRuns();
       api.getStockStatus().then(r => { if (r.success) setStockStatus(r.stock || []); });
       alert('Üretim kaydı başarıyla oluşturuldu.');
@@ -1003,61 +1026,69 @@ export default function WorkOrders() {
                 <div>
                   <label className="block text-sm font-medium text-slate-400 mb-1.5">Üretilen Parça Kodu/Adı <span className="text-red-400">*</span></label>
                   <div className="relative">
-                    <input 
-                      type="text" 
-                      required 
-                      autoComplete="off"
-                      placeholder="Parça Kodu veya Adı (Örn: P-001)" 
-                      className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" 
-                      value={productionForm.target_part_code || ''} 
-                      onChange={e => {
-                        setProductionForm({...productionForm, target_part_code: e.target.value});
-                        setShowBomDropdown(true);
-                      }}
-                      onFocus={() => setShowBomDropdown(true)}
-                      onBlur={() => setTimeout(() => setShowBomDropdown(false), 200)}
-                    />
-                    {showBomDropdown && productionForm.target_part_code && (
+                    <div className="flex gap-2">
+                      <input 
+                        type="text" 
+                        required 
+                        autoComplete="off"
+                        placeholder="Parça Kodu veya Adı (Örn: P-001)" 
+                        className="flex-1 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" 
+                        value={productionForm.target_part_code || ''} 
+                        onChange={e => {
+                          setProductionForm({...productionForm, target_part_code: e.target.value});
+                        }}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleSearchTargetPart();
+                          }
+                        }}
+                        onBlur={() => setTimeout(() => setShowResultsDropdown(false), 200)}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleSearchTargetPart}
+                        className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors flex items-center gap-1.5 text-sm shrink-0"
+                      >
+                        <Search size={16} /> Ara
+                      </button>
+                    </div>
+                    {showResultsDropdown && (
                       <div className="absolute z-50 w-full mt-1 bg-white dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg max-h-60 overflow-y-auto">
-                        {parts.filter(p => {
-                          const q = (productionForm.target_part_code || '').toLowerCase();
-                          return (p.name || '').toLowerCase().includes(q) || 
-                                 (p.item_code || '').toLowerCase().includes(q);
-                        }).map(part => {
-                          const hasBom = itemBoms.some(b => String(b.parent_part_id) === String(part.id));
-                          return (
-                          <div 
-                            key={part.id} 
-                            className="px-4 py-3 hover:bg-slate-100 dark:hover:bg-[#2a3142] cursor-pointer text-sm text-slate-800 dark:text-slate-200 border-b border-slate-100 dark:border-slate-700/50 last:border-0 flex justify-between items-center"
-                            onClick={() => {
-                              const bom = itemBoms.find(b => String(b.parent_part_id) === String(part.id));
-                              if (bom) {
-                                handleFillFormFromBOM(bom);
-                              } else {
-                                setProductionForm({
-                                  ...productionForm,
-                                  target_part_id: part.id,
-                                  target_part_code: part.item_code || part.name
-                                });
-                                setProductionMaterials([]);
-                              }
-                              setShowBomDropdown(false);
-                            }}
-                          >
-                            <div>
-                              <div className="font-bold text-blue-500 dark:text-blue-400">{part.item_code}</div>
-                              <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{part.name}</div>
-                            </div>
-                            {hasBom && (
-                              <span className="text-[10px] bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-2 py-0.5 rounded-full font-medium">BOM Kayıtlı</span>
-                            )}
-                          </div>
-                        )})}
-                        {parts.filter(p => {
-                          const q = (productionForm.target_part_code || '').toLowerCase();
-                          return (p.name || '').toLowerCase().includes(q) || 
-                                 (p.item_code || '').toLowerCase().includes(q);
-                        }).length === 0 && (
+                        {searchResults.length > 0 ? (
+                          searchResults.map(part => {
+                            const hasBom = itemBoms.some(b => String(b.parent_part_id) === String(part.id));
+                            return (
+                              <div 
+                                key={part.id} 
+                                className="px-4 py-3 hover:bg-slate-100 dark:hover:bg-[#2a3142] cursor-pointer text-sm text-slate-800 dark:text-slate-200 border-b border-slate-100 dark:border-slate-700/50 last:border-0 flex justify-between items-center"
+                                onMouseDown={e => {
+                                  e.preventDefault();
+                                  const bom = itemBoms.find(b => String(b.parent_part_id) === String(part.id));
+                                  if (bom) {
+                                    handleFillFormFromBOM(bom);
+                                  } else {
+                                    setProductionForm({
+                                      ...productionForm,
+                                      target_part_id: part.id,
+                                      target_part_code: part.item_code || part.name
+                                    });
+                                    setProductionMaterials([]);
+                                  }
+                                  setShowResultsDropdown(false);
+                                }}
+                              >
+                                <div>
+                                  <div className="font-bold text-blue-500 dark:text-blue-400">{part.item_code}</div>
+                                  <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{part.name}</div>
+                                </div>
+                                {hasBom && (
+                                  <span className="text-[10px] bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-2 py-0.5 rounded-full font-medium">BOM Kayıtlı</span>
+                                )}
+                              </div>
+                            );
+                          })
+                        ) : (
                           <div className="px-4 py-3 text-sm text-slate-500 italic">Eşleşen parça bulunamadı. Yeni bir isim yazabilirsiniz.</div>
                         )}
                       </div>
