@@ -1494,24 +1494,28 @@ export default function WorkOrders() {
                       </td>
                       <td className="px-6 py-4">{run.produced_by || '-'}</td>
                       <td className="px-6 py-4 text-slate-400 whitespace-nowrap">{run.created_at}</td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4 min-w-[220px]">
                         {run.is_returned ? (
-                          <div className="space-y-1">
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-red-500/10 text-red-500 border border-red-500/20 rounded-lg">
+                          <div className="flex flex-col gap-2">
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-red-500/10 text-red-500 border border-red-500/20 rounded-lg self-start">
                               ✕ İade Edildi
                             </span>
-                            {run.returned_at && (
-                              <div className="text-[10px] text-slate-500">{run.returned_at}</div>
-                            )}
-                            <div className="text-[11px] text-red-400 max-w-[200px] whitespace-normal leading-snug">
-                              {run.return_reason || 'Belirtilmedi'}
+                            <div className="pl-1 space-y-1">
+                              {run.returned_at && (
+                                <div className="text-[11px] text-slate-400">{run.returned_at}</div>
+                              )}
+                              <div className="text-xs text-slate-300 font-medium leading-snug max-w-[200px] whitespace-normal">
+                                {run.return_reason || 'Belirtilmedi'}
+                              </div>
+                              {run.return_location_name && (
+                                <div className="inline-flex items-center gap-1 text-[11px] text-slate-500 bg-slate-500/10 px-2 py-0.5 rounded-md">
+                                  → {run.return_location_name}
+                                </div>
+                              )}
                             </div>
-                            {run.return_location_name && (
-                              <div className="text-[10px] text-slate-500">→ {run.return_location_name}</div>
-                            )}
                           </div>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded-lg">
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded-lg">
                             ✓ Üretildi
                           </span>
                         )}
