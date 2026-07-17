@@ -1,11 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Download, Filter, RefreshCw, AlertTriangle, Trash2, TrendingUp } from 'lucide-react';
+import { Download, Filter, RefreshCw, AlertTriangle } from 'lucide-react';
 import { api } from '../services/api';
 
 export default function Raporlar() {
   const [generalReports, setGeneralReports] = useState([]);
   const [criticalReports, setCriticalReports] = useState([]);
-  const [productionReports, setProductionReports] = useState([]);
   const [locations, setLocations] = useState([]);
   const [selectedLocation, setSelectedLocation] = useState('');
   const [loading, setLoading] = useState(false);
@@ -30,16 +29,6 @@ export default function Raporlar() {
     "Lokasyon": true,
     "Mevcut Stok": true,
     "Kritik Limit": true
-  });
-  const [selectedProductionCols, setSelectedProductionCols] = useState({
-    "Cihaz Kimlik ID": true,
-    "Üretilen Parça": true,
-    "Miktar": true,
-    "Kaynak Lokasyon": true,
-    "Hedef Lokasyon": true,
-    "Tüketilen Malzemeler": true,
-    "Üretici": true,
-    "Tarih": true
   });
   
   // Date filters
@@ -99,19 +88,12 @@ export default function Raporlar() {
         } else {
           alert("Genel raporlar alınamadı: " + (res.message || "Bilinmeyen hata"));
         }
-      } else if (activeTab === 'critical') {
+      } else {
         const res = await api.getCriticalStock();
         if (res.success) {
           setCriticalReports(res.critical_stock);
         } else {
           alert("Kritik raporlar alınamadı: " + (res.message || "Bilinmeyen hata"));
-        }
-      } else if (activeTab === 'production') {
-        const res = await api.getProductionRuns();
-        if (res.success) {
-          setProductionReports(res.production_runs);
-        } else {
-          alert("Üretim raporları alınamadı: " + (res.message || "Bilinmeyen hata"));
         }
       }
     } catch (err) {
@@ -135,50 +117,23 @@ export default function Raporlar() {
     loadLocations();
   }, []);
 
-  const handleDeleteProduction = async (id) => {
-    if (!window.confirm("Bu cihazı içeren üretimi (tüm grup üretimini ve hammadde iadelerini) geri çekmek ve silmek istediğinize emin misiniz?")) {
-      return;
-    }
-    setLoading(true);
-    try {
-      const res = await api.deleteProductionRun(id);
-      if (res.success) {
-        alert("Üretim kaydı başarıyla silindi ve stoklar geri alındı.");
-        fetchReports();
-      } else {
-        alert(res.message || "İşlem başarısız oldu.");
-      }
-    } catch (err) {
-      console.error("Delete run error:", err);
-      alert("Hata oluştu: " + err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const filteredGeneralReports = generalReports.filter(r => selectedLocation === '' || r.location === selectedLocation);
   const filteredCriticalReports = criticalReports.filter(r => selectedLocation === '' || r.location === selectedLocation);
-  const filteredProductionReports = productionReports.filter(r => selectedLocation === '' || r.location_name === selectedLocation);
 
   useEffect(() => { setCurrentPage(1); }, [activeTab, selectedLocation, startDate, endDate]);
 
-  const activeDataList = activeTab === 'general' 
-    ? filteredGeneralReports 
-    : (activeTab === 'critical' ? filteredCriticalReports : filteredProductionReports);
-
+  const activeDataList = activeTab === 'general' ? filteredGeneralReports : filteredCriticalReports;
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const paginatedReports = activeDataList.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(activeDataList.length / itemsPerPage);
 
   const toggleSelectAll = () => {
-    const dataList = activeTab === 'general' 
-      ? filteredGeneralReports 
-      : (activeTab === 'critical' ? filteredCriticalReports : filteredProductionReports);
+    const dataList = activeTab === 'general' ? filteredGeneralReports : filteredCriticalReports;
     if (selectedRows.length === dataList.length && dataList.length > 0) {
       setSelectedRows([]);
     } else {
-      setSelectedRows(dataList.map(item => activeTab === 'production' ? item.unit_id : item.id));
+      setSelectedRows(dataList.map(item => item.id));
     }
   };
 
@@ -190,15 +145,11 @@ export default function Raporlar() {
   };
 
   const executeExport = async () => {
-    const dataList = activeTab === 'general' 
-      ? filteredGeneralReports 
-      : (activeTab === 'critical' ? filteredCriticalReports : filteredProductionReports);
-    const baseReports = activeTab === 'general' 
-      ? generalReports 
-      : (activeTab === 'critical' ? criticalReports : productionReports);
+    const dataList = activeTab === 'general' ? filteredGeneralReports : filteredCriticalReports;
+    const baseReports = activeTab === 'general' ? generalReports : criticalReports;
     
     const dataToExport = selectedRows.length > 0 
-      ? baseReports.filter(r => selectedRows.includes(activeTab === 'production' ? r.unit_id : r.id))
+      ? baseReports.filter(r => selectedRows.includes(r.id))
       : dataList;
 
     if (dataToExport.length === 0) {
@@ -221,7 +172,7 @@ export default function Raporlar() {
         return row;
       });
       await api.exportTableToExcel(exportReadyData, 'genel_raporlar.xlsx');
-    } else if (activeTab === 'critical') {
+    } else {
       exportReadyData = dataToExport.map(r => {
         const row = {};
         if (selectedCriticalCols["Parça Adı"]) row["Parça Adı"] = r.part_name;
@@ -231,20 +182,6 @@ export default function Raporlar() {
         return row;
       });
       await api.exportTableToExcel(exportReadyData, 'kritik_raporlar.xlsx');
-    } else {
-      exportReadyData = dataToExport.map(r => {
-        const row = {};
-        if (selectedProductionCols["Cihaz Kimlik ID"]) row["Cihaz Kimlik ID"] = r.serial_number;
-        if (selectedProductionCols["Üretilen Parça"]) row["Üretilen Parça"] = r.target_part_name;
-        if (selectedProductionCols["Miktar"]) row["Miktar"] = r.quantity_produced;
-        if (selectedProductionCols["Kaynak Lokasyon"]) row["Kaynak Lokasyon"] = r.source_location_name || '-';
-        if (selectedProductionCols["Hedef Lokasyon"]) row["Hedef Lokasyon"] = r.location_name || '-';
-        if (selectedProductionCols["Tüketilen Malzemeler"]) row["Tüketilen Malzemeler"] = (r.materials || []).map(m => `${m.part_name} [${m.item_code}] (${m.quantity_consumed})`).join(', ');
-        if (selectedProductionCols["Üretici"]) row["Üretici"] = r.produced_by || '-';
-        if (selectedProductionCols["Tarih"]) row["Tarih"] = r.created_at || '-';
-        return row;
-      });
-      await api.exportTableToExcel(exportReadyData, 'uretim_raporlari.xlsx');
     }
     
     setIsExportModalOpen(false);
@@ -303,16 +240,6 @@ export default function Raporlar() {
           }`}
         >
           Kritik Raporlar
-        </button>
-        <button
-          onClick={() => setActiveTab('production')}
-          className={`px-6 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 ${
-            activeTab === 'production' 
-              ? 'bg-purple-600 text-slate-900 dark:text-white shadow-lg shadow-purple-900/20' 
-              : 'text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#2a3142]'
-          }`}
-        >
-          Üretim Raporu
         </button>
       </div>
 
@@ -536,105 +463,6 @@ export default function Raporlar() {
         </>
       )}
 
-      {activeTab === 'production' && (
-        <>
-          {/* Toolbar Production */}
-          <div className="bg-white dark:bg-[#1e2330] p-4 rounded-xl border border-slate-200 dark:border-slate-700/50 shadow-sm flex items-center shrink-0">
-            <button 
-              onClick={() => setIsExportModalOpen(true)}
-              className="flex items-center gap-2 px-5 py-2 bg-slate-100 dark:bg-[#2a3142] hover:bg-[#323a4d] border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors ml-auto"
-            >
-              <Download size={16} /> {selectedRows.length > 0 ? `${selectedRows.length} Seçiliyi Dışa Aktar` : "Tümünü Dışa Aktar"}
-            </button>
-          </div>
-
-          {/* Table Production */}
-          <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl shadow-lg flex-1 flex flex-col">
-            <div className="overflow-x-auto w-full">
-              <table className="w-full text-left text-base whitespace-nowrap">
-                <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-sm sticky top-0 z-10">
-                  <tr>
-                    <th className="px-6 py-5 w-12 text-center">
-                      <input 
-                        type="checkbox" 
-                        className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-white dark:bg-slate-800"
-                        checked={selectedRows.length === filteredProductionReports.length && filteredProductionReports.length > 0}
-                        onChange={toggleSelectAll}
-                      />
-                    </th>
-                    <th className="px-6 py-4">KİMLİK ID</th>
-                    <th className="px-6 py-4 min-w-[250px]">ÜRETİLEN PARÇA</th>
-                    <th className="px-6 py-4 text-center">MİKTAR</th>
-                    <th className="px-6 py-4">KAYNAK LOKASYON</th>
-                    <th className="px-6 py-4">HEDEF LOKASYON</th>
-                    <th className="px-6 py-4 min-w-[300px]">TÜKETİLEN MALZEMELER</th>
-                    <th className="px-6 py-4">ÜRETİCİ</th>
-                    <th className="px-6 py-4">TARİH</th>
-                    <th className="px-6 py-4 text-center">İŞLEMLER</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-700/50">
-                  {loading ? (
-                    <tr>
-                      <td colSpan="10" className="px-6 py-8 text-center text-slate-400">
-                        <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-purple-400" />
-                        Yükleniyor...
-                      </td>
-                    </tr>
-                  ) : filteredProductionReports.length === 0 ? (
-                    <tr>
-                      <td colSpan="10" className="px-6 py-8 text-center text-slate-500">
-                        Üretim kaydı bulunamadı.
-                      </td>
-                    </tr>
-                  ) : (
-                    paginatedReports.map((r) => {
-                      const isChecked = selectedRows.includes(r.unit_id);
-                      return (
-                      <tr key={r.unit_id} className={`hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors group text-slate-700 dark:text-slate-300 ${isChecked ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}>
-                        <td className="px-6 py-5 text-center" onClick={(e) => e.stopPropagation()}>
-                          <input 
-                            type="checkbox" 
-                            className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-white dark:bg-slate-800"
-                            checked={isChecked}
-                            onChange={(e) => toggleRowSelect(r.unit_id, e)}
-                          />
-                        </td>
-                        <td className="px-6 py-5 font-mono font-bold text-slate-900 dark:text-slate-200">{r.serial_number}</td>
-                        <td className="px-6 py-5 font-medium text-slate-800 dark:text-slate-200">
-                          <div>{r.target_part_name}</div>
-                          <div className="text-xs text-slate-400 font-mono mt-0.5">{r.target_item_code}</div>
-                        </td>
-                        <td className="px-6 py-5 font-mono text-center">{r.quantity_produced}</td>
-                        <td className="px-6 py-5 text-slate-400">{r.source_location_name || '-'}</td>
-                        <td className="px-6 py-5 text-slate-400">{r.location_name || '-'}</td>
-                        <td className="px-6 py-5 text-xs text-slate-400 whitespace-normal min-w-[300px]">
-                          {(r.materials || []).length > 0
-                            ? r.materials.map(m => `${m.part_name}${m.item_code ? ` [${m.item_code}]` : ''} (${m.quantity_consumed})`).join(', ')
-                            : '-'}
-                        </td>
-                        <td className="px-6 py-5 text-slate-400">{r.produced_by || '-'}</td>
-                        <td className="px-6 py-5 text-slate-400 font-mono text-xs">{r.created_at}</td>
-                        <td className="px-6 py-5 text-center" onClick={(e) => e.stopPropagation()}>
-                          <button 
-                            onClick={() => handleDeleteProduction(r.id)} 
-                            className="p-1.5 text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
-                            title="Geri Çek / Sil"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </td>
-                      </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </>
-      )}
-
       <div className="flex justify-between items-center px-6 py-4 bg-slate-50 dark:bg-[#242a38] border-t border-slate-200 dark:border-slate-700/50 shrink-0">
         <span className="text-sm text-slate-500">
           Toplam {activeDataList.length} kayıttan {activeDataList.length === 0 ? 0 : indexOfFirstItem + 1}-{Math.min(indexOfLastItem, activeDataList.length)} arası gösteriliyor
@@ -665,18 +493,16 @@ export default function Raporlar() {
             <p className="text-sm text-slate-500 mb-4">Dışa aktarılacak Excel dosyasında hangi sütunların bulunmasını istediğinizi seçin.</p>
             
             <div className="space-y-3 mb-6 max-h-60 overflow-y-auto pr-2">
-              {Object.keys(activeTab === 'general' ? selectedGeneralCols : (activeTab === 'critical' ? selectedCriticalCols : selectedProductionCols)).map((col) => (
+              {Object.keys(activeTab === 'general' ? selectedGeneralCols : selectedCriticalCols).map((col) => (
                 <label key={col} className="flex items-center gap-3 cursor-pointer">
                   <input 
                     type="checkbox" 
-                    checked={activeTab === 'general' ? selectedGeneralCols[col] : (activeTab === 'critical' ? selectedCriticalCols[col] : selectedProductionCols[col])}
+                    checked={activeTab === 'general' ? selectedGeneralCols[col] : selectedCriticalCols[col]}
                     onChange={(e) => {
                       if (activeTab === 'general') {
                         setSelectedGeneralCols(prev => ({...prev, [col]: e.target.checked}));
-                      } else if (activeTab === 'critical') {
-                        setSelectedCriticalCols(prev => ({...prev, [col]: e.target.checked}));
                       } else {
-                        setSelectedProductionCols(prev => ({...prev, [col]: e.target.checked}));
+                        setSelectedCriticalCols(prev => ({...prev, [col]: e.target.checked}));
                       }
                     }}
                     className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-slate-50 dark:bg-slate-800"
@@ -695,7 +521,7 @@ export default function Raporlar() {
               </button>
               <button 
                 onClick={executeExport}
-                disabled={!Object.values(activeTab === 'general' ? selectedGeneralCols : (activeTab === 'critical' ? selectedCriticalCols : selectedProductionCols)).some(Boolean)}
+                disabled={!Object.values(activeTab === 'general' ? selectedGeneralCols : selectedCriticalCols).some(Boolean)}
                 className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors font-medium shadow-md shadow-emerald-500/20 disabled:opacity-50"
               >
                 Dışa Aktar
