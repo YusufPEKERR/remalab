@@ -311,6 +311,7 @@ class WebBridge(QObject):
             db.execute(text("ALTER TABLE warehouse.produced_units ADD COLUMN IF NOT EXISTS return_reason VARCHAR(500);"))
             db.execute(text("ALTER TABLE warehouse.produced_units ADD COLUMN IF NOT EXISTS returned_at TIMESTAMP WITH TIME ZONE;"))
             db.execute(text("ALTER TABLE warehouse.produced_units ADD COLUMN IF NOT EXISTS return_location_id INTEGER REFERENCES warehouse.locations(id);"))
+            db.execute(text("ALTER TABLE warehouse.produced_units ADD COLUMN IF NOT EXISTS returned_materials VARCHAR(2000);"))
             
             # Clean up old records to avoid data inconsistency with the new unique serial number system
             run_count = db.execute(text("SELECT COUNT(*) FROM warehouse.production_runs")).scalar() or 0
@@ -2562,7 +2563,7 @@ class WebBridge(QObject):
         db = SessionLocal()
         try:
             units = db.execute(text("""
-                SELECT pu.id AS unit_id, pu.serial_number, pu.is_returned, pu.return_reason, pu.returned_at, pu.return_location_id,
+                SELECT pu.id AS unit_id, pu.serial_number, pu.is_returned, pu.return_reason, pu.returned_at, pu.return_location_id, pu.returned_materials,
                        pr.id AS run_id, pr.target_part_id, pr.quantity_produced, pr.location_id, pr.source_location_id,
                        pr.produced_by, pr.notes, pr.created_at,
                        p.brand AS target_brand, p.model AS target_model,
@@ -2626,6 +2627,7 @@ class WebBridge(QObject):
                     "returned_at": u["returned_at"].strftime("%Y-%m-%d %H:%M") if u["returned_at"] else "",
                     "return_location_id": str(u["return_location_id"]) if u["return_location_id"] else "",
                     "return_location_name": u["return_location_name"] or "",
+                    "returned_materials": json.loads(u["returned_materials"]) if u["returned_materials"] else [],
                     "target_part_id": str(u["target_part_id"]) if u["target_part_id"] else "",
                     "target_part_name": target_label,
                     "target_item_code": u["target_code"] or "",
@@ -2821,6 +2823,7 @@ class WebBridge(QObject):
             """), {"qty": quantity_produced, "id": target_stock[0]})
             
             # 5. Her malzemeyi sorunlu/sorunsuz durumuna göre farklı depoya ekle
+            returned_mats = []
             for m in materials:
                 m_part_id = m[0]
                 total_qty = m[1] # Tüm batch için tüketilen miktar
@@ -2828,6 +2831,22 @@ class WebBridge(QObject):
                 # Sorunlu miktarını al ve sınırla (en fazla total_qty kadar olabilir)
                 def_qty = min(total_qty, defective_qtys.get(m_part_id, 0))
                 good_qty = total_qty - def_qty
+                
+                part_row = db.execute(text("SELECT brand, model, name, item_code FROM warehouse.parts WHERE id = :pid"), {"pid": m_part_id}).first()
+                part_label = ""
+                item_code = ""
+                if part_row:
+                    part_label = f"{part_row[0] or ''} {part_row[1] or ''}".strip() or (part_row[2] or "")
+                    item_code = part_row[3] or ""
+
+                returned_mats.append({
+                    "part_id": str(m_part_id),
+                    "part_name": part_label,
+                    "item_code": item_code,
+                    "defective_qty": def_qty,
+                    "good_qty": good_qty,
+                    "total_qty": total_qty
+                })
                 
                 # 5a. Sorunlu olanları seçilen iade lokasyonuna aktar
                 if def_qty > 0:
@@ -2875,13 +2894,15 @@ class WebBridge(QObject):
                 SET is_returned = TRUE,
                     return_reason = :reason,
                     returned_at = :now,
-                    return_location_id = :ret_loc_id
+                    return_location_id = :ret_loc_id,
+                    returned_materials = :returned_mats
                 WHERE id = :uid
             """), {
                 "reason": return_reason,
                 "now": datetime.utcnow(),
                 "ret_loc_id": return_location_id,
-                "uid": unit_id
+                "uid": unit_id,
+                "returned_mats": json.dumps(returned_mats)
             })
             
             db.commit()

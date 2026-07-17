@@ -2177,17 +2177,45 @@ export default function WorkOrders() {
 
               {/* Tüketilen Malzemeler */}
               <div>
-                <span className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Tüketilen Malzemeler</span>
+                <span className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                  {detailDialog.is_returned ? 'İade Edilen Hammadde Dağılımı' : 'Tüketilen Malzemeler'}
+                </span>
                 <div className="rounded-xl border border-slate-200 dark:border-slate-700/60 overflow-hidden divide-y divide-slate-200 dark:divide-slate-700/40">
-                  {(detailDialog.materials || []).map((m, idx) => (
-                    <div key={idx} className="flex justify-between items-center px-4 py-3 bg-slate-50 dark:bg-[#242a38]/40 hover:bg-slate-50 dark:hover:bg-[#242a38]">
-                      <div>
-                        <div className="text-sm font-medium text-slate-800 dark:text-slate-200">{m.part_name}</div>
-                        {m.item_code && <div className="text-xs font-mono text-slate-400">{m.item_code}</div>}
+                  {detailDialog.is_returned && (detailDialog.returned_materials || []).length > 0 ? (
+                    detailDialog.returned_materials.map((m, idx) => (
+                      <div key={idx} className="px-4 py-3 bg-slate-50 dark:bg-[#242a38]/40 space-y-2">
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <div className="text-sm font-medium text-slate-800 dark:text-slate-200">{m.part_name}</div>
+                            {m.item_code && <div className="text-xs font-mono text-slate-400">{m.item_code}</div>}
+                          </div>
+                          <span className="font-mono text-xs text-slate-500 bg-slate-100 dark:bg-[#1e2330] px-2 py-0.5 rounded">Toplam: {m.total_qty} adet</span>
+                        </div>
+                        <div className="flex gap-4 text-xs">
+                          {m.defective_qty > 0 && (
+                            <span className="text-red-500 font-semibold bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20">
+                              Sorunlu ({detailDialog.return_location_name || 'İade'}): {m.defective_qty} adet
+                            </span>
+                          )}
+                          {m.good_qty > 0 && (
+                            <span className="text-emerald-500 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                              Sorunsuz (Good Stock): {m.good_qty} adet
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <span className="font-mono text-sm text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-[#1e2330] px-2 py-0.5 rounded">{m.quantity_consumed} adet</span>
-                    </div>
-                  ))}
+                    ))
+                  ) : (
+                    (detailDialog.materials || []).map((m, idx) => (
+                      <div key={idx} className="flex justify-between items-center px-4 py-3 bg-slate-50 dark:bg-[#242a38]/40 hover:bg-slate-50 dark:hover:bg-[#242a38]">
+                        <div>
+                          <div className="text-sm font-medium text-slate-800 dark:text-slate-200">{m.part_name}</div>
+                          {m.item_code && <div className="text-xs font-mono text-slate-400">{m.item_code}</div>}
+                        </div>
+                        <span className="font-mono text-sm text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-[#1e2330] px-2 py-0.5 rounded">{m.quantity_consumed} adet</span>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             </div>
