@@ -2083,6 +2083,7 @@ export default function WorkOrders() {
             </div>
           </div>
         </div>
+      )}
       {/* --- CİHAZ DETAY DIALOG --- */}
       {detailDialog && (
         <div className="fixed inset-0 bg-slate-900/80 flex items-center justify-center z-50 animate-in fade-in duration-200">
