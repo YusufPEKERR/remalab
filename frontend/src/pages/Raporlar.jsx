@@ -32,7 +32,7 @@ export default function Raporlar() {
     "Kaynak Depo": true,
     "Hedef Depo": true,
     "İşlemi Yapan": true,
-    "Hareket Tipi": true
+    "Açıklama": true
   });
   const [selectedCriticalCols, setSelectedCriticalCols] = useState({
     "İtem Kodu": true,
@@ -201,7 +201,7 @@ export default function Raporlar() {
         if (selectedTransferCols["Kaynak Depo"]) row["Kaynak Depo"] = r.source_location;
         if (selectedTransferCols["Hedef Depo"]) row["Hedef Depo"] = r.target_location;
         if (selectedTransferCols["İşlemi Yapan"]) row["İşlemi Yapan"] = r.user;
-        if (selectedTransferCols["Hareket Tipi"]) row["Hareket Tipi"] = r.type;
+        if (selectedTransferCols["Açıklama"]) row["Açıklama"] = r.type;
         return row;
       });
       await api.exportTableToExcel(exportReadyData, 'transfer_hareketleri.xlsx');
@@ -457,7 +457,7 @@ export default function Raporlar() {
                     <th className="px-6 py-4">HEDEF DEPO</th>
                     <th className="px-6 py-4">MİKTAR</th>
                     <th className="px-6 py-4">İŞLEMİ YAPAN</th>
-                    <th className="px-6 py-4">HAREKET TİPİ</th>
+                    <th className="px-6 py-4">AÇIKLAMA</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-700/50">
