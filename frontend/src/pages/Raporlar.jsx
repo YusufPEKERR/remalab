@@ -26,13 +26,13 @@ export default function Raporlar() {
   });
   const [selectedTransferCols, setSelectedTransferCols] = useState({
     "Tarih": true,
-    "Hareket Tipi": true,
     "İtem Kodu": true,
     "Parça Adı": true,
     "Miktar": true,
     "Kaynak Depo": true,
     "Hedef Depo": true,
-    "İşlemi Yapan": true
+    "İşlemi Yapan": true,
+    "Hareket Tipi": true
   });
   const [selectedCriticalCols, setSelectedCriticalCols] = useState({
     "İtem Kodu": true,
@@ -195,13 +195,13 @@ export default function Raporlar() {
       exportReadyData = dataToExport.map(r => {
         const row = {};
         if (selectedTransferCols["Tarih"]) row["Tarih"] = r.date;
-        if (selectedTransferCols["Hareket Tipi"]) row["Hareket Tipi"] = r.type;
         if (selectedTransferCols["İtem Kodu"]) row["İtem Kodu"] = r.item_code;
         if (selectedTransferCols["Parça Adı"]) row["Parça Adı"] = r.part_name;
         if (selectedTransferCols["Miktar"]) row["Miktar"] = r.quantity;
         if (selectedTransferCols["Kaynak Depo"]) row["Kaynak Depo"] = r.source_location;
         if (selectedTransferCols["Hedef Depo"]) row["Hedef Depo"] = r.target_location;
         if (selectedTransferCols["İşlemi Yapan"]) row["İşlemi Yapan"] = r.user;
+        if (selectedTransferCols["Hareket Tipi"]) row["Hareket Tipi"] = r.type;
         return row;
       });
       await api.exportTableToExcel(exportReadyData, 'transfer_hareketleri.xlsx');
@@ -451,13 +451,13 @@ export default function Raporlar() {
                       />
                     </th>
                     <th className="px-6 py-4">TARİH</th>
-                    <th className="px-6 py-4">HAREKET TİPİ</th>
                     <th className="px-6 py-4 min-w-[150px]">İTEM KODU</th>
                     <th className="px-6 py-4 min-w-[200px]">PARÇA ADI</th>
                     <th className="px-6 py-4">KAYNAK DEPO</th>
                     <th className="px-6 py-4">HEDEF DEPO</th>
                     <th className="px-6 py-4">MİKTAR</th>
                     <th className="px-6 py-4">İŞLEMİ YAPAN</th>
+                    <th className="px-6 py-4">HAREKET TİPİ</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-700/50">
@@ -488,6 +488,12 @@ export default function Raporlar() {
                           />
                         </td>
                         <td className="px-6 py-5 font-mono text-slate-400">{r.date}</td>
+                        <td className="px-6 py-5 font-mono text-slate-500 dark:text-slate-400">{r.item_code}</td>
+                        <td className="px-6 py-5 font-medium text-slate-800 dark:text-slate-200">{r.part_name}</td>
+                        <td className="px-6 py-5 text-slate-400">{r.source_location}</td>
+                        <td className="px-6 py-5 text-slate-400">{r.target_location}</td>
+                        <td className="px-6 py-5 font-mono text-slate-800 dark:text-slate-200">{r.quantity}</td>
+                        <td className="px-6 py-5">{r.user}</td>
                         <td className="px-6 py-5">
                           <span className={`px-3 py-1.5 rounded-full text-sm font-medium border ${
                             r.type.includes('Giriş') 
@@ -499,12 +505,6 @@ export default function Raporlar() {
                             {r.type}
                           </span>
                         </td>
-                        <td className="px-6 py-5 font-mono text-slate-500 dark:text-slate-400">{r.item_code}</td>
-                        <td className="px-6 py-5 font-medium text-slate-800 dark:text-slate-200">{r.part_name}</td>
-                        <td className="px-6 py-5 text-slate-400">{r.source_location}</td>
-                        <td className="px-6 py-5 text-slate-400">{r.target_location}</td>
-                        <td className="px-6 py-5 font-mono text-slate-800 dark:text-slate-200">{r.quantity}</td>
-                        <td className="px-6 py-5">{r.user}</td>
                       </tr>
                       );
                     })
