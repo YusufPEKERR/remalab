@@ -847,7 +847,7 @@ export default function WorkOrders() {
     { key: 'recent_productions', label: 'Hızlı Tekrar Üretim', icon: Repeat },
     { key: 'consumption', label: 'Malzeme Tüketimi', icon: Package },
     { key: 'production_report', label: 'Üretim Raporu', icon: TrendingUp },
-    { key: 'production_work_orders', label: 'Üretim İş Emirleri', icon: Layers }
+    // { key: 'production_work_orders', label: 'Üretim İş Emirleri', icon: Layers }
   ];
 
   return (
