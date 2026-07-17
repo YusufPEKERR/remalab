@@ -2034,7 +2034,13 @@ export default function WorkOrders() {
                                     let val = parseInt(e.target.value, 10) || 0;
                                     if (val < 0) val = 0;
                                     if (val > maxQty) val = maxQty;
-                                    setDefectiveParts(prev => ({ ...prev, [m.part_id]: val }));
+                                    setDefectiveParts(prev => {
+                                      const next = { ...prev, [m.part_id]: val };
+                                      // En yüksek sorunlu parça adedini bulup değişim adedine ata
+                                      const maxDefect = Math.max(0, ...Object.values(next).map(v => Number(v || 0)));
+                                      setReplacementQty(maxDefect);
+                                      return next;
+                                    });
                                   }}
                                   className="w-16 bg-white dark:bg-[#242a38] text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700/60 rounded-lg px-2 py-1 text-sm text-center font-mono focus:outline-none focus:border-amber-500"
                                 />
