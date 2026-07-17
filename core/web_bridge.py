@@ -312,6 +312,7 @@ class WebBridge(QObject):
             db.execute(text("ALTER TABLE warehouse.produced_units ADD COLUMN IF NOT EXISTS returned_at TIMESTAMP WITH TIME ZONE;"))
             db.execute(text("ALTER TABLE warehouse.produced_units ADD COLUMN IF NOT EXISTS return_location_id INTEGER REFERENCES warehouse.locations(id);"))
             db.execute(text("ALTER TABLE warehouse.produced_units ADD COLUMN IF NOT EXISTS returned_materials VARCHAR(2000);"))
+            db.execute(text("ALTER TABLE warehouse.produced_units ADD COLUMN IF NOT EXISTS replacement_requested_qty INTEGER DEFAULT 0;"))
             
             # Clean up old records to avoid data inconsistency with the new unique serial number system
             run_count = db.execute(text("SELECT COUNT(*) FROM warehouse.production_runs")).scalar() or 0
@@ -2563,7 +2564,7 @@ class WebBridge(QObject):
         db = SessionLocal()
         try:
             units = db.execute(text("""
-                SELECT pu.id AS unit_id, pu.serial_number, pu.is_returned, pu.return_reason, pu.returned_at, pu.return_location_id, pu.returned_materials,
+                SELECT pu.id AS unit_id, pu.serial_number, pu.is_returned, pu.return_reason, pu.returned_at, pu.return_location_id, pu.returned_materials, pu.replacement_requested_qty,
                        pr.id AS run_id, pr.target_part_id, pr.quantity_produced, pr.location_id, pr.source_location_id,
                        pr.produced_by, pr.notes, pr.created_at,
                        p.brand AS target_brand, p.model AS target_model,
@@ -2628,6 +2629,7 @@ class WebBridge(QObject):
                     "return_location_id": str(u["return_location_id"]) if u["return_location_id"] else "",
                     "return_location_name": u["return_location_name"] or "",
                     "returned_materials": json.loads(u["returned_materials"]) if u["returned_materials"] else [],
+                    "replacement_requested_qty": int(u["replacement_requested_qty"]) if u["replacement_requested_qty"] else 0,
                     "target_part_id": str(u["target_part_id"]) if u["target_part_id"] else "",
                     "target_part_name": target_label,
                     "target_item_code": u["target_code"] or "",
@@ -2758,6 +2760,7 @@ class WebBridge(QObject):
             unit_id = int(params["unit_id"])
             return_location_id = int(params["return_location_id"])
             return_reason = params.get("return_reason") or "Belirtilmedi"
+            replacement_qty = max(0, int(params.get("replacement_qty") or 0))
             GOOD_STOCK_ID = 26
 
             # Sorunlu parça miktarlarını çöz: {part_id: defective_qty}
@@ -2895,14 +2898,16 @@ class WebBridge(QObject):
                     return_reason = :reason,
                     returned_at = :now,
                     return_location_id = :ret_loc_id,
-                    returned_materials = :returned_mats
+                    returned_materials = :returned_mats,
+                    replacement_requested_qty = :replacement_qty
                 WHERE id = :uid
             """), {
                 "reason": return_reason,
                 "now": datetime.utcnow(),
                 "ret_loc_id": return_location_id,
                 "uid": unit_id,
-                "returned_mats": json.dumps(returned_mats)
+                "returned_mats": json.dumps(returned_mats),
+                "replacement_qty": replacement_qty
             })
             
             db.commit()

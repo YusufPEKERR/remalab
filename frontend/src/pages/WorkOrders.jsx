@@ -140,6 +140,7 @@ export default function WorkOrders() {
   const [returnLocationId, setReturnLocationId] = useState('27');
   const [returnReason, setReturnReason] = useState('');
   const [defectiveParts, setDefectiveParts] = useState({}); // { part_id: true/false }
+  const [replacementQty, setReplacementQty] = useState(0);
   const [returnSaving, setReturnSaving] = useState(false);
   const [detailDialog, setDetailDialog] = useState(null);
 
@@ -597,13 +598,15 @@ export default function WorkOrders() {
         returnDialog.unit_id,
         returnLocationId,
         returnReason,
-        JSON.stringify(defectiveList)
+        JSON.stringify(defectiveList),
+        replacementQty
       );
       if (res.success) {
         alert("İade/değişim işlemi başarıyla tamamlandı. Hammaddeler ilgili depolara aktarıldı.");
         setReturnDialog(null);
         setReturnReason('');
         setDefectiveParts({});
+        setReplacementQty(0);
         fetchProductionRuns();
         refreshStockStatus();
       } else {
@@ -1515,7 +1518,7 @@ export default function WorkOrders() {
                             <Repeat size={16} />
                           </button>
                           {!run.is_returned && (
-                            <button onClick={() => { setReturnDialog(run); setReturnLocationId('27'); setReturnReason(''); setDefectiveParts({}); }} className="p-1.5 text-amber-500 hover:bg-amber-500/10 rounded-lg transition-colors" title="İade / Değişim">
+                            <button onClick={() => { setReturnDialog(run); setReturnLocationId('27'); setReturnReason(''); setDefectiveParts({}); setReplacementQty(0); }} className="p-1.5 text-amber-500 hover:bg-amber-500/10 rounded-lg transition-colors" title="İade / Değişim">
                               <RotateCcw size={16} />
                             </button>
                           )}
@@ -2062,6 +2065,29 @@ export default function WorkOrders() {
                 </select>
               </div>
 
+              {/* Değişim İstenecek Ürün Adedi */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                  Değişim İstenecek Ürün Adedi
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min="0"
+                    max={returnDialog.quantity_produced}
+                    value={replacementQty}
+                    onChange={e => {
+                      let val = parseInt(e.target.value, 10) || 0;
+                      if (val < 0) val = 0;
+                      if (val > returnDialog.quantity_produced) val = returnDialog.quantity_produced;
+                      setReplacementQty(val);
+                    }}
+                    className="w-24 bg-slate-50 dark:bg-[#242a38] text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700/60 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-amber-500 font-mono"
+                  />
+                  <span className="text-xs text-slate-400 font-mono">/ {returnDialog.quantity_produced} adet (Maksimum iade edilen kadar)</span>
+                </div>
+              </div>
+
               {/* İade nedeni */}
               <div>
                 <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">İade / Değişim Nedeni</label>
@@ -2165,6 +2191,12 @@ export default function WorkOrders() {
                       <span className="text-slate-400">İade Edilen Depo:</span>
                       <span className="text-slate-800 dark:text-slate-200">{detailDialog.return_location_name || '-'}</span>
                     </div>
+                    {detailDialog.replacement_requested_qty !== undefined && detailDialog.replacement_requested_qty > 0 && (
+                      <div className="flex justify-between text-sm font-semibold text-amber-500 bg-amber-500/5 px-2 py-1 rounded border border-amber-500/10">
+                        <span>İstenen Değişim Adedi:</span>
+                        <span>{detailDialog.replacement_requested_qty} adet</span>
+                      </div>
+                    )}
                     <div className="text-sm pt-1">
                       <div className="text-slate-400 mb-1">İade/Değişim Nedeni:</div>
                       <div className="bg-white dark:bg-[#1a1d26] p-3 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-sans italic text-sm">
