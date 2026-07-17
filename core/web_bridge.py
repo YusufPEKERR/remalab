@@ -3253,7 +3253,10 @@ class WebBridge(QObject):
                     "date": mov.created_at.strftime("%Y-%m-%d %H:%M") if mov.created_at else "",
                     "type": mov.type,
                     "part_name": p.name if p else "-",
+                    "item_code": p.item_code if p else "-",
                     "location": loc_name,
+                    "source_location": sloc.name if sloc else "-",
+                    "target_location": tloc.name if tloc else "-",
                     "quantity": mov.quantity,
                     "user": mov.created_by
                 })
