@@ -460,6 +460,7 @@ export default function WorkOrders() {
       setProductionMaterials([]);
       fetchProductionRuns();
       api.getStockStatus().then(r => { if (r.success) setStockStatus(r.stock || []); });
+      alert('Üretim kaydı başarıyla oluşturuldu.');
     } else {
       alert(res.message || 'Üretim kaydı oluşturulamadı.');
     }
