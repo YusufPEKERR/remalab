@@ -1478,7 +1478,13 @@ export default function WorkOrders() {
                         </div>
                         <div className="text-xs text-slate-400">{run.target_item_code}</div>
                       </td>
-                      <td className="px-6 py-4 font-mono text-center text-emerald-500 font-medium">+{run.quantity_produced}</td>
+                      <td className="px-6 py-4 font-mono text-center font-medium">
+                        {run.is_returned ? (
+                          <span className="text-red-500">-{run.quantity_produced}</span>
+                        ) : (
+                          <span className="text-emerald-500">+{run.quantity_produced}</span>
+                        )}
+                      </td>
                       <td className="px-6 py-4">{run.source_location_name || '-'}</td>
                       <td className="px-6 py-4">{run.location_name || '-'}</td>
                       <td className="px-6 py-4 text-xs text-slate-400">
