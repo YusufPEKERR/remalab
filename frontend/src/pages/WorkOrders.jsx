@@ -2042,6 +2042,7 @@ export default function WorkOrders() {
                         </div>
                       );
                     })}
+                  </div>
                 </div>
               )}
 
