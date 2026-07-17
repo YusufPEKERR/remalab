@@ -229,6 +229,15 @@ export default function Raporlar() {
     return () => clearInterval(interval);
   }, [fetchReports]);
 
+  useEffect(() => {
+    if (activeTab === 'critical') {
+      const goodStock = locations.find(l => l.kind === 'good_stock');
+      if (goodStock && selectedLocation !== goodStock.name) {
+        setSelectedLocation(goodStock.name);
+      }
+    }
+  }, [activeTab, locations, selectedLocation]);
+
   return (
     <div className="flex flex-col space-y-6 min-h-full pb-8">
       
@@ -245,8 +254,8 @@ export default function Raporlar() {
             onChange={(e) => setSelectedLocation(e.target.value)}
             className="bg-slate-50 dark:bg-[#242a38] text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-blue-500"
           >
-            <option value="">Tüm Depolar</option>
-            {locations.map(loc => (
+            {activeTab !== 'critical' && <option value="">Tüm Depolar</option>}
+            {locations.filter(loc => activeTab === 'critical' ? loc.kind === 'good_stock' : true).map(loc => (
               <option key={loc.id} value={loc.name}>{loc.name}</option>
             ))}
           </select>
