@@ -196,7 +196,7 @@ export default function Raporlar() {
   }, [fetchReports]);
 
   return (
-    <div className="h-full flex flex-col space-y-6 overflow-hidden">
+    <div className="flex flex-col space-y-6 min-h-full pb-8">
       
       {/* Header */}
       <div className="flex justify-between items-center bg-white dark:bg-[#1e2330] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm shrink-0">
@@ -310,8 +310,8 @@ export default function Raporlar() {
           </div>
 
           {/* Table General */}
-          <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl shadow-lg flex-1 overflow-hidden flex flex-col">
-            <div className="overflow-auto flex-1">
+          <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl shadow-lg flex-1 flex flex-col">
+            <div className="overflow-x-auto w-full">
               <table className="w-full text-left text-base whitespace-nowrap">
                 <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-sm sticky top-0 z-10">
                   <tr>
@@ -325,7 +325,7 @@ export default function Raporlar() {
                     </th>
                     <th className="px-6 py-4">TARİH</th>
                     <th className="px-6 py-4">HAREKET TİPİ</th>
-                    <th className="px-6 py-4">PARÇA ADI</th>
+                    <th className="px-6 py-4 min-w-[300px]">PARÇA ADI</th>
                     <th className="px-6 py-4">LOKASYON</th>
                     <th className="px-6 py-4">MİKTAR</th>
                     <th className="px-6 py-4">İŞLEMİ YAPAN</th>
@@ -398,8 +398,8 @@ export default function Raporlar() {
           </div>
 
           {/* Table Critical */}
-          <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl shadow-lg flex-1 overflow-hidden flex flex-col">
-            <div className="overflow-auto flex-1">
+          <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl shadow-lg flex-1 flex flex-col">
+            <div className="overflow-x-auto w-full">
               <table className="w-full text-left text-base whitespace-nowrap">
                 <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-sm sticky top-0 z-10">
                   <tr>
@@ -411,7 +411,7 @@ export default function Raporlar() {
                         onChange={toggleSelectAll}
                       />
                     </th>
-                    <th className="px-6 py-4">PARÇA ADI</th>
+                    <th className="px-6 py-4 min-w-[300px]">PARÇA ADI</th>
                     <th className="px-6 py-4">LOKASYON</th>
                     <th className="px-6 py-4">MEVCUT STOK</th>
                     <th className="px-6 py-4">KRİTİK LİMİT</th>

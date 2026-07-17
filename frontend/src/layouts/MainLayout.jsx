@@ -424,8 +424,8 @@ export default function MainLayout() {
         </header>
 
         {/* Page Content (Outlet renders child routes) */}
-        <main className="flex-1 overflow-hidden p-6 bg-slate-50 dark:bg-[#0f1219]">
-          <div className="h-full max-w-[1600px] mx-auto">
+        <main className="flex-1 overflow-y-auto p-6 bg-slate-50 dark:bg-[#0f1219]">
+          <div className="min-h-full max-w-[1600px] mx-auto">
             <Outlet />
           </div>
         </main>
