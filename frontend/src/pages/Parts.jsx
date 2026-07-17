@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-// eslint-disable-next-line no-unused-vars
-import { Plus, Search, Trash2, Edit, AlertCircle, RefreshCw, X, Download, Upload, FileSpreadsheet } from 'lucide-react';
+import { Plus, Search, Trash2, Edit, AlertCircle, RefreshCw, X, Download, Upload, FileSpreadsheet, ArrowUpDown } from 'lucide-react';
 import { api } from '../services/api';
 import ExcelMappingModal from '../components/ExcelMappingModal';
 
@@ -11,7 +10,7 @@ const EMPTY_FORM = {
   item_code: '', barcode: '', name: '',
   item_category: '', part_category_id: '',
   department: [], stock_tracking_type: 'Stok Takipli', status: 'Aktif', critical_limit: '',
-  memory: []
+  memory: [], part_type: ''
 };
 
 export default function Parts() {
@@ -22,6 +21,7 @@ export default function Parts() {
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageInput, setPageInput] = useState('1');
   const [itemsPerPage, setItemsPerPage] = useState(50);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -31,15 +31,16 @@ export default function Parts() {
 
   // Selection and Export States
   const [selectedRows, setSelectedRows] = useState([]);
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [selectedExportColumns, setSelectedExportColumns] = useState({
     "ID": true,
     "Parça Kodu": true,
     "Barkod": true,
     "Parça Adı": true,
-    "Kalite": true,
+    "Parça Kategorisi": true,
     "Item Code": true,
-    "Item Category": true,
+    "Parça Tipi": true,
     "Parça Statüsü": true
   });
 
@@ -51,14 +52,15 @@ export default function Parts() {
 
   const PART_STATUSES = ['Aktif', 'Pasif', 'Beklemede', 'Hurda'];
 
-  const dbColumns = ["item_code", "barcode", "name", "item_category", "part_category", "status"];
+  const dbColumns = ["item_code", "barcode", "name", "item_category", "part_category", "status", "part_type"];
   const friendlyNames = {
     item_code: "Parça Kodu (item_code) *",
     barcode: "Barkod (barcode)",
     name: "Parça Adı (name)",
-    item_category: "Kalite (item_category)",
+    item_category: "Parça Kategorisi (item_category)",
     part_category: "Item Code (part_category)",
-    status: "Parça Statüsü (status)"
+    status: "Parça Statüsü (status)",
+    part_type: "Parça Tipi (part_type)"
   };
 
   const fetchPartCategories = async () => {
@@ -118,6 +120,10 @@ export default function Parts() {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    setPageInput(String(currentPage));
+  }, [currentPage]);
+
   const selectedCategory = useMemo(
     () => partCategories.find(c => String(c.id) === String(formData.part_category_id)) || null,
     [partCategories, formData.part_category_id]
@@ -136,7 +142,8 @@ export default function Parts() {
         stock_tracking_type: part.stock_tracking_type || 'Stok Takipli',
         status: part.status || 'Aktif',
         critical_limit: part.critical_limit || '',
-        memory: part.memory ? String(part.memory).split(',').map(m => m.trim()).filter(Boolean) : []
+        memory: part.memory ? String(part.memory).split(',').map(m => m.trim()).filter(Boolean) : [],
+        part_type: part.part_type || ''
       });
     } else {
       setCurrentPart(null);
@@ -159,7 +166,8 @@ export default function Parts() {
         part_category_id: existing.part_category_id || '',
         department: existing.department ? String(existing.department).split(',').map(d => d.trim()).filter(Boolean) : [],
         stock_tracking_type: existing.stock_tracking_type || 'Stok Takipli',
-        status: existing.status || 'Aktif'
+        status: existing.status || 'Aktif',
+        part_type: existing.part_type || ''
       }));
     } else {
       alert("Bu parça koduna ait mevcut bir kayıt bulunamadı.");
@@ -199,6 +207,24 @@ export default function Parts() {
       try {
         const res = await api.deletePart(id);
         if (res.success) {
+          fetchParts();
+        } else {
+          alert(res.message || 'Silme işlemi başarısız oldu.');
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Bir hata oluştu.');
+      }
+    }
+  };
+  const handleBulkDelete = async () => {
+    if (selectedOnCurrentPage.length === 0) return;
+    if (window.confirm(`Mevcut sayfada seçilen ${selectedOnCurrentPage.length} parçayı silmek istediğinize emin misiniz?`)) {
+      try {
+        const res = await api.deletePartsBulk(selectedOnCurrentPage);
+        if (res.success) {
+          alert(res.message || 'Seçilen parçalar silindi.');
+          setSelectedRows(prev => prev.filter(id => !selectedOnCurrentPage.includes(id)));
           fetchParts();
         } else {
           alert(res.message || 'Silme işlemi başarısız oldu.');
@@ -271,9 +297,9 @@ export default function Parts() {
       if (selectedExportColumns["Parça Kodu"]) row["Parça Kodu"] = p.item_code;
       if (selectedExportColumns["Barkod"]) row["Barkod"] = p.barcode;
       if (selectedExportColumns["Parça Adı"]) row["Parça Adı"] = p.name;
-      if (selectedExportColumns["Kalite"]) row["Kalite"] = p.item_category;
+      if (selectedExportColumns["Parça Kategorisi"]) row["Parça Kategorisi"] = p.item_category;
       if (selectedExportColumns["Item Code"]) row["Item Code"] = p.part_category;
-      if (selectedExportColumns["Item Category"]) row["Item Category"] = p.part_type;
+      if (selectedExportColumns["Parça Tipi"]) row["Parça Tipi"] = p.part_type;
       if (selectedExportColumns["Parça Statüsü"]) row["Parça Statüsü"] = p.status;
       return row;
     });
@@ -290,10 +316,18 @@ export default function Parts() {
     fetchParts();
   };
 
+  const handleSort = (key) => {
+    setSortConfig(prev =>
+      prev.key === key
+        ? { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' }
+        : { key, direction: 'asc' }
+    );
+  };
+
   // Filter and Pagination Logic
   const filteredParts = useMemo(() => {
     const q = searchTerm.toLowerCase();
-    return parts.filter(p => {
+    let result = parts.filter(p => {
       const matchesSearch =
         (p.item_code && p.item_code.toLowerCase().includes(q)) ||
         (p.barcode && p.barcode.toLowerCase().includes(q)) ||
@@ -302,10 +336,27 @@ export default function Parts() {
 
       return matchesSearch;
     });
-  }, [parts, searchTerm]);
+
+    if (sortConfig.key) {
+      result = [...result].sort((a, b) => {
+        const valA = (a[sortConfig.key] || '').toString().toLocaleLowerCase('tr-TR');
+        const valB = (b[sortConfig.key] || '').toString().toLocaleLowerCase('tr-TR');
+        if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return result;
+  }, [parts, searchTerm, sortConfig]);
 
   const totalPages = Math.ceil(filteredParts.length / itemsPerPage) || 1;
   const paginatedParts = filteredParts.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  const selectedOnCurrentPage = useMemo(() => {
+    const currentPageIds = paginatedParts.map(p => p.id);
+    return selectedRows.filter(id => currentPageIds.includes(id));
+  }, [selectedRows, paginatedParts]);
 
   const categoryOptions = partCategories.filter(c => c.is_active !== false || String(c.id) === String(formData.part_category_id));
 
@@ -334,6 +385,15 @@ export default function Parts() {
               <FileSpreadsheet size={16} />
             </div>
           </div>
+
+          {selectedOnCurrentPage.length > 1 && (
+            <button
+              onClick={handleBulkDelete}
+              className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl transition-all shadow-lg shadow-red-900/20 font-medium"
+            >
+              <Trash2 size={18} /> Seçilenleri Sil ({selectedOnCurrentPage.length})
+            </button>
+          )}
 
           <button
             onClick={() => handleOpenModal()}
@@ -374,14 +434,54 @@ export default function Parts() {
                     onChange={toggleSelectAll}
                   />
                 </th>
-                <th className="px-6 py-4">ID</th>
-                <th className="px-6 py-4">Parça Kodu</th>
-                <th className="px-6 py-4">Barkod</th>
-                <th className="px-6 py-4">Parça Adı</th>
-                <th className="px-6 py-4">Kalite</th>
-                <th className="px-6 py-4">Item Code</th>
-                <th className="px-6 py-4">Item Category</th>
-                <th className="px-6 py-4">Parça Statüsü</th>
+                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('id')}>
+                  <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                    ID
+                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'id' ? 'text-blue-500' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
+                  </div>
+                </th>
+                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('item_code')}>
+                  <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                    PARÇA KODU
+                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'item_code' ? 'text-blue-500' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
+                  </div>
+                </th>
+                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('barcode')}>
+                  <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                    BARKOD
+                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'barcode' ? 'text-blue-500' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
+                  </div>
+                </th>
+                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('name')}>
+                  <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                    PARÇA ADI
+                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'name' ? 'text-blue-500' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
+                  </div>
+                </th>
+                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('item_category')}>
+                  <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                    PARÇA KATEGORİSİ
+                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'item_category' ? 'text-blue-500' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
+                  </div>
+                </th>
+                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('part_category')}>
+                  <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                    ITEM CODE
+                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'part_category' ? 'text-blue-500' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
+                  </div>
+                </th>
+                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('part_type')}>
+                  <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                    PARÇA TİPİ
+                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'part_type' ? 'text-blue-500' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
+                  </div>
+                </th>
+                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('status')}>
+                  <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                    PARÇA STATÜSÜ
+                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'status' ? 'text-blue-500' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
+                  </div>
+                </th>
                 <th className="px-6 py-4 text-center">İşlemler</th>
               </tr>
             </thead>
@@ -466,6 +566,9 @@ export default function Parts() {
               <option value={20}>20</option>
               <option value={50}>50</option>
               <option value={100}>100</option>
+              <option value={250}>250</option>
+              <option value={500}>500</option>
+              <option value={1000}>1000</option>
             </select>
           </div>
 
@@ -477,9 +580,39 @@ export default function Parts() {
             >
               ← Önceki
             </button>
-            <span className="font-medium">
-              Sayfa {currentPage} / {totalPages} ({filteredParts.length} Kayıt)
-            </span>
+            
+            <div className="flex items-center gap-1.5 font-medium">
+              <span>Sayfa:</span>
+              <input
+                type="number"
+                min="1"
+                max={totalPages}
+                value={pageInput}
+                onChange={(e) => setPageInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    const pageNum = parseInt(pageInput, 10);
+                    if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= totalPages) {
+                      setCurrentPage(pageNum);
+                    } else {
+                      setPageInput(String(currentPage));
+                    }
+                  }
+                }}
+                onBlur={() => {
+                  const pageNum = parseInt(pageInput, 10);
+                  if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= totalPages) {
+                    setCurrentPage(pageNum);
+                  } else {
+                    setPageInput(String(currentPage));
+                  }
+                }}
+                className="w-16 bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-center text-slate-800 dark:text-slate-200 focus:outline-none focus:border-slate-500 font-semibold"
+              />
+              <span>/ {totalPages}</span>
+              <span className="text-xs text-slate-500 ml-1">({filteredParts.length} Kayıt)</span>
+            </div>
+
             <button
               onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
               disabled={currentPage === totalPages}
@@ -557,7 +690,7 @@ export default function Parts() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1">Kalite</label>
+                  <label className="block text-sm font-medium text-slate-400 mb-1">Parça Kategorisi</label>
                   <select
                     className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
                     value={formData.item_category}
@@ -618,6 +751,17 @@ export default function Parts() {
                   value={formData.critical_limit}
                   onChange={e => setFormData({...formData, critical_limit: e.target.value})}
                   placeholder="Opsiyonel (Varsayılan: 50)"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-1">Parça Tipi</label>
+                <input
+                  type="text"
+                  className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                  value={formData.part_type}
+                  onChange={e => setFormData({...formData, part_type: e.target.value})}
+                  placeholder="Örn: SparePart, Labour vb."
                 />
               </div>
 

@@ -152,7 +152,7 @@ export default function ServiceRecords() {
         <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-2">
           <Wrench className="text-blue-400" size={24} /> Servis Kaydı
         </h1>
-        <p className="text-slate-400 mt-1">Müşteri cihazlarının arıza kabul ve tamir takibini yönetin.</p>
+        <p className="text-slate-400 mt-1">Teknisyen cihazlarının arıza kabul ve tamir takibini yönetin.</p>
       </div>
 
       <div className="flex-1 overflow-y-auto pr-2 pb-6 space-y-6">
@@ -171,7 +171,7 @@ export default function ServiceRecords() {
               <table className="w-full text-left text-sm">
                 <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs">
                   <tr>
-                    <th className="px-6 py-4">Müşteri</th>
+                    <th className="px-6 py-4">Teknisyen</th>
                     <th className="px-6 py-4">Cihaz</th>
                     <th className="px-6 py-4">Arıza</th>
                     <th className="px-6 py-4">Durum</th>
@@ -239,14 +239,14 @@ export default function ServiceRecords() {
 
             <form onSubmit={handleSave} className="space-y-6">
 
-              {/* 1. Müşteri Bilgileri */}
+              {/* 1. Teknisyen Bilgileri */}
               <div>
                 <h3 className="text-sm font-semibold text-blue-400 mb-3 flex items-center gap-2 uppercase tracking-wider">
-                  <User size={16} /> Müşteri Bilgileri
+                  <User size={16} /> Teknisyen Bilgileri
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div>
-                    <label className="block text-sm font-medium text-slate-400 mb-1.5">Müşteri Adı <span className="text-red-400">*</span></label>
+                    <label className="block text-sm font-medium text-slate-400 mb-1.5">Teknisyen Adı <span className="text-red-400">*</span></label>
                     <input type="text" required className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={formData.customer_name} onChange={e => setFormData({...formData, customer_name: e.target.value})} />
                   </div>
                   <div>
@@ -325,8 +325,8 @@ export default function ServiceRecords() {
                   </div>
                 </div>
                 <div className="mt-5">
-                  <label className="block text-sm font-medium text-slate-400 mb-1.5">Müşteri Şikayeti</label>
-                  <textarea rows={3} placeholder="Müşterinin kendi ifadesiyle şikayeti..." className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 resize-none" value={formData.customer_complaint} onChange={e => setFormData({...formData, customer_complaint: e.target.value})} />
+                  <label className="block text-sm font-medium text-slate-400 mb-1.5">Teknisyen Açıklaması / Şikayeti</label>
+                  <textarea rows={3} placeholder="Teknisyenin kendi ifadesiyle şikayeti..." className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 resize-none" value={formData.customer_complaint} onChange={e => setFormData({...formData, customer_complaint: e.target.value})} />
                 </div>
                 <div className="mt-5">
                   <label className="block text-sm font-medium text-slate-400 mb-1.5">Ön Teşhis</label>

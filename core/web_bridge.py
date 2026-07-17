@@ -41,6 +41,132 @@ class WebBridge(QObject):
         self._ensure_part_extra_columns()
         self._ensure_user_gorev_column()
         self._ensure_user_fullname_column()
+        self._ensure_item_bom_data()
+
+    def _ensure_item_bom_data(self):
+        """ItemBOM tablosunun verilerini Excel dosyasından okuyarak veri tabanına senkronize eder."""
+        from sqlalchemy import text
+        from models.part import Part
+        from models.item_bom import ItemBOM
+        import openpyxl
+        import os
+        
+        db = SessionLocal()
+        try:
+            # Check if table already has data
+            count = db.execute(text("SELECT COUNT(*) FROM warehouse.item_bom;")).scalar()
+            if count > 0:
+                return
+            
+            print("[WebBridge] ItemBOM tablosu boş. Excel'den veri içe aktarılıyor...")
+            files = [f for f in os.listdir('.') if 'dosya' in f.lower() and not f.startswith('~$')]
+            if not files:
+                return
+            
+            fname = files[0]
+            wb = openpyxl.load_workbook(fname, data_only=True)
+            
+            # Read Item sheet for names, types
+            ws_item = wb['Item']
+            item_rows = list(ws_item.iter_rows(values_only=True))
+            h_idx = next(i for i, r in enumerate(item_rows) if r and 'code' in [str(x).lower() for x in r])
+            headers_item = item_rows[h_idx]
+            shortname_col = next(i for i, h in enumerate(headers_item) if h == 'shortName')
+            category_col = next(i for i, h in enumerate(headers_item) if h == 'itemCategory')
+            type_col = next(i for i, h in enumerate(headers_item) if h == 'itemType')
+            
+            item_info_map = {}
+            for r in item_rows[h_idx+1:]:
+                s_name = r[shortname_col]
+                cat_val = r[category_col]
+                type_val = r[type_col]
+                if s_name:
+                    item_info_map[str(s_name)] = {
+                        "name": str(s_name),
+                        "item_category": str(cat_val) if cat_val else None,
+                        "part_type": str(type_val) if type_val else None
+                    }
+            
+            # Read ItemBom sheet
+            ws_bom = wb['ItemBom']
+            bom_rows = list(ws_bom.iter_rows(values_only=True))
+            h_idx_bom = next(i for i, r in enumerate(bom_rows) if r and 'UretilenParcaKodu' in [str(x) for x in r])
+            headers_bom = bom_rows[h_idx_bom]
+            
+            parent_col = next(i for i, h in enumerate(headers_bom) if h == 'UretilenParcaKodu')
+            child1_col = next(i for i, h in enumerate(headers_bom) if h == 'Tuketilen Parca_1')
+            qty1_col = next(i for i, h in enumerate(headers_bom) if h == 'Tuketilen Parca_1_Miktar')
+            child2_col = next(i for i, h in enumerate(headers_bom) if h == 'Tuketilen Parca_2')
+            qty2_col = next(i for i, h in enumerate(headers_bom) if h == 'Tuketilen Parca_2_Miktar')
+            
+            bom_data = []
+            unique_codes = set()
+            
+            for r in bom_rows[h_idx_bom+1:]:
+                parent = r[parent_col]
+                child1 = r[child1_col]
+                qty1 = r[qty1_col]
+                child2 = r[child2_col]
+                qty2 = r[qty2_col]
+                
+                if not parent:
+                    continue
+                
+                unique_codes.add(parent)
+                children = []
+                if child1:
+                    unique_codes.add(child1)
+                    children.append((child1, int(qty1) if qty1 else 1))
+                if child2:
+                    unique_codes.add(child2)
+                    children.append((child2, int(qty2) if qty2 else 1))
+                    
+                bom_data.append({
+                    'parent': parent,
+                    'children': children
+                })
+            
+            wb.close()
+            
+            # Insert missing parts
+            existing_parts = db.query(Part).filter(Part.item_code.in_(list(unique_codes))).all()
+            existing_codes = {p.item_code for p in existing_parts}
+            missing_codes = unique_codes - existing_codes
+            
+            for code in missing_codes:
+                info = item_info_map.get(code, {"name": code, "item_category": None, "part_type": None})
+                new_part = Part(
+                    item_code=code,
+                    name=info["name"],
+                    item_category=info.get("item_category"),
+                    part_type=info["part_type"],
+                    status="Aktif",
+                    stock_tracking_type="Stok Takipli",
+                    critical_limit=10
+                )
+                db.add(new_part)
+            
+            if missing_codes:
+                db.commit()
+            
+            # Insert BOMs
+            for item in bom_data:
+                parent = item['parent']
+                for child, qty in item['children']:
+                    new_bom = ItemBOM(
+                        parent_item_id=parent,
+                        child_item_id=child,
+                        quantity=qty
+                    )
+                    db.add(new_bom)
+            
+            db.commit()
+            print(f"[WebBridge] ItemBOM Excel verisi başarıyla senkronize edildi. Toplam {len(bom_data)} reçete eklendi.")
+        except Exception as e:
+            db.rollback()
+            print(f"[WebBridge] ItemBOM senkronizasyon hatası: {e}")
+        finally:
+            db.close()
 
     def _ensure_user_gorev_column(self):
         """warehouse.users tablosuna gorev sütunu yoksa ekler."""
@@ -281,12 +407,13 @@ class WebBridge(QObject):
             db.close()
 
     def _ensure_part_extra_columns(self):
-        """warehouse.parts tablosuna part_category_id ve barcode sütunlarını ekler."""
+        """warehouse.parts tablosuna part_category_id, barcode ve part_type sütunlarını ekler."""
         from sqlalchemy import text
         db = SessionLocal()
         try:
             db.execute(text("ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS part_category_id INTEGER REFERENCES warehouse.part_categories(id);"))
             db.execute(text("ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS barcode VARCHAR(100);"))
+            db.execute(text("ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS part_type VARCHAR(100);"))
             db.commit()
         except Exception as e:
             db.rollback()
@@ -505,7 +632,7 @@ class WebBridge(QObject):
 				SELECT p.id, p.name, p.item_code, p.barcode, p.brand, p.model, p.color,
                        p.item_category, p.part_category_id,
                        COALESCE(pc.name, p.part_category) AS part_category,
-                       '' AS part_type,
+                       COALESCE(p.part_type, '') AS part_type,
                        COALESCE(pc.departments, p.department, '') AS department,
                        COALESCE(pc.stock_tracking_type, p.stock_tracking_type, 'Stok Takipli') AS stock_tracking_type,
                        NULL AS default_location_id, '' AS default_location_name,
@@ -540,8 +667,48 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    @Slot(str, str, str, str, str, str, str, str, str, str, str, str, str, result=str)
-    def create_part(self, name, item_code, barcode, brand, model, item_category, part_category, part_category_id, stock_tracking_type, department, status, critical_limit, memory):
+    @Slot(result=str)
+    def get_item_boms(self):
+        """Tüm ItemBOM kayıtlarını (parent ve child bilgileriyle birlikte) getirir."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            result = db.execute(text("""
+                SELECT b.id, b.parent_item_id, b.child_item_id, b.quantity,
+                       p_parent.name AS parent_name, p_parent.id AS parent_part_id,
+                       p_child.name AS child_name, p_child.id AS child_part_id
+                FROM warehouse.item_bom b
+                LEFT JOIN warehouse.parts p_parent ON p_parent.item_code = b.parent_item_id
+                LEFT JOIN warehouse.parts p_child ON p_child.item_code = b.child_item_id
+                ORDER BY b.parent_item_id, b.child_item_id;
+            """)).mappings().all()
+            
+            bom_map = {}
+            for row in result:
+                parent_code = row["parent_item_id"]
+                if parent_code not in bom_map:
+                    bom_map[parent_code] = {
+                        "parent_item_id": parent_code,
+                        "parent_part_id": str(row["parent_part_id"]) if row["parent_part_id"] else "",
+                        "parent_name": row["parent_name"] or parent_code,
+                        "materials": []
+                    }
+                bom_map[parent_code]["materials"].append({
+                    "child_item_id": row["child_item_id"],
+                    "child_part_id": str(row["child_part_id"]) if row["child_part_id"] else "",
+                    "child_name": row["child_name"] or row["child_item_id"],
+                    "quantity": int(row["quantity"])
+                })
+            
+            return json.dumps({"success": True, "item_boms": list(bom_map.values())}, ensure_ascii=False)
+        except Exception as e:
+            print(f"[WebBridge] get_item_boms hatası: {e}")
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, str, str, str, str, str, str, str, str, str, str, str, str, result=str)
+    def create_part(self, name, item_code, barcode, brand, model, item_category, part_category, part_category_id, stock_tracking_type, department, status, critical_limit, memory, part_type):
         """Yeni parça ekler."""
         from sqlalchemy import text
         db = SessionLocal()
@@ -555,8 +722,8 @@ class WebBridge(QObject):
                 part_name = f"{brand.strip()} {model.strip()}".strip() or code
 
             sql = """
-                INSERT INTO warehouse.parts (name, item_code, barcode, brand, model, item_category, part_category, part_category_id, stock_tracking_type, department, status, critical_limit, memory)
-                VALUES (:name, :code, :barcode, :brand, :model, :icat, :pcat, :pcat_id, :stt, :dept, :status, :critical_limit, :memory)
+                INSERT INTO warehouse.parts (name, item_code, barcode, brand, model, item_category, part_category, part_category_id, stock_tracking_type, department, status, critical_limit, memory, part_type)
+                VALUES (:name, :code, :barcode, :brand, :model, :icat, :pcat, :pcat_id, :stt, :dept, :status, :critical_limit, :memory, :part_type)
             """
             db.execute(text(sql), {
                 "name": part_name, "code": code, "barcode": barcode or None,
@@ -567,7 +734,8 @@ class WebBridge(QObject):
                 "dept": department or None,
                 "status": status or "Aktif",
                 "critical_limit": int(critical_limit) if critical_limit.strip() else 50,
-                "memory": memory or None
+                "memory": memory or None,
+                "part_type": part_type or None
             })
             db.commit()
             return json.dumps({"success": True, "message": "Parça eklendi"})
@@ -577,8 +745,8 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    @Slot(str, str, str, str, str, str, str, str, str, str, str, str, str, str, result=str)
-    def update_part(self, part_id_str, name, item_code, barcode, brand, model, item_category, part_category, part_category_id, stock_tracking_type, department, status, critical_limit, memory):
+    @Slot(str, str, str, str, str, str, str, str, str, str, str, str, str, str, str, result=str)
+    def update_part(self, part_id_str, name, item_code, barcode, brand, model, item_category, part_category, part_category_id, stock_tracking_type, department, status, critical_limit, memory, part_type):
         """Var olan bir parçayı günceller."""
         from sqlalchemy import text
         db = SessionLocal()
@@ -598,7 +766,7 @@ class WebBridge(QObject):
                     model = :model, item_category = :icat, part_category = :pcat,
                     part_category_id = :pcat_id, stock_tracking_type = :stt,
                     department = :dept, status = :status, critical_limit = :critical_limit,
-                    memory = :memory
+                    memory = :memory, part_type = :part_type
                 WHERE id = :id
             """
             db.execute(text(sql), {
@@ -611,6 +779,7 @@ class WebBridge(QObject):
                 "status": status or "Aktif",
                 "critical_limit": int(critical_limit) if critical_limit.strip() else 50,
                 "memory": memory or None,
+                "part_type": part_type or None,
                 "id": part_id
             })
             db.commit()
@@ -646,6 +815,46 @@ class WebBridge(QObject):
         except Exception as e:
             db.rollback()
             return json.dumps({"success": False, "message": f"Silme hatası: {str(e)}"})
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
+    def delete_parts_bulk(self, part_ids_csv):
+        """Birden fazla parçayı toplu olarak siler."""
+        from sqlalchemy import text
+        from models.stock import Stock
+        from models.stock_movement import StockMovement
+        db = SessionLocal()
+        try:
+            ids = [int(x.strip()) for x in part_ids_csv.split(",") if x.strip()]
+            if not ids:
+                return json.dumps({"success": False, "message": "Silinecek parça seçilmedi."})
+            
+            # Orphan kontrolü
+            safe_ids = []
+            skipped_count = 0
+            for pid in ids:
+                stock_count = db.query(Stock).filter(Stock.part_id == pid, Stock.quantity > 0).count()
+                movement_count = db.query(StockMovement).filter(StockMovement.part_id == pid).count()
+                if stock_count == 0 and movement_count == 0:
+                    safe_ids.append(pid)
+                else:
+                    skipped_count += 1
+                    
+            if not safe_ids:
+                return json.dumps({"success": False, "message": "Seçilen parçaların hiçbirisi silinmeye uygun değil (Stok veya geçmiş hareket mevcut)." })
+                
+            ids_placeholder = ",".join(str(x) for x in safe_ids)
+            db.execute(text(f"DELETE FROM warehouse.parts WHERE id IN ({ids_placeholder})"))
+            db.commit()
+            
+            msg = f"{len(safe_ids)} parça başarıyla silindi."
+            if skipped_count > 0:
+                msg += f" {skipped_count} adet parça stok veya hareket geçmişi olduğu için silinemedi."
+            return json.dumps({"success": True, "message": msg})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": f"Toplu silme hatası: {str(e)}"})
         finally:
             db.close()
 
