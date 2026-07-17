@@ -1450,7 +1450,7 @@ export default function WorkOrders() {
                       <td className="px-6 py-4">{run.location_name || '-'}</td>
                       <td className="px-6 py-4 text-xs text-slate-400">
                         {(run.materials || []).length > 0
-                          ? run.materials.map(m => `${m.part_name} (${m.quantity_consumed})`).join(', ')
+                          ? run.materials.map(m => `${m.part_name}${m.item_code ? ` [${m.item_code}]` : ''} (${m.quantity_consumed})`).join(', ')
                           : '-'}
                       </td>
                       <td className="px-6 py-4">{run.produced_by || '-'}</td>
