@@ -37,7 +37,7 @@ const EMPTY_FORM = {
 };
 
 const EMPTY_PRODUCTION_FORM = {
-  target_part_id: '', quantity_produced: 1, source_location_id: '', target_location_id: '', produced_by: '', notes: ''
+  target_part_id: '', target_part_code: '', quantity_produced: 1, source_location_id: '', target_location_id: '', produced_by: '', notes: ''
 };
 
 const SUPPLY_STATUS_STYLES = {
@@ -344,6 +344,19 @@ export default function WorkOrders() {
       alert('Good Stock lokasyonu bulunamadı. Lütfen sistem lokasyonlarını kontrol edin.');
       return;
     }
+
+    const targetPart = parts.find(p => 
+      (p.item_code && p.item_code.toLowerCase() === (productionForm.target_part_code || '').trim().toLowerCase()) || 
+      (p.name && p.name.toLowerCase() === (productionForm.target_part_code || '').trim().toLowerCase()) ||
+      String(p.id) === String(productionForm.target_part_code).trim()
+    );
+
+    if (!targetPart) {
+      alert('Girilen parça kodu veya adına ait bir parça sistemde bulunamadı. Lütfen kontrol edip tekrar deneyin.');
+      return;
+    }
+    const finalTargetPartId = targetPart.id;
+
     const materials = productionMaterials.filter(r => r.part_id && Number(r.quantity_consumed) > 0);
 
     if (materials.length === 0) {
@@ -361,16 +374,16 @@ export default function WorkOrders() {
 
     const res = await api.createProductionRun({
       ...productionForm,
+      target_part_id: finalTargetPartId,
       source_location_id: goodStockLocationId,
       target_location_id: goodStockLocationId,
       materials_json: JSON.stringify(materials)
     });
     if (res.success) {
-      const targetPart = parts.find(p => String(p.id) === String(productionForm.target_part_id));
       const recentRun = {
         id: Date.now(),
-        target_part_id: productionForm.target_part_id,
-        target_part_name: targetPart ? targetPart.name : `Parça #${productionForm.target_part_id}`,
+        target_part_id: finalTargetPartId,
+        target_part_name: targetPart.name,
         quantity_produced: productionForm.quantity_produced,
         source_location_id: goodStockLocationId,
         target_location_id: goodStockLocationId,
@@ -439,8 +452,10 @@ export default function WorkOrders() {
   };
 
   const handleRepeatProduction = (run) => {
+    const targetPart = parts.find(p => String(p.id) === String(run.target_part_id));
     setProductionForm({
       target_part_id: run.target_part_id,
+      target_part_code: targetPart ? (targetPart.item_code || targetPart.name) : run.target_part_id,
       quantity_produced: run.quantity_produced,
       source_location_id: run.source_location_id,
       target_location_id: run.target_location_id,
@@ -521,6 +536,7 @@ export default function WorkOrders() {
     }
     setProductionForm({
       target_part_id: bom.parent_part_id,
+      target_part_code: bom.parent_item_id || bom.parent_name,
       quantity_produced: 1,
       source_location_id: goodStockLocationId,
       target_location_id: goodStockLocationId,
@@ -842,11 +858,8 @@ export default function WorkOrders() {
             <form onSubmit={handleSaveProduction} className="space-y-5">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1.5">Üretilen Parça <span className="text-red-400">*</span></label>
-                  <select required className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={productionForm.target_part_id} onChange={e => setProductionForm({...productionForm, target_part_id: e.target.value})}>
-                    <option value="">Parça seçiniz...</option>
-                    {parts.map(p => <option key={p.id} value={p.id}>{p.item_code} - {p.name}</option>)}
-                  </select>
+                  <label className="block text-sm font-medium text-slate-400 mb-1.5">Üretilen Parça Kodu/Adı <span className="text-red-400">*</span></label>
+                  <input type="text" required placeholder="Parça Kodu veya Adı (Örn: P-001)" className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={productionForm.target_part_code || ''} onChange={e => setProductionForm({...productionForm, target_part_code: e.target.value})} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-400 mb-1.5">Miktar <span className="text-red-400">*</span></label>
