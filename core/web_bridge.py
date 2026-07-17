@@ -2629,10 +2629,10 @@ class WebBridge(QObject):
                     ORDER BY id
                     FOR UPDATE
                 """), {"pid": part_id}).all()
-                for stock_id, qty in rows:
+                for stock_id, stock_qty in rows:
                     if remaining <= 0:
                         break
-                    take = min(qty, remaining)
+                    take = min(stock_qty, remaining)
                     db.execute(text("""
                         UPDATE warehouse.stock SET quantity = quantity - :take WHERE id = :id
                     """), {"take": take, "id": stock_id})
