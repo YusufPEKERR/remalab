@@ -569,10 +569,40 @@ export const api = {
                     order.description || '',
                     order.priority || 'Orta',
                     order.planned_quantity != null ? String(order.planned_quantity) : '',
+                    order.assigned_technician || '',
                     (res) => resolve(JSON.parse(res))
                 );
             } else {
                 resolve({ success: true, id: null });
+            }
+        });
+    },
+
+    startProductionWorkOrder: async (workOrderId, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.start_production_work_order) {
+                backend.start_production_work_order(String(workOrderId), username || '', (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true });
+            }
+        });
+    },
+
+    completeProductionWorkOrder: async (workOrderId, producedQuantity, scrapQuantity, productionNotes, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.complete_production_work_order) {
+                backend.complete_production_work_order(
+                    String(workOrderId),
+                    String(producedQuantity),
+                    String(scrapQuantity),
+                    productionNotes || '',
+                    username || '',
+                    (res) => resolve(JSON.parse(res))
+                );
+            } else {
+                resolve({ success: true });
             }
         });
     },

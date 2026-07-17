@@ -43,7 +43,23 @@ const EMPTY_PRODUCTION_FORM = {
 // Production Work Order: Service Record'a bağlı değildir, work_orders tablosunu
 // work_order_type='PRODUCTION' ile paylaşır (bkz. create_production_work_order).
 const EMPTY_PRODUCTION_WO_FORM = {
-  target_part_id: '', description: '', priority: 'Orta', planned_quantity: 1
+  target_part_id: '', description: '', priority: 'Orta', planned_quantity: 1, assigned_technician: ''
+};
+
+const EMPTY_COMPLETE_FORM = { produced_quantity: '', scrap_quantity: '', production_notes: '' };
+
+// Production Work Order durum akışı: BEKLIYOR -> URETIMDE -> TAMAMLANDI (bkz.
+// start_production_work_order/complete_production_work_order). Service Work Order'ın
+// kendi durum sözlüğünden (STATUS_STYLES/STATUS_OPTIONS) tamamen bağımsızdır.
+const PRODUCTION_WO_STATUS_STYLES = {
+  'BEKLIYOR': 'bg-slate-500/10 text-slate-400 border-slate-500/20',
+  'URETIMDE': 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+  'TAMAMLANDI': 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+};
+const PRODUCTION_WO_STATUS_LABELS = {
+  'BEKLIYOR': 'Bekliyor',
+  'URETIMDE': 'Üretimde',
+  'TAMAMLANDI': 'Tamamlandı'
 };
 
 const SUPPLY_STATUS_STYLES = {
@@ -53,11 +69,17 @@ const SUPPLY_STATUS_STYLES = {
   'İptal Edildi': 'bg-red-500/10 text-red-400 border-red-500/20'
 };
 
-// Material Request durum akışı: WAITING -> PARTIAL -> ISSUED (bkz. issue_material_request).
+// Malzeme talebi durum akışı: WAITING -> PARTIAL -> ISSUED (bkz. issue_material_request).
+// Backend bu kodları İngilizce döner; ekranda gösterilen etiketler Türkçedir (bkz. MATERIAL_REQUEST_STATUS_LABELS).
 const MATERIAL_REQUEST_STATUS_STYLES = {
   'WAITING': 'bg-amber-500/10 text-amber-400 border-amber-500/20',
   'PARTIAL': 'bg-blue-500/10 text-blue-400 border-blue-500/20',
   'ISSUED': 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+};
+const MATERIAL_REQUEST_STATUS_LABELS = {
+  'WAITING': 'Bekliyor',
+  'PARTIAL': 'Kısmi Teslim',
+  'ISSUED': 'Teslim Edildi'
 };
 
 export default function WorkOrders() {
@@ -98,12 +120,19 @@ export default function WorkOrders() {
   const [showProductionWOForm, setShowProductionWOForm] = useState(false);
   const [productionWOForm, setProductionWOForm] = useState(EMPTY_PRODUCTION_WO_FORM);
   const [productionWOSaving, setProductionWOSaving] = useState(false);
-  const [selectedProductionOrder, setSelectedProductionOrder] = useState(null);
+  // Sadece id tutulur; gösterilecek veri her render'da guncel `orders` listesinden
+  // turetilir (bkz. selectedProductionOrder), boylece durum degisince (Baslat/Tamamla)
+  // ayrica senkronize etmeye gerek kalmaz.
+  const [selectedProductionOrderId, setSelectedProductionOrderId] = useState(null);
   const [materialRequests, setMaterialRequests] = useState([]);
   const [materialRequestsLoading, setMaterialRequestsLoading] = useState(false);
   const [issueDialog, setIssueDialog] = useState(null); // {mrId, partName, itemCode, required, issued, remaining} | null
   const [issueQuantity, setIssueQuantity] = useState(1);
   const [issueSaving, setIssueSaving] = useState(false);
+  const [completeDialog, setCompleteDialog] = useState(null); // order | null
+  const [completeForm, setCompleteForm] = useState(EMPTY_COMPLETE_FORM);
+  const [completeSaving, setCompleteSaving] = useState(false);
+  const [startSaving, setStartSaving] = useState(false);
 
   const fetchOrders = async () => {
     setOrdersLoading(true);
@@ -578,6 +607,7 @@ export default function WorkOrders() {
   // ===================== Production Work Order handlers =====================
 
   const productionWorkOrders = orders.filter(o => o.work_order_type === 'PRODUCTION');
+  const selectedProductionOrder = productionWorkOrders.find(o => String(o.id) === String(selectedProductionOrderId)) || null;
 
   const handleOpenProductionWOForm = () => {
     setProductionWOForm(EMPTY_PRODUCTION_WO_FORM);
@@ -592,7 +622,7 @@ export default function WorkOrders() {
   };
 
   const handleSelectProductionOrder = (order) => {
-    setSelectedProductionOrder(order);
+    setSelectedProductionOrderId(order.id);
     fetchMaterialRequests(order.id);
   };
 
@@ -618,9 +648,50 @@ export default function WorkOrders() {
     setIssueSaving(false);
     if (res.success) {
       setIssueDialog(null);
-      fetchMaterialRequests(selectedProductionOrder.id);
+      fetchMaterialRequests(selectedProductionOrderId);
     } else {
       alert(res.message || 'Malzeme teslim edilemedi.');
+    }
+  };
+
+  const handleStartProduction = async (order) => {
+    if (!window.confirm('Bu iş emri için üretimi başlatmak istediğinize emin misiniz?')) return;
+    setStartSaving(true);
+    const res = await api.startProductionWorkOrder(order.id, currentUser?.username);
+    setStartSaving(false);
+    if (res.success) {
+      fetchOrders();
+    } else {
+      alert(res.message || 'Üretim başlatılamadı.');
+    }
+  };
+
+  const handleOpenCompleteDialog = (order) => {
+    setCompleteDialog(order);
+    setCompleteForm({
+      produced_quantity: order.planned_quantity !== '' ? order.planned_quantity : '',
+      scrap_quantity: 0,
+      production_notes: ''
+    });
+  };
+
+  const handleConfirmComplete = async (e) => {
+    e.preventDefault();
+    if (!completeDialog) return;
+    const produced = Number(completeForm.produced_quantity);
+    const scrap = Number(completeForm.scrap_quantity);
+    if (completeForm.produced_quantity === '' || completeForm.scrap_quantity === '' || isNaN(produced) || isNaN(scrap) || produced < 0 || scrap < 0) {
+      alert('Üretilen Adet ve Fire Adedi geçerli, negatif olmayan sayılar olmalıdır.');
+      return;
+    }
+    setCompleteSaving(true);
+    const res = await api.completeProductionWorkOrder(completeDialog.id, produced, scrap, completeForm.production_notes, currentUser?.username);
+    setCompleteSaving(false);
+    if (res.success) {
+      setCompleteDialog(null);
+      fetchOrders();
+    } else {
+      alert(res.message || 'Üretim tamamlanamadı.');
     }
   };
 
@@ -640,16 +711,11 @@ export default function WorkOrders() {
       // Oluşturulan iş emrinin Material Request listesini hemen görebilmek için
       // detay panelini otomatik aç.
       if (res.id) {
-        const newOrder = {
-          id: res.id,
-          target_part_id: productionWOForm.target_part_id,
-          priority: productionWOForm.priority,
-          status: 'Beklemede'
-        };
-        handleSelectProductionOrder(newOrder);
+        setSelectedProductionOrderId(res.id);
+        fetchMaterialRequests(res.id);
       }
     } else {
-      alert(res.message || 'Production Work Order oluşturulamadı.');
+      alert(res.message || 'Üretim İş Emri oluşturulamadı.');
     }
   };
 
@@ -681,7 +747,7 @@ export default function WorkOrders() {
     { key: 'recent_productions', label: 'Hızlı Tekrar Üretim', icon: Repeat },
     { key: 'consumption', label: 'Malzeme Tüketimi', icon: Package },
     { key: 'history', label: 'Üretim Geçmişi', icon: TrendingUp },
-    { key: 'production_work_orders', label: 'Production', icon: Layers }
+    { key: 'production_work_orders', label: 'Üretim İş Emirleri', icon: Layers }
   ];
 
   return (
@@ -1258,22 +1324,22 @@ export default function WorkOrders() {
             <div className="flex justify-between items-center">
               <div>
                 <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                  <Layers size={20} className="text-teal-400" /> Production Work Orders
+                  <Layers size={20} className="text-teal-400" /> Üretim İş Emirleri
                 </h2>
-                <p className="text-slate-400 text-sm mt-1">Bir Recipe'ye (reçete) bağlı yarı mamul üretim iş emirleri. Servis kaydı gerektirmez.</p>
+                <p className="text-slate-400 text-sm mt-1">Bir reçeteye bağlı yarı mamul üretim iş emirleri. Servis kaydı gerektirmez.</p>
               </div>
               <button
                 onClick={handleOpenProductionWOForm}
                 className="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-medium transition-colors shadow-lg shadow-teal-900/20 flex items-center gap-2"
               >
-                <Plus size={18} /> Yeni Production Work Order
+                <Plus size={18} /> Yeni Üretim İş Emri
               </button>
             </div>
 
             {showProductionWOForm && (
               <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-sm">
                 <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Yeni Production Work Order</h3>
+                  <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Yeni Üretim İş Emri</h3>
                   <button onClick={() => setShowProductionWOForm(false)} className="p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-[#2a3142] rounded-lg transition-colors">
                     <X size={18} />
                   </button>
@@ -1294,7 +1360,7 @@ export default function WorkOrders() {
                         <option key={bom.parent_part_id} value={bom.parent_part_id}>{bom.parent_item_id} - {bom.parent_name}</option>
                       ))}
                     </select>
-                    <p className="text-xs text-slate-500 mt-1">Yalnızca bir Recipe'si (ItemBOM) tanımlı olan parçalar listelenir.</p>
+                    <p className="text-xs text-slate-500 mt-1">Yalnızca tanımlı bir reçetesi olan parçalar listelenir.</p>
                   </div>
 
                   <div>
@@ -1331,6 +1397,18 @@ export default function WorkOrders() {
                     </div>
                   </div>
 
+                  <div>
+                    <label className="block text-sm font-medium text-slate-400 mb-1.5">Atanan Teknisyen</label>
+                    <select
+                      className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-teal-500"
+                      value={productionWOForm.assigned_technician}
+                      onChange={e => setProductionWOForm({ ...productionWOForm, assigned_technician: e.target.value })}
+                    >
+                      <option value="">Seçiniz...</option>
+                      {users.map(u => <option key={u.id} value={u.username}>{u.username}</option>)}
+                    </select>
+                  </div>
+
                   <div className="flex justify-end gap-3 pt-6 border-t border-slate-200 dark:border-slate-700/50 mt-6">
                     <button type="button" onClick={() => setShowProductionWOForm(false)} className="px-5 py-2.5 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors border border-slate-300 dark:border-slate-600">İptal</button>
                     <button type="submit" disabled={productionWOSaving} className="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 disabled:opacity-60 text-white rounded-xl font-medium transition-colors shadow-lg shadow-teal-900/20 flex items-center gap-2">
@@ -1360,7 +1438,7 @@ export default function WorkOrders() {
                     </tr>
                   ) : productionWorkOrders.length === 0 ? (
                     <tr>
-                      <td colSpan="6" className="px-6 py-8 text-center text-slate-500">Henüz Production Work Order oluşturulmadı.</td>
+                      <td colSpan="6" className="px-6 py-8 text-center text-slate-500">Henüz Üretim İş Emri oluşturulmadı.</td>
                     </tr>
                   ) : (
                     productionWorkOrders.map(order => (
@@ -1368,7 +1446,7 @@ export default function WorkOrders() {
                         key={order.id}
                         onClick={() => handleSelectProductionOrder(order)}
                         className={`cursor-pointer hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors text-slate-700 dark:text-slate-300 ${String(selectedProductionOrder?.id) === String(order.id) ? 'bg-slate-100 dark:bg-[#2a3142]' : ''}`}
-                        title="Material Request'leri görmek için tıklayın"
+                        title="Malzeme taleplerini görmek için tıklayın"
                       >
                         <td className="px-6 py-4 font-mono font-medium text-slate-800 dark:text-slate-200">#{order.id}</td>
                         <td className="px-6 py-4">
@@ -1382,8 +1460,8 @@ export default function WorkOrders() {
                           </span>
                         </td>
                         <td className="px-6 py-4">
-                          <span className={`inline-block whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-medium border ${STATUS_STYLES[order.status] || STATUS_STYLES['Beklemede']}`}>
-                            {order.status}
+                          <span className={`inline-block whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-medium border ${PRODUCTION_WO_STATUS_STYLES[order.status] || PRODUCTION_WO_STATUS_STYLES['BEKLIYOR']}`}>
+                            {PRODUCTION_WO_STATUS_LABELS[order.status] || order.status}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-slate-400">{order.created_at}</td>
@@ -1394,19 +1472,78 @@ export default function WorkOrders() {
               </table>
             </div>
 
-            {/* --- PRODUCTION WORK ORDER DETAY: MATERIAL REQUESTS (salt okunur) --- */}
+            {/* --- PRODUCTION WORK ORDER DETAY --- */}
             {selectedProductionOrder && (
               <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden">
                 <div className="flex justify-between items-center p-6 pb-4">
                   <div>
                     <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                      <Package size={20} className="text-teal-400" /> Material Requests — İş Emri #{selectedProductionOrder.id}
+                      <Layers size={20} className="text-teal-400" /> İş Emri #{selectedProductionOrder.id} — {selectedProductionOrder.target_part_name || '-'}
                     </h3>
-                    <p className="text-slate-400 text-sm mt-1">Bu iş emrinin Recipe'sinden otomatik oluşturulan malzeme talepleri (salt okunur).</p>
+                    <p className="text-slate-400 text-sm mt-1">{selectedProductionOrder.target_part_code}</p>
                   </div>
-                  <button onClick={() => setSelectedProductionOrder(null)} className="p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-[#2a3142] rounded-lg transition-colors">
-                    <X size={18} />
-                  </button>
+                  <div className="flex items-center gap-3">
+                    {selectedProductionOrder.status === 'BEKLIYOR' && (
+                      <button
+                        onClick={() => handleStartProduction(selectedProductionOrder)}
+                        disabled={startSaving}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white rounded-xl text-sm font-medium transition-colors shadow-lg shadow-blue-900/20"
+                      >
+                        Üretimi Başlat
+                      </button>
+                    )}
+                    {selectedProductionOrder.status === 'URETIMDE' && (
+                      <button
+                        onClick={() => handleOpenCompleteDialog(selectedProductionOrder)}
+                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium transition-colors shadow-lg shadow-emerald-900/20"
+                      >
+                        Tamamla
+                      </button>
+                    )}
+                    <span className={`inline-block whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-medium border ${PRODUCTION_WO_STATUS_STYLES[selectedProductionOrder.status] || PRODUCTION_WO_STATUS_STYLES['BEKLIYOR']}`}>
+                      {PRODUCTION_WO_STATUS_LABELS[selectedProductionOrder.status] || selectedProductionOrder.status}
+                    </span>
+                    <button onClick={() => setSelectedProductionOrderId(null)} className="p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-[#2a3142] rounded-lg transition-colors">
+                      <X size={18} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 px-6 pb-6">
+                  <div>
+                    <div className="text-xs text-slate-400 mb-1">Teknisyen</div>
+                    <div className="text-sm font-medium text-slate-800 dark:text-slate-200">{selectedProductionOrder.assigned_technician || '-'}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-400 mb-1">Başlama Zamanı</div>
+                    <div className="text-sm font-medium text-slate-800 dark:text-slate-200">{selectedProductionOrder.started_at || '-'}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-400 mb-1">Bitiş Zamanı</div>
+                    <div className="text-sm font-medium text-slate-800 dark:text-slate-200">{selectedProductionOrder.completed_at || '-'}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-400 mb-1">Planlanan</div>
+                    <div className="text-sm font-medium font-mono text-slate-800 dark:text-slate-200">{selectedProductionOrder.planned_quantity !== '' ? selectedProductionOrder.planned_quantity : '-'}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-400 mb-1">Üretilen</div>
+                    <div className="text-sm font-medium font-mono text-slate-800 dark:text-slate-200">{selectedProductionOrder.produced_quantity !== '' ? selectedProductionOrder.produced_quantity : '-'}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-400 mb-1">Fire</div>
+                    <div className="text-sm font-medium font-mono text-slate-800 dark:text-slate-200">{selectedProductionOrder.scrap_quantity !== '' ? selectedProductionOrder.scrap_quantity : '-'}</div>
+                  </div>
+                  <div className="col-span-2 md:col-span-4">
+                    <div className="text-xs text-slate-400 mb-1">Üretim Notu</div>
+                    <div className="text-sm text-slate-800 dark:text-slate-200">{selectedProductionOrder.production_notes || '-'}</div>
+                  </div>
+                </div>
+
+                <div className="border-t border-slate-200 dark:border-slate-700/50 flex items-center gap-2 px-6 py-4">
+                  <Package size={18} className="text-teal-400" />
+                  <h4 className="font-bold text-slate-800 dark:text-slate-100">Malzeme Talepleri</h4>
+                  <span className="text-xs text-slate-400">(bu iş emrinin reçetesinden otomatik oluşturulan, salt okunur)</span>
                 </div>
                 <table className="w-full text-left text-sm">
                   <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs">
@@ -1440,7 +1577,7 @@ export default function WorkOrders() {
                           <td className="px-6 py-4 font-mono">{mr.remaining_quantity}</td>
                           <td className="px-6 py-4">
                             <span className={`inline-block whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-medium border ${MATERIAL_REQUEST_STATUS_STYLES[mr.status] || MATERIAL_REQUEST_STATUS_STYLES['WAITING']}`}>
-                              {mr.status}
+                              {MATERIAL_REQUEST_STATUS_LABELS[mr.status] || mr.status}
                             </span>
                           </td>
                           <td className="px-6 py-4 text-center">
@@ -1553,6 +1690,80 @@ export default function WorkOrders() {
                 <button type="button" onClick={() => setIssueDialog(null)} className="px-4 py-2.5 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors border border-slate-300 dark:border-slate-600">İptal</button>
                 <button type="submit" disabled={issueSaving} className="px-4 py-2.5 bg-teal-600 hover:bg-teal-700 disabled:opacity-60 text-white rounded-xl font-medium transition-colors shadow-lg shadow-teal-900/20 flex items-center gap-2">
                   <Save size={16} /> Teslim Et
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* --- ÜRETİMİ TAMAMLA DIALOG (Production Work Order) --- */}
+      {completeDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setCompleteDialog(null)}>
+          <div
+            className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-xl w-full max-w-sm"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Üretimi Tamamla</h3>
+              <button onClick={() => setCompleteDialog(null)} className="p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-[#2a3142] rounded-lg transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
+              İş Emri #{completeDialog.id} — {completeDialog.target_part_name}
+            </p>
+            <form onSubmit={handleConfirmComplete} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-1.5">Planlanan Üretim</label>
+                <input
+                  type="number"
+                  readOnly
+                  disabled
+                  className="w-full bg-slate-100 dark:bg-[#2a3142] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-500 dark:text-slate-400 cursor-not-allowed"
+                  value={completeDialog.planned_quantity !== '' ? completeDialog.planned_quantity : ''}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-400 mb-1.5">Üretilen Adet</label>
+                  <input
+                    type="number"
+                    autoFocus
+                    min="0"
+                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-emerald-500"
+                    value={completeForm.produced_quantity}
+                    onChange={e => setCompleteForm({ ...completeForm, produced_quantity: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-400 mb-1.5">Fire Adedi</label>
+                  <input
+                    type="number"
+                    min="0"
+                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-emerald-500"
+                    value={completeForm.scrap_quantity}
+                    onChange={e => setCompleteForm({ ...completeForm, scrap_quantity: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-1.5">Üretim Notu</label>
+                <textarea
+                  rows={2}
+                  placeholder="İsteğe bağlı not..."
+                  className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-emerald-500 resize-none"
+                  value={completeForm.production_notes}
+                  onChange={e => setCompleteForm({ ...completeForm, production_notes: e.target.value })}
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button type="button" onClick={() => setCompleteDialog(null)} className="px-4 py-2.5 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors border border-slate-300 dark:border-slate-600">İptal</button>
+                <button type="submit" disabled={completeSaving} className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white rounded-xl font-medium transition-colors shadow-lg shadow-emerald-900/20 flex items-center gap-2">
+                  <Save size={16} /> Tamamla
                 </button>
               </div>
             </form>
