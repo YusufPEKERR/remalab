@@ -3446,7 +3446,7 @@ class WebBridge(QObject):
                 limit = p.critical_limit or 50
                 res.append({
                     "id": s.id,
-                    "part_name": f"{p.brand} {p.model} {p.name}",
+                    "part_name": p.name or "-",
                     "item_code": p.item_code or "-",
                     "location_name": l.name,
                     "quantity": s.quantity,
