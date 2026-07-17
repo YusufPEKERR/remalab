@@ -103,6 +103,9 @@ export default function MainLayout() {
 
   const allowed = allowedPaths[userRole] || allowedPaths['admin'];
 
+  // Bu iki sayfa sadece Depo Müdürü rolüne özel — admin dahil başka hiçbir rol göremez.
+  const EXCLUSIVE_TO_DEPO_MUDURU = ['/supply-requests', '/tedarik-talepleri'];
+
   const menuGroups = [
     {
       title: 'GENEL BAKIŞ',
@@ -148,12 +151,13 @@ export default function MainLayout() {
   ];
 
   // Filter groups based on role
-  const filteredGroups = userRole === 'admin' 
-    ? menuGroups
-    : menuGroups.map(group => ({
-        ...group,
-        items: group.items.filter(item => allowed.includes(item.path))
-      })).filter(group => group.items.length > 0);
+  const filteredGroups = menuGroups.map(group => ({
+      ...group,
+      items: group.items.filter(item => {
+        if (EXCLUSIVE_TO_DEPO_MUDURU.includes(item.path)) return userRole === 'depo müdürü';
+        return userRole === 'admin' || allowed.includes(item.path);
+      })
+    })).filter(group => group.items.length > 0);
 
   const currentPage = menuGroups.flatMap(g => g.items).find(i => 
     location.pathname === i.path || (i.path !== '/' && location.pathname.startsWith(i.path))
