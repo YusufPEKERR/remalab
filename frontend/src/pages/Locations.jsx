@@ -33,7 +33,7 @@ export default function Locations() {
 
   useEffect(() => {
     fetchLocations();
-    const interval = setInterval(() => fetchLocations(true), 8000);
+    const interval = setInterval(() => fetchLocations(true), 60000);
     return () => clearInterval(interval);
   }, []);
 

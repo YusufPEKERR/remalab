@@ -10,6 +10,9 @@ export default function Products() {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 100;
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentProduct, setCurrentProduct] = useState(null);
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
@@ -52,7 +55,7 @@ export default function Products() {
 
   useEffect(() => {
     fetchProducts();
-    const interval = setInterval(() => fetchProducts(true), 8000);
+    const interval = setInterval(() => fetchProducts(true), 60000);
     return () => clearInterval(interval);
   }, []);
 
@@ -206,6 +209,13 @@ export default function Products() {
     return result;
   }, [products, searchTerm, sortConfig]);
 
+  useEffect(() => { setCurrentPage(1); }, [searchTerm]);
+
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const paginatedProducts = filteredProducts.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
+
   return (
     <div className="h-full flex flex-col space-y-6 overflow-hidden">
       
@@ -313,7 +323,7 @@ export default function Products() {
                   </td>
                 </tr>
               ) : (
-                filteredProducts.map((product) => {
+                paginatedProducts.map((product) => {
                   const isChecked = selectedRows.includes(product.id);
                   return (
                   <tr key={product.id} className={`hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors group text-slate-700 dark:text-slate-300 ${isChecked ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}>
@@ -345,6 +355,28 @@ export default function Products() {
               )}
             </tbody>
           </table>
+        </div>
+        
+        <div className="flex justify-between items-center px-6 py-4 bg-slate-50 dark:bg-[#242a38] border-t border-slate-200 dark:border-slate-700/50 shrink-0">
+          <span className="text-sm text-slate-500">
+            Toplam {filteredProducts.length} kayıttan {filteredProducts.length === 0 ? 0 : indexOfFirstItem + 1}-{Math.min(indexOfLastItem, filteredProducts.length)} arası gösteriliyor
+          </span>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1 || filteredProducts.length === 0}
+              className="px-3 py-1 bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 disabled:opacity-50"
+            >
+              Önceki
+            </button>
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage >= totalPages || filteredProducts.length === 0}
+              className="px-3 py-1 bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 disabled:opacity-50"
+            >
+              Sonraki
+            </button>
+          </div>
         </div>
       </div>
 

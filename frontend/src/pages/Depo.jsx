@@ -7,6 +7,9 @@ export default function Depo() {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedItem, setSelectedItem] = useState(null);
+  
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 100;
 
   const loadInventory = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -33,18 +36,24 @@ export default function Depo() {
 
   useEffect(() => {
     loadInventory();
-    const interval = setInterval(() => loadInventory(true), 8000);
+    const interval = setInterval(() => loadInventory(true), 60000);
     return () => clearInterval(interval);
   }, []);
 
-  const filteredInventory = useMemo(() => {
-    const q = searchTerm.toLowerCase();
-    return inventory.filter(item => 
-      String(item.id).includes(q) ||
-      (item.name && item.name.toLowerCase().includes(q)) ||
-      (item.location && item.location.toLowerCase().includes(q))
-    );
-  }, [inventory, searchTerm]);
+  const filteredInventory = inventory.filter(item => {
+    if (!searchTerm) return true;
+    const s = searchTerm.toLowerCase();
+    return String(item.id).includes(s) || 
+           (item.name && item.name.toLowerCase().includes(s)) ||
+           (item.location && item.location.toLowerCase().includes(s));
+  });
+
+  useEffect(() => { setCurrentPage(1); }, [searchTerm]);
+
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const paginatedInventory = filteredInventory.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredInventory.length / itemsPerPage);
 
   // Calculate Occupancy
   const calculateOccupancy = () => {
@@ -147,7 +156,7 @@ export default function Depo() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-700/50">
-              {filteredInventory.map((item) => {
+              {paginatedInventory.map((item) => {
                 const isSelected = selectedItem?.id === item.id;
 
                 return (
@@ -168,6 +177,28 @@ export default function Depo() {
               )}
             </tbody>
           </table>
+        </div>
+        
+        <div className="flex justify-between items-center px-6 py-4 bg-slate-50 dark:bg-[#242a38] border-t border-slate-200 dark:border-slate-700/50 shrink-0">
+          <span className="text-sm text-slate-500">
+            Toplam {filteredInventory.length} kayıttan {filteredInventory.length === 0 ? 0 : indexOfFirstItem + 1}-{Math.min(indexOfLastItem, filteredInventory.length)} arası gösteriliyor
+          </span>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1 || filteredInventory.length === 0}
+              className="px-3 py-1 bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 disabled:opacity-50"
+            >
+              Önceki
+            </button>
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage >= totalPages || filteredInventory.length === 0}
+              className="px-3 py-1 bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 disabled:opacity-50"
+            >
+              Sonraki
+            </button>
+          </div>
         </div>
       </div>
 

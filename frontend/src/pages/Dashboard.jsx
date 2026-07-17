@@ -42,7 +42,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     loadDashboardData();
-    const interval = setInterval(() => loadDashboardData(true), 8000);
+    const interval = setInterval(() => loadDashboardData(true), 60000);
     return () => clearInterval(interval);
   }, []);
 

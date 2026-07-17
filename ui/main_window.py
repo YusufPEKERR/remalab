@@ -17,10 +17,19 @@ from core.web_bridge import WebBridge
 from PySide6.QtWebEngineCore import QWebEnginePage
 
 
+class CustomRequestHandler(http.server.SimpleHTTPRequestHandler):
+    def translate_path(self, path):
+        if path.startswith('/api_cache/'):
+            # Serve from the top-level api_cache directory
+            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            cache_dir = os.path.join(base_dir, 'api_cache')
+            rel_path = path[len('/api_cache/'):]
+            return os.path.join(cache_dir, rel_path)
+        return super().translate_path(path)
+
 def _start_static_server(directory):
-    """dist/ klasörünü 127.0.0.1'de servis eder (ES module script'leri file:// üzerinden
-    Chromium'un CORS politikası yüzünden yüklenemiyor, bu yüzden diskten değil localhost'tan okunur)."""
-    handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=directory)
+    """dist/ klasörünü 127.0.0.1'de servis eder."""
+    handler = functools.partial(CustomRequestHandler, directory=directory)
     httpd = socketserver.TCPServer(("127.0.0.1", 0), handler)
     thread = threading.Thread(target=httpd.serve_forever, daemon=True)
     thread.start()

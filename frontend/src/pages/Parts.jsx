@@ -116,7 +116,7 @@ export default function Parts() {
     fetchDepartments();
     fetchProducts();
     // Başka bilgisayarlardan yapılan değişiklikleri yakalamak için periyodik, sessiz yenileme
-    const interval = setInterval(() => fetchParts(true), 8000);
+    const interval = setInterval(() => fetchParts(true), 60000);
     return () => clearInterval(interval);
   }, []);
 
