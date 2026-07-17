@@ -1510,7 +1510,7 @@ export default function WorkOrders() {
                           </div>
                         ) : (
                           <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded-lg">
-                            ✓ Aktif
+                            ✓ Üretildi
                           </span>
                         )}
                       </td>
