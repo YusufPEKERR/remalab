@@ -139,6 +139,7 @@ export default function WorkOrders() {
   const [returnDialog, setReturnDialog] = useState(null);
   const [returnLocationId, setReturnLocationId] = useState('27');
   const [returnReason, setReturnReason] = useState('');
+  const [defectiveParts, setDefectiveParts] = useState({}); // { part_id: true/false }
   const [returnSaving, setReturnSaving] = useState(false);
 
   const fetchOrders = async () => {
@@ -586,11 +587,22 @@ export default function WorkOrders() {
     if (!returnDialog) return;
     setReturnSaving(true);
     try {
-      const res = await api.deleteProductionRun(returnDialog.unit_id, returnLocationId, returnReason);
+      // Sorunlu parça listesini JSON'a çevir
+      const defectiveList = (returnDialog.materials || []).map(m => ({
+        part_id: m.part_id,
+        defective: !!(defectiveParts[m.part_id])
+      }));
+      const res = await api.deleteProductionRun(
+        returnDialog.unit_id,
+        returnLocationId,
+        returnReason,
+        JSON.stringify(defectiveList)
+      );
       if (res.success) {
-        alert("İade/değişim işlemi başarıyla tamamlandı. Hammaddeler seçilen depoya aktarıldı.");
+        alert("İade/değişim işlemi başarıyla tamamlandı. Hammaddeler ilgili depolara aktarıldı.");
         setReturnDialog(null);
         setReturnReason('');
+        setDefectiveParts({});
         fetchProductionRuns();
         refreshStockStatus();
       } else {
@@ -1491,7 +1503,7 @@ export default function WorkOrders() {
                             <Repeat size={16} />
                           </button>
                           {!run.is_returned && (
-                            <button onClick={() => { setReturnDialog(run); setReturnLocationId('27'); setReturnReason(''); }} className="p-1.5 text-amber-500 hover:bg-amber-500/10 rounded-lg transition-colors" title="İade / Değişim">
+                            <button onClick={() => { setReturnDialog(run); setReturnLocationId('27'); setReturnReason(''); setDefectiveParts({}); }} className="p-1.5 text-amber-500 hover:bg-amber-500/10 rounded-lg transition-colors" title="İade / Değişim">
                               <RotateCcw size={16} />
                             </button>
                           )}
@@ -1960,8 +1972,8 @@ export default function WorkOrders() {
 
       {/* --- İADE / DEĞİŞİM DIALOG --- */}
       {returnDialog && (
-        <div className="fixed inset-0 bg-slate-900/80 flex items-center justify-center z-50 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 shadow-2xl rounded-2xl w-full max-w-md p-6 animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 bg-slate-900/80 flex items-center justify-center z-50 animate-in fade-in duration-200" style={{overflowY:'auto'}}>
+          <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 shadow-2xl rounded-2xl w-full max-w-lg p-6 animate-in zoom-in-95 duration-200 my-8">
             <div className="flex justify-between items-center mb-2">
               <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                 <RotateCcw className="text-amber-500" size={22} /> İade / Değişim İşlemi
@@ -1971,13 +1983,50 @@ export default function WorkOrders() {
               </button>
             </div>
             
-            <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
-              <span className="font-semibold text-slate-800 dark:text-slate-200">{returnDialog.serial_number}</span> kimlik numaralı cihazın üretimini geri alarak hammaddelerini stoklara iade edeceksiniz. Hammaddeler Good Stock yerine seçeceğiniz depoya aktarılacaktır.
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-5">
+              <span className="font-semibold text-slate-800 dark:text-slate-200">{returnDialog.serial_number}</span> kimlik numaralı cihaz iade ediliyor.
             </p>
 
-            <div className="space-y-4 mb-6">
+            <div className="space-y-5 mb-6">
+              {/* Hammadde sorunlu seçimi */}
+              {(returnDialog.materials || []).length > 0 && (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+                    Sorunlu Parçaları İşaretle
+                    <span className="ml-2 text-slate-500 normal-case font-normal">(İşaretlenenler seçili depoya, diğerleri Good Stock'a gider)</span>
+                  </label>
+                  <div className="rounded-xl border border-slate-200 dark:border-slate-700/60 divide-y divide-slate-200 dark:divide-slate-700/40 overflow-hidden">
+                    {returnDialog.materials.map(m => (
+                      <label key={m.part_id} className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-[#242a38] transition-colors">
+                        <input
+                          type="checkbox"
+                          className="w-4 h-4 rounded border-slate-300 accent-red-500 cursor-pointer"
+                          checked={!!(defectiveParts[m.part_id])}
+                          onChange={e => setDefectiveParts(prev => ({...prev, [m.part_id]: e.target.checked}))}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">{m.part_name}</div>
+                          {m.item_code && <div className="text-xs text-slate-400 font-mono">{m.item_code}</div>}
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="text-xs font-mono text-slate-500">{m.quantity_consumed} adet</span>
+                          {defectiveParts[m.part_id] ? (
+                            <span className="text-[10px] px-1.5 py-0.5 bg-red-500/10 text-red-500 border border-red-500/20 rounded font-semibold">Sorunlu Depo</span>
+                          ) : (
+                            <span className="text-[10px] px-1.5 py-0.5 bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 rounded font-semibold">Good Stock</span>
+                          )}
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Sorunlu depo seçimi */}
               <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Hammaddelerin İade Edileceği Depo</label>
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                  Sorunlu Parçaların Gideceği Depo
+                </label>
                 <select
                   className="w-full bg-slate-50 dark:bg-[#242a38] text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700/60 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-amber-500"
                   value={returnLocationId}
@@ -1989,6 +2038,7 @@ export default function WorkOrders() {
                 </select>
               </div>
 
+              {/* İade nedeni */}
               <div>
                 <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">İade / Değişim Nedeni</label>
                 <textarea

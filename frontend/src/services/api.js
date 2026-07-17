@@ -789,7 +789,7 @@ export const api = {
         });
     },
 
-    deleteProductionRun: async (id, returnLocationId = "", returnReason = "") => {
+    deleteProductionRun: async (id, returnLocationId = "", returnReason = "", defectivePartsJson = "[]") => {
         const backend = await getBackend();
         return new Promise((resolve) => {
             if (backend.delete_production_run) {
@@ -797,6 +797,7 @@ export const api = {
                     String(id), 
                     String(returnLocationId || ""), 
                     String(returnReason || ""), 
+                    String(defectivePartsJson || "[]"),
                     (res) => resolve(JSON.parse(res))
                 );
             } else {

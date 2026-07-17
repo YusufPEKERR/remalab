@@ -2733,15 +2733,27 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    @Slot(str, str, str, result=str)
-    def delete_production_run(self, unit_id_str, return_location_id_str, return_reason):
-        """Belirtilen üretilmiş cihaz birimini (produced_unit) iade eder. Stokları günceller ve kaydı iade edildi olarak işaretler."""
+    @Slot(str, str, str, str, result=str)
+    def delete_production_run(self, unit_id_str, return_location_id_str, return_reason, defective_parts_json):
+        """Belirtilen üretilmiş cihaz birimini (produced_unit) iade eder.
+        Sorunlu parçalar seçilen iade deposuna, sorunsuzlar Good Stock'a (id=26) aktarılır."""
         from sqlalchemy import text
         from datetime import datetime
         db = SessionLocal()
         try:
             unit_id = int(unit_id_str)
             return_location_id = int(return_location_id_str)
+            GOOD_STOCK_ID = 26
+
+            # Sorunlu parça id setini çöz (JSON list: [{part_id: "123", defective: true}, ...])
+            defective_set = set()
+            try:
+                defective_list = json.loads(defective_parts_json or "[]")
+                for entry in defective_list:
+                    if entry.get("defective"):
+                        defective_set.add(int(entry["part_id"]))
+            except Exception:
+                pass
             
             # 1. Üretilmiş cihaz kaydını ve bağlı olduğu üretim koşusunu çek
             unit = db.execute(text("""
@@ -2791,7 +2803,7 @@ class WebBridge(QObject):
                 WHERE id = :id
             """), {"id": target_stock[0]})
             
-            # 5. Tüketilen malzemelerin cihaz başına düşen oranını iade lokasyonuna ekle
+            # 5. Her malzemeyi sorunlu/sorunsuz durumuna göre farklı depoya ekle
             for m in materials:
                 m_part_id = m[0]
                 total_consumed = m[1]
@@ -2799,12 +2811,15 @@ class WebBridge(QObject):
                 qty_to_return = int(round(qty_per_unit))
                 if qty_to_return <= 0:
                     qty_to_return = 1
-                    
+                
+                # Sorunlu ise seçilen depoya, değilse Good Stock'a
+                dest_loc_id = return_location_id if m_part_id in defective_set else GOOD_STOCK_ID
+                
                 existing_m = db.execute(text("""
                     SELECT id FROM warehouse.stock
                     WHERE part_id = :pid AND location_id = :lid
                     FOR UPDATE
-                """), {"pid": m_part_id, "lid": return_location_id}).first()
+                """), {"pid": m_part_id, "lid": dest_loc_id}).first()
                 
                 if existing_m:
                     db.execute(text("""
@@ -2816,7 +2831,7 @@ class WebBridge(QObject):
                     db.execute(text("""
                         INSERT INTO warehouse.stock (part_id, location_id, quantity)
                         VALUES (:pid, :lid, :qty)
-                    """), {"pid": m_part_id, "lid": return_location_id, "qty": qty_to_return})
+                    """), {"pid": m_part_id, "lid": dest_loc_id, "qty": qty_to_return})
             
             # 6. Cihaz kaydını iade edildi olarak işaretle ve nedenini kaydet
             db.execute(text("""
