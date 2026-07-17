@@ -388,6 +388,18 @@ export default function WorkOrders() {
     }
   }, [selectedTargetPart?.id]);
 
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showResultsDropdown && !event.target.closest('.target-part-search-container')) {
+        setShowResultsDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showResultsDropdown]);
+
   const handleSearchTargetPart = (e) => {
     if (e) {
       e.preventDefault();
@@ -1025,7 +1037,7 @@ export default function WorkOrders() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
                   <label className="block text-sm font-medium text-slate-400 mb-1.5">Üretilen Parça Kodu/Adı <span className="text-red-400">*</span></label>
-                  <div className="relative">
+                  <div className="relative target-part-search-container">
                     <div className="flex gap-2">
                       <input 
                         type="text" 
@@ -1043,7 +1055,6 @@ export default function WorkOrders() {
                             handleSearchTargetPart();
                           }
                         }}
-                        onBlur={() => setTimeout(() => setShowResultsDropdown(false), 200)}
                       />
                       <button
                         type="button"
