@@ -138,6 +138,7 @@ export default function WorkOrders() {
   const [completeSaving, setCompleteSaving] = useState(false);
   const [returnDialog, setReturnDialog] = useState(null);
   const [returnLocationId, setReturnLocationId] = useState('27');
+  const [returnReason, setReturnReason] = useState('');
   const [returnSaving, setReturnSaving] = useState(false);
 
   const fetchOrders = async () => {
@@ -585,10 +586,11 @@ export default function WorkOrders() {
     if (!returnDialog) return;
     setReturnSaving(true);
     try {
-      const res = await api.deleteProductionRun(returnDialog.id, returnLocationId);
+      const res = await api.deleteProductionRun(returnDialog.unit_id, returnLocationId, returnReason);
       if (res.success) {
         alert("İade/değişim işlemi başarıyla tamamlandı. Hammaddeler seçilen depoya aktarıldı.");
         setReturnDialog(null);
+        setReturnReason('');
         fetchProductionRuns();
         refreshStockStatus();
       } else {
@@ -1452,7 +1454,21 @@ export default function WorkOrders() {
                 ) : (
                   productionRuns.map(run => (
                     <tr key={run.unit_id} className="hover:bg-slate-100 dark:bg-[#2a3142] transition-colors text-slate-700 dark:text-slate-300">
-                      <td className="px-6 py-4 font-mono font-bold text-slate-900 dark:text-slate-200">{run.serial_number}</td>
+                      <td className="px-6 py-4">
+                        <div className="font-mono font-bold text-slate-900 dark:text-slate-200 flex items-center gap-2">
+                          {run.serial_number}
+                          {run.is_returned && (
+                            <span className="px-2 py-0.5 text-[10px] font-semibold bg-red-500/10 text-red-500 border border-red-500/20 rounded-md">
+                              İade Edildi
+                            </span>
+                          )}
+                        </div>
+                        {run.is_returned && (
+                          <div className="text-[11px] text-red-400 mt-1 max-w-xs whitespace-normal">
+                            Nedeni: {run.return_reason || 'Belirtilmedi'} <span className="text-slate-400">({run.return_location_name})</span>
+                          </div>
+                        )}
+                      </td>
                       <td className="px-6 py-4">
                         <div className="font-medium text-slate-800 dark:text-slate-200">
                           {run.target_part_name || '-'} {parts.find(p => p.id == run.target_part_id)?.part_category ? `(${parts.find(p => p.id == run.target_part_id).part_category})` : ''}
@@ -1474,9 +1490,11 @@ export default function WorkOrders() {
                           <button onClick={() => handleRepeatProduction(run)} className="p-1.5 text-blue-400 hover:bg-blue-400/10 rounded-lg transition-colors" title="İşlemi Tekrarla">
                             <Repeat size={16} />
                           </button>
-                          <button onClick={() => { setReturnDialog(run); setReturnLocationId('27'); }} className="p-1.5 text-amber-500 hover:bg-amber-500/10 rounded-lg transition-colors" title="İade / Değişim">
-                            <RotateCcw size={16} />
-                          </button>
+                          {!run.is_returned && (
+                            <button onClick={() => { setReturnDialog(run); setReturnLocationId('27'); setReturnReason(''); }} className="p-1.5 text-amber-500 hover:bg-amber-500/10 rounded-lg transition-colors" title="İade / Değişim">
+                              <RotateCcw size={16} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -1970,6 +1988,18 @@ export default function WorkOrders() {
                   ))}
                 </select>
               </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">İade / Değişim Nedeni</label>
+                <textarea
+                  rows={3}
+                  required
+                  placeholder="Lütfen iade veya değişim nedenini detaylıca yazın..."
+                  className="w-full bg-slate-50 dark:bg-[#242a38] text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700/60 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-amber-500 resize-none font-sans"
+                  value={returnReason}
+                  onChange={(e) => setReturnReason(e.target.value)}
+                />
+              </div>
             </div>
 
             <div className="flex justify-end gap-3">
@@ -1983,7 +2013,7 @@ export default function WorkOrders() {
               <button 
                 type="button" 
                 onClick={executeReturn} 
-                disabled={returnSaving || !returnLocationId} 
+                disabled={returnSaving || !returnLocationId || !returnReason.trim()} 
                 className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 disabled:opacity-60 text-white rounded-xl font-medium transition-colors shadow-lg shadow-amber-500/20 flex items-center gap-2 text-sm"
               >
                 {returnSaving ? 'Aktarılıyor...' : 'Hammaddeleri İade Et'}

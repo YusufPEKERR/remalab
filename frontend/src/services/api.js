@@ -789,11 +789,16 @@ export const api = {
         });
     },
 
-    deleteProductionRun: async (id, returnLocationId = "") => {
+    deleteProductionRun: async (id, returnLocationId = "", returnReason = "") => {
         const backend = await getBackend();
         return new Promise((resolve) => {
             if (backend.delete_production_run) {
-                backend.delete_production_run(String(id), String(returnLocationId || ""), (res) => resolve(JSON.parse(res)));
+                backend.delete_production_run(
+                    String(id), 
+                    String(returnLocationId || ""), 
+                    String(returnReason || ""), 
+                    (res) => resolve(JSON.parse(res))
+                );
             } else {
                 resolve({ success: true });
             }

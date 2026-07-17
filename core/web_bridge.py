@@ -299,9 +299,17 @@ class WebBridge(QObject):
                 CREATE TABLE IF NOT EXISTS warehouse.produced_units (
                     id SERIAL PRIMARY KEY,
                     production_run_id INTEGER REFERENCES warehouse.production_runs(id) ON DELETE CASCADE,
-                    serial_number VARCHAR(100) UNIQUE NOT NULL
+                    serial_number VARCHAR(100) UNIQUE NOT NULL,
+                    is_returned BOOLEAN DEFAULT FALSE,
+                    return_reason VARCHAR(500),
+                    returned_at TIMESTAMP WITH TIME ZONE,
+                    return_location_id INTEGER REFERENCES warehouse.locations(id)
                 );
             """))
+            db.execute(text("ALTER TABLE warehouse.produced_units ADD COLUMN IF NOT EXISTS is_returned BOOLEAN DEFAULT FALSE;"))
+            db.execute(text("ALTER TABLE warehouse.produced_units ADD COLUMN IF NOT EXISTS return_reason VARCHAR(500);"))
+            db.execute(text("ALTER TABLE warehouse.produced_units ADD COLUMN IF NOT EXISTS returned_at TIMESTAMP WITH TIME ZONE;"))
+            db.execute(text("ALTER TABLE warehouse.produced_units ADD COLUMN IF NOT EXISTS return_location_id INTEGER REFERENCES warehouse.locations(id);"))
             
             # Clean up old records to avoid data inconsistency with the new unique serial number system
             run_count = db.execute(text("SELECT COUNT(*) FROM warehouse.production_runs")).scalar() or 0
@@ -2553,17 +2561,20 @@ class WebBridge(QObject):
         db = SessionLocal()
         try:
             units = db.execute(text("""
-                SELECT pu.id AS unit_id, pu.serial_number, pr.id AS run_id, pr.target_part_id, pr.quantity_produced, pr.location_id, pr.source_location_id,
+                SELECT pu.id AS unit_id, pu.serial_number, pu.is_returned, pu.return_reason, pu.returned_at, pu.return_location_id,
+                       pr.id AS run_id, pr.target_part_id, pr.quantity_produced, pr.location_id, pr.source_location_id,
                        pr.produced_by, pr.notes, pr.created_at,
                        p.brand AS target_brand, p.model AS target_model,
                        p.item_code AS target_code, p.name AS target_name,
                        l.name AS location_name,
-                       sl.name AS source_location_name
+                       sl.name AS source_location_name,
+                       rl.name AS return_location_name
                 FROM warehouse.produced_units pu
                 JOIN warehouse.production_runs pr ON pr.id = pu.production_run_id
                 LEFT JOIN warehouse.parts p ON p.id = pr.target_part_id
                 LEFT JOIN warehouse.locations l ON l.id = pr.location_id
                 LEFT JOIN warehouse.locations sl ON sl.id = pr.source_location_id
+                LEFT JOIN warehouse.locations rl ON rl.id = pu.return_location_id
                 ORDER BY pu.id DESC
             """)).mappings().all()
 
@@ -2609,6 +2620,11 @@ class WebBridge(QObject):
                     "id": str(u["run_id"]),  # Geri alma işlemleri için run_id
                     "unit_id": str(u["unit_id"]),
                     "serial_number": u["serial_number"],
+                    "is_returned": bool(u["is_returned"]),
+                    "return_reason": u["return_reason"] or "",
+                    "returned_at": u["returned_at"].strftime("%Y-%m-%d %H:%M") if u["returned_at"] else "",
+                    "return_location_id": str(u["return_location_id"]) if u["return_location_id"] else "",
+                    "return_location_name": u["return_location_name"] or "",
                     "target_part_id": str(u["target_part_id"]) if u["target_part_id"] else "",
                     "target_part_name": target_label,
                     "target_item_code": u["target_code"] or "",
@@ -2717,34 +2733,35 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    @Slot(str, str, result=str)
-    def delete_production_run(self, run_id_str, return_location_id_str):
-        """Belirtilen üretim kaydını siler ve stok hareketlerini geri alır (üretilen ürünü düşer, hammaddeleri seçilen iade lokasyonuna aktarır)."""
+    @Slot(str, str, str, result=str)
+    def delete_production_run(self, unit_id_str, return_location_id_str, return_reason):
+        """Belirtilen üretilmiş cihaz birimini (produced_unit) iade eder. Stokları günceller ve kaydı iade edildi olarak işaretler."""
         from sqlalchemy import text
+        from datetime import datetime
         db = SessionLocal()
         try:
-            run_id = int(run_id_str)
-            target_return_location_id = None
-            if return_location_id_str and return_location_id_str.strip():
-                try:
-                    target_return_location_id = int(return_location_id_str)
-                except ValueError:
-                    pass
+            unit_id = int(unit_id_str)
+            return_location_id = int(return_location_id_str)
             
-            # 1. Üretim kaydını çek
-            run = db.execute(text("""
-                SELECT target_part_id, quantity_produced, location_id, source_location_id
-                FROM warehouse.production_runs
-                WHERE id = :id
-            """), {"id": run_id}).first()
+            # 1. Üretilmiş cihaz kaydını ve bağlı olduğu üretim koşusunu çek
+            unit = db.execute(text("""
+                SELECT pu.id, pu.serial_number, pu.is_returned,
+                       pr.id AS run_id, pr.target_part_id, pr.quantity_produced, pr.location_id, pr.source_location_id
+                FROM warehouse.produced_units pu
+                JOIN warehouse.production_runs pr ON pr.id = pu.production_run_id
+                WHERE pu.id = :uid
+            """), {"uid": unit_id}).mappings().first()
             
-            if not run:
-                return json.dumps({"success": False, "message": "Üretim kaydı bulunamadı."})
+            if not unit:
+                return json.dumps({"success": False, "message": "Üretilen cihaz kaydı bulunamadı."})
                 
-            target_part_id = run[0]
-            quantity_produced = run[1]
-            location_id = run[2]
-            source_location_id = run[3]
+            if unit["is_returned"]:
+                return json.dumps({"success": False, "message": "Bu cihaz zaten iade edilmiş."})
+                
+            run_id = unit["run_id"]
+            target_part_id = unit["target_part_id"]
+            quantity_produced = unit["quantity_produced"]
+            location_id = unit["location_id"]
             
             # 2. Üretilen parçanın stoğunu kontrol et
             target_stock = db.execute(text("""
@@ -2753,11 +2770,11 @@ class WebBridge(QObject):
                 FOR UPDATE
             """), {"pid": target_part_id, "lid": location_id}).first()
             
-            if not target_stock or target_stock[1] < quantity_produced:
+            if not target_stock or target_stock[1] < 1:
                 current_qty = target_stock[1] if target_stock else 0
                 return json.dumps({
                     "success": False, 
-                    "message": f"Üretilen parçanın bu lokasyondaki stoğu yetersiz ({current_qty} adet var, {quantity_produced} adet üretilmişti). Üretim geri alınamaz."
+                    "message": f"Üretilen parçanın bu lokasyondaki stoğu yetersiz ({current_qty} adet var, 1 adet iade edilmek isteniyor). İade gerçekleştirilemez."
                 })
                 
             # 3. Tüketilen malzemeleri çek
@@ -2767,46 +2784,60 @@ class WebBridge(QObject):
                 WHERE production_run_id = :run_id
             """), {"run_id": run_id}).all()
             
-            # 4. Üretilen parçanın stoğunu düş
+            # 4. Üretilen parçanın stoğunu 1 adet düş
             db.execute(text("""
                 UPDATE warehouse.stock
-                SET quantity = quantity - :qty
+                SET quantity = quantity - 1
                 WHERE id = :id
-            """), {"qty": quantity_produced, "id": target_stock[0]})
+            """), {"id": target_stock[0]})
             
-            # 5. Tüketilen malzemeleri kaynak lokasyona veya seçilen iade lokasyonuna geri ekle
-            return_loc_id = target_return_location_id if target_return_location_id is not None else source_location_id
+            # 5. Tüketilen malzemelerin cihaz başına düşen oranını iade lokasyonuna ekle
             for m in materials:
                 m_part_id = m[0]
-                m_qty = m[1]
-                
+                total_consumed = m[1]
+                qty_per_unit = float(total_consumed) / quantity_produced if quantity_produced > 0 else 0
+                qty_to_return = int(round(qty_per_unit))
+                if qty_to_return <= 0:
+                    qty_to_return = 1
+                    
                 existing_m = db.execute(text("""
                     SELECT id FROM warehouse.stock
                     WHERE part_id = :pid AND location_id = :lid
                     FOR UPDATE
-                """), {"pid": m_part_id, "lid": return_loc_id}).first()
+                """), {"pid": m_part_id, "lid": return_location_id}).first()
                 
                 if existing_m:
                     db.execute(text("""
                         UPDATE warehouse.stock
                         SET quantity = quantity + :qty
                         WHERE id = :id
-                    """), {"qty": m_qty, "id": existing_m[0]})
+                    """), {"qty": qty_to_return, "id": existing_m[0]})
                 else:
                     db.execute(text("""
                         INSERT INTO warehouse.stock (part_id, location_id, quantity)
                         VALUES (:pid, :lid, :qty)
-                    """), {"pid": m_part_id, "lid": return_loc_id, "qty": m_qty})
+                    """), {"pid": m_part_id, "lid": return_location_id, "qty": qty_to_return})
             
-            # 6. Malzeme tüketim ve üretim kayıtlarını sil
-            db.execute(text("DELETE FROM warehouse.production_materials WHERE production_run_id = :run_id"), {"run_id": run_id})
-            db.execute(text("DELETE FROM warehouse.production_runs WHERE id = :id"), {"id": run_id})
+            # 6. Cihaz kaydını iade edildi olarak işaretle ve nedenini kaydet
+            db.execute(text("""
+                UPDATE warehouse.produced_units
+                SET is_returned = TRUE,
+                    return_reason = :reason,
+                    returned_at = :now,
+                    return_location_id = :ret_loc_id
+                WHERE id = :uid
+            """), {
+                "reason": return_reason or "Belirtilmedi",
+                "now": datetime.utcnow(),
+                "ret_loc_id": return_location_id,
+                "uid": unit_id
+            })
             
             db.commit()
             return json.dumps({"success": True, "message": "Üretim iade/değişim işlemi başarıyla tamamlandı."})
         except Exception as e:
             db.rollback()
-            return json.dumps({"success": False, "message": f"Silme hatası: {str(e)}"})
+            return json.dumps({"success": False, "message": f"İade hatası: {str(e)}"})
         finally:
             db.close()
 
