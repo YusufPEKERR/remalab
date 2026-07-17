@@ -87,6 +87,15 @@ def _compute_material_request_status(issued_quantity, required_quantity):
     return MATERIAL_REQUEST_STATUS_ISSUED
 
 
+# Production Work Order durum akışı: BEKLIYOR -> URETIMDE -> TAMAMLANDI. Service Work
+# Order'ın kendi status sözlüğünden (Beklemede/Devam Ediyor/Tamamlandı/...) tamamen
+# bağımsızdır; aynı work_orders.status sütununu paylaşırlar ama değer kümeleri farklıdır,
+# bu yüzden Service tarafında hiçbir davranış değişikliği olmaz.
+PRODUCTION_WO_STATUS_WAITING = "BEKLIYOR"
+PRODUCTION_WO_STATUS_IN_PRODUCTION = "URETIMDE"
+PRODUCTION_WO_STATUS_COMPLETED = "TAMAMLANDI"
+
+
 def _get_system_location_id(db, kind):
     """Verilen kind'a ('good_stock' vb.) sahip sistem deposunun id'sini döner."""
     from models.location import Location
@@ -106,6 +115,7 @@ class WebBridge(QObject):
         self._ensure_service_records_table()
         self._ensure_work_orders_table()
         self._ensure_work_order_type_columns()
+        self._ensure_production_work_order_lifecycle_columns()
         self._ensure_material_requests_table()
         self._ensure_production_tables()
         self._ensure_work_order_parts_table()
@@ -297,6 +307,31 @@ class WebBridge(QObject):
                     quantity_consumed INTEGER NOT NULL
                 );
             """))
+            db.execute(text("""
+                CREATE TABLE IF NOT EXISTS warehouse.produced_units (
+                    id SERIAL PRIMARY KEY,
+                    production_run_id INTEGER REFERENCES warehouse.production_runs(id) ON DELETE CASCADE,
+                    serial_number VARCHAR(100) NOT NULL,
+                    is_returned BOOLEAN DEFAULT FALSE,
+                    return_reason VARCHAR(500),
+                    returned_at TIMESTAMP WITH TIME ZONE,
+                    return_location_id INTEGER REFERENCES warehouse.locations(id)
+                );
+            """))
+            db.execute(text("ALTER TABLE warehouse.produced_units DROP CONSTRAINT IF EXISTS produced_units_serial_number_key;"))
+            db.execute(text("ALTER TABLE warehouse.produced_units ADD COLUMN IF NOT EXISTS is_returned BOOLEAN DEFAULT FALSE;"))
+            db.execute(text("ALTER TABLE warehouse.produced_units ADD COLUMN IF NOT EXISTS return_reason VARCHAR(500);"))
+            db.execute(text("ALTER TABLE warehouse.produced_units ADD COLUMN IF NOT EXISTS returned_at TIMESTAMP WITH TIME ZONE;"))
+            db.execute(text("ALTER TABLE warehouse.produced_units ADD COLUMN IF NOT EXISTS return_location_id INTEGER REFERENCES warehouse.locations(id);"))
+            db.execute(text("ALTER TABLE warehouse.produced_units ADD COLUMN IF NOT EXISTS returned_materials VARCHAR(2000);"))
+            db.execute(text("ALTER TABLE warehouse.produced_units ADD COLUMN IF NOT EXISTS replacement_requested_qty INTEGER DEFAULT 0;"))
+            
+            # Clean up old records to avoid data inconsistency with the new unique serial number system
+            run_count = db.execute(text("SELECT COUNT(*) FROM warehouse.production_runs")).scalar() or 0
+            unit_count = db.execute(text("SELECT COUNT(*) FROM warehouse.produced_units")).scalar() or 0
+            if run_count > 0 and unit_count == 0:
+                db.execute(text("TRUNCATE warehouse.production_runs RESTART IDENTITY CASCADE;"))
+
             db.commit()
         except Exception as e:
             db.rollback()
@@ -361,6 +396,26 @@ class WebBridge(QObject):
         except Exception as e:
             db.rollback()
             print(f"[WebBridge] work_order_type sütunları eklenemedi: {e}")
+        finally:
+            db.close()
+
+    def _ensure_production_work_order_lifecycle_columns(self):
+        """warehouse.work_orders tablosuna Production Work Order'ın üretim yaşam
+        döngüsü (BEKLIYOR -> URETIMDE -> TAMAMLANDI) için gereken sütunları ekler.
+        Hepsi nullable olduğu için Service Work Order kayıtlarında hep NULL kalır ve
+        mevcut Service akışı hiç etkilenmez."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            db.execute(text("ALTER TABLE warehouse.work_orders ADD COLUMN IF NOT EXISTS started_at TIMESTAMP;"))
+            db.execute(text("ALTER TABLE warehouse.work_orders ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP;"))
+            db.execute(text("ALTER TABLE warehouse.work_orders ADD COLUMN IF NOT EXISTS produced_quantity INTEGER;"))
+            db.execute(text("ALTER TABLE warehouse.work_orders ADD COLUMN IF NOT EXISTS scrap_quantity INTEGER;"))
+            db.execute(text("ALTER TABLE warehouse.work_orders ADD COLUMN IF NOT EXISTS production_notes TEXT;"))
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            print(f"[WebBridge] production work order lifecycle sütunları eklenemedi: {e}")
         finally:
             db.close()
 
@@ -802,6 +857,48 @@ class WebBridge(QObject):
             write_to_cache("parts.json", json_data)
             return json.dumps({"success": True, "fetch_url": "/api_cache/parts.json"})
         except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(result=str)
+    def get_item_boms(self):
+        """Tüm ItemBOM (Recipe) kayıtlarını, parent ve child parça bilgileriyle birlikte
+        getirir. item_bom küçük bir tablo olduğu için (get_parts/get_products/get_stock'un
+        aksine) dosya cache'i kullanılmaz, doğrudan sorgulanır."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            result = db.execute(text("""
+                SELECT b.id, b.parent_item_id, b.child_item_id, b.quantity,
+                       p_parent.name AS parent_name, p_parent.id AS parent_part_id,
+                       p_child.name AS child_name, p_child.id AS child_part_id
+                FROM warehouse.item_bom b
+                LEFT JOIN warehouse.parts p_parent ON p_parent.item_code = b.parent_item_id
+                LEFT JOIN warehouse.parts p_child ON p_child.item_code = b.child_item_id
+                ORDER BY b.parent_item_id, b.child_item_id;
+            """)).mappings().all()
+
+            bom_map = {}
+            for row in result:
+                parent_code = row["parent_item_id"]
+                if parent_code not in bom_map:
+                    bom_map[parent_code] = {
+                        "parent_item_id": parent_code,
+                        "parent_part_id": str(row["parent_part_id"]) if row["parent_part_id"] else "",
+                        "parent_name": row["parent_name"] or parent_code,
+                        "materials": []
+                    }
+                bom_map[parent_code]["materials"].append({
+                    "child_item_id": row["child_item_id"],
+                    "child_part_id": str(row["child_part_id"]) if row["child_part_id"] else "",
+                    "child_name": row["child_name"] or row["child_item_id"],
+                    "quantity": int(row["quantity"])
+                })
+
+            return json.dumps({"success": True, "item_boms": list(bom_map.values())}, ensure_ascii=False)
+        except Exception as e:
+            print(f"[WebBridge] get_item_boms hatası: {e}")
             return json.dumps({"success": False, "message": str(e)})
         finally:
             db.close()
@@ -1555,6 +1652,7 @@ class WebBridge(QObject):
                        w.start_date, w.end_date, w.parts_used, w.status, w.created_at,
                        w.source_location_id, w.stock_settled_at,
                        w.work_order_type, w.target_part_id, w.planned_quantity,
+                       w.started_at, w.completed_at, w.produced_quantity, w.scrap_quantity, w.production_notes,
                        s.customer_name, s.brand, s.model, s.fault_category, s.fault_type,
                        tp.item_code AS target_part_code, tp.name AS target_part_name
                 FROM warehouse.work_orders w
@@ -1578,6 +1676,11 @@ class WebBridge(QObject):
                     "target_part_code": row["target_part_code"] or "",
                     "target_part_name": row["target_part_name"] or "",
                     "planned_quantity": row["planned_quantity"] if row["planned_quantity"] is not None else "",
+                    "started_at": row["started_at"].strftime("%Y-%m-%d %H:%M") if row["started_at"] else "",
+                    "completed_at": row["completed_at"].strftime("%Y-%m-%d %H:%M") if row["completed_at"] else "",
+                    "produced_quantity": row["produced_quantity"] if row["produced_quantity"] is not None else "",
+                    "scrap_quantity": row["scrap_quantity"] if row["scrap_quantity"] is not None else "",
+                    "production_notes": row["production_notes"] or "",
                     "description": row["description"] or "",
                     "assigned_technician": row["assigned_technician"] or "",
                     "priority": row["priority"] or "Orta",
@@ -1809,13 +1912,14 @@ class WebBridge(QObject):
     # malzeme talebi (Material Request) veya stok hareketi oluşturulmaz.
     # ==========================
 
-    @Slot(str, str, str, str, result=str)
-    def create_production_work_order(self, target_part_id, description, priority, planned_quantity):
+    @Slot(str, str, str, str, str, result=str)
+    def create_production_work_order(self, target_part_id, description, priority, planned_quantity, assigned_technician):
         """PRODUCTION tipinde yeni bir iş emri oluşturur. target_part_id, üretilecek yarı
         mamulün parça id'sidir; bu parçanın item_code'una karşılık gelen bir Recipe
         (warehouse.item_bom kaydı) bulunmalıdır. Service Record gerekmez. Recipe'deki her
-        BOM satırı için bir Material Request kaydı (WAITING durumunda) oluşturulur. Bu
-        aşamada stok düşme, depo transferi veya üretim tamamlama yapılmaz."""
+        BOM satırı için bir Material Request kaydı (WAITING durumunda) oluşturulur. Durum
+        BEKLIYOR ile başlar (bkz. start_production_work_order/complete_production_work_order).
+        Bu aşamada stok düşme, depo transferi veya üretim tamamlama yapılmaz."""
         from sqlalchemy import text
         from models.part import Part
         db = SessionLocal()
@@ -1842,9 +1946,10 @@ class WebBridge(QObject):
 
             new_id = db.execute(text("""
                 INSERT INTO warehouse.work_orders (
-                    work_order_type, target_part_id, description, priority, planned_quantity, status
+                    work_order_type, target_part_id, description, priority, planned_quantity,
+                    assigned_technician, status
                 ) VALUES (
-                    :wtype, :target, :desc, :priority, :qty, :status
+                    :wtype, :target, :desc, :priority, :qty, :tech, :status
                 ) RETURNING id
             """), {
                 "wtype": WORK_ORDER_TYPE_PRODUCTION,
@@ -1852,7 +1957,8 @@ class WebBridge(QObject):
                 "desc": description or None,
                 "priority": priority or "Orta",
                 "qty": qty,
-                "status": "Beklemede"
+                "tech": assigned_technician or None,
+                "status": PRODUCTION_WO_STATUS_WAITING
             }).scalar()
 
             for bom_row in bom_rows:
@@ -1875,6 +1981,110 @@ class WebBridge(QObject):
         except Exception as e:
             db.rollback()
             return json.dumps({"success": False, "message": f"Kayıt hatası: {str(e)}"})
+        finally:
+            db.close()
+
+    # ==========================
+    # PRODUCTION WORK ORDER YAŞAM DÖNGÜSÜ (BEKLIYOR -> URETIMDE -> TAMAMLANDI)
+    # Sadece PRODUCTION tipi work order'lar için çalışır; Service Work Order'ın kendi
+    # status akışını (create_work_order/update_work_order) hiç etkilemez. Bu aşamada
+    # stok düşme, depo transferi, yarı mamul stok oluşturma veya Scrap Stock hareketi
+    # yapılmaz — sadece iş emrinin üretim verileri kaydedilir.
+    # ==========================
+
+    @Slot(str, str, result=str)
+    def start_production_work_order(self, work_order_id_str, username):
+        """PRODUCTION tipi bir iş emrini BEKLIYOR durumundan URETIMDE durumuna geçirir ve
+        started_at zaman damgasını kaydeder. Stok/depo işlemi yapmaz."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            work_order_id = int(work_order_id_str)
+            row = db.execute(
+                text("SELECT id, work_order_type, status FROM warehouse.work_orders WHERE id = :id FOR UPDATE"),
+                {"id": work_order_id}
+            ).mappings().first()
+            if not row:
+                return json.dumps({"success": False, "message": "İş emri bulunamadı."})
+            if row["work_order_type"] != WORK_ORDER_TYPE_PRODUCTION:
+                return json.dumps({"success": False, "message": "Bu işlem sadece Production Work Order'lar için geçerlidir."})
+            if row["status"] != PRODUCTION_WO_STATUS_WAITING:
+                return json.dumps({"success": False, "message": f"Sadece {PRODUCTION_WO_STATUS_WAITING} durumundaki iş emirleri üretime alınabilir."})
+
+            db.execute(text("""
+                UPDATE warehouse.work_orders
+                SET status = :status, started_at = CURRENT_TIMESTAMP
+                WHERE id = :id
+            """), {"status": PRODUCTION_WO_STATUS_IN_PRODUCTION, "id": work_order_id})
+            db.commit()
+            return json.dumps({"success": True, "message": "Üretim başlatıldı", "status": PRODUCTION_WO_STATUS_IN_PRODUCTION})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": f"İşlem hatası: {str(e)}"})
+        finally:
+            db.close()
+
+    @Slot(str, str, str, str, str, result=str)
+    def complete_production_work_order(self, work_order_id_str, produced_quantity_str, scrap_quantity_str, production_notes, username):
+        """PRODUCTION tipi bir iş emrini URETIMDE durumundan TAMAMLANDI durumuna geçirir.
+        Üretilen Adet + Fire Adedi, Planlanan Üretim'e eşit olmak zorundadır; değilse
+        işlem reddedilir ve hiçbir kayıt değişmez. Stok düşme, depo transferi, yarı mamul
+        stok oluşturma veya Scrap Stock hareketi yapmaz — bunlar sonraki aşamada eklenecek."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            work_order_id = int(work_order_id_str)
+            try:
+                produced_quantity = int(produced_quantity_str)
+            except (ValueError, TypeError):
+                return json.dumps({"success": False, "message": "Üretilen Adet geçerli bir sayı olmalıdır."})
+            try:
+                scrap_quantity = int(scrap_quantity_str)
+            except (ValueError, TypeError):
+                return json.dumps({"success": False, "message": "Fire Adedi geçerli bir sayı olmalıdır."})
+
+            if produced_quantity < 0 or scrap_quantity < 0:
+                return json.dumps({"success": False, "message": "Üretilen Adet ve Fire Adedi negatif olamaz."})
+
+            row = db.execute(
+                text("""SELECT id, work_order_type, status, planned_quantity
+                        FROM warehouse.work_orders WHERE id = :id FOR UPDATE"""),
+                {"id": work_order_id}
+            ).mappings().first()
+            if not row:
+                return json.dumps({"success": False, "message": "İş emri bulunamadı."})
+            if row["work_order_type"] != WORK_ORDER_TYPE_PRODUCTION:
+                return json.dumps({"success": False, "message": "Bu işlem sadece Production Work Order'lar için geçerlidir."})
+            if row["status"] != PRODUCTION_WO_STATUS_IN_PRODUCTION:
+                return json.dumps({"success": False, "message": f"Sadece {PRODUCTION_WO_STATUS_IN_PRODUCTION} durumundaki iş emirleri tamamlanabilir."})
+            if row["planned_quantity"] is None:
+                return json.dumps({"success": False, "message": "Bu iş emrinde Planlanan Üretim Adedi tanımlı değil, tamamlanamaz."})
+
+            planned_quantity = row["planned_quantity"]
+            if produced_quantity + scrap_quantity != planned_quantity:
+                return json.dumps({
+                    "success": False,
+                    "message": f"Üretilen Adet ({produced_quantity}) + Fire Adedi ({scrap_quantity}) = {produced_quantity + scrap_quantity}, "
+                                f"Planlanan Üretim'e ({planned_quantity}) eşit olmalıdır."
+                })
+
+            db.execute(text("""
+                UPDATE warehouse.work_orders
+                SET status = :status, completed_at = CURRENT_TIMESTAMP,
+                    produced_quantity = :produced, scrap_quantity = :scrap, production_notes = :notes
+                WHERE id = :id
+            """), {
+                "status": PRODUCTION_WO_STATUS_COMPLETED,
+                "produced": produced_quantity,
+                "scrap": scrap_quantity,
+                "notes": production_notes or None,
+                "id": work_order_id
+            })
+            db.commit()
+            return json.dumps({"success": True, "message": "Üretim tamamlandı", "status": PRODUCTION_WO_STATUS_COMPLETED})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": f"İşlem hatası: {str(e)}"})
         finally:
             db.close()
 
@@ -2456,22 +2666,26 @@ class WebBridge(QObject):
 
     @Slot(result=str)
     def get_production_runs(self):
-        """Tüm üretim kayıtlarını, tükettikleri malzemelerle birlikte getirir."""
+        """Tüm üretilen cihaz kayıtlarını, benzersiz seri numaraları (Cihaz Kimlik ID) ve tükettikleri malzemelerle birlikte getirir."""
         from sqlalchemy import text
         db = SessionLocal()
         try:
-            runs = db.execute(text("""
-                SELECT pr.id, pr.target_part_id, pr.quantity_produced, pr.location_id, pr.source_location_id,
+            units = db.execute(text("""
+                SELECT pu.id AS unit_id, pu.serial_number, pu.is_returned, pu.return_reason, pu.returned_at, pu.return_location_id, pu.returned_materials, pu.replacement_requested_qty,
+                       pr.id AS run_id, pr.target_part_id, pr.quantity_produced, pr.location_id, pr.source_location_id,
                        pr.produced_by, pr.notes, pr.created_at,
                        p.brand AS target_brand, p.model AS target_model,
                        p.item_code AS target_code, p.name AS target_name,
                        l.name AS location_name,
-                       sl.name AS source_location_name
-                FROM warehouse.production_runs pr
+                       sl.name AS source_location_name,
+                       rl.name AS return_location_name
+                FROM warehouse.produced_units pu
+                JOIN warehouse.production_runs pr ON pr.id = pu.production_run_id
                 LEFT JOIN warehouse.parts p ON p.id = pr.target_part_id
                 LEFT JOIN warehouse.locations l ON l.id = pr.location_id
                 LEFT JOIN warehouse.locations sl ON sl.id = pr.source_location_id
-                ORDER BY pr.id DESC
+                LEFT JOIN warehouse.locations rl ON rl.id = pu.return_location_id
+                ORDER BY pu.id DESC
             """)).mappings().all()
 
             materials = db.execute(text("""
@@ -2492,22 +2706,49 @@ class WebBridge(QObject):
                 })
 
             result = []
-            for r in runs:
-                target_label = f'{r["target_brand"] or ""} {r["target_model"] or ""}'.strip() or (r["target_name"] or "")
+            for u in units:
+                target_label = f'{u["target_brand"] or ""} {u["target_model"] or ""}'.strip() or (u["target_name"] or "")
+                run_qty = u["quantity_produced"]
+                
+                # Tüm parti için toplam malzeme tüketimini ekle
+                unit_materials = []
+                for m in materials_by_run.get(u["run_id"], []):
+                    qty = float(m["quantity_consumed"])
+                    if qty.is_integer():
+                        qty = int(qty)
+                    else:
+                        qty = round(qty, 2)
+                        
+                    unit_materials.append({
+                        "part_id": m["part_id"],
+                        "part_name": m["part_name"],
+                        "item_code": m["item_code"],
+                        "quantity_consumed": qty
+                    })
+
                 result.append({
-                    "id": str(r["id"]),
-                    "target_part_id": str(r["target_part_id"]) if r["target_part_id"] else "",
+                    "id": str(u["run_id"]),  # Geri alma işlemleri için run_id
+                    "unit_id": str(u["unit_id"]),
+                    "serial_number": u["serial_number"],
+                    "is_returned": bool(u["is_returned"]),
+                    "return_reason": u["return_reason"] or "",
+                    "returned_at": u["returned_at"].strftime("%Y-%m-%d %H:%M") if u["returned_at"] else "",
+                    "return_location_id": str(u["return_location_id"]) if u["return_location_id"] else "",
+                    "return_location_name": u["return_location_name"] or "",
+                    "returned_materials": json.loads(u["returned_materials"]) if u["returned_materials"] else [],
+                    "replacement_requested_qty": int(u["replacement_requested_qty"]) if u["replacement_requested_qty"] else 0,
+                    "target_part_id": str(u["target_part_id"]) if u["target_part_id"] else "",
                     "target_part_name": target_label,
-                    "target_item_code": r["target_code"] or "",
-                    "quantity_produced": r["quantity_produced"],
-                    "location_id": str(r["location_id"]) if r["location_id"] else "",
-                    "location_name": r["location_name"] or "",
-                    "source_location_id": str(r["source_location_id"]) if r["source_location_id"] else "",
-                    "source_location_name": r["source_location_name"] or "",
-                    "produced_by": r["produced_by"] or "",
-                    "notes": r["notes"] or "",
-                    "created_at": r["created_at"].strftime("%Y-%m-%d %H:%M") if r["created_at"] else "",
-                    "materials": materials_by_run.get(r["id"], [])
+                    "target_item_code": u["target_code"] or "",
+                    "quantity_produced": u["quantity_produced"],
+                    "location_id": str(u["location_id"]) if u["location_id"] else "",
+                    "location_name": u["location_name"] or "",
+                    "source_location_id": str(u["source_location_id"]) if u["source_location_id"] else "",
+                    "source_location_name": u["source_location_name"] or "",
+                    "produced_by": u["produced_by"] or "",
+                    "notes": u["notes"] or "",
+                    "created_at": u["created_at"].strftime("%Y-%m-%d %H:%M") if u["created_at"] else "",
+                    "materials": unit_materials
                 })
             return json.dumps({"success": True, "production_runs": result})
         except Exception as e:
@@ -2551,10 +2792,10 @@ class WebBridge(QObject):
                     ORDER BY id
                     FOR UPDATE
                 """), {"pid": part_id}).all()
-                for stock_id, qty in rows:
+                for stock_id, stock_qty in rows:
                     if remaining <= 0:
                         break
-                    take = min(qty, remaining)
+                    take = min(stock_qty, remaining)
                     db.execute(text("""
                         UPDATE warehouse.stock SET quantity = quantity - :take WHERE id = :id
                     """), {"take": take, "id": stock_id})
@@ -2581,6 +2822,15 @@ class WebBridge(QObject):
                 "by": produced_by or None, "notes": notes or None
             }).scalar()
 
+            # Tek bir ortak serial number (Cihaz Kimlik ID) oluştur ve tek satır olarak ekle
+            next_id = db.execute(text("SELECT nextval(pg_get_serial_sequence('warehouse.produced_units', 'id'))")).scalar()
+            serial_num = f"REM-PRD-{next_id:06d}"
+            
+            db.execute(text("""
+                INSERT INTO warehouse.produced_units (id, production_run_id, serial_number)
+                VALUES (:id, :run_id, :serial)
+            """), {"id": next_id, "run_id": run_id, "serial": serial_num})
+
             for m in materials:
                 db.execute(text("""
                     INSERT INTO warehouse.production_materials (production_run_id, part_id, quantity_consumed)
@@ -2596,27 +2846,62 @@ class WebBridge(QObject):
             db.close()
 
     @Slot(str, result=str)
-    def delete_production_run(self, run_id_str):
-        """Belirtilen üretim kaydını siler ve stok hareketlerini geri alır (üretilen ürünü düşer, hammaddeleri iade eder)."""
-        from sqlalchemy import text
-        db = SessionLocal()
+    def delete_production_run(self, params_json):
+        """Belirtilen üretilmiş cihaz birimini (produced_unit) iade eder.
+        Sorunlu parçalar seçilen iade deposuna, sorunsuzlar Good Stock'a (id=26) aktarılır.
+        params_json: JSON string {unit_id, return_location_id, return_reason, defective_parts: [{part_id, defective}]}
+        """
+        # Dış try: PySide6'nın slot'tan "" döndürmesini engeller
         try:
-            run_id = int(run_id_str)
+            return self._do_delete_production_run(params_json)
+        except Exception as e:
+            return json.dumps({"success": False, "message": f"Slot hatası: {str(e)}"})
+
+    def _do_delete_production_run(self, params_json):
+        from sqlalchemy import text
+        from datetime import datetime
+        db = SessionLocal()
+        result_str = json.dumps({"success": False, "message": "Bilinmeyen hata"})
+        try:
+            params = json.loads(params_json)
+            unit_id = int(params["unit_id"])
+            return_location_id = int(params["return_location_id"])
+            return_reason = params.get("return_reason") or "Belirtilmedi"
+            replacement_qty = max(0, int(params.get("replacement_qty") or 0))
+            GOOD_STOCK_ID = 26
+
+            # Sorunlu parça miktarlarını çöz: {part_id: defective_qty}
+            defective_qtys = {}
+            for entry in (params.get("defective_parts") or []):
+                try:
+                    p_id = int(entry.get("part_id"))
+                    def_qty = int(entry.get("defective_qty", 0))
+                    if def_qty > 0:
+                        defective_qtys[p_id] = def_qty
+                except (ValueError, TypeError):
+                    pass
             
-            # 1. Üretim kaydını çek
-            run = db.execute(text("""
-                SELECT target_part_id, quantity_produced, location_id, source_location_id
-                FROM warehouse.production_runs
-                WHERE id = :id
-            """), {"id": run_id}).first()
+            # 1. Üretilmiş cihaz kaydını ve bağlı olduğu üretim koşusunu çek
+            unit = db.execute(text("""
+                SELECT pu.id, pu.serial_number, pu.is_returned,
+                       pr.id AS run_id, pr.target_part_id, pr.quantity_produced, pr.location_id, pr.source_location_id
+                FROM warehouse.produced_units pu
+                JOIN warehouse.production_runs pr ON pr.id = pu.production_run_id
+                WHERE pu.id = :uid
+            """), {"uid": unit_id}).mappings().first()
             
-            if not run:
-                return json.dumps({"success": False, "message": "Üretim kaydı bulunamadı."})
+            if not unit:
+                result_str = json.dumps({"success": False, "message": "Üretilen cihaz kaydı bulunamadı."})
+                return result_str
                 
-            target_part_id = run[0]
-            quantity_produced = run[1]
-            location_id = run[2]
-            source_location_id = run[3]
+            if unit["is_returned"]:
+                result_str = json.dumps({"success": False, "message": "Bu cihaz zaten iade edilmiş."})
+                return result_str
+                
+            run_id = unit["run_id"]
+            target_part_id = unit["target_part_id"]
+            quantity_produced = unit["quantity_produced"]
+            location_id = unit["location_id"]
             
             # 2. Üretilen parçanın stoğunu kontrol et
             target_stock = db.execute(text("""
@@ -2627,10 +2912,11 @@ class WebBridge(QObject):
             
             if not target_stock or target_stock[1] < quantity_produced:
                 current_qty = target_stock[1] if target_stock else 0
-                return json.dumps({
+                result_str = json.dumps({
                     "success": False, 
-                    "message": f"Üretilen parçanın bu lokasyondaki stoğu yetersiz ({current_qty} adet var, {quantity_produced} adet üretilmişti). Üretim geri alınamaz."
+                    "message": f"Üretilen parçanın stoğu yetersiz ({current_qty} adet var, {quantity_produced} adet gerekli). İade gerçekleştirilemez."
                 })
+                return result_str
                 
             # 3. Tüketilen malzemeleri çek
             materials = db.execute(text("""
@@ -2639,47 +2925,113 @@ class WebBridge(QObject):
                 WHERE production_run_id = :run_id
             """), {"run_id": run_id}).all()
             
-            # 4. Üretilen parçanın stoğunu düş
+            # 4. Üretilen parçanın stoğunu batch miktarı kadar düş
             db.execute(text("""
                 UPDATE warehouse.stock
                 SET quantity = quantity - :qty
                 WHERE id = :id
             """), {"qty": quantity_produced, "id": target_stock[0]})
             
-            # 5. Tüketilen malzemeleri kaynak lokasyona geri ekle
+            # 5. Her malzemeyi sorunlu/sorunsuz durumuna göre farklı depoya ekle
+            returned_mats = []
             for m in materials:
                 m_part_id = m[0]
-                m_qty = m[1]
+                total_qty = m[1] # Tüm batch için tüketilen miktar
                 
-                existing_m = db.execute(text("""
-                    SELECT id FROM warehouse.stock
-                    WHERE part_id = :pid AND location_id = :lid
-                    FOR UPDATE
-                """), {"pid": m_part_id, "lid": source_location_id}).first()
+                # Sorunlu miktarını al ve sınırla (en fazla total_qty kadar olabilir)
+                def_qty = min(total_qty, defective_qtys.get(m_part_id, 0))
+                good_qty = total_qty - def_qty
                 
-                if existing_m:
-                    db.execute(text("""
-                        UPDATE warehouse.stock
-                        SET quantity = quantity + :qty
-                        WHERE id = :id
-                    """), {"qty": m_qty, "id": existing_m[0]})
-                else:
-                    db.execute(text("""
-                        INSERT INTO warehouse.stock (part_id, location_id, quantity)
-                        VALUES (:pid, :lid, :qty)
-                    """), {"pid": m_part_id, "lid": source_location_id, "qty": m_qty})
+                part_row = db.execute(text("SELECT brand, model, name, item_code FROM warehouse.parts WHERE id = :pid"), {"pid": m_part_id}).first()
+                part_label = ""
+                item_code = ""
+                if part_row:
+                    part_label = f"{part_row[0] or ''} {part_row[1] or ''}".strip() or (part_row[2] or "")
+                    item_code = part_row[3] or ""
+
+                returned_mats.append({
+                    "part_id": str(m_part_id),
+                    "part_name": part_label,
+                    "item_code": item_code,
+                    "defective_qty": def_qty,
+                    "good_qty": good_qty,
+                    "total_qty": total_qty
+                })
+                
+                # 5a. Sorunlu olanları seçilen iade lokasyonuna aktar
+                if def_qty > 0:
+                    existing_m = db.execute(text("""
+                        SELECT id FROM warehouse.stock
+                        WHERE part_id = :pid AND location_id = :lid
+                        FOR UPDATE
+                    """), {"pid": m_part_id, "lid": return_location_id}).first()
+                    
+                    if existing_m:
+                        db.execute(text("""
+                            UPDATE warehouse.stock
+                            SET quantity = quantity + :qty
+                            WHERE id = :id
+                        """), {"qty": def_qty, "id": existing_m[0]})
+                    else:
+                        db.execute(text("""
+                            INSERT INTO warehouse.stock (part_id, location_id, quantity)
+                            VALUES (:pid, :lid, :qty)
+                        """), {"pid": m_part_id, "lid": return_location_id, "qty": def_qty})
+                
+                # 5b. Sorunsuz olanları doğrudan Good Stock'a aktar
+                if good_qty > 0:
+                    existing_m = db.execute(text("""
+                        SELECT id FROM warehouse.stock
+                        WHERE part_id = :pid AND location_id = :lid
+                        FOR UPDATE
+                    """), {"pid": m_part_id, "lid": GOOD_STOCK_ID}).first()
+                    
+                    if existing_m:
+                        db.execute(text("""
+                            UPDATE warehouse.stock
+                            SET quantity = quantity + :qty
+                            WHERE id = :id
+                        """), {"qty": good_qty, "id": existing_m[0]})
+                    else:
+                        db.execute(text("""
+                            INSERT INTO warehouse.stock (part_id, location_id, quantity)
+                            VALUES (:pid, :lid, :qty)
+                        """), {"pid": m_part_id, "lid": GOOD_STOCK_ID, "qty": good_qty})
             
-            # 6. Malzeme tüketim ve üretim kayıtlarını sil
-            db.execute(text("DELETE FROM warehouse.production_materials WHERE production_run_id = :run_id"), {"run_id": run_id})
-            db.execute(text("DELETE FROM warehouse.production_runs WHERE id = :id"), {"id": run_id})
+            # 6. Cihaz kaydını iade edildi olarak işaretle ve nedenini kaydet
+            db.execute(text("""
+                UPDATE warehouse.produced_units
+                SET is_returned = TRUE,
+                    return_reason = :reason,
+                    returned_at = :now,
+                    return_location_id = :ret_loc_id,
+                    returned_materials = :returned_mats,
+                    replacement_requested_qty = :replacement_qty
+                WHERE id = :uid
+            """), {
+                "reason": return_reason,
+                "now": datetime.utcnow(),
+                "ret_loc_id": return_location_id,
+                "uid": unit_id,
+                "returned_mats": json.dumps(returned_mats),
+                "replacement_qty": replacement_qty
+            })
             
             db.commit()
-            return json.dumps({"success": True, "message": "Üretim kaydı başarıyla silindi ve stok hareketleri geri alındı."})
+            result_str = json.dumps({"success": True, "message": "Üretim iade/değişim işlemi başarıyla tamamlandı."})
+            return result_str
         except Exception as e:
-            db.rollback()
-            return json.dumps({"success": False, "message": f"Silme hatası: {str(e)}"})
+            try:
+                db.rollback()
+            except Exception:
+                pass
+            result_str = json.dumps({"success": False, "message": f"İade hatası: {str(e)}"})
+            return result_str
         finally:
-            db.close()
+            try:
+                db.close()
+            except Exception:
+                pass
 
     # --- YENİ EKLENEN ÜRÜN (TELEFON) VE TEDARİKÇİ FONKSİYONLARI ---
     # Products verileri artik kendi 'products' tablosundan cekiliyor (parts'tan bagimsiz).
@@ -2832,7 +3184,7 @@ class WebBridge(QObject):
         db = SessionLocal()
         try:
             stocks = db.execute(text("""
-                SELECT s.id, p.id as part_id, p.brand, p.model, p.name as pname, 
+                SELECT s.id, p.id as part_id, p.brand, p.model, p.name as pname, p.item_code,
                        l.id as location_id, l.name as location_name, l.kind as location_kind, 
                        s.quantity, p.critical_limit 
                 FROM warehouse.stock s 
@@ -2846,6 +3198,7 @@ class WebBridge(QObject):
                     "id": row["id"],
                     "part_id": row["part_id"],
                     "part_name": (row['pname'] or '').strip(),
+                    "item_code": row["item_code"] or "-",
                     "location_id": row["location_id"],
                     "location_name": row["location_name"],
                     "location_kind": row["location_kind"],
@@ -3105,7 +3458,10 @@ class WebBridge(QObject):
                     "date": mov.created_at.strftime("%Y-%m-%d %H:%M") if mov.created_at else "",
                     "type": mov.type,
                     "part_name": p.name if p else "-",
+                    "item_code": p.item_code if p else "-",
                     "location": loc_name,
+                    "source_location": sloc.name if sloc else "-",
+                    "target_location": tloc.name if tloc else "-",
                     "quantity": mov.quantity,
                     "user": mov.created_by
                 })
@@ -3225,21 +3581,18 @@ class WebBridge(QObject):
         db = SessionLocal()
         try:
             from sqlalchemy import func
-            good_stock_id = _get_system_location_id(db, "good_stock")
-            if good_stock_id:
-                stocks = db.query(Stock, Part, Location).join(Part, Stock.part_id == Part.id).join(Location, Stock.location_id == Location.id).filter(
-                    Stock.location_id == good_stock_id,
-                    Stock.quantity < func.coalesce(Part.critical_limit, 50)
-                ).all()
-            else:
-                stocks = []
+            stocks = db.query(Stock, Part, Location).join(Part, Stock.part_id == Part.id).join(Location, Stock.location_id == Location.id).filter(
+                Location.kind == "good_stock",
+                Stock.quantity < func.coalesce(Part.critical_limit, 50)
+            ).all()
 
             res = []
             for s, p, l in stocks:
                 limit = p.critical_limit or 50
                 res.append({
                     "id": s.id,
-                    "part_name": f"{p.brand} {p.model} {p.name}",
+                    "part_name": p.name or "-",
+                    "item_code": p.item_code or "-",
                     "location_name": l.name,
                     "quantity": s.quantity,
                     "critical_limit": limit,

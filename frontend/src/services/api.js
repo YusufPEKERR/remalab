@@ -595,10 +595,40 @@ export const api = {
                     order.description || '',
                     order.priority || 'Orta',
                     order.planned_quantity != null ? String(order.planned_quantity) : '',
+                    order.assigned_technician || '',
                     (res) => resolve(JSON.parse(res))
                 );
             } else {
                 resolve({ success: true, id: null });
+            }
+        });
+    },
+
+    startProductionWorkOrder: async (workOrderId, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.start_production_work_order) {
+                backend.start_production_work_order(String(workOrderId), username || '', (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true });
+            }
+        });
+    },
+
+    completeProductionWorkOrder: async (workOrderId, producedQuantity, scrapQuantity, productionNotes, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.complete_production_work_order) {
+                backend.complete_production_work_order(
+                    String(workOrderId),
+                    String(producedQuantity),
+                    String(scrapQuantity),
+                    productionNotes || '',
+                    username || '',
+                    (res) => resolve(JSON.parse(res))
+                );
+            } else {
+                resolve({ success: true });
             }
         });
     },
@@ -785,11 +815,24 @@ export const api = {
         });
     },
 
-    deleteProductionRun: async (id) => {
+    deleteProductionRun: async (id, returnLocationId = "", returnReason = "", defectivePartsJson = "[]", replacementQty = 0) => {
         const backend = await getBackend();
-        return new Promise((resolve) => {
+        return new Promise((resolve, reject) => {
             if (backend.delete_production_run) {
-                backend.delete_production_run(String(id), (res) => resolve(JSON.parse(res)));
+                const paramsJson = JSON.stringify({
+                    unit_id: String(id),
+                    return_location_id: String(returnLocationId || ""),
+                    return_reason: returnReason || "",
+                    defective_parts: JSON.parse(defectivePartsJson || "[]"),
+                    replacement_qty: Number(replacementQty || 0)
+                });
+                backend.delete_production_run(paramsJson, (res) => {
+                    try {
+                        resolve(JSON.parse(res));
+                    } catch(e) {
+                        reject(new Error("Backend yanıt parse hatası: " + res));
+                    }
+                });
             } else {
                 resolve({ success: true });
             }

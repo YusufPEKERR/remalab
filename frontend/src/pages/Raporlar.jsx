@@ -3,7 +3,8 @@ import { Download, Filter, RefreshCw, AlertTriangle } from 'lucide-react';
 import { api } from '../services/api';
 
 export default function Raporlar() {
-  const [generalReports, setGeneralReports] = useState([]);
+  const [stockReports, setStockReports] = useState([]);
+  const [transferReports, setTransferReports] = useState([]);
   const [criticalReports, setCriticalReports] = useState([]);
   const [locations, setLocations] = useState([]);
   const [selectedLocation, setSelectedLocation] = useState('');
@@ -16,15 +17,25 @@ export default function Raporlar() {
   const itemsPerPage = 100;
 
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
-  const [selectedGeneralCols, setSelectedGeneralCols] = useState({
-    "Tarih": true,
-    "Hareket Tipi": true,
+  const [selectedStockCols, setSelectedStockCols] = useState({
+    "İtem Kodu": true,
     "Parça Adı": true,
     "Lokasyon": true,
+    "Stok Miktarı": true,
+    "Kritik Durumu": true
+  });
+  const [selectedTransferCols, setSelectedTransferCols] = useState({
+    "Tarih": true,
+    "İtem Kodu": true,
+    "Parça Adı": true,
     "Miktar": true,
-    "İşlemi Yapan": true
+    "Kaynak Depo": true,
+    "Hedef Depo": true,
+    "İşlemi Yapan": true,
+    "Açıklama": true
   });
   const [selectedCriticalCols, setSelectedCriticalCols] = useState({
+    "İtem Kodu": true,
     "Parça Adı": true,
     "Lokasyon": true,
     "Mevcut Stok": true,
@@ -72,7 +83,7 @@ export default function Raporlar() {
     setEndDate(new Date(end - offset).toISOString().slice(0, 16));
   };
   
-  const [activeTab, setActiveTab] = useState('general');
+  const [activeTab, setActiveTab] = useState('stok');
 
   useEffect(() => {
     setSelectedRows([]);
@@ -81,17 +92,24 @@ export default function Raporlar() {
   const fetchReports = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      if (activeTab === 'general') {
+      if (activeTab === 'stok') {
+        const res = await api.getStockStatus();
+        if (res.success) {
+          setStockReports(res.stock || []);
+        } else {
+          alert("Stok raporları alınamadı: " + (res.message || "Bilinmeyen hata"));
+        }
+      } else if (activeTab === 'transfers') {
         const res = await api.getReports(startDate, endDate);
         if (res.success) {
-          setGeneralReports(res.reports);
+          setTransferReports(res.reports || []);
         } else {
-          alert("Genel raporlar alınamadı: " + (res.message || "Bilinmeyen hata"));
+          alert("Transfer hareketleri alınamadı: " + (res.message || "Bilinmeyen hata"));
         }
       } else {
         const res = await api.getCriticalStock();
         if (res.success) {
-          setCriticalReports(res.critical_stock);
+          setCriticalReports(res.critical_stock || []);
         } else {
           alert("Kritik raporlar alınamadı: " + (res.message || "Bilinmeyen hata"));
         }
@@ -117,19 +135,21 @@ export default function Raporlar() {
     loadLocations();
   }, []);
 
-  const filteredGeneralReports = generalReports.filter(r => selectedLocation === '' || r.location === selectedLocation);
-  const filteredCriticalReports = criticalReports.filter(r => selectedLocation === '' || r.location === selectedLocation);
+  const filteredStockReports = stockReports.filter(r => selectedLocation === '' || r.location_name === selectedLocation);
+  const filteredTransferReports = transferReports.filter(r => selectedLocation === '' || r.source_location === selectedLocation || r.target_location === selectedLocation);
+  const filteredCriticalReports = criticalReports.filter(r => selectedLocation === '' || r.location_name === selectedLocation);
 
   useEffect(() => { setCurrentPage(1); }, [activeTab, selectedLocation, startDate, endDate]);
 
-  const activeDataList = activeTab === 'general' ? filteredGeneralReports : filteredCriticalReports;
+  const activeDataList = activeTab === 'stok' ? filteredStockReports : (activeTab === 'transfers' ? filteredTransferReports : filteredCriticalReports);
+
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const paginatedReports = activeDataList.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(activeDataList.length / itemsPerPage);
 
   const toggleSelectAll = () => {
-    const dataList = activeTab === 'general' ? filteredGeneralReports : filteredCriticalReports;
+    const dataList = activeTab === 'stok' ? filteredStockReports : (activeTab === 'transfers' ? filteredTransferReports : filteredCriticalReports);
     if (selectedRows.length === dataList.length && dataList.length > 0) {
       setSelectedRows([]);
     } else {
@@ -145,8 +165,8 @@ export default function Raporlar() {
   };
 
   const executeExport = async () => {
-    const dataList = activeTab === 'general' ? filteredGeneralReports : filteredCriticalReports;
-    const baseReports = activeTab === 'general' ? generalReports : criticalReports;
+    const dataList = activeTab === 'stok' ? filteredStockReports : (activeTab === 'transfers' ? filteredTransferReports : filteredCriticalReports);
+    const baseReports = activeTab === 'stok' ? stockReports : (activeTab === 'transfers' ? transferReports : criticalReports);
     
     const dataToExport = selectedRows.length > 0 
       ? baseReports.filter(r => selectedRows.includes(r.id))
@@ -160,23 +180,37 @@ export default function Raporlar() {
 
     let exportReadyData = [];
 
-    if (activeTab === 'general') {
+    if (activeTab === 'stok') {
       exportReadyData = dataToExport.map(r => {
         const row = {};
-        if (selectedGeneralCols["Tarih"]) row["Tarih"] = r.date;
-        if (selectedGeneralCols["Hareket Tipi"]) row["Hareket Tipi"] = r.type;
-        if (selectedGeneralCols["Parça Adı"]) row["Parça Adı"] = r.part_name;
-        if (selectedGeneralCols["Lokasyon"]) row["Lokasyon"] = r.location;
-        if (selectedGeneralCols["Miktar"]) row["Miktar"] = r.quantity;
-        if (selectedGeneralCols["İşlemi Yapan"]) row["İşlemi Yapan"] = r.user;
+        if (selectedStockCols["İtem Kodu"]) row["İtem Kodu"] = r.item_code;
+        if (selectedStockCols["Parça Adı"]) row["Parça Adı"] = r.part_name;
+        if (selectedStockCols["Lokasyon"]) row["Lokasyon"] = r.location_name;
+        if (selectedStockCols["Stok Miktarı"]) row["Stok Miktarı"] = r.quantity;
+        if (selectedStockCols["Kritik Durumu"]) row["Kritik Durumu"] = (r.location_kind === 'good_stock' && r.quantity <= r.critical_limit) ? 'Kritik' : 'Normal';
         return row;
       });
-      await api.exportTableToExcel(exportReadyData, 'genel_raporlar.xlsx');
+      await api.exportTableToExcel(exportReadyData, 'stok_raporu.xlsx');
+    } else if (activeTab === 'transfers') {
+      exportReadyData = dataToExport.map(r => {
+        const row = {};
+        if (selectedTransferCols["Tarih"]) row["Tarih"] = r.date;
+        if (selectedTransferCols["İtem Kodu"]) row["İtem Kodu"] = r.item_code;
+        if (selectedTransferCols["Parça Adı"]) row["Parça Adı"] = r.part_name;
+        if (selectedTransferCols["Miktar"]) row["Miktar"] = r.quantity;
+        if (selectedTransferCols["Kaynak Depo"]) row["Kaynak Depo"] = r.source_location;
+        if (selectedTransferCols["Hedef Depo"]) row["Hedef Depo"] = r.target_location;
+        if (selectedTransferCols["İşlemi Yapan"]) row["İşlemi Yapan"] = r.user;
+        if (selectedTransferCols["Açıklama"]) row["Açıklama"] = r.type;
+        return row;
+      });
+      await api.exportTableToExcel(exportReadyData, 'transfer_hareketleri.xlsx');
     } else {
       exportReadyData = dataToExport.map(r => {
         const row = {};
+        if (selectedCriticalCols["İtem Kodu"]) row["İtem Kodu"] = r.item_code;
         if (selectedCriticalCols["Parça Adı"]) row["Parça Adı"] = r.part_name;
-        if (selectedCriticalCols["Lokasyon"]) row["Lokasyon"] = r.location;
+        if (selectedCriticalCols["Lokasyon"]) row["Lokasyon"] = r.location_name;
         if (selectedCriticalCols["Mevcut Stok"]) row["Mevcut Stok"] = r.quantity;
         if (selectedCriticalCols["Kritik Limit"]) row["Kritik Limit"] = r.critical_limit;
         return row;
@@ -195,6 +229,15 @@ export default function Raporlar() {
     return () => clearInterval(interval);
   }, [fetchReports]);
 
+  useEffect(() => {
+    if (activeTab === 'critical') {
+      const goodStock = locations.find(l => l.kind === 'good_stock');
+      if (goodStock && selectedLocation !== goodStock.name) {
+        setSelectedLocation(goodStock.name);
+      }
+    }
+  }, [activeTab, locations, selectedLocation]);
+
   return (
     <div className="flex flex-col space-y-6 min-h-full pb-8">
       
@@ -211,8 +254,8 @@ export default function Raporlar() {
             onChange={(e) => setSelectedLocation(e.target.value)}
             className="bg-slate-50 dark:bg-[#242a38] text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-blue-500"
           >
-            <option value="">Tüm Depolar</option>
-            {locations.map(loc => (
+            {activeTab !== 'critical' && <option value="">Tüm Depolar</option>}
+            {locations.filter(loc => activeTab === 'critical' ? loc.kind === 'good_stock' : true).map(loc => (
               <option key={loc.id} value={loc.name}>{loc.name}</option>
             ))}
           </select>
@@ -220,32 +263,125 @@ export default function Raporlar() {
       </div>
 
       {/* Tabs */}
-      <div className="flex space-x-1 bg-white dark:bg-[#1e2330] p-1 rounded-xl border border-slate-200 dark:border-slate-700/50 shrink-0 self-start">
+      <div className="flex space-x-1 bg-white dark:bg-[#1e2330] p-1 rounded-xl border border-slate-200 dark:border-slate-700/50 shrink-0 self-start overflow-x-auto">
         <button
-          onClick={() => setActiveTab('general')}
-          className={`px-6 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 ${
-            activeTab === 'general' 
+          onClick={() => setActiveTab('stok')}
+          className={`whitespace-nowrap px-6 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 ${
+            activeTab === 'stok' 
               ? 'bg-blue-600 text-slate-900 dark:text-white shadow-lg shadow-blue-900/20' 
               : 'text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#2a3142]'
           }`}
         >
-          Genel Raporlar
+          Stok Raporu
         </button>
         <button
           onClick={() => setActiveTab('critical')}
-          className={`px-6 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 ${
+          className={`whitespace-nowrap px-6 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 ${
             activeTab === 'critical' 
               ? 'bg-red-600 text-slate-900 dark:text-white shadow-lg shadow-red-900/20' 
               : 'text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#2a3142]'
           }`}
         >
-          Kritik Raporlar
+          Kritik Stok Raporu
+        </button>
+        <button
+          onClick={() => setActiveTab('transfers')}
+          className={`whitespace-nowrap px-6 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 ${
+            activeTab === 'transfers' 
+              ? 'bg-orange-600 text-slate-900 dark:text-white shadow-lg shadow-orange-900/20' 
+              : 'text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#2a3142]'
+          }`}
+        >
+          Transfer Hareketleri
         </button>
       </div>
 
-      {activeTab === 'general' && (
+      {activeTab === 'stok' && (
         <>
-          {/* Toolbar General */}
+          {/* Toolbar Stok */}
+          <div className="bg-white dark:bg-[#1e2330] p-4 rounded-xl border border-slate-200 dark:border-slate-700/50 shadow-sm flex items-center shrink-0">
+            <button 
+              onClick={() => setIsExportModalOpen(true)}
+              className="flex items-center gap-2 px-5 py-2 bg-slate-100 dark:bg-[#2a3142] hover:bg-[#323a4d] border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors ml-auto"
+            >
+              <Download size={16} /> {selectedRows.length > 0 ? `${selectedRows.length} Seçiliyi Dışa Aktar` : "Tümünü Dışa Aktar"}
+            </button>
+          </div>
+
+          {/* Table Stok */}
+          <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl shadow-lg flex-1 flex flex-col">
+            <div className="overflow-x-auto w-full">
+              <table className="w-full text-left text-base whitespace-nowrap">
+                <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-sm sticky top-0 z-10">
+                  <tr>
+                    <th className="px-6 py-5 w-12 text-center">
+                      <input 
+                        type="checkbox" 
+                        className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-white dark:bg-slate-800"
+                        checked={selectedRows.length === filteredStockReports.length && filteredStockReports.length > 0}
+                        onChange={toggleSelectAll}
+                      />
+                    </th>
+                    <th className="px-6 py-4 min-w-[150px]">İTEM KODU</th>
+                    <th className="px-6 py-4 min-w-[300px]">PARÇA ADI</th>
+                    <th className="px-6 py-4">LOKASYON</th>
+                    <th className="px-6 py-4">STOK MİKTARI</th>
+                    <th className="px-6 py-4">KRİTİK DURUMU</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-700/50">
+                  {loading ? (
+                    <tr>
+                      <td colSpan="6" className="px-6 py-8 text-center text-slate-400">
+                        <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-400" />
+                        Yükleniyor...
+                      </td>
+                    </tr>
+                  ) : filteredStockReports.length === 0 ? (
+                    <tr>
+                      <td colSpan="6" className="px-6 py-8 text-center text-slate-500">
+                        Kayıt bulunamadı.
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedReports.map((r) => {
+                      const isChecked = selectedRows.includes(r.id);
+                      const isCritical = r.location_kind === 'good_stock' && r.quantity <= r.critical_limit;
+                      return (
+                      <tr key={r.id} className={`hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors group text-slate-700 dark:text-slate-300 ${isChecked ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}>
+                        <td className="px-6 py-5 text-center" onClick={(e) => e.stopPropagation()}>
+                          <input 
+                            type="checkbox" 
+                            className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-white dark:bg-slate-800"
+                            checked={isChecked}
+                            onChange={(e) => toggleRowSelect(r.id, e)}
+                          />
+                        </td>
+                        <td className="px-6 py-5 font-mono text-slate-500 dark:text-slate-400">{r.item_code}</td>
+                        <td className="px-6 py-5 font-medium text-slate-800 dark:text-slate-200">{r.part_name}</td>
+                        <td className="px-6 py-5 text-slate-400">{r.location_name}</td>
+                        <td className="px-6 py-5 font-mono text-slate-800 dark:text-slate-200">{r.quantity}</td>
+                        <td className="px-6 py-5">
+                          {isCritical ? (
+                            <span className="text-red-500 font-bold flex items-center gap-1.5"><AlertTriangle size={16} /> Kritik</span>
+                          ) : (
+                            <span className="text-emerald-500 font-medium">Normal</span>
+                          )}
+                        </td>
+                      </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
+
+      {activeTab === 'transfers' && (
+        <>
+          {/* Toolbar Transfers */}
           <div className="bg-white dark:bg-[#1e2330] p-4 rounded-xl border border-slate-200 dark:border-slate-700/50 shadow-sm flex flex-col gap-4 shrink-0">
             {/* Quick Filters */}
             <div className="flex gap-2 border-b border-slate-200 dark:border-slate-700/50 pb-3">
@@ -309,7 +445,7 @@ export default function Raporlar() {
             </div>
           </div>
 
-          {/* Table General */}
+          {/* Table Transfers */}
           <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl shadow-lg flex-1 flex flex-col">
             <div className="overflow-x-auto w-full">
               <table className="w-full text-left text-base whitespace-nowrap">
@@ -319,29 +455,31 @@ export default function Raporlar() {
                       <input 
                         type="checkbox" 
                         className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-white dark:bg-slate-800"
-                        checked={selectedRows.length === filteredGeneralReports.length && filteredGeneralReports.length > 0}
+                        checked={selectedRows.length === filteredTransferReports.length && filteredTransferReports.length > 0}
                         onChange={toggleSelectAll}
                       />
                     </th>
                     <th className="px-6 py-4">TARİH</th>
-                    <th className="px-6 py-4">HAREKET TİPİ</th>
-                    <th className="px-6 py-4 min-w-[300px]">PARÇA ADI</th>
-                    <th className="px-6 py-4">LOKASYON</th>
+                    <th className="px-6 py-4 min-w-[150px]">İTEM KODU</th>
+                    <th className="px-6 py-4 min-w-[200px]">PARÇA ADI</th>
+                    <th className="px-6 py-4">KAYNAK DEPO</th>
+                    <th className="px-6 py-4">HEDEF DEPO</th>
                     <th className="px-6 py-4">MİKTAR</th>
                     <th className="px-6 py-4">İŞLEMİ YAPAN</th>
+                    <th className="px-6 py-4">AÇIKLAMA</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-700/50">
                   {loading ? (
                     <tr>
-                      <td colSpan="6" className="px-6 py-8 text-center text-slate-400">
+                      <td colSpan="9" className="px-6 py-8 text-center text-slate-400">
                         <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-400" />
                         Yükleniyor...
                       </td>
                     </tr>
-                  ) : filteredGeneralReports.length === 0 ? (
+                  ) : filteredTransferReports.length === 0 ? (
                     <tr>
-                      <td colSpan="6" className="px-6 py-8 text-center text-slate-500">
+                      <td colSpan="9" className="px-6 py-8 text-center text-slate-500">
                         Kayıt bulunamadı.
                       </td>
                     </tr>
@@ -359,6 +497,12 @@ export default function Raporlar() {
                           />
                         </td>
                         <td className="px-6 py-5 font-mono text-slate-400">{r.date}</td>
+                        <td className="px-6 py-5 font-mono text-slate-500 dark:text-slate-400">{r.item_code}</td>
+                        <td className="px-6 py-5 font-medium text-slate-800 dark:text-slate-200">{r.part_name}</td>
+                        <td className="px-6 py-5 text-slate-400">{r.source_location}</td>
+                        <td className="px-6 py-5 text-slate-400">{r.target_location}</td>
+                        <td className="px-6 py-5 font-mono text-slate-800 dark:text-slate-200">{r.quantity}</td>
+                        <td className="px-6 py-5">{r.user}</td>
                         <td className="px-6 py-5">
                           <span className={`px-3 py-1.5 rounded-full text-sm font-medium border ${
                             r.type.includes('Giriş') 
@@ -370,10 +514,6 @@ export default function Raporlar() {
                             {r.type}
                           </span>
                         </td>
-                        <td className="px-6 py-5 font-medium text-slate-800 dark:text-slate-200">{r.part_name}</td>
-                        <td className="px-6 py-5 text-slate-400">{r.location}</td>
-                        <td className="px-6 py-5 font-mono text-slate-800 dark:text-slate-200">{r.quantity}</td>
-                        <td className="px-6 py-5">{r.user}</td>
                       </tr>
                       );
                     })
@@ -407,10 +547,11 @@ export default function Raporlar() {
                       <input 
                         type="checkbox" 
                         className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-white dark:bg-slate-800"
-                        checked={selectedRows.length === filteredCriticalReports.length && filteredCriticalReports.length > 0}
+                        checked={selectedRows.length === activeDataList.length && activeDataList.length > 0}
                         onChange={toggleSelectAll}
                       />
                     </th>
+                    <th className="px-6 py-4 min-w-[150px]">İTEM KODU</th>
                     <th className="px-6 py-4 min-w-[300px]">PARÇA ADI</th>
                     <th className="px-6 py-4">LOKASYON</th>
                     <th className="px-6 py-4">MEVCUT STOK</th>
@@ -420,14 +561,14 @@ export default function Raporlar() {
                 <tbody className="divide-y divide-slate-700/50">
                   {loading ? (
                     <tr>
-                      <td colSpan="4" className="px-6 py-8 text-center text-slate-400">
+                      <td colSpan="5" className="px-6 py-8 text-center text-slate-400">
                         <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-red-400" />
                         Yükleniyor...
                       </td>
                     </tr>
                   ) : filteredCriticalReports.length === 0 ? (
                     <tr>
-                      <td colSpan="4" className="px-6 py-8 text-center text-slate-500">
+                      <td colSpan="5" className="px-6 py-8 text-center text-slate-500">
                         Kritik stok uyarısı bulunmamaktadır.
                       </td>
                     </tr>
@@ -444,8 +585,9 @@ export default function Raporlar() {
                             onChange={(e) => toggleRowSelect(r.id, e)}
                           />
                         </td>
+                        <td className="px-6 py-5 font-mono text-slate-500 dark:text-slate-400">{r.item_code}</td>
                         <td className="px-6 py-5 font-medium text-slate-800 dark:text-slate-200">{r.part_name}</td>
-                        <td className="px-6 py-5 text-slate-400">{r.location}</td>
+                        <td className="px-6 py-5 text-slate-400">{r.location_name}</td>
                         <td className="px-6 py-5 font-mono">
                           <span className="text-red-500 font-bold flex items-center gap-1.5">
                             <AlertTriangle size={18} /> {r.quantity}
@@ -493,14 +635,16 @@ export default function Raporlar() {
             <p className="text-sm text-slate-500 mb-4">Dışa aktarılacak Excel dosyasında hangi sütunların bulunmasını istediğinizi seçin.</p>
             
             <div className="space-y-3 mb-6 max-h-60 overflow-y-auto pr-2">
-              {Object.keys(activeTab === 'general' ? selectedGeneralCols : selectedCriticalCols).map((col) => (
+              {Object.keys(activeTab === 'stok' ? selectedStockCols : (activeTab === 'transfers' ? selectedTransferCols : selectedCriticalCols)).map((col) => (
                 <label key={col} className="flex items-center gap-3 cursor-pointer">
                   <input 
                     type="checkbox" 
                     checked={activeTab === 'general' ? selectedGeneralCols[col] : selectedCriticalCols[col]}
                     onChange={(e) => {
-                      if (activeTab === 'general') {
-                        setSelectedGeneralCols(prev => ({...prev, [col]: e.target.checked}));
+                      if (activeTab === 'stok') {
+                        setSelectedStockCols(prev => ({...prev, [col]: e.target.checked}));
+                      } else if (activeTab === 'transfers') {
+                        setSelectedTransferCols(prev => ({...prev, [col]: e.target.checked}));
                       } else {
                         setSelectedCriticalCols(prev => ({...prev, [col]: e.target.checked}));
                       }
@@ -521,7 +665,7 @@ export default function Raporlar() {
               </button>
               <button 
                 onClick={executeExport}
-                disabled={!Object.values(activeTab === 'general' ? selectedGeneralCols : selectedCriticalCols).some(Boolean)}
+                disabled={!Object.values(activeTab === 'stok' ? selectedStockCols : (activeTab === 'transfers' ? selectedTransferCols : selectedCriticalCols)).some(Boolean)}
                 className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors font-medium shadow-md shadow-emerald-500/20 disabled:opacity-50"
               >
                 Dışa Aktar

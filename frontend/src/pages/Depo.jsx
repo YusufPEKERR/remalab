@@ -16,15 +16,16 @@ export default function Depo() {
     try {
       const res = await api.getStockStatus();
       if (res.success) {
-        // map backend response: s.id, part_name, location_name, quantity, critical_limit
-        const mapped = res.stock.map(s => ({
-          id: s.id,
-          part_id: s.part_id,
-          name: s.part_name,
-          location: s.location_name,
-          quantity: s.quantity,
-          critical_limit: s.critical_limit
-        }));
+        const mapped = res.stock
+          .filter(s => s.location_kind === 'good_stock')
+          .map(s => ({
+            id: s.id,
+            part_id: s.part_id,
+            name: s.part_name,
+            location: s.location_name,
+            quantity: s.quantity,
+            critical_limit: s.critical_limit
+          }));
         setInventory(mapped);
       }
     } catch (err) {
