@@ -1,6 +1,25 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ArrowRightLeft, X, QrCode, Search, Package, MapPin, DatabaseZap } from 'lucide-react';
+import { ArrowRightLeft, X, QrCode, Search, Package, MapPin, DatabaseZap, AlertTriangle } from 'lucide-react';
 import { api } from '../services/api';
+
+// Depolar arası manuel transferde izin verilen kaynak->hedef eşleşmeleri
+// (bkz. backend SYSTEM_TRANSFER_RULES, core/web_bridge.py). Bir kaynak kind
+// burada yoksa (ör. custom raf lokasyonu) kısıtlama uygulanmaz.
+const SYSTEM_TRANSFER_RULES = {
+  good_stock: ['repair_stock'],
+  repair_stock: ['out_stock', 'doa_stock'],
+  doa_stock: ['good_stock', 'scrap_stock'],
+  out_stock: [],
+  scrap_stock: [],
+};
+
+const SYSTEM_KIND_LABELS = {
+  good_stock: 'Good Stock',
+  doa_stock: 'DOA Stock',
+  repair_stock: 'Repair Stock',
+  scrap_stock: 'Scrap Stock',
+  out_stock: 'Out Stock',
+};
 
 export default function StockTransferModal({ isOpen, onClose, onTransfer, locations = [], systemLocations = [] }) {
   // State for Form fields
@@ -31,6 +50,19 @@ export default function StockTransferModal({ isOpen, onClose, onTransfer, locati
       return true;
     });
   }, [locations]);
+
+  const sourceKind = useMemo(() => {
+    const loc = uniqueLocations.find(l => String(l.id) === String(sourceLocId));
+    return loc?.kind || null;
+  }, [uniqueLocations, sourceLocId]);
+
+  const allowedTargetKinds = sourceKind && SYSTEM_TRANSFER_RULES[sourceKind] ? SYSTEM_TRANSFER_RULES[sourceKind] : null;
+
+  const targetLocationOptions = useMemo(() => {
+    const withoutSource = uniqueLocations.filter(l => String(l.id) !== String(sourceLocId));
+    if (!allowedTargetKinds) return withoutSource;
+    return withoutSource.filter(l => allowedTargetKinds.includes(l.kind));
+  }, [uniqueLocations, allowedTargetKinds, sourceLocId]);
 
   useEffect(() => {
     if (isOpen) {
@@ -79,7 +111,8 @@ export default function StockTransferModal({ isOpen, onClose, onTransfer, locati
     setProductId('');
     setMaxQuantity(0);
     setQuantity(0);
-    
+    setTargetLocId('');
+
     if (locId) {
       // get unique brandModels for this loc
       const locStocks = fullStock.filter(s => s.location_id === locId && s.quantity > 0);
@@ -203,6 +236,14 @@ export default function StockTransferModal({ isOpen, onClose, onTransfer, locati
                   <option value="">--- Lokasyon Seçin ---</option>
                   {uniqueLocations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
                 </select>
+                {allowedTargetKinds && (
+                  <p className="mt-1.5 text-xs font-medium text-amber-500 flex items-center gap-1.5">
+                    <AlertTriangle size={13} />
+                    {allowedTargetKinds.length > 0
+                      ? `${SYSTEM_KIND_LABELS[sourceKind]}'tan sadece ${allowedTargetKinds.map(k => SYSTEM_KIND_LABELS[k]).join(' veya ')} deposuna transfer yapılabilir.`
+                      : `${SYSTEM_KIND_LABELS[sourceKind]} sadece çıkış deposudur, buradan başka bir depoya transfer yapılamaz.`}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -242,13 +283,14 @@ export default function StockTransferModal({ isOpen, onClose, onTransfer, locati
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-400 mb-1.5">Hedef Lokasyon</label>
-                <select 
-                  value={targetLocId} 
+                <select
+                  value={targetLocId}
                   onChange={e => setTargetLocId(e.target.value)}
-                  className="w-full bg-white dark:bg-[#1e2330] border border-slate-700/70 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-yellow-500"
+                  disabled={!sourceLocId || targetLocationOptions.length === 0}
+                  className="w-full bg-white dark:bg-[#1e2330] border border-slate-700/70 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-yellow-500 disabled:opacity-50"
                 >
                   <option value="">--- Lokasyon Seçin ---</option>
-                  {uniqueLocations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                  {targetLocationOptions.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
                 </select>
               </div>
 

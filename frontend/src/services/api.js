@@ -268,6 +268,32 @@ export const api = {
     },
 
     // ==========================
+    // STOK EŞİTLEME (ADMIN)
+    // ==========================
+
+    getGoodStockOverview: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_good_stock_overview) {
+                backend.get_good_stock_overview((res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true, parts: [] });
+            }
+        });
+    },
+
+    equalizeGoodStock: async (partId, actualQuantity, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.equalize_good_stock) {
+                backend.equalize_good_stock(String(partId), String(actualQuantity), username, (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true });
+            }
+        });
+    },
+
+    // ==========================
     // DEPARTMANLAR
     // ===================
     getDepartments: async () => {

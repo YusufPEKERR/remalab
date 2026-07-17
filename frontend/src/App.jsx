@@ -17,6 +17,7 @@ import Departments from './pages/Departments';
 import ServiceRecords from './pages/ServiceRecords';
 import DataManagement from './pages/DataManagement';
 import SupplyRequestForm from './pages/SupplyRequestForm';
+import StokEsitleme from './pages/StokEsitleme';
 import MainLayout from './layouts/MainLayout';
 import ItemBOM from './pages/ItemBOM';
 
@@ -55,6 +56,7 @@ function App() {
           <Route path="/service-records" element={<ServiceRecords />} />
           <Route path="/data-management" element={<DataManagement />} />
           <Route path="/tedarik-talepleri" element={<SupplyRequestForm />} />
+          <Route path="/stok-esitleme" element={<StokEsitleme />} />
 
           {/* HIDDEN MODULES */}
           <Route path="/item-bom" element={<ItemBOM />} />
