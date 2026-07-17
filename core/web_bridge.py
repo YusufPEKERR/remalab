@@ -2717,13 +2717,19 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    @Slot(str, result=str)
-    def delete_production_run(self, run_id_str):
-        """Belirtilen üretim kaydını siler ve stok hareketlerini geri alır (üretilen ürünü düşer, hammaddeleri iade eder)."""
+    @Slot(str, str, result=str)
+    def delete_production_run(self, run_id_str, return_location_id_str):
+        """Belirtilen üretim kaydını siler ve stok hareketlerini geri alır (üretilen ürünü düşer, hammaddeleri seçilen iade lokasyonuna aktarır)."""
         from sqlalchemy import text
         db = SessionLocal()
         try:
             run_id = int(run_id_str)
+            target_return_location_id = None
+            if return_location_id_str and return_location_id_str.strip():
+                try:
+                    target_return_location_id = int(return_location_id_str)
+                except ValueError:
+                    pass
             
             # 1. Üretim kaydını çek
             run = db.execute(text("""
@@ -2768,7 +2774,8 @@ class WebBridge(QObject):
                 WHERE id = :id
             """), {"qty": quantity_produced, "id": target_stock[0]})
             
-            # 5. Tüketilen malzemeleri kaynak lokasyona geri ekle
+            # 5. Tüketilen malzemeleri kaynak lokasyona veya seçilen iade lokasyonuna geri ekle
+            return_loc_id = target_return_location_id if target_return_location_id is not None else source_location_id
             for m in materials:
                 m_part_id = m[0]
                 m_qty = m[1]
@@ -2777,7 +2784,7 @@ class WebBridge(QObject):
                     SELECT id FROM warehouse.stock
                     WHERE part_id = :pid AND location_id = :lid
                     FOR UPDATE
-                """), {"pid": m_part_id, "lid": source_location_id}).first()
+                """), {"pid": m_part_id, "lid": return_loc_id}).first()
                 
                 if existing_m:
                     db.execute(text("""
@@ -2789,14 +2796,14 @@ class WebBridge(QObject):
                     db.execute(text("""
                         INSERT INTO warehouse.stock (part_id, location_id, quantity)
                         VALUES (:pid, :lid, :qty)
-                    """), {"pid": m_part_id, "lid": source_location_id, "qty": m_qty})
+                    """), {"pid": m_part_id, "lid": return_loc_id, "qty": m_qty})
             
             # 6. Malzeme tüketim ve üretim kayıtlarını sil
             db.execute(text("DELETE FROM warehouse.production_materials WHERE production_run_id = :run_id"), {"run_id": run_id})
             db.execute(text("DELETE FROM warehouse.production_runs WHERE id = :id"), {"id": run_id})
             
             db.commit()
-            return json.dumps({"success": True, "message": "Üretim kaydı başarıyla silindi ve stok hareketleri geri alındı."})
+            return json.dumps({"success": True, "message": "Üretim iade/değişim işlemi başarıyla tamamlandı."})
         except Exception as e:
             db.rollback()
             return json.dumps({"success": False, "message": f"Silme hatası: {str(e)}"})
