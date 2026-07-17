@@ -94,6 +94,7 @@ export default function WorkOrders() {
   const [bomsLoading, setBomsLoading] = useState(false);
   const [bomSearchQuery, setBomSearchQuery] = useState('');
   const [showBomDropdown, setShowBomDropdown] = useState(false);
+  const [filterByBrandModel, setFilterByBrandModel] = useState(true);
 
   // --- Production Work Order state (work_orders, work_order_type = 'PRODUCTION') ---
   const [showProductionWOForm, setShowProductionWOForm] = useState(false);
@@ -348,6 +349,42 @@ export default function WorkOrders() {
       return [];
     }
   };
+
+  const selectedTargetPart = parts.find(p => 
+    (productionForm.target_part_id && String(p.id) === String(productionForm.target_part_id)) ||
+    (p.item_code && p.item_code.trim().toLowerCase() === (productionForm.target_part_code || '').trim().toLowerCase()) ||
+    (p.name && p.name.trim().toLowerCase() === (productionForm.target_part_code || '').trim().toLowerCase())
+  );
+
+  const getFilteredPartsForRawMaterial = (selectedRowPartId) => {
+    if (!selectedTargetPart || !filterByBrandModel) return parts;
+    const targetBrand = (selectedTargetPart.brand || '').toLowerCase().trim();
+    const targetModel = (selectedTargetPart.model || '').toLowerCase().trim();
+    
+    if (!targetBrand && !targetModel) return parts;
+    
+    return parts.filter(p => {
+      if (selectedRowPartId && String(p.id) === String(selectedRowPartId)) return true;
+      
+      const b = (p.brand || '').toLowerCase().trim();
+      const m = (p.model || '').toLowerCase().trim();
+      
+      if (targetBrand && targetModel) {
+        return b === targetBrand && m === targetModel;
+      } else if (targetBrand) {
+        return b === targetBrand;
+      } else if (targetModel) {
+        return m === targetModel;
+      }
+      return true;
+    });
+  };
+
+  useEffect(() => {
+    if (selectedTargetPart) {
+      setFilterByBrandModel(true);
+    }
+  }, [selectedTargetPart?.id]);
 
   // ===================== Üretim handlers =====================
 
@@ -1058,6 +1095,20 @@ export default function WorkOrders() {
                     <p className="text-xs text-red-400 font-medium">En az bir hammadde girmeniz zorunludur.</p>
                   </div>
                 )}
+                {selectedTargetPart && (selectedTargetPart.brand || selectedTargetPart.model) && (
+                  <div className="mb-3 flex items-center gap-2">
+                    <input 
+                      type="checkbox" 
+                      id="filter-brand-model" 
+                      className="rounded border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-[#242a38] text-blue-500 focus:ring-blue-500 focus:ring-offset-0 focus:outline-none"
+                      checked={filterByBrandModel} 
+                      onChange={e => setFilterByBrandModel(e.target.checked)} 
+                    />
+                    <label htmlFor="filter-brand-model" className="text-xs font-semibold text-blue-500 dark:text-blue-400 cursor-pointer select-none">
+                      Sadece aynı marka ve modele ait parçaları listele ({selectedTargetPart.brand || ''} {selectedTargetPart.model || ''})
+                    </label>
+                  </div>
+                )}
                 {productionMaterials.length === 0 ? (
                   <p className="text-xs text-slate-500">Henüz hammadde eklenmedi.</p>
                 ) : (
@@ -1070,7 +1121,7 @@ export default function WorkOrders() {
                           <div className="flex gap-2 items-center">
                             <select className="flex-1 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-blue-500" value={row.part_id} onChange={e => handleMaterialRowChange(idx, 'part_id', e.target.value)}>
                               <option value="">Parça seçiniz...</option>
-                              {parts.map(p => <option key={p.id} value={p.id}>{p.item_code} - {p.name} - {p.item_category}</option>)}
+                              {getFilteredPartsForRawMaterial(row.part_id).map(p => <option key={p.id} value={p.id}>{p.item_code} - {p.name} - {p.item_category}</option>)}
                             </select>
                             <input type="number" min="1" className="w-20 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-blue-500" value={row.quantity_consumed} onChange={e => handleMaterialRowChange(idx, 'quantity_consumed', e.target.value)} />
                             <button type="button" onClick={() => handleRemoveMaterialRow(idx)} className="p-2 text-red-400 hover:bg-red-400/10 rounded-lg transition-colors">
