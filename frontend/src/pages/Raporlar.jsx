@@ -282,7 +282,7 @@ export default function Raporlar() {
               : 'text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#2a3142]'
           }`}
         >
-          Kritik Raporlar
+          Kritik Stok Raporu
         </button>
         <button
           onClick={() => setActiveTab('transfers')}
