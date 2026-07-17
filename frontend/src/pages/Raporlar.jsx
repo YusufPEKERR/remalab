@@ -18,6 +18,7 @@ export default function Raporlar() {
 
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [selectedStockCols, setSelectedStockCols] = useState({
+    "İtem Kodu": true,
     "Parça Adı": true,
     "Lokasyon": true,
     "Stok Miktarı": true,
@@ -34,6 +35,7 @@ export default function Raporlar() {
     "İşlemi Yapan": true
   });
   const [selectedCriticalCols, setSelectedCriticalCols] = useState({
+    "İtem Kodu": true,
     "Parça Adı": true,
     "Lokasyon": true,
     "Mevcut Stok": true,
@@ -181,6 +183,7 @@ export default function Raporlar() {
     if (activeTab === 'stok') {
       exportReadyData = dataToExport.map(r => {
         const row = {};
+        if (selectedStockCols["İtem Kodu"]) row["İtem Kodu"] = r.item_code;
         if (selectedStockCols["Parça Adı"]) row["Parça Adı"] = r.part_name;
         if (selectedStockCols["Lokasyon"]) row["Lokasyon"] = r.location_name;
         if (selectedStockCols["Stok Miktarı"]) row["Stok Miktarı"] = r.quantity;
@@ -205,6 +208,7 @@ export default function Raporlar() {
     } else {
       exportReadyData = dataToExport.map(r => {
         const row = {};
+        if (selectedCriticalCols["İtem Kodu"]) row["İtem Kodu"] = r.item_code;
         if (selectedCriticalCols["Parça Adı"]) row["Parça Adı"] = r.part_name;
         if (selectedCriticalCols["Lokasyon"]) row["Lokasyon"] = r.location_name;
         if (selectedCriticalCols["Mevcut Stok"]) row["Mevcut Stok"] = r.quantity;
@@ -309,6 +313,7 @@ export default function Raporlar() {
                         onChange={toggleSelectAll}
                       />
                     </th>
+                    <th className="px-6 py-4 min-w-[150px]">İTEM KODU</th>
                     <th className="px-6 py-4 min-w-[300px]">PARÇA ADI</th>
                     <th className="px-6 py-4">LOKASYON</th>
                     <th className="px-6 py-4">STOK MİKTARI</th>
@@ -318,14 +323,14 @@ export default function Raporlar() {
                 <tbody className="divide-y divide-slate-700/50">
                   {loading ? (
                     <tr>
-                      <td colSpan="5" className="px-6 py-8 text-center text-slate-400">
+                      <td colSpan="6" className="px-6 py-8 text-center text-slate-400">
                         <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-400" />
                         Yükleniyor...
                       </td>
                     </tr>
                   ) : filteredStockReports.length === 0 ? (
                     <tr>
-                      <td colSpan="5" className="px-6 py-8 text-center text-slate-500">
+                      <td colSpan="6" className="px-6 py-8 text-center text-slate-500">
                         Kayıt bulunamadı.
                       </td>
                     </tr>
@@ -343,6 +348,7 @@ export default function Raporlar() {
                             onChange={(e) => toggleRowSelect(r.id, e)}
                           />
                         </td>
+                        <td className="px-6 py-5 font-mono text-slate-500 dark:text-slate-400">{r.item_code}</td>
                         <td className="px-6 py-5 font-medium text-slate-800 dark:text-slate-200">{r.part_name}</td>
                         <td className="px-6 py-5 text-slate-400">{r.location_name}</td>
                         <td className="px-6 py-5 font-mono text-slate-800 dark:text-slate-200">{r.quantity}</td>
@@ -536,6 +542,7 @@ export default function Raporlar() {
                         onChange={toggleSelectAll}
                       />
                     </th>
+                    <th className="px-6 py-4 min-w-[150px]">İTEM KODU</th>
                     <th className="px-6 py-4 min-w-[300px]">PARÇA ADI</th>
                     <th className="px-6 py-4">LOKASYON</th>
                     <th className="px-6 py-4">MEVCUT STOK</th>
@@ -545,14 +552,14 @@ export default function Raporlar() {
                 <tbody className="divide-y divide-slate-700/50">
                   {loading ? (
                     <tr>
-                      <td colSpan="4" className="px-6 py-8 text-center text-slate-400">
+                      <td colSpan="5" className="px-6 py-8 text-center text-slate-400">
                         <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-red-400" />
                         Yükleniyor...
                       </td>
                     </tr>
                   ) : filteredCriticalReports.length === 0 ? (
                     <tr>
-                      <td colSpan="4" className="px-6 py-8 text-center text-slate-500">
+                      <td colSpan="5" className="px-6 py-8 text-center text-slate-500">
                         Kritik stok uyarısı bulunmamaktadır.
                       </td>
                     </tr>
@@ -569,8 +576,9 @@ export default function Raporlar() {
                             onChange={(e) => toggleRowSelect(r.id, e)}
                           />
                         </td>
+                        <td className="px-6 py-5 font-mono text-slate-500 dark:text-slate-400">{r.item_code}</td>
                         <td className="px-6 py-5 font-medium text-slate-800 dark:text-slate-200">{r.part_name}</td>
-                        <td className="px-6 py-5 text-slate-400">{r.location}</td>
+                        <td className="px-6 py-5 text-slate-400">{r.location_name}</td>
                         <td className="px-6 py-5 font-mono">
                           <span className="text-red-500 font-bold flex items-center gap-1.5">
                             <AlertTriangle size={18} /> {r.quantity}

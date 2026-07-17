@@ -3007,7 +3007,7 @@ class WebBridge(QObject):
         db = SessionLocal()
         try:
             stocks = db.execute(text("""
-                SELECT s.id, p.id as part_id, p.brand, p.model, p.name as pname, 
+                SELECT s.id, p.id as part_id, p.brand, p.model, p.name as pname, p.item_code,
                        l.id as location_id, l.name as location_name, l.kind as location_kind, 
                        s.quantity, p.critical_limit 
                 FROM warehouse.stock s 
@@ -3021,6 +3021,7 @@ class WebBridge(QObject):
                     "id": row["id"],
                     "part_id": row["part_id"],
                     "part_name": (row['pname'] or '').strip(),
+                    "item_code": row["item_code"] or "-",
                     "location_id": row["location_id"],
                     "location_name": row["location_name"],
                     "location_kind": row["location_kind"],
@@ -3391,14 +3392,10 @@ class WebBridge(QObject):
         db = SessionLocal()
         try:
             from sqlalchemy import func
-            good_stock_id = _get_system_location_id(db, "good_stock")
-            if good_stock_id:
-                stocks = db.query(Stock, Part, Location).join(Part, Stock.part_id == Part.id).join(Location, Stock.location_id == Location.id).filter(
-                    Stock.location_id == good_stock_id,
-                    Stock.quantity < func.coalesce(Part.critical_limit, 50)
-                ).all()
-            else:
-                stocks = []
+            stocks = db.query(Stock, Part, Location).join(Part, Stock.part_id == Part.id).join(Location, Stock.location_id == Location.id).filter(
+                Location.kind == "good_stock",
+                Stock.quantity < func.coalesce(Part.critical_limit, 50)
+            ).all()
 
             res = []
             for s, p, l in stocks:
@@ -3406,6 +3403,7 @@ class WebBridge(QObject):
                 res.append({
                     "id": s.id,
                     "part_name": f"{p.brand} {p.model} {p.name}",
+                    "item_code": p.item_code or "-",
                     "location_name": l.name,
                     "quantity": s.quantity,
                     "critical_limit": limit,
