@@ -1468,19 +1468,9 @@ export default function WorkOrders() {
                   productionRuns.map(run => (
                     <tr key={run.unit_id} className="hover:bg-slate-100 dark:bg-[#2a3142] transition-colors text-slate-700 dark:text-slate-300">
                       <td className="px-6 py-4">
-                        <div className="font-mono font-bold text-slate-900 dark:text-slate-200 flex items-center gap-2">
+                        <div className="font-mono font-bold text-slate-900 dark:text-slate-200">
                           {run.serial_number}
-                          {run.is_returned && (
-                            <span className="px-2 py-0.5 text-[10px] font-semibold bg-red-500/10 text-red-500 border border-red-500/20 rounded-md">
-                              İade Edildi
-                            </span>
-                          )}
                         </div>
-                        {run.is_returned && (
-                          <div className="text-[11px] text-red-400 mt-1 max-w-xs whitespace-normal">
-                            Nedeni: {run.return_reason || 'Belirtilmedi'} <span className="text-slate-400">({run.return_location_name})</span>
-                          </div>
-                        )}
                       </td>
                       <td className="px-6 py-4">
                         <div className="font-medium text-slate-800 dark:text-slate-200">
@@ -1500,12 +1490,18 @@ export default function WorkOrders() {
                       <td className="px-6 py-4 text-slate-400 whitespace-nowrap">{run.created_at}</td>
                       <td className="px-6 py-4">
                         {run.is_returned ? (
-                          <div>
+                          <div className="space-y-1">
                             <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-red-500/10 text-red-500 border border-red-500/20 rounded-lg">
                               ✕ İade Edildi
                             </span>
                             {run.returned_at && (
-                              <div className="text-[10px] text-slate-500 mt-1">{run.returned_at}</div>
+                              <div className="text-[10px] text-slate-500">{run.returned_at}</div>
+                            )}
+                            <div className="text-[11px] text-red-400 max-w-[200px] whitespace-normal leading-snug">
+                              {run.return_reason || 'Belirtilmedi'}
+                            </div>
+                            {run.return_location_name && (
+                              <div className="text-[10px] text-slate-500">→ {run.return_location_name}</div>
                             )}
                           </div>
                         ) : (
