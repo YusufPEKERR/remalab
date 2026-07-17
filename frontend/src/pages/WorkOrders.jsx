@@ -1494,23 +1494,27 @@ export default function WorkOrders() {
                       </td>
                       <td className="px-6 py-4">{run.produced_by || '-'}</td>
                       <td className="px-6 py-4 text-slate-400 whitespace-nowrap">{run.created_at}</td>
-                      <td className="px-6 py-4 min-w-[220px]">
+                      <td className="px-6 py-4 min-w-[360px]">
                         {run.is_returned ? (
-                          <div className="flex flex-col gap-2">
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-red-500/10 text-red-500 border border-red-500/20 rounded-lg self-start">
+                          <div className="flex items-center gap-3">
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-red-500/10 text-red-500 border border-red-500/20 rounded-lg shrink-0">
                               ✕ İade Edildi
                             </span>
-                            <div className="pl-1 space-y-1">
+                            <div className="flex items-center gap-2 text-xs flex-wrap">
                               {run.returned_at && (
-                                <div className="text-[11px] text-slate-400">{run.returned_at}</div>
+                                <span className="text-[11px] text-slate-400 whitespace-nowrap">{run.returned_at}</span>
                               )}
-                              <div className="text-xs text-slate-300 font-medium leading-snug max-w-[200px] whitespace-normal">
+                              <span className="text-slate-600">|</span>
+                              <span className="text-slate-300 font-medium whitespace-normal max-w-[150px]" title={run.return_reason}>
                                 {run.return_reason || 'Belirtilmedi'}
-                              </div>
+                              </span>
                               {run.return_location_name && (
-                                <div className="inline-flex items-center gap-1 text-[11px] text-slate-500 bg-slate-500/10 px-2 py-0.5 rounded-md">
-                                  → {run.return_location_name}
-                                </div>
+                                <>
+                                  <span className="text-slate-600">|</span>
+                                  <span className="inline-flex items-center gap-1 text-[11px] text-slate-400 bg-slate-500/10 px-2 py-0.5 rounded-md shrink-0">
+                                    → {run.return_location_name}
+                                  </span>
+                                </>
                               )}
                             </div>
                           </div>
