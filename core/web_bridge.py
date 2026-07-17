@@ -2739,9 +2739,17 @@ class WebBridge(QObject):
         Sorunlu parçalar seçilen iade deposuna, sorunsuzlar Good Stock'a (id=26) aktarılır.
         params_json: JSON string {unit_id, return_location_id, return_reason, defective_parts: [{part_id, defective}]}
         """
+        # Dış try: PySide6'nın slot'tan "" döndürmesini engeller
+        try:
+            return self._do_delete_production_run(params_json)
+        except Exception as e:
+            return json.dumps({"success": False, "message": f"Slot hatası: {str(e)}"})
+
+    def _do_delete_production_run(self, params_json):
         from sqlalchemy import text
         from datetime import datetime
         db = SessionLocal()
+        result_str = json.dumps({"success": False, "message": "Bilinmeyen hata"})
         try:
             params = json.loads(params_json)
             unit_id = int(params["unit_id"])
@@ -2768,10 +2776,12 @@ class WebBridge(QObject):
             """), {"uid": unit_id}).mappings().first()
             
             if not unit:
-                return json.dumps({"success": False, "message": "Üretilen cihaz kaydı bulunamadı."})
+                result_str = json.dumps({"success": False, "message": "Üretilen cihaz kaydı bulunamadı."})
+                return result_str
                 
             if unit["is_returned"]:
-                return json.dumps({"success": False, "message": "Bu cihaz zaten iade edilmiş."})
+                result_str = json.dumps({"success": False, "message": "Bu cihaz zaten iade edilmiş."})
+                return result_str
                 
             run_id = unit["run_id"]
             target_part_id = unit["target_part_id"]
@@ -2787,10 +2797,11 @@ class WebBridge(QObject):
             
             if not target_stock or target_stock[1] < 1:
                 current_qty = target_stock[1] if target_stock else 0
-                return json.dumps({
+                result_str = json.dumps({
                     "success": False, 
-                    "message": f"Üretilen parçanın bu lokasyondaki stoğu yetersiz ({current_qty} adet var). İade gerçekleştirilemez."
+                    "message": f"Üretilen parçanın stoğu yetersiz ({current_qty} adet var). İade gerçekleştirilemez."
                 })
+                return result_str
                 
             # 3. Tüketilen malzemeleri çek
             materials = db.execute(text("""
@@ -2850,12 +2861,20 @@ class WebBridge(QObject):
             })
             
             db.commit()
-            return json.dumps({"success": True, "message": "Üretim iade/değişim işlemi başarıyla tamamlandı."})
+            result_str = json.dumps({"success": True, "message": "Üretim iade/değişim işlemi başarıyla tamamlandı."})
+            return result_str
         except Exception as e:
-            db.rollback()
-            return json.dumps({"success": False, "message": f"İade hatası: {str(e)}"})
+            try:
+                db.rollback()
+            except Exception:
+                pass
+            result_str = json.dumps({"success": False, "message": f"İade hatası: {str(e)}"})
+            return result_str
         finally:
-            db.close()
+            try:
+                db.close()
+            except Exception:
+                pass
 
     # --- YENİ EKLENEN ÜRÜN (TELEFON) VE TEDARİKÇİ FONKSİYONLARI ---
     # Products verileri artik kendi 'products' tablosundan cekiliyor (parts'tan bagimsiz).
