@@ -2733,27 +2733,30 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    @Slot(str, str, str, str, result=str)
-    def delete_production_run(self, unit_id_str, return_location_id_str, return_reason, defective_parts_json):
+    @Slot(str, result=str)
+    def delete_production_run(self, params_json):
         """Belirtilen üretilmiş cihaz birimini (produced_unit) iade eder.
-        Sorunlu parçalar seçilen iade deposuna, sorunsuzlar Good Stock'a (id=26) aktarılır."""
+        Sorunlu parçalar seçilen iade deposuna, sorunsuzlar Good Stock'a (id=26) aktarılır.
+        params_json: JSON string {unit_id, return_location_id, return_reason, defective_parts: [{part_id, defective}]}
+        """
         from sqlalchemy import text
         from datetime import datetime
         db = SessionLocal()
         try:
-            unit_id = int(unit_id_str)
-            return_location_id = int(return_location_id_str)
+            params = json.loads(params_json)
+            unit_id = int(params["unit_id"])
+            return_location_id = int(params["return_location_id"])
+            return_reason = params.get("return_reason") or "Belirtilmedi"
             GOOD_STOCK_ID = 26
 
-            # Sorunlu parça id setini çöz (JSON list: [{part_id: "123", defective: true}, ...])
+            # Sorunlu parça id setini çöz
             defective_set = set()
-            try:
-                defective_list = json.loads(defective_parts_json or "[]")
-                for entry in defective_list:
-                    if entry.get("defective"):
+            for entry in (params.get("defective_parts") or []):
+                try:
+                    if entry.get("defective") and entry.get("part_id"):
                         defective_set.add(int(entry["part_id"]))
-            except Exception:
-                pass
+                except (ValueError, TypeError):
+                    pass
             
             # 1. Üretilmiş cihaz kaydını ve bağlı olduğu üretim koşusunu çek
             unit = db.execute(text("""
@@ -2786,7 +2789,7 @@ class WebBridge(QObject):
                 current_qty = target_stock[1] if target_stock else 0
                 return json.dumps({
                     "success": False, 
-                    "message": f"Üretilen parçanın bu lokasyondaki stoğu yetersiz ({current_qty} adet var, 1 adet iade edilmek isteniyor). İade gerçekleştirilemez."
+                    "message": f"Üretilen parçanın bu lokasyondaki stoğu yetersiz ({current_qty} adet var). İade gerçekleştirilemez."
                 })
                 
             # 3. Tüketilen malzemeleri çek
@@ -2808,9 +2811,7 @@ class WebBridge(QObject):
                 m_part_id = m[0]
                 total_consumed = m[1]
                 qty_per_unit = float(total_consumed) / quantity_produced if quantity_produced > 0 else 0
-                qty_to_return = int(round(qty_per_unit))
-                if qty_to_return <= 0:
-                    qty_to_return = 1
+                qty_to_return = max(1, int(round(qty_per_unit)))
                 
                 # Sorunlu ise seçilen depoya, değilse Good Stock'a
                 dest_loc_id = return_location_id if m_part_id in defective_set else GOOD_STOCK_ID
@@ -2842,7 +2843,7 @@ class WebBridge(QObject):
                     return_location_id = :ret_loc_id
                 WHERE id = :uid
             """), {
-                "reason": return_reason or "Belirtilmedi",
+                "reason": return_reason,
                 "now": datetime.utcnow(),
                 "ret_loc_id": return_location_id,
                 "uid": unit_id

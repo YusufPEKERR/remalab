@@ -791,15 +791,21 @@ export const api = {
 
     deleteProductionRun: async (id, returnLocationId = "", returnReason = "", defectivePartsJson = "[]") => {
         const backend = await getBackend();
-        return new Promise((resolve) => {
+        return new Promise((resolve, reject) => {
             if (backend.delete_production_run) {
-                backend.delete_production_run(
-                    String(id), 
-                    String(returnLocationId || ""), 
-                    String(returnReason || ""), 
-                    String(defectivePartsJson || "[]"),
-                    (res) => resolve(JSON.parse(res))
-                );
+                const paramsJson = JSON.stringify({
+                    unit_id: String(id),
+                    return_location_id: String(returnLocationId || ""),
+                    return_reason: returnReason || "",
+                    defective_parts: JSON.parse(defectivePartsJson || "[]")
+                });
+                backend.delete_production_run(paramsJson, (res) => {
+                    try {
+                        resolve(JSON.parse(res));
+                    } catch(e) {
+                        reject(new Error("Backend yanıt parse hatası: " + res));
+                    }
+                });
             } else {
                 resolve({ success: true });
             }
