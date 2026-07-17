@@ -2758,12 +2758,14 @@ class WebBridge(QObject):
             return_reason = params.get("return_reason") or "Belirtilmedi"
             GOOD_STOCK_ID = 26
 
-            # Sorunlu parça id setini çöz
-            defective_set = set()
+            # Sorunlu parça miktarlarını çöz: {part_id: defective_qty}
+            defective_qtys = {}
             for entry in (params.get("defective_parts") or []):
                 try:
-                    if entry.get("defective") and entry.get("part_id"):
-                        defective_set.add(int(entry["part_id"]))
+                    p_id = int(entry.get("part_id"))
+                    def_qty = int(entry.get("defective_qty", 0))
+                    if def_qty > 0:
+                        defective_qtys[p_id] = def_qty
                 except (ValueError, TypeError):
                     pass
             
@@ -2821,28 +2823,51 @@ class WebBridge(QObject):
             # 5. Her malzemeyi sorunlu/sorunsuz durumuna göre farklı depoya ekle
             for m in materials:
                 m_part_id = m[0]
-                qty_to_return = m[1] # Tüm batch iade edildiği için tüketilen miktarın tamamı iade edilir
+                total_qty = m[1] # Tüm batch için tüketilen miktar
                 
-                # Sorunlu ise seçilen depoya, değilse Good Stock'a
-                dest_loc_id = return_location_id if m_part_id in defective_set else GOOD_STOCK_ID
+                # Sorunlu miktarını al ve sınırla (en fazla total_qty kadar olabilir)
+                def_qty = min(total_qty, defective_qtys.get(m_part_id, 0))
+                good_qty = total_qty - def_qty
                 
-                existing_m = db.execute(text("""
-                    SELECT id FROM warehouse.stock
-                    WHERE part_id = :pid AND location_id = :lid
-                    FOR UPDATE
-                """), {"pid": m_part_id, "lid": dest_loc_id}).first()
+                # 5a. Sorunlu olanları seçilen iade lokasyonuna aktar
+                if def_qty > 0:
+                    existing_m = db.execute(text("""
+                        SELECT id FROM warehouse.stock
+                        WHERE part_id = :pid AND location_id = :lid
+                        FOR UPDATE
+                    """), {"pid": m_part_id, "lid": return_location_id}).first()
+                    
+                    if existing_m:
+                        db.execute(text("""
+                            UPDATE warehouse.stock
+                            SET quantity = quantity + :qty
+                            WHERE id = :id
+                        """), {"qty": def_qty, "id": existing_m[0]})
+                    else:
+                        db.execute(text("""
+                            INSERT INTO warehouse.stock (part_id, location_id, quantity)
+                            VALUES (:pid, :lid, :qty)
+                        """), {"pid": m_part_id, "lid": return_location_id, "qty": def_qty})
                 
-                if existing_m:
-                    db.execute(text("""
-                        UPDATE warehouse.stock
-                        SET quantity = quantity + :qty
-                        WHERE id = :id
-                    """), {"qty": qty_to_return, "id": existing_m[0]})
-                else:
-                    db.execute(text("""
-                        INSERT INTO warehouse.stock (part_id, location_id, quantity)
-                        VALUES (:pid, :lid, :qty)
-                    """), {"pid": m_part_id, "lid": dest_loc_id, "qty": qty_to_return})
+                # 5b. Sorunsuz olanları doğrudan Good Stock'a aktar
+                if good_qty > 0:
+                    existing_m = db.execute(text("""
+                        SELECT id FROM warehouse.stock
+                        WHERE part_id = :pid AND location_id = :lid
+                        FOR UPDATE
+                    """), {"pid": m_part_id, "lid": GOOD_STOCK_ID}).first()
+                    
+                    if existing_m:
+                        db.execute(text("""
+                            UPDATE warehouse.stock
+                            SET quantity = quantity + :qty
+                            WHERE id = :id
+                        """), {"qty": good_qty, "id": existing_m[0]})
+                    else:
+                        db.execute(text("""
+                            INSERT INTO warehouse.stock (part_id, location_id, quantity)
+                            VALUES (:pid, :lid, :qty)
+                        """), {"pid": m_part_id, "lid": GOOD_STOCK_ID, "qty": good_qty})
             
             # 6. Cihaz kaydını iade edildi olarak işaretle ve nedenini kaydet
             db.execute(text("""

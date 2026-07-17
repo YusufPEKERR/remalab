@@ -591,7 +591,7 @@ export default function WorkOrders() {
       // Sorunlu parça listesini JSON'a çevir
       const defectiveList = (returnDialog.materials || []).map(m => ({
         part_id: m.part_id,
-        defective: !!(defectiveParts[m.part_id])
+        defective_qty: parseInt(defectiveParts[m.part_id] || 0, 10)
       }));
       const res = await api.deleteProductionRun(
         returnDialog.unit_id,
@@ -2007,30 +2007,41 @@ export default function WorkOrders() {
                     Sorunlu Parçaları İşaretle
                     <span className="ml-2 text-slate-500 normal-case font-normal">(İşaretlenenler seçili depoya, diğerleri Good Stock'a gider)</span>
                   </label>
-                  <div className="rounded-xl border border-slate-200 dark:border-slate-700/60 divide-y divide-slate-200 dark:divide-slate-700/40 overflow-hidden">
-                    {returnDialog.materials.map(m => (
-                      <label key={m.part_id} className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-[#242a38] transition-colors">
-                        <input
-                          type="checkbox"
-                          className="w-4 h-4 rounded border-slate-300 accent-red-500 cursor-pointer"
-                          checked={!!(defectiveParts[m.part_id])}
-                          onChange={e => setDefectiveParts(prev => ({...prev, [m.part_id]: e.target.checked}))}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">{m.part_name}</div>
-                          {m.item_code && <div className="text-xs text-slate-400 font-mono">{m.item_code}</div>}
+                  <div className="rounded-xl border border-slate-200 dark:border-slate-700/60 divide-y divide-slate-200 dark:divide-slate-700/40 overflow-hidden bg-slate-50/50 dark:bg-[#1a1d26]">
+                    {returnDialog.materials.map(m => {
+                      const maxQty = m.quantity_consumed;
+                      const currentVal = defectiveParts[m.part_id] || 0;
+                      return (
+                        <div key={m.part_id} className="flex items-center justify-between gap-4 px-4 py-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">{m.part_name}</div>
+                            {m.item_code && <div className="text-xs text-slate-400 font-mono">{m.item_code}</div>}
+                          </div>
+                          
+                          <div className="flex items-center gap-2 shrink-0">
+                            <div className="flex flex-col items-end">
+                              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Sorunlu Miktar</span>
+                              <div className="flex items-center gap-1.5">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max={maxQty}
+                                  value={currentVal}
+                                  onChange={e => {
+                                    let val = parseInt(e.target.value, 10) || 0;
+                                    if (val < 0) val = 0;
+                                    if (val > maxQty) val = maxQty;
+                                    setDefectiveParts(prev => ({ ...prev, [m.part_id]: val }));
+                                  }}
+                                  className="w-16 bg-white dark:bg-[#242a38] text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700/60 rounded-lg px-2 py-1 text-sm text-center font-mono focus:outline-none focus:border-amber-500"
+                                />
+                                <span className="text-xs font-mono text-slate-400">/ {maxQty} adet</span>
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <span className="text-xs font-mono text-slate-500">{m.quantity_consumed} adet</span>
-                          {defectiveParts[m.part_id] ? (
-                            <span className="text-[10px] px-1.5 py-0.5 bg-red-500/10 text-red-500 border border-red-500/20 rounded font-semibold">Sorunlu Depo</span>
-                          ) : (
-                            <span className="text-[10px] px-1.5 py-0.5 bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 rounded font-semibold">Good Stock</span>
-                          )}
-                        </div>
-                      </label>
-                    ))}
-                  </div>
+                      );
+                    })}
                 </div>
               )}
 
