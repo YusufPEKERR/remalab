@@ -93,6 +93,7 @@ export default function WorkOrders() {
   const [itemBoms, setItemBoms] = useState([]);
   const [bomsLoading, setBomsLoading] = useState(false);
   const [bomSearchQuery, setBomSearchQuery] = useState('');
+  const [showBomDropdown, setShowBomDropdown] = useState(false);
 
   // --- Production Work Order state (work_orders, work_order_type = 'PRODUCTION') ---
   const [showProductionWOForm, setShowProductionWOForm] = useState(false);
@@ -963,7 +964,67 @@ export default function WorkOrders() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
                   <label className="block text-sm font-medium text-slate-400 mb-1.5">Üretilen Parça Kodu/Adı <span className="text-red-400">*</span></label>
-                  <input type="text" required placeholder="Parça Kodu veya Adı (Örn: P-001)" className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={productionForm.target_part_code || ''} onChange={e => setProductionForm({...productionForm, target_part_code: e.target.value})} />
+                  <div className="relative">
+                    <input 
+                      type="text" 
+                      required 
+                      autoComplete="off"
+                      placeholder="Parça Kodu veya Adı (Örn: P-001)" 
+                      className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" 
+                      value={productionForm.target_part_code || ''} 
+                      onChange={e => {
+                        setProductionForm({...productionForm, target_part_code: e.target.value});
+                        setShowBomDropdown(true);
+                      }}
+                      onFocus={() => setShowBomDropdown(true)}
+                      onBlur={() => setTimeout(() => setShowBomDropdown(false), 200)}
+                    />
+                    {showBomDropdown && productionForm.target_part_code && (
+                      <div className="absolute z-50 w-full mt-1 bg-white dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg max-h-60 overflow-y-auto">
+                        {parts.filter(p => {
+                          const q = (productionForm.target_part_code || '').toLowerCase();
+                          return (p.name || '').toLowerCase().includes(q) || 
+                                 (p.item_code || '').toLowerCase().includes(q);
+                        }).map(part => {
+                          const hasBom = itemBoms.some(b => String(b.parent_part_id) === String(part.id));
+                          return (
+                          <div 
+                            key={part.id} 
+                            className="px-4 py-3 hover:bg-slate-100 dark:hover:bg-[#2a3142] cursor-pointer text-sm text-slate-800 dark:text-slate-200 border-b border-slate-100 dark:border-slate-700/50 last:border-0 flex justify-between items-center"
+                            onClick={() => {
+                              const bom = itemBoms.find(b => String(b.parent_part_id) === String(part.id));
+                              if (bom) {
+                                handleFillFormFromBOM(bom);
+                              } else {
+                                setProductionForm({
+                                  ...productionForm,
+                                  target_part_id: part.id,
+                                  target_part_code: part.item_code || part.name
+                                });
+                                setProductionMaterials([]);
+                              }
+                              setShowBomDropdown(false);
+                            }}
+                          >
+                            <div>
+                              <div className="font-bold text-blue-500 dark:text-blue-400">{part.item_code}</div>
+                              <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{part.name}</div>
+                            </div>
+                            {hasBom && (
+                              <span className="text-[10px] bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-2 py-0.5 rounded-full font-medium">BOM Kayıtlı</span>
+                            )}
+                          </div>
+                        )})}
+                        {parts.filter(p => {
+                          const q = (productionForm.target_part_code || '').toLowerCase();
+                          return (p.name || '').toLowerCase().includes(q) || 
+                                 (p.item_code || '').toLowerCase().includes(q);
+                        }).length === 0 && (
+                          <div className="px-4 py-3 text-sm text-slate-500 italic">Eşleşen parça bulunamadı. Yeni bir isim yazabilirsiniz.</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-400 mb-1.5">Miktar <span className="text-red-400">*</span></label>

@@ -2738,7 +2738,7 @@ class WebBridge(QObject):
                 res.append({
                     "id": row["id"],
                     "part_id": row["part_id"],
-                    "part_name": f"{row['brand'] or ''} {row['model'] or ''} {row['pname'] or ''}".strip(),
+                    "part_name": (row['pname'] or '').strip(),
                     "location_id": row["location_id"],
                     "location_name": row["location_name"],
                     "location_kind": row["location_kind"],
@@ -2827,7 +2827,7 @@ class WebBridge(QObject):
                     "type": mov.type,
                     "quantity": mov.quantity,
                     "part_id": mov.part_id,
-                    "part_name": f"{p.brand} {p.model} {p.name}" if p else "Silinmiş Parça",
+                    "part_name": p.name if p else "Silinmiş Parça",
                     "source_location_id": mov.source_location_id,
                     "source_location": sloc.name if sloc else "-",
                     "target_location_id": mov.target_location_id,
@@ -2971,7 +2971,7 @@ class WebBridge(QObject):
                 except Exception as e:
                     print(f"Error parsing end_date '{end_date}': {e}")
                     
-            query = query.order_by(StockMovement.created_at.desc()).limit(1000)
+            query = query.order_by(StockMovement.created_at.desc()).limit(10000)
             results = query.all()
             
             res = []
@@ -2985,7 +2985,7 @@ class WebBridge(QObject):
                     "id": mov.id,
                     "date": mov.created_at.strftime("%Y-%m-%d %H:%M") if mov.created_at else "",
                     "type": mov.type,
-                    "part_name": f"{p.brand} {p.model} {p.name}" if p else "-",
+                    "part_name": p.name if p else "-",
                     "location": loc_name,
                     "quantity": mov.quantity,
                     "user": mov.created_by
