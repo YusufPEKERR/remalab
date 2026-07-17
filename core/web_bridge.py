@@ -1,8 +1,45 @@
 import json
-from PySide6.QtCore import QObject, Slot
+from PySide6.QtCore import QObject, Slot, Signal
+import json
+import logging
+import os
+
+def get_cache_dirs():
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    # We write to a single external folder.
+    # Vite middleware will serve from this folder.
+    # Production PySide static server should also be able to serve from it.
+    d1 = os.path.join(base_dir, 'api_cache')
+    os.makedirs(d1, exist_ok=True)
+    return [d1]
+
+def write_to_cache(filename, json_data):
+    dirs = get_cache_dirs()
+    for d in dirs:
+        try:
+            with open(os.path.join(d, filename), "w", encoding="utf-8") as f:
+                f.write(json_data)
+        except Exception as e:
+            logging.error(f"Failed to write cache {filename} to {d}: {e}")
+
 from config.database import SessionLocal
 from config.auth import verify_password
 from models.user import User
+
+from sqlalchemy import event
+from sqlalchemy.orm import Session
+
+def clear_api_cache(session):
+    """Veritabanında değişiklik olduğunda cache'i temizler, böylece UI sadece yeni veriyi bekler."""
+    dirs = get_cache_dirs()
+    for d in dirs:
+        for filename in ["parts.json", "stock.json", "critical.json"]:
+            path = os.path.join(d, filename)
+            if os.path.exists(path):
+                try: os.remove(path)
+                except Exception as e: logging.error(f"Failed to clear cache {path}: {e}")
+
+event.listen(Session, 'after_commit', clear_api_cache)
 
 # Otomatik iş akışıyla yönetilen sabit sistem depoları. Bu depolar arasında
 # kullanıcı manuel transfer yapamaz (bkz. transfer_stock).
@@ -622,14 +659,17 @@ class WebBridge(QObject):
 
     @Slot(result=str)
     def get_parts(self):
-        """Tüm parçaları, bağlı Parça Kategorisi'nden gelen (Parça Tipi/Departman/Stok Takibi/
-        Varsayılan Lokasyon) canlı değerlerle birlikte getirir. Kategoriye bağlı olmayan eski
-        parçalarda kendi serbest-metin sütunlarına düşer (COALESCE)."""
+        filename = "parts.json"
+        path = os.path.join(get_cache_dirs()[0], filename)
+        fetch_url = f"http://localhost:5173/api_cache/{filename}" if os.getenv("DEV_MODE", "1") == "1" else f"/api_cache/{filename}"
+        if os.path.exists(path):
+            return json.dumps({"success": True, "fetch_url": fetch_url})
+            
         from sqlalchemy import text
         db = SessionLocal()
         try:
             result = db.execute(text("""
-				SELECT p.id, p.name, p.item_code, p.barcode, p.brand, p.model, p.color,
+                SELECT p.id, p.name, p.item_code, p.barcode, p.brand, p.model, p.color,
                        p.item_category, p.part_category_id,
                        COALESCE(pc.name, p.part_category) AS part_category,
                        COALESCE(p.part_type, '') AS part_type,
@@ -651,58 +691,21 @@ class WebBridge(QObject):
                     "brand": row["brand"] or "",
                     "model": row["model"] or "",
                     "color": row["color"] or "",
-                    "item_category": row["item_category"] or "",
-                    "part_category_id": str(row["part_category_id"]) if row["part_category_id"] else "",
                     "part_category": row["part_category"] or "",
                     "part_type": row["part_type"] or "",
+                    "item_category": row["item_category"] or "",
                     "department": row["department"] or "",
-                    "stock_tracking_type": row["stock_tracking_type"] or "Stok Takipli",
-                    "default_location_id": str(row["default_location_id"]) if row["default_location_id"] else "",
+                    "stock_tracking_type": row["stock_tracking_type"] or "",
+                    "default_location_id": row["default_location_id"] or "",
                     "default_location_name": row["default_location_name"] or "",
-                    "status": row["status"] or "Aktif"
+                    "status": row["status"] or "Aktif",
+                    "critical_limit": row["critical_limit"] or 50,
+                    "part_category_id": row["part_category_id"]
                 })
-            return json.dumps({"success": True, "parts": parts_list})
+            json_data = json.dumps({"success": True, "parts": parts_list})
+            write_to_cache("parts.json", json_data)
+            return json.dumps({"success": True, "fetch_url": "/api_cache/parts.json"})
         except Exception as e:
-            return json.dumps({"success": False, "message": str(e)})
-        finally:
-            db.close()
-
-    @Slot(result=str)
-    def get_item_boms(self):
-        """Tüm ItemBOM kayıtlarını (parent ve child bilgileriyle birlikte) getirir."""
-        from sqlalchemy import text
-        db = SessionLocal()
-        try:
-            result = db.execute(text("""
-                SELECT b.id, b.parent_item_id, b.child_item_id, b.quantity,
-                       p_parent.name AS parent_name, p_parent.id AS parent_part_id,
-                       p_child.name AS child_name, p_child.id AS child_part_id
-                FROM warehouse.item_bom b
-                LEFT JOIN warehouse.parts p_parent ON p_parent.item_code = b.parent_item_id
-                LEFT JOIN warehouse.parts p_child ON p_child.item_code = b.child_item_id
-                ORDER BY b.parent_item_id, b.child_item_id;
-            """)).mappings().all()
-            
-            bom_map = {}
-            for row in result:
-                parent_code = row["parent_item_id"]
-                if parent_code not in bom_map:
-                    bom_map[parent_code] = {
-                        "parent_item_id": parent_code,
-                        "parent_part_id": str(row["parent_part_id"]) if row["parent_part_id"] else "",
-                        "parent_name": row["parent_name"] or parent_code,
-                        "materials": []
-                    }
-                bom_map[parent_code]["materials"].append({
-                    "child_item_id": row["child_item_id"],
-                    "child_part_id": str(row["child_part_id"]) if row["child_part_id"] else "",
-                    "child_name": row["child_name"] or row["child_item_id"],
-                    "quantity": int(row["quantity"])
-                })
-            
-            return json.dumps({"success": True, "item_boms": list(bom_map.values())}, ensure_ascii=False)
-        except Exception as e:
-            print(f"[WebBridge] get_item_boms hatası: {e}")
             return json.dumps({"success": False, "message": str(e)})
         finally:
             db.close()
@@ -1225,6 +1228,7 @@ class WebBridge(QObject):
                        customer_complaint, preliminary_diagnosis, status, technician_note, created_at
                 FROM warehouse.service_records
                 ORDER BY id DESC
+                LIMIT 200
             """)).mappings().all()
             records = []
             for row in rows:
@@ -1363,6 +1367,7 @@ class WebBridge(QObject):
                 FROM warehouse.work_orders w
                 LEFT JOIN warehouse.service_records s ON s.id = w.service_record_id
                 ORDER BY w.id DESC
+                LIMIT 200
             """)).mappings().all()
             orders = []
             for row in rows:
@@ -2291,7 +2296,9 @@ class WebBridge(QObject):
                     "memory": p.memory,
                     "color": p.color
                 })
-            return json.dumps({"success": True, "products": res})
+            json_data = json.dumps({"success": True, "products": res})
+            write_to_cache("products.json", json_data)
+            return json.dumps({"success": True, "fetch_url": "/api_cache/products.json"})
         except Exception as e:
             return json.dumps({"success": False, "message": str(e)})
         finally:
@@ -2411,26 +2418,39 @@ class WebBridge(QObject):
 
     @Slot(result=str)
     def get_stock_status(self):
-        from models.stock import Stock
-        from models.part import Part
-        from models.location import Location
+        filename = "stock.json"
+        path = os.path.join(get_cache_dirs()[0], filename)
+        fetch_url = f"http://localhost:5173/api_cache/{filename}" if os.getenv("DEV_MODE", "1") == "1" else f"/api_cache/{filename}"
+        if os.path.exists(path):
+            return json.dumps({"success": True, "fetch_url": fetch_url})
+
+        from sqlalchemy import text
         db = SessionLocal()
         try:
-            # Left join to handle cases where location or part might be deleted but still referenced
-            stocks = db.query(Stock, Part, Location).join(Part, Stock.part_id == Part.id).join(Location, Stock.location_id == Location.id).all()
+            stocks = db.execute(text("""
+                SELECT s.id, p.id as part_id, p.brand, p.model, p.name as pname, 
+                       l.id as location_id, l.name as location_name, l.kind as location_kind, 
+                       s.quantity, p.critical_limit 
+                FROM warehouse.stock s 
+                JOIN warehouse.parts p ON s.part_id = p.id 
+                JOIN warehouse.locations l ON s.location_id = l.id
+                ORDER BY s.id DESC
+            """)).mappings().all()
             res = []
-            for s, p, l in stocks:
+            for row in stocks:
                 res.append({
-                    "id": s.id,
-                    "part_id": p.id,
-                    "part_name": f"{p.brand} {p.model} {p.name}",
-                    "location_id": l.id,
-                    "location_name": l.name,
-                    "location_kind": l.kind,
-                    "quantity": s.quantity,
-                    "critical_limit": p.critical_limit or 50
+                    "id": row["id"],
+                    "part_id": row["part_id"],
+                    "part_name": f"{row['brand'] or ''} {row['model'] or ''} {row['pname'] or ''}".strip(),
+                    "location_id": row["location_id"],
+                    "location_name": row["location_name"],
+                    "location_kind": row["location_kind"],
+                    "quantity": row["quantity"],
+                    "critical_limit": row["critical_limit"] or 50
                 })
-            return json.dumps({"success": True, "stock": res})
+            json_data = json.dumps({"success": True, "stock": res})
+            write_to_cache("stock.json", json_data)
+            return json.dumps({"success": True, "fetch_url": "/api_cache/stock.json"})
         except Exception as e:
             return json.dumps({"success": False, "message": str(e)})
         finally:
@@ -2773,6 +2793,12 @@ class WebBridge(QObject):
 
     @Slot(result=str)
     def get_critical_stock(self):
+        filename = "critical.json"
+        path = os.path.join(get_cache_dirs()[0], filename)
+        fetch_url = f"http://localhost:5173/api_cache/{filename}" if os.getenv("DEV_MODE", "1") == "1" else f"/api_cache/{filename}"
+        if os.path.exists(path):
+            return json.dumps({"success": True, "fetch_url": fetch_url})
+
         from models.stock import Stock
         from models.part import Part
         from models.location import Location
