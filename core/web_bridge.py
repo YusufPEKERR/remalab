@@ -2835,7 +2835,7 @@ class WebBridge(QObject):
         """
         Genel amaçlı excel export - Direkt İndirilenler Klasörüne Kaydeder
         """
-        from ui.excel_utils import style_excel_file
+        from core.excel_utils import style_excel_file
         import json
         import pandas as pd
         import os
@@ -2875,7 +2875,7 @@ class WebBridge(QObject):
         Tüm veritabanı tablolarını tek bir excel dosyasında farklı sheet'lerde dışa aktarır.
         JS üzerinden veri transferini atlayarak (size limitleri aşmamak için) direkt db'den çeker.
         """
-        from ui.excel_utils import style_excel_file
+        from core.excel_utils import style_excel_file
         import json
         import pandas as pd
         import os

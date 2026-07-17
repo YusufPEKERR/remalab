@@ -5,7 +5,7 @@ from PySide6.QtGui import QIcon, QFont
 from PySide6.QtCore import Qt
 
 from config.database import init_database_schema, register_db_error_listener
-from ui.main_window import MainWindow
+from core.main_window import MainWindow
 
 def main():
     """Uygulamayı başlat (PySide6 + React WebEngine via QWebChannel)."""
