@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ClipboardList, Plus, Trash2, Edit, X, Save, Factory, Package, TrendingUp, Repeat, AlertTriangle, Layers, Search, RotateCcw } from 'lucide-react';
+import { ClipboardList, Plus, Trash2, Edit, X, Save, Factory, Package, TrendingUp, Repeat, AlertTriangle, Layers, Search, RotateCcw, Eye, Info } from 'lucide-react';
 import { api } from '../services/api';
 import PartSupplyMenu from '../components/PartSupplyMenu';
 import DeliverPartPopover from '../components/DeliverPartPopover';
@@ -141,6 +141,7 @@ export default function WorkOrders() {
   const [returnReason, setReturnReason] = useState('');
   const [defectiveParts, setDefectiveParts] = useState({}); // { part_id: true/false }
   const [returnSaving, setReturnSaving] = useState(false);
+  const [detailDialog, setDetailDialog] = useState(null);
 
   const fetchOrders = async () => {
     setOrdersLoading(true);
@@ -1494,30 +1495,11 @@ export default function WorkOrders() {
                       </td>
                       <td className="px-6 py-4">{run.produced_by || '-'}</td>
                       <td className="px-6 py-4 text-slate-400 whitespace-nowrap">{run.created_at}</td>
-                      <td className="px-6 py-4 min-w-[360px]">
+                      <td className="px-6 py-4">
                         {run.is_returned ? (
-                          <div className="flex items-center gap-3">
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-red-500/10 text-red-500 border border-red-500/20 rounded-lg shrink-0">
-                              ✕ İade Edildi
-                            </span>
-                            <div className="flex items-center gap-2 text-xs flex-wrap">
-                              {run.returned_at && (
-                                <span className="text-[11px] text-slate-400 whitespace-nowrap">{run.returned_at}</span>
-                              )}
-                              <span className="text-slate-600">|</span>
-                              <span className="text-slate-300 font-medium whitespace-normal max-w-[150px]" title={run.return_reason}>
-                                {run.return_reason || 'Belirtilmedi'}
-                              </span>
-                              {run.return_location_name && (
-                                <>
-                                  <span className="text-slate-600">|</span>
-                                  <span className="inline-flex items-center gap-1 text-[11px] text-slate-400 bg-slate-500/10 px-2 py-0.5 rounded-md shrink-0">
-                                    → {run.return_location_name}
-                                  </span>
-                                </>
-                              )}
-                            </div>
-                          </div>
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-red-500/10 text-red-500 border border-red-500/20 rounded-lg">
+                            ✕ İade Edildi
+                          </span>
                         ) : (
                           <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded-lg">
                             ✓ Üretildi
@@ -1526,6 +1508,9 @@ export default function WorkOrders() {
                       </td>
                       <td className="px-6 py-4 text-center">
                         <div className="flex justify-center gap-2">
+                          <button onClick={() => setDetailDialog(run)} className="p-1.5 text-slate-400 hover:bg-slate-400/10 rounded-lg transition-colors" title="Detayları Göster">
+                            <Info size={16} />
+                          </button>
                           <button onClick={() => handleRepeatProduction(run)} className="p-1.5 text-blue-400 hover:bg-blue-400/10 rounded-lg transition-colors" title="İşlemi Tekrarla">
                             <Repeat size={16} />
                           </button>
@@ -2094,6 +2079,109 @@ export default function WorkOrders() {
                 className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 disabled:opacity-60 text-white rounded-xl font-medium transition-colors shadow-lg shadow-amber-500/20 flex items-center gap-2 text-sm"
               >
                 {returnSaving ? 'Aktarılıyor...' : 'Hammaddeleri İade Et'}
+              </button>
+            </div>
+          </div>
+        </div>
+      {/* --- CİHAZ DETAY DIALOG --- */}
+      {detailDialog && (
+        <div className="fixed inset-0 bg-slate-900/80 flex items-center justify-center z-50 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 shadow-2xl rounded-2xl w-full max-w-lg p-6 animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                <Info className="text-blue-500" size={22} /> Cihaz Detay Bilgisi
+              </h3>
+              <button onClick={() => setDetailDialog(null)} className="p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-[#2a3142] rounded-lg transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+              {/* Genel Bilgiler */}
+              <div className="bg-slate-50 dark:bg-[#242a38] p-4 rounded-xl space-y-2 border border-slate-200 dark:border-slate-700/30">
+                <div className="flex justify-between items-center pb-2 border-b border-slate-200 dark:border-slate-700/40">
+                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Cihaz Kimlik ID</span>
+                  <span className="font-mono font-bold text-slate-800 dark:text-slate-200 text-sm bg-slate-200 dark:bg-[#1e2330] px-2 py-0.5 rounded">{detailDialog.serial_number}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-400">Üretilen Parça:</span>
+                  <span className="font-medium text-slate-800 dark:text-slate-200">{detailDialog.target_part_name}</span>
+                </div>
+                {detailDialog.target_item_code && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-400">Parça Kodu:</span>
+                    <span className="font-mono text-slate-800 dark:text-slate-200">{detailDialog.target_item_code}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-400">Üretici:</span>
+                  <span className="text-slate-800 dark:text-slate-200">{detailDialog.produced_by || '-'}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-400">Üretim Tarihi:</span>
+                  <span className="text-slate-800 dark:text-slate-200">{detailDialog.created_at}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-400">Üretim Deposu:</span>
+                  <span className="text-slate-800 dark:text-slate-200">{detailDialog.location_name}</span>
+                </div>
+              </div>
+
+              {/* Durum & İade Bilgileri */}
+              <div className={`p-4 rounded-xl border ${detailDialog.is_returned ? 'bg-red-500/5 border-red-500/20' : 'bg-emerald-500/5 border-emerald-500/20'} space-y-2`}>
+                <div className="flex justify-between items-center pb-2 border-b border-slate-200 dark:border-slate-700/20">
+                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Durum</span>
+                  {detailDialog.is_returned ? (
+                    <span className="px-2.5 py-1 text-xs font-bold bg-red-500/10 text-red-500 border border-red-500/20 rounded-lg">İade Edildi</span>
+                  ) : (
+                    <span className="px-2.5 py-1 text-xs font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded-lg">Üretildi</span>
+                  )}
+                </div>
+
+                {detailDialog.is_returned && (
+                  <>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-400">İade Tarihi:</span>
+                      <span className="text-slate-800 dark:text-slate-200">{detailDialog.returned_at || '-'}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-400">İade Edilen Depo:</span>
+                      <span className="text-slate-800 dark:text-slate-200">{detailDialog.return_location_name || '-'}</span>
+                    </div>
+                    <div className="text-sm pt-1">
+                      <div className="text-slate-400 mb-1">İade/Değişim Nedeni:</div>
+                      <div className="bg-white dark:bg-[#1a1d26] p-3 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-sans italic text-sm">
+                        {detailDialog.return_reason || 'Belirtilmedi'}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Tüketilen Malzemeler */}
+              <div>
+                <span className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Tüketilen Malzemeler</span>
+                <div className="rounded-xl border border-slate-200 dark:border-slate-700/60 overflow-hidden divide-y divide-slate-200 dark:divide-slate-700/40">
+                  {(detailDialog.materials || []).map((m, idx) => (
+                    <div key={idx} className="flex justify-between items-center px-4 py-3 bg-slate-50 dark:bg-[#242a38]/40 hover:bg-slate-50 dark:hover:bg-[#242a38]">
+                      <div>
+                        <div className="text-sm font-medium text-slate-800 dark:text-slate-200">{m.part_name}</div>
+                        {m.item_code && <div className="text-xs font-mono text-slate-400">{m.item_code}</div>}
+                      </div>
+                      <span className="font-mono text-sm text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-[#1e2330] px-2 py-0.5 rounded">{m.quantity_consumed} adet</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-700/40 mt-4">
+              <button 
+                type="button" 
+                onClick={() => setDetailDialog(null)} 
+                className="px-5 py-2.5 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors border border-slate-300 dark:border-slate-600 text-sm"
+              >
+                Kapat
               </button>
             </div>
           </div>
