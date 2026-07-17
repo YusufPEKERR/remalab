@@ -295,6 +295,20 @@ class WebBridge(QObject):
                     quantity_consumed INTEGER NOT NULL
                 );
             """))
+            db.execute(text("""
+                CREATE TABLE IF NOT EXISTS warehouse.produced_units (
+                    id SERIAL PRIMARY KEY,
+                    production_run_id INTEGER REFERENCES warehouse.production_runs(id) ON DELETE CASCADE,
+                    serial_number VARCHAR(100) UNIQUE NOT NULL
+                );
+            """))
+            
+            # Clean up old records to avoid data inconsistency with the new unique serial number system
+            run_count = db.execute(text("SELECT COUNT(*) FROM warehouse.production_runs")).scalar() or 0
+            unit_count = db.execute(text("SELECT COUNT(*) FROM warehouse.produced_units")).scalar() or 0
+            if run_count > 0 and unit_count == 0:
+                db.execute(text("TRUNCATE warehouse.production_runs RESTART IDENTITY CASCADE;"))
+
             db.commit()
         except Exception as e:
             db.rollback()
@@ -2534,22 +2548,23 @@ class WebBridge(QObject):
 
     @Slot(result=str)
     def get_production_runs(self):
-        """Tüm üretim kayıtlarını, tükettikleri malzemelerle birlikte getirir."""
+        """Tüm üretilen cihaz kayıtlarını, benzersiz seri numaraları (Cihaz Kimlik ID) ve tükettikleri malzemelerle birlikte getirir."""
         from sqlalchemy import text
         db = SessionLocal()
         try:
-            runs = db.execute(text("""
-                SELECT pr.id, pr.target_part_id, pr.quantity_produced, pr.location_id, pr.source_location_id,
+            units = db.execute(text("""
+                SELECT pu.id AS unit_id, pu.serial_number, pr.id AS run_id, pr.target_part_id, pr.quantity_produced, pr.location_id, pr.source_location_id,
                        pr.produced_by, pr.notes, pr.created_at,
                        p.brand AS target_brand, p.model AS target_model,
                        p.item_code AS target_code, p.name AS target_name,
                        l.name AS location_name,
                        sl.name AS source_location_name
-                FROM warehouse.production_runs pr
+                FROM warehouse.produced_units pu
+                JOIN warehouse.production_runs pr ON pr.id = pu.production_run_id
                 LEFT JOIN warehouse.parts p ON p.id = pr.target_part_id
                 LEFT JOIN warehouse.locations l ON l.id = pr.location_id
                 LEFT JOIN warehouse.locations sl ON sl.id = pr.source_location_id
-                ORDER BY pr.id DESC
+                ORDER BY pu.id DESC
             """)).mappings().all()
 
             materials = db.execute(text("""
@@ -2570,22 +2585,42 @@ class WebBridge(QObject):
                 })
 
             result = []
-            for r in runs:
-                target_label = f'{r["target_brand"] or ""} {r["target_model"] or ""}'.strip() or (r["target_name"] or "")
+            for u in units:
+                target_label = f'{u["target_brand"] or ""} {u["target_model"] or ""}'.strip() or (u["target_name"] or "")
+                run_qty = u["quantity_produced"]
+                
+                # Her bir cihaz için malzeme tüketimini adet bazlı hesapla
+                unit_materials = []
+                for m in materials_by_run.get(u["run_id"], []):
+                    qty_per_unit = float(m["quantity_consumed"]) / run_qty if run_qty > 0 else 0
+                    if qty_per_unit.is_integer():
+                        qty_per_unit = int(qty_per_unit)
+                    else:
+                        qty_per_unit = round(qty_per_unit, 2)
+                        
+                    unit_materials.append({
+                        "part_id": m["part_id"],
+                        "part_name": m["part_name"],
+                        "item_code": m["item_code"],
+                        "quantity_consumed": qty_per_unit
+                    })
+
                 result.append({
-                    "id": str(r["id"]),
-                    "target_part_id": str(r["target_part_id"]) if r["target_part_id"] else "",
+                    "id": str(u["run_id"]),  # Geri alma işlemleri için run_id
+                    "unit_id": str(u["unit_id"]),
+                    "serial_number": u["serial_number"],
+                    "target_part_id": str(u["target_part_id"]) if u["target_part_id"] else "",
                     "target_part_name": target_label,
-                    "target_item_code": r["target_code"] or "",
-                    "quantity_produced": r["quantity_produced"],
-                    "location_id": str(r["location_id"]) if r["location_id"] else "",
-                    "location_name": r["location_name"] or "",
-                    "source_location_id": str(r["source_location_id"]) if r["source_location_id"] else "",
-                    "source_location_name": r["source_location_name"] or "",
-                    "produced_by": r["produced_by"] or "",
-                    "notes": r["notes"] or "",
-                    "created_at": r["created_at"].strftime("%Y-%m-%d %H:%M") if r["created_at"] else "",
-                    "materials": materials_by_run.get(r["id"], [])
+                    "target_item_code": u["target_code"] or "",
+                    "quantity_produced": 1,  # Rapor satırında cihaz adedi her zaman 1'dir
+                    "location_id": str(u["location_id"]) if u["location_id"] else "",
+                    "location_name": u["location_name"] or "",
+                    "source_location_id": str(u["source_location_id"]) if u["source_location_id"] else "",
+                    "source_location_name": u["source_location_name"] or "",
+                    "produced_by": u["produced_by"] or "",
+                    "notes": u["notes"] or "",
+                    "created_at": u["created_at"].strftime("%Y-%m-%d %H:%M") if u["created_at"] else "",
+                    "materials": unit_materials
                 })
             return json.dumps({"success": True, "production_runs": result})
         except Exception as e:
@@ -2658,6 +2693,15 @@ class WebBridge(QObject):
                 "tgt": tgt_id, "qty": qty, "slid": src_loc_id, "tlid": tgt_loc_id,
                 "by": produced_by or None, "notes": notes or None
             }).scalar()
+
+            # Her bir cihaz için sıralı ve benzersiz serial number (Cihaz Kimlik ID) oluştur
+            for idx in range(qty):
+                next_id = db.execute(text("SELECT nextval(pg_get_serial_sequence('warehouse.produced_units', 'id'))")).scalar()
+                serial_num = f"REM-PRD-{next_id:06d}"
+                db.execute(text("""
+                    INSERT INTO warehouse.produced_units (id, production_run_id, serial_number)
+                    VALUES (:id, :run_id, :serial)
+                """), {"id": next_id, "run_id": run_id, "serial": serial_num})
 
             for m in materials:
                 db.execute(text("""

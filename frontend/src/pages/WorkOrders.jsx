@@ -820,7 +820,6 @@ export default function WorkOrders() {
     { key: 'production', label: 'Yarı Mamul Üretimi', icon: Factory },
     { key: 'recent_productions', label: 'Hızlı Tekrar Üretim', icon: Repeat },
     { key: 'consumption', label: 'Malzeme Tüketimi', icon: Package },
-    { key: 'history', label: 'Üretim Geçmişi', icon: TrendingUp },
     { key: 'production_work_orders', label: 'Üretim İş Emirleri', icon: Layers }
   ];
 
@@ -1405,73 +1404,7 @@ export default function WorkOrders() {
           </div>
         )}
 
-        {/* --- ÜRETİM GEÇMİŞİ --- */}
-        {activeTab === 'history' && (
-          <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden">
-            <div className="p-6 pb-4">
-              <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                <TrendingUp size={20} className="text-emerald-400" /> Üretim Geçmişi
-              </h2>
-              <p className="text-slate-400 text-sm mt-1">Geçmişte yapılan tüm yarı mamul üretim kayıtları.</p>
-            </div>
-            <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs">
-                <tr>
-                  <th className="px-6 py-4">Üretilen Parça</th>
-                  <th className="px-6 py-4">Miktar</th>
-                  <th className="px-6 py-4">Kaynak Lokasyon</th>
-                  <th className="px-6 py-4">Hedef Lokasyon</th>
-                  <th className="px-6 py-4">Tüketilen Malzemeler</th>
-                  <th className="px-6 py-4">Üretici</th>
-                  <th className="px-6 py-4">Tarih</th>
-                  <th className="px-6 py-4 text-center">İşlemler</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-700/50">
-                {productionLoading ? (
-                  <tr>
-                    <td colSpan="7" className="px-6 py-8 text-center text-slate-400">Yükleniyor...</td>
-                  </tr>
-                ) : productionRuns.length === 0 ? (
-                  <tr>
-                    <td colSpan="7" className="px-6 py-8 text-center text-slate-500">Kayıt bulunamadı.</td>
-                  </tr>
-                ) : (
-                  productionRuns.map(run => (
-                    <tr key={run.id} className="hover:bg-slate-100 dark:bg-[#2a3142] transition-colors text-slate-700 dark:text-slate-300">
-                      <td className="px-6 py-4">
-                        <div className="font-medium text-slate-800 dark:text-slate-200">
-                          {run.target_part_name || '-'} {parts.find(p => p.id == run.target_part_id)?.part_category ? `(${parts.find(p => p.id == run.target_part_id).part_category})` : ''}
-                        </div>
-                        <div className="text-xs text-slate-400">{run.target_item_code}</div>
-                      </td>
-                      <td className="px-6 py-4 font-mono">{run.quantity_produced}</td>
-                      <td className="px-6 py-4">{run.source_location_name || '-'}</td>
-                      <td className="px-6 py-4">{run.location_name || '-'}</td>
-                      <td className="px-6 py-4 text-xs text-slate-400">
-                        {(run.materials || []).length > 0
-                          ? run.materials.map(m => `${m.part_name}${m.item_code ? ` [${m.item_code}]` : ''} (${m.quantity_consumed})`).join(', ')
-                          : '-'}
-                      </td>
-                      <td className="px-6 py-4">{run.produced_by || '-'}</td>
-                      <td className="px-6 py-4 text-slate-400">{run.created_at}</td>
-                      <td className="px-6 py-4 text-center">
-                        <div className="flex justify-center gap-2">
-                          <button onClick={() => handleRepeatProduction(run)} className="p-1.5 text-blue-400 hover:bg-blue-400/10 rounded-lg transition-colors" title="İşlemi Tekrarla">
-                            <Repeat size={16} />
-                          </button>
-                          <button onClick={() => handleDeleteProduction(run.id)} className="p-1.5 text-red-400 hover:bg-red-400/10 rounded-lg transition-colors" title="Sil">
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
+
 
         {/* --- PRODUCTION WORK ORDER --- */}
         {activeTab === 'production_work_orders' && (
