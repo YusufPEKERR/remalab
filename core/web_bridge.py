@@ -299,13 +299,14 @@ class WebBridge(QObject):
                 CREATE TABLE IF NOT EXISTS warehouse.produced_units (
                     id SERIAL PRIMARY KEY,
                     production_run_id INTEGER REFERENCES warehouse.production_runs(id) ON DELETE CASCADE,
-                    serial_number VARCHAR(100) UNIQUE NOT NULL,
+                    serial_number VARCHAR(100) NOT NULL,
                     is_returned BOOLEAN DEFAULT FALSE,
                     return_reason VARCHAR(500),
                     returned_at TIMESTAMP WITH TIME ZONE,
                     return_location_id INTEGER REFERENCES warehouse.locations(id)
                 );
             """))
+            db.execute(text("ALTER TABLE warehouse.produced_units DROP CONSTRAINT IF EXISTS produced_units_serial_number_key;"))
             db.execute(text("ALTER TABLE warehouse.produced_units ADD COLUMN IF NOT EXISTS is_returned BOOLEAN DEFAULT FALSE;"))
             db.execute(text("ALTER TABLE warehouse.produced_units ADD COLUMN IF NOT EXISTS return_reason VARCHAR(500);"))
             db.execute(text("ALTER TABLE warehouse.produced_units ADD COLUMN IF NOT EXISTS returned_at TIMESTAMP WITH TIME ZONE;"))
@@ -2710,14 +2711,22 @@ class WebBridge(QObject):
                 "by": produced_by or None, "notes": notes or None
             }).scalar()
 
-            # Her bir cihaz için sıralı ve benzersiz serial number (Cihaz Kimlik ID) oluştur
-            for idx in range(qty):
-                next_id = db.execute(text("SELECT nextval(pg_get_serial_sequence('warehouse.produced_units', 'id'))")).scalar()
-                serial_num = f"REM-PRD-{next_id:06d}"
+            # Tek bir ortak serial number (Cihaz Kimlik ID) oluştur
+            next_id = db.execute(text("SELECT nextval(pg_get_serial_sequence('warehouse.produced_units', 'id'))")).scalar()
+            serial_num = f"REM-PRD-{next_id:06d}"
+            
+            # İlk birimi bu next_id ile ekle
+            db.execute(text("""
+                INSERT INTO warehouse.produced_units (id, production_run_id, serial_number)
+                VALUES (:id, :run_id, :serial)
+            """), {"id": next_id, "run_id": run_id, "serial": serial_num})
+            
+            # Diğer birimleri otomatik id ile ekle
+            for idx in range(qty - 1):
                 db.execute(text("""
-                    INSERT INTO warehouse.produced_units (id, production_run_id, serial_number)
-                    VALUES (:id, :run_id, :serial)
-                """), {"id": next_id, "run_id": run_id, "serial": serial_num})
+                    INSERT INTO warehouse.produced_units (production_run_id, serial_number)
+                    VALUES (:run_id, :serial)
+                """), {"run_id": run_id, "serial": serial_num})
 
             for m in materials:
                 db.execute(text("""
