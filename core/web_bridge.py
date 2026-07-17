@@ -14,6 +14,29 @@ SYSTEM_LOCATION_KINDS = {
     "out_stock": "Out Stock",
 }
 
+# work_orders.work_order_type için desteklenen değerler. SERVICE, mevcut/varsayılan
+# akıştır (Service Record'a bağlı tamir süreci). PRODUCTION, bir Recipe'ye (ItemBOM,
+# bkz. target_part_id) bağlı yarı mamul üretim süreci içindir; Service Record gerektirmez.
+WORK_ORDER_TYPE_SERVICE = "SERVICE"
+WORK_ORDER_TYPE_PRODUCTION = "PRODUCTION"
+WORK_ORDER_TYPES = {WORK_ORDER_TYPE_SERVICE, WORK_ORDER_TYPE_PRODUCTION}
+
+# material_requests.status akışı: WAITING (issued=0) -> PARTIAL (0 < issued < required)
+# -> ISSUED (issued >= required). Sadece Production Work Order'lar için kullanılır;
+# Service Work Order akışıyla hiçbir ilişkisi yoktur.
+MATERIAL_REQUEST_STATUS_WAITING = "WAITING"
+MATERIAL_REQUEST_STATUS_PARTIAL = "PARTIAL"
+MATERIAL_REQUEST_STATUS_ISSUED = "ISSUED"
+
+
+def _compute_material_request_status(issued_quantity, required_quantity):
+    """issued/required miktarına göre material_requests.status değerini hesaplar."""
+    if issued_quantity <= 0:
+        return MATERIAL_REQUEST_STATUS_WAITING
+    if issued_quantity < required_quantity:
+        return MATERIAL_REQUEST_STATUS_PARTIAL
+    return MATERIAL_REQUEST_STATUS_ISSUED
+
 
 def _get_system_location_id(db, kind):
     """Verilen kind'a ('good_stock' vb.) sahip sistem deposunun id'sini döner."""
@@ -33,6 +56,8 @@ class WebBridge(QObject):
         self._ensure_stock_movement_columns()
         self._ensure_service_records_table()
         self._ensure_work_orders_table()
+        self._ensure_work_order_type_columns()
+        self._ensure_material_requests_table()
         self._ensure_production_tables()
         self._ensure_work_order_parts_table()
         self._ensure_location_kind_column()
@@ -255,6 +280,65 @@ class WebBridge(QObject):
         except Exception as e:
             db.rollback()
             print(f"[WebBridge] work_orders tablosu oluşturulamadı: {e}")
+        finally:
+            db.close()
+
+    def _ensure_work_order_type_columns(self):
+        """warehouse.work_orders tablosuna work_order_type ve target_part_id sütunlarını ekler.
+
+        work_order_type: DEFAULT 'SERVICE' olduğu için mevcut kayıtlar ve mevcut Service
+        Work Order akışı (create_work_order/update_work_order) hiç değişmeden çalışmaya
+        devam eder. PRODUCTION tipi için service_record_id NULL kalır; bunun yerine
+        target_part_id üzerinden bir Recipe'ye (warehouse.item_bom, parent_item_id =
+        hedef parçanın item_code'u) bağlanır.
+        """
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            db.execute(text("""
+                ALTER TABLE warehouse.work_orders
+                ADD COLUMN IF NOT EXISTS work_order_type VARCHAR(20) NOT NULL DEFAULT 'SERVICE';
+            """))
+            db.execute(text("""
+                ALTER TABLE warehouse.work_orders
+                ADD COLUMN IF NOT EXISTS target_part_id INTEGER REFERENCES warehouse.parts(id);
+            """))
+            db.execute(text("""
+                ALTER TABLE warehouse.work_orders
+                ADD COLUMN IF NOT EXISTS planned_quantity INTEGER;
+            """))
+            db.execute(text("CREATE INDEX IF NOT EXISTS idx_work_orders_type ON warehouse.work_orders(work_order_type);"))
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            print(f"[WebBridge] work_order_type sütunları eklenemedi: {e}")
+        finally:
+            db.close()
+
+    def _ensure_material_requests_table(self):
+        """warehouse.material_requests tablosunu yoksa oluşturur. Bir Production Work
+        Order'ın Recipe'sindeki (item_bom) her satır için bir Material Request kaydı
+        tutulur. remaining_quantity kalıcı sütun değil; okuma sırasında
+        (required_quantity - issued_quantity) olarak hesaplanır."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            db.execute(text("""
+                CREATE TABLE IF NOT EXISTS warehouse.material_requests (
+                    id SERIAL PRIMARY KEY,
+                    work_order_id INTEGER NOT NULL REFERENCES warehouse.work_orders(id) ON DELETE CASCADE,
+                    part_id INTEGER NOT NULL REFERENCES warehouse.parts(id),
+                    required_quantity INTEGER NOT NULL,
+                    issued_quantity INTEGER NOT NULL DEFAULT 0,
+                    status VARCHAR(20) NOT NULL DEFAULT 'WAITING',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            """))
+            db.execute(text("CREATE INDEX IF NOT EXISTS idx_material_requests_work_order_id ON warehouse.material_requests(work_order_id);"))
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            print(f"[WebBridge] material_requests tablosu oluşturulamadı: {e}")
         finally:
             db.close()
 
@@ -1359,21 +1443,29 @@ class WebBridge(QObject):
                 SELECT w.id, w.service_record_id, w.description, w.assigned_technician, w.priority,
                        w.start_date, w.end_date, w.parts_used, w.status, w.created_at,
                        w.source_location_id, w.stock_settled_at,
-                       s.customer_name, s.brand, s.model, s.fault_category, s.fault_type
+                       w.work_order_type, w.target_part_id, w.planned_quantity,
+                       s.customer_name, s.brand, s.model, s.fault_category, s.fault_type,
+                       tp.item_code AS target_part_code, tp.name AS target_part_name
                 FROM warehouse.work_orders w
                 LEFT JOIN warehouse.service_records s ON s.id = w.service_record_id
+                LEFT JOIN warehouse.parts tp ON tp.id = w.target_part_id
                 ORDER BY w.id DESC
             """)).mappings().all()
             orders = []
             for row in rows:
                 orders.append({
                     "id": str(row["id"]),
+                    "work_order_type": row["work_order_type"] or WORK_ORDER_TYPE_SERVICE,
                     "service_record_id": str(row["service_record_id"]) if row["service_record_id"] else "",
                     "customer_name": row["customer_name"] or "",
                     "brand": row["brand"] or "",
                     "model": row["model"] or "",
                     "fault_category": row["fault_category"] or "",
                     "fault_type": row["fault_type"] or "",
+                    "target_part_id": str(row["target_part_id"]) if row["target_part_id"] else "",
+                    "target_part_code": row["target_part_code"] or "",
+                    "target_part_name": row["target_part_name"] or "",
+                    "planned_quantity": row["planned_quantity"] if row["planned_quantity"] is not None else "",
                     "description": row["description"] or "",
                     "assigned_technician": row["assigned_technician"] or "",
                     "priority": row["priority"] or "Orta",
@@ -1594,6 +1686,211 @@ class WebBridge(QObject):
         except Exception as e:
             db.rollback()
             return json.dumps({"success": False, "message": f"Silme hatası: {str(e)}"})
+        finally:
+            db.close()
+
+    # ==========================
+    # PRODUCTION WORK ORDER (Yarı Mamul Üretim İş Emri)
+    # Service Work Order akışıyla aynı work_orders tablosunu paylaşır; work_order_type
+    # sütunu üzerinden ayrışır. Service Record'a bağlı değildir; bunun yerine
+    # target_part_id ile bir Recipe'ye (warehouse.item_bom) bağlanır. Bu aşamada
+    # malzeme talebi (Material Request) veya stok hareketi oluşturulmaz.
+    # ==========================
+
+    @Slot(str, str, str, str, result=str)
+    def create_production_work_order(self, target_part_id, description, priority, planned_quantity):
+        """PRODUCTION tipinde yeni bir iş emri oluşturur. target_part_id, üretilecek yarı
+        mamulün parça id'sidir; bu parçanın item_code'una karşılık gelen bir Recipe
+        (warehouse.item_bom kaydı) bulunmalıdır. Service Record gerekmez. Recipe'deki her
+        BOM satırı için bir Material Request kaydı (WAITING durumunda) oluşturulur. Bu
+        aşamada stok düşme, depo transferi veya üretim tamamlama yapılmaz."""
+        from sqlalchemy import text
+        from models.part import Part
+        db = SessionLocal()
+        try:
+            if not target_part_id or not target_part_id.strip():
+                return json.dumps({"success": False, "message": "Üretilecek parça (Recipe) seçmelisiniz."})
+
+            part_id = int(target_part_id)
+            part = db.query(Part).filter(Part.id == part_id).first()
+            if not part:
+                return json.dumps({"success": False, "message": "Parça bulunamadı."})
+
+            bom_rows = db.execute(text("""
+                SELECT b.child_item_id, b.quantity, cp.id AS child_part_id
+                FROM warehouse.item_bom b
+                LEFT JOIN warehouse.parts cp ON cp.item_code = b.child_item_id
+                WHERE b.parent_item_id = :code
+            """), {"code": part.item_code}).mappings().all()
+            if not bom_rows:
+                return json.dumps({"success": False, "message": "Bu parça için tanımlı bir Recipe (ItemBOM) bulunamadı."})
+
+            qty = int(planned_quantity) if planned_quantity and planned_quantity.strip() else None
+            multiplier = qty if qty else 1
+
+            new_id = db.execute(text("""
+                INSERT INTO warehouse.work_orders (
+                    work_order_type, target_part_id, description, priority, planned_quantity, status
+                ) VALUES (
+                    :wtype, :target, :desc, :priority, :qty, :status
+                ) RETURNING id
+            """), {
+                "wtype": WORK_ORDER_TYPE_PRODUCTION,
+                "target": part_id,
+                "desc": description or None,
+                "priority": priority or "Orta",
+                "qty": qty,
+                "status": "Beklemede"
+            }).scalar()
+
+            for bom_row in bom_rows:
+                if not bom_row["child_part_id"]:
+                    print(f"[WebBridge] Material Request atlandı, parça bulunamadı: {bom_row['child_item_id']}")
+                    continue
+                required_qty = int(bom_row["quantity"]) * multiplier
+                db.execute(text("""
+                    INSERT INTO warehouse.material_requests (work_order_id, part_id, required_quantity, issued_quantity, status)
+                    VALUES (:wid, :pid, :req, 0, :status)
+                """), {
+                    "wid": new_id,
+                    "pid": bom_row["child_part_id"],
+                    "req": required_qty,
+                    "status": MATERIAL_REQUEST_STATUS_WAITING
+                })
+
+            db.commit()
+            return json.dumps({"success": True, "message": "Üretim iş emri eklendi", "id": str(new_id)})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": f"Kayıt hatası: {str(e)}"})
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
+    def get_material_requests(self, work_order_id_str):
+        """Bir Production Work Order'a bağlı Material Request kayıtlarını, parça
+        bilgileriyle birlikte getirir. Salt okunurdur; stok düşme/depo transferi bu
+        aşamada yapılmaz. remaining_quantity, required_quantity - issued_quantity olarak
+        canlı hesaplanır."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            work_order_id = int(work_order_id_str)
+            rows = db.execute(text("""
+                SELECT mr.id, mr.work_order_id, mr.part_id,
+                       mr.required_quantity, mr.issued_quantity,
+                       (mr.required_quantity - mr.issued_quantity) AS remaining_quantity,
+                       mr.status, mr.created_at,
+                       p.item_code, p.name AS part_name_raw, p.brand, p.model, p.color, p.part_category
+                FROM warehouse.material_requests mr
+                LEFT JOIN warehouse.parts p ON p.id = mr.part_id
+                WHERE mr.work_order_id = :wid
+                ORDER BY mr.id ASC
+            """), {"wid": work_order_id}).mappings().all()
+
+            requests = []
+            for row in rows:
+                part_name = " ".join(filter(None, [row["brand"], row["model"], row["color"], row["part_category"]])) or (row["part_name_raw"] or "")
+                requests.append({
+                    "id": str(row["id"]),
+                    "work_order_id": str(row["work_order_id"]),
+                    "part_id": str(row["part_id"]),
+                    "part_name": part_name,
+                    "item_code": row["item_code"] or "",
+                    "required_quantity": row["required_quantity"],
+                    "issued_quantity": row["issued_quantity"],
+                    "remaining_quantity": row["remaining_quantity"],
+                    "status": row["status"] or MATERIAL_REQUEST_STATUS_WAITING,
+                    "created_at": row["created_at"].strftime("%Y-%m-%d %H:%M") if row["created_at"] else ""
+                })
+            return json.dumps({"success": True, "material_requests": requests})
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, str, result=str)
+    def issue_material_request(self, mr_id_str, quantity_str, username):
+        """Bir Material Request satırının bir kısmını veya tamamını Good Stock'tan teslim
+        eder (Malzeme Teslim / Material Issue). Kısmi teslimi destekler: WAITING ->
+        PARTIAL -> ISSUED, issued_quantity/required_quantity oranına göre otomatik
+        hesaplanır. Stok yetersizse işlem iptal edilir, hiçbir kayıt değişmez. Başarılı
+        teslimde bir StockMovement kaydı açılır. Sadece PRODUCTION tipi Work Order'lara
+        aittir; Service Work Order akışını hiçbir şekilde etkilemez. Üretim tamamlama,
+        fire hesaplama, yarı mamul oluşturma bu aşamada yapılmaz."""
+        from sqlalchemy import text
+        from models.stock import Stock
+        from models.stock_movement import StockMovement
+        db = SessionLocal()
+        try:
+            mr_id = int(mr_id_str)
+            try:
+                quantity = int(quantity_str)
+            except (ValueError, TypeError):
+                quantity = 0
+            if quantity <= 0:
+                return json.dumps({"success": False, "message": "Teslim miktarı 0'dan büyük olmalıdır."})
+
+            row = db.execute(
+                text("""SELECT id, work_order_id, part_id, required_quantity, issued_quantity, status
+                        FROM warehouse.material_requests WHERE id = :id FOR UPDATE"""),
+                {"id": mr_id}
+            ).mappings().first()
+            if not row:
+                return json.dumps({"success": False, "message": "Malzeme talebi bulunamadı."})
+
+            wo_type = db.execute(
+                text("SELECT work_order_type FROM warehouse.work_orders WHERE id = :id"),
+                {"id": row["work_order_id"]}
+            ).scalar()
+            if wo_type != WORK_ORDER_TYPE_PRODUCTION:
+                return json.dumps({"success": False, "message": "Malzeme teslimi sadece Production Work Order'lar için yapılabilir."})
+
+            remaining = row["required_quantity"] - row["issued_quantity"]
+            if quantity > remaining:
+                return json.dumps({"success": False, "message": f"Kalan miktardan ({remaining}) fazla teslim edilemez."})
+
+            good_stock_id = _get_system_location_id(db, "good_stock")
+            if not good_stock_id:
+                return json.dumps({"success": False, "message": "Good Stock deposu bulunamadı."})
+
+            stock = db.query(Stock).filter(Stock.part_id == row["part_id"], Stock.location_id == good_stock_id).first()
+            available = stock.quantity if stock else 0
+            if available < quantity:
+                return json.dumps({"success": False, "message": f"Good Stock'ta yeterli stok yok. Mevcut: {available}, İstenen: {quantity}."})
+
+            stock.quantity -= quantity
+            db.add(StockMovement(
+                type="Üretim İçin Malzeme Teslimi",
+                movement_kind="Transfer",
+                quantity=quantity,
+                part_id=row["part_id"],
+                source_location_id=good_stock_id,
+                created_by=username or None,
+                technician=username or None,
+                description=f"Production Work Order #{row['work_order_id']} - Material Request #{mr_id} teslimi"
+            ))
+
+            new_issued = row["issued_quantity"] + quantity
+            new_status = _compute_material_request_status(new_issued, row["required_quantity"])
+
+            db.execute(text("""
+                UPDATE warehouse.material_requests
+                SET issued_quantity = :issued, status = :status
+                WHERE id = :id
+            """), {"issued": new_issued, "status": new_status, "id": mr_id})
+
+            db.commit()
+            return json.dumps({
+                "success": True,
+                "message": "Malzeme teslim edildi",
+                "issued_quantity": new_issued,
+                "remaining_quantity": row["required_quantity"] - new_issued,
+                "status": new_status
+            })
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": f"Teslim hatası: {str(e)}"})
         finally:
             db.close()
 

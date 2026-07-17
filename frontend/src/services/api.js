@@ -544,6 +544,49 @@ export const api = {
     },
 
     // ==========================
+    // PRODUCTION WORK ORDER (Yarı Mamul Üretim İş Emri)
+    // ==========================
+
+    createProductionWorkOrder: async (order) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.create_production_work_order) {
+                backend.create_production_work_order(
+                    order.target_part_id || '',
+                    order.description || '',
+                    order.priority || 'Orta',
+                    order.planned_quantity != null ? String(order.planned_quantity) : '',
+                    (res) => resolve(JSON.parse(res))
+                );
+            } else {
+                resolve({ success: true, id: null });
+            }
+        });
+    },
+
+    getMaterialRequests: async (workOrderId) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_material_requests) {
+                backend.get_material_requests(String(workOrderId), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true, material_requests: [] });
+            }
+        });
+    },
+
+    issueMaterialRequest: async (mrId, quantity, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.issue_material_request) {
+                backend.issue_material_request(String(mrId), String(quantity), username || '', (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true });
+            }
+        });
+    },
+
+    // ==========================
     // PARÇA TEDARİK DURUMU (İş Emri Parça Satırları)
     // ==========================
 

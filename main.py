@@ -27,6 +27,8 @@ def main():
         myappid = "remalab.wms.app.1.0"
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 
+
+
     icon_path = os.path.join(
         os.path.dirname(__file__), "assets", "Uygulama-Amblemi.png"
     )

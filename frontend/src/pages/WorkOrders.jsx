@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ClipboardList, Plus, Trash2, Edit, X, Save, Factory, Package, TrendingUp, Repeat, AlertTriangle } from 'lucide-react';
+import { ClipboardList, Plus, Trash2, Edit, X, Save, Factory, Package, TrendingUp, Repeat, AlertTriangle, Layers } from 'lucide-react';
 import { api } from '../services/api';
 import PartSupplyMenu from '../components/PartSupplyMenu';
 import DeliverPartPopover from '../components/DeliverPartPopover';
@@ -40,11 +40,24 @@ const EMPTY_PRODUCTION_FORM = {
   target_part_id: '', target_part_code: '', quantity_produced: 1, source_location_id: '', target_location_id: '', produced_by: '', notes: ''
 };
 
+// Production Work Order: Service Record'a bağlı değildir, work_orders tablosunu
+// work_order_type='PRODUCTION' ile paylaşır (bkz. create_production_work_order).
+const EMPTY_PRODUCTION_WO_FORM = {
+  target_part_id: '', description: '', priority: 'Orta', planned_quantity: 1
+};
+
 const SUPPLY_STATUS_STYLES = {
   'Stokta Var': 'bg-slate-500/10 text-slate-400 border-slate-500/20',
   'Teslim Edildi': 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
   'Tedarik Bekleniyor': 'bg-amber-500/10 text-amber-400 border-amber-500/20',
   'İptal Edildi': 'bg-red-500/10 text-red-400 border-red-500/20'
+};
+
+// Material Request durum akışı: WAITING -> PARTIAL -> ISSUED (bkz. issue_material_request).
+const MATERIAL_REQUEST_STATUS_STYLES = {
+  'WAITING': 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+  'PARTIAL': 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+  'ISSUED': 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
 };
 
 export default function WorkOrders() {
@@ -80,6 +93,17 @@ export default function WorkOrders() {
   const [itemBoms, setItemBoms] = useState([]);
   const [bomsLoading, setBomsLoading] = useState(false);
   const [bomSearchQuery, setBomSearchQuery] = useState('');
+
+  // --- Production Work Order state (work_orders, work_order_type = 'PRODUCTION') ---
+  const [showProductionWOForm, setShowProductionWOForm] = useState(false);
+  const [productionWOForm, setProductionWOForm] = useState(EMPTY_PRODUCTION_WO_FORM);
+  const [productionWOSaving, setProductionWOSaving] = useState(false);
+  const [selectedProductionOrder, setSelectedProductionOrder] = useState(null);
+  const [materialRequests, setMaterialRequests] = useState([]);
+  const [materialRequestsLoading, setMaterialRequestsLoading] = useState(false);
+  const [issueDialog, setIssueDialog] = useState(null); // {mrId, partName, itemCode, required, issued, remaining} | null
+  const [issueQuantity, setIssueQuantity] = useState(1);
+  const [issueSaving, setIssueSaving] = useState(false);
 
   const fetchOrders = async () => {
     setOrdersLoading(true);
@@ -551,6 +575,84 @@ export default function WorkOrders() {
     setActiveTab('production');
   };
 
+  // ===================== Production Work Order handlers =====================
+
+  const productionWorkOrders = orders.filter(o => o.work_order_type === 'PRODUCTION');
+
+  const handleOpenProductionWOForm = () => {
+    setProductionWOForm(EMPTY_PRODUCTION_WO_FORM);
+    setShowProductionWOForm(true);
+  };
+
+  const fetchMaterialRequests = async (workOrderId) => {
+    setMaterialRequestsLoading(true);
+    const res = await api.getMaterialRequests(workOrderId);
+    if (res.success) setMaterialRequests(res.material_requests || []);
+    setMaterialRequestsLoading(false);
+  };
+
+  const handleSelectProductionOrder = (order) => {
+    setSelectedProductionOrder(order);
+    fetchMaterialRequests(order.id);
+  };
+
+  const handleOpenIssueDialog = (mr) => {
+    setIssueDialog(mr);
+    setIssueQuantity(mr.remaining_quantity > 0 ? mr.remaining_quantity : 1);
+  };
+
+  const handleConfirmIssue = async (e) => {
+    e.preventDefault();
+    if (!issueDialog) return;
+    const qty = Number(issueQuantity);
+    if (!qty || qty <= 0) {
+      alert('Teslim miktarı 0\'dan büyük olmalıdır.');
+      return;
+    }
+    if (qty > issueDialog.remaining_quantity) {
+      alert(`Kalan miktardan (${issueDialog.remaining_quantity}) fazla teslim edilemez.`);
+      return;
+    }
+    setIssueSaving(true);
+    const res = await api.issueMaterialRequest(issueDialog.id, qty, currentUser?.username);
+    setIssueSaving(false);
+    if (res.success) {
+      setIssueDialog(null);
+      fetchMaterialRequests(selectedProductionOrder.id);
+    } else {
+      alert(res.message || 'Malzeme teslim edilemedi.');
+    }
+  };
+
+  const handleSaveProductionWorkOrder = async (e) => {
+    e.preventDefault();
+    if (!productionWOForm.target_part_id) {
+      alert('Üretilecek yarı mamulü seçmelisiniz.');
+      return;
+    }
+    setProductionWOSaving(true);
+    const res = await api.createProductionWorkOrder(productionWOForm);
+    setProductionWOSaving(false);
+    if (res.success) {
+      setShowProductionWOForm(false);
+      setProductionWOForm(EMPTY_PRODUCTION_WO_FORM);
+      await fetchOrders();
+      // Oluşturulan iş emrinin Material Request listesini hemen görebilmek için
+      // detay panelini otomatik aç.
+      if (res.id) {
+        const newOrder = {
+          id: res.id,
+          target_part_id: productionWOForm.target_part_id,
+          priority: productionWOForm.priority,
+          status: 'Beklemede'
+        };
+        handleSelectProductionOrder(newOrder);
+      }
+    } else {
+      alert(res.message || 'Production Work Order oluşturulamadı.');
+    }
+  };
+
   const materialConsumption = () => {
     const map = new Map();
     productionRuns.forEach(run => {
@@ -578,7 +680,8 @@ export default function WorkOrders() {
     { key: 'production', label: 'Yarı Mamul Üretimi', icon: Factory },
     { key: 'recent_productions', label: 'Hızlı Tekrar Üretim', icon: Repeat },
     { key: 'consumption', label: 'Malzeme Tüketimi', icon: Package },
-    { key: 'history', label: 'Üretim Geçmişi', icon: TrendingUp }
+    { key: 'history', label: 'Üretim Geçmişi', icon: TrendingUp },
+    { key: 'production_work_orders', label: 'Production', icon: Layers }
   ];
 
   return (
@@ -1148,6 +1251,219 @@ export default function WorkOrders() {
             </table>
           </div>
         )}
+
+        {/* --- PRODUCTION WORK ORDER --- */}
+        {activeTab === 'production_work_orders' && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                  <Layers size={20} className="text-teal-400" /> Production Work Orders
+                </h2>
+                <p className="text-slate-400 text-sm mt-1">Bir Recipe'ye (reçete) bağlı yarı mamul üretim iş emirleri. Servis kaydı gerektirmez.</p>
+              </div>
+              <button
+                onClick={handleOpenProductionWOForm}
+                className="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-medium transition-colors shadow-lg shadow-teal-900/20 flex items-center gap-2"
+              >
+                <Plus size={18} /> Yeni Production Work Order
+              </button>
+            </div>
+
+            {showProductionWOForm && (
+              <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-sm">
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Yeni Production Work Order</h3>
+                  <button onClick={() => setShowProductionWOForm(false)} className="p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-[#2a3142] rounded-lg transition-colors">
+                    <X size={18} />
+                  </button>
+                </div>
+                <form onSubmit={handleSaveProductionWorkOrder} className="space-y-5">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-400 mb-1.5">Üretilecek Yarı Mamul <span className="text-red-400">*</span></label>
+                    <select
+                      required
+                      className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-teal-500"
+                      value={productionWOForm.target_part_id}
+                      onChange={e => setProductionWOForm({ ...productionWOForm, target_part_id: e.target.value })}
+                    >
+                      <option value="">Parça seçiniz...</option>
+                      {/* Sadece warehouse.item_bom'da bir Recipe'si (parent_item_id) olan parçalar listelenir;
+                          aksi halde backend "Recipe bulunamadı" hatası veriyordu (bkz. create_production_work_order). */}
+                      {itemBoms.filter(bom => bom.parent_part_id).map(bom => (
+                        <option key={bom.parent_part_id} value={bom.parent_part_id}>{bom.parent_item_id} - {bom.parent_name}</option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-slate-500 mt-1">Yalnızca bir Recipe'si (ItemBOM) tanımlı olan parçalar listelenir.</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-400 mb-1.5">Açıklama</label>
+                    <textarea
+                      rows={2}
+                      placeholder="Bu üretim iş emrinin açıklaması..."
+                      className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-teal-500 resize-none"
+                      value={productionWOForm.description}
+                      onChange={e => setProductionWOForm({ ...productionWOForm, description: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-400 mb-1.5">Öncelik</label>
+                      <select
+                        className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-teal-500"
+                        value={productionWOForm.priority}
+                        onChange={e => setProductionWOForm({ ...productionWOForm, priority: e.target.value })}
+                      >
+                        {PRIORITY_OPTIONS.map(p => <option key={p} value={p}>{p}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-400 mb-1.5">Planlanan Üretim Adedi</label>
+                      <input
+                        type="number"
+                        min="1"
+                        className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-teal-500"
+                        value={productionWOForm.planned_quantity}
+                        onChange={e => setProductionWOForm({ ...productionWOForm, planned_quantity: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-3 pt-6 border-t border-slate-200 dark:border-slate-700/50 mt-6">
+                    <button type="button" onClick={() => setShowProductionWOForm(false)} className="px-5 py-2.5 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors border border-slate-300 dark:border-slate-600">İptal</button>
+                    <button type="submit" disabled={productionWOSaving} className="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 disabled:opacity-60 text-white rounded-xl font-medium transition-colors shadow-lg shadow-teal-900/20 flex items-center gap-2">
+                      <Save size={18} /> Kaydet
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs">
+                  <tr>
+                    <th className="px-6 py-4">İş Emri No</th>
+                    <th className="px-6 py-4">Üretilecek Parça</th>
+                    <th className="px-6 py-4">Planlanan Adet</th>
+                    <th className="px-6 py-4">Öncelik</th>
+                    <th className="px-6 py-4">Durum</th>
+                    <th className="px-6 py-4">Oluşturma Tarihi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-700/50">
+                  {ordersLoading ? (
+                    <tr>
+                      <td colSpan="6" className="px-6 py-8 text-center text-slate-400">Yükleniyor...</td>
+                    </tr>
+                  ) : productionWorkOrders.length === 0 ? (
+                    <tr>
+                      <td colSpan="6" className="px-6 py-8 text-center text-slate-500">Henüz Production Work Order oluşturulmadı.</td>
+                    </tr>
+                  ) : (
+                    productionWorkOrders.map(order => (
+                      <tr
+                        key={order.id}
+                        onClick={() => handleSelectProductionOrder(order)}
+                        className={`cursor-pointer hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors text-slate-700 dark:text-slate-300 ${String(selectedProductionOrder?.id) === String(order.id) ? 'bg-slate-100 dark:bg-[#2a3142]' : ''}`}
+                        title="Material Request'leri görmek için tıklayın"
+                      >
+                        <td className="px-6 py-4 font-mono font-medium text-slate-800 dark:text-slate-200">#{order.id}</td>
+                        <td className="px-6 py-4">
+                          <div className="font-medium text-slate-800 dark:text-slate-200">{order.target_part_name || '-'}</div>
+                          <div className="text-xs text-slate-400">{order.target_part_code}</div>
+                        </td>
+                        <td className="px-6 py-4 font-mono">{order.planned_quantity !== '' ? order.planned_quantity : '-'}</td>
+                        <td className="px-6 py-4">
+                          <span className={`inline-block whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-medium border ${PRIORITY_STYLES[order.priority] || PRIORITY_STYLES['Orta']}`}>
+                            {order.priority}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`inline-block whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-medium border ${STATUS_STYLES[order.status] || STATUS_STYLES['Beklemede']}`}>
+                            {order.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-slate-400">{order.created_at}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* --- PRODUCTION WORK ORDER DETAY: MATERIAL REQUESTS (salt okunur) --- */}
+            {selectedProductionOrder && (
+              <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden">
+                <div className="flex justify-between items-center p-6 pb-4">
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                      <Package size={20} className="text-teal-400" /> Material Requests — İş Emri #{selectedProductionOrder.id}
+                    </h3>
+                    <p className="text-slate-400 text-sm mt-1">Bu iş emrinin Recipe'sinden otomatik oluşturulan malzeme talepleri (salt okunur).</p>
+                  </div>
+                  <button onClick={() => setSelectedProductionOrder(null)} className="p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-[#2a3142] rounded-lg transition-colors">
+                    <X size={18} />
+                  </button>
+                </div>
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs">
+                    <tr>
+                      <th className="px-6 py-4">Parça</th>
+                      <th className="px-6 py-4">Gerekli</th>
+                      <th className="px-6 py-4">Verilen</th>
+                      <th className="px-6 py-4">Kalan</th>
+                      <th className="px-6 py-4">Durum</th>
+                      <th className="px-6 py-4 text-center">İşlemler</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-700/50">
+                    {materialRequestsLoading ? (
+                      <tr>
+                        <td colSpan="6" className="px-6 py-8 text-center text-slate-400">Yükleniyor...</td>
+                      </tr>
+                    ) : materialRequests.length === 0 ? (
+                      <tr>
+                        <td colSpan="6" className="px-6 py-8 text-center text-slate-500">Malzeme talebi bulunamadı.</td>
+                      </tr>
+                    ) : (
+                      materialRequests.map(mr => (
+                        <tr key={mr.id} className="text-slate-700 dark:text-slate-300">
+                          <td className="px-6 py-4">
+                            <div className="font-medium text-slate-800 dark:text-slate-200">{mr.part_name || '-'}</div>
+                            <div className="text-xs text-slate-400">{mr.item_code}</div>
+                          </td>
+                          <td className="px-6 py-4 font-mono">{mr.required_quantity}</td>
+                          <td className="px-6 py-4 font-mono">{mr.issued_quantity}</td>
+                          <td className="px-6 py-4 font-mono">{mr.remaining_quantity}</td>
+                          <td className="px-6 py-4">
+                            <span className={`inline-block whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-medium border ${MATERIAL_REQUEST_STATUS_STYLES[mr.status] || MATERIAL_REQUEST_STATUS_STYLES['WAITING']}`}>
+                              {mr.status}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            {mr.remaining_quantity > 0 ? (
+                              <button
+                                onClick={() => handleOpenIssueDialog(mr)}
+                                className="px-2.5 py-1.5 bg-teal-500/10 text-teal-500 hover:bg-teal-500 hover:text-white rounded-lg text-xs font-bold transition-colors"
+                              >
+                                Teslim Et
+                              </button>
+                            ) : (
+                              <span className="text-xs text-slate-500">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <PartSupplyMenu
@@ -1187,6 +1503,62 @@ export default function WorkOrders() {
         onConfirm={handleConfirmDeliver}
         onClose={() => setDeliverPopover(null)}
       />
+
+      {/* --- MATERIAL ISSUE DIALOG (Production Work Order Material Request teslimi) --- */}
+      {issueDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setIssueDialog(null)}>
+          <div
+            className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-xl w-full max-w-sm"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Malzeme Teslim Et</h3>
+              <button onClick={() => setIssueDialog(null)} className="p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-[#2a3142] rounded-lg transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
+              {issueDialog.part_name} {issueDialog.item_code ? <span className="text-slate-400">({issueDialog.item_code})</span> : null}
+            </p>
+            <form onSubmit={handleConfirmIssue} className="space-y-4">
+              <div className="grid grid-cols-3 gap-3 text-center">
+                <div className="bg-slate-50 dark:bg-[#242a38] rounded-xl py-2.5">
+                  <div className="text-xs text-slate-400 mb-1">Gerekli</div>
+                  <div className="font-mono font-semibold text-slate-800 dark:text-slate-200">{issueDialog.required_quantity}</div>
+                </div>
+                <div className="bg-slate-50 dark:bg-[#242a38] rounded-xl py-2.5">
+                  <div className="text-xs text-slate-400 mb-1">Verilen</div>
+                  <div className="font-mono font-semibold text-slate-800 dark:text-slate-200">{issueDialog.issued_quantity}</div>
+                </div>
+                <div className="bg-slate-50 dark:bg-[#242a38] rounded-xl py-2.5">
+                  <div className="text-xs text-slate-400 mb-1">Kalan</div>
+                  <div className="font-mono font-semibold text-slate-800 dark:text-slate-200">{issueDialog.remaining_quantity}</div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-1.5">Bu Sefer Verilecek Miktar</label>
+                <input
+                  type="number"
+                  autoFocus
+                  min="1"
+                  max={issueDialog.remaining_quantity}
+                  className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-teal-500"
+                  value={issueQuantity}
+                  onChange={e => setIssueQuantity(e.target.value)}
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button type="button" onClick={() => setIssueDialog(null)} className="px-4 py-2.5 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors border border-slate-300 dark:border-slate-600">İptal</button>
+                <button type="submit" disabled={issueSaving} className="px-4 py-2.5 bg-teal-600 hover:bg-teal-700 disabled:opacity-60 text-white rounded-xl font-medium transition-colors shadow-lg shadow-teal-900/20 flex items-center gap-2">
+                  <Save size={16} /> Teslim Et
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
