@@ -800,7 +800,7 @@ class WebBridge(QObject):
         try:
             part_id = int(part_id_str)
             
-            # Orphan kontrolü
+            # Orphan ve Yabancı Anahtar kontrolleri
             stock_count = db.query(Stock).filter(Stock.part_id == part_id, Stock.quantity > 0).count()
             if stock_count > 0:
                 return json.dumps({"success": False, "message": "Bu parçanın stokta ürünü var, silinemez."})
@@ -808,6 +808,30 @@ class WebBridge(QObject):
             movement_count = db.query(StockMovement).filter(StockMovement.part_id == part_id).count()
             if movement_count > 0:
                 return json.dumps({"success": False, "message": "Bu parçanın geçmiş stok hareketi var, silinemez."})
+
+            inbound_count = db.execute(text("SELECT COUNT(*) FROM warehouse.inbound_entries WHERE part_id = :id"), {"id": part_id}).scalar()
+            if inbound_count > 0:
+                return json.dumps({"success": False, "message": "Bu parça giriş işlemlerinde kullanılıyor, silinemez."})
+                
+            outbound_count = db.execute(text("SELECT COUNT(*) FROM warehouse.outbound_entries WHERE part_id = :id"), {"id": part_id}).scalar()
+            if outbound_count > 0:
+                return json.dumps({"success": False, "message": "Bu parça çıkış işlemlerinde kullanılıyor, silinemez."})
+                
+            prun_count = db.execute(text("SELECT COUNT(*) FROM warehouse.production_runs WHERE target_part_id = :id"), {"id": part_id}).scalar()
+            if prun_count > 0:
+                return json.dumps({"success": False, "message": "Bu parça üretim kayıtlarında (üretilen parça olarak) kullanılıyor, silinemez."})
+                
+            pmaterial_count = db.execute(text("SELECT COUNT(*) FROM warehouse.production_materials WHERE part_id = :id"), {"id": part_id}).scalar()
+            if pmaterial_count > 0:
+                return json.dumps({"success": False, "message": "Bu parça üretim reçetelerinde (tüketilen malzeme olarak) kullanılıyor, silinemez."})
+                
+            wopart_count = db.execute(text("SELECT COUNT(*) FROM warehouse.work_order_parts WHERE part_id = :id"), {"id": part_id}).scalar()
+            if wopart_count > 0:
+                return json.dumps({"success": False, "message": "Bu parça iş emri malzeme listesinde kullanılıyor, silinemez."})
+
+            # Silinmesi güvenli olan parçanın 0 miktarlı stok kayıtlarını temizle
+            db.execute(text("DELETE FROM warehouse.stock WHERE part_id = :id AND quantity = 0"), {"id": part_id})
+            db.commit()
 
             db.execute(text("DELETE FROM warehouse.parts WHERE id = :id"), {"id": part_id})
             db.commit()
@@ -830,27 +854,39 @@ class WebBridge(QObject):
             if not ids:
                 return json.dumps({"success": False, "message": "Silinecek parça seçilmedi."})
             
-            # Orphan kontrolü
+            # Orphan ve Yabancı Anahtar kontrolleri
             safe_ids = []
             skipped_count = 0
             for pid in ids:
                 stock_count = db.query(Stock).filter(Stock.part_id == pid, Stock.quantity > 0).count()
                 movement_count = db.query(StockMovement).filter(StockMovement.part_id == pid).count()
-                if stock_count == 0 and movement_count == 0:
+                
+                inbound_count = db.execute(text("SELECT COUNT(*) FROM warehouse.inbound_entries WHERE part_id = :id"), {"id": pid}).scalar()
+                outbound_count = db.execute(text("SELECT COUNT(*) FROM warehouse.outbound_entries WHERE part_id = :id"), {"id": pid}).scalar()
+                prun_count = db.execute(text("SELECT COUNT(*) FROM warehouse.production_runs WHERE target_part_id = :id"), {"id": pid}).scalar()
+                pmaterial_count = db.execute(text("SELECT COUNT(*) FROM warehouse.production_materials WHERE part_id = :id"), {"id": pid}).scalar()
+                wopart_count = db.execute(text("SELECT COUNT(*) FROM warehouse.work_order_parts WHERE part_id = :id"), {"id": pid}).scalar()
+                
+                if (stock_count == 0 and movement_count == 0 and inbound_count == 0 and 
+                    outbound_count == 0 and prun_count == 0 and pmaterial_count == 0 and wopart_count == 0):
                     safe_ids.append(pid)
                 else:
                     skipped_count += 1
                     
             if not safe_ids:
-                return json.dumps({"success": False, "message": "Seçilen parçaların hiçbirisi silinmeye uygun değil (Stok veya geçmiş hareket mevcut)." })
+                return json.dumps({"success": False, "message": "Seçilen parçaların hiçbirisi silinmeye uygun değil (Stok, hareket geçmişi, reçete veya iş emri mevcut)." })
                 
+            # Silinecek parçaların 0 miktarlı stok kayıtlarını temizle
+            db.execute(text("DELETE FROM warehouse.stock WHERE part_id = any(:ids) AND quantity = 0"), {"ids": safe_ids})
+            db.commit()
+            
             ids_placeholder = ",".join(str(x) for x in safe_ids)
             db.execute(text(f"DELETE FROM warehouse.parts WHERE id IN ({ids_placeholder})"))
             db.commit()
             
             msg = f"{len(safe_ids)} parça başarıyla silindi."
             if skipped_count > 0:
-                msg += f" {skipped_count} adet parça stok veya hareket geçmişi olduğu için silinemedi."
+                msg += f" {skipped_count} adet parça ilişkili kayıtları (stok, reçete vb.) olduğu için silinemedi."
             return json.dumps({"success": True, "message": msg})
         except Exception as e:
             db.rollback()
@@ -2152,14 +2188,84 @@ class WebBridge(QObject):
 
     @Slot(str, result=str)
     def delete_production_run(self, run_id_str):
-        """Belirtilen üretim kaydını siler (stok hareketlerini geri almaz, sadece geçmiş kaydını kaldırır)."""
+        """Belirtilen üretim kaydını siler ve stok hareketlerini geri alır (üretilen ürünü düşer, hammaddeleri iade eder)."""
         from sqlalchemy import text
         db = SessionLocal()
         try:
             run_id = int(run_id_str)
+            
+            # 1. Üretim kaydını çek
+            run = db.execute(text("""
+                SELECT target_part_id, quantity_produced, location_id, source_location_id
+                FROM warehouse.production_runs
+                WHERE id = :id
+            """), {"id": run_id}).first()
+            
+            if not run:
+                return json.dumps({"success": False, "message": "Üretim kaydı bulunamadı."})
+                
+            target_part_id = run[0]
+            quantity_produced = run[1]
+            location_id = run[2]
+            source_location_id = run[3]
+            
+            # 2. Üretilen parçanın stoğunu kontrol et
+            target_stock = db.execute(text("""
+                SELECT id, quantity FROM warehouse.stock
+                WHERE part_id = :pid AND location_id = :lid
+                FOR UPDATE
+            """), {"pid": target_part_id, "lid": location_id}).first()
+            
+            if not target_stock or target_stock[1] < quantity_produced:
+                current_qty = target_stock[1] if target_stock else 0
+                return json.dumps({
+                    "success": False, 
+                    "message": f"Üretilen parçanın bu lokasyondaki stoğu yetersiz ({current_qty} adet var, {quantity_produced} adet üretilmişti). Üretim geri alınamaz."
+                })
+                
+            # 3. Tüketilen malzemeleri çek
+            materials = db.execute(text("""
+                SELECT part_id, quantity_consumed
+                FROM warehouse.production_materials
+                WHERE production_run_id = :run_id
+            """), {"run_id": run_id}).all()
+            
+            # 4. Üretilen parçanın stoğunu düş
+            db.execute(text("""
+                UPDATE warehouse.stock
+                SET quantity = quantity - :qty
+                WHERE id = :id
+            """), {"qty": quantity_produced, "id": target_stock[0]})
+            
+            # 5. Tüketilen malzemeleri kaynak lokasyona geri ekle
+            for m in materials:
+                m_part_id = m[0]
+                m_qty = m[1]
+                
+                existing_m = db.execute(text("""
+                    SELECT id FROM warehouse.stock
+                    WHERE part_id = :pid AND location_id = :lid
+                    FOR UPDATE
+                """), {"pid": m_part_id, "lid": source_location_id}).first()
+                
+                if existing_m:
+                    db.execute(text("""
+                        UPDATE warehouse.stock
+                        SET quantity = quantity + :qty
+                        WHERE id = :id
+                    """), {"qty": m_qty, "id": existing_m[0]})
+                else:
+                    db.execute(text("""
+                        INSERT INTO warehouse.stock (part_id, location_id, quantity)
+                        VALUES (:pid, :lid, :qty)
+                    """), {"pid": m_part_id, "lid": source_location_id, "qty": m_qty})
+            
+            # 6. Malzeme tüketim ve üretim kayıtlarını sil
+            db.execute(text("DELETE FROM warehouse.production_materials WHERE production_run_id = :run_id"), {"run_id": run_id})
             db.execute(text("DELETE FROM warehouse.production_runs WHERE id = :id"), {"id": run_id})
+            
             db.commit()
-            return json.dumps({"success": True, "message": "Üretim kaydı silindi"})
+            return json.dumps({"success": True, "message": "Üretim kaydı başarıyla silindi ve stok hareketleri geri alındı."})
         except Exception as e:
             db.rollback()
             return json.dumps({"success": False, "message": f"Silme hatası: {str(e)}"})
