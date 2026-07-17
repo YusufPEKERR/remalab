@@ -10,6 +10,14 @@ export default function Irsaliye() {
   const [error, setError] = useState('');
   const [selectedRows, setSelectedRows] = useState([]);
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 100;
+
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const paginatedMovements = movements.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(movements.length / itemsPerPage);
+
   // Modals
   const [showInboundModal, setShowInboundModal] = useState(false);
   const [showOutboundModal, setShowOutboundModal] = useState(false);
@@ -296,7 +304,7 @@ export default function Irsaliye() {
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(() => fetchData(true), 8000);
+    const interval = setInterval(() => fetchData(true), 60000);
     return () => clearInterval(interval);
   }, [fetchData]);
 
@@ -423,7 +431,7 @@ export default function Irsaliye() {
                 }
               }
               
-              setOutboundBarcode(''); setOutboundBrand(''); setOutboundModel(''); setFormData({ part_id: '', loc_id: getSystemLocationId('good_stock'), qty: 1, price: 0, type: 'Teknik Servis', who: '', description: '' }); setShowOutboundModal(true); 
+              setOutboundBarcode(''); setFormData({ part_id: '', loc_id: getSystemLocationId('good_stock'), qty: 1, price: 0, type: 'Teknik Servis', who: '', description: '' }); setShowOutboundModal(true); 
             }}
             className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-colors"
           >
@@ -473,7 +481,7 @@ export default function Irsaliye() {
                   </td>
                 </tr>
               ) : (
-                movements.map((mov, index) => {
+                paginatedMovements.map((mov, index) => {
                   const dir = getDirection(mov);
                   const isChecked = selectedRows.includes(mov.id);
                   return (
@@ -504,6 +512,28 @@ export default function Irsaliye() {
               )}
             </tbody>
           </table>
+        </div>
+        
+        <div className="flex justify-between items-center px-6 py-4 bg-slate-50 dark:bg-[#242a38] border-t border-slate-200 dark:border-slate-700/50 shrink-0">
+          <span className="text-sm text-slate-500">
+            Toplam {movements.length} kayıttan {movements.length === 0 ? 0 : indexOfFirstItem + 1}-{Math.min(indexOfLastItem, movements.length)} arası gösteriliyor
+          </span>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1 || movements.length === 0}
+              className="px-3 py-1 bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 disabled:opacity-50"
+            >
+              Önceki
+            </button>
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage >= totalPages || movements.length === 0}
+              className="px-3 py-1 bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 disabled:opacity-50"
+            >
+              Sonraki
+            </button>
+          </div>
         </div>
       </div>
 

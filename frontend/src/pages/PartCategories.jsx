@@ -54,7 +54,7 @@ export default function PartCategories() {
         setDepartmentList(res.departments.map(d => d.name));
       }
     });
-    const interval = setInterval(() => fetchCategories(true), 8000);
+    const interval = setInterval(() => fetchCategories(true), 60000);
     return () => clearInterval(interval);
   }, []);
 

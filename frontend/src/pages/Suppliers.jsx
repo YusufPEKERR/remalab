@@ -34,7 +34,7 @@ export default function Suppliers() {
 
   useEffect(() => {
     fetchSuppliers();
-    const interval = setInterval(() => fetchSuppliers(true), 8000);
+    const interval = setInterval(() => fetchSuppliers(true), 60000);
     return () => clearInterval(interval);
   }, []);
 

@@ -11,6 +11,9 @@ export default function Users() {
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [selectedRows, setSelectedRows] = useState([]);
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 100;
+
   // Modal State
   // Modal State
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
@@ -271,7 +274,7 @@ export default function Users() {
 
   useEffect(() => {
     fetchUsers();
-    const interval = setInterval(() => fetchUsers(true), 8000);
+    const interval = setInterval(() => fetchUsers(true), 60000);
     return () => clearInterval(interval);
   }, []);
 
@@ -469,6 +472,13 @@ export default function Users() {
 
     return result;
   }, [users, searchTerm, columnFilters, sortConfig]);
+
+  useEffect(() => { setCurrentPage(1); }, [searchTerm, columnFilters]);
+
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const paginatedUsers = filteredUsers.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
 
   return (
     <div className="h-full flex flex-col space-y-6 overflow-hidden">
@@ -733,7 +743,7 @@ export default function Users() {
                   </td>
                 </tr>
               ) : (
-                filteredUsers.map((user) => {
+                paginatedUsers.map((user) => {
                   const isChecked = selectedRows.includes(user.id);
                   return (
                   <tr 
@@ -794,6 +804,28 @@ export default function Users() {
               )}
             </tbody>
           </table>
+        </div>
+        
+        <div className="flex justify-between items-center px-6 py-4 bg-slate-50 dark:bg-[#242a38] border-t border-slate-200 dark:border-slate-700/50 shrink-0">
+          <span className="text-sm text-slate-500">
+            Toplam {filteredUsers.length} kayıttan {filteredUsers.length === 0 ? 0 : indexOfFirstItem + 1}-{Math.min(indexOfLastItem, filteredUsers.length)} arası gösteriliyor
+          </span>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1 || filteredUsers.length === 0}
+              className="px-3 py-1 bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 disabled:opacity-50"
+            >
+              Önceki
+            </button>
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage >= totalPages || filteredUsers.length === 0}
+              className="px-3 py-1 bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 disabled:opacity-50"
+            >
+              Sonraki
+            </button>
+          </div>
         </div>
       </div>
 

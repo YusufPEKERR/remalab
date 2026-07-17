@@ -11,6 +11,10 @@ export default function Raporlar() {
   
   // Selection and Export States
   const [selectedRows, setSelectedRows] = useState([]);
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 100;
+
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [selectedGeneralCols, setSelectedGeneralCols] = useState({
     "Tarih": true,
@@ -116,6 +120,14 @@ export default function Raporlar() {
   const filteredGeneralReports = generalReports.filter(r => selectedLocation === '' || r.location === selectedLocation);
   const filteredCriticalReports = criticalReports.filter(r => selectedLocation === '' || r.location === selectedLocation);
 
+  useEffect(() => { setCurrentPage(1); }, [activeTab, selectedLocation, startDate, endDate]);
+
+  const activeDataList = activeTab === 'general' ? filteredGeneralReports : filteredCriticalReports;
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const paginatedReports = activeDataList.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(activeDataList.length / itemsPerPage);
+
   const toggleSelectAll = () => {
     const dataList = activeTab === 'general' ? filteredGeneralReports : filteredCriticalReports;
     if (selectedRows.length === dataList.length && dataList.length > 0) {
@@ -179,7 +191,7 @@ export default function Raporlar() {
     fetchReportsRef.current();
     const interval = setInterval(() => {
       if (fetchReportsRef.current) fetchReportsRef.current(true);
-    }, 8000);
+    }, 60000);
     return () => clearInterval(interval);
   }, [fetchReports]);
 
@@ -334,7 +346,7 @@ export default function Raporlar() {
                       </td>
                     </tr>
                   ) : (
-                    filteredGeneralReports.map((r) => {
+                    paginatedReports.map((r) => {
                       const isChecked = selectedRows.includes(r.id);
                       return (
                       <tr key={r.id} className={`hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors group text-slate-700 dark:text-slate-300 ${isChecked ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}>
@@ -420,7 +432,7 @@ export default function Raporlar() {
                       </td>
                     </tr>
                   ) : (
-                    filteredCriticalReports.map((r) => {
+                    paginatedReports.map((r) => {
                       const isChecked = selectedRows.includes(r.id);
                       return (
                       <tr key={r.id} className={`hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors group text-slate-700 dark:text-slate-300 ${isChecked ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}>
@@ -450,6 +462,28 @@ export default function Raporlar() {
           </div>
         </>
       )}
+
+      <div className="flex justify-between items-center px-6 py-4 bg-slate-50 dark:bg-[#242a38] border-t border-slate-200 dark:border-slate-700/50 shrink-0">
+        <span className="text-sm text-slate-500">
+          Toplam {activeDataList.length} kayıttan {activeDataList.length === 0 ? 0 : indexOfFirstItem + 1}-{Math.min(indexOfLastItem, activeDataList.length)} arası gösteriliyor
+        </span>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={currentPage === 1 || activeDataList.length === 0}
+            className="px-3 py-1 bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 disabled:opacity-50"
+          >
+            Önceki
+          </button>
+          <button
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            disabled={currentPage >= totalPages || activeDataList.length === 0}
+            className="px-3 py-1 bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 disabled:opacity-50"
+          >
+            Sonraki
+          </button>
+        </div>
+      </div>
 
       {/* Dışa Aktar Sütun Seçimi Modalı */}
       {isExportModalOpen && (
