@@ -1451,17 +1451,18 @@ export default function WorkOrders() {
                   <th className="px-6 py-4 min-w-[200px]">TÜKETİLEN MALZEMELER</th>
                   <th className="px-6 py-4">ÜRETİCİ</th>
                   <th className="px-6 py-4">TARİH</th>
+                  <th className="px-6 py-4">DURUM</th>
                   <th className="px-6 py-4 text-center">İŞLEMLER</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-700/50">
                 {productionLoading ? (
                   <tr>
-                    <td colSpan="9" className="px-6 py-8 text-center text-slate-400">Yükleniyor...</td>
+                    <td colSpan="10" className="px-6 py-8 text-center text-slate-400">Yükleniyor...</td>
                   </tr>
                 ) : productionRuns.length === 0 ? (
                   <tr>
-                    <td colSpan="9" className="px-6 py-8 text-center text-slate-500">Kayıt bulunamadı.</td>
+                    <td colSpan="10" className="px-6 py-8 text-center text-slate-500">Kayıt bulunamadı.</td>
                   </tr>
                 ) : (
                   productionRuns.map(run => (
@@ -1496,7 +1497,23 @@ export default function WorkOrders() {
                           : '-'}
                       </td>
                       <td className="px-6 py-4">{run.produced_by || '-'}</td>
-                      <td className="px-6 py-4 text-slate-400">{run.created_at}</td>
+                      <td className="px-6 py-4 text-slate-400 whitespace-nowrap">{run.created_at}</td>
+                      <td className="px-6 py-4">
+                        {run.is_returned ? (
+                          <div>
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-red-500/10 text-red-500 border border-red-500/20 rounded-lg">
+                              ✕ İade Edildi
+                            </span>
+                            {run.returned_at && (
+                              <div className="text-[10px] text-slate-500 mt-1">{run.returned_at}</div>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded-lg">
+                            ✓ Aktif
+                          </span>
+                        )}
+                      </td>
                       <td className="px-6 py-4 text-center">
                         <div className="flex justify-center gap-2">
                           <button onClick={() => handleRepeatProduction(run)} className="p-1.5 text-blue-400 hover:bg-blue-400/10 rounded-lg transition-colors" title="İşlemi Tekrarla">
