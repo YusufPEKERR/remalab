@@ -587,6 +587,14 @@ export default function WorkOrders() {
 
   const executeReturn = async () => {
     if (!returnDialog) return;
+    
+    // Sorunlu parça adedi toplamını kontrol et
+    const totalDefectiveQty = Object.values(defectiveParts).reduce((sum, val) => sum + (parseInt(val, 10) || 0), 0);
+    if (totalDefectiveQty <= 0) {
+      alert("Hata: Sorunlu miktarı 0 olamaz. Lütfen en az bir adet sorunlu parça miktarı giriniz.");
+      return;
+    }
+
     setReturnSaving(true);
     try {
       // Sorunlu parça listesini JSON'a çevir
