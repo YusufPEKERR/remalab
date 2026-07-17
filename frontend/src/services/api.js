@@ -140,7 +140,20 @@ export const api = {
     getParts: async () => {
         const backend = await getBackend();
         return new Promise((resolve) => {
-            backend.get_parts((res) => resolve(JSON.parse(res)));
+            backend.get_parts(async (resStr) => {
+                try {
+                    const res = JSON.parse(resStr);
+                    if (res.fetch_url) {
+                        const fetchRes = await fetch(res.fetch_url);
+                        const jsonData = await fetchRes.json();
+                        resolve(jsonData);
+                    } else {
+                        resolve(res);
+                    }
+                } catch (e) {
+                    resolve({ success: false, message: e.message });
+                }
+            });
         });
     },
 
@@ -776,7 +789,20 @@ export const api = {
         const backend = await getBackend();
         return new Promise((resolve) => {
             if (backend.get_products) {
-                backend.get_products((res) => resolve(JSON.parse(res)));
+                backend.get_products(async (resStr) => {
+                    try {
+                        const res = JSON.parse(resStr);
+                        if (res.fetch_url) {
+                            const fetchRes = await fetch(res.fetch_url);
+                            const jsonData = await fetchRes.json();
+                            resolve(jsonData);
+                        } else {
+                            resolve(res);
+                        }
+                    } catch (e) {
+                        resolve({ success: false, message: e.message });
+                    }
+                });
             } else {
                 resolve({ success: true, products: [] });
             }
@@ -850,7 +876,20 @@ export const api = {
         const backend = await getBackend();
         return new Promise((resolve) => {
             if (backend.get_stock_status) {
-                backend.get_stock_status((res) => resolve(JSON.parse(res)));
+                backend.get_stock_status(async (resStr) => {
+                    try {
+                        const res = JSON.parse(resStr);
+                        if (res.fetch_url) {
+                            const fetchRes = await fetch(res.fetch_url);
+                            const jsonData = await fetchRes.json();
+                            resolve(jsonData);
+                        } else {
+                            resolve(res);
+                        }
+                    } catch (e) {
+                        resolve({ success: false, message: e.message });
+                    }
+                });
             } else {
                 resolve({ success: true, stock: [] });
             }
@@ -927,7 +966,20 @@ export const api = {
         const backend = await getBackend();
         return new Promise((resolve) => {
             if (backend.get_critical_stock) {
-                backend.get_critical_stock((res) => resolve(JSON.parse(res)));
+                backend.get_critical_stock(async (resStr) => {
+                    try {
+                        const res = JSON.parse(resStr);
+                        if (res.fetch_url) {
+                            const fetchRes = await fetch(res.fetch_url);
+                            const jsonData = await fetchRes.json();
+                            resolve(jsonData);
+                        } else {
+                            resolve(res);
+                        }
+                    } catch (e) {
+                        resolve({ success: false, message: e.message });
+                    }
+                });
             } else {
                 resolve({ success: true, critical_stock: [] });
             }

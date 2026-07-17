@@ -312,13 +312,13 @@ export default function Raporlar() {
           {/* Table General */}
           <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl shadow-lg flex-1 overflow-hidden flex flex-col">
             <div className="overflow-auto flex-1">
-              <table className="w-full text-left text-sm whitespace-nowrap">
-                <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs sticky top-0 z-10">
+              <table className="w-full text-left text-base whitespace-nowrap">
+                <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-sm sticky top-0 z-10">
                   <tr>
-                    <th className="px-6 py-4 w-12 text-center">
+                    <th className="px-6 py-5 w-12 text-center">
                       <input 
                         type="checkbox" 
-                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-white dark:bg-slate-800"
+                        className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-white dark:bg-slate-800"
                         checked={selectedRows.length === filteredGeneralReports.length && filteredGeneralReports.length > 0}
                         onChange={toggleSelectAll}
                       />
@@ -350,17 +350,17 @@ export default function Raporlar() {
                       const isChecked = selectedRows.includes(r.id);
                       return (
                       <tr key={r.id} className={`hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors group text-slate-700 dark:text-slate-300 ${isChecked ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}>
-                        <td className="px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
+                        <td className="px-6 py-5 text-center" onClick={(e) => e.stopPropagation()}>
                           <input 
                             type="checkbox" 
-                            className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-white dark:bg-slate-800"
+                            className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-white dark:bg-slate-800"
                             checked={isChecked}
                             onChange={(e) => toggleRowSelect(r.id, e)}
                           />
                         </td>
-                        <td className="px-6 py-4 font-mono text-slate-400">{r.date}</td>
-                        <td className="px-6 py-4">
-                          <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${
+                        <td className="px-6 py-5 font-mono text-slate-400">{r.date}</td>
+                        <td className="px-6 py-5">
+                          <span className={`px-3 py-1.5 rounded-full text-sm font-medium border ${
                             r.type.includes('Giriş') 
                               ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20' 
                               : r.type.includes('Çıkış') 
@@ -370,10 +370,10 @@ export default function Raporlar() {
                             {r.type}
                           </span>
                         </td>
-                        <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200">{r.part_name}</td>
-                        <td className="px-6 py-4 text-slate-400">{r.location}</td>
-                        <td className="px-6 py-4 font-mono text-slate-800 dark:text-slate-200">{r.quantity}</td>
-                        <td className="px-6 py-4">{r.user}</td>
+                        <td className="px-6 py-5 font-medium text-slate-800 dark:text-slate-200">{r.part_name}</td>
+                        <td className="px-6 py-5 text-slate-400">{r.location}</td>
+                        <td className="px-6 py-5 font-mono text-slate-800 dark:text-slate-200">{r.quantity}</td>
+                        <td className="px-6 py-5">{r.user}</td>
                       </tr>
                       );
                     })
@@ -400,13 +400,13 @@ export default function Raporlar() {
           {/* Table Critical */}
           <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl shadow-lg flex-1 overflow-hidden flex flex-col">
             <div className="overflow-auto flex-1">
-              <table className="w-full text-left text-sm whitespace-nowrap">
-                <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs sticky top-0 z-10">
+              <table className="w-full text-left text-base whitespace-nowrap">
+                <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-sm sticky top-0 z-10">
                   <tr>
-                    <th className="px-6 py-4 w-12 text-center">
+                    <th className="px-6 py-5 w-12 text-center">
                       <input 
                         type="checkbox" 
-                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-white dark:bg-slate-800"
+                        className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-white dark:bg-slate-800"
                         checked={selectedRows.length === filteredCriticalReports.length && filteredCriticalReports.length > 0}
                         onChange={toggleSelectAll}
                       />
@@ -436,22 +436,22 @@ export default function Raporlar() {
                       const isChecked = selectedRows.includes(r.id);
                       return (
                       <tr key={r.id} className={`hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors group text-slate-700 dark:text-slate-300 ${isChecked ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}>
-                        <td className="px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
+                        <td className="px-6 py-5 text-center" onClick={(e) => e.stopPropagation()}>
                           <input 
                             type="checkbox" 
-                            className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-white dark:bg-slate-800"
+                            className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-white dark:bg-slate-800"
                             checked={isChecked}
                             onChange={(e) => toggleRowSelect(r.id, e)}
                           />
                         </td>
-                        <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200">{r.part_name}</td>
-                        <td className="px-6 py-4 text-slate-400">{r.location}</td>
-                        <td className="px-6 py-4 font-mono">
+                        <td className="px-6 py-5 font-medium text-slate-800 dark:text-slate-200">{r.part_name}</td>
+                        <td className="px-6 py-5 text-slate-400">{r.location}</td>
+                        <td className="px-6 py-5 font-mono">
                           <span className="text-red-500 font-bold flex items-center gap-1.5">
-                            <AlertTriangle size={14} /> {r.quantity}
+                            <AlertTriangle size={18} /> {r.quantity}
                           </span>
                         </td>
-                        <td className="px-6 py-4 font-mono text-slate-400">{r.critical_limit}</td>
+                        <td className="px-6 py-5 font-mono text-slate-400">{r.critical_limit}</td>
                       </tr>
                       );
                     })

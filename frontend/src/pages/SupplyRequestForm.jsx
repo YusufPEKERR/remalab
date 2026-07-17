@@ -50,7 +50,7 @@ export default function SupplyRequestForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.work_order_id || !formData.part_id) return;
+    if (!formData.work_order_id || !formData.part_id || !formData.notes.trim()) return;
     setSubmitting(true);
     const res = await api.createSupplyRequest(formData.work_order_id, formData.part_id, formData.quantity || 1, formData.notes, currentUser?.username);
     setSubmitting(false);
@@ -120,8 +120,8 @@ export default function SupplyRequestForm() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-400 mb-1.5">Not</label>
-              <textarea rows={2} placeholder="İsteğe bağlı not..." className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 resize-none" value={formData.notes} onChange={e => setFormData({ ...formData, notes: e.target.value })} />
+              <label className="block text-sm font-medium text-slate-400 mb-1.5">Not <span className="text-red-400">*</span></label>
+              <textarea required rows={2} placeholder="Talep için not giriniz..." className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 resize-none" value={formData.notes} onChange={e => setFormData({ ...formData, notes: e.target.value })} />
             </div>
 
             <div className="flex justify-end pt-2">
