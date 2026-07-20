@@ -91,7 +91,6 @@ export default function WorkOrders() {
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [editingOrder, setEditingOrder] = useState(null);
   const [expandedWorkOrders, setExpandedWorkOrders] = useState(new Set());
-  const [startSaving, setStartSaving] = useState(false);
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [partsUsed, setPartsUsed] = useState([]);
 
@@ -924,6 +923,7 @@ export default function WorkOrders() {
     if (res.success) {
       setIssueDialog(null);
       fetchMaterialRequests(selectedProductionOrderId);
+      refreshStockStatus();
     } else {
       alert(res.message || 'Malzeme teslim edilemedi.');
     }
@@ -941,6 +941,7 @@ export default function WorkOrders() {
     const res = await api.reportMaterialFire(mr.id, qty, currentUser?.username);
     if (res.success) {
       fetchMaterialRequests(selectedProductionOrderId);
+      refreshStockStatus();
     } else {
       alert(res.message || 'Fire bildirilemedi.');
     }
@@ -948,11 +949,12 @@ export default function WorkOrders() {
 
   const handleStartProduction = async (order) => {
     if (!window.confirm('Bu iş emri için üretimi başlatmak istediğinize emin misiniz?')) return;
-    setStartSaving(true);
     const res = await api.startProductionWorkOrder(order.id, currentUser?.username);
-    setStartSaving(false);
     if (res.success) {
       fetchOrders();
+      if (selectedProductionOrderId === order.id) {
+         setSelectedProductionOrderId(order.id);
+      }
     } else {
       alert(res.message || 'Üretim başlatılamadı.');
     }
@@ -971,9 +973,10 @@ export default function WorkOrders() {
     e.preventDefault();
     if (!completeDialog) return;
     const produced = Number(completeForm.produced_quantity);
-    const scrap = Number(completeForm.scrap_quantity);
-    if (completeForm.produced_quantity === '' || completeForm.scrap_quantity === '' || isNaN(produced) || isNaN(scrap) || produced < 0 || scrap < 0) {
-      alert('Üretilen Adet ve Fire Adedi geçerli, negatif olmayan sayılar olmalıdır.');
+    const planned = Number(completeDialog.planned_quantity);
+    const scrap = Math.max(0, planned - produced);
+    if (completeForm.produced_quantity === '' || isNaN(produced) || produced < 0) {
+      alert('Üretilen Adet geçerli, negatif olmayan bir sayı olmalıdır.');
       return;
     }
     setCompleteSaving(true);
@@ -2054,8 +2057,7 @@ export default function WorkOrders() {
                     {selectedProductionOrder.status === 'BEKLIYOR' && (
                       <button
                         onClick={() => handleStartProduction(selectedProductionOrder)}
-                        disabled={startSaving}
-                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white rounded-xl text-sm font-medium transition-colors shadow-lg shadow-blue-900/20"
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium transition-colors shadow-lg shadow-blue-900/20"
                       >
                         Üretimi Başlat
                       </button>
@@ -2077,34 +2079,40 @@ export default function WorkOrders() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 px-6 pb-6">
-                  <div>
-                    <div className="text-xs text-slate-400 mb-1">Teknisyen</div>
-                    <div className="text-sm font-medium text-slate-800 dark:text-slate-200">{selectedProductionOrder.assigned_technician || '-'}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-slate-400 mb-1">Başlama Zamanı</div>
-                    <div className="text-sm font-medium text-slate-800 dark:text-slate-200">{selectedProductionOrder.started_at || '-'}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-slate-400 mb-1">Bitiş Zamanı</div>
-                    <div className="text-sm font-medium text-slate-800 dark:text-slate-200">{selectedProductionOrder.completed_at || '-'}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-slate-400 mb-1">Planlanan</div>
-                    <div className="text-sm font-medium font-mono text-slate-800 dark:text-slate-200">{selectedProductionOrder.planned_quantity !== '' ? selectedProductionOrder.planned_quantity : '-'}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-slate-400 mb-1">Üretilen</div>
-                    <div className="text-sm font-medium font-mono text-slate-800 dark:text-slate-200">{selectedProductionOrder.produced_quantity !== '' ? selectedProductionOrder.produced_quantity : '-'}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-slate-400 mb-1">Fire</div>
-                    <div className="text-sm font-medium font-mono text-slate-800 dark:text-slate-200">{selectedProductionOrder.scrap_quantity !== '' ? selectedProductionOrder.scrap_quantity : '-'}</div>
-                  </div>
-                  <div className="col-span-2 md:col-span-4">
-                    <div className="text-xs text-slate-400 mb-1">Üretim Notu</div>
-                    <div className="text-sm text-slate-800 dark:text-slate-200">{selectedProductionOrder.production_notes || '-'}</div>
+                <div className="px-6 pb-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-slate-50 dark:bg-[#1a1f2b] p-4 rounded-xl border border-slate-100 dark:border-slate-800/50">
+                    <div>
+                      <p className="text-xs text-slate-400 font-medium uppercase tracking-wider mb-1">Teknisyen</p>
+                      <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">{selectedProductionOrder.assigned_technician || 'Atanmadı'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-400 font-medium uppercase tracking-wider mb-1">Planlanan Üretim</p>
+                      <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">{selectedProductionOrder.planned_quantity || 0} Adet</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-400 font-medium uppercase tracking-wider mb-1">Başlama Tarihi</p>
+                      <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">{selectedProductionOrder.start_date || '-'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-400 font-medium uppercase tracking-wider mb-1">Bitiş Tarihi</p>
+                      <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">{selectedProductionOrder.end_date || '-'}</p>
+                    </div>
+                    {selectedProductionOrder.status === 'TAMAMLANDI' && (
+                      <>
+                        <div>
+                          <p className="text-xs text-slate-400 font-medium uppercase tracking-wider mb-1">Üretilen</p>
+                          <p className="text-sm font-semibold text-emerald-500">{selectedProductionOrder.produced_quantity || 0} Adet</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-slate-400 font-medium uppercase tracking-wider mb-1">Fire</p>
+                          <p className="text-sm font-semibold text-orange-500">{selectedProductionOrder.scrap_quantity || 0} Adet</p>
+                        </div>
+                        <div className="col-span-2">
+                          <p className="text-xs text-slate-400 font-medium uppercase tracking-wider mb-1">Üretim Notu</p>
+                          <p className="text-sm text-slate-800 dark:text-slate-200 truncate" title={selectedProductionOrder.production_notes || '-'}>{selectedProductionOrder.production_notes || '-'}</p>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -2117,6 +2125,7 @@ export default function WorkOrders() {
                   <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs">
                     <tr>
                       <th className="px-6 py-4">Parça</th>
+                      <th className="px-6 py-4">Reçetedeki Miktar</th>
                       <th className="px-6 py-4">Gerekli</th>
                       <th className="px-6 py-4">Verilen</th>
                       <th className="px-6 py-4">Fire</th>
@@ -2128,11 +2137,11 @@ export default function WorkOrders() {
                   <tbody className="divide-y divide-slate-700/50">
                     {materialRequestsLoading ? (
                       <tr>
-                        <td colSpan="7" className="px-6 py-8 text-center text-slate-400">Yükleniyor...</td>
+                        <td colSpan="8" className="px-6 py-8 text-center text-slate-400">Yükleniyor...</td>
                       </tr>
                     ) : materialRequests.length === 0 ? (
                       <tr>
-                        <td colSpan="7" className="px-6 py-8 text-center text-slate-500">Malzeme talebi bulunamadı.</td>
+                        <td colSpan="8" className="px-6 py-8 text-center text-slate-500">Malzeme talebi bulunamadı.</td>
                       </tr>
                     ) : (
                       materialRequests.map(mr => (
@@ -2141,6 +2150,7 @@ export default function WorkOrders() {
                             <div className="font-medium text-slate-800 dark:text-slate-200">{mr.part_name || '-'}</div>
                             <div className="text-xs text-slate-400">{mr.item_code}</div>
                           </td>
+                          <td className="px-6 py-4 font-mono text-slate-400">{mr.unit_quantity != null ? `${mr.unit_quantity} / birim` : '-'}</td>
                           <td className="px-6 py-4 font-mono">{mr.required_quantity}</td>
                           <td className="px-6 py-4 font-mono">{mr.issued_quantity}</td>
                           <td className="px-6 py-4 font-mono text-orange-500">{mr.fire_quantity || 0}</td>
@@ -2161,7 +2171,7 @@ export default function WorkOrders() {
                                   Teslim Et
                                 </button>
                               )}
-                              {(mr.issued_quantity - (mr.fire_quantity || 0)) > 0 && (
+                              {/* {(mr.issued_quantity - (mr.fire_quantity || 0)) > 0 && (
                                 <button
                                   type="button"
                                   onClick={() => handleReportFire(mr)}
@@ -2169,7 +2179,7 @@ export default function WorkOrders() {
                                 >
                                   Fire Bildir
                                 </button>
-                              )}
+                              )} */}
                               {mr.remaining_quantity <= 0 && (mr.issued_quantity - (mr.fire_quantity || 0)) <= 0 && (
                                 <span className="text-xs text-slate-500">—</span>
                               )}
@@ -2319,7 +2329,7 @@ export default function WorkOrders() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-400 mb-1.5">Üretilen Adet</label>
                   <input
@@ -2329,16 +2339,6 @@ export default function WorkOrders() {
                     className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-emerald-500"
                     value={completeForm.produced_quantity}
                     onChange={e => setCompleteForm({ ...completeForm, produced_quantity: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1.5">Fire Adedi</label>
-                  <input
-                    type="number"
-                    min="0"
-                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-emerald-500"
-                    value={completeForm.scrap_quantity}
-                    onChange={e => setCompleteForm({ ...completeForm, scrap_quantity: e.target.value })}
                   />
                 </div>
               </div>

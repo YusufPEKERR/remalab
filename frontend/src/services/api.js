@@ -582,7 +582,11 @@ export const api = {
         const backend = await getBackend();
         return new Promise((resolve) => {
             if (backend.start_production_work_order) {
-                backend.start_production_work_order(String(workOrderId), username || '', (res) => resolve(JSON.parse(res)));
+                backend.start_production_work_order(
+                    String(workOrderId),
+                    username || '',
+                    (res) => resolve(JSON.parse(res))
+                );
             } else {
                 resolve({ success: true });
             }

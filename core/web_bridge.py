@@ -1923,9 +1923,9 @@ class WebBridge(QObject):
             new_id = db.execute(text("""
                 INSERT INTO warehouse.work_orders (
                     work_order_type, target_part_id, description, priority, planned_quantity,
-                    assigned_technician, status
+                    assigned_technician, status, started_at
                 ) VALUES (
-                    :wtype, :target, :desc, :priority, :qty, :tech, :status
+                    :wtype, :target, :desc, :priority, :qty, :tech, :status, CURRENT_TIMESTAMP
                 ) RETURNING id
             """), {
                 "wtype": WORK_ORDER_TYPE_PRODUCTION,
@@ -1934,7 +1934,7 @@ class WebBridge(QObject):
                 "priority": priority or "Orta",
                 "qty": qty,
                 "tech": assigned_technician or None,
-                "status": PRODUCTION_WO_STATUS_WAITING
+                "status": PRODUCTION_WO_STATUS_IN_PRODUCTION
             }).scalar()
 
             for bom_row in bom_rows:
@@ -1961,44 +1961,51 @@ class WebBridge(QObject):
             db.close()
 
     # ==========================
-    # PRODUCTION WORK ORDER YAŞAM DÖNGÜSÜ (BEKLIYOR -> URETIMDE -> TAMAMLANDI)
+    # PRODUCTION WORK ORDER YAŞAM DÖNGÜSÜ (URETIMDE -> TAMAMLANDI)
     # Sadece PRODUCTION tipi work order'lar için çalışır; Service Work Order'ın kendi
-    # status akışını (create_work_order/update_work_order) hiç etkilemez. Bu aşamada
-    # stok düşme, depo transferi, yarı mamul stok oluşturma veya Scrap Stock hareketi
-    # yapılmaz — sadece iş emrinin üretim verileri kaydedilir.
+    # status akışını (create_work_order/update_work_order) hiç etkilemez. Bir iş emri
+    # oluşturulduğu anda doğrudan URETIMDE durumunda başlar (ayrı bir "Başlat" adımı
+    # yoktur -- malzeme teslimi zaten Malzeme Talepleri panelindeki limit/durum
+    # kontrolüyle yönetiliyor, ek bir manuel adım gereksiz görüldü).
     # ==========================
 
     @Slot(str, str, result=str)
     def start_production_work_order(self, work_order_id_str, username):
-        """PRODUCTION tipi bir iş emrini BEKLIYOR durumundan URETIMDE durumuna geçirir ve
-        started_at zaman damgasını kaydeder. Stok/depo işlemi yapmaz."""
+        """PRODUCTION tipi bir iş emrini BEKLIYOR durumundan URETIMDE durumuna geçirir.
+        (Geçmişten kalan BEKLIYOR durumundaki iş emirlerinin başlatılabilmesi için eklendi)."""
         from sqlalchemy import text
         db = SessionLocal()
         try:
             work_order_id = int(work_order_id_str)
+            
             row = db.execute(
-                text("SELECT id, work_order_type, status FROM warehouse.work_orders WHERE id = :id FOR UPDATE"),
+                text("SELECT status, work_order_type FROM warehouse.work_orders WHERE id = :id FOR UPDATE"),
                 {"id": work_order_id}
             ).mappings().first()
+            
             if not row:
                 return json.dumps({"success": False, "message": "İş emri bulunamadı."})
+                
             if row["work_order_type"] != WORK_ORDER_TYPE_PRODUCTION:
-                return json.dumps({"success": False, "message": "Bu işlem sadece Production Work Order'lar için geçerlidir."})
+                return json.dumps({"success": False, "message": "Sadece üretim iş emirleri başlatılabilir."})
+                
             if row["status"] != PRODUCTION_WO_STATUS_WAITING:
-                return json.dumps({"success": False, "message": f"Sadece {PRODUCTION_WO_STATUS_WAITING} durumundaki iş emirleri üretime alınabilir."})
-
+                return json.dumps({"success": False, "message": f"Bu iş emri {PRODUCTION_WO_STATUS_WAITING} durumunda değil (şu an: {row['status']})."})
+                
             db.execute(text("""
-                UPDATE warehouse.work_orders
+                UPDATE warehouse.work_orders 
                 SET status = :status, started_at = CURRENT_TIMESTAMP
                 WHERE id = :id
             """), {"status": PRODUCTION_WO_STATUS_IN_PRODUCTION, "id": work_order_id})
+            
             db.commit()
-            return json.dumps({"success": True, "message": "Üretim başlatıldı", "status": PRODUCTION_WO_STATUS_IN_PRODUCTION})
+            return json.dumps({"success": True, "message": "İş emri üretime alındı."})
         except Exception as e:
             db.rollback()
-            return json.dumps({"success": False, "message": f"İşlem hatası: {str(e)}"})
+            return json.dumps({"success": False, "message": f"Başlatma hatası: {str(e)}"})
         finally:
             db.close()
+
 
     @Slot(str, str, str, str, str, result=str)
     def complete_production_work_order(self, work_order_id_str, produced_quantity_str, scrap_quantity_str, production_notes, username):
@@ -2160,7 +2167,10 @@ class WebBridge(QObject):
         bilgileriyle birlikte getirir. Salt okunurdur; stok düşme/depo transferi bu
         aşamada yapılmaz. remaining_quantity, (required_quantity + fire_quantity -
         issued_quantity) olarak canlı hesaplanır -- fire_quantity, bildirilmiş fire
-        kadar ek teslim hakkı açar (bkz. report_material_fire)."""
+        kadar ek teslim hakkı açar (bkz. report_material_fire). unit_quantity (reçetedeki
+        birim başına miktar), required_quantity // planned_quantity olarak hesaplanır --
+        bu, iş emri oluşturulduğu andaki değeri yansıtır; reçete sonradan değişmiş olsa
+        bile bu iş emri için kullanılan orijinal değeri gösterir."""
         from sqlalchemy import text
         db = SessionLocal()
         try:
@@ -2170,9 +2180,11 @@ class WebBridge(QObject):
                        mr.required_quantity, mr.issued_quantity, mr.fire_quantity,
                        (mr.required_quantity + mr.fire_quantity - mr.issued_quantity) AS remaining_quantity,
                        mr.status, mr.created_at,
-                       p.item_code, p.name AS part_name_raw, p.brand, p.model, p.color, p.part_category
+                       p.item_code, p.name AS part_name_raw, p.brand, p.model, p.color, p.part_category,
+                       wo.planned_quantity
                 FROM warehouse.material_requests mr
                 LEFT JOIN warehouse.parts p ON p.id = mr.part_id
+                LEFT JOIN warehouse.work_orders wo ON wo.id = mr.work_order_id
                 WHERE mr.work_order_id = :wid
                 ORDER BY mr.id ASC
             """), {"wid": work_order_id}).mappings().all()
@@ -2180,12 +2192,15 @@ class WebBridge(QObject):
             requests = []
             for row in rows:
                 part_name = " ".join(filter(None, [row["brand"], row["model"], row["color"], row["part_category"]])) or (row["part_name_raw"] or "")
+                planned_qty = row["planned_quantity"]
+                unit_quantity = (row["required_quantity"] // planned_qty) if planned_qty else None
                 requests.append({
                     "id": str(row["id"]),
                     "work_order_id": str(row["work_order_id"]),
                     "part_id": str(row["part_id"]),
                     "part_name": part_name,
                     "item_code": row["item_code"] or "",
+                    "unit_quantity": unit_quantity,
                     "required_quantity": row["required_quantity"],
                     "issued_quantity": row["issued_quantity"],
                     "fire_quantity": row["fire_quantity"],
@@ -2231,12 +2246,15 @@ class WebBridge(QObject):
             if not row:
                 return json.dumps({"success": False, "message": "Malzeme talebi bulunamadı."})
 
-            wo_type = db.execute(
-                text("SELECT work_order_type FROM warehouse.work_orders WHERE id = :id"),
+            wo_row = db.execute(
+                text("SELECT work_order_type, status FROM warehouse.work_orders WHERE id = :id"),
                 {"id": row["work_order_id"]}
-            ).scalar()
+            ).mappings().first()
+            wo_type = wo_row["work_order_type"] if wo_row else None
             if wo_type != WORK_ORDER_TYPE_PRODUCTION:
                 return json.dumps({"success": False, "message": "Malzeme teslimi sadece Production Work Order'lar için yapılabilir."})
+            if wo_row["status"] != PRODUCTION_WO_STATUS_IN_PRODUCTION:
+                return json.dumps({"success": False, "message": f"Malzeme teslimi sadece {PRODUCTION_WO_STATUS_IN_PRODUCTION} durumundaki iş emirleri için yapılabilir (şu an: {wo_row['status']})."})
 
             effective_limit = row["required_quantity"] + row["fire_quantity"]
             remaining = effective_limit - row["issued_quantity"]
@@ -2370,7 +2388,12 @@ class WebBridge(QObject):
 
     @Slot(str, str, str, result=str)
     def return_bom_part_to_doa(self, part_id_str, return_qty_str, username):
-        """Hızlı Tekrar Üretim (BOM) reçetesindeki bir parçayı DOA Stock'a iade eder."""
+        """Hızlı Tekrar Üretim (BOM) reçetesindeki bir parçayı DOA Stock'a iade eder.
+        Bu, genel bir depo-transferi değil; Hızlı Üretim'de (create_production_run)
+        tüketilen hammaddenin bir kısmının bozuk/fire çıkması durumunda üretimden DOA'ya
+        dönüşüdür -- report_material_fire ile aynı kategoride (malzeme üretim
+        kullanımından dönüyor), bu yüzden SYSTEM_TRANSFER_RULES'a (transfer_stock'un
+        depolar arası manuel transferleri kısıtladığı kural setine) tabi değildir."""
         from sqlalchemy import text
         from models.stock import Stock
         from models.stock_movement import StockMovement
@@ -4020,6 +4043,11 @@ class WebBridge(QObject):
 
     @Slot(str, str, str, str, str, str, str, result=str)
     def add_outbound_entry(self, part_id, location_id, qty, type_str, username, technician, description):
+        """İrsaliye Çıkış: bir depodan dışarı (Out Stock/Scrap Stock) çıkış kaydı açar.
+        source_loc.kind sistem depolarından biriyse (good_stock, doa_stock, repair_stock,
+        vb.), hedef SYSTEM_TRANSFER_RULES'a göre doğrulanır -- örn. Good Stock sadece
+        Repair Stock'a çıkabilir, doğrudan Out/Scrap Stock'a çıkamaz (bkz. transfer_stock,
+        aynı kural kontrolü). Kural izin vermiyorsa işlem reddedilir, stok değişmez."""
         from models.stock import Stock
         from models.stock_movement import StockMovement
         from models.location import Location
@@ -4029,25 +4057,37 @@ class WebBridge(QObject):
             location_id = int(location_id)
             qty = int(qty)
 
+            source_loc = db.query(Location).filter(Location.id == int(location_id)).first()
+            target_location_id = None
+            movement_kind = None
+            if source_loc and source_loc.kind in ("good_stock", "doa_stock"):
+                target_kind = "scrap_stock" if type_str == "Fire" else "out_stock"
+
+                if source_loc.kind in SYSTEM_TRANSFER_RULES and target_kind not in SYSTEM_TRANSFER_RULES[source_loc.kind]:
+                    from_label = SYSTEM_LOCATION_KINDS.get(source_loc.kind, source_loc.kind)
+                    allowed_targets = SYSTEM_TRANSFER_RULES[source_loc.kind]
+                    if allowed_targets:
+                        allowed_labels = " veya ".join(SYSTEM_LOCATION_KINDS.get(k, k) for k in allowed_targets)
+                        message = f"{from_label}'tan doğrudan çıkış yapılamaz; sadece {allowed_labels} deposuna transfer yapılabilir."
+                    else:
+                        message = f"{from_label} sadece çıkış deposudur, buradan başka bir depoya transfer yapılamaz."
+                    return json.dumps({"success": False, "message": message})
+
+                target_location_id = _get_system_location_id(db, target_kind)
+                movement_kind = "Scrap" if target_kind == "scrap_stock" else "Outbound"
+
             stock = db.query(Stock).with_for_update().filter(Stock.part_id == part_id, Stock.location_id == location_id).first()
             if not stock or stock.quantity < qty:
                 return json.dumps({"success": False, "message": "Yetersiz stok."})
 
             stock.quantity -= qty
 
-            source_loc = db.query(Location).filter(Location.id == int(location_id)).first()
-            target_location_id = None
-            movement_kind = None
-            if source_loc and source_loc.kind in ("good_stock", "doa_stock"):
-                target_kind = "scrap_stock" if type_str == "Fire" else "out_stock"
-                target_location_id = _get_system_location_id(db, target_kind)
-                movement_kind = "Scrap" if target_kind == "scrap_stock" else "Outbound"
-                if target_location_id:
-                    target_stock = db.query(Stock).filter(Stock.part_id == part_id, Stock.location_id == target_location_id).first()
-                    if target_stock:
-                        target_stock.quantity += qty
-                    else:
-                        db.add(Stock(part_id=part_id, location_id=target_location_id, quantity=qty))
+            if target_location_id:
+                target_stock = db.query(Stock).filter(Stock.part_id == part_id, Stock.location_id == target_location_id).first()
+                if target_stock:
+                    target_stock.quantity += qty
+                else:
+                    db.add(Stock(part_id=part_id, location_id=target_location_id, quantity=qty))
 
             mov = StockMovement(
                 type=type_str or "Çıkış",
