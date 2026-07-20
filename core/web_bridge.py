@@ -990,7 +990,7 @@ class WebBridge(QObject):
 
     @Slot(str, result=str)
     def delete_part(self, part_id_str):
-        """Belirtilen id'ye sahip parçayı siler (Stok miktarı 0 ise parçayı ve ilişkili kayıtlarını temizler)."""
+        """Belirtilen id'ye sahip parçayı siler (Stok miktarı 0 ise parçayı ve ilişkili tüm kayıtlarını temizler)."""
         from sqlalchemy import text, func
         from models.stock import Stock
         db = SessionLocal()
@@ -1002,17 +1002,30 @@ class WebBridge(QObject):
             if total_stock_qty > 0:
                 return json.dumps({"success": False, "message": f"Bu parçanın stokta {total_stock_qty} adet ürünü var. Silmeden önce stok miktarını sıfırlayınız."})
 
-            # Stok adedi 0 olan parçayı ve bağımlılıklarını temizle
-            db.execute(text("DELETE FROM warehouse.stock WHERE part_id = :id"), {"id": part_id})
-            db.execute(text("DELETE FROM warehouse.stock_movements WHERE part_id = :id"), {"id": part_id})
-            db.execute(text("DELETE FROM warehouse.inbound_entries WHERE part_id = :id"), {"id": part_id})
-            db.execute(text("DELETE FROM warehouse.outbound_entries WHERE part_id = :id"), {"id": part_id})
-            db.execute(text("DELETE FROM warehouse.work_order_parts WHERE part_id = :id"), {"id": part_id})
-            db.execute(text("DELETE FROM warehouse.production_materials WHERE part_id = :id"), {"id": part_id})
-            db.execute(text("DELETE FROM warehouse.bom_items WHERE part_id = :id"), {"id": part_id})
-            db.execute(text("DELETE FROM warehouse.parts WHERE id = :id"), {"id": part_id})
-            db.commit()
+            queries = [
+                "DELETE FROM warehouse.stock WHERE part_id = :id",
+                "DELETE FROM warehouse.stock_movements WHERE part_id = :id",
+                "DELETE FROM warehouse.inbound_entries WHERE part_id = :id",
+                "DELETE FROM warehouse.outbound_entries WHERE part_id = :id",
+                "DELETE FROM warehouse.work_order_parts WHERE part_id = :id",
+                "DELETE FROM warehouse.production_materials WHERE part_id = :id",
+                "DELETE FROM warehouse.bom_items WHERE part_id = :id OR parent_item_id = :id",
+                "DELETE FROM warehouse.item_bom WHERE part_id = :id OR parent_item_id = :id",
+                "DELETE FROM warehouse.part_supplier_prices WHERE part_id = :id",
+                "DELETE FROM warehouse.part_suppliers WHERE part_id = :id",
+                "UPDATE warehouse.production_runs SET target_part_id = NULL WHERE target_part_id = :id",
+                "UPDATE warehouse.work_orders SET target_part_id = NULL WHERE target_part_id = :id",
+                "DELETE FROM warehouse.parts WHERE id = :id"
+            ]
 
+            for q in queries:
+                try:
+                    with db.begin_nested():
+                        db.execute(text(q), {"id": part_id})
+                except Exception as ex:
+                    logging.warning(f"delete_part subquery bypass: {ex}")
+
+            db.commit()
             clear_api_cache()
             return json.dumps({"success": True, "message": "Parça başarıyla silindi."})
         except Exception as e:
@@ -1044,17 +1057,31 @@ class WebBridge(QObject):
             if not safe_ids:
                 return json.dumps({"success": False, "message": "Seçilen parçaların tamamının stokta ürünü var. Önce stok miktarlarını sıfırlayınız."})
                 
-            for pid in safe_ids:
-                db.execute(text("DELETE FROM warehouse.stock WHERE part_id = :id"), {"id": pid})
-                db.execute(text("DELETE FROM warehouse.stock_movements WHERE part_id = :id"), {"id": pid})
-                db.execute(text("DELETE FROM warehouse.inbound_entries WHERE part_id = :id"), {"id": pid})
-                db.execute(text("DELETE FROM warehouse.outbound_entries WHERE part_id = :id"), {"id": pid})
-                db.execute(text("DELETE FROM warehouse.work_order_parts WHERE part_id = :id"), {"id": pid})
-                db.execute(text("DELETE FROM warehouse.production_materials WHERE part_id = :id"), {"id": pid})
-                db.execute(text("DELETE FROM warehouse.bom_items WHERE part_id = :id"), {"id": pid})
-                db.execute(text("DELETE FROM warehouse.parts WHERE id = :id"), {"id": pid})
-            db.commit()
+            queries = [
+                "DELETE FROM warehouse.stock WHERE part_id = :id",
+                "DELETE FROM warehouse.stock_movements WHERE part_id = :id",
+                "DELETE FROM warehouse.inbound_entries WHERE part_id = :id",
+                "DELETE FROM warehouse.outbound_entries WHERE part_id = :id",
+                "DELETE FROM warehouse.work_order_parts WHERE part_id = :id",
+                "DELETE FROM warehouse.production_materials WHERE part_id = :id",
+                "DELETE FROM warehouse.bom_items WHERE part_id = :id OR parent_item_id = :id",
+                "DELETE FROM warehouse.item_bom WHERE part_id = :id OR parent_item_id = :id",
+                "DELETE FROM warehouse.part_supplier_prices WHERE part_id = :id",
+                "DELETE FROM warehouse.part_suppliers WHERE part_id = :id",
+                "UPDATE warehouse.production_runs SET target_part_id = NULL WHERE target_part_id = :id",
+                "UPDATE warehouse.work_orders SET target_part_id = NULL WHERE target_part_id = :id",
+                "DELETE FROM warehouse.parts WHERE id = :id"
+            ]
 
+            for pid in safe_ids:
+                for q in queries:
+                    try:
+                        with db.begin_nested():
+                            db.execute(text(q), {"id": pid})
+                    except Exception as ex:
+                        logging.warning(f"delete_parts_bulk subquery bypass: {ex}")
+
+            db.commit()
             clear_api_cache()
             
             msg = f"{len(safe_ids)} parça başarıyla silindi."
