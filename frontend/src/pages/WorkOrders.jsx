@@ -1486,7 +1486,16 @@ export default function WorkOrders() {
                               </div>
                             ) : '-'}
                           </td>
-                          <td className="px-6 py-4 font-mono">{mat1 ? mat1.quantity : '-'}</td>
+                          <td className="px-6 py-4 font-mono">
+                            {mat1 ? (
+                              <div>
+                                <div>{mat1.quantity}</div>
+                                <div className={`text-[10px] ${getTotalStockQty(mat1.child_part_id) <= 0 ? 'text-red-500 font-semibold' : 'text-slate-400'}`}>
+                                  Stokta: {getTotalStockQty(mat1.child_part_id)}
+                                </div>
+                              </div>
+                            ) : '-'}
+                          </td>
                           <td className="px-6 py-4">
                             {mat2 ? (
                               <div>
@@ -1495,7 +1504,16 @@ export default function WorkOrders() {
                               </div>
                             ) : '-'}
                           </td>
-                          <td className="px-6 py-4 font-mono">{mat2 ? mat2.quantity : '-'}</td>
+                          <td className="px-6 py-4 font-mono">
+                            {mat2 ? (
+                              <div>
+                                <div>{mat2.quantity}</div>
+                                <div className={`text-[10px] ${getTotalStockQty(mat2.child_part_id) <= 0 ? 'text-red-500 font-semibold' : 'text-slate-400'}`}>
+                                  Stokta: {getTotalStockQty(mat2.child_part_id)}
+                                </div>
+                              </div>
+                            ) : '-'}
+                          </td>
                           <td className="px-6 py-4 text-center">
                             <div className="relative inline-block text-left">
                               <button
