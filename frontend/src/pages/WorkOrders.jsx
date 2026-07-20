@@ -1726,6 +1726,7 @@ export default function WorkOrders() {
               <table className="w-full text-left text-sm">
                 <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs sticky top-0 z-10">
                   <tr>
+                    <th className="px-6 py-4">İŞ EMRİ NO</th>
                     <th className="px-6 py-4">ÜRETİLEN PARÇA</th>
                     <th className="px-6 py-4 text-center">MİKTAR</th>
                     <th className="px-6 py-4">KAYNAK LOKASYON</th>
@@ -1740,15 +1741,20 @@ export default function WorkOrders() {
                 <tbody className="divide-y divide-slate-700/50">
                   {productionLoading ? (
                     <tr>
-                      <td colSpan="9" className="px-6 py-8 text-center text-slate-400">Yükleniyor...</td>
+                      <td colSpan="10" className="px-6 py-8 text-center text-slate-400">Yükleniyor...</td>
                     </tr>
                   ) : productionRuns.length === 0 ? (
                     <tr>
-                      <td colSpan="9" className="px-6 py-8 text-center text-slate-500">Kayıt bulunamadı.</td>
+                      <td colSpan="10" className="px-6 py-8 text-center text-slate-500">Kayıt bulunamadı.</td>
                     </tr>
                   ) : (
                     paginatedProductionRuns.map(run => (
                       <tr key={run.unit_id} className="hover:bg-slate-100 dark:bg-[#2a3142] transition-colors text-slate-700 dark:text-slate-300">
+                        <td className="px-6 py-4">
+                          <div className="font-mono font-bold text-slate-900 dark:text-slate-200">
+                            {run.serial_number}
+                          </div>
+                        </td>
                         <td className="px-6 py-4">
                           <div className="font-medium text-slate-800 dark:text-slate-200">
                             {run.target_part_name || '-'} {parts.find(p => p.id == run.target_part_id)?.part_category ? `(${parts.find(p => p.id == run.target_part_id).part_category})` : ''}
@@ -2305,7 +2311,7 @@ export default function WorkOrders() {
             </div>
 
             <p className="text-sm text-slate-500 dark:text-slate-400 mb-5">
-              <span className="font-semibold text-slate-800 dark:text-slate-200">{returnDialog.quantity_produced} adetlik</span> üretim grubu iade ediliyor.
+              <span className="font-semibold text-slate-800 dark:text-slate-200">{returnDialog.serial_number}</span> iş emri numaralı ve <span className="font-semibold text-slate-800 dark:text-slate-200">{returnDialog.quantity_produced} adetlik</span> üretim grubu iade ediliyor.
             </p>
 
             <div className="space-y-5 mb-6">
@@ -2451,7 +2457,8 @@ export default function WorkOrders() {
               {/* Genel Bilgiler */}
               <div className="bg-slate-50 dark:bg-[#242a38] p-4 rounded-xl space-y-2 border border-slate-200 dark:border-slate-700/30">
                 <div className="flex justify-between items-center pb-2 border-b border-slate-200 dark:border-slate-700/40">
-                  <span className="font-medium text-slate-800 dark:text-slate-200 text-lg">Üretim Detayı</span>
+                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">İş Emri Numarası</span>
+                  <span className="font-mono font-bold text-slate-800 dark:text-slate-200 text-sm bg-slate-200 dark:bg-[#1e2330] px-2 py-0.5 rounded">{detailDialog.serial_number}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-400">Üretilen Parça:</span>
