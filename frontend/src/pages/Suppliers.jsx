@@ -1,31 +1,64 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Search, Plus, Trash2, Edit, AlertCircle, RefreshCw, X, Truck, Package, Box, Hash, Barcode } from 'lucide-react';
+import * as XLSX from 'xlsx';
+import { Search, Plus, Trash2, Edit, AlertCircle, RefreshCw, X, Users, Download, Upload, FileSpreadsheet, Check } from 'lucide-react';
 import { api } from '../services/api';
 
+// Backend'deki CUSTOMER_FLOW_VALUES (core/web_bridge.py) ile birebir aynı olmalı.
+const FLOW_VALUES = ['Refurbish', 'Repair', 'RMA', 'Battery Replacement'];
+
+// Toplu (Excel) yükleme şablonundaki sütun sırası ve zorunluluk bilgisi.
+// generate_customer_bulk_template (core/web_bridge.py) ile birebir eşleşmeli.
+const BULK_TEMPLATE_COLUMNS = [
+  { header: 'IMEI Numarası', key: 'imei_number', required: true },
+  { header: 'Seri Numarası', key: 'serial_number', required: true },
+  { header: 'Internal ID', key: 'internal_id', required: true },
+  { header: 'Cihaz Modeli', key: 'cihaz_modeli', required: true },
+  { header: 'Flow (İş Akışı)', key: 'flow', required: true },
+  { header: 'Müşteri Şikayeti', key: 'customer_reported_complaint', required: true },
+  { header: 'Giriş Tarihi', key: 'intake_date', required: true },
+  { header: 'Müşteri Adı', key: 'customer_name', required: false },
+  { header: 'Müşteri Telefon', key: 'customer_phone', required: false },
+  { header: 'Müşteri E-posta', key: 'customer_email', required: false },
+  { header: 'Firma', key: 'company', required: false }
+];
+
+const EMPTY_FORM = {
+  customer_name: '', customer_phone: '', customer_email: '', company: '',
+  imei_number: '', serial_number: '', internal_id: '', cihaz_modeli: '',
+  flow: '', customer_reported_complaint: '', intake_date: ''
+};
+
 export default function Suppliers() {
-  const [suppliers, setSuppliers] = useState([]);
+  const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [currentSupplier, setCurrentSupplier] = useState(null);
-  
-  const [formData, setFormData] = useState({
-    supplier: '', brand: '', model: '', item_code: '', barcode: ''
-  });
+  const [products, setProducts] = useState([]);
 
-  const fetchSuppliers = async (silent = false) => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [currentCustomer, setCurrentCustomer] = useState(null);
+  const [formData, setFormData] = useState(EMPTY_FORM);
+
+  // --- Toplu (Excel) Yükleme state ---
+  const [showBulkModal, setShowBulkModal] = useState(false);
+  const [bulkFileName, setBulkFileName] = useState('');
+  const [bulkRows, setBulkRows] = useState(null);
+  const [bulkErrors, setBulkErrors] = useState([]);
+  const [bulkSaving, setBulkSaving] = useState(false);
+  const [bulkSuccess, setBulkSuccess] = useState(null);
+  const [templateDownloading, setTemplateDownloading] = useState(false);
+
+  const fetchCustomers = async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      const res = await api.getSuppliers();
+      const res = await api.getCustomers();
       if (res && res.success) {
-        setSuppliers(res.suppliers || []);
+        setCustomers(res.customers || []);
         setError('');
       } else {
         setError(res ? res.message : 'Hata');
       }
-    } catch (err) {
+    } catch (_err) {
       setError('Bağlantı hatası.');
     } finally {
       if (!silent) setLoading(false);
@@ -33,85 +66,204 @@ export default function Suppliers() {
   };
 
   useEffect(() => {
-    fetchSuppliers();
-    const interval = setInterval(() => fetchSuppliers(true), 60000);
+    fetchCustomers();
+    api.getProducts().then(res => { if (res.success) setProducts(res.products || []); });
+    const interval = setInterval(() => fetchCustomers(true), 60000);
     return () => clearInterval(interval);
   }, []);
 
-  const handleOpenModal = (supplier = null) => {
-    if (supplier) {
-      setCurrentSupplier(supplier);
+  const deviceModelOptions = useMemo(
+    () => Array.from(new Set(products.filter(p => p.brand && p.model).map(p => `${p.brand} ${p.model}`))).sort(),
+    [products]
+  );
+
+  const handleOpenModal = (customer = null) => {
+    if (customer) {
+      setCurrentCustomer(customer);
       setFormData({
-        supplier: supplier.supplier || '',
-        brand: supplier.brand || '',
-        model: supplier.model || '',
-        item_code: supplier.item_code || '',
-        barcode: supplier.barcode || ''
+        customer_name: customer.customer_name || '',
+        customer_phone: customer.customer_phone || '',
+        customer_email: customer.customer_email || '',
+        company: customer.company || '',
+        imei_number: customer.imei_number || '',
+        serial_number: customer.serial_number || '',
+        internal_id: customer.internal_id || '',
+        cihaz_modeli: (customer.brand || customer.model) ? `${customer.brand || ''} ${customer.model || ''}`.trim() : '',
+        flow: customer.flow || '',
+        customer_reported_complaint: customer.customer_reported_complaint || '',
+        intake_date: customer.intake_date || ''
       });
     } else {
-      setCurrentSupplier(null);
-      setFormData({ supplier: '', brand: '', model: '', item_code: '', barcode: '' });
+      setCurrentCustomer(null);
+      setFormData(EMPTY_FORM);
     }
     setIsModalOpen(true);
   };
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
-    setCurrentSupplier(null);
+    setCurrentCustomer(null);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    try {
-      const res = await api.createSupplier(formData);
-      if (res && res.success) fetchSuppliers();
-      else alert(res ? res.message : "Hata");
-    } catch (err) {}
-    handleCloseModal();
-  };
-
-  const handleDelete = async (id) => {
-    if (window.confirm('Silmek istediğinize emin misiniz?')) {
-      const res = await api.deletePart(id);
-      if (res && res.success) fetchSuppliers();
-      else alert(res ? res.message : "Hata");
+    const res = currentCustomer
+      ? await api.updateCustomer(currentCustomer.id, formData)
+      : await api.createCustomer(formData);
+    if (res && res.success) {
+      fetchCustomers();
+      handleCloseModal();
+    } else {
+      alert(res ? res.message : 'Hata');
     }
   };
 
-  const filteredSuppliers = useMemo(() => {
-    return suppliers.filter(s => 
-      (s.supplier && s.supplier.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (s.brand && s.brand.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (s.model && s.model.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (s.item_code && s.item_code.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (s.barcode && s.barcode.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
-  }, [suppliers, searchTerm]);
+  const handleDelete = async (id) => {
+    if (window.confirm('Bu müşteri kaydını silmek istediğinize emin misiniz?')) {
+      const res = await api.deleteCustomer(id);
+      if (res && res.success) fetchCustomers();
+      else alert(res ? res.message : 'Hata');
+    }
+  };
 
-  // Extract distinct values for autocomplete
-  const distinctBrands = useMemo(() => [...new Set(suppliers.map(s => s.brand).filter(Boolean))], [suppliers]);
-  const distinctModels = useMemo(() => [...new Set(suppliers.map(s => s.model).filter(Boolean))], [suppliers]);
-  const distinctItemCodes = useMemo(() => [...new Set(suppliers.map(s => s.item_code).filter(Boolean))], [suppliers]);
-  const distinctBarcodes = useMemo(() => [...new Set(suppliers.map(s => s.barcode).filter(Boolean))], [suppliers]);
+  const filteredCustomers = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
+    if (!q) return customers;
+    return customers.filter(c =>
+      (c.customer_name && c.customer_name.toLowerCase().includes(q)) ||
+      (c.customer_phone && c.customer_phone.toLowerCase().includes(q)) ||
+      (c.customer_email && c.customer_email.toLowerCase().includes(q)) ||
+      (c.company && c.company.toLowerCase().includes(q)) ||
+      (c.imei_number && c.imei_number.toLowerCase().includes(q)) ||
+      (c.serial_number && c.serial_number.toLowerCase().includes(q))
+    );
+  }, [customers, searchTerm]);
+
+  // ===================== Toplu (Excel) Yükleme =====================
+
+  const handleDownloadTemplate = async () => {
+    setTemplateDownloading(true);
+    const res = await api.downloadCustomerBulkTemplate();
+    setTemplateDownloading(false);
+    if (!res.success) alert(res.message || 'Şablon indirilemedi.');
+  };
+
+  const handleOpenBulkModal = () => {
+    setBulkFileName('');
+    setBulkRows(null);
+    setBulkErrors([]);
+    setBulkSuccess(null);
+    setShowBulkModal(true);
+  };
+
+  const findRawHeader = (rawHeaders, targetHeader) =>
+    rawHeaders.find(h => String(h || '').replace(/\*/g, '').trim().toLowerCase() === targetHeader.toLowerCase());
+
+  const handleBulkFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setBulkFileName(file.name);
+    setBulkErrors([]);
+    setBulkSuccess(null);
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = new Uint8Array(event.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rawHeaders = XLSX.utils.sheet_to_json(worksheet, { header: 1 })[0] || [];
+        const rawRows = XLSX.utils.sheet_to_json(worksheet);
+
+        const mapped = rawRows
+          .map(row => {
+            const obj = {};
+            BULK_TEMPLATE_COLUMNS.forEach(col => {
+              const rawKey = findRawHeader(rawHeaders, col.header);
+              let val = rawKey !== undefined ? row[rawKey] : undefined;
+              if (val === undefined || val === null) val = '';
+              if (col.key === 'intake_date' && val instanceof Date) {
+                val = val.toISOString().slice(0, 10);
+              }
+              obj[col.key] = String(val).trim();
+            });
+            return obj;
+          })
+          .filter(row => Object.values(row).some(v => v !== ''));
+
+        if (mapped.length === 0) {
+          setBulkRows(null);
+          setBulkErrors([{ row: '-', field: '-', message: 'Dosyada içe aktarılacak satır bulunamadı.' }]);
+          return;
+        }
+
+        const clientErrors = [];
+        mapped.forEach((row, idx) => {
+          const rowNum = idx + 2;
+          BULK_TEMPLATE_COLUMNS.filter(c => c.required).forEach(col => {
+            if (!row[col.key]) {
+              clientErrors.push({ row: rowNum, field: col.header, message: `${col.header} boş olamaz.` });
+            }
+          });
+        });
+
+        setBulkRows(mapped);
+        setBulkErrors(clientErrors);
+      } catch (_err) {
+        setBulkRows(null);
+        setBulkErrors([{ row: '-', field: '-', message: 'Excel dosyası okunamadı. İndirdiğiniz şablonu kullandığınızdan emin olun.' }]);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  const handleConfirmBulkImport = async () => {
+    if (!bulkRows || bulkRows.length === 0 || bulkErrors.length > 0) return;
+    setBulkSaving(true);
+    const res = await api.bulkImportCustomers(bulkRows);
+    setBulkSaving(false);
+    if (res.success) {
+      setBulkSuccess({ imported: res.imported || bulkRows.length });
+      setBulkRows(null);
+      fetchCustomers();
+    } else {
+      setBulkErrors(res.errors && res.errors.length > 0 ? res.errors : [{ row: '-', field: '-', message: res.message || 'İçe aktarma başarısız oldu.' }]);
+    }
+  };
 
   return (
     <div className="h-full flex flex-col space-y-6 overflow-hidden">
-      
+
       {/* Header */}
       <div className="flex justify-between items-center bg-white dark:bg-[#1e2330] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm shrink-0">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-3">
-            <Truck className="text-indigo-400" size={28}/> Müşteriler
+            <Users className="text-indigo-400" size={28}/> Müşteriler
           </h1>
-          <p className="text-slate-400 mt-1">Müşteri, marka, model, ürün kodu ve barkod bilgilerini yönetin</p>
+          <p className="text-slate-400 mt-1">Müşteri iletişim ve cihaz kabul (IMEI/Seri No/Flow) bilgilerini yönetin</p>
         </div>
-        <button 
-          onClick={() => handleOpenModal()}
-          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl transition-all shadow-lg shadow-indigo-900/20 font-medium text-sm"
-        >
-          <Plus size={18} />
-          <span>Yeni Ekle</span>
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleDownloadTemplate}
+            disabled={templateDownloading}
+            className="flex items-center gap-2 bg-white dark:bg-[#1e2330] hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-600 px-4 py-2.5 rounded-xl transition-all font-medium text-sm disabled:opacity-60"
+          >
+            <Download size={16} /> {templateDownloading ? 'İndiriliyor...' : 'Şablon İndir'}
+          </button>
+          <button
+            onClick={handleOpenBulkModal}
+            className="flex items-center gap-2 bg-white dark:bg-[#1e2330] hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-600 px-4 py-2.5 rounded-xl transition-all font-medium text-sm"
+          >
+            <Upload size={16} /> Toplu Yükle
+          </button>
+          <button
+            onClick={() => handleOpenModal()}
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl transition-all shadow-lg shadow-indigo-900/20 font-medium text-sm"
+          >
+            <Plus size={18} />
+            <span>Yeni Ekle</span>
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -127,9 +279,9 @@ export default function Suppliers() {
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <Search className="text-slate-400" size={18} />
           </div>
-          <input 
-            type="text" 
-            placeholder="Ara (ID, Müşteri, Marka, Model, Ürün Kodu, Barkod)..."
+          <input
+            type="text"
+            placeholder="Ara (Müşteri Adı, Telefon, E-posta, Firma, IMEI, Seri No)..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:border-indigo-500 shadow-sm"
@@ -143,47 +295,63 @@ export default function Suppliers() {
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase text-xs sticky top-0 z-10">
               <tr>
-                <th className="px-6 py-4">TEDARİKÇİ</th>
-                <th className="px-6 py-4">MARKA</th>
-                <th className="px-6 py-4">MODEL</th>
-                <th className="px-6 py-4">ÜRÜN KODU</th>
-                <th className="px-6 py-4">BARKOD</th>
+                <th className="px-6 py-4">MÜŞTERİ</th>
+                <th className="px-6 py-4">CİHAZ</th>
+                <th className="px-6 py-4">FLOW</th>
+                <th className="px-6 py-4">GİRİŞ TARİHİ</th>
                 <th className="px-6 py-4 text-right">İŞLEMLER</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-700/50">
               {loading ? (
                 <tr>
-                  <td colSpan="6" className="px-6 py-12 text-center text-slate-400">
+                  <td colSpan="5" className="px-6 py-12 text-center text-slate-400">
                     <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-3 text-indigo-400" />
                     <span className="font-medium">Yükleniyor...</span>
                   </td>
                 </tr>
-              ) : filteredSuppliers.length === 0 ? (
+              ) : filteredCustomers.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="px-6 py-12 text-center text-slate-500">
+                  <td colSpan="5" className="px-6 py-12 text-center text-slate-500">
                     Kayıt bulunamadı.
                   </td>
                 </tr>
               ) : (
-                filteredSuppliers.map((supplier) => (
-                  <tr key={supplier.id} className="hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors group text-slate-700 dark:text-slate-300">
-                    <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200">{supplier.supplier || '-'}</td>
-                    <td className="px-6 py-4">{supplier.brand || '-'}</td>
-                    <td className="px-6 py-4">{supplier.model || '-'}</td>
-                    <td className="px-6 py-4 font-mono text-slate-400">{supplier.item_code || '-'}</td>
-                    <td className="px-6 py-4 font-mono text-slate-400">{supplier.barcode || '-'}</td>
+                filteredCustomers.map((customer) => (
+                  <tr key={customer.id} className="hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors group text-slate-700 dark:text-slate-300">
+                    <td className="px-6 py-4">
+                      <div className="font-medium text-slate-800 dark:text-slate-200">{customer.customer_name || '-'}</div>
+                      <div className="text-xs text-slate-400">{customer.customer_phone}{customer.company ? ` · ${customer.company}` : ''}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div>{customer.brand} {customer.model}</div>
+                      <div className="text-xs text-slate-400 font-mono">
+                        {customer.imei_number && `IMEI: ${customer.imei_number}`}
+                        {customer.imei_number && customer.serial_number && ' · '}
+                        {customer.serial_number && `SN: ${customer.serial_number}`}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      {customer.flow ? (
+                        <span className="px-2.5 py-1 rounded-full text-xs font-medium border bg-teal-500/10 text-teal-500 border-teal-500/20">
+                          {customer.flow}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400">-</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-slate-400">{customer.intake_date || '-'}</td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex justify-end gap-2">
-                        <button 
-                          onClick={() => handleOpenModal(supplier)}
+                        <button
+                          onClick={() => handleOpenModal(customer)}
                           className="p-2 text-indigo-400 hover:bg-indigo-500/10 rounded-lg transition-colors border border-transparent hover:border-indigo-500/20"
                           title="Düzenle"
                         >
                           <Edit size={16} />
                         </button>
-                        <button 
-                          onClick={() => handleDelete(supplier.id)}
+                        <button
+                          onClick={() => handleDelete(customer.id)}
                           className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors border border-transparent hover:border-red-500/20"
                           title="Sil"
                         >
@@ -199,105 +367,98 @@ export default function Suppliers() {
         </div>
       </div>
 
-      {/* Modal */}
+      {/* Ekle/Düzenle Modalı */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-50 dark:bg-[#0f1219]/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200">
+          <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in duration-200">
             <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 flex justify-between items-center bg-slate-50 dark:bg-[#242a38]">
               <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                <Truck size={20} className="text-indigo-400"/>
-                {currentSupplier ? 'Müşteri Düzenle' : 'Yeni Müşteri Ekle'}
+                <Users size={20} className="text-indigo-400"/>
+                {currentCustomer ? 'Müşteri Düzenle' : 'Yeni Müşteri Ekle'}
               </h2>
               <button type="button" onClick={handleCloseModal} className="text-slate-400 hover:text-slate-900 dark:text-white transition-colors bg-white dark:bg-[#1e2330] p-1.5 rounded-lg border border-slate-200 dark:border-slate-700">
                 <X size={18} />
               </button>
             </div>
-            
+
             <form onSubmit={handleSubmit} className="p-6 space-y-5">
-              
+
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-slate-400 flex items-center gap-2">
-                  <Truck size={14}/> Müşteri Adı
-                </label>
-                <input 
-                  type="text" 
-                  required 
-                  placeholder="Örn. XYZ Elektronik"
-                  className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500 placeholder-slate-500" 
-                  value={formData.supplier} 
-                  onChange={e => setFormData({...formData, supplier: e.target.value})} 
+                <label className="text-sm font-medium text-slate-400">Müşteri Adı <span className="text-red-500">*</span></label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Örn. Ahmet Yılmaz"
+                  className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500 placeholder-slate-500"
+                  value={formData.customer_name}
+                  onChange={e => setFormData({...formData, customer_name: e.target.value})}
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-5">
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-slate-400 flex items-center gap-2">
-                    <Package size={14}/> Marka
-                  </label>
-                  <input 
-                    type="text" 
-                    list="brand-list"
-                    placeholder="Marka seçin/yazın"
-                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500 placeholder-slate-500" 
-                    value={formData.brand} 
-                    onChange={e => setFormData({...formData, brand: e.target.value})} 
-                  />
-                  <datalist id="brand-list">
-                    {distinctBrands.map((b, idx) => <option key={idx} value={b} />)}
-                  </datalist>
+                  <label className="text-sm font-medium text-slate-400">Telefon</label>
+                  <input type="text" className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500" value={formData.customer_phone} onChange={e => setFormData({...formData, customer_phone: e.target.value})} />
                 </div>
-                
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-slate-400 flex items-center gap-2">
-                    <Box size={14}/> Model
-                  </label>
-                  <input 
-                    type="text" 
-                    list="model-list"
-                    placeholder="Model seçin/yazın"
-                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500 placeholder-slate-500" 
-                    value={formData.model} 
-                    onChange={e => setFormData({...formData, model: e.target.value})} 
-                  />
-                  <datalist id="model-list">
-                    {distinctModels.map((m, idx) => <option key={idx} value={m} />)}
-                  </datalist>
+                  <label className="text-sm font-medium text-slate-400">E-posta</label>
+                  <input type="email" className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500" value={formData.customer_email} onChange={e => setFormData({...formData, customer_email: e.target.value})} />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-5">
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-slate-400 flex items-center gap-2">
-                    <Hash size={14}/> Ürün Kodu
-                  </label>
-                  <input 
-                    type="text" 
-                    list="itemcode-list"
-                    placeholder="Ürün kodu seçin/yazın"
-                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500 placeholder-slate-500 font-mono" 
-                    value={formData.item_code} 
-                    onChange={e => setFormData({...formData, item_code: e.target.value})} 
-                  />
-                  <datalist id="itemcode-list">
-                    {distinctItemCodes.map((c, idx) => <option key={idx} value={c} />)}
-                  </datalist>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-slate-400">Firma</label>
+                <input type="text" className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500" value={formData.company} onChange={e => setFormData({...formData, company: e.target.value})} />
+              </div>
+
+              <div className="border-t border-slate-200 dark:border-slate-700/50 pt-4">
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Cihaz Kabul Bilgileri (opsiyonel)</p>
+                <div className="grid grid-cols-2 gap-5 mb-5">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-slate-400">IMEI Numarası</label>
+                    <input type="text" className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500 font-mono" value={formData.imei_number} onChange={e => setFormData({...formData, imei_number: e.target.value})} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-slate-400">Seri Numarası</label>
+                    <input type="text" className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500 font-mono" value={formData.serial_number} onChange={e => setFormData({...formData, serial_number: e.target.value})} />
+                  </div>
                 </div>
-                
+                <div className="grid grid-cols-2 gap-5 mb-5">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-slate-400">Internal ID</label>
+                    <input type="text" className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500 font-mono" value={formData.internal_id} onChange={e => setFormData({...formData, internal_id: e.target.value})} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-slate-400">Cihaz Modeli</label>
+                    <input
+                      type="text"
+                      list="device-model-list"
+                      placeholder="Model seçin/yazın"
+                      className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500"
+                      value={formData.cihaz_modeli}
+                      onChange={e => setFormData({...formData, cihaz_modeli: e.target.value})}
+                    />
+                    <datalist id="device-model-list">
+                      {deviceModelOptions.map((m, idx) => <option key={idx} value={m} />)}
+                    </datalist>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-5 mb-5">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-slate-400">Flow (İş Akışı)</label>
+                    <select className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500" value={formData.flow} onChange={e => setFormData({...formData, flow: e.target.value})}>
+                      <option value="">Seçiniz...</option>
+                      {FLOW_VALUES.map(f => <option key={f} value={f}>{f}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-slate-400">Giriş Tarihi</label>
+                    <input type="date" className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500" value={formData.intake_date} onChange={e => setFormData({...formData, intake_date: e.target.value})} />
+                  </div>
+                </div>
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-slate-400 flex items-center gap-2">
-                    <Barcode size={14}/> Barkod
-                  </label>
-                  <input 
-                    type="text" 
-                    list="barcode-list"
-                    placeholder="Barkod seçin/yazın"
-                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500 placeholder-slate-500 font-mono" 
-                    value={formData.barcode} 
-                    onChange={e => setFormData({...formData, barcode: e.target.value})} 
-                  />
-                  <datalist id="barcode-list">
-                    {distinctBarcodes.map((b, idx) => <option key={idx} value={b} />)}
-                  </datalist>
+                  <label className="text-sm font-medium text-slate-400">Müşteri Şikayeti</label>
+                  <textarea rows={2} className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500 resize-none" value={formData.customer_reported_complaint} onChange={e => setFormData({...formData, customer_reported_complaint: e.target.value})} />
                 </div>
               </div>
 
@@ -306,6 +467,105 @@ export default function Suppliers() {
                 <button type="submit" className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors shadow-lg shadow-indigo-900/20">Kaydet</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* --- TOPLU (EXCEL) YÜKLEME MODALI --- */}
+      {showBulkModal && (
+        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => !bulkSaving && setShowBulkModal(false)}>
+          <div
+            className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in duration-200"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 flex justify-between items-center bg-slate-50 dark:bg-[#242a38]">
+              <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                <FileSpreadsheet size={20} className="text-teal-500" /> Toplu Müşteri / Cihaz Girişi
+              </h2>
+              <button onClick={() => !bulkSaving && setShowBulkModal(false)} className="text-slate-400 hover:text-slate-900 dark:text-white transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5">
+              {bulkSuccess ? (
+                <div className="flex flex-col items-center text-center py-10">
+                  <div className="w-14 h-14 rounded-full bg-emerald-500/10 flex items-center justify-center mb-4">
+                    <Check className="text-emerald-500" size={28} />
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-1">İçe Aktarma Tamamlandı</h3>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">{bulkSuccess.imported} müşteri kaydı başarıyla eklendi.</p>
+                </div>
+              ) : (
+                <>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                    Önce <strong>Şablon İndir</strong> ile örnek dosyayı indirin, doldurun ve buradan yükleyin. IMEI/Seri Numarası/Internal ID/Cihaz Modeli/Flow/Müşteri Şikayeti/Giriş Tarihi alanları zorunludur; herhangi biri boş veya geçersizse dosyanın tamamı reddedilir.
+                  </p>
+
+                  <label className="flex flex-col items-center justify-center py-10 px-4 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-[#242a38]/50 cursor-pointer hover:border-teal-500 transition-colors">
+                    <Upload size={28} className="text-slate-400 mb-3" />
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                      {bulkFileName || 'Doldurulmuş şablon dosyasını seçin (.xlsx)'}
+                    </span>
+                    <input type="file" accept=".xlsx, .xls" className="hidden" onChange={handleBulkFileUpload} />
+                  </label>
+
+                  {bulkErrors.length > 0 && (
+                    <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
+                      <div className="flex items-center gap-2 text-red-500 font-semibold text-sm mb-2">
+                        <AlertCircle size={16} /> {bulkErrors.length} hata bulundu — hiçbir kayıt içe aktarılmadı
+                      </div>
+                      <div className="max-h-52 overflow-y-auto divide-y divide-red-500/10 text-xs">
+                        {bulkErrors.map((err, idx) => (
+                          <div key={idx} className="py-1.5 text-red-500 dark:text-red-400">
+                            <span className="font-mono font-semibold">Satır {err.row}</span>
+                            {err.field && err.field !== '-' ? ` — ${err.field}: ` : ' — '}
+                            {err.message}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {bulkRows && bulkErrors.length === 0 && (
+                    <div className="flex items-center gap-2 text-emerald-500 text-sm font-medium bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-4 py-3">
+                      <Check size={16} /> {bulkRows.length} satır bulundu, içe aktarmaya hazır.
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3 px-6 pb-6">
+              {bulkSuccess ? (
+                <button
+                  type="button"
+                  onClick={() => setShowBulkModal(false)}
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors shadow-lg shadow-blue-900/20"
+                >
+                  Kapat
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setShowBulkModal(false)}
+                    disabled={bulkSaving}
+                    className="px-5 py-2.5 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors border border-slate-300 dark:border-slate-600 disabled:opacity-50"
+                  >
+                    İptal
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleConfirmBulkImport}
+                    disabled={!bulkRows || bulkErrors.length > 0 || bulkSaving}
+                    className="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors shadow-lg shadow-teal-900/20 flex items-center gap-2"
+                  >
+                    <Upload size={16} /> {bulkSaving ? 'İçe Aktarılıyor...' : 'İçe Aktar'}
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         </div>
       )}

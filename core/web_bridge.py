@@ -96,6 +96,22 @@ PRODUCTION_WO_STATUS_WAITING = "BEKLIYOR"
 PRODUCTION_WO_STATUS_IN_PRODUCTION = "URETIMDE"
 PRODUCTION_WO_STATUS_COMPLETED = "TAMAMLANDI"
 
+# Müşteriler sayfası toplu (Excel) yükleme modülü için "Flow (İş Akışı)" alanının
+# kabul ettiği sabit değer kümesi. Hem şablon oluşturma (dropdown listesi) hem
+# de içe aktarma doğrulaması bu listeyi kullanır.
+CUSTOMER_FLOW_VALUES = ["Refurbish", "Repair", "RMA", "Battery Replacement"]
+
+# Toplu yüklemede zorunlu olan sütunlar (şablon başlığı -> customers alanı).
+CUSTOMER_BULK_REQUIRED_COLUMNS = [
+    ("IMEI Numarası", "imei_number"),
+    ("Seri Numarası", "serial_number"),
+    ("Internal ID", "internal_id"),
+    ("Cihaz Modeli", "cihaz_modeli"),
+    ("Flow (İş Akışı)", "flow"),
+    ("Müşteri Şikayeti", "customer_reported_complaint"),
+    ("Giriş Tarihi", "intake_date"),
+]
+
 
 def _get_system_location_id(db, kind):
     """Verilen kind'a ('good_stock' vb.) sahip sistem deposunun id'sini döner."""
@@ -1599,6 +1615,245 @@ class WebBridge(QObject):
         except Exception as e:
             db.rollback()
             return json.dumps({"success": False, "message": f"Silme hatası: {str(e)}"})
+        finally:
+            db.close()
+
+    @Slot(result=str)
+    def generate_customer_bulk_template(self):
+        """Müşteriler sayfası toplu (Excel) yükleme şablonunu üretir. Cihaz Modeli ve Flow
+        (İş Akışı) sütunlarına Excel Data Validation ile açılır liste eklenir; zorunlu
+        sütun başlıkları kırmızı ile işaretlenir. export_table_to_excel ile aynı
+        konvansiyonu kullanır: Downloads klasörüne kaydeder ve dosyayı otomatik açar."""
+        import os
+        from pathlib import Path
+        from sqlalchemy import text
+        import openpyxl
+        from openpyxl.worksheet.datavalidation import DataValidation
+        from openpyxl.styles import Font, PatternFill, Alignment
+        from core.excel_utils import style_excel_file
+
+        db = SessionLocal()
+        try:
+            model_rows = db.execute(text("""
+                SELECT DISTINCT brand, model FROM warehouse.products
+                WHERE brand IS NOT NULL AND model IS NOT NULL AND brand <> '' AND model <> ''
+                ORDER BY brand, model
+            """)).mappings().all()
+            device_models = [f"{r['brand']} {r['model']}".strip() for r in model_rows] or ["Tanımlı ürün bulunamadı"]
+
+            wb = openpyxl.Workbook()
+            sheet = wb.active
+            sheet.title = "Toplu Cihaz Girişi"
+
+            headers = [c[0] for c in CUSTOMER_BULK_REQUIRED_COLUMNS] + [
+                "Müşteri Adı", "Müşteri Telefon", "Müşteri E-posta", "Firma"
+            ]
+            required_col_count = len(CUSTOMER_BULK_REQUIRED_COLUMNS)
+            sheet.append(headers)
+
+            # Örnek satır, kullanıcıya beklenen formatı gösterir.
+            sheet.append([
+                "353XXXXXXXXXXXX", "SN-000123", "INT-000123",
+                device_models[0], CUSTOMER_FLOW_VALUES[0],
+                "Ekran kırık, dokunmatik çalışmıyor", "2026-01-15",
+                "Ahmet Yılmaz", "05XXXXXXXXX", "", ""
+            ])
+
+            max_data_row = 500
+
+            # Gizli "Listeler" sayfası: dropdown kaynakları buradan referans alınır
+            # (Cihaz Modeli listesi 255 karakter inline sınırını aşabileceği için).
+            list_sheet = wb.create_sheet("Listeler")
+            list_sheet["A1"] = "Cihaz Modelleri"
+            for i, dm in enumerate(device_models, start=2):
+                list_sheet.cell(row=i, column=1, value=dm)
+            list_sheet.sheet_state = "hidden"
+
+            model_range = f"Listeler!$A$2:$A${len(device_models) + 1}"
+            model_dv = DataValidation(type="list", formula1=f"={model_range}", allow_blank=True, showErrorMessage=True)
+            model_dv.error = "Lütfen listeden geçerli bir Cihaz Modeli seçin."
+            model_dv.errorTitle = "Geçersiz Cihaz Modeli"
+            sheet.add_data_validation(model_dv)
+
+            flow_list = ",".join(CUSTOMER_FLOW_VALUES)
+            flow_dv = DataValidation(type="list", formula1=f'"{flow_list}"', allow_blank=True, showErrorMessage=True)
+            flow_dv.error = "Lütfen listeden geçerli bir Flow (İş Akışı) değeri seçin."
+            flow_dv.errorTitle = "Geçersiz Flow"
+            sheet.add_data_validation(flow_dv)
+
+            model_col_letter = openpyxl.utils.get_column_letter(headers.index("Cihaz Modeli") + 1)
+            flow_col_letter = openpyxl.utils.get_column_letter(headers.index("Flow (İş Akışı)") + 1)
+            model_dv.add(f"{model_col_letter}2:{model_col_letter}{max_data_row}")
+            flow_dv.add(f"{flow_col_letter}2:{flow_col_letter}{max_data_row}")
+
+            # Giriş Tarihi sütununu metin olarak biçimlendir (kullanıcı YYYY-AA-GG girer);
+            # Excel'in kendi tarih otomatik-biçimlendirmesiyle karışmasın diye.
+            intake_col_letter = openpyxl.utils.get_column_letter(headers.index("Giriş Tarihi") + 1)
+            for row_idx in range(2, max_data_row + 1):
+                sheet[f"{intake_col_letter}{row_idx}"].number_format = "@"
+
+            downloads_path = str(Path.home() / "Downloads")
+            filename = "musteriler_toplu_yukleme_sablonu.xlsx"
+            file_path = os.path.join(downloads_path, filename)
+            counter = 1
+            base_name, ext = os.path.splitext(filename)
+            while os.path.exists(file_path):
+                file_path = os.path.join(downloads_path, f"{base_name}_{counter}{ext}")
+                counter += 1
+
+            wb.save(file_path)
+
+            try:
+                style_excel_file(file_path)
+            except Exception:
+                pass
+
+            # Zorunlu sütun başlıklarını kırmızıyla vurgula (style_excel_file'dan SONRA,
+            # üzerine yazılmasın diye tekrar açıp kaydediyoruz).
+            wb2 = openpyxl.load_workbook(file_path)
+            sheet2 = wb2["Toplu Cihaz Girişi"]
+            required_fill = PatternFill(start_color="B71C1C", end_color="B71C1C", fill_type="solid")
+            for col_idx in range(1, required_col_count + 1):
+                cell = sheet2.cell(row=1, column=col_idx)
+                cell.value = f"{cell.value} *"
+                cell.fill = required_fill
+                cell.font = Font(name="Segoe UI", color="FFFFFF", bold=True, size=11)
+                cell.alignment = Alignment(horizontal="center", vertical="center")
+            sheet2["A3"] = "(*) işaretli sütunlar zorunludur. Örnek satırı (2. satır) silip kendi verilerinizi girin."
+            wb2.save(file_path)
+
+            os.startfile(file_path)
+            return json.dumps({"success": True})
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
+    def bulk_import_customers(self, rows_json):
+        """Toplu (Excel) müşteri/cihaz kabul içe aktarma. Tüm satırları önce doğrular;
+        herhangi bir satırda herhangi bir zorunlu alan eksikse veya geçersizse HİÇBİR
+        satır kaydedilmez, tüm hatalar satır numarasıyla birlikte tek seferde döner."""
+        from sqlalchemy import text
+        from datetime import datetime
+        db = SessionLocal()
+        try:
+            try:
+                rows = json.loads(rows_json or "[]")
+            except (ValueError, TypeError):
+                return json.dumps({"success": False, "message": "Geçersiz dosya verisi.", "errors": []})
+
+            if not rows:
+                return json.dumps({"success": False, "message": "Dosyada içe aktarılacak satır bulunamadı.", "errors": []})
+
+            # Cihaz Modeli -> (brand, model, product_code) eşlemesi için ürün listesini çek.
+            product_rows = db.execute(text("""
+                SELECT brand, model, item_code FROM warehouse.products
+                WHERE brand IS NOT NULL AND model IS NOT NULL
+            """)).mappings().all()
+            model_lookup = {f"{r['brand']} {r['model']}".strip().lower(): r for r in product_rows}
+
+            existing_imeis = {r[0] for r in db.execute(text(
+                "SELECT imei_number FROM warehouse.customers WHERE imei_number IS NOT NULL"
+            )).all()}
+            existing_serials = {r[0] for r in db.execute(text(
+                "SELECT serial_number FROM warehouse.customers WHERE serial_number IS NOT NULL"
+            )).all()}
+
+            errors = []
+            seen_imeis_in_file = {}
+            seen_serials_in_file = {}
+            valid_rows = []
+
+            for idx, row in enumerate(rows):
+                row_num = idx + 2  # 1. satır başlık; ilk veri satırı Excel'de 2. satır
+                row = row or {}
+
+                def get_val(key):
+                    v = row.get(key)
+                    return str(v).strip() if v is not None else ""
+
+                imei = get_val("imei_number")
+                serial = get_val("serial_number")
+                internal_id = get_val("internal_id")
+                cihaz_modeli = get_val("cihaz_modeli")
+                flow = get_val("flow")
+                complaint = get_val("customer_reported_complaint")
+                intake_date = get_val("intake_date")
+
+                for label, value in [
+                    ("IMEI Numarası", imei), ("Seri Numarası", serial), ("Internal ID", internal_id),
+                    ("Cihaz Modeli", cihaz_modeli), ("Flow (İş Akışı)", flow),
+                    ("Müşteri Şikayeti", complaint), ("Giriş Tarihi", intake_date)
+                ]:
+                    if not value:
+                        errors.append({"row": row_num, "field": label, "message": f"{label} boş olamaz."})
+
+                if flow and flow not in CUSTOMER_FLOW_VALUES:
+                    errors.append({"row": row_num, "field": "Flow (İş Akışı)", "message": f"Geçersiz değer: \"{flow}\". Geçerli değerler: {', '.join(CUSTOMER_FLOW_VALUES)}"})
+
+                product = None
+                if cihaz_modeli:
+                    product = model_lookup.get(cihaz_modeli.strip().lower())
+                    if not product:
+                        errors.append({"row": row_num, "field": "Cihaz Modeli", "message": f"\"{cihaz_modeli}\" sistemde tanımlı bir ürün değil."})
+
+                if intake_date:
+                    try:
+                        datetime.strptime(intake_date[:10], "%Y-%m-%d")
+                    except ValueError:
+                        errors.append({"row": row_num, "field": "Giriş Tarihi", "message": f"\"{intake_date}\" geçerli bir tarih değil (YYYY-AA-GG bekleniyor)."})
+
+                if imei:
+                    if imei in existing_imeis:
+                        errors.append({"row": row_num, "field": "IMEI Numarası", "message": f"\"{imei}\" zaten sistemde kayıtlı."})
+                    elif imei in seen_imeis_in_file:
+                        errors.append({"row": row_num, "field": "IMEI Numarası", "message": f"\"{imei}\" dosyada birden fazla satırda tekrarlanıyor (satır {seen_imeis_in_file[imei]})."})
+                    else:
+                        seen_imeis_in_file[imei] = row_num
+
+                if serial:
+                    if serial in existing_serials:
+                        errors.append({"row": row_num, "field": "Seri Numarası", "message": f"\"{serial}\" zaten sistemde kayıtlı."})
+                    elif serial in seen_serials_in_file:
+                        errors.append({"row": row_num, "field": "Seri Numarası", "message": f"\"{serial}\" dosyada birden fazla satırda tekrarlanıyor (satır {seen_serials_in_file[serial]})."})
+                    else:
+                        seen_serials_in_file[serial] = row_num
+
+                valid_rows.append({
+                    "imei_number": imei or None, "serial_number": serial or None, "internal_id": internal_id or None,
+                    "flow": flow or None, "customer_reported_complaint": complaint or None,
+                    "intake_date": intake_date[:10] if intake_date else None,
+                    "brand": product["brand"] if product else None,
+                    "model": product["model"] if product else None,
+                    "product_code": product["item_code"] if product else None,
+                    "customer_name": get_val("customer_name") or None,
+                    "customer_phone": get_val("customer_phone") or None,
+                    "customer_email": get_val("customer_email") or None,
+                    "company": get_val("company") or None,
+                })
+
+            if errors:
+                return json.dumps({"success": False, "message": f"{len(errors)} hata bulundu, hiçbir satır içe aktarılmadı.", "errors": errors})
+
+            for r in valid_rows:
+                db.execute(text("""
+                    INSERT INTO warehouse.customers (
+                        imei_number, serial_number, internal_id, flow, customer_reported_complaint,
+                        intake_date, brand, model, product_code,
+                        customer_name, customer_phone, customer_email, company
+                    ) VALUES (
+                        :imei_number, :serial_number, :internal_id, :flow, :customer_reported_complaint,
+                        :intake_date, :brand, :model, :product_code,
+                        :customer_name, :customer_phone, :customer_email, :company
+                    )
+                """), r)
+
+            db.commit()
+            return json.dumps({"success": True, "message": f"{len(valid_rows)} müşteri kaydı başarıyla içe aktarıldı.", "imported": len(valid_rows)})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": f"İçe aktarma hatası: {str(e)}", "errors": []})
         finally:
             db.close()
 
@@ -3315,43 +3570,150 @@ class WebBridge(QObject):
 
 
     @Slot(result=str)
-    def get_suppliers(self):
-        from models.part import Part
+    def get_customers(self):
+        """Müşteriler sayfası için: warehouse.customers tablosundaki tüm kayıtlar
+        (parts tablosundan tamamen bağımsız, gerçek bir müşteri/cihaz kabul tablosu)."""
+        from sqlalchemy import text
         db = SessionLocal()
         try:
-            parts = db.query(Part).filter(Part.supplier != None).all()
-            res = []
-            for p in parts:
-                res.append({
-                    "id": p.id,
-                    "supplier": p.supplier,
-                    "brand": p.brand,
-                    "model": p.model,
-                    "item_code": p.item_code,
-                    "barcode": p.barcode
+            rows = db.execute(text("""
+                SELECT id, customer_name, customer_phone, customer_email, company,
+                       imei_number, serial_number, internal_id, brand, model, product_code,
+                       flow, customer_reported_complaint, intake_date, created_at
+                FROM warehouse.customers
+                ORDER BY id DESC
+                LIMIT 500
+            """)).mappings().all()
+            customers = []
+            for r in rows:
+                customers.append({
+                    "id": str(r["id"]),
+                    "customer_name": r["customer_name"] or "",
+                    "customer_phone": r["customer_phone"] or "",
+                    "customer_email": r["customer_email"] or "",
+                    "company": r["company"] or "",
+                    "imei_number": r["imei_number"] or "",
+                    "serial_number": r["serial_number"] or "",
+                    "internal_id": r["internal_id"] or "",
+                    "brand": r["brand"] or "",
+                    "model": r["model"] or "",
+                    "product_code": r["product_code"] or "",
+                    "flow": r["flow"] or "",
+                    "customer_reported_complaint": r["customer_reported_complaint"] or "",
+                    "intake_date": r["intake_date"].strftime("%Y-%m-%d") if r["intake_date"] else "",
+                    "created_at": r["created_at"].strftime("%Y-%m-%d %H:%M") if r["created_at"] else ""
                 })
-            return json.dumps({"success": True, "suppliers": res})
+            return json.dumps({"success": True, "customers": customers})
         except Exception as e:
             return json.dumps({"success": False, "message": str(e)})
         finally:
             db.close()
-            
-    @Slot(str, str, str, str, str, result=str)
-    def create_supplier(self, supplier, brand, model, item_code, barcode):
-        from models.part import Part
+
+    @Slot(str, str, str, str, str, str, str, str, str, str, str, result=str)
+    def create_customer(self, customer_name, customer_phone, customer_email, company,
+                         imei_number, serial_number, internal_id, cihaz_modeli, flow,
+                         customer_reported_complaint, intake_date):
+        """Yeni bir müşteri/cihaz kabul kaydı ekler (manuel tek-kayıt formu)."""
+        from sqlalchemy import text
         db = SessionLocal()
         try:
-            part = Part(
-                supplier=supplier,
-                brand=brand,
-                model=model,
-                item_code=item_code,
-                barcode=barcode,
-                name=f"{supplier} - {brand} {model}"
-            )
-            db.add(part)
+            name = (customer_name or "").strip()
+            if not name:
+                return json.dumps({"success": False, "message": "Müşteri adı zorunludur."})
+
+            product = None
+            if cihaz_modeli and cihaz_modeli.strip():
+                product = db.execute(text("""
+                    SELECT brand, model, item_code FROM warehouse.products
+                    WHERE LOWER(TRIM(brand || ' ' || model)) = LOWER(:cm) LIMIT 1
+                """), {"cm": cihaz_modeli.strip()}).mappings().first()
+
+            db.execute(text("""
+                INSERT INTO warehouse.customers (
+                    customer_name, customer_phone, customer_email, company,
+                    imei_number, serial_number, internal_id, brand, model, product_code,
+                    flow, customer_reported_complaint, intake_date
+                ) VALUES (
+                    :name, :phone, :email, :company,
+                    :imei, :serial, :internal_id, :brand, :model, :product_code,
+                    :flow, :complaint, :intake_date
+                )
+            """), {
+                "name": name, "phone": customer_phone or None, "email": customer_email or None,
+                "company": company or None,
+                "imei": imei_number or None, "serial": serial_number or None,
+                "internal_id": internal_id or None,
+                "brand": product["brand"] if product else None,
+                "model": product["model"] if product else None,
+                "product_code": product["item_code"] if product else None,
+                "flow": flow or None, "complaint": customer_reported_complaint or None,
+                "intake_date": intake_date or None
+            })
             db.commit()
-            return json.dumps({"success": True, "id": part.id})
+            return json.dumps({"success": True, "message": "Müşteri kaydı eklendi."})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, str, str, str, str, str, str, str, str, str, str, result=str)
+    def update_customer(self, customer_id_str, customer_name, customer_phone, customer_email, company,
+                         imei_number, serial_number, internal_id, cihaz_modeli, flow,
+                         customer_reported_complaint, intake_date):
+        """Var olan bir müşteri/cihaz kabul kaydını günceller."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            customer_id = int(customer_id_str)
+            name = (customer_name or "").strip()
+            if not name:
+                return json.dumps({"success": False, "message": "Müşteri adı zorunludur."})
+
+            product = None
+            if cihaz_modeli and cihaz_modeli.strip():
+                product = db.execute(text("""
+                    SELECT brand, model, item_code FROM warehouse.products
+                    WHERE LOWER(TRIM(brand || ' ' || model)) = LOWER(:cm) LIMIT 1
+                """), {"cm": cihaz_modeli.strip()}).mappings().first()
+
+            db.execute(text("""
+                UPDATE warehouse.customers
+                SET customer_name = :name, customer_phone = :phone, customer_email = :email, company = :company,
+                    imei_number = :imei, serial_number = :serial, internal_id = :internal_id,
+                    brand = :brand, model = :model, product_code = :product_code,
+                    flow = :flow, customer_reported_complaint = :complaint, intake_date = :intake_date
+                WHERE id = :id
+            """), {
+                "name": name, "phone": customer_phone or None, "email": customer_email or None,
+                "company": company or None,
+                "imei": imei_number or None, "serial": serial_number or None,
+                "internal_id": internal_id or None,
+                "brand": product["brand"] if product else None,
+                "model": product["model"] if product else None,
+                "product_code": product["item_code"] if product else None,
+                "flow": flow or None, "complaint": customer_reported_complaint or None,
+                "intake_date": intake_date or None,
+                "id": customer_id
+            })
+            db.commit()
+            return json.dumps({"success": True, "message": "Müşteri kaydı güncellendi."})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
+    def delete_customer(self, customer_id_str):
+        """Belirtilen id'ye sahip müşteri kaydını siler."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            customer_id = int(customer_id_str)
+            db.execute(text("DELETE FROM warehouse.customers WHERE id = :id"), {"id": customer_id})
+            db.commit()
+            return json.dumps({"success": True, "message": "Müşteri kaydı silindi."})
         except Exception as e:
             db.rollback()
             return json.dumps({"success": False, "message": str(e)})

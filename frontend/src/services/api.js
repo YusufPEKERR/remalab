@@ -930,27 +930,82 @@ export const api = {
     },
 
     // ==========================
-    // SUPPLIERS (TEDARİKÇİLER)
+    // MÜŞTERİLER
     // ==========================
 
-    getSuppliers: async () => {
+    getCustomers: async () => {
         const backend = await getBackend();
         return new Promise((resolve) => {
-            if (backend.get_suppliers) {
-                backend.get_suppliers((res) => resolve(JSON.parse(res)));
+            if (backend.get_customers) {
+                backend.get_customers((res) => resolve(JSON.parse(res)));
             } else {
-                resolve({ success: true, suppliers: [] });
+                resolve({ success: true, customers: [] });
             }
         });
     },
 
-    createSupplier: async (s) => {
+    createCustomer: async (c) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
-            if (backend.create_supplier) {
-                backend.create_supplier(s.supplier || '', s.brand || '', s.model || '', s.item_code || '', s.barcode || '', (res) => resolve(JSON.parse(res)));
+            if (backend.create_customer) {
+                backend.create_customer(
+                    c.customer_name || '', c.customer_phone || '', c.customer_email || '', c.company || '',
+                    c.imei_number || '', c.serial_number || '', c.internal_id || '', c.cihaz_modeli || '',
+                    c.flow || '', c.customer_reported_complaint || '', c.intake_date || '',
+                    (res) => resolve(JSON.parse(res))
+                );
             } else {
                 resolve({ success: true });
+            }
+        });
+    },
+
+    updateCustomer: async (id, c) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.update_customer) {
+                backend.update_customer(
+                    String(id),
+                    c.customer_name || '', c.customer_phone || '', c.customer_email || '', c.company || '',
+                    c.imei_number || '', c.serial_number || '', c.internal_id || '', c.cihaz_modeli || '',
+                    c.flow || '', c.customer_reported_complaint || '', c.intake_date || '',
+                    (res) => resolve(JSON.parse(res))
+                );
+            } else {
+                resolve({ success: true });
+            }
+        });
+    },
+
+    deleteCustomer: async (id) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.delete_customer) {
+                backend.delete_customer(String(id), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true });
+            }
+        });
+    },
+
+    downloadCustomerBulkTemplate: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.generate_customer_bulk_template) {
+                backend.generate_customer_bulk_template((res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false, message: 'Bu özellik mevcut değil.' });
+            }
+        });
+    },
+
+    bulkImportCustomers: async (rows) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.bulk_import_customers) {
+                backend.bulk_import_customers(JSON.stringify(rows || []), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false, message: 'Bu özellik mevcut değil.', errors: [] });
             }
         });
     },
