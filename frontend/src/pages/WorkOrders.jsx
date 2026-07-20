@@ -157,6 +157,7 @@ export default function WorkOrders() {
   const [issueDialog, setIssueDialog] = useState(null); // {mrId, partName, itemCode, required, issued, remaining} | null
   const [issueQuantity, setIssueQuantity] = useState(1);
   const [issueSaving, setIssueSaving] = useState(false);
+  const [startSaving, setStartSaving] = useState(false);
   const [completeDialog, setCompleteDialog] = useState(null); // order | null
   const [completeForm, setCompleteForm] = useState(EMPTY_COMPLETE_FORM);
   const [completeSaving, setCompleteSaving] = useState(false);
