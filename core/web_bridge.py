@@ -600,6 +600,7 @@ class WebBridge(QObject):
             db.execute(text("ALTER TABLE warehouse.part_categories ADD COLUMN IF NOT EXISTS stock_tracking_type VARCHAR(20) DEFAULT 'Stok Takipli';"))
             db.execute(text("ALTER TABLE warehouse.part_categories ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;"))
             db.execute(text("ALTER TABLE warehouse.part_categories ADD COLUMN IF NOT EXISTS description TEXT;"))
+            db.execute(text("ALTER TABLE warehouse.part_categories ADD COLUMN IF NOT EXISTS part_type VARCHAR(100);"))
             db.commit()
         except Exception as e:
             db.rollback()
@@ -836,7 +837,7 @@ class WebBridge(QObject):
                 SELECT p.id, p.name, p.item_code, p.barcode, p.brand, p.model, p.color,
                        p.item_category, p.part_category_id,
                        COALESCE(pc.name, p.part_category) AS part_category,
-                       COALESCE(p.part_type, '') AS part_type,
+                       COALESCE(NULLIF(p.part_type, ''), NULLIF(pc.part_type, ''), '') AS part_type,
                        COALESCE(pc.departments, p.department, '') AS department,
                        COALESCE(pc.stock_tracking_type, p.stock_tracking_type, 'Stok Takipli') AS stock_tracking_type,
                        NULL AS default_location_id, '' AS default_location_name,
@@ -1386,7 +1387,7 @@ class WebBridge(QObject):
         db = SessionLocal()
         try:
             rows = db.execute(text("""
-                SELECT pc.id, pc.name, '' AS part_type, pc.departments, pc.stock_tracking_type,
+                SELECT pc.id, pc.name, COALESCE(pc.part_type, '') AS part_type, pc.departments, pc.stock_tracking_type,
                        NULL AS default_location_id, '' AS default_location_name,
                        pc.is_active, pc.description
                 FROM warehouse.part_categories pc
