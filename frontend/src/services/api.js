@@ -570,6 +570,7 @@ export const api = {
                     order.priority || 'Orta',
                     order.planned_quantity != null ? String(order.planned_quantity) : '',
                     order.assigned_technician || '',
+                    order.department || '',
                     (res) => resolve(JSON.parse(res))
                 );
             } else {
@@ -623,6 +624,17 @@ export const api = {
         return new Promise((resolve) => {
             if (backend.issue_material_request) {
                 backend.issue_material_request(String(mrId), String(quantity), username || '', (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true });
+            }
+        });
+    },
+
+    reportMaterialFire: async (mrId, fireQty, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.report_material_fire) {
+                backend.report_material_fire(String(mrId), String(fireQty), username || '', (res) => resolve(JSON.parse(res)));
             } else {
                 resolve({ success: true });
             }
@@ -825,6 +837,8 @@ export const api = {
                     run.produced_by || '',
                     run.notes || '',
                     run.materials_json || '[]',
+                    run.department || '',
+                    String(run.scrap_quantity || '0'),
                     (res) => resolve(JSON.parse(res))
                 );
             } else {
