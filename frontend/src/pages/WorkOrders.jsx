@@ -151,6 +151,11 @@ export default function WorkOrders() {
   const [returnDoaQty, setReturnDoaQty] = useState(1);
   const [returnDoaSaving, setReturnDoaSaving] = useState(false);
 
+  // Pagination states for Production Work Orders
+  const [prodWOItemsPerPage, setProdWOItemsPerPage] = useState(50);
+  const [prodWOCurrentPage, setProdWOCurrentPage] = useState(1);
+  const [prodWOPageInput, setProdWOPageInput] = useState('1');
+
   // --- Production Work Order state (work_orders, work_order_type = 'PRODUCTION') ---
   const [showProductionWOForm, setShowProductionWOForm] = useState(false);
   const [productionWOForm, setProductionWOForm] = useState(EMPTY_PRODUCTION_WO_FORM);
@@ -2039,10 +2044,11 @@ export default function WorkOrders() {
               </div>
             )}
 
-            <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs">
-                  <tr>
+            <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden flex flex-col">
+              <div className="overflow-y-auto max-h-[480px]">
+                <table className="w-full text-left text-sm whitespace-nowrap">
+                  <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs sticky top-0 z-10">
+                    <tr>
                     <th className="px-6 py-4">İş Emri No</th>
                     <th className="px-6 py-4">Üretilecek Parça</th>
                     <th className="px-6 py-4">Planlanan Adet</th>
@@ -2057,12 +2063,12 @@ export default function WorkOrders() {
                     <tr>
                       <td colSpan="7" className="px-6 py-8 text-center text-slate-400">Yükleniyor...</td>
                     </tr>
-                  ) : productionWorkOrders.length === 0 ? (
+                  ) : paginatedProdWOs.length === 0 ? (
                     <tr>
                       <td colSpan="7" className="px-6 py-8 text-center text-slate-500">Henüz Üretim İş Emri oluşturulmadı.</td>
                     </tr>
                   ) : (
-                    productionWorkOrders.map(order => (
+                    paginatedProdWOs.map(order => (
                       <tr
                         key={order.id}
                         onClick={() => handleSelectProductionOrder(order)}
@@ -2092,6 +2098,74 @@ export default function WorkOrders() {
                   )}
                 </tbody>
               </table>
+            </div>
+
+            {/* Pagination Footer */}
+            <div className="bg-slate-50 dark:bg-[#242a38] border-t border-slate-200 dark:border-slate-700/50 px-6 py-4 flex items-center justify-between text-slate-400 text-sm">
+              <div className="flex items-center gap-2">
+                <span>Sayfa Başına:</span>
+                <select
+                  value={prodWOItemsPerPage}
+                  onChange={(e) => { setProdWOItemsPerPage(Number(e.target.value)); setProdWOCurrentPage(1); }}
+                  className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-slate-500"
+                >
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                  <option value={250}>250</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => setProdWOCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={prodWOCurrentPage === 1}
+                  className="px-3 py-1.5 bg-white dark:bg-[#1e2330] hover:bg-slate-100 dark:hover:bg-[#2a3142] disabled:opacity-50 disabled:cursor-not-allowed border border-slate-200 dark:border-slate-700 rounded-lg transition-colors text-slate-700 dark:text-slate-300"
+                >
+                  ← Önceki
+                </button>
+                
+                <div className="flex items-center gap-1.5 font-medium">
+                  <span>Sayfa:</span>
+                  <input
+                    type="number"
+                    min="1"
+                    max={totalProdWOPages}
+                    value={prodWOPageInput}
+                    onChange={(e) => setProdWOPageInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        const pageNum = parseInt(prodWOPageInput, 10);
+                        if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= totalProdWOPages) {
+                          setProdWOCurrentPage(pageNum);
+                        } else {
+                          setProdWOPageInput(String(prodWOCurrentPage));
+                        }
+                      }
+                    }}
+                    onBlur={() => {
+                      const pageNum = parseInt(prodWOPageInput, 10);
+                      if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= totalProdWOPages) {
+                        setProdWOCurrentPage(pageNum);
+                      } else {
+                        setProdWOPageInput(String(prodWOCurrentPage));
+                      }
+                    }}
+                    className="w-16 bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-center text-slate-800 dark:text-slate-200 focus:outline-none focus:border-slate-500"
+                  />
+                  <span>/ {totalProdWOPages} <span className="text-slate-500 font-normal ml-1">({productionWorkOrders.length} Kayıt)</span></span>
+                </div>
+
+                <button
+                  onClick={() => setProdWOCurrentPage(prev => Math.min(prev + 1, totalProdWOPages))}
+                  disabled={prodWOCurrentPage === totalProdWOPages}
+                  className="px-3 py-1.5 bg-white dark:bg-[#1e2330] hover:bg-slate-100 dark:hover:bg-[#2a3142] disabled:opacity-50 disabled:cursor-not-allowed border border-slate-200 dark:border-slate-700 rounded-lg transition-colors text-slate-700 dark:text-slate-300"
+                >
+                  Sonraki →
+                </button>
+              </div>
+            </div>
             </div>
 
             {/* --- PRODUCTION WORK ORDER DETAY --- */}
