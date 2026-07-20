@@ -1014,14 +1014,14 @@ export default function WorkOrders() {
 
     parts.forEach(part => {
       const isYariMamul = 
-        (part.part_type && part.part_type.toLowerCase() === 'yarı mamul') ||
-        (part.item_category && part.item_category.toLowerCase() === 'yarı mamul') ||
-        (part.part_category && part.part_category.toLowerCase() === 'yarı mamul');
+        (String(part.part_type || '').toLowerCase() === 'yarı mamul') ||
+        (String(part.item_category || '').toLowerCase() === 'yarı mamul') ||
+        (String(part.part_category || '').toLowerCase() === 'yarı mamul');
       
       if (isYariMamul && !bomsMap.has(String(part.id))) {
         bomsMap.set(String(part.id), {
-          parent_item_id: part.item_code,
-          parent_name: part.name,
+          parent_item_id: part.item_code || '',
+          parent_name: part.name || '',
           parent_part_id: String(part.id),
           materials: []
         });
@@ -1032,10 +1032,13 @@ export default function WorkOrders() {
   }, [itemBoms, parts]);
 
   const filteredBoms = combinedBoms.filter(bom => {
-    const q = bomSearchQuery.toLowerCase();
-    const parentMatch = bom.parent_item_id.toLowerCase().includes(q) || bom.parent_name.toLowerCase().includes(q);
-    const childMatch = bom.materials.some(m =>
-      m.child_item_id.toLowerCase().includes(q) || m.child_name.toLowerCase().includes(q)
+    const q = (bomSearchQuery || '').toLowerCase();
+    const parentMatch = 
+      (bom.parent_item_id || '').toLowerCase().includes(q) || 
+      (bom.parent_name || '').toLowerCase().includes(q);
+    const childMatch = bom.materials && bom.materials.some(m =>
+      (m.child_item_id || '').toLowerCase().includes(q) || 
+      (m.child_name || '').toLowerCase().includes(q)
     );
     return parentMatch || childMatch;
   });
