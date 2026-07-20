@@ -144,6 +144,9 @@ export default function WorkOrders() {
   const [extraPartInQty, setExtraPartInQty] = useState(1);
   const [extraPartInTechnician, setExtraPartInTechnician] = useState('');
   const [extraPartInSaving, setExtraPartInSaving] = useState(false);
+  const [returnDoaDialog, setReturnDoaDialog] = useState(null); // { type: 'bom' | 'wop', data: any } | null
+  const [returnDoaQty, setReturnDoaQty] = useState(1);
+  const [returnDoaSaving, setReturnDoaSaving] = useState(false);
 
   // --- Production Work Order state (work_orders, work_order_type = 'PRODUCTION') ---
   const [showProductionWOForm, setShowProductionWOForm] = useState(false);
@@ -296,21 +299,9 @@ export default function WorkOrders() {
     }
   };
 
-  const handleReturnToDoa = async (row) => {
-    const rawQty = window.prompt(`${row.part_name} (${row.quantity} adet) için DOA stoğa geri alınacak miktarı giriniz:`, String(row.quantity));
-    if (!rawQty) return;
-    const qty = parseInt(rawQty, 10);
-    if (isNaN(qty) || qty <= 0 || qty > row.quantity) {
-      alert(`Lütfen 1 ile ${row.quantity} arasında geçerli bir miktar giriniz.`);
-      return;
-    }
-    const res = await api.returnPartToDoa(row.id, qty, currentUser?.username);
-    if (res.success) {
-      fetchWorkOrderParts(editingOrder.id);
-      refreshStockStatus();
-    } else {
-      alert(res.message || 'DOA stoğa geri alma başarısız oldu.');
-    }
+  const handleReturnToDoa = (row) => {
+    setReturnDoaQty(row.quantity || 1);
+    setReturnDoaDialog({ type: 'wop', data: row });
   };
 
   const handleExtraPart = async (row) => {
@@ -329,26 +320,60 @@ export default function WorkOrders() {
     }
   };
 
-  const handleReturnBomToDoa = async (bom) => {
-    const targetPartId = bom.parent_part_id || (bom.materials && bom.materials[0]?.child_part_id);
-    if (!targetPartId) {
-      alert("Hata: Reçete parça ID'si bulunamadı.");
-      return;
-    }
-    const partName = bom.parent_name || bom.parent_item_id || 'Reçete parçası';
-    const rawQty = window.prompt(`"${partName}" parçası için DOA stoğa geri alınacak miktarı giriniz:`, '1');
-    if (!rawQty) return;
-    const qty = parseInt(rawQty, 10);
+  const handleReturnBomToDoa = (bom) => {
+    setReturnDoaQty(1);
+    setReturnDoaDialog({ type: 'bom', data: bom });
+  };
+
+  const handleConfirmReturnDoa = async () => {
+    if (!returnDoaDialog || !returnDoaQty) return;
+    
+    const qty = parseInt(returnDoaQty, 10);
     if (isNaN(qty) || qty <= 0) {
-      alert('Geçerli bir miktar giriniz.');
+      alert('Lütfen geçerli bir miktar giriniz.');
       return;
     }
-    const res = await api.returnBomPartToDoa(targetPartId, qty, currentUser?.username);
-    if (res.success) {
-      alert(`"${partName}" parçasından ${qty} adet DOA stoğa geri alındı.`);
-      refreshStockStatus();
-    } else {
-      alert(res.message || 'DOA stoğa geri alma başarısız oldu.');
+    
+    if (returnDoaDialog.type === 'wop' && qty > returnDoaDialog.data.quantity) {
+      alert(`En fazla ${returnDoaDialog.data.quantity} adet iade edilebilir.`);
+      return;
+    }
+
+    setReturnDoaSaving(true);
+    try {
+      if (returnDoaDialog.type === 'bom') {
+        const bom = returnDoaDialog.data;
+        const targetPartId = bom.parent_part_id || (bom.materials && bom.materials[0]?.child_part_id);
+        const partName = bom.parent_name || bom.parent_item_id || 'Reçete parçası';
+        
+        if (!targetPartId) {
+            alert("Hata: Reçete parça ID'si bulunamadı.");
+            setReturnDoaSaving(false);
+            return;
+        }
+
+        const res = await api.returnBomPartToDoa(targetPartId, qty, currentUser?.username);
+        if (res.success) {
+          refreshStockStatus();
+          setReturnDoaDialog(null);
+        } else {
+          alert(res.message || 'DOA stoğa geri alma başarısız oldu.');
+        }
+      } else {
+        const row = returnDoaDialog.data;
+        const res = await api.returnPartToDoa(row.id, qty, currentUser?.username);
+        if (res.success) {
+          fetchWorkOrderParts(editingOrder.id);
+          refreshStockStatus();
+          setReturnDoaDialog(null);
+        } else {
+          alert(res.message || 'DOA stoğa geri alma başarısız oldu.');
+        }
+      }
+    } catch (err) {
+      alert('Sistem hatası oluştu.');
+    } finally {
+      setReturnDoaSaving(false);
     }
   };
 
@@ -387,7 +412,12 @@ export default function WorkOrders() {
   const handleReceiveExtraBomMaterials = (bom) => {
     setExtraPartInSelectedId('');
     setExtraPartInQty(1);
-    setExtraPartInTechnician('');
+    
+    // Find who produced the parent part recently
+    const targetPartId = bom.parent_part_id || (bom.materials && bom.materials[0]?.child_part_id);
+    const lastProd = productionRuns.find(r => r.target_part_id == targetPartId && !r.is_returned);
+    setExtraPartInTechnician(lastProd ? lastProd.produced_by : (currentUser?.username || ''));
+    
     setExtraPartInDialog(bom);
   };
 
@@ -2907,16 +2937,10 @@ export default function WorkOrders() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-1.5">Teknisyen <span className="text-red-500">*</span></label>
-                <select
-                  required
-                  className="w-full px-3 py-2.5 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl text-sm focus:outline-none focus:border-teal-500"
-                  value={extraPartInTechnician}
-                  onChange={e => setExtraPartInTechnician(e.target.value)}
-                >
-                  <option value="">Seçiniz...</option>
-                  {users.map(u => <option key={u.id} value={u.username}>{u.username}</option>)}
-                </select>
+                <label className="block text-sm font-medium text-slate-400 mb-1.5">Teknisyen</label>
+                <div className="w-full px-4 py-2.5 bg-slate-100 dark:bg-[#1a1f2b] border border-slate-200 dark:border-slate-700/50 text-slate-500 rounded-xl text-sm cursor-not-allowed">
+                  {extraPartInTechnician || 'Bilinmiyor'}
+                </div>
               </div>
             </div>
 
@@ -2936,6 +2960,67 @@ export default function WorkOrders() {
                 className="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 disabled:opacity-60 text-white rounded-xl font-medium transition-colors shadow-lg shadow-teal-900/20 flex items-center gap-2"
               >
                 <ArrowDownToLine size={16} /> {extraPartInSaving ? 'Kaydediliyor...' : 'Girişi Yap'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- DOA STOĞA GERİ AL FORMU --- */}
+      {returnDoaDialog && (
+        <div className="fixed inset-0 bg-slate-900/80 flex items-center justify-center z-50 p-4" onClick={() => !returnDoaSaving && setReturnDoaDialog(null)}>
+          <div
+            className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 shadow-2xl rounded-2xl w-full max-w-lg animate-in fade-in zoom-in-95 duration-200"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 flex justify-between items-center bg-slate-50 dark:bg-[#242a38]">
+              <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                <RotateCcw className="text-orange-500" size={20} /> DOA Stoğa Geri Al
+              </h3>
+              <button onClick={() => !returnDoaSaving && setReturnDoaDialog(null)} className="p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-[#2a3142] rounded-lg transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-1.5">Parça</label>
+                <div className="px-4 py-2.5 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200">
+                  {returnDoaDialog.type === 'bom' 
+                    ? (returnDoaDialog.data.parent_name || returnDoaDialog.data.parent_item_id || 'Reçete parçası') 
+                    : returnDoaDialog.data.part_name}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-1.5">İade Miktarı</label>
+                <input
+                  type="number"
+                  min="1"
+                  max={returnDoaDialog.type === 'wop' ? returnDoaDialog.data.quantity : undefined}
+                  className="w-full bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-teal-500"
+                  value={returnDoaQty}
+                  onChange={e => setReturnDoaQty(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 px-6 pb-6">
+              <button
+                type="button"
+                onClick={() => setReturnDoaDialog(null)}
+                disabled={returnDoaSaving}
+                className="px-5 py-2.5 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors border border-slate-300 dark:border-slate-600 disabled:opacity-50"
+              >
+                İptal
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmReturnDoa}
+                disabled={returnDoaSaving}
+                className="px-5 py-2.5 bg-orange-600 hover:bg-orange-700 disabled:opacity-60 text-white rounded-xl font-medium transition-colors shadow-lg shadow-orange-900/20 flex items-center gap-2"
+              >
+                <RotateCcw size={16} /> {returnDoaSaving ? 'İşleniyor...' : 'Onayla ve İade Et'}
               </button>
             </div>
           </div>
