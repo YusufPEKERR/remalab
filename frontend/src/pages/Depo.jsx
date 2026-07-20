@@ -24,7 +24,8 @@ export default function Depo() {
             name: s.part_name,
             location: s.location_name,
             quantity: s.quantity,
-            critical_limit: s.critical_limit
+            critical_limit: s.critical_limit,
+            updated_at: s.updated_at || s.date || '-'
           }));
         setInventory(mapped);
       }
@@ -94,6 +95,14 @@ export default function Depo() {
           <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">Depo Stok Durumu</h1>
           <p className="text-slate-400 mt-1">Depo lokasyonlarındaki stokları takip edin ve transfer edin</p>
         </div>
+        <button
+          type="button"
+          onClick={() => loadInventory()}
+          disabled={loading}
+          className="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-[#2a3142] hover:bg-slate-200 dark:hover:bg-[#323a4d] text-slate-700 dark:text-slate-200 rounded-xl font-medium text-sm transition-colors border border-slate-200 dark:border-slate-700 shadow-sm"
+        >
+          <RefreshCw size={16} className={loading ? "animate-spin text-blue-500" : ""} /> Yenile
+        </button>
       </div>
 
       {/* Progress Bar Section */}
@@ -151,6 +160,7 @@ export default function Depo() {
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase text-xs sticky top-0 z-10">
               <tr>
+                <th className="px-6 py-4">SON HAREKET TARİHİ</th>
                 <th className="px-6 py-4">PARÇA ADI</th>
                 <th className="px-6 py-4">LOKASYON</th>
                 <th className="px-6 py-4">STOK MİKTARI</th>
@@ -167,6 +177,7 @@ export default function Depo() {
                     className={`cursor-pointer transition-colors
                       ${isSelected ? 'bg-blue-600/10 border-l-2 border-blue-500' : 'hover:bg-slate-100 dark:hover:bg-[#2a3142] border-l-2 border-transparent text-slate-700 dark:text-slate-300'}`}
                   >
+                    <td className="px-6 py-4 font-mono text-slate-400 text-xs">{item.updated_at}</td>
                     <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200">{item.name}</td>
                     <td className="px-6 py-4 text-slate-400">{item.location}</td>
                     <td className="px-6 py-4 font-mono font-medium">{item.quantity}</td>
@@ -174,7 +185,7 @@ export default function Depo() {
                 );
               })}
               {filteredInventory.length === 0 && (
-                <tr><td colSpan="3" className="px-6 py-12 text-center text-slate-500">Kayıt bulunamadı.</td></tr>
+                <tr><td colSpan="4" className="px-6 py-12 text-center text-slate-500">Kayıt bulunamadı.</td></tr>
               )}
             </tbody>
           </table>

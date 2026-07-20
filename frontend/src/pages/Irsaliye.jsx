@@ -318,7 +318,8 @@ export default function Irsaliye() {
       alert("Lütfen önce barkod okutarak veya aratarak bir parça seçin.");
       return;
     }
-    const payloadLocId = getSystemLocationId('good_stock') || 1;
+    const goodLoc = systemLocations.find(l => l.kind === 'good_stock') || locations.find(l => l.kind === 'good_stock');
+    const payloadLocId = formData.loc_id || (goodLoc ? String(goodLoc.id) : '');
     if (isSubmitting) return;
     setIsSubmitting(true);
     try {

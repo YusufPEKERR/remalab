@@ -421,8 +421,8 @@ export default function Parts() {
       </div>
 
       {/* Table Content */}
-      <div className="bg-white dark:bg-[#1e2330] rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-lg flex-1 overflow-hidden flex flex-col">
-        <div className="overflow-auto flex-1">
+      <div className="bg-white dark:bg-[#1e2330] rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-lg overflow-hidden flex flex-col">
+        <div className="overflow-y-auto max-h-[480px]">
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs sticky top-0 z-10">
               <tr>
