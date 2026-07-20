@@ -2650,9 +2650,9 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    @Slot(str, str, str, result=str)
-    def return_bom_part_to_doa(self, part_id_str, return_qty_str, username):
-        """Hızlı Tekrar Üretim (BOM) reçetesindeki bir parçayı DOA Stock'a iade eder."""
+    @Slot(str, str, str, str, result=str)
+    def return_bom_part_to_doa(self, part_id_str, return_qty_str, source_location_id_str, username):
+        """Hızlı Tekrar Üretim (BOM) reçetesindeki bir parçayı seçili lokasyondan DOA Stock'a iade eder."""
         from sqlalchemy import text
         from models.stock import Stock
         from models.stock_movement import StockMovement
@@ -2665,15 +2665,20 @@ class WebBridge(QObject):
                 return_qty = 0
             if return_qty <= 0:
                 return json.dumps({"success": False, "message": "İade miktarı 0'dan büyük olmalıdır."})
+            
+            source_location_id = int(source_location_id_str) if source_location_id_str else None
+            if not source_location_id:
+                return json.dumps({"success": False, "message": "Geçerli bir kaynak lokasyon seçmelisiniz."})
 
-            good_stock_id = _get_system_location_id(db, "good_stock")
             doa_stock_id = _get_system_location_id(db, "doa_stock")
             if not doa_stock_id:
                 return json.dumps({"success": False, "message": "DOA Stock deposu bulunamadı."})
 
-            good_stock = db.query(Stock).filter(Stock.part_id == part_id, Stock.location_id == good_stock_id).first()
-            if good_stock and good_stock.quantity >= return_qty:
-                good_stock.quantity -= return_qty
+            source_stock = db.query(Stock).filter(Stock.part_id == part_id, Stock.location_id == source_location_id).first()
+            if source_stock and source_stock.quantity >= return_qty:
+                source_stock.quantity -= return_qty
+            else:
+                return json.dumps({"success": False, "message": "Kaynak depoda yeterli stok yok."})
 
             doa_stock = db.query(Stock).filter(Stock.part_id == part_id, Stock.location_id == doa_stock_id).first()
             if doa_stock:
@@ -2686,7 +2691,7 @@ class WebBridge(QObject):
                 movement_kind="Transfer",
                 quantity=return_qty,
                 part_id=part_id,
-                source_location_id=good_stock_id,
+                source_location_id=source_location_id,
                 target_location_id=doa_stock_id,
                 created_by=username or None,
                 technician=username or None,
@@ -2755,38 +2760,38 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    @Slot(str, str, str, result=str)
-    def receive_extra_bom_materials(self, part_id_str, extra_qty_str, technician):
-        """Hızlı Tekrar Üretim reçetesi için Good Stock'a ekstra malzeme/parça girişi yapar."""
+    @Slot(str, str, str, str, result=str)
+    def receive_extra_bom_materials(self, part_id_str, extra_qty_str, target_location_id_str, technician):
+        """Hızlı Tekrar Üretim reçetesi için seçilen depoya ekstra malzeme/parça girişi yapar."""
         from models.stock import Stock
         from models.stock_movement import StockMovement
         db = SessionLocal()
         try:
             part_id = int(part_id_str)
+            target_location_id = int(target_location_id_str) if target_location_id_str else None
             try:
                 extra_qty = int(extra_qty_str)
             except (ValueError, TypeError):
                 extra_qty = 0
             if extra_qty <= 0:
                 return json.dumps({"success": False, "message": "Ekstra miktar 0'dan büyük olmalıdır."})
+            
+            if not target_location_id:
+                return json.dumps({"success": False, "message": "Geçerli bir lokasyon seçmelisiniz."})
 
-            good_stock_id = _get_system_location_id(db, "good_stock")
-            if not good_stock_id:
-                return json.dumps({"success": False, "message": "Good Stock deposu bulunamadı."})
-
-            good_stock = db.query(Stock).filter(Stock.part_id == part_id, Stock.location_id == good_stock_id).first()
-            if good_stock:
-                good_stock.quantity += extra_qty
+            target_stock = db.query(Stock).filter(Stock.part_id == part_id, Stock.location_id == target_location_id).first()
+            if target_stock:
+                target_stock.quantity += extra_qty
             else:
-                good_stock = Stock(part_id=part_id, location_id=good_stock_id, quantity=extra_qty)
-                db.add(good_stock)
+                target_stock = Stock(part_id=part_id, location_id=target_location_id, quantity=extra_qty)
+                db.add(target_stock)
 
             db.add(StockMovement(
                 type="Ekstra Malzeme Girişi",
                 movement_kind="Inbound",
                 quantity=extra_qty,
                 part_id=part_id,
-                target_location_id=good_stock_id,
+                target_location_id=target_location_id,
                 created_by=technician or None,
                 technician=technician or None,
                 description=f"Hızlı Tekrar Üretim için ekstra parça girişi ({extra_qty} adet)"

@@ -141,10 +141,13 @@ export default function WorkOrders() {
   const [extraPartLocationId, setExtraPartLocationId] = useState('');
   const [extraPartInDialog, setExtraPartInDialog] = useState(null); // bom | null
   const [extraPartInSelectedId, setExtraPartInSelectedId] = useState('');
+  const [extraPartInLocationId, setExtraPartInLocationId] = useState('');
   const [extraPartInQty, setExtraPartInQty] = useState(1);
   const [extraPartInTechnician, setExtraPartInTechnician] = useState('');
   const [extraPartInSaving, setExtraPartInSaving] = useState(false);
   const [returnDoaDialog, setReturnDoaDialog] = useState(null); // { type: 'bom' | 'wop', data: any } | null
+  const [returnDoaSelectedId, setReturnDoaSelectedId] = useState('');
+  const [returnDoaLocationId, setReturnDoaLocationId] = useState('');
   const [returnDoaQty, setReturnDoaQty] = useState(1);
   const [returnDoaSaving, setReturnDoaSaving] = useState(false);
 
@@ -321,6 +324,8 @@ export default function WorkOrders() {
   };
 
   const handleReturnBomToDoa = (bom) => {
+    setReturnDoaSelectedId('');
+    setReturnDoaLocationId('');
     setReturnDoaQty(1);
     setReturnDoaDialog({ type: 'bom', data: bom });
   };
@@ -342,17 +347,19 @@ export default function WorkOrders() {
     setReturnDoaSaving(true);
     try {
       if (returnDoaDialog.type === 'bom') {
-        const bom = returnDoaDialog.data;
-        const targetPartId = bom.parent_part_id || (bom.materials && bom.materials[0]?.child_part_id);
-        const partName = bom.parent_name || bom.parent_item_id || 'Reçete parçası';
-        
-        if (!targetPartId) {
-            alert("Hata: Reçete parça ID'si bulunamadı.");
-            setReturnDoaSaving(false);
-            return;
+        if (!returnDoaSelectedId) {
+          alert('Lütfen iade edilecek parçayı seçin.');
+          setReturnDoaSaving(false);
+          return;
+        }
+        if (!returnDoaLocationId) {
+          alert('Lütfen kaynak lokasyonu seçin.');
+          setReturnDoaSaving(false);
+          return;
         }
 
-        const res = await api.returnBomPartToDoa(targetPartId, qty, currentUser?.username);
+        const targetPartId = returnDoaSelectedId;
+        const res = await api.returnBomPartToDoa(targetPartId, qty, returnDoaLocationId, currentUser?.username);
         if (res.success) {
           refreshStockStatus();
           setReturnDoaDialog(null);
@@ -409,8 +416,17 @@ export default function WorkOrders() {
     }
   };
 
+  const handleOpenExtraPartIn = (bom) => {
+    setExtraPartInSelectedId('');
+    setExtraPartInLocationId('');
+    setExtraPartInQty(1);
+    setExtraPartInTechnician(currentUser?.username || '');
+    setExtraPartInDialog(bom);
+  };
+
   const handleReceiveExtraBomMaterials = (bom) => {
     setExtraPartInSelectedId('');
+    setExtraPartInLocationId('');
     setExtraPartInQty(1);
     
     // Find who produced the parent part recently
@@ -435,11 +451,15 @@ export default function WorkOrders() {
       alert('Lütfen teknisyen seçin.');
       return;
     }
+    if (!extraPartInLocationId) {
+      alert('Lütfen giriş yapılacak lokasyonu seçin.');
+      return;
+    }
     const partName = parts.find(p => String(p.id) === String(extraPartInSelectedId))?.name || 'Seçilen parça';
 
     if (extraPartInSaving) return;
     setExtraPartInSaving(true);
-    const res = await api.receiveExtraBomMaterials(extraPartInSelectedId, qty, extraPartInTechnician);
+    const res = await api.receiveExtraBomMaterials(extraPartInSelectedId, qty, extraPartInLocationId, extraPartInTechnician);
     setExtraPartInSaving(false);
 
     if (res.success) {
@@ -2920,9 +2940,23 @@ export default function WorkOrders() {
                 />
                 {extraPartInSelectedId && (
                   <p className="text-xs text-slate-400 mt-1.5">
-                    Good Stock'ta mevcut: <span className="font-mono font-semibold text-slate-600 dark:text-slate-300">{getTotalStockQty(extraPartInSelectedId)}</span> adet
+                    Sistemdeki toplam stok: <span className="font-mono font-semibold text-slate-600 dark:text-slate-300">{getTotalStockQty(extraPartInSelectedId)}</span> adet
                   </p>
                 )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-1.5">Giriş Yapılacak Depo / Lokasyon</label>
+                <select
+                  className="w-full bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-teal-500"
+                  value={extraPartInLocationId}
+                  onChange={e => setExtraPartInLocationId(e.target.value)}
+                >
+                  <option value="">Depo seçiniz...</option>
+                  {systemLocations.map(l => (
+                    <option key={l.id} value={l.id}>{l.name}</option>
+                  ))}
+                </select>
               </div>
 
               <div>
@@ -2983,14 +3017,50 @@ export default function WorkOrders() {
             </div>
 
             <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-400 mb-1.5">Parça</label>
-                <div className="px-4 py-2.5 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200">
-                  {returnDoaDialog.type === 'bom' 
-                    ? (returnDoaDialog.data.parent_name || returnDoaDialog.data.parent_item_id || 'Reçete parçası') 
-                    : returnDoaDialog.data.part_name}
+              {returnDoaDialog.type === 'bom' ? (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-400 mb-1.5">Parça</label>
+                    <PartSelectCombobox
+                      parts={(returnDoaDialog.data.materials || []).map(m => ({
+                        id: m.child_part_id,
+                        item_code: m.child_item_id,
+                        name: m.child_name
+                      }))}
+                      value={returnDoaSelectedId}
+                      onChange={(val) => { setReturnDoaSelectedId(val); setReturnDoaLocationId(''); }}
+                      placeholder="Bu reçetedeki hammaddelerden birini seçin..."
+                    />
+                  </div>
+                  {returnDoaSelectedId && (
+                    <div>
+                      <label className="block text-sm font-medium text-slate-400 mb-1.5">Kaynak Depo / Lokasyon</label>
+                      <select
+                        className="w-full bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500"
+                        value={returnDoaLocationId}
+                        onChange={e => setReturnDoaLocationId(e.target.value)}
+                      >
+                        <option value="">Depo seçiniz...</option>
+                        {stockStatus
+                          .filter(s => String(s.part_id) === String(returnDoaSelectedId))
+                          .map(s => (
+                            <option key={s.location_id} value={s.location_id}>
+                              {s.location_name} (Stok: {s.quantity} Adet)
+                            </option>
+                          ))
+                        }
+                      </select>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div>
+                  <label className="block text-sm font-medium text-slate-400 mb-1.5">Parça</label>
+                  <div className="px-4 py-2.5 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200">
+                    {returnDoaDialog.data.part_name}
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-slate-400 mb-1.5">İade Miktarı</label>

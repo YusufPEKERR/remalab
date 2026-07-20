@@ -641,11 +641,11 @@ export const api = {
         });
     },
 
-    returnBomPartToDoa: async (partId, returnQty, username) => {
+    returnBomPartToDoa: async (partId, returnQty, sourceLocationId, username) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
             if (backend.return_bom_part_to_doa) {
-                backend.return_bom_part_to_doa(String(partId), String(returnQty), username || '', (res) => resolve(JSON.parse(res)));
+                backend.return_bom_part_to_doa(String(partId), String(returnQty), String(sourceLocationId), username || '', (res) => resolve(JSON.parse(res)));
             } else {
                 resolve({ success: true });
             }
@@ -663,11 +663,11 @@ export const api = {
         });
     },
 
-    receiveExtraBomMaterials: async (partId, extraQty, technician) => {
+    receiveExtraBomMaterials: async (partId, extraQty, targetLocationId, technician) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
             if (backend.receive_extra_bom_materials) {
-                backend.receive_extra_bom_materials(String(partId), String(extraQty), technician || '', (res) => resolve(JSON.parse(res)));
+                backend.receive_extra_bom_materials(String(partId), String(extraQty), String(targetLocationId), technician || '', (res) => resolve(JSON.parse(res)));
             } else {
                 resolve({ success: true });
             }

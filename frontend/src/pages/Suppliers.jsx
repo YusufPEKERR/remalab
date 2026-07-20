@@ -139,7 +139,28 @@ export default function Suppliers() {
     );
   }, [customers, searchTerm]);
 
-  // ===================== Toplu (Excel) Yükleme =====================
+  // ===================== Excel İşlemleri =====================
+
+  const handleExportAll = async () => {
+    if (customers.length === 0) {
+      alert("Dışa aktarılacak veri bulunamadı.");
+      return;
+    }
+    const dataToExport = customers.map(c => ({
+      "Müşteri Adı": c.customer_name || '',
+      "Müşteri Telefon": c.customer_phone || '',
+      "E-posta": c.customer_email || '',
+      "Firma": c.company || '',
+      "Cihaz Modeli": (c.brand || c.model) ? `${c.brand || ''} ${c.model || ''}`.trim() : '',
+      "IMEI Numarası": c.imei_number || '',
+      "Seri Numarası": c.serial_number || '',
+      "Internal ID": c.internal_id || '',
+      "Flow (İş Akışı)": c.flow || '',
+      "Giriş Tarihi": c.intake_date || '',
+      "Müşteri Şikayeti": c.customer_reported_complaint || ''
+    }));
+    await api.exportTableToExcel(dataToExport, 'musteriler.xlsx');
+  };
 
   const handleDownloadTemplate = async () => {
     setTemplateDownloading(true);
@@ -243,19 +264,21 @@ export default function Suppliers() {
           <p className="text-slate-400 mt-1">Müşteri iletişim ve cihaz kabul (IMEI/Seri No/Flow) bilgilerini yönetin</p>
         </div>
         <div className="flex items-center gap-3">
-          <button
-            onClick={handleDownloadTemplate}
-            disabled={templateDownloading}
-            className="flex items-center gap-2 bg-white dark:bg-[#1e2330] hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-600 px-4 py-2.5 rounded-xl transition-all font-medium text-sm disabled:opacity-60"
+          <select
+            className="bg-white dark:bg-[#1e2330] border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 px-4 py-2.5 rounded-xl transition-all font-medium text-sm focus:outline-none focus:border-indigo-500"
+            onChange={(e) => {
+              const val = e.target.value;
+              if (val === 'download_template') handleDownloadTemplate();
+              if (val === 'import_excel') handleOpenBulkModal();
+              if (val === 'export_all') handleExportAll();
+              e.target.value = '';
+            }}
           >
-            <Download size={16} /> {templateDownloading ? 'İndiriliyor...' : 'Şablon İndir'}
-          </button>
-          <button
-            onClick={handleOpenBulkModal}
-            className="flex items-center gap-2 bg-white dark:bg-[#1e2330] hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-600 px-4 py-2.5 rounded-xl transition-all font-medium text-sm"
-          >
-            <Upload size={16} /> Toplu Yükle
-          </button>
+            <option value="">Excel İşlemleri</option>
+            <option value="download_template">Boş Şablon İndir</option>
+            <option value="import_excel">Excel'den İçe Aktar</option>
+            <option value="export_all">Tümünü Dışa Aktar</option>
+          </select>
           <button
             onClick={() => handleOpenModal()}
             className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl transition-all shadow-lg shadow-indigo-900/20 font-medium text-sm"
