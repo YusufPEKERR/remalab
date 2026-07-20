@@ -178,6 +178,7 @@ export default function WorkOrders() {
   const [returnReason, setReturnReason] = useState('');
   const [defectiveParts, setDefectiveParts] = useState({}); // { part_id: true/false }
   const [replacementQty, setReplacementQty] = useState(0);
+  const [replacementParts, setReplacementParts] = useState({}); // { part_id: qty }
   const [returnSaving, setReturnSaving] = useState(false);
   const [detailDialog, setDetailDialog] = useState(null);
 
@@ -810,18 +811,20 @@ export default function WorkOrders() {
         part_id: m.part_id,
         defective_qty: parseInt(defectiveParts[m.part_id] || 0, 10)
       }));
+      const maxReplacement = Math.max(0, ...Object.values(replacementParts).map(v => parseInt(v, 10) || 0));
       const res = await api.deleteProductionRun(
         returnDialog.unit_id,
         returnLocationId,
         returnReason,
         JSON.stringify(defectiveList),
-        replacementQty
+        maxReplacement
       );
       if (res.success) {
         alert("İade/değişim işlemi başarıyla tamamlandı. Hammaddeler ilgili depolara aktarıldı.");
         setReturnDialog(null);
         setReturnReason('');
         setDefectiveParts({});
+        setReplacementParts({});
         setReplacementQty(0);
         fetchProductionRuns();
         refreshStockStatus();
@@ -1917,7 +1920,7 @@ export default function WorkOrders() {
                               <Repeat size={16} />
                             </button>
                             {!run.is_returned && (
-                              <button onClick={() => { setReturnDialog(run); setReturnLocationId('27'); setReturnReason(''); setDefectiveParts({}); setReplacementQty(0); }} className="p-1.5 text-amber-500 hover:bg-amber-500/10 rounded-lg transition-colors" title="İade / Değişim">
+                              <button onClick={() => { setReturnDialog(run); setReturnLocationId('27'); setReturnReason(''); setDefectiveParts({}); setReplacementParts({}); setReplacementQty(0); }} className="p-1.5 text-amber-500 hover:bg-amber-500/10 rounded-lg transition-colors" title="İade / Değişim">
                                 <RotateCcw size={16} />
                               </button>
                             )}
@@ -2514,13 +2517,14 @@ export default function WorkOrders() {
               {(returnDialog.materials || []).length > 0 && (
                 <div>
                   <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
-                    Sorunlu Parçaları İşaretle
-                    <span className="ml-2 text-slate-500 normal-case font-normal">(İşaretlenenler seçili depoya, diğerleri Good Stock'a gider)</span>
+                    Sorunlu Parçaları İşaretle & Değişim Adedi
+                    <span className="ml-2 text-slate-500 normal-case font-normal">(Sorunlu olanlar DOA Stock'a, diğerleri Good Stock'a gider. Değişim adedi girilen parçalar için yeniden üretim planlanır.)</span>
                   </label>
                   <div className="rounded-xl border border-slate-200 dark:border-slate-700/60 divide-y divide-slate-200 dark:divide-slate-700/40 overflow-hidden bg-slate-50/50 dark:bg-[#1a1d26]">
                     {returnDialog.materials.map(m => {
                       const maxQty = m.quantity_consumed;
                       const currentVal = defectiveParts[m.part_id] || 0;
+                      const repVal = replacementParts[m.part_id] || 0;
                       return (
                         <div key={m.part_id} className="flex items-center justify-between gap-4 px-4 py-3">
                           <div className="flex-1 min-w-0">
@@ -2528,10 +2532,11 @@ export default function WorkOrders() {
                             {m.item_code && <div className="text-xs text-slate-400 font-mono">{m.item_code}</div>}
                           </div>
 
-                          <div className="flex items-center gap-2 shrink-0">
+                          <div className="flex items-center gap-4 shrink-0">
+                            {/* Sorunlu Miktar */}
                             <div className="flex flex-col items-end">
-                              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Sorunlu Miktar</span>
-                              <div className="flex items-center gap-1.5">
+                              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Sorunlu</span>
+                              <div className="flex items-center gap-1">
                                 <input
                                   type="number"
                                   min="0"
@@ -2541,17 +2546,36 @@ export default function WorkOrders() {
                                     let val = parseInt(e.target.value, 10) || 0;
                                     if (val < 0) val = 0;
                                     if (val > maxQty) val = maxQty;
-                                    setDefectiveParts(prev => {
-                                      const next = { ...prev, [m.part_id]: val };
-                                      // En yüksek sorunlu parça adedini bulup değişim adedine ata
-                                      const maxDefect = Math.max(0, ...Object.values(next).map(v => Number(v || 0)));
-                                      setReplacementQty(maxDefect);
-                                      return next;
+                                    setDefectiveParts(prev => ({ ...prev, [m.part_id]: val }));
+                                    setReplacementParts(prev => {
+                                      const oldRep = prev[m.part_id] || 0;
+                                      return { ...prev, [m.part_id]: Math.min(oldRep, val) };
                                     });
                                   }}
-                                  className="w-16 bg-white dark:bg-[#242a38] text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700/60 rounded-lg px-2 py-1 text-sm text-center font-mono focus:outline-none focus:border-amber-500"
+                                  className="w-14 bg-white dark:bg-[#242a38] text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700/60 rounded-lg px-2 py-1 text-sm text-center font-mono focus:outline-none focus:border-amber-500"
                                 />
-                                <span className="text-xs font-mono text-slate-400">/ {maxQty} adet</span>
+                                <span className="text-[10px] text-slate-500">/ {maxQty}</span>
+                              </div>
+                            </div>
+
+                            {/* Değişim Adedi */}
+                            <div className="flex flex-col items-end">
+                              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Değişim</span>
+                              <div className="flex items-center gap-1">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max={currentVal}
+                                  value={repVal}
+                                  onChange={e => {
+                                    let val = parseInt(e.target.value, 10) || 0;
+                                    if (val < 0) val = 0;
+                                    if (val > currentVal) val = currentVal;
+                                    setReplacementParts(prev => ({ ...prev, [m.part_id]: val }));
+                                  }}
+                                  className="w-14 bg-white dark:bg-[#242a38] text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700/60 rounded-lg px-2 py-1 text-sm text-center font-mono focus:outline-none focus:border-amber-500"
+                                />
+                                <span className="text-[10px] text-slate-500">/ {currentVal}</span>
                               </div>
                             </div>
                           </div>
@@ -2576,29 +2600,6 @@ export default function WorkOrders() {
                     <option key={loc.id} value={String(loc.id)}>{loc.name}</option>
                   ))}
                 </select>
-              </div>
-
-              {/* Değişim İstenecek Ürün Adedi */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                  Değişim İstenecek Ürün Adedi
-                </label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    min="0"
-                    max={returnDialog.quantity_produced}
-                    value={replacementQty}
-                    onChange={e => {
-                      let val = parseInt(e.target.value, 10) || 0;
-                      if (val < 0) val = 0;
-                      if (val > returnDialog.quantity_produced) val = returnDialog.quantity_produced;
-                      setReplacementQty(val);
-                    }}
-                    className="w-24 bg-slate-50 dark:bg-[#242a38] text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700/60 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-amber-500 font-mono"
-                  />
-                  <span className="text-xs text-slate-400 font-mono">/ {returnDialog.quantity_produced} adet (Maksimum iade edilen kadar)</span>
-                </div>
               </div>
 
               {/* İade nedeni */}
