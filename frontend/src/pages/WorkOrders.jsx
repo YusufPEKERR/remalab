@@ -2572,7 +2572,7 @@ export default function WorkOrders() {
                   value={returnLocationId}
                   onChange={(e) => setReturnLocationId(e.target.value)}
                 >
-                  {systemLocations.filter(loc => loc.id !== 26).map(loc => (
+                  {systemLocations.filter(loc => loc.kind === 'doa_stock').map(loc => (
                     <option key={loc.id} value={String(loc.id)}>{loc.name}</option>
                   ))}
                 </select>
