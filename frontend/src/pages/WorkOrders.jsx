@@ -3,6 +3,7 @@ import { ClipboardList, Plus, Trash2, Edit, X, Save, Factory, Package, TrendingU
 import { api } from '../services/api';
 import PartSupplyMenu from '../components/PartSupplyMenu';
 import DeliverPartPopover from '../components/DeliverPartPopover';
+import PartSelectCombobox from '../components/PartSelectCombobox';
 
 function getCurrentUser() {
   try {
@@ -127,6 +128,10 @@ export default function WorkOrders() {
   const [quickProduceDialog, setQuickProduceDialog] = useState(null); // bom | null
   const [quickProduceQty, setQuickProduceQty] = useState(1);
   const [quickProduceSaving, setQuickProduceSaving] = useState(false);
+  const [extraPartDialog, setExtraPartDialog] = useState(null); // bom | null
+  const [extraPartSelectedId, setExtraPartSelectedId] = useState('');
+  const [extraPartQty, setExtraPartQty] = useState(1);
+  const [extraPartSaving, setExtraPartSaving] = useState(false);
 
   // --- Production Work Order state (work_orders, work_order_type = 'PRODUCTION') ---
   const [showProductionWOForm, setShowProductionWOForm] = useState(false);
@@ -334,23 +339,32 @@ export default function WorkOrders() {
     }
   };
 
-  const handleIssueExtraBomMaterials = async (bom) => {
-    const targetPartId = bom.parent_part_id || (bom.materials && bom.materials[0]?.child_part_id);
-    if (!targetPartId) {
-      alert("Hata: Reçete parça ID'si bulunamadı.");
+  const handleIssueExtraBomMaterials = (bom) => {
+    setExtraPartSelectedId('');
+    setExtraPartQty(1);
+    setExtraPartDialog(bom);
+  };
+
+  const handleConfirmIssueExtraPart = async () => {
+    if (!extraPartSelectedId) {
+      alert('Lütfen bir parça seçin.');
       return;
     }
-    const partName = bom.parent_name || bom.parent_item_id || 'Reçete parçası';
-    const rawQty = window.prompt(`"${partName}" için ekstra parça/hammadde çıkış miktarı giriniz:`, '1');
-    if (!rawQty) return;
-    const qty = parseInt(rawQty, 10);
+    const qty = parseInt(extraPartQty, 10);
     if (isNaN(qty) || qty <= 0) {
       alert('Geçerli bir miktar giriniz.');
       return;
     }
-    const res = await api.issueExtraBomMaterials(targetPartId, qty, currentUser?.username);
+    const partName = parts.find(p => String(p.id) === String(extraPartSelectedId))?.name || 'Seçilen parça';
+
+    if (extraPartSaving) return;
+    setExtraPartSaving(true);
+    const res = await api.issueExtraBomMaterials(extraPartSelectedId, qty, currentUser?.username);
+    setExtraPartSaving(false);
+
     if (res.success) {
       alert(`"${partName}" için ${qty} adet ekstra parça çıkışı yapıldı.`);
+      setExtraPartDialog(null);
       refreshStockStatus();
     } else {
       alert(res.message || 'Ekstra parça çıkışı başarısız oldu.');
@@ -2571,6 +2585,72 @@ export default function WorkOrders() {
                 className="px-5 py-2.5 bg-orange-600 hover:bg-orange-700 disabled:opacity-60 text-white rounded-xl font-medium transition-colors shadow-lg shadow-orange-900/20 flex items-center gap-2"
               >
                 <Zap size={16} /> {quickProduceSaving ? 'Üretiliyor...' : 'Üretimi Onayla'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- EKSTRA PARÇA ÇIKIŞI FORMU (BOM Aksiyonları) --- */}
+      {extraPartDialog && (
+        <div className="fixed inset-0 bg-slate-900/80 flex items-center justify-center z-50 p-4" onClick={() => !extraPartSaving && setExtraPartDialog(null)}>
+          <div
+            className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 shadow-2xl rounded-2xl w-full max-w-lg animate-in fade-in zoom-in-95 duration-200"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 flex justify-between items-center bg-slate-50 dark:bg-[#242a38]">
+              <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                <PlusCircle className="text-indigo-500" size={20} /> Ekstra Parça Çıkışı Yap
+              </h3>
+              <button onClick={() => !extraPartSaving && setExtraPartDialog(null)} className="p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-[#2a3142] rounded-lg transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-1.5">Parça</label>
+                <PartSelectCombobox
+                  parts={parts}
+                  value={extraPartSelectedId}
+                  onChange={setExtraPartSelectedId}
+                  placeholder="Çıkış yapılacak parçayı seçin veya arayın..."
+                />
+                {extraPartSelectedId && (
+                  <p className="text-xs text-slate-400 mt-1.5">
+                    Good Stock'ta mevcut: <span className="font-mono font-semibold text-slate-600 dark:text-slate-300">{getTotalStockQty(extraPartSelectedId)}</span> adet
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-1.5">Çıkış Miktarı</label>
+                <input
+                  type="number"
+                  min="1"
+                  className="w-full bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500"
+                  value={extraPartQty}
+                  onChange={e => setExtraPartQty(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 px-6 pb-6">
+              <button
+                type="button"
+                onClick={() => setExtraPartDialog(null)}
+                disabled={extraPartSaving}
+                className="px-5 py-2.5 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors border border-slate-300 dark:border-slate-600 disabled:opacity-50"
+              >
+                İptal
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmIssueExtraPart}
+                disabled={extraPartSaving}
+                className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white rounded-xl font-medium transition-colors shadow-lg shadow-indigo-900/20 flex items-center gap-2"
+              >
+                <PlusCircle size={16} /> {extraPartSaving ? 'Kaydediliyor...' : 'Çıkışı Yap'}
               </button>
             </div>
           </div>
