@@ -3581,12 +3581,6 @@ class WebBridge(QObject):
             unit_id = int(params["unit_id"])
             return_location_id = int(params["return_location_id"])
             return_reason = params.get("return_reason") or "Belirtilmedi"
-            replacement_qty = max(0, int(params.get("replacement_qty") or 0))
-            GOOD_STOCK_ID = _get_system_location_id(db, "good_stock")
-            if not GOOD_STOCK_ID:
-                result_str = json.dumps({"success": False, "message": "Good Stock deposu bulunamadı."})
-                return result_str
-
             # Sorunlu parça miktarlarını çöz: {part_id: defective_qty}
             defective_qtys = {}
             for entry in (params.get("defective_parts") or []):
@@ -3597,6 +3591,23 @@ class WebBridge(QObject):
                         defective_qtys[p_id] = def_qty
                 except (ValueError, TypeError):
                     pass
+
+            # Değişim istenecek parça miktarlarını çöz: {part_id: replacement_qty}
+            replacement_qtys = {}
+            for entry in (params.get("replacement_parts") or []):
+                try:
+                    p_id = int(entry.get("part_id"))
+                    rep_qty = int(entry.get("replacement_qty", 0))
+                    if rep_qty > 0:
+                        replacement_qtys[p_id] = rep_qty
+                except (ValueError, TypeError):
+                    pass
+
+            replacement_qty = max(replacement_qtys.values()) if replacement_qtys else 0
+            GOOD_STOCK_ID = _get_system_location_id(db, "good_stock")
+            if not GOOD_STOCK_ID:
+                result_str = json.dumps({"success": False, "message": "Good Stock deposu bulunamadı."})
+                return result_str
             
             # 1. Üretilmiş cihaz kaydını ve bağlı olduğu üretim koşusunu çek
             unit = db.execute(text("""
@@ -3639,29 +3650,13 @@ class WebBridge(QObject):
             # fizibilite kontrolü yap: reçete var mı, gereken hammadde stokta yeterli mi?
             # Yetersizse tüm iade işlemi iptal edilir (hiçbir şey değişmez) — kısmi başarı
             # istenmiyor, ya iade+değişim birlikte gerçekleşir ya da hiçbiri.
+
+
+            # 2.5. Değişim (replacement) talep edildiyse, hammadde stok kontrolü yap
             replacement_materials = []
             if replacement_qty > 0:
-                target_part_row = db.execute(
-                    text("SELECT item_code FROM warehouse.parts WHERE id = :id"), {"id": target_part_id}
-                ).first()
-                target_item_code = target_part_row[0] if target_part_row else None
-                if not target_item_code:
-                    raise Exception("Değişim üretimi için parçanın item_code bilgisi bulunamadı.")
-
-                bom_rows = db.execute(text("""
-                    SELECT b.child_item_id, b.quantity, cp.id AS child_part_id
-                    FROM warehouse.item_bom b
-                    LEFT JOIN warehouse.parts cp ON cp.item_code = b.child_item_id
-                    WHERE b.parent_item_id = :code
-                """), {"code": target_item_code}).mappings().all()
-                if not bom_rows:
-                    raise Exception("Değişim üretimi için bu parçaya ait bir Reçete (ItemBOM) bulunamadı. İade iptal edildi.")
-
-                for bom_row in bom_rows:
-                    if not bom_row["child_part_id"]:
-                        raise Exception(f"Reçetedeki '{bom_row['child_item_id']}' parçası sistemde bulunamadı, değişim üretimi yapılamıyor. İade iptal edildi.")
-                    needed = int(bom_row["quantity"]) * replacement_qty
-                    replacement_materials.append((bom_row["child_part_id"], needed))
+                for part_id, rep_qty in replacement_qtys.items():
+                    replacement_materials.append((part_id, rep_qty))
 
                 for part_id, needed in replacement_materials:
                     total_available = db.execute(text("""

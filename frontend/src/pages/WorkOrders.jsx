@@ -811,13 +811,16 @@ export default function WorkOrders() {
         part_id: m.part_id,
         defective_qty: parseInt(defectiveParts[m.part_id] || 0, 10)
       }));
-      const maxReplacement = Math.max(0, ...Object.values(replacementParts).map(v => parseInt(v, 10) || 0));
+      const replacementList = (returnDialog.materials || []).map(m => ({
+        part_id: m.part_id,
+        replacement_qty: parseInt(replacementParts[m.part_id] || 0, 10)
+      }));
       const res = await api.deleteProductionRun(
         returnDialog.unit_id,
         returnLocationId,
         returnReason,
         JSON.stringify(defectiveList),
-        maxReplacement
+        JSON.stringify(replacementList)
       );
       if (res.success) {
         alert("İade/değişim işlemi başarıyla tamamlandı. Hammaddeler ilgili depolara aktarıldı.");

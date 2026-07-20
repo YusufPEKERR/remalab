@@ -847,7 +847,7 @@ export const api = {
         });
     },
 
-    deleteProductionRun: async (id, returnLocationId = "", returnReason = "", defectivePartsJson = "[]", replacementQty = 0) => {
+    deleteProductionRun: async (id, returnLocationId = "", returnReason = "", defectivePartsJson = "[]", replacementPartsJson = "[]") => {
         const backend = await getBackend();
         return new Promise((resolve, reject) => {
             if (backend.delete_production_run) {
@@ -856,7 +856,7 @@ export const api = {
                     return_location_id: String(returnLocationId || ""),
                     return_reason: returnReason || "",
                     defective_parts: JSON.parse(defectivePartsJson || "[]"),
-                    replacement_qty: Number(replacementQty || 0)
+                    replacement_parts: JSON.parse(replacementPartsJson || "[]")
                 });
                 backend.delete_production_run(paramsJson, (res) => {
                     try {
