@@ -2933,6 +2933,7 @@ class WebBridge(QObject):
     def create_production_run(self, target_part_id, quantity_produced, source_location_id, target_location_id, produced_by, notes, materials_json):
         """Hammadde tüketip yarı mamul/ürün stoku oluşturan bir üretim kaydı ekler."""
         from sqlalchemy import text
+        from models.stock_movement import StockMovement
         import json as json_module
         db = SessionLocal()
         try:
@@ -2955,17 +2956,20 @@ class WebBridge(QObject):
                 if total_available < needed:
                     return json.dumps({"success": False, "message": f"Yetersiz stok (parça id {part_id}): mevcut {total_available}, gerekli {needed}"})
 
-            # Hammaddeleri, stoğu nerede varsa oradan düş (birden fazla lokasyona/satıra yayılmış olabilir)
+            # Hammaddeleri, stoğu nerede varsa oradan düş (birden fazla lokasyona/satıra yayılmış olabilir).
+            # Her düşülen (parça, lokasyon, miktar) üçlüsünü, hareket geçmişine daha sonra
+            # StockMovement kaydı açabilmek için ayrıca not ediyoruz.
+            consumption_records = []
             for m in materials:
                 part_id = int(m["part_id"])
                 remaining = int(m["quantity_consumed"])
                 rows = db.execute(text("""
-                    SELECT id, quantity FROM warehouse.stock
+                    SELECT id, location_id, quantity FROM warehouse.stock
                     WHERE part_id = :pid AND quantity > 0
                     ORDER BY id
                     FOR UPDATE
                 """), {"pid": part_id}).all()
-                for stock_id, stock_qty in rows:
+                for stock_id, stock_location_id, stock_qty in rows:
                     if remaining <= 0:
                         break
                     take = min(stock_qty, remaining)
@@ -2973,6 +2977,7 @@ class WebBridge(QObject):
                         UPDATE warehouse.stock SET quantity = quantity - :take WHERE id = :id
                     """), {"take": take, "id": stock_id})
                     remaining -= take
+                    consumption_records.append((part_id, stock_location_id, take))
 
             # Üretilen parçanın stokunu artır (yoksa oluştur)
             existing = db.execute(text("""
@@ -2998,7 +3003,7 @@ class WebBridge(QObject):
             # Tek bir ortak serial number (Cihaz Kimlik ID) oluştur ve tek satır olarak ekle
             next_id = db.execute(text("SELECT nextval(pg_get_serial_sequence('warehouse.produced_units', 'id'))")).scalar()
             serial_num = f"REM-PRD-{next_id:06d}"
-            
+
             db.execute(text("""
                 INSERT INTO warehouse.produced_units (id, production_run_id, serial_number)
                 VALUES (:id, :run_id, :serial)
@@ -3009,6 +3014,29 @@ class WebBridge(QObject):
                     INSERT INTO warehouse.production_materials (production_run_id, part_id, quantity_consumed)
                     VALUES (:run_id, :pid, :qty)
                 """), {"run_id": run_id, "pid": int(m["part_id"]), "qty": int(m["quantity_consumed"])})
+
+            # Hareket geçmişi (audit trail): tüketilen her hammadde için bir çıkış hareketi,
+            # üretilen yarı mamul için bir giriş hareketi. Böylece Depo sayfasındaki "Son
+            # Hareket Tarihi" ve Stok Hareketleri raporu üretim faaliyetini de yansıtır.
+            for part_id, stock_location_id, take in consumption_records:
+                db.add(StockMovement(
+                    type="Üretim İçin Malzeme Tüketimi",
+                    movement_kind="Outbound",
+                    quantity=take,
+                    part_id=part_id,
+                    source_location_id=stock_location_id,
+                    created_by=produced_by or None,
+                    description=f"Üretim Kaydı #{run_id} ({serial_num}) için tüketildi"
+                ))
+            db.add(StockMovement(
+                type="Üretim",
+                movement_kind="Inbound",
+                quantity=qty,
+                part_id=tgt_id,
+                target_location_id=tgt_loc_id,
+                created_by=produced_by or None,
+                description=f"Üretim Kaydı #{run_id} ({serial_num}) ile üretildi"
+            ))
 
             db.commit()
             return json.dumps({"success": True, "message": "Üretim kaydı oluşturuldu"})
@@ -3033,6 +3061,7 @@ class WebBridge(QObject):
     def _do_delete_production_run(self, params_json):
         from sqlalchemy import text
         from datetime import datetime
+        from models.stock_movement import StockMovement
         db = SessionLocal()
         result_str = json.dumps({"success": False, "message": "Bilinmeyen hata"})
         try:
@@ -3041,7 +3070,10 @@ class WebBridge(QObject):
             return_location_id = int(params["return_location_id"])
             return_reason = params.get("return_reason") or "Belirtilmedi"
             replacement_qty = max(0, int(params.get("replacement_qty") or 0))
-            GOOD_STOCK_ID = 26
+            GOOD_STOCK_ID = _get_system_location_id(db, "good_stock")
+            if not GOOD_STOCK_ID:
+                result_str = json.dumps({"success": False, "message": "Good Stock deposu bulunamadı."})
+                return result_str
 
             # Sorunlu parça miktarlarını çöz: {part_id: defective_qty}
             defective_qtys = {}
@@ -3104,7 +3136,17 @@ class WebBridge(QObject):
                 SET quantity = quantity - :qty
                 WHERE id = :id
             """), {"qty": quantity_produced, "id": target_stock[0]})
-            
+
+            db.add(StockMovement(
+                type="Üretim İadesi/İptal",
+                movement_kind="Outbound",
+                quantity=quantity_produced,
+                part_id=target_part_id,
+                source_location_id=location_id,
+                created_by=None,
+                description=f"Üretilen cihaz {unit['serial_number']} iade edildi ({return_reason})"
+            ))
+
             # 5. Her malzemeyi sorunlu/sorunsuz durumuna göre farklı depoya ekle
             returned_mats = []
             for m in materials:
@@ -3150,7 +3192,17 @@ class WebBridge(QObject):
                             INSERT INTO warehouse.stock (part_id, location_id, quantity)
                             VALUES (:pid, :lid, :qty)
                         """), {"pid": m_part_id, "lid": return_location_id, "qty": def_qty})
-                
+
+                    db.add(StockMovement(
+                        type="Üretim İadesi - Sorunlu Malzeme",
+                        movement_kind="Inbound",
+                        quantity=def_qty,
+                        part_id=m_part_id,
+                        target_location_id=return_location_id,
+                        created_by=None,
+                        description=f"Üretilen cihaz {unit['serial_number']} iadesinden sorunlu malzeme"
+                    ))
+
                 # 5b. Sorunsuz olanları doğrudan Good Stock'a aktar
                 if good_qty > 0:
                     existing_m = db.execute(text("""
@@ -3170,7 +3222,17 @@ class WebBridge(QObject):
                             INSERT INTO warehouse.stock (part_id, location_id, quantity)
                             VALUES (:pid, :lid, :qty)
                         """), {"pid": m_part_id, "lid": GOOD_STOCK_ID, "qty": good_qty})
-            
+
+                    db.add(StockMovement(
+                        type="Üretim İadesi - Sorunsuz Malzeme",
+                        movement_kind="Inbound",
+                        quantity=good_qty,
+                        part_id=m_part_id,
+                        target_location_id=GOOD_STOCK_ID,
+                        created_by=None,
+                        description=f"Üretilen cihaz {unit['serial_number']} iadesinden sorunsuz malzeme"
+                    ))
+
             # 6. Cihaz kaydını iade edildi olarak işaretle ve nedenini kaydet
             db.execute(text("""
                 UPDATE warehouse.produced_units
