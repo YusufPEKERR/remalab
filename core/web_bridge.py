@@ -105,6 +105,17 @@ def _get_system_location_id(db, kind):
     return loc.id if loc else None
 
 
+def _build_part_display_name(brand, model, color, part_category, name, item_code):
+    """Parça için kullanıcıya gösterilecek ismi (marka+model+renk+kategori, yoksa
+    ad, o da yoksa item_code) üretir. get_stock_status ile aynı öncelik sırasını kullanır."""
+    display_name = " ".join(filter(None, [brand, model, color, part_category])).strip()
+    if not display_name:
+        display_name = (name or "").strip()
+    if not display_name:
+        display_name = item_code or "Parça"
+    return display_name
+
+
 class WebBridge(QObject):
     """React (JavaScript) ile Python (PySide6) arasındaki köprü sınıfı."""
 
@@ -1008,11 +1019,27 @@ class WebBridge(QObject):
             if total_stock_qty > 0:
                 return json.dumps({"success": False, "message": f"Bu parçanın stokta {total_stock_qty} adet ürünü var. Silmeden önce stok miktarını sıfırlayınız."})
 
+            # İrsaliye geçmişinde gösterilmeye devam etsin diye, parça silinmeden önce
+            # görünen adının anlık görüntüsünü alıyoruz.
+            part_row = db.execute(text("""
+                SELECT item_code, brand, model, color, part_category, name
+                FROM warehouse.parts WHERE id = :id
+            """), {"id": part_id}).mappings().first()
+            snapshot_name = _build_part_display_name(
+                part_row.get("brand") if part_row else None,
+                part_row.get("model") if part_row else None,
+                part_row.get("color") if part_row else None,
+                part_row.get("part_category") if part_row else None,
+                part_row.get("name") if part_row else None,
+                part_row.get("item_code") if part_row else None,
+            )
+
             queries = [
                 "DELETE FROM warehouse.stock WHERE part_id = :id",
                 # İrsaliye geçmişi korunsun diye hareket kayıtları silinmiyor, sadece
-                # silinen parçaya olan referans temizleniyor (ekranda "Silinmiş Parça" gösterilir).
-                "UPDATE warehouse.stock_movements SET part_id = NULL WHERE part_id = :id",
+                # silinen parçaya olan referans temizleniyor; ekranda isim anlık
+                # görüntüsü + "(silindi)" ibaresiyle gösterilir.
+                "UPDATE warehouse.stock_movements SET part_id = NULL, part_name_snapshot = :snapshot_name WHERE part_id = :id",
                 "DELETE FROM warehouse.inbound_entries WHERE part_id = :id",
                 "DELETE FROM warehouse.outbound_entries WHERE part_id = :id",
                 "DELETE FROM warehouse.work_order_parts WHERE part_id = :id",
@@ -1029,7 +1056,7 @@ class WebBridge(QObject):
             for q in queries:
                 try:
                     with db.begin_nested():
-                        db.execute(text(q), {"id": part_id})
+                        db.execute(text(q), {"id": part_id, "snapshot_name": snapshot_name})
                 except Exception as ex:
                     logging.warning(f"delete_part subquery bypass: {ex}")
 
@@ -1073,8 +1100,9 @@ class WebBridge(QObject):
             queries = [
                 "DELETE FROM warehouse.stock WHERE part_id = :id",
                 # İrsaliye geçmişi korunsun diye hareket kayıtları silinmiyor, sadece
-                # silinen parçaya olan referans temizleniyor (ekranda "Silinmiş Parça" gösterilir).
-                "UPDATE warehouse.stock_movements SET part_id = NULL WHERE part_id = :id",
+                # silinen parçaya olan referans temizleniyor; ekranda isim anlık
+                # görüntüsü + "(silindi)" ibaresiyle gösterilir.
+                "UPDATE warehouse.stock_movements SET part_id = NULL, part_name_snapshot = :snapshot_name WHERE part_id = :id",
                 "DELETE FROM warehouse.inbound_entries WHERE part_id = :id",
                 "DELETE FROM warehouse.outbound_entries WHERE part_id = :id",
                 "DELETE FROM warehouse.work_order_parts WHERE part_id = :id",
@@ -1089,10 +1117,22 @@ class WebBridge(QObject):
             ]
 
             for pid in safe_ids:
+                part_row = db.execute(text("""
+                    SELECT item_code, brand, model, color, part_category, name
+                    FROM warehouse.parts WHERE id = :id
+                """), {"id": pid}).mappings().first()
+                snapshot_name = _build_part_display_name(
+                    part_row.get("brand") if part_row else None,
+                    part_row.get("model") if part_row else None,
+                    part_row.get("color") if part_row else None,
+                    part_row.get("part_category") if part_row else None,
+                    part_row.get("name") if part_row else None,
+                    part_row.get("item_code") if part_row else None,
+                )
                 for q in queries:
                     try:
                         with db.begin_nested():
-                            db.execute(text(q), {"id": pid})
+                            db.execute(text(q), {"id": pid, "snapshot_name": snapshot_name})
                     except Exception as ex:
                         logging.warning(f"delete_parts_bulk subquery bypass: {ex}")
 
@@ -3594,7 +3634,7 @@ class WebBridge(QObject):
                     "type": mov.type,
                     "quantity": mov.quantity,
                     "part_id": mov.part_id,
-                    "part_name": p.name if p else "Silinmiş Parça",
+                    "part_name": p.name if p else (f"{mov.part_name_snapshot} (silindi)" if mov.part_name_snapshot else "Silinmiş Parça"),
                     "source_location_id": mov.source_location_id,
                     "source_location": sloc.name if sloc else "-",
                     "target_location_id": mov.target_location_id,
@@ -3761,7 +3801,7 @@ class WebBridge(QObject):
                     "id": mov.id,
                     "date": mov.created_at.strftime("%Y-%m-%d %H:%M") if mov.created_at else "",
                     "type": mov.type,
-                    "part_name": p.name if p else "-",
+                    "part_name": p.name if p else (f"{mov.part_name_snapshot} (silindi)" if mov.part_name_snapshot else "-"),
                     "item_code": p.item_code if p else "-",
                     "location": loc_name,
                     "source_location": sloc.name if sloc else "-",
