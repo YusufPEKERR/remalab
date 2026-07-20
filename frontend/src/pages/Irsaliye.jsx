@@ -176,6 +176,10 @@ export default function Irsaliye() {
       } else {
         setError(res ? res.message : 'Hata');
       }
+      
+      const resS = await api.getStockStatus();
+      if (resS && resS.success) setStockStatus(resS.stock || []);
+      
     } catch (_err) {
       setError('Bağlantı hatası.');
     } finally {
