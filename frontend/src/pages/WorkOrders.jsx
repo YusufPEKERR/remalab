@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ClipboardList, Plus, Trash2, Edit, X, Save, Factory, Package, TrendingUp, Repeat, AlertTriangle, Layers, Search, RotateCcw, Eye, Info, ChevronDown, Zap, FileText, PlusCircle } from 'lucide-react';
+import { ClipboardList, Plus, Trash2, Edit, X, Save, Factory, Package, TrendingUp, Repeat, AlertTriangle, Layers, Search, RotateCcw, Eye, Info, ChevronDown, Zap, FileText, PlusCircle, Check } from 'lucide-react';
 import { api } from '../services/api';
 import PartSupplyMenu from '../components/PartSupplyMenu';
 import DeliverPartPopover from '../components/DeliverPartPopover';
@@ -128,6 +128,7 @@ export default function WorkOrders() {
   const [quickProduceDialog, setQuickProduceDialog] = useState(null); // bom | null
   const [quickProduceQty, setQuickProduceQty] = useState(1);
   const [quickProduceSaving, setQuickProduceSaving] = useState(false);
+  const [quickProduceSuccess, setQuickProduceSuccess] = useState(false);
   const [extraPartDialog, setExtraPartDialog] = useState(null); // bom | null
   const [extraPartSelectedId, setExtraPartSelectedId] = useState('');
   const [extraPartQty, setExtraPartQty] = useState(1);
@@ -215,7 +216,7 @@ export default function WorkOrders() {
   };
 
   const refreshStockStatus = () => {
-    api.getStockStatus().then(r => { if (r.success) setStockStatus(r.stock || []); });
+    return api.getStockStatus().then(r => { if (r.success) setStockStatus(r.stock || []); });
   };
 
   useEffect(() => {
@@ -744,7 +745,13 @@ export default function WorkOrders() {
       return;
     }
     setQuickProduceQty(1);
+    setQuickProduceSuccess(false);
     setQuickProduceDialog(bom);
+  };
+
+  const handleCloseQuickProduceDialog = () => {
+    setQuickProduceDialog(null);
+    setQuickProduceSuccess(false);
   };
 
   const handleConfirmQuickProduce = async () => {
@@ -793,10 +800,9 @@ export default function WorkOrders() {
     });
 
     if (res.success) {
-      alert("Üretim başarıyla tamamlandı!");
-      setQuickProduceDialog(null);
       fetchProductionRuns();
-      refreshStockStatus();
+      await refreshStockStatus();
+      setQuickProduceSuccess(true);
     } else {
       alert(res.message || "Üretim başarısız oldu.");
     }
@@ -2502,7 +2508,7 @@ export default function WorkOrders() {
 
       {/* --- HIZLI ÜRETİM ONAY FORMU (BOM'dan) --- */}
       {quickProduceDialog && (
-        <div className="fixed inset-0 bg-slate-900/80 flex items-center justify-center z-50 p-4" onClick={() => !quickProduceSaving && setQuickProduceDialog(null)}>
+        <div className="fixed inset-0 bg-slate-900/80 flex items-center justify-center z-50 p-4" onClick={() => !quickProduceSaving && handleCloseQuickProduceDialog()}>
           <div
             className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 shadow-2xl rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200"
             onClick={e => e.stopPropagation()}
@@ -2511,12 +2517,18 @@ export default function WorkOrders() {
               <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                 <Zap className="text-orange-500" size={20} /> Hızlı Üretim Onayı
               </h3>
-              <button onClick={() => !quickProduceSaving && setQuickProduceDialog(null)} className="p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-[#2a3142] rounded-lg transition-colors">
+              <button onClick={() => !quickProduceSaving && handleCloseQuickProduceDialog()} className="p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-[#2a3142] rounded-lg transition-colors">
                 <X size={18} />
               </button>
             </div>
 
             <div className="p-6 space-y-4">
+              {quickProduceSuccess && (
+                <div className="flex items-center gap-2 px-4 py-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 rounded-xl text-sm font-medium">
+                  <Check size={16} /> Üretim tamamlandı, malzeme çıkışı yapıldı — miktarlar aşağıda güncellendi.
+                </div>
+              )}
+
               <div className="bg-slate-50 dark:bg-[#242a38] p-4 rounded-xl border border-slate-200 dark:border-slate-700/30">
                 <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Üretilecek Parça</div>
                 <div className="text-base font-bold text-slate-800 dark:text-slate-200">{quickProduceDialog.parent_name || quickProduceDialog.parent_item_id}</div>
@@ -2531,7 +2543,8 @@ export default function WorkOrders() {
                   type="number"
                   autoFocus
                   min="1"
-                  className="w-full bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-orange-500"
+                  disabled={quickProduceSuccess}
+                  className="w-full bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-orange-500 disabled:opacity-60"
                   value={quickProduceQty}
                   onChange={e => setQuickProduceQty(e.target.value)}
                 />
@@ -2546,7 +2559,7 @@ export default function WorkOrders() {
                     const qty = parseInt(quickProduceQty, 10) || 0;
                     const required = m.quantity * qty;
                     const available = getTotalStockQty(m.child_part_id);
-                    const insufficient = required > available;
+                    const insufficient = !quickProduceSuccess && required > available;
                     return (
                       <div key={idx} className="flex justify-between items-center px-4 py-3 bg-slate-50 dark:bg-[#242a38]/40">
                         <div>
@@ -2554,10 +2567,14 @@ export default function WorkOrders() {
                           <div className="text-xs font-mono text-slate-400">{m.child_item_id}</div>
                         </div>
                         <div className="text-right">
-                          <div className={`font-mono text-sm font-semibold ${insufficient ? 'text-red-500' : 'text-slate-700 dark:text-slate-300'}`}>
-                            {required} adet gerekli
+                          {!quickProduceSuccess && (
+                            <div className={`font-mono text-sm font-semibold ${insufficient ? 'text-red-500' : 'text-slate-700 dark:text-slate-300'}`}>
+                              {required} adet gerekli
+                            </div>
+                          )}
+                          <div className={`text-xs ${quickProduceSuccess ? 'font-mono font-semibold text-emerald-500' : 'text-slate-400'}`}>
+                            Mevcut: {available}{insufficient ? ' — Yetersiz!' : ''}
                           </div>
-                          <div className="text-xs text-slate-400">Mevcut: {available}{insufficient ? ' — Yetersiz!' : ''}</div>
                         </div>
                       </div>
                     );
@@ -2570,22 +2587,34 @@ export default function WorkOrders() {
             </div>
 
             <div className="flex justify-end gap-3 px-6 pb-6">
-              <button
-                type="button"
-                onClick={() => setQuickProduceDialog(null)}
-                disabled={quickProduceSaving}
-                className="px-5 py-2.5 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors border border-slate-300 dark:border-slate-600 disabled:opacity-50"
-              >
-                İptal
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmQuickProduce}
-                disabled={quickProduceSaving}
-                className="px-5 py-2.5 bg-orange-600 hover:bg-orange-700 disabled:opacity-60 text-white rounded-xl font-medium transition-colors shadow-lg shadow-orange-900/20 flex items-center gap-2"
-              >
-                <Zap size={16} /> {quickProduceSaving ? 'Üretiliyor...' : 'Üretimi Onayla'}
-              </button>
+              {quickProduceSuccess ? (
+                <button
+                  type="button"
+                  onClick={handleCloseQuickProduceDialog}
+                  className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-medium transition-colors shadow-lg shadow-emerald-900/20 flex items-center gap-2"
+                >
+                  <Check size={16} /> Kapat
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleCloseQuickProduceDialog}
+                    disabled={quickProduceSaving}
+                    className="px-5 py-2.5 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors border border-slate-300 dark:border-slate-600 disabled:opacity-50"
+                  >
+                    İptal
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleConfirmQuickProduce}
+                    disabled={quickProduceSaving}
+                    className="px-5 py-2.5 bg-orange-600 hover:bg-orange-700 disabled:opacity-60 text-white rounded-xl font-medium transition-colors shadow-lg shadow-orange-900/20 flex items-center gap-2"
+                  >
+                    <Zap size={16} /> {quickProduceSaving ? 'Üretiliyor...' : 'Üretimi Onayla'}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
