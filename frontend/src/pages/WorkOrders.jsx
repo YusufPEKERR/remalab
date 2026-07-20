@@ -1480,7 +1480,7 @@ export default function WorkOrders() {
                               {openBomMenuIdx === index && (
                                 <>
                                   <div className="fixed inset-0 z-40" onClick={() => setOpenBomMenuIdx(null)} />
-                                  <div className="absolute right-0 mt-1.5 w-52 bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl z-50 py-1 text-left animate-in fade-in zoom-in-95">
+                                  <div className="absolute right-0 mt-1.5 w-52 bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl z-50 py-1 text-left animate-menu-in select-none">
                                     <button
                                       type="button"
                                       onClick={() => { setOpenBomMenuIdx(null); handleFillFormFromBOM(bom); }}
@@ -1501,7 +1501,7 @@ export default function WorkOrders() {
                                       onClick={() => { setOpenBomMenuIdx(null); handleReturnBomToDoa(bom); }}
                                       className="w-full px-4 py-2.5 text-xs text-orange-600 dark:text-orange-400 hover:bg-slate-100 dark:hover:bg-[#2a3142] flex items-center gap-2.5 font-medium transition-colors"
                                     >
-                                      <RotateCcw size={15} /> Doğa Stoğa Geri Al
+                                      <RotateCcw size={15} /> DOA Stoğa Geri Al
                                     </button>
                                     <button
                                       type="button"

@@ -177,64 +177,51 @@ export default function MainLayout() {
           {filteredGroups.map((group, idx) => {
             const isOpen = openGroups[group.title];
             
-            // Define active colors based on theme
-            const getActiveColors = (theme) => {
-              switch(theme) {
-                case 'blue': return 'bg-blue-600 text-white shadow-lg shadow-blue-900/20';
-                case 'orange': return 'bg-orange-500 text-white shadow-lg shadow-orange-900/20';
-                case 'purple': return 'bg-purple-600 text-white shadow-lg shadow-purple-900/20';
-                case 'emerald': return 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/20';
-                default: return 'bg-blue-600 text-white shadow-lg shadow-blue-900/20';
-              }
-            };
+            const activeColors = {
+              blue: 'bg-blue-600 text-white shadow-md shadow-blue-900/20',
+              orange: 'bg-orange-500 text-white shadow-md shadow-orange-900/20',
+              purple: 'bg-purple-600 text-white shadow-md shadow-purple-900/20',
+              emerald: 'bg-emerald-600 text-white shadow-md shadow-emerald-900/20'
+            }[group.colorTheme] || 'bg-blue-600 text-white shadow-md shadow-blue-900/20';
 
-            const getHeaderColors = (theme) => {
-              switch(theme) {
-                case 'blue': return 'text-blue-500 dark:text-blue-400 group-hover:text-blue-600 dark:group-hover:text-blue-300';
-                case 'orange': return 'text-orange-500 dark:text-orange-400 group-hover:text-orange-600 dark:group-hover:text-orange-300';
-                case 'purple': return 'text-purple-500 dark:text-purple-400 group-hover:text-purple-600 dark:group-hover:text-purple-300';
-                case 'emerald': return 'text-emerald-500 dark:text-emerald-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-300';
-                default: return 'text-blue-500 dark:text-blue-400 group-hover:text-blue-600 dark:group-hover:text-blue-300';
-              }
-            };
+            const headerColors = {
+              blue: 'text-blue-500 dark:text-blue-400 group-hover:text-blue-600 dark:group-hover:text-blue-300',
+              orange: 'text-orange-500 dark:text-orange-400 group-hover:text-orange-600 dark:group-hover:text-orange-300',
+              purple: 'text-purple-500 dark:text-purple-400 group-hover:text-purple-600 dark:group-hover:text-purple-300',
+              emerald: 'text-emerald-500 dark:text-emerald-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-300'
+            }[group.colorTheme] || 'text-blue-500 dark:text-blue-400 group-hover:text-blue-600 dark:group-hover:text-blue-300';
             
-            const getHeaderHoverBg = (theme) => {
-              switch(theme) {
-                case 'blue': return 'hover:bg-blue-50 dark:hover:bg-blue-500/10';
-                case 'orange': return 'hover:bg-orange-50 dark:hover:bg-orange-500/10';
-                case 'purple': return 'hover:bg-purple-50 dark:hover:bg-purple-500/10';
-                case 'emerald': return 'hover:bg-emerald-50 dark:hover:bg-emerald-500/10';
-                default: return 'hover:bg-blue-50 dark:hover:bg-blue-500/10';
-              }
-            };
+            const headerHoverBg = {
+              blue: 'hover:bg-blue-50 dark:hover:bg-blue-500/10',
+              orange: 'hover:bg-orange-50 dark:hover:bg-orange-500/10',
+              purple: 'hover:bg-purple-50 dark:hover:bg-purple-500/10',
+              emerald: 'hover:bg-emerald-50 dark:hover:bg-emerald-500/10'
+            }[group.colorTheme] || 'hover:bg-blue-50 dark:hover:bg-blue-500/10';
 
-            const getItemHoverColors = (theme) => {
-              switch(theme) {
-                case 'blue': return 'hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10';
-                case 'orange': return 'hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-500/10';
-                case 'purple': return 'hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-500/10';
-                case 'emerald': return 'hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10';
-                default: return 'hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10';
-              }
-            };
+            const itemHoverColors = {
+              blue: 'hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10',
+              orange: 'hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-500/10',
+              purple: 'hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-500/10',
+              emerald: 'hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10'
+            }[group.colorTheme] || 'hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10';
             
             return (
               <div key={idx} className="px-4">
                 <button 
                   onClick={() => toggleGroup(group.title)}
-                  className={`w-full flex items-center justify-between px-3 py-2 mb-1 rounded-lg group outline-none transition-colors ${getHeaderHoverBg(group.colorTheme)}`}
+                  className={`w-full flex items-center justify-between px-3 py-2 mb-1 rounded-lg group outline-none transition-colors fast-transition ${headerHoverBg}`}
                 >
-                  <h3 className={`text-[11px] font-bold uppercase tracking-widest transition-colors ${getHeaderColors(group.colorTheme)}`}>
+                  <h3 className={`text-[11px] font-bold uppercase tracking-widest transition-colors ${headerColors}`}>
                     {group.title}
                   </h3>
                   {isOpen ? (
-                    <ChevronDown size={14} className={`${getHeaderColors(group.colorTheme)} transition-colors`} />
+                    <ChevronDown size={14} className={`${headerColors} transition-colors`} />
                   ) : (
-                    <ChevronRight size={14} className={`${getHeaderColors(group.colorTheme)} transition-colors`} />
+                    <ChevronRight size={14} className={`${headerColors} transition-colors`} />
                   )}
                 </button>
                 
-                <div className={`grid transition-all duration-300 ease-in-out ${isOpen ? 'grid-rows-[1fr] opacity-100 mt-1 mb-4' : 'grid-rows-[0fr] opacity-0 mb-0'}`}>
+                <div className={`grid transition-all duration-150 ease-out ${isOpen ? 'grid-rows-[1fr] opacity-100 mt-1 mb-3' : 'grid-rows-[0fr] opacity-0 mb-0'}`}>
                   <div className="overflow-hidden">
                     <nav className="space-y-1">
                       {group.items.map((item) => {
@@ -243,10 +230,10 @@ export default function MainLayout() {
                           <a
                             key={item.name}
                             href={item.path}
-                            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
+                            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all fast-transition ${
                               isActive 
-                                ? getActiveColors(group.colorTheme)
-                                : `text-slate-600 dark:text-slate-400 ${getItemHoverColors(group.colorTheme)}`
+                                ? activeColors
+                                : `text-slate-600 dark:text-slate-400 ${itemHoverColors}`
                             }`}
                             onClick={(e) => {
                               e.preventDefault();

@@ -2597,7 +2597,7 @@ class WebBridge(QObject):
 
     @Slot(str, str, str, result=str)
     def return_part_to_doa(self, wop_id_str, return_qty_str, username):
-        """'Doğa Stoğa Geri Al': Teslim edilmiş bir parçanın belirtilen miktarını DOA Stock'a taşır."""
+        """'DOA Stoğa Geri Al': Teslim edilmiş bir parçanın belirtilen miktarını DOA Stock'a taşır."""
         from sqlalchemy import text
         from models.stock import Stock
         from models.stock_movement import StockMovement

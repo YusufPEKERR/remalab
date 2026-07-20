@@ -27,6 +27,35 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8; /* slate-400 */
 }
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark, .dark *));
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #f8fafc;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  overflow: hidden; /* Desktop app feel */
+}
+
+/* Custom Scrollbar Styles */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1; /* slate-300 */
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8; /* slate-400 */
+}
 
 /* Dark mode scrollbar */
 .dark ::-webkit-scrollbar-thumb {
@@ -35,4 +64,27 @@ body {
 
 .dark ::-webkit-scrollbar-thumb:hover {
   background: #475569; /* slate-600 */
+}
+
+/* Fast Hardware-Accelerated Dropdown & Menu Animations */
+@keyframes fastMenuIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.96) translateY(-3px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-menu-in {
+  animation: fastMenuIn 0.08s cubic-bezier(0, 0, 0.2, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.fast-transition {
+  transition-property: color, background-color, border-color, transform, opacity;
+  transition-duration: 100ms;
+  transition-timing-function: cubic-bezier(0, 0, 0.2, 1);
 }
