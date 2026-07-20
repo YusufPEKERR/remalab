@@ -101,9 +101,9 @@ export default function Suppliers() {
       <div className="flex justify-between items-center bg-white dark:bg-[#1e2330] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm shrink-0">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-3">
-            <Truck className="text-indigo-400" size={28}/> Tedarikçiler
+            <Truck className="text-indigo-400" size={28}/> Müşteriler
           </h1>
-          <p className="text-slate-400 mt-1">Tedarikçi, marka, model, ürün kodu ve barkod bilgilerini yönetin</p>
+          <p className="text-slate-400 mt-1">Müşteri, marka, model, ürün kodu ve barkod bilgilerini yönetin</p>
         </div>
         <button 
           onClick={() => handleOpenModal()}
@@ -129,7 +129,7 @@ export default function Suppliers() {
           </div>
           <input 
             type="text" 
-            placeholder="Ara (ID, Tedarikçi, Marka, Model, Ürün Kodu, Barkod)..." 
+            placeholder="Ara (ID, Müşteri, Marka, Model, Ürün Kodu, Barkod)..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:border-indigo-500 shadow-sm"
@@ -206,7 +206,7 @@ export default function Suppliers() {
             <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 flex justify-between items-center bg-slate-50 dark:bg-[#242a38]">
               <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <Truck size={20} className="text-indigo-400"/>
-                {currentSupplier ? 'Tedarikçi Düzenle' : 'Yeni Tedarikçi Ekle'}
+                {currentSupplier ? 'Müşteri Düzenle' : 'Yeni Müşteri Ekle'}
               </h2>
               <button type="button" onClick={handleCloseModal} className="text-slate-400 hover:text-slate-900 dark:text-white transition-colors bg-white dark:bg-[#1e2330] p-1.5 rounded-lg border border-slate-200 dark:border-slate-700">
                 <X size={18} />
@@ -217,7 +217,7 @@ export default function Suppliers() {
               
               <div className="space-y-1.5">
                 <label className="text-sm font-medium text-slate-400 flex items-center gap-2">
-                  <Truck size={14}/> Tedarikçi Adı
+                  <Truck size={14}/> Müşteri Adı
                 </label>
                 <input 
                   type="text" 

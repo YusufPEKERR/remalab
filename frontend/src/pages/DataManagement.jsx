@@ -6,7 +6,7 @@ import ExcelMappingModal from '../components/ExcelMappingModal';
 const KNOWN_TABLE_NAMES = {
   products: "Ürünler (products)",
   parts: "Parçalar (parts)",
-  suppliers: "Tedarikçiler (suppliers)",
+  suppliers: "Müşteriler (suppliers)",
   locations: "Depo / Lokasyonlar (locations)",
   users: "Kullanıcılar (users)",
   stock: "Stok Durumu (stock)",
@@ -29,7 +29,7 @@ const KNOWN_FRIENDLY_NAMES = {
   item_category: "Parça Kategorisi (item_category)",
   memory: "Hafıza (memory)",
   name: "Adı (name)",
-  supplier: "Tedarikçi Adı (supplier)",
+  supplier: "Müşteri Adı (supplier)",
   contact_info: "İletişim (contact_info)",
   address: "Adres (address)",
   barcode: "Barkod (barcode)",
