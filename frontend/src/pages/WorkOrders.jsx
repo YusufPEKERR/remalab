@@ -1006,7 +1006,32 @@ export default function WorkOrders() {
     return Array.from(map.values()).sort((a, b) => b.total - a.total);
   };
 
-  const filteredBoms = itemBoms.filter(bom => {
+  const combinedBoms = useMemo(() => {
+    const bomsMap = new Map();
+    itemBoms.forEach(bom => {
+      if (bom.parent_part_id) bomsMap.set(String(bom.parent_part_id), bom);
+    });
+
+    parts.forEach(part => {
+      const isYariMamul = 
+        (part.part_type && part.part_type.toLowerCase() === 'yarı mamul') ||
+        (part.item_category && part.item_category.toLowerCase() === 'yarı mamul') ||
+        (part.part_category && part.part_category.toLowerCase() === 'yarı mamul');
+      
+      if (isYariMamul && !bomsMap.has(String(part.id))) {
+        bomsMap.set(String(part.id), {
+          parent_item_id: part.item_code,
+          parent_name: part.name,
+          parent_part_id: String(part.id),
+          materials: []
+        });
+      }
+    });
+
+    return Array.from(bomsMap.values());
+  }, [itemBoms, parts]);
+
+  const filteredBoms = combinedBoms.filter(bom => {
     const q = bomSearchQuery.toLowerCase();
     const parentMatch = bom.parent_item_id.toLowerCase().includes(q) || bom.parent_name.toLowerCase().includes(q);
     const childMatch = bom.materials.some(m =>
@@ -1868,8 +1893,6 @@ export default function WorkOrders() {
                       onChange={e => setProductionWOForm({ ...productionWOForm, target_part_id: e.target.value })}
                     >
                       <option value="">Parça seçiniz...</option>
-                      {/* Sadece warehouse.item_bom'da bir Recipe'si (parent_item_id) olan parçalar listelenir;
-                          aksi halde backend "Recipe bulunamadı" hatası veriyordu (bkz. create_production_work_order). */}
                       {itemBoms.filter(bom => bom.parent_part_id).map(bom => (
                         <option key={bom.parent_part_id} value={bom.parent_part_id}>{bom.parent_item_id} - {bom.parent_name}</option>
                       ))}
