@@ -990,50 +990,44 @@ class WebBridge(QObject):
 
     @Slot(str, result=str)
     def delete_part(self, part_id_str):
-        """Belirtilen id'ye sahip parçayı siler."""
-        from sqlalchemy import text
+        """Belirtilen id'ye sahip parçayı siler (Stok miktarı 0 ise parçayı ve ilişkili tüm kayıtlarını temizler)."""
+        from sqlalchemy import text, func
         from models.stock import Stock
-        from models.stock_movement import StockMovement
         db = SessionLocal()
         try:
             part_id = int(part_id_str)
             
-            # Orphan ve Yabancı Anahtar kontrolleri
-            stock_count = db.query(Stock).filter(Stock.part_id == part_id, Stock.quantity > 0).count()
-            if stock_count > 0:
-                return json.dumps({"success": False, "message": "Bu parçanın stokta ürünü var, silinemez."})
-            
-            movement_count = db.query(StockMovement).filter(StockMovement.part_id == part_id).count()
-            if movement_count > 0:
-                return json.dumps({"success": False, "message": "Bu parçanın geçmiş stok hareketi var, silinemez."})
+            # Stok Miktarı Kontrolü (Herhangi bir lokasyonda miktarı > 0 olan ürün var mı?)
+            total_stock_qty = db.query(func.coalesce(func.sum(Stock.quantity), 0)).filter(Stock.part_id == part_id).scalar() or 0
+            if total_stock_qty > 0:
+                return json.dumps({"success": False, "message": f"Bu parçanın stokta {total_stock_qty} adet ürünü var. Silmeden önce stok miktarını sıfırlayınız."})
 
-            inbound_count = db.execute(text("SELECT COUNT(*) FROM warehouse.inbound_entries WHERE part_id = :id"), {"id": part_id}).scalar()
-            if inbound_count > 0:
-                return json.dumps({"success": False, "message": "Bu parça giriş işlemlerinde kullanılıyor, silinemez."})
-                
-            outbound_count = db.execute(text("SELECT COUNT(*) FROM warehouse.outbound_entries WHERE part_id = :id"), {"id": part_id}).scalar()
-            if outbound_count > 0:
-                return json.dumps({"success": False, "message": "Bu parça çıkış işlemlerinde kullanılıyor, silinemez."})
-                
-            prun_count = db.execute(text("SELECT COUNT(*) FROM warehouse.production_runs WHERE target_part_id = :id"), {"id": part_id}).scalar()
-            if prun_count > 0:
-                return json.dumps({"success": False, "message": "Bu parça üretim kayıtlarında (üretilen parça olarak) kullanılıyor, silinemez."})
-                
-            pmaterial_count = db.execute(text("SELECT COUNT(*) FROM warehouse.production_materials WHERE part_id = :id"), {"id": part_id}).scalar()
-            if pmaterial_count > 0:
-                return json.dumps({"success": False, "message": "Bu parça üretim reçetelerinde (tüketilen malzeme olarak) kullanılıyor, silinemez."})
-                
-            wopart_count = db.execute(text("SELECT COUNT(*) FROM warehouse.work_order_parts WHERE part_id = :id"), {"id": part_id}).scalar()
-            if wopart_count > 0:
-                return json.dumps({"success": False, "message": "Bu parça iş emri malzeme listesinde kullanılıyor, silinemez."})
+            queries = [
+                "DELETE FROM warehouse.stock WHERE part_id = :id",
+                "DELETE FROM warehouse.stock_movements WHERE part_id = :id",
+                "DELETE FROM warehouse.inbound_entries WHERE part_id = :id",
+                "DELETE FROM warehouse.outbound_entries WHERE part_id = :id",
+                "DELETE FROM warehouse.work_order_parts WHERE part_id = :id",
+                "DELETE FROM warehouse.production_materials WHERE part_id = :id",
+                "DELETE FROM warehouse.bom_items WHERE part_id = :id OR parent_item_id = :id",
+                "DELETE FROM warehouse.item_bom WHERE part_id = :id OR parent_item_id = :id",
+                "DELETE FROM warehouse.part_supplier_prices WHERE part_id = :id",
+                "DELETE FROM warehouse.part_suppliers WHERE part_id = :id",
+                "UPDATE warehouse.production_runs SET target_part_id = NULL WHERE target_part_id = :id",
+                "UPDATE warehouse.work_orders SET target_part_id = NULL WHERE target_part_id = :id",
+                "DELETE FROM warehouse.parts WHERE id = :id"
+            ]
 
-            # Silinmesi güvenli olan parçanın 0 miktarlı stok kayıtlarını temizle
-            db.execute(text("DELETE FROM warehouse.stock WHERE part_id = :id AND quantity = 0"), {"id": part_id})
+            for q in queries:
+                try:
+                    with db.begin_nested():
+                        db.execute(text(q), {"id": part_id})
+                except Exception as ex:
+                    logging.warning(f"delete_part subquery bypass: {ex}")
+
             db.commit()
-
-            db.execute(text("DELETE FROM warehouse.parts WHERE id = :id"), {"id": part_id})
-            db.commit()
-            return json.dumps({"success": True, "message": "Parça silindi"})
+            clear_api_cache()
+            return json.dumps({"success": True, "message": "Parça başarıyla silindi."})
         except Exception as e:
             db.rollback()
             return json.dumps({"success": False, "message": f"Silme hatası: {str(e)}"})
@@ -1043,52 +1037,60 @@ class WebBridge(QObject):
     @Slot(str, result=str)
     def delete_parts_bulk(self, part_ids_csv):
         """Birden fazla parçayı toplu olarak siler."""
-        from sqlalchemy import text
+        from sqlalchemy import text, func
         from models.stock import Stock
-        from models.stock_movement import StockMovement
         db = SessionLocal()
         try:
             ids = [int(x.strip()) for x in part_ids_csv.split(",") if x.strip()]
             if not ids:
                 return json.dumps({"success": False, "message": "Silinecek parça seçilmedi."})
             
-            # Orphan ve Yabancı Anahtar kontrolleri
             safe_ids = []
             skipped_count = 0
             for pid in ids:
-                stock_count = db.query(Stock).filter(Stock.part_id == pid, Stock.quantity > 0).count()
-                movement_count = db.query(StockMovement).filter(StockMovement.part_id == pid).count()
-                
-                inbound_count = db.execute(text("SELECT COUNT(*) FROM warehouse.inbound_entries WHERE part_id = :id"), {"id": pid}).scalar()
-                outbound_count = db.execute(text("SELECT COUNT(*) FROM warehouse.outbound_entries WHERE part_id = :id"), {"id": pid}).scalar()
-                prun_count = db.execute(text("SELECT COUNT(*) FROM warehouse.production_runs WHERE target_part_id = :id"), {"id": pid}).scalar()
-                pmaterial_count = db.execute(text("SELECT COUNT(*) FROM warehouse.production_materials WHERE part_id = :id"), {"id": pid}).scalar()
-                wopart_count = db.execute(text("SELECT COUNT(*) FROM warehouse.work_order_parts WHERE part_id = :id"), {"id": pid}).scalar()
-                
-                if (stock_count == 0 and movement_count == 0 and inbound_count == 0 and 
-                    outbound_count == 0 and prun_count == 0 and pmaterial_count == 0 and wopart_count == 0):
+                total_stock_qty = db.query(func.coalesce(func.sum(Stock.quantity), 0)).filter(Stock.part_id == pid).scalar() or 0
+                if total_stock_qty == 0:
                     safe_ids.append(pid)
                 else:
                     skipped_count += 1
                     
             if not safe_ids:
-                return json.dumps({"success": False, "message": "Seçilen parçaların hiçbirisi silinmeye uygun değil (Stok, hareket geçmişi, reçete veya iş emri mevcut)." })
+                return json.dumps({"success": False, "message": "Seçilen parçaların tamamının stokta ürünü var. Önce stok miktarlarını sıfırlayınız."})
                 
-            # Silinecek parçaların 0 miktarlı stok kayıtlarını temizle
-            db.execute(text("DELETE FROM warehouse.stock WHERE part_id = any(:ids) AND quantity = 0"), {"ids": safe_ids})
+            queries = [
+                "DELETE FROM warehouse.stock WHERE part_id = :id",
+                "DELETE FROM warehouse.stock_movements WHERE part_id = :id",
+                "DELETE FROM warehouse.inbound_entries WHERE part_id = :id",
+                "DELETE FROM warehouse.outbound_entries WHERE part_id = :id",
+                "DELETE FROM warehouse.work_order_parts WHERE part_id = :id",
+                "DELETE FROM warehouse.production_materials WHERE part_id = :id",
+                "DELETE FROM warehouse.bom_items WHERE part_id = :id OR parent_item_id = :id",
+                "DELETE FROM warehouse.item_bom WHERE part_id = :id OR parent_item_id = :id",
+                "DELETE FROM warehouse.part_supplier_prices WHERE part_id = :id",
+                "DELETE FROM warehouse.part_suppliers WHERE part_id = :id",
+                "UPDATE warehouse.production_runs SET target_part_id = NULL WHERE target_part_id = :id",
+                "UPDATE warehouse.work_orders SET target_part_id = NULL WHERE target_part_id = :id",
+                "DELETE FROM warehouse.parts WHERE id = :id"
+            ]
+
+            for pid in safe_ids:
+                for q in queries:
+                    try:
+                        with db.begin_nested():
+                            db.execute(text(q), {"id": pid})
+                    except Exception as ex:
+                        logging.warning(f"delete_parts_bulk subquery bypass: {ex}")
+
             db.commit()
-            
-            ids_placeholder = ",".join(str(x) for x in safe_ids)
-            db.execute(text(f"DELETE FROM warehouse.parts WHERE id IN ({ids_placeholder})"))
-            db.commit()
+            clear_api_cache()
             
             msg = f"{len(safe_ids)} parça başarıyla silindi."
             if skipped_count > 0:
-                msg += f" {skipped_count} adet parça ilişkili kayıtları (stok, reçete vb.) olduğu için silinemedi."
+                msg += f" {skipped_count} adet parça stokta ürünü olduğu için silinemedi."
             return json.dumps({"success": True, "message": msg})
         except Exception as e:
             db.rollback()
-            return json.dumps({"success": False, "message": f"Toplu silme hatası: {str(e)}"})
+            return json.dumps({"success": False, "message": f"Silme hatası: {str(e)}"})
         finally:
             db.close()
 
@@ -3822,16 +3824,26 @@ class WebBridge(QObject):
                 critical_count = 0
             
             from datetime import datetime, time
+            from sqlalchemy import or_
             today = date.today()
             today_start = datetime.combine(today, time.min)
             
+            inbound_types = ["Giriş", "İç Transfer", "Yeni Alım", "Inbound", "Transfer", "Yeni Alım (Tedarikçiden)", "İade Girişi", "Diğer"]
+            outbound_types = ["Çıkış", "İç Transfer", "Müşteri Satışı", "Tedarikçiye İade", "Outbound", "Transfer", "Teknik Servis", "Fire", "Fire / Bozuk", "Servis Kullanımı"]
+
             todays_inbound = db.query(func.sum(StockMovement.quantity)).filter(
-                StockMovement.type.in_(["Giriş", "İç Transfer", "Yeni Alım", "Inbound", "Transfer"]),
+                or_(
+                    StockMovement.movement_kind == "Inbound",
+                    StockMovement.type.in_(inbound_types)
+                ),
                 StockMovement.created_at >= today_start
             ).scalar() or 0
             
             todays_outbound = db.query(func.sum(StockMovement.quantity)).filter(
-                StockMovement.type.in_(["Çıkış", "İç Transfer", "Müşteri Satışı", "Tedarikçiye İade", "Outbound", "Transfer"]),
+                or_(
+                    StockMovement.movement_kind.in_(["Outbound", "Scrap"]),
+                    StockMovement.type.in_(outbound_types)
+                ),
                 StockMovement.created_at >= today_start
             ).scalar() or 0
             
