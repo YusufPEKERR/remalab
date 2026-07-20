@@ -3740,16 +3740,26 @@ class WebBridge(QObject):
                 critical_count = 0
             
             from datetime import datetime, time
+            from sqlalchemy import or_
             today = date.today()
             today_start = datetime.combine(today, time.min)
             
+            inbound_types = ["Giriş", "İç Transfer", "Yeni Alım", "Inbound", "Transfer", "Yeni Alım (Tedarikçiden)", "İade Girişi", "Diğer"]
+            outbound_types = ["Çıkış", "İç Transfer", "Müşteri Satışı", "Tedarikçiye İade", "Outbound", "Transfer", "Teknik Servis", "Fire", "Fire / Bozuk", "Servis Kullanımı"]
+
             todays_inbound = db.query(func.sum(StockMovement.quantity)).filter(
-                StockMovement.type.in_(["Giriş", "İç Transfer", "Yeni Alım", "Inbound", "Transfer"]),
+                or_(
+                    StockMovement.movement_kind == "Inbound",
+                    StockMovement.type.in_(inbound_types)
+                ),
                 StockMovement.created_at >= today_start
             ).scalar() or 0
             
             todays_outbound = db.query(func.sum(StockMovement.quantity)).filter(
-                StockMovement.type.in_(["Çıkış", "İç Transfer", "Müşteri Satışı", "Tedarikçiye İade", "Outbound", "Transfer"]),
+                or_(
+                    StockMovement.movement_kind.in_(["Outbound", "Scrap"]),
+                    StockMovement.type.in_(outbound_types)
+                ),
                 StockMovement.created_at >= today_start
             ).scalar() or 0
             
