@@ -3,6 +3,7 @@ import { Download, Upload, Plus, RefreshCw, ArrowRightLeft, FileSpreadsheet, Sea
 import { api } from '../services/api';
 import ExcelMappingModal from '../components/ExcelMappingModal';
 import StockTransferModal from '../components/StockTransferModal';
+import PartSelectCombobox from '../components/PartSelectCombobox';
 
 export default function Irsaliye() {
   const [movements, setMovements] = useState([]);
@@ -570,19 +571,20 @@ export default function Irsaliye() {
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Parça Adı / Parça</label>
-                <select required className="w-full px-3 py-2 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.part_id} onChange={(e) => {
-                  const partId = e.target.value;
-                  const bestLoc = findBestSourceLocation(partId);
-                  setFormData(prev => ({
-                    ...prev,
-                    part_id: partId,
-                    source_loc_id: prev.type === 'Depodan Depoya' ? bestLoc : prev.source_loc_id,
-                    loc_id: prev.type === 'Depodan Depoya' ? prev.loc_id : getSystemLocationId('good_stock')
-                  }));
-                }}>
-                  <option value="">Parça seçiniz...</option>
-                  {parts.map(p => <option key={p.id} value={p.id}>{p.brand} {p.model} {p.name ? `- ${p.name}` : ''}</option>)}
-                </select>
+                <PartSelectCombobox
+                  parts={parts}
+                  value={formData.part_id}
+                  onChange={(partId) => {
+                    const bestLoc = findBestSourceLocation(partId);
+                    setFormData(prev => ({
+                      ...prev,
+                      part_id: partId,
+                      source_loc_id: prev.type === 'Depodan Depoya' ? bestLoc : prev.source_loc_id,
+                      loc_id: prev.type === 'Depodan Depoya' ? prev.loc_id : getSystemLocationId('good_stock')
+                    }));
+                  }}
+                  placeholder="Parça ara veya seç..."
+                />
               </div>
 
               <div>
@@ -663,13 +665,14 @@ export default function Irsaliye() {
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Parça Adı / Parça</label>
-                <select required className="w-full px-3 py-2 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.part_id} onChange={(e) => {
-                  const partId = e.target.value;
-                  setFormData(prev => ({ ...prev, part_id: partId, loc_id: getSystemLocationId('good_stock') }));
-                }}>
-                  <option value="">Parça seçiniz...</option>
-                  {parts.map(p => <option key={p.id} value={p.id}>{p.brand} {p.model} {p.name ? `- ${p.name}` : ''}</option>)}
-                </select>
+                <PartSelectCombobox
+                  parts={parts}
+                  value={formData.part_id}
+                  onChange={(partId) => {
+                    setFormData(prev => ({ ...prev, part_id: partId, loc_id: getSystemLocationId('good_stock') }));
+                  }}
+                  placeholder="Parça ara veya seç..."
+                />
               </div>
 
 
