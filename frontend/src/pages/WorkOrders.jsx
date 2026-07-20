@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { ClipboardList, Plus, Trash2, Edit, X, Save, Factory, Package, TrendingUp, Repeat, AlertTriangle, Layers, Search, RotateCcw, Eye, Info, ChevronDown, Zap, FileText, PlusCircle, Check, ArrowDownToLine } from 'lucide-react';
 import { api } from '../services/api';
 import PartSupplyMenu from '../components/PartSupplyMenu';
@@ -1008,17 +1008,18 @@ export default function WorkOrders() {
 
   const combinedBoms = useMemo(() => {
     const bomsMap = new Map();
-    itemBoms.forEach(bom => {
-      if (bom.parent_part_id) bomsMap.set(String(bom.parent_part_id), bom);
+    (itemBoms || []).forEach(bom => {
+      if (bom && bom.parent_part_id) bomsMap.set(String(bom.parent_part_id), bom);
     });
 
-    parts.forEach(part => {
+    (parts || []).forEach(part => {
+      if (!part) return;
       const isYariMamul = 
         (String(part.part_type || '').toLowerCase() === 'yarı mamul') ||
         (String(part.item_category || '').toLowerCase() === 'yarı mamul') ||
         (String(part.part_category || '').toLowerCase() === 'yarı mamul');
       
-      if (isYariMamul && !bomsMap.has(String(part.id))) {
+      if (isYariMamul && part.id && !bomsMap.has(String(part.id))) {
         bomsMap.set(String(part.id), {
           parent_item_id: part.item_code || '',
           parent_name: part.name || '',
@@ -1031,15 +1032,17 @@ export default function WorkOrders() {
     return Array.from(bomsMap.values());
   }, [itemBoms, parts]);
 
-  const filteredBoms = combinedBoms.filter(bom => {
+  const filteredBoms = (combinedBoms || []).filter(bom => {
+    if (!bom) return false;
     const q = (bomSearchQuery || '').toLowerCase();
     const parentMatch = 
       (bom.parent_item_id || '').toLowerCase().includes(q) || 
       (bom.parent_name || '').toLowerCase().includes(q);
-    const childMatch = bom.materials && bom.materials.some(m =>
-      (m.child_item_id || '').toLowerCase().includes(q) || 
-      (m.child_name || '').toLowerCase().includes(q)
-    );
+    const childMatch = bom.materials && Array.isArray(bom.materials) && bom.materials.some(m => {
+      if (!m) return false;
+      return (m.child_item_id || '').toLowerCase().includes(q) || 
+             (m.child_name || '').toLowerCase().includes(q);
+    });
     return parentMatch || childMatch;
   });
   const bomsTotalPages = Math.ceil(filteredBoms.length / REPORT_ITEMS_PER_PAGE) || 1;
