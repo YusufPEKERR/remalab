@@ -3357,7 +3357,7 @@ class WebBridge(QObject):
         db = SessionLocal()
         try:
             stocks = db.execute(text("""
-                SELECT s.id, p.id as part_id, p.brand, p.model, p.name as pname, p.item_code,
+                SELECT s.id, p.id as part_id, p.brand, p.model, p.color, p.part_category, p.name as pname, p.item_code,
                        l.id as location_id, l.name as location_name, l.kind as location_kind, 
                        s.quantity, p.critical_limit,
                        (
@@ -3374,11 +3374,19 @@ class WebBridge(QObject):
             for row in stocks:
                 lm_at = row.get("last_movement_at")
                 date_str = lm_at.strftime("%d.%m.%Y %H:%M") if lm_at else "-"
+                part_name = " ".join(filter(None, [row.get("brand"), row.get("model"), row.get("color"), row.get("part_category")]))
+                if not part_name:
+                    part_name = (row.get("pname") or "").strip()
+                if not part_name:
+                    part_name = row.get("item_code") or "İsimsiz Parça"
+                    
                 res.append({
                     "id": row["id"],
                     "part_id": row["part_id"],
-                    "part_name": (row['pname'] or '').strip(),
                     "item_code": row["item_code"] or "-",
+                    "brand": row.get("brand") or "",
+                    "model": row.get("model") or "",
+                    "part_name": part_name,
                     "location_id": row["location_id"],
                     "location_name": row["location_name"],
                     "location_kind": row["location_kind"],
