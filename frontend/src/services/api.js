@@ -655,6 +655,28 @@ export const api = {
         });
     },
 
+    returnBomPartToDoa: async (partId, returnQty, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.return_bom_part_to_doa) {
+                backend.return_bom_part_to_doa(String(partId), String(returnQty), username || '', (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true });
+            }
+        });
+    },
+
+    issueExtraBomMaterials: async (partId, extraQty, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.issue_extra_bom_materials) {
+                backend.issue_extra_bom_materials(String(partId), String(extraQty), username || '', (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true });
+            }
+        });
+    },
+
     // ==========================
     // PARÇA TEDARİK DURUMU (İş Emri Parça Satırları)
     // ==========================
@@ -719,6 +741,17 @@ export const api = {
         return new Promise((resolve) => {
             if (backend.revert_work_order_part_status) {
                 backend.revert_work_order_part_status(String(wopId), username || '', (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true });
+            }
+        });
+    },
+
+    returnPartToDoa: async (wopId, returnQty, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.return_part_to_doa) {
+                backend.return_part_to_doa(String(wopId), String(returnQty), username || '', (res) => resolve(JSON.parse(res)));
             } else {
                 resolve({ success: true });
             }

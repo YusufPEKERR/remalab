@@ -18,6 +18,7 @@ export default function Raporlar() {
 
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [selectedStockCols, setSelectedStockCols] = useState({
+    "Son Hareket Tarihi": true,
     "İtem Kodu": true,
     "Parça Adı": true,
     "Lokasyon": true,
@@ -183,6 +184,7 @@ export default function Raporlar() {
     if (activeTab === 'stok') {
       exportReadyData = dataToExport.map(r => {
         const row = {};
+        if (selectedStockCols["Son Hareket Tarihi"]) row["Son Hareket Tarihi"] = r.updated_at || r.date || '-';
         if (selectedStockCols["İtem Kodu"]) row["İtem Kodu"] = r.item_code;
         if (selectedStockCols["Parça Adı"]) row["Parça Adı"] = r.part_name;
         if (selectedStockCols["Lokasyon"]) row["Lokasyon"] = r.location_name;
@@ -322,6 +324,7 @@ export default function Raporlar() {
                         onChange={toggleSelectAll}
                       />
                     </th>
+                    <th className="px-6 py-4 min-w-[150px]">SON HAREKET TARİHİ</th>
                     <th className="px-6 py-4 min-w-[150px]">İTEM KODU</th>
                     <th className="px-6 py-4 min-w-[300px]">PARÇA ADI</th>
                     <th className="px-6 py-4">LOKASYON</th>
@@ -332,14 +335,14 @@ export default function Raporlar() {
                 <tbody className="divide-y divide-slate-700/50">
                   {loading ? (
                     <tr>
-                      <td colSpan="6" className="px-6 py-8 text-center text-slate-400">
+                      <td colSpan="7" className="px-6 py-8 text-center text-slate-400">
                         <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-400" />
                         Yükleniyor...
                       </td>
                     </tr>
                   ) : filteredStockReports.length === 0 ? (
                     <tr>
-                      <td colSpan="6" className="px-6 py-8 text-center text-slate-500">
+                      <td colSpan="7" className="px-6 py-8 text-center text-slate-500">
                         Kayıt bulunamadı.
                       </td>
                     </tr>
@@ -357,6 +360,7 @@ export default function Raporlar() {
                             onChange={(e) => toggleRowSelect(r.id, e)}
                           />
                         </td>
+                        <td className="px-6 py-5 font-mono text-slate-400 text-sm">{r.updated_at || r.date || '-'}</td>
                         <td className="px-6 py-5 font-mono text-slate-500 dark:text-slate-400">{r.item_code}</td>
                         <td className="px-6 py-5 font-medium text-slate-800 dark:text-slate-200">{r.part_name}</td>
                         <td className="px-6 py-5 text-slate-400">{r.location_name}</td>

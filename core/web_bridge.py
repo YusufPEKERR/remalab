@@ -2216,6 +2216,102 @@ class WebBridge(QObject):
         finally:
             db.close()
 
+    @Slot(str, str, str, result=str)
+    def return_bom_part_to_doa(self, part_id_str, return_qty_str, username):
+        """Hızlı Tekrar Üretim (BOM) reçetesindeki bir parçayı DOA Stock'a iade eder."""
+        from sqlalchemy import text
+        from models.stock import Stock
+        from models.stock_movement import StockMovement
+        db = SessionLocal()
+        try:
+            part_id = int(part_id_str)
+            try:
+                return_qty = int(return_qty_str)
+            except (ValueError, TypeError):
+                return_qty = 0
+            if return_qty <= 0:
+                return json.dumps({"success": False, "message": "İade miktarı 0'dan büyük olmalıdır."})
+
+            good_stock_id = _get_system_location_id(db, "good_stock")
+            doa_stock_id = _get_system_location_id(db, "doa_stock")
+            if not doa_stock_id:
+                return json.dumps({"success": False, "message": "DOA Stock deposu bulunamadı."})
+
+            good_stock = db.query(Stock).filter(Stock.part_id == part_id, Stock.location_id == good_stock_id).first()
+            if good_stock and good_stock.quantity >= return_qty:
+                good_stock.quantity -= return_qty
+
+            doa_stock = db.query(Stock).filter(Stock.part_id == part_id, Stock.location_id == doa_stock_id).first()
+            if doa_stock:
+                doa_stock.quantity += return_qty
+            else:
+                db.add(Stock(part_id=part_id, location_id=doa_stock_id, quantity=return_qty))
+
+            db.add(StockMovement(
+                type="DOA İade",
+                movement_kind="Transfer",
+                quantity=return_qty,
+                part_id=part_id,
+                source_location_id=good_stock_id,
+                target_location_id=doa_stock_id,
+                created_by=username or None,
+                technician=username or None,
+                description=f"Hızlı Tekrar Üretim reçetesi parçası ({return_qty} adet) DOA stoğa geri alındı"
+            ))
+
+            db.commit()
+            return json.dumps({"success": True, "message": "Parça DOA depoya iade edildi"})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": f"DOA İade hatası: {str(e)}"})
+        finally:
+            db.close()
+
+    @Slot(str, str, str, result=str)
+    def issue_extra_bom_materials(self, part_id_str, extra_qty_str, username):
+        """Hızlı Tekrar Üretim reçetesi için Good Stock'tan ekstra malzeme/parça çıkışı yapar."""
+        from sqlalchemy import text
+        from models.stock import Stock
+        from models.stock_movement import StockMovement
+        db = SessionLocal()
+        try:
+            part_id = int(part_id_str)
+            try:
+                extra_qty = int(extra_qty_str)
+            except (ValueError, TypeError):
+                extra_qty = 0
+            if extra_qty <= 0:
+                return json.dumps({"success": False, "message": "Ekstra miktar 0'dan büyük olmalıdır."})
+
+            good_stock_id = _get_system_location_id(db, "good_stock")
+            if not good_stock_id:
+                return json.dumps({"success": False, "message": "Good Stock deposu bulunamadı."})
+
+            good_stock = db.query(Stock).filter(Stock.part_id == part_id, Stock.location_id == good_stock_id).first()
+            if not good_stock or good_stock.quantity < extra_qty:
+                available = good_stock.quantity if good_stock else 0
+                return json.dumps({"success": False, "message": f"Good Stock'ta yeterli stok yok. Mevcut: {available}, İstenen: {extra_qty}."})
+
+            good_stock.quantity -= extra_qty
+            db.add(StockMovement(
+                type="Ekstra Malzeme Çıkışı",
+                movement_kind="Transfer",
+                quantity=extra_qty,
+                part_id=part_id,
+                source_location_id=good_stock_id,
+                created_by=username or None,
+                technician=username or None,
+                description=f"Hızlı Tekrar Üretim için ekstra parça çıkışı ({extra_qty} adet)"
+            ))
+
+            db.commit()
+            return json.dumps({"success": True, "message": "Ekstra parça çıkışı yapıldı"})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": f"Ekstra parça çıkışı hatası: {str(e)}"})
+        finally:
+            db.close()
+
     # ==========================
     # PARÇA TEDARİK DURUMU (İş Emri Parça Satırları / Stok Teslim-Bekleme-Geri Alma)
     # ==========================
@@ -2491,6 +2587,81 @@ class WebBridge(QObject):
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = :id
             """), {"rev": reversal.id, "user": username or None, "id": wop_id})
+            db.commit()
+            return json.dumps({"success": True})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, str, result=str)
+    def return_part_to_doa(self, wop_id_str, return_qty_str, username):
+        """'Doğa Stoğa Geri Al': Teslim edilmiş bir parçanın belirtilen miktarını DOA Stock'a taşır."""
+        from sqlalchemy import text
+        from models.stock import Stock
+        from models.stock_movement import StockMovement
+        from models.location import Location
+        db = SessionLocal()
+        try:
+            wop_id = int(wop_id_str)
+            return_qty = int(return_qty_str) if return_qty_str and int(return_qty_str) > 0 else 0
+            if return_qty <= 0:
+                return json.dumps({"success": False, "message": "Geçerli bir miktar giriniz."})
+
+            row = db.execute(
+                text("SELECT id, work_order_id, part_id, quantity, status, delivered_location_id FROM warehouse.work_order_parts WHERE id = :id FOR UPDATE"),
+                {"id": wop_id}
+            ).mappings().first()
+            if not row:
+                return json.dumps({"success": False, "message": "Parça satırı bulunamadı."})
+            if row["status"] != "Teslim Edildi":
+                return json.dumps({"success": False, "message": "Sadece teslim edilmiş parçalar DOA stoğa geri alınabilir."})
+
+            if return_qty > row["quantity"]:
+                return json.dumps({"success": False, "message": f"En fazla {row['quantity']} adet geri alabilirsiniz."})
+
+            doa_loc = db.query(Location).filter(Location.kind == "doa_stock").first()
+            if not doa_loc:
+                return json.dumps({"success": False, "message": "DOA Stock lokasyonu bulunamadı."})
+
+            src_loc_id = row["delivered_location_id"]
+            if not src_loc_id:
+                repair_loc = db.query(Location).filter(Location.kind == "repair_stock").first()
+                src_loc_id = repair_loc.id if repair_loc else None
+
+            target_stock = db.query(Stock).filter(Stock.part_id == row["part_id"], Stock.location_id == doa_loc.id).first()
+            if target_stock:
+                target_stock.quantity += return_qty
+            else:
+                db.add(Stock(part_id=row["part_id"], location_id=doa_loc.id, quantity=return_qty))
+
+            movement = StockMovement(
+                type="DOA İade",
+                movement_kind="Transfer",
+                quantity=return_qty,
+                part_id=row["part_id"],
+                source_location_id=src_loc_id,
+                target_location_id=doa_loc.id,
+                created_by=username or None,
+                technician=username or None,
+                description=f"İş Emri #{row['work_order_id']} parçası ({return_qty} adet) DOA stoğa geri alındı"
+            )
+            db.add(movement)
+
+            if return_qty == row["quantity"]:
+                db.execute(text("""
+                    UPDATE warehouse.work_order_parts
+                    SET status = 'DOA İade', updated_at = CURRENT_TIMESTAMP
+                    WHERE id = :id
+                """), {"id": wop_id})
+            else:
+                db.execute(text("""
+                    UPDATE warehouse.work_order_parts
+                    SET quantity = quantity - :rqty, updated_at = CURRENT_TIMESTAMP
+                    WHERE id = :id
+                """), {"rqty": return_qty, "id": wop_id})
+
             db.commit()
             return json.dumps({"success": True})
         except Exception as e:
@@ -3186,7 +3357,12 @@ class WebBridge(QObject):
             stocks = db.execute(text("""
                 SELECT s.id, p.id as part_id, p.brand, p.model, p.name as pname, p.item_code,
                        l.id as location_id, l.name as location_name, l.kind as location_kind, 
-                       s.quantity, p.critical_limit 
+                       s.quantity, p.critical_limit,
+                       (
+                         SELECT MAX(sm.created_at)
+                         FROM warehouse.stock_movements sm
+                         WHERE sm.part_id = s.part_id AND (sm.source_location_id = s.location_id OR sm.target_location_id = s.location_id)
+                       ) as last_movement_at
                 FROM warehouse.stock s 
                 JOIN warehouse.parts p ON s.part_id = p.id 
                 JOIN warehouse.locations l ON s.location_id = l.id
@@ -3194,6 +3370,8 @@ class WebBridge(QObject):
             """)).mappings().all()
             res = []
             for row in stocks:
+                lm_at = row.get("last_movement_at")
+                date_str = lm_at.strftime("%d.%m.%Y %H:%M") if lm_at else "-"
                 res.append({
                     "id": row["id"],
                     "part_id": row["part_id"],
@@ -3203,7 +3381,9 @@ class WebBridge(QObject):
                     "location_name": row["location_name"],
                     "location_kind": row["location_kind"],
                     "quantity": row["quantity"],
-                    "critical_limit": row["critical_limit"] or 50
+                    "critical_limit": row["critical_limit"] or 50,
+                    "updated_at": date_str,
+                    "date": date_str
                 })
             json_data = json.dumps({"success": True, "stock": res})
             write_to_cache("stock.json", json_data)
@@ -3251,13 +3431,18 @@ class WebBridge(QObject):
                 target_stock = Stock(part_id=part_id, location_id=to_loc_id, quantity=qty)
                 db.add(target_stock)
                 
+            from_name = loc_by_id.get(int(from_loc_id)).name if loc_by_id.get(int(from_loc_id)) else ""
+            to_name = loc_by_id.get(int(to_loc_id)).name if loc_by_id.get(int(to_loc_id)) else ""
+
             movement = StockMovement(
                 type="İç Transfer",
+                movement_kind="Transfer",
                 quantity=qty,
                 part_id=part_id,
                 source_location_id=from_loc_id,
                 target_location_id=to_loc_id,
-                created_by=username
+                created_by=username,
+                description=f"Stok Transferi: {from_name} -> {to_name}"
             )
             db.add(movement)
             db.commit()

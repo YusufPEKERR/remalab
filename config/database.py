@@ -1,6 +1,7 @@
 """
 RemaLab WMS - Database Configuration
 SQLAlchemy engine ve session yönetimi.
+Lazy initialization: Engine, ilk kullanılana kadar oluşturulmaz.
 """
 
 import os
@@ -12,75 +13,116 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 # .env dosyasını yükle
 load_dotenv()
 
+Base = declarative_base()
 
-DB_HOST = os.getenv("PG_HOST") or os.getenv("DB_HOST")
-DB_PORT = os.getenv("PG_PORT") or os.getenv("DB_PORT", "5432")
-DB_NAME = os.getenv("PG_DATABASE") or os.getenv("DB_NAME", "remalab")
-DB_USER = os.getenv("PG_USER") or os.getenv("DB_USER")
-DB_PASSWORD = os.getenv("PG_PASSWORD") or os.getenv("DB_PASSWORD")
+# --- Lazy engine & session ---------------------------------------------------
+_engine = None
+_SessionLocal = None
 
-DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
-# Engine & Session
-engine = create_engine(
-    DATABASE_URL, 
-    pool_pre_ping=True, 
-    connect_args={
-        "connect_timeout": 10,
+def _get_connect_args():
+    """Ortak bağlantı parametrelerini döndürür."""
+    return {
+        "connect_timeout": 5,
         "options": "-c statement_timeout=10000",
         "keepalives": 1,
         "keepalives_idle": 3,
         "keepalives_interval": 1,
-        "keepalives_count": 3
+        "keepalives_count": 3,
     }
-)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
+
+
+def _build_database_url():
+    """Mevcut ortam değişkenlerinden DATABASE_URL oluşturur."""
+    db_host = os.getenv("PG_HOST") or os.getenv("DB_HOST")
+    db_port = os.getenv("PG_PORT") or os.getenv("DB_PORT", "5432")
+    db_name = os.getenv("PG_DATABASE") or os.getenv("DB_NAME", "remalab")
+    db_user = os.getenv("PG_USER") or os.getenv("DB_USER")
+    db_password = os.getenv("PG_PASSWORD") or os.getenv("DB_PASSWORD")
+    return f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+
+
+def _create_engine_instance():
+    """Yeni bir SQLAlchemy engine oluşturur."""
+    return create_engine(
+        _build_database_url(),
+        pool_pre_ping=True,
+        pool_timeout=5,
+        pool_recycle=300,
+        connect_args=_get_connect_args(),
+    )
+
+
+def get_engine():
+    """Engine'i lazily döndürür. İlk çağrıda oluşturulur."""
+    global _engine
+    if _engine is None:
+        _engine = _create_engine_instance()
+    return _engine
+
+
+def get_session_factory():
+    """SessionLocal'ı lazily döndürür."""
+    global _SessionLocal
+    if _SessionLocal is None:
+        _SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=get_engine())
+    return _SessionLocal
+
+
+# Geriye dönük uyumluluk için property-benzeri erişim
+# (Mevcut kodda `engine` ve `SessionLocal` doğrudan kullanılıyor olabilir)
+class _LazyEngine:
+    """engine modül değişkeni gibi davranır ama ilk erişimde oluşturulur."""
+    def __getattr__(self, name):
+        return getattr(get_engine(), name)
+
+class _LazySession:
+    """SessionLocal() çağrıldığında lazily session oluşturur."""
+    def __call__(self, *args, **kwargs):
+        return get_session_factory()(*args, **kwargs)
+    def __getattr__(self, name):
+        return getattr(get_session_factory(), name)
+
+
+engine = _LazyEngine()
+SessionLocal = _LazySession()
+
 
 def init_database_schema():
     """Veritabanı tablolarını oluşturur."""
-    from models.user import User # Modellerin kaydolması için import
+    from models.user import User  # Modellerin kaydolması için import
     from models.item_bom import ItemBOM
     from models.product import Product
     # Diğer modeller de buraya eklenebilir
-    Base.metadata.create_all(bind=engine)
+    try:
+        Base.metadata.create_all(bind=get_engine())
+    except Exception as e:
+        print(f"[WARN] Tablo oluşturma başarısız: {e}")
+
 
 def reconnect_engine():
     """Rebuilds the engine and sessionmaker using current os.environ credentials."""
-    global engine, SessionLocal, DATABASE_URL
+    global _engine, _SessionLocal
     from dotenv import load_dotenv
     load_dotenv(override=True)
-    
-    DB_HOST = os.getenv("PG_HOST") or os.getenv("DB_HOST")
-    DB_PORT = os.getenv("PG_PORT") or os.getenv("DB_PORT", "5432")
-    DB_NAME = os.getenv("PG_DATABASE") or os.getenv("DB_NAME", "remalab")
-    DB_USER = os.getenv("PG_USER") or os.getenv("DB_USER")
-    DB_PASSWORD = os.getenv("PG_PASSWORD") or os.getenv("DB_PASSWORD")
-    
-    DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-    
-    engine.dispose() # Dispose old connections
-    
-    engine = create_engine(
-        DATABASE_URL, 
-        pool_pre_ping=True, 
-        connect_args={
-            "connect_timeout": 10,
-            "options": "-c statement_timeout=10000",
-            "keepalives": 1,
-            "keepalives_idle": 3,
-            "keepalives_interval": 1,
-            "keepalives_count": 3
-        }
-    )
-    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+    if _engine is not None:
+        try:
+            _engine.dispose()
+        except Exception:
+            pass
+
+    _engine = _create_engine_instance()
+    _SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=_engine)
+
+    # Modül seviyesi proxy nesnelerini güncellemeye gerek yok,
+    # get_engine() / get_session_factory() zaten yeni _engine/_SessionLocal kullanır.
 
 
 @contextmanager
 def get_db():
     """Yeni bir veritabanı oturumu oluşturur ve iş bittiğinde kapatır."""
-    db = SessionLocal()
+    db = get_session_factory()()
     try:
         yield db
     finally:
@@ -90,40 +132,29 @@ def get_db():
 # Global hata yakalama (Local try-except blokları yutsa bile yakalar)
 from sqlalchemy import event
 import sqlalchemy.exc
-import psycopg2
+
+try:
+    import psycopg2
+except ImportError:
+    psycopg2 = None  # psycopg2 yüklü değilse hata vermesin
 
 from sqlalchemy.engine import Engine
+
 
 def receive_handle_error(exception_context):
     e = exception_context.original_exception
     is_db_error = False
     err_str = str(e).lower()
-    
+
     if isinstance(e, sqlalchemy.exc.OperationalError):
         is_db_error = True
     elif "psycopg2.operationalerror" in err_str or ("connection" in err_str and "failed" in err_str):
         is_db_error = True
-        
+
     if is_db_error:
-        from PySide6.QtWidgets import QApplication
-        if QApplication.instance():
-            from ui.db_error_dialog import DatabaseErrorDialog
-            from PySide6.QtWidgets import QDialog
-            
-            print(f"[WARN] Intercepted Database Error: {e}")
-            dialog = DatabaseErrorDialog(str(e))
-            result = dialog.exec()
-            
-            if result == QDialog.Accepted:
-                reconnect_engine()
-                # Kullanıcının işlemi tekrar yapması gerekecek (UI tarafında) ama en azından ayarlar güncellendi.
-            else:
-                import sys
-                sys.exit(1)
+        print(f"[WARN] Database connection error: {e}")
 
 
 def register_db_error_listener():
     """Veritabanı çalışma zamanı bağlantı hatalarını yakalamak için dinleyiciyi kaydeder."""
     event.listen(Engine, "handle_error", receive_handle_error)
-
-
