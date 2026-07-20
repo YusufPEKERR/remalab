@@ -3514,15 +3514,15 @@ class WebBridge(QObject):
         db = SessionLocal()
         try:
             part_id = int(part_id)
-            location_id = int(location_id) if (location_id and str(location_id).isdigit()) else 0
             qty = int(qty)
             price = float(unit_price) if unit_price else 0.0
 
-            target_loc = db.query(Location).filter(Location.id == location_id).first()
+            # Stok Girişleri HER ZAMAN Good Stock deposuna yapılır
+            target_loc = db.query(Location).filter(Location.kind == "good_stock").first()
             if not target_loc:
-                target_loc = db.query(Location).filter(Location.kind == "good_stock").first()
-                if target_loc:
-                    location_id = target_loc.id
+                return json.dumps({"success": False, "message": "Good Stock deposu bulunamadı."})
+            
+            location_id = target_loc.id
 
             stock = db.query(Stock).filter(Stock.part_id == part_id, Stock.location_id == location_id).first()
             if stock:
@@ -3531,11 +3531,9 @@ class WebBridge(QObject):
                 stock = Stock(part_id=part_id, location_id=location_id, quantity=qty)
                 db.add(stock)
 
-            movement_kind = "Inbound" if target_loc and target_loc.kind in ("good_stock", "doa_stock") else None
-
             mov = StockMovement(
                 type=type_str or "Giriş",
-                movement_kind=movement_kind,
+                movement_kind="Inbound",
                 quantity=qty,
                 part_id=part_id,
                 target_location_id=location_id,
