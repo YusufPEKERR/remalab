@@ -2277,6 +2277,51 @@ class WebBridge(QObject):
         finally:
             db.close()
 
+    @Slot(str, str, str, result=str)
+    def receive_extra_bom_materials(self, part_id_str, extra_qty_str, technician):
+        """Hızlı Tekrar Üretim reçetesi için Good Stock'a ekstra malzeme/parça girişi yapar."""
+        from models.stock import Stock
+        from models.stock_movement import StockMovement
+        db = SessionLocal()
+        try:
+            part_id = int(part_id_str)
+            try:
+                extra_qty = int(extra_qty_str)
+            except (ValueError, TypeError):
+                extra_qty = 0
+            if extra_qty <= 0:
+                return json.dumps({"success": False, "message": "Ekstra miktar 0'dan büyük olmalıdır."})
+
+            good_stock_id = _get_system_location_id(db, "good_stock")
+            if not good_stock_id:
+                return json.dumps({"success": False, "message": "Good Stock deposu bulunamadı."})
+
+            good_stock = db.query(Stock).filter(Stock.part_id == part_id, Stock.location_id == good_stock_id).first()
+            if good_stock:
+                good_stock.quantity += extra_qty
+            else:
+                good_stock = Stock(part_id=part_id, location_id=good_stock_id, quantity=extra_qty)
+                db.add(good_stock)
+
+            db.add(StockMovement(
+                type="Ekstra Malzeme Girişi",
+                movement_kind="Inbound",
+                quantity=extra_qty,
+                part_id=part_id,
+                target_location_id=good_stock_id,
+                created_by=technician or None,
+                technician=technician or None,
+                description=f"Hızlı Tekrar Üretim için ekstra parça girişi ({extra_qty} adet)"
+            ))
+
+            db.commit()
+            return json.dumps({"success": True, "message": "Ekstra parça girişi yapıldı"})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": f"Ekstra parça girişi hatası: {str(e)}"})
+        finally:
+            db.close()
+
     # ==========================
     # PARÇA TEDARİK DURUMU (İş Emri Parça Satırları / Stok Teslim-Bekleme-Geri Alma)
     # ==========================

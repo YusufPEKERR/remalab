@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ClipboardList, Plus, Trash2, Edit, X, Save, Factory, Package, TrendingUp, Repeat, AlertTriangle, Layers, Search, RotateCcw, Eye, Info, ChevronDown, Zap, FileText, PlusCircle, Check } from 'lucide-react';
+import { ClipboardList, Plus, Trash2, Edit, X, Save, Factory, Package, TrendingUp, Repeat, AlertTriangle, Layers, Search, RotateCcw, Eye, Info, ChevronDown, Zap, FileText, PlusCircle, Check, ArrowDownToLine } from 'lucide-react';
 import { api } from '../services/api';
 import PartSupplyMenu from '../components/PartSupplyMenu';
 import DeliverPartPopover from '../components/DeliverPartPopover';
@@ -99,6 +99,10 @@ export default function WorkOrders() {
   const [stockStatus, setStockStatus] = useState([]);
   const [systemLocations, setSystemLocations] = useState([]);
   const currentUser = getCurrentUser();
+  // MainLayout.jsx'teki rol normalizasyonuyla aynı mantık (bkz. o dosya)
+  const rawRole = (currentUser?.role || 'Admin').toLowerCase();
+  const userRole = (rawRole === 'developer') ? 'admin' : (rawRole.startsWith('tec_') || rawRole === 'staff' || rawRole === 'qac' || rawRole === 'log_p') ? 'teknisyen' : rawRole;
+  const canManageStock = userRole === 'admin' || userRole === 'depo' || userRole === 'depo müdürü';
 
   // --- Parça Tedarik Durumu (live, kayıtlı iş emri için) state ---
   const [workOrderParts, setWorkOrderParts] = useState([]);
@@ -133,6 +137,11 @@ export default function WorkOrders() {
   const [extraPartSelectedId, setExtraPartSelectedId] = useState('');
   const [extraPartQty, setExtraPartQty] = useState(1);
   const [extraPartSaving, setExtraPartSaving] = useState(false);
+  const [extraPartInDialog, setExtraPartInDialog] = useState(null); // bom | null
+  const [extraPartInSelectedId, setExtraPartInSelectedId] = useState('');
+  const [extraPartInQty, setExtraPartInQty] = useState(1);
+  const [extraPartInTechnician, setExtraPartInTechnician] = useState('');
+  const [extraPartInSaving, setExtraPartInSaving] = useState(false);
 
   // --- Production Work Order state (work_orders, work_order_type = 'PRODUCTION') ---
   const [showProductionWOForm, setShowProductionWOForm] = useState(false);
@@ -369,6 +378,43 @@ export default function WorkOrders() {
       refreshStockStatus();
     } else {
       alert(res.message || 'Ekstra parça çıkışı başarısız oldu.');
+    }
+  };
+
+  const handleReceiveExtraBomMaterials = (bom) => {
+    setExtraPartInSelectedId('');
+    setExtraPartInQty(1);
+    setExtraPartInTechnician('');
+    setExtraPartInDialog(bom);
+  };
+
+  const handleConfirmReceiveExtraPart = async () => {
+    if (!extraPartInSelectedId) {
+      alert('Lütfen bir parça seçin.');
+      return;
+    }
+    const qty = parseInt(extraPartInQty, 10);
+    if (isNaN(qty) || qty <= 0) {
+      alert('Geçerli bir miktar giriniz.');
+      return;
+    }
+    if (!extraPartInTechnician) {
+      alert('Lütfen teknisyen seçin.');
+      return;
+    }
+    const partName = parts.find(p => String(p.id) === String(extraPartInSelectedId))?.name || 'Seçilen parça';
+
+    if (extraPartInSaving) return;
+    setExtraPartInSaving(true);
+    const res = await api.receiveExtraBomMaterials(extraPartInSelectedId, qty, extraPartInTechnician);
+    setExtraPartInSaving(false);
+
+    if (res.success) {
+      alert(`"${partName}" için ${qty} adet ekstra parça girişi yapıldı.`);
+      setExtraPartInDialog(null);
+      refreshStockStatus();
+    } else {
+      alert(res.message || 'Ekstra parça girişi başarısız oldu.');
     }
   };
 
@@ -1557,6 +1603,15 @@ export default function WorkOrders() {
                                     >
                                       <PlusCircle size={15} /> Ekstra Parça Çıkışı Yap
                                     </button>
+                                    {canManageStock && (
+                                      <button
+                                        type="button"
+                                        onClick={() => { setOpenBomMenuIdx(null); handleReceiveExtraBomMaterials(bom); }}
+                                        className="w-full px-4 py-2.5 text-xs text-teal-600 dark:text-teal-400 hover:bg-slate-100 dark:hover:bg-[#2a3142] flex items-center gap-2.5 font-medium transition-colors"
+                                      >
+                                        <ArrowDownToLine size={15} /> Ekstra Parça Girişi Yap
+                                      </button>
+                                    )}
                                   </div>
                                 </>
                               )}
@@ -2702,6 +2757,89 @@ export default function WorkOrders() {
                 className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white rounded-xl font-medium transition-colors shadow-lg shadow-indigo-900/20 flex items-center gap-2"
               >
                 <PlusCircle size={16} /> {extraPartSaving ? 'Kaydediliyor...' : 'Çıkışı Yap'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- EKSTRA PARÇA GİRİŞİ FORMU (BOM Aksiyonları) --- */}
+      {extraPartInDialog && (
+        <div className="fixed inset-0 bg-slate-900/80 flex items-center justify-center z-50 p-4" onClick={() => !extraPartInSaving && setExtraPartInDialog(null)}>
+          <div
+            className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 shadow-2xl rounded-2xl w-full max-w-lg animate-in fade-in zoom-in-95 duration-200"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 flex justify-between items-center bg-slate-50 dark:bg-[#242a38]">
+              <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                <ArrowDownToLine className="text-teal-500" size={20} /> Ekstra Parça Girişi Yap
+              </h3>
+              <button onClick={() => !extraPartInSaving && setExtraPartInDialog(null)} className="p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-[#2a3142] rounded-lg transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-1.5">Parça</label>
+                <PartSelectCombobox
+                  parts={(extraPartInDialog.materials || []).map(m => ({
+                    id: m.child_part_id,
+                    item_code: m.child_item_id,
+                    name: m.child_name
+                  }))}
+                  value={extraPartInSelectedId}
+                  onChange={setExtraPartInSelectedId}
+                  placeholder="Bu reçetedeki hammaddelerden birini seçin..."
+                />
+                {extraPartInSelectedId && (
+                  <p className="text-xs text-slate-400 mt-1.5">
+                    Good Stock'ta mevcut: <span className="font-mono font-semibold text-slate-600 dark:text-slate-300">{getTotalStockQty(extraPartInSelectedId)}</span> adet
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-1.5">Giriş Miktarı</label>
+                <input
+                  type="number"
+                  min="1"
+                  className="w-full bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-teal-500"
+                  value={extraPartInQty}
+                  onChange={e => setExtraPartInQty(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-1.5">Teknisyen <span className="text-red-500">*</span></label>
+                <select
+                  required
+                  className="w-full px-3 py-2.5 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl text-sm focus:outline-none focus:border-teal-500"
+                  value={extraPartInTechnician}
+                  onChange={e => setExtraPartInTechnician(e.target.value)}
+                >
+                  <option value="">Seçiniz...</option>
+                  {users.map(u => <option key={u.id} value={u.username}>{u.username}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 px-6 pb-6">
+              <button
+                type="button"
+                onClick={() => setExtraPartInDialog(null)}
+                disabled={extraPartInSaving}
+                className="px-5 py-2.5 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors border border-slate-300 dark:border-slate-600 disabled:opacity-50"
+              >
+                İptal
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmReceiveExtraPart}
+                disabled={extraPartInSaving}
+                className="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 disabled:opacity-60 text-white rounded-xl font-medium transition-colors shadow-lg shadow-teal-900/20 flex items-center gap-2"
+              >
+                <ArrowDownToLine size={16} /> {extraPartInSaving ? 'Kaydediliyor...' : 'Girişi Yap'}
               </button>
             </div>
           </div>

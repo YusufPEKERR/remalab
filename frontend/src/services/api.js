@@ -651,6 +651,17 @@ export const api = {
         });
     },
 
+    receiveExtraBomMaterials: async (partId, extraQty, technician) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.receive_extra_bom_materials) {
+                backend.receive_extra_bom_materials(String(partId), String(extraQty), technician || '', (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true });
+            }
+        });
+    },
+
     // ==========================
     // PARÇA TEDARİK DURUMU (İş Emri Parça Satırları)
     // ==========================
