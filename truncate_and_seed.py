@@ -88,6 +88,20 @@ def truncate_and_seed():
 
             print("[3/3] Dummy hareketler başarıyla eklendi.")
 
+    # Cache temizliği
+    try:
+        from core.web_bridge import get_cache_dirs
+        for d in get_cache_dirs():
+            for fname in ["parts.json", "stock.json", "critical.json"]:
+                p = os.path.join(d, fname)
+                if os.path.exists(p):
+                    try:
+                        os.remove(p)
+                        print(f"    Önbellek temizlendi: {fname}")
+                    except Exception: pass
+    except Exception:
+        pass
+
     print("\n[OK] Temizleme ve test verisi yukleme islemi basariyla tamamlandi!")
 
 if __name__ == "__main__":
