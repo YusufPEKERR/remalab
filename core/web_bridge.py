@@ -993,12 +993,18 @@ class WebBridge(QObject):
         """Belirtilen id'ye sahip parçayı siler (Stok miktarı 0 ise parçayı ve ilişkili tüm kayıtlarını temizler)."""
         from sqlalchemy import text, func
         from models.stock import Stock
+        from models.location import Location
         db = SessionLocal()
         try:
             part_id = int(part_id_str)
-            
-            # Stok Miktarı Kontrolü (Herhangi bir lokasyonda miktarı > 0 olan ürün var mı?)
-            total_stock_qty = db.query(func.coalesce(func.sum(Stock.quantity), 0)).filter(Stock.part_id == part_id).scalar() or 0
+
+            # Stok Miktarı Kontrolü — sadece fiziksel/depoda bulunan lokasyonlar sayılır
+            # (Out Stock / Scrap Stock lokasyonlarındaki miktar, ürünün depodan çıktığının
+            # kaydıdır; parçanın silinmesini engellememeli).
+            total_stock_qty = db.query(func.coalesce(func.sum(Stock.quantity), 0)) \
+                .join(Location, Stock.location_id == Location.id) \
+                .filter(Stock.part_id == part_id, Location.kind.in_(("good_stock", "doa_stock", "repair_stock"))) \
+                .scalar() or 0
             if total_stock_qty > 0:
                 return json.dumps({"success": False, "message": f"Bu parçanın stokta {total_stock_qty} adet ürünü var. Silmeden önce stok miktarını sıfırlayınız."})
 
@@ -1039,16 +1045,21 @@ class WebBridge(QObject):
         """Birden fazla parçayı toplu olarak siler."""
         from sqlalchemy import text, func
         from models.stock import Stock
+        from models.location import Location
         db = SessionLocal()
         try:
             ids = [int(x.strip()) for x in part_ids_csv.split(",") if x.strip()]
             if not ids:
                 return json.dumps({"success": False, "message": "Silinecek parça seçilmedi."})
-            
+
             safe_ids = []
             skipped_count = 0
             for pid in ids:
-                total_stock_qty = db.query(func.coalesce(func.sum(Stock.quantity), 0)).filter(Stock.part_id == pid).scalar() or 0
+                # Sadece fiziksel/depoda bulunan lokasyonlar sayılır (bkz. delete_part)
+                total_stock_qty = db.query(func.coalesce(func.sum(Stock.quantity), 0)) \
+                    .join(Location, Stock.location_id == Location.id) \
+                    .filter(Stock.part_id == pid, Location.kind.in_(("good_stock", "doa_stock", "repair_stock"))) \
+                    .scalar() or 0
                 if total_stock_qty == 0:
                     safe_ids.append(pid)
                 else:
