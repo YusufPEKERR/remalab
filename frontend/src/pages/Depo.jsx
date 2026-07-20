@@ -21,7 +21,8 @@ export default function Depo() {
           .map(s => ({
             id: s.id,
             part_id: s.part_id,
-            name: s.part_name,
+            item_code: s.item_code || '-',
+            name: s.part_name || s.item_code || 'İsimsiz Parça',
             location: s.location_name,
             quantity: s.quantity,
             critical_limit: s.critical_limit,
@@ -46,6 +47,7 @@ export default function Depo() {
     if (!searchTerm) return true;
     const s = searchTerm.toLowerCase();
     return String(item.id).includes(s) || 
+           (item.item_code && item.item_code.toLowerCase().includes(s)) ||
            (item.name && item.name.toLowerCase().includes(s)) ||
            (item.location && item.location.toLowerCase().includes(s));
   });
@@ -98,24 +100,21 @@ export default function Depo() {
         <button
           type="button"
           onClick={() => loadInventory()}
-          disabled={loading}
-          className="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-[#2a3142] hover:bg-slate-200 dark:hover:bg-[#323a4d] text-slate-700 dark:text-slate-200 rounded-xl font-medium text-sm transition-colors border border-slate-200 dark:border-slate-700 shadow-sm"
+          className="p-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors"
+          title="Yenile"
         >
-          <RefreshCw size={16} className={loading ? "animate-spin text-blue-500" : ""} /> Yenile
+          <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
         </button>
       </div>
 
-      {/* Progress Bar Section */}
-      <div className="bg-white dark:bg-[#1e2330] px-6 py-5 rounded-2xl border border-slate-200 dark:border-slate-700/50 flex flex-col gap-3 shrink-0">
-        <div className="flex justify-between items-end">
+      {/* Progress Card */}
+      <div className="bg-white dark:bg-[#1e2330] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm shrink-0 space-y-3">
+        <div className="flex justify-between items-center">
           <label className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
-            <Info size={16} className="text-blue-400"/>
+            <Info size={16} className="text-blue-500" />
             {selectedItem ? (
               <span className="flex items-center gap-2">
-                {occupancy.title} 
-                <span className={occupancy.isCritical ? "text-red-500 font-bold" : "text-emerald-600 font-bold"}>
-                  {occupancy.currentQty} Adet
-                </span>
+                {occupancy.title} <span className="font-mono text-blue-500 font-bold">{occupancy.currentQty} adet</span>
                 {occupancy.isCritical && <span className="text-red-500 text-xs ml-1">(⚠️ Kritik Stok)</span>}
               </span>
             ) : (
@@ -147,7 +146,7 @@ export default function Depo() {
           <input
             type="text"
             className="w-full bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:border-blue-500 shadow-sm"
-            placeholder="Ara (ID, Parça Adı, Lokasyon)..."
+            placeholder="Ara (İtem Kodu, Parça Adı, Lokasyon)..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -161,6 +160,7 @@ export default function Depo() {
             <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase text-xs sticky top-0 z-10">
               <tr>
                 <th className="px-6 py-4">SON HAREKET TARİHİ</th>
+                <th className="px-6 py-4">İTEM KODU</th>
                 <th className="px-6 py-4">PARÇA ADI</th>
                 <th className="px-6 py-4">LOKASYON</th>
                 <th className="px-6 py-4">STOK MİKTARI</th>
@@ -178,6 +178,7 @@ export default function Depo() {
                       ${isSelected ? 'bg-blue-600/10 border-l-2 border-blue-500' : 'hover:bg-slate-100 dark:hover:bg-[#2a3142] border-l-2 border-transparent text-slate-700 dark:text-slate-300'}`}
                   >
                     <td className="px-6 py-4 font-mono text-slate-400 text-xs">{item.updated_at}</td>
+                    <td className="px-6 py-4 font-mono font-medium text-slate-500 dark:text-slate-400">{item.item_code}</td>
                     <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200">{item.name}</td>
                     <td className="px-6 py-4 text-slate-400">{item.location}</td>
                     <td className="px-6 py-4 font-mono font-medium">{item.quantity}</td>
@@ -185,7 +186,7 @@ export default function Depo() {
                 );
               })}
               {filteredInventory.length === 0 && (
-                <tr><td colSpan="4" className="px-6 py-12 text-center text-slate-500">Kayıt bulunamadı.</td></tr>
+                <tr><td colSpan="5" className="px-6 py-12 text-center text-slate-500">Kayıt bulunamadı.</td></tr>
               )}
             </tbody>
           </table>
