@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import ErrorBoundary from './components/ErrorBoundary';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Users from './pages/Users';
@@ -23,43 +24,45 @@ import ItemBOM from './pages/ItemBOM';
 function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        {/* Default redirect */}
-        <Route path="/" element={<Navigate to="/login" replace />} />
-        
-        {/* Public Routes */}
-        <Route path="/login" element={<Login />} />
+      <ErrorBoundary>
+        <Routes>
+          {/* Default redirect */}
+          <Route path="/" element={<Navigate to="/login" replace />} />
 
-        {/* Protected Routes (Wrapped in MainLayout) */}
-        <Route element={<MainLayout />}>
-          <Route path="/dashboard" element={<Dashboard />} />
-          
-          {/* DEPO */}
-          <Route path="/depo" element={<Depo />} />
-          <Route path="/irsaliye" element={<Irsaliye />} />
-          <Route path="/work-orders" element={<WorkOrders />} />
-          <Route path="/supply-requests" element={<SupplyRequests />} />
-          <Route path="/raporlar" element={<Raporlar />} />
+          {/* Public Routes */}
+          <Route path="/login" element={<Login />} />
 
-          {/* ENVANTER */}
-          <Route path="/parts" element={<Parts />} />
-          <Route path="/part-categories" element={<PartCategories />} />
-          <Route path="/products" element={<Products />} />
-          <Route path="/suppliers" element={<Suppliers />} />
-          <Route path="/locations" element={<Locations />} />
+          {/* Protected Routes (Wrapped in MainLayout) */}
+          <Route element={<MainLayout />}>
+            <Route path="/dashboard" element={<Dashboard />} />
 
-          {/* KULLANICI & AYARLAR */}
-          <Route path="/users" element={<Users />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/departments" element={<Departments />} />
-          <Route path="/service-records" element={<ServiceRecords />} />
-          <Route path="/data-management" element={<DataManagement />} />
-          <Route path="/tedarik-talepleri" element={<SupplyRequestForm />} />
+            {/* DEPO */}
+            <Route path="/depo" element={<Depo />} />
+            <Route path="/irsaliye" element={<Irsaliye />} />
+            <Route path="/work-orders" element={<WorkOrders />} />
+            <Route path="/supply-requests" element={<SupplyRequests />} />
+            <Route path="/raporlar" element={<Raporlar />} />
 
-          {/* HIDDEN MODULES */}
-          <Route path="/item-bom" element={<ItemBOM />} />
-        </Route>
-      </Routes>
+            {/* ENVANTER */}
+            <Route path="/parts" element={<Parts />} />
+            <Route path="/part-categories" element={<PartCategories />} />
+            <Route path="/products" element={<Products />} />
+            <Route path="/suppliers" element={<Suppliers />} />
+            <Route path="/locations" element={<Locations />} />
+
+            {/* KULLANICI & AYARLAR */}
+            <Route path="/users" element={<Users />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/departments" element={<Departments />} />
+            <Route path="/service-records" element={<ServiceRecords />} />
+            <Route path="/data-management" element={<DataManagement />} />
+            <Route path="/tedarik-talepleri" element={<SupplyRequestForm />} />
+
+            {/* HIDDEN MODULES */}
+            <Route path="/item-bom" element={<ItemBOM />} />
+          </Route>
+        </Routes>
+      </ErrorBoundary>
     </BrowserRouter>
   );
 }
