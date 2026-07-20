@@ -119,6 +119,10 @@ export default function WorkOrders() {
   const [filterByBrandModel, setFilterByBrandModel] = useState(true);
   const [searchResults, setSearchResults] = useState([]);
   const [showResultsDropdown, setShowResultsDropdown] = useState(false);
+  const [bomsPage, setBomsPage] = useState(1);
+  const [consumptionPage, setConsumptionPage] = useState(1);
+  const [productionReportPage, setProductionReportPage] = useState(1);
+  const REPORT_ITEMS_PER_PAGE = 30;
 
   // --- Production Work Order state (work_orders, work_order_type = 'PRODUCTION') ---
   const [showProductionWOForm, setShowProductionWOForm] = useState(false);
@@ -422,6 +426,8 @@ export default function WorkOrders() {
       setFilterByBrandModel(true);
     }
   }, [selectedTargetPart?.id]);
+
+  useEffect(() => { setBomsPage(1); }, [bomSearchQuery]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -847,11 +853,20 @@ export default function WorkOrders() {
   const filteredBoms = itemBoms.filter(bom => {
     const q = bomSearchQuery.toLowerCase();
     const parentMatch = bom.parent_item_id.toLowerCase().includes(q) || bom.parent_name.toLowerCase().includes(q);
-    const childMatch = bom.materials.some(m => 
+    const childMatch = bom.materials.some(m =>
       m.child_item_id.toLowerCase().includes(q) || m.child_name.toLowerCase().includes(q)
     );
     return parentMatch || childMatch;
   });
+  const bomsTotalPages = Math.ceil(filteredBoms.length / REPORT_ITEMS_PER_PAGE) || 1;
+  const paginatedBoms = filteredBoms.slice((bomsPage - 1) * REPORT_ITEMS_PER_PAGE, bomsPage * REPORT_ITEMS_PER_PAGE);
+
+  const materialConsumptionList = materialConsumption();
+  const consumptionTotalPages = Math.ceil(materialConsumptionList.length / REPORT_ITEMS_PER_PAGE) || 1;
+  const paginatedConsumption = materialConsumptionList.slice((consumptionPage - 1) * REPORT_ITEMS_PER_PAGE, consumptionPage * REPORT_ITEMS_PER_PAGE);
+
+  const productionReportTotalPages = Math.ceil(productionRuns.length / REPORT_ITEMS_PER_PAGE) || 1;
+  const paginatedProductionRuns = productionRuns.slice((productionReportPage - 1) * REPORT_ITEMS_PER_PAGE, productionReportPage * REPORT_ITEMS_PER_PAGE);
 
   const TABS = [
     { key: 'production', label: 'Yarı Mamul Üretimi', icon: Factory },
@@ -1324,7 +1339,7 @@ export default function WorkOrders() {
               />
             </div>
             
-            <div className="flex-1 overflow-y-auto border border-slate-200 dark:border-slate-700/50 rounded-2xl">
+            <div className="max-h-[480px] overflow-y-auto border border-slate-200 dark:border-slate-700/50 rounded-2xl">
               <table className="w-full text-left text-sm">
                 <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs sticky top-0 z-10">
                   <tr>
@@ -1347,7 +1362,7 @@ export default function WorkOrders() {
                       <td colSpan="7" className="px-6 py-8 text-center text-slate-500">Reçete kaydı bulunamadı.</td>
                     </tr>
                   ) : (
-                    filteredBoms.map((bom, index) => {
+                    paginatedBoms.map((bom, index) => {
                       const mat1 = bom.materials[0];
                       const mat2 = bom.materials[1];
                       return (
@@ -1397,6 +1412,26 @@ export default function WorkOrders() {
                 </tbody>
               </table>
             </div>
+
+            <div className="flex justify-between items-center pt-4 shrink-0 text-sm text-slate-500">
+              <span>Toplam {filteredBoms.length} kayıttan {filteredBoms.length === 0 ? 0 : (bomsPage - 1) * REPORT_ITEMS_PER_PAGE + 1}-{Math.min(bomsPage * REPORT_ITEMS_PER_PAGE, filteredBoms.length)} arası gösteriliyor</span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setBomsPage(p => Math.max(1, p - 1))}
+                  disabled={bomsPage === 1}
+                  className="px-3 py-1 bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 disabled:opacity-50"
+                >
+                  Önceki
+                </button>
+                <button
+                  onClick={() => setBomsPage(p => Math.min(bomsTotalPages, p + 1))}
+                  disabled={bomsPage >= bomsTotalPages}
+                  className="px-3 py-1 bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 disabled:opacity-50"
+                >
+                  Sonraki
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
@@ -1409,36 +1444,58 @@ export default function WorkOrders() {
               </h2>
               <p className="text-slate-400 text-sm mt-1">Üretimde tüketilen malzemelerin toplu raporu (tüm üretim kayıtlarından derlenir).</p>
             </div>
-            <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs">
-                <tr>
-                  <th className="px-6 py-4">Parça</th>
-                  <th className="px-6 py-4">Ürün Kodu</th>
-                  <th className="px-6 py-4">Toplam Tüketilen Miktar</th>
-                  <th className="px-6 py-4">Kaç Üretimde Kullanıldı</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-700/50">
-                {productionLoading ? (
+            <div className="max-h-[480px] overflow-y-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs sticky top-0 z-10">
                   <tr>
-                    <td colSpan="4" className="px-6 py-8 text-center text-slate-400">Yükleniyor...</td>
+                    <th className="px-6 py-4">Parça</th>
+                    <th className="px-6 py-4">Ürün Kodu</th>
+                    <th className="px-6 py-4">Toplam Tüketilen Miktar</th>
+                    <th className="px-6 py-4">Kaç Üretimde Kullanıldı</th>
                   </tr>
-                ) : materialConsumption().length === 0 ? (
-                  <tr>
-                    <td colSpan="4" className="px-6 py-8 text-center text-slate-500">Henüz malzeme tüketimi yok.</td>
-                  </tr>
-                ) : (
-                  materialConsumption().map((m, idx) => (
-                    <tr key={idx} className="hover:bg-slate-100 dark:bg-[#2a3142] transition-colors text-slate-700 dark:text-slate-300">
-                      <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200">{m.part_name || '-'}</td>
-                      <td className="px-6 py-4 font-mono text-slate-400">{m.item_code}</td>
-                      <td className="px-6 py-4 font-mono">{m.total}</td>
-                      <td className="px-6 py-4 text-slate-400">{m.runCount}</td>
+                </thead>
+                <tbody className="divide-y divide-slate-700/50">
+                  {productionLoading ? (
+                    <tr>
+                      <td colSpan="4" className="px-6 py-8 text-center text-slate-400">Yükleniyor...</td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : materialConsumptionList.length === 0 ? (
+                    <tr>
+                      <td colSpan="4" className="px-6 py-8 text-center text-slate-500">Henüz malzeme tüketimi yok.</td>
+                    </tr>
+                  ) : (
+                    paginatedConsumption.map((m, idx) => (
+                      <tr key={idx} className="hover:bg-slate-100 dark:bg-[#2a3142] transition-colors text-slate-700 dark:text-slate-300">
+                        <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200">{m.part_name || '-'}</td>
+                        <td className="px-6 py-4 font-mono text-slate-400">{m.item_code}</td>
+                        <td className="px-6 py-4 font-mono">{m.total}</td>
+                        <td className="px-6 py-4 text-slate-400">{m.runCount}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex justify-between items-center px-6 py-4 bg-slate-50 dark:bg-[#242a38] border-t border-slate-200 dark:border-slate-700/50 text-sm text-slate-500">
+              <span>Toplam {materialConsumptionList.length} kayıttan {materialConsumptionList.length === 0 ? 0 : (consumptionPage - 1) * REPORT_ITEMS_PER_PAGE + 1}-{Math.min(consumptionPage * REPORT_ITEMS_PER_PAGE, materialConsumptionList.length)} arası gösteriliyor</span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setConsumptionPage(p => Math.max(1, p - 1))}
+                  disabled={consumptionPage === 1}
+                  className="px-3 py-1 bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 disabled:opacity-50"
+                >
+                  Önceki
+                </button>
+                <button
+                  onClick={() => setConsumptionPage(p => Math.min(consumptionTotalPages, p + 1))}
+                  disabled={consumptionPage >= consumptionTotalPages}
+                  className="px-3 py-1 bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 disabled:opacity-50"
+                >
+                  Sonraki
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
@@ -1452,32 +1509,33 @@ export default function WorkOrders() {
               </h2>
               <p className="text-slate-400 text-sm mt-1">Geçmişte yapılan tüm yarı mamul üretimlerinin Cihaz Kimlik ID bazlı raporu.</p>
             </div>
-            <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs">
-                <tr>
-                  <th className="px-6 py-4">KİMLİK ID</th>
-                  <th className="px-6 py-4">ÜRETİLEN PARÇA</th>
-                  <th className="px-6 py-4 text-center">MİKTAR</th>
-                  <th className="px-6 py-4">KAYNAK LOKASYON</th>
-                  <th className="px-6 py-4">HEDEF LOKASYON</th>
-                  <th className="px-6 py-4 min-w-[200px]">TÜKETİLEN MALZEMELER</th>
-                  <th className="px-6 py-4">ÜRETİCİ</th>
-                  <th className="px-6 py-4">TARİH</th>
-                  <th className="px-6 py-4">DURUM</th>
-                  <th className="px-6 py-4 text-center">İŞLEMLER</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-700/50">
-                {productionLoading ? (
+            <div className="max-h-[480px] overflow-y-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs sticky top-0 z-10">
                   <tr>
-                    <td colSpan="10" className="px-6 py-8 text-center text-slate-400">Yükleniyor...</td>
+                    <th className="px-6 py-4">KİMLİK ID</th>
+                    <th className="px-6 py-4">ÜRETİLEN PARÇA</th>
+                    <th className="px-6 py-4 text-center">MİKTAR</th>
+                    <th className="px-6 py-4">KAYNAK LOKASYON</th>
+                    <th className="px-6 py-4">HEDEF LOKASYON</th>
+                    <th className="px-6 py-4 min-w-[200px]">TÜKETİLEN MALZEMELER</th>
+                    <th className="px-6 py-4">ÜRETİCİ</th>
+                    <th className="px-6 py-4">TARİH</th>
+                    <th className="px-6 py-4">DURUM</th>
+                    <th className="px-6 py-4 text-center">İŞLEMLER</th>
                   </tr>
-                ) : productionRuns.length === 0 ? (
-                  <tr>
-                    <td colSpan="10" className="px-6 py-8 text-center text-slate-500">Kayıt bulunamadı.</td>
-                  </tr>
-                ) : (
-                  productionRuns.map(run => (
+                </thead>
+                <tbody className="divide-y divide-slate-700/50">
+                  {productionLoading ? (
+                    <tr>
+                      <td colSpan="10" className="px-6 py-8 text-center text-slate-400">Yükleniyor...</td>
+                    </tr>
+                  ) : productionRuns.length === 0 ? (
+                    <tr>
+                      <td colSpan="10" className="px-6 py-8 text-center text-slate-500">Kayıt bulunamadı.</td>
+                    </tr>
+                  ) : (
+                    paginatedProductionRuns.map(run => (
                     <tr key={run.unit_id} className="hover:bg-slate-100 dark:bg-[#2a3142] transition-colors text-slate-700 dark:text-slate-300">
                       <td className="px-6 py-4">
                         <div className="font-mono font-bold text-slate-900 dark:text-slate-200">
@@ -1535,8 +1593,29 @@ export default function WorkOrders() {
                     </tr>
                   ))
                 )}
-              </tbody>
-            </table>
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex justify-between items-center px-6 py-4 bg-slate-50 dark:bg-[#242a38] border-t border-slate-200 dark:border-slate-700/50 text-sm text-slate-500">
+              <span>Toplam {productionRuns.length} kayıttan {productionRuns.length === 0 ? 0 : (productionReportPage - 1) * REPORT_ITEMS_PER_PAGE + 1}-{Math.min(productionReportPage * REPORT_ITEMS_PER_PAGE, productionRuns.length)} arası gösteriliyor</span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setProductionReportPage(p => Math.max(1, p - 1))}
+                  disabled={productionReportPage === 1}
+                  className="px-3 py-1 bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 disabled:opacity-50"
+                >
+                  Önceki
+                </button>
+                <button
+                  onClick={() => setProductionReportPage(p => Math.min(productionReportTotalPages, p + 1))}
+                  disabled={productionReportPage >= productionReportTotalPages}
+                  className="px-3 py-1 bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 disabled:opacity-50"
+                >
+                  Sonraki
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
