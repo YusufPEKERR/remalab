@@ -95,6 +95,14 @@ export default function Depo() {
           <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">Depo Stok Durumu</h1>
           <p className="text-slate-400 mt-1">Depo lokasyonlarındaki stokları takip edin ve transfer edin</p>
         </div>
+        <button
+          type="button"
+          onClick={() => loadInventory()}
+          disabled={loading}
+          className="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-[#2a3142] hover:bg-slate-200 dark:hover:bg-[#323a4d] text-slate-700 dark:text-slate-200 rounded-xl font-medium text-sm transition-colors border border-slate-200 dark:border-slate-700 shadow-sm"
+        >
+          <RefreshCw size={16} className={loading ? "animate-spin text-blue-500" : ""} /> Yenile
+        </button>
       </div>
 
       {/* Progress Bar Section */}
