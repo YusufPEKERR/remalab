@@ -29,15 +29,17 @@ from models.user import User
 from sqlalchemy import event
 from sqlalchemy.orm import Session
 
-def clear_api_cache(session):
+def clear_api_cache(session=None):
     """Veritabanında değişiklik olduğunda cache'i temizler, böylece UI sadece yeni veriyi bekler."""
     dirs = get_cache_dirs()
     for d in dirs:
         for filename in ["parts.json", "stock.json", "critical.json"]:
             path = os.path.join(d, filename)
             if os.path.exists(path):
-                try: os.remove(path)
-                except Exception as e: logging.error(f"Failed to clear cache {path}: {e}")
+                try: 
+                    os.remove(path)
+                except Exception as e: 
+                    logging.error(f"Failed to clear cache {path}: {e}")
 
 event.listen(Session, 'after_commit', clear_api_cache)
 
@@ -3446,6 +3448,7 @@ class WebBridge(QObject):
             )
             db.add(movement)
             db.commit()
+            clear_api_cache()
             return json.dumps({"success": True})
         except Exception as e:
             db.rollback()
@@ -3509,15 +3512,15 @@ class WebBridge(QObject):
         db = SessionLocal()
         try:
             part_id = int(part_id)
-            location_id = int(location_id) if (location_id and str(location_id).isdigit()) else 0
             qty = int(qty)
             price = float(unit_price) if unit_price else 0.0
 
-            target_loc = db.query(Location).filter(Location.id == location_id).first()
+            # Stok Girişleri HER ZAMAN Good Stock deposuna yapılır
+            target_loc = db.query(Location).filter(Location.kind == "good_stock").first()
             if not target_loc:
-                target_loc = db.query(Location).filter(Location.kind == "good_stock").first()
-                if target_loc:
-                    location_id = target_loc.id
+                return json.dumps({"success": False, "message": "Good Stock deposu bulunamadı."})
+            
+            location_id = target_loc.id
 
             stock = db.query(Stock).filter(Stock.part_id == part_id, Stock.location_id == location_id).first()
             if stock:
@@ -3526,11 +3529,9 @@ class WebBridge(QObject):
                 stock = Stock(part_id=part_id, location_id=location_id, quantity=qty)
                 db.add(stock)
 
-            movement_kind = "Inbound" if target_loc and target_loc.kind in ("good_stock", "doa_stock") else None
-
             mov = StockMovement(
                 type=type_str or "Giriş",
-                movement_kind=movement_kind,
+                movement_kind="Inbound",
                 quantity=qty,
                 part_id=part_id,
                 target_location_id=location_id,
@@ -3540,6 +3541,7 @@ class WebBridge(QObject):
             )
             db.add(mov)
             db.commit()
+            clear_api_cache()
             return json.dumps({"success": True})
         except Exception as e:
             db.rollback()
@@ -3591,6 +3593,7 @@ class WebBridge(QObject):
             )
             db.add(mov)
             db.commit()
+            clear_api_cache()
             return json.dumps({"success": True})
         except Exception as e:
             db.rollback()
