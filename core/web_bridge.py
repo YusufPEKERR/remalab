@@ -4715,13 +4715,35 @@ class WebBridge(QObject):
             if not isinstance(data, dict):
                 return json.dumps({"success": False, "message": "Data must be a dictionary"})
                 
-            columns = list(data.keys())
-            values = list(data.values())
-            
-            placeholders = ', '.join([f':{col}' for col in columns])
-            col_names = ', '.join([f'"{col}"' for col in columns])
-            
             with get_db() as db:
+                # Apply SYSTEM_TRANSFER_RULES if inserting into stock_movements (e.g. via Excel)
+                if table_name == 'stock_movements':
+                    type_ = data.get('type')
+                    movement_kind = data.get('movement_kind')
+                    if type_ == "İç Transfer" or movement_kind == "Transfer":
+                        from_loc_id = data.get('source_location_id')
+                        to_loc_id = data.get('target_location_id')
+                        if from_loc_id and to_loc_id:
+                            sloc = db.execute(text("SELECT kind, name FROM warehouse.locations WHERE id = :id"), {'id': from_loc_id}).fetchone()
+                            tloc = db.execute(text("SELECT kind, name FROM warehouse.locations WHERE id = :id"), {'id': to_loc_id}).fetchone()
+                            if sloc and tloc:
+                                from_kind = sloc[0]
+                                to_kind = tloc[0]
+                                if from_kind in SYSTEM_TRANSFER_RULES:
+                                    allowed_targets = SYSTEM_TRANSFER_RULES[from_kind]
+                                    if to_kind not in allowed_targets:
+                                        allowed_labels = ", ".join(allowed_targets)
+                                        if not allowed_targets:
+                                            msg = f"Excel Hata: {from_kind} sadece çıkış deposudur, buradan başka depoya transfer yapılamaz."
+                                        else:
+                                            msg = f"Excel Hata: {from_kind}'tan sadece {allowed_labels} deposuna transfer yapılabilir."
+                                        return json.dumps({"success": False, "message": msg})
+
+                columns = list(data.keys())
+                values = list(data.values())
+                placeholders = ', '.join([f':{col}' for col in columns])
+                col_names = ', '.join([f'"{col}"' for col in columns])
+            
                 query = text(f'INSERT INTO "{schema}"."{table_name}" ({col_names}) VALUES ({placeholders})')
                 db.execute(query, data)
                 db.commit()
