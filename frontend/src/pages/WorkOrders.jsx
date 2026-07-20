@@ -929,6 +929,23 @@ export default function WorkOrders() {
     }
   };
 
+  const handleReportFire = async (mr) => {
+    const unaccounted = mr.issued_quantity - (mr.fire_quantity || 0);
+    const rawQty = window.prompt(`${mr.part_name} için fire bildirilecek miktarı giriniz (en fazla ${unaccounted}):`, String(unaccounted));
+    if (!rawQty) return;
+    const qty = parseInt(rawQty, 10);
+    if (isNaN(qty) || qty <= 0 || qty > unaccounted) {
+      alert(`Lütfen 1 ile ${unaccounted} arasında geçerli bir miktar giriniz.`);
+      return;
+    }
+    const res = await api.reportMaterialFire(mr.id, qty, currentUser?.username);
+    if (res.success) {
+      fetchMaterialRequests(selectedProductionOrderId);
+    } else {
+      alert(res.message || 'Fire bildirilemedi.');
+    }
+  };
+
   const handleStartProduction = async (order) => {
     if (!window.confirm('Bu iş emri için üretimi başlatmak istediğinize emin misiniz?')) return;
     setStartSaving(true);
@@ -974,6 +991,11 @@ export default function WorkOrders() {
     e.preventDefault();
     if (!productionWOForm.target_part_id) {
       alert('Üretilecek yarı mamulü seçmelisiniz.');
+      return;
+    }
+    const plannedQty = Number(productionWOForm.planned_quantity);
+    if (!productionWOForm.planned_quantity || isNaN(plannedQty) || plannedQty <= 0) {
+      alert('Planlanan Üretim Adedi zorunludur ve sıfırdan büyük olmalıdır.');
       return;
     }
     setProductionWOSaving(true);
@@ -1931,10 +1953,11 @@ export default function WorkOrders() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-slate-400 mb-1.5">Planlanan Üretim Adedi</label>
+                      <label className="block text-sm font-medium text-slate-400 mb-1.5">Planlanan Üretim Adedi <span className="text-red-400">*</span></label>
                       <input
                         type="number"
                         min="1"
+                        required
                         className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-teal-500"
                         value={productionWOForm.planned_quantity}
                         onChange={e => setProductionWOForm({ ...productionWOForm, planned_quantity: e.target.value })}
@@ -2097,6 +2120,7 @@ export default function WorkOrders() {
                       <th className="px-6 py-4">Teknisyen</th>
                       <th className="px-6 py-4">Gerekli</th>
                       <th className="px-6 py-4">Verilen</th>
+                      <th className="px-6 py-4">Fire</th>
                       <th className="px-6 py-4">Kalan</th>
                       <th className="px-6 py-4">Durum</th>
                       <th className="px-6 py-4 text-center">İşlemler</th>
@@ -2121,6 +2145,7 @@ export default function WorkOrders() {
                           <td className="px-6 py-4">{selectedProductionOrder?.assigned_technician || '-'}</td>
                           <td className="px-6 py-4 font-mono">{mr.required_quantity}</td>
                           <td className="px-6 py-4 font-mono">{mr.issued_quantity}</td>
+                          <td className="px-6 py-4 font-mono text-orange-500">{mr.fire_quantity || 0}</td>
                           <td className="px-6 py-4 font-mono">{mr.remaining_quantity}</td>
                           <td className="px-6 py-4">
                             <span className={`inline-block whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-medium border ${MATERIAL_REQUEST_STATUS_STYLES[mr.status] || MATERIAL_REQUEST_STATUS_STYLES['WAITING']}`}>
@@ -2128,17 +2153,29 @@ export default function WorkOrders() {
                             </span>
                           </td>
                           <td className="px-6 py-4 text-center">
-                            {mr.remaining_quantity > 0 ? (
-                              <button
-                                type="button"
-                                onClick={() => handleOpenIssueDialog(mr)}
-                                className="px-2.5 py-1.5 bg-teal-500/10 text-teal-500 hover:bg-teal-500 hover:text-white rounded-lg text-xs font-bold transition-colors"
-                              >
-                                Teslim Et
-                              </button>
-                            ) : (
-                              <span className="text-xs text-slate-500">—</span>
-                            )}
+                            <div className="flex items-center justify-center gap-1.5">
+                              {mr.remaining_quantity > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenIssueDialog(mr)}
+                                  className="px-2.5 py-1.5 bg-teal-500/10 text-teal-500 hover:bg-teal-500 hover:text-white rounded-lg text-xs font-bold transition-colors"
+                                >
+                                  Teslim Et
+                                </button>
+                              )}
+                              {(mr.issued_quantity - (mr.fire_quantity || 0)) > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleReportFire(mr)}
+                                  className="px-2.5 py-1.5 bg-orange-500/10 text-orange-500 hover:bg-orange-500 hover:text-white rounded-lg text-xs font-bold transition-colors"
+                                >
+                                  Fire Bildir
+                                </button>
+                              )}
+                              {mr.remaining_quantity <= 0 && (mr.issued_quantity - (mr.fire_quantity || 0)) <= 0 && (
+                                <span className="text-xs text-slate-500">—</span>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))
