@@ -939,6 +939,16 @@ export default function WorkOrders() {
   const productionWorkOrders = orders.filter(o => o.work_order_type === 'PRODUCTION');
   const selectedProductionOrder = productionWorkOrders.find(o => String(o.id) === String(selectedProductionOrderId)) || null;
 
+  const totalProdWOPages = Math.ceil(productionWorkOrders.length / prodWOItemsPerPage) || 1;
+  const paginatedProdWOs = productionWorkOrders.slice(
+    (prodWOCurrentPage - 1) * prodWOItemsPerPage,
+    prodWOCurrentPage * prodWOItemsPerPage
+  );
+
+  useEffect(() => {
+    setProdWOPageInput(String(prodWOCurrentPage));
+  }, [prodWOCurrentPage]);
+
   const handleOpenProductionWOForm = () => {
     setProductionWOForm(EMPTY_PRODUCTION_WO_FORM);
     setShowProductionWOForm(true);
