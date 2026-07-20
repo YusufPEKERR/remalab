@@ -49,11 +49,13 @@ export default function Dashboard() {
   const loadDashboardData = async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      const statRes = await api.getDashboardStats();
+      const [statRes, movRes] = await Promise.all([
+        api.getDashboardStats(),
+        api.getStockMovements('all')
+      ]);
       if (statRes.success) {
         setStats(statRes.stats);
       }
-      const movRes = await api.getStockMovements('all');
       if (movRes.success) {
         setRecentMovements(movRes.movements.slice(0, 5)); // show top 5
       }
