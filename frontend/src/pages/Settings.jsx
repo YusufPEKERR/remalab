@@ -76,9 +76,11 @@ export default function Settings() {
   const [dataFolders, setDataFolders] = useState([]);
 
   const fetchLocalData = async () => {
-    const dbRes = await api.getLocalFiles();
+    const [dbRes, fdRes] = await Promise.all([
+      api.getLocalFiles(),
+      api.getDataFolders()
+    ]);
     if (dbRes.success) setLocalFiles(dbRes.local_files || []);
-    const fdRes = await api.getDataFolders();
     if (fdRes.success) setDataFolders(fdRes.data_folders || []);
   };
 

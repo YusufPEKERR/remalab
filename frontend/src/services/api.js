@@ -144,7 +144,7 @@ export const api = {
                 try {
                     const res = JSON.parse(resStr);
                     if (res.fetch_url) {
-                        const fetchRes = await fetch(res.fetch_url);
+                        const fetchRes = await fetch(res.fetch_url, { cache: 'no-store' });
                         const jsonData = await fetchRes.json();
                         resolve(jsonData);
                     } else {
@@ -263,32 +263,6 @@ export const api = {
                 backend.get_system_locations((res) => resolve(JSON.parse(res)));
             } else {
                 resolve({ success: true, locations: [] });
-            }
-        });
-    },
-
-    // ==========================
-    // STOK EŞİTLEME (ADMIN)
-    // ==========================
-
-    getGoodStockOverview: async () => {
-        const backend = await getBackend();
-        return new Promise((resolve) => {
-            if (backend.get_good_stock_overview) {
-                backend.get_good_stock_overview((res) => resolve(JSON.parse(res)));
-            } else {
-                resolve({ success: true, parts: [] });
-            }
-        });
-    },
-
-    equalizeGoodStock: async (partId, actualQuantity, username) => {
-        const backend = await getBackend();
-        return new Promise((resolve) => {
-            if (backend.equalize_good_stock) {
-                backend.equalize_good_stock(String(partId), String(actualQuantity), username, (res) => resolve(JSON.parse(res)));
-            } else {
-                resolve({ success: true });
             }
         });
     },
@@ -895,7 +869,7 @@ export const api = {
                     try {
                         const res = JSON.parse(resStr);
                         if (res.fetch_url) {
-                            const fetchRes = await fetch(res.fetch_url);
+                            const fetchRes = await fetch(res.fetch_url, { cache: 'no-store' });
                             const jsonData = await fetchRes.json();
                             resolve(jsonData);
                         } else {
@@ -982,7 +956,7 @@ export const api = {
                     try {
                         const res = JSON.parse(resStr);
                         if (res.fetch_url) {
-                            const fetchRes = await fetch(res.fetch_url);
+                            const fetchRes = await fetch(res.fetch_url, { cache: 'no-store' });
                             const jsonData = await fetchRes.json();
                             resolve(jsonData);
                         } else {
@@ -994,6 +968,23 @@ export const api = {
                 });
             } else {
                 resolve({ success: true, stock: [] });
+            }
+        });
+    },
+
+    getStockStatusPaged: async (search, page, pageSize) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_stock_status_paged) {
+                backend.get_stock_status_paged(search || '', String(page || 1), String(pageSize || 30), (resStr) => {
+                    try {
+                        resolve(JSON.parse(resStr));
+                    } catch (e) {
+                        resolve({ success: false, message: e.message });
+                    }
+                });
+            } else {
+                resolve({ success: true, stock: [], total: 0, total_quantity: 0 });
             }
         });
     },
@@ -1072,7 +1063,7 @@ export const api = {
                     try {
                         const res = JSON.parse(resStr);
                         if (res.fetch_url) {
-                            const fetchRes = await fetch(res.fetch_url);
+                            const fetchRes = await fetch(res.fetch_url, { cache: 'no-store' });
                             const jsonData = await fetchRes.json();
                             resolve(jsonData);
                         } else {

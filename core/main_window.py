@@ -27,6 +27,11 @@ class CustomRequestHandler(http.server.SimpleHTTPRequestHandler):
             return os.path.join(cache_dir, rel_path)
         return super().translate_path(path)
 
+    def end_headers(self):
+        if self.path.startswith('/api_cache/'):
+            self.send_header('Cache-Control', 'no-store')
+        super().end_headers()
+
 def _start_static_server(directory):
     """dist/ klasörünü 127.0.0.1'de servis eder."""
     handler = functools.partial(CustomRequestHandler, directory=directory)

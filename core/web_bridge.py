@@ -55,8 +55,7 @@ SYSTEM_LOCATION_KINDS = {
 
 # Depolar arası manuel "Stok Transferi" akışının izin verdiği kaynak->hedef
 # eşleşmeleri. Bir kaynak kind burada yoksa (ör. custom raf lokasyonu) kısıtlama
-# uygulanmaz. Good Stock'un doğrudan stok atama/sıfırlama/fark denkleştirmesi
-# bu fonksiyondan değil, Admin > Stok Eşitleme panelinden yapılır.
+# uygulanmaz.
 SYSTEM_TRANSFER_RULES = {
     "good_stock": {"repair_stock"},
     "repair_stock": {"out_stock", "doa_stock"},
@@ -103,6 +102,17 @@ def _get_system_location_id(db, kind):
     from models.location import Location
     loc = db.query(Location).filter(Location.kind == kind).first()
     return loc.id if loc else None
+
+
+def _build_part_display_name(brand, model, color, part_category, name, item_code):
+    """Parça için kullanıcıya gösterilecek ismi (marka+model+renk+kategori, yoksa
+    ad, o da yoksa item_code) üretir. get_stock_status ile aynı öncelik sırasını kullanır."""
+    display_name = " ".join(filter(None, [brand, model, color, part_category])).strip()
+    if not display_name:
+        display_name = (name or "").strip()
+    if not display_name:
+        display_name = item_code or "Parça"
+    return display_name
 
 
 class WebBridge(QObject):
@@ -589,6 +599,7 @@ class WebBridge(QObject):
             db.execute(text("ALTER TABLE warehouse.part_categories ADD COLUMN IF NOT EXISTS stock_tracking_type VARCHAR(20) DEFAULT 'Stok Takipli';"))
             db.execute(text("ALTER TABLE warehouse.part_categories ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;"))
             db.execute(text("ALTER TABLE warehouse.part_categories ADD COLUMN IF NOT EXISTS description TEXT;"))
+            db.execute(text("ALTER TABLE warehouse.part_categories ADD COLUMN IF NOT EXISTS part_type VARCHAR(100);"))
             db.commit()
         except Exception as e:
             db.rollback()
@@ -825,7 +836,7 @@ class WebBridge(QObject):
                 SELECT p.id, p.name, p.item_code, p.barcode, p.brand, p.model, p.color,
                        p.item_category, p.part_category_id,
                        COALESCE(pc.name, p.part_category) AS part_category,
-                       COALESCE(p.part_type, '') AS part_type,
+                       COALESCE(NULLIF(p.part_type, ''), NULLIF(pc.part_type, ''), '') AS part_type,
                        COALESCE(pc.departments, p.department, '') AS department,
                        COALESCE(pc.stock_tracking_type, p.stock_tracking_type, 'Stok Takipli') AS stock_tracking_type,
                        NULL AS default_location_id, '' AS default_location_name,
@@ -857,7 +868,7 @@ class WebBridge(QObject):
                 })
             json_data = json.dumps({"success": True, "parts": parts_list})
             write_to_cache("parts.json", json_data)
-            return json.dumps({"success": True, "fetch_url": "/api_cache/parts.json"})
+            return json.dumps({"success": True, "fetch_url": fetch_url})
         except Exception as e:
             return json.dumps({"success": False, "message": str(e)})
         finally:
@@ -990,50 +1001,68 @@ class WebBridge(QObject):
 
     @Slot(str, result=str)
     def delete_part(self, part_id_str):
-        """Belirtilen id'ye sahip parçayı siler."""
-        from sqlalchemy import text
+        """Belirtilen id'ye sahip parçayı siler (Stok miktarı 0 ise parçayı ve ilişkili tüm kayıtlarını temizler)."""
+        from sqlalchemy import text, func
         from models.stock import Stock
-        from models.stock_movement import StockMovement
+        from models.location import Location
         db = SessionLocal()
         try:
             part_id = int(part_id_str)
-            
-            # Orphan ve Yabancı Anahtar kontrolleri
-            stock_count = db.query(Stock).filter(Stock.part_id == part_id, Stock.quantity > 0).count()
-            if stock_count > 0:
-                return json.dumps({"success": False, "message": "Bu parçanın stokta ürünü var, silinemez."})
-            
-            movement_count = db.query(StockMovement).filter(StockMovement.part_id == part_id).count()
-            if movement_count > 0:
-                return json.dumps({"success": False, "message": "Bu parçanın geçmiş stok hareketi var, silinemez."})
 
-            inbound_count = db.execute(text("SELECT COUNT(*) FROM warehouse.inbound_entries WHERE part_id = :id"), {"id": part_id}).scalar()
-            if inbound_count > 0:
-                return json.dumps({"success": False, "message": "Bu parça giriş işlemlerinde kullanılıyor, silinemez."})
-                
-            outbound_count = db.execute(text("SELECT COUNT(*) FROM warehouse.outbound_entries WHERE part_id = :id"), {"id": part_id}).scalar()
-            if outbound_count > 0:
-                return json.dumps({"success": False, "message": "Bu parça çıkış işlemlerinde kullanılıyor, silinemez."})
-                
-            prun_count = db.execute(text("SELECT COUNT(*) FROM warehouse.production_runs WHERE target_part_id = :id"), {"id": part_id}).scalar()
-            if prun_count > 0:
-                return json.dumps({"success": False, "message": "Bu parça üretim kayıtlarında (üretilen parça olarak) kullanılıyor, silinemez."})
-                
-            pmaterial_count = db.execute(text("SELECT COUNT(*) FROM warehouse.production_materials WHERE part_id = :id"), {"id": part_id}).scalar()
-            if pmaterial_count > 0:
-                return json.dumps({"success": False, "message": "Bu parça üretim reçetelerinde (tüketilen malzeme olarak) kullanılıyor, silinemez."})
-                
-            wopart_count = db.execute(text("SELECT COUNT(*) FROM warehouse.work_order_parts WHERE part_id = :id"), {"id": part_id}).scalar()
-            if wopart_count > 0:
-                return json.dumps({"success": False, "message": "Bu parça iş emri malzeme listesinde kullanılıyor, silinemez."})
+            # Stok Miktarı Kontrolü — sadece fiziksel/depoda bulunan lokasyonlar sayılır
+            # (Out Stock / Scrap Stock lokasyonlarındaki miktar, ürünün depodan çıktığının
+            # kaydıdır; parçanın silinmesini engellememeli).
+            total_stock_qty = db.query(func.coalesce(func.sum(Stock.quantity), 0)) \
+                .join(Location, Stock.location_id == Location.id) \
+                .filter(Stock.part_id == part_id, Location.kind.in_(("good_stock", "doa_stock", "repair_stock"))) \
+                .scalar() or 0
+            if total_stock_qty > 0:
+                return json.dumps({"success": False, "message": f"Bu parçanın stokta {total_stock_qty} adet ürünü var. Silmeden önce stok miktarını sıfırlayınız."})
 
-            # Silinmesi güvenli olan parçanın 0 miktarlı stok kayıtlarını temizle
-            db.execute(text("DELETE FROM warehouse.stock WHERE part_id = :id AND quantity = 0"), {"id": part_id})
+            # İrsaliye geçmişinde gösterilmeye devam etsin diye, parça silinmeden önce
+            # görünen adının anlık görüntüsünü alıyoruz.
+            part_row = db.execute(text("""
+                SELECT item_code, brand, model, color, part_category, name
+                FROM warehouse.parts WHERE id = :id
+            """), {"id": part_id}).mappings().first()
+            snapshot_name = _build_part_display_name(
+                part_row.get("brand") if part_row else None,
+                part_row.get("model") if part_row else None,
+                part_row.get("color") if part_row else None,
+                part_row.get("part_category") if part_row else None,
+                part_row.get("name") if part_row else None,
+                part_row.get("item_code") if part_row else None,
+            )
+
+            queries = [
+                "DELETE FROM warehouse.stock WHERE part_id = :id",
+                # İrsaliye geçmişi korunsun diye hareket kayıtları silinmiyor, sadece
+                # silinen parçaya olan referans temizleniyor; ekranda isim anlık
+                # görüntüsü + "(silindi)" ibaresiyle gösterilir.
+                "UPDATE warehouse.stock_movements SET part_id = NULL, part_name_snapshot = :snapshot_name WHERE part_id = :id",
+                "DELETE FROM warehouse.inbound_entries WHERE part_id = :id",
+                "DELETE FROM warehouse.outbound_entries WHERE part_id = :id",
+                "DELETE FROM warehouse.work_order_parts WHERE part_id = :id",
+                "DELETE FROM warehouse.production_materials WHERE part_id = :id",
+                "DELETE FROM warehouse.bom_items WHERE part_id = :id OR parent_item_id = :id",
+                "DELETE FROM warehouse.item_bom WHERE part_id = :id OR parent_item_id = :id",
+                "DELETE FROM warehouse.part_supplier_prices WHERE part_id = :id",
+                "DELETE FROM warehouse.part_suppliers WHERE part_id = :id",
+                "UPDATE warehouse.production_runs SET target_part_id = NULL WHERE target_part_id = :id",
+                "UPDATE warehouse.work_orders SET target_part_id = NULL WHERE target_part_id = :id",
+                "DELETE FROM warehouse.parts WHERE id = :id"
+            ]
+
+            for q in queries:
+                try:
+                    with db.begin_nested():
+                        db.execute(text(q), {"id": part_id, "snapshot_name": snapshot_name})
+                except Exception as ex:
+                    logging.warning(f"delete_part subquery bypass: {ex}")
+
             db.commit()
-
-            db.execute(text("DELETE FROM warehouse.parts WHERE id = :id"), {"id": part_id})
-            db.commit()
-            return json.dumps({"success": True, "message": "Parça silindi"})
+            clear_api_cache()
+            return json.dumps({"success": True, "message": "Parça başarıyla silindi."})
         except Exception as e:
             db.rollback()
             return json.dumps({"success": False, "message": f"Silme hatası: {str(e)}"})
@@ -1043,52 +1072,80 @@ class WebBridge(QObject):
     @Slot(str, result=str)
     def delete_parts_bulk(self, part_ids_csv):
         """Birden fazla parçayı toplu olarak siler."""
-        from sqlalchemy import text
+        from sqlalchemy import text, func
         from models.stock import Stock
-        from models.stock_movement import StockMovement
+        from models.location import Location
         db = SessionLocal()
         try:
             ids = [int(x.strip()) for x in part_ids_csv.split(",") if x.strip()]
             if not ids:
                 return json.dumps({"success": False, "message": "Silinecek parça seçilmedi."})
-            
-            # Orphan ve Yabancı Anahtar kontrolleri
+
             safe_ids = []
             skipped_count = 0
             for pid in ids:
-                stock_count = db.query(Stock).filter(Stock.part_id == pid, Stock.quantity > 0).count()
-                movement_count = db.query(StockMovement).filter(StockMovement.part_id == pid).count()
-                
-                inbound_count = db.execute(text("SELECT COUNT(*) FROM warehouse.inbound_entries WHERE part_id = :id"), {"id": pid}).scalar()
-                outbound_count = db.execute(text("SELECT COUNT(*) FROM warehouse.outbound_entries WHERE part_id = :id"), {"id": pid}).scalar()
-                prun_count = db.execute(text("SELECT COUNT(*) FROM warehouse.production_runs WHERE target_part_id = :id"), {"id": pid}).scalar()
-                pmaterial_count = db.execute(text("SELECT COUNT(*) FROM warehouse.production_materials WHERE part_id = :id"), {"id": pid}).scalar()
-                wopart_count = db.execute(text("SELECT COUNT(*) FROM warehouse.work_order_parts WHERE part_id = :id"), {"id": pid}).scalar()
-                
-                if (stock_count == 0 and movement_count == 0 and inbound_count == 0 and 
-                    outbound_count == 0 and prun_count == 0 and pmaterial_count == 0 and wopart_count == 0):
+                # Sadece fiziksel/depoda bulunan lokasyonlar sayılır (bkz. delete_part)
+                total_stock_qty = db.query(func.coalesce(func.sum(Stock.quantity), 0)) \
+                    .join(Location, Stock.location_id == Location.id) \
+                    .filter(Stock.part_id == pid, Location.kind.in_(("good_stock", "doa_stock", "repair_stock"))) \
+                    .scalar() or 0
+                if total_stock_qty == 0:
                     safe_ids.append(pid)
                 else:
                     skipped_count += 1
                     
             if not safe_ids:
-                return json.dumps({"success": False, "message": "Seçilen parçaların hiçbirisi silinmeye uygun değil (Stok, hareket geçmişi, reçete veya iş emri mevcut)." })
+                return json.dumps({"success": False, "message": "Seçilen parçaların tamamının stokta ürünü var. Önce stok miktarlarını sıfırlayınız."})
                 
-            # Silinecek parçaların 0 miktarlı stok kayıtlarını temizle
-            db.execute(text("DELETE FROM warehouse.stock WHERE part_id = any(:ids) AND quantity = 0"), {"ids": safe_ids})
+            queries = [
+                "DELETE FROM warehouse.stock WHERE part_id = :id",
+                # İrsaliye geçmişi korunsun diye hareket kayıtları silinmiyor, sadece
+                # silinen parçaya olan referans temizleniyor; ekranda isim anlık
+                # görüntüsü + "(silindi)" ibaresiyle gösterilir.
+                "UPDATE warehouse.stock_movements SET part_id = NULL, part_name_snapshot = :snapshot_name WHERE part_id = :id",
+                "DELETE FROM warehouse.inbound_entries WHERE part_id = :id",
+                "DELETE FROM warehouse.outbound_entries WHERE part_id = :id",
+                "DELETE FROM warehouse.work_order_parts WHERE part_id = :id",
+                "DELETE FROM warehouse.production_materials WHERE part_id = :id",
+                "DELETE FROM warehouse.bom_items WHERE part_id = :id OR parent_item_id = :id",
+                "DELETE FROM warehouse.item_bom WHERE part_id = :id OR parent_item_id = :id",
+                "DELETE FROM warehouse.part_supplier_prices WHERE part_id = :id",
+                "DELETE FROM warehouse.part_suppliers WHERE part_id = :id",
+                "UPDATE warehouse.production_runs SET target_part_id = NULL WHERE target_part_id = :id",
+                "UPDATE warehouse.work_orders SET target_part_id = NULL WHERE target_part_id = :id",
+                "DELETE FROM warehouse.parts WHERE id = :id"
+            ]
+
+            for pid in safe_ids:
+                part_row = db.execute(text("""
+                    SELECT item_code, brand, model, color, part_category, name
+                    FROM warehouse.parts WHERE id = :id
+                """), {"id": pid}).mappings().first()
+                snapshot_name = _build_part_display_name(
+                    part_row.get("brand") if part_row else None,
+                    part_row.get("model") if part_row else None,
+                    part_row.get("color") if part_row else None,
+                    part_row.get("part_category") if part_row else None,
+                    part_row.get("name") if part_row else None,
+                    part_row.get("item_code") if part_row else None,
+                )
+                for q in queries:
+                    try:
+                        with db.begin_nested():
+                            db.execute(text(q), {"id": pid, "snapshot_name": snapshot_name})
+                    except Exception as ex:
+                        logging.warning(f"delete_parts_bulk subquery bypass: {ex}")
+
             db.commit()
-            
-            ids_placeholder = ",".join(str(x) for x in safe_ids)
-            db.execute(text(f"DELETE FROM warehouse.parts WHERE id IN ({ids_placeholder})"))
-            db.commit()
+            clear_api_cache()
             
             msg = f"{len(safe_ids)} parça başarıyla silindi."
             if skipped_count > 0:
-                msg += f" {skipped_count} adet parça ilişkili kayıtları (stok, reçete vb.) olduğu için silinemedi."
+                msg += f" {skipped_count} adet parça stokta ürünü olduğu için silinemedi."
             return json.dumps({"success": True, "message": msg})
         except Exception as e:
             db.rollback()
-            return json.dumps({"success": False, "message": f"Toplu silme hatası: {str(e)}"})
+            return json.dumps({"success": False, "message": f"Silme hatası: {str(e)}"})
         finally:
             db.close()
 
@@ -1194,100 +1251,6 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    # ==========================
-    # STOK EŞİTLEME (ADMIN) MODÜLÜ
-    # Good Stock, normal akışta sadece Repair Depo'ya transfer yapabilir (bkz.
-    # SYSTEM_TRANSFER_RULES / transfer_stock). Good Stock'un stok atama/sıfırlama/
-    # fark denkleştirme gibi doğrudan müdahaleleri SADECE bu iki fonksiyon
-    # üzerinden, Admin paneli aracılığıyla yapılır.
-    # ==========================
-
-    @Slot(result=str)
-    def get_good_stock_overview(self):
-        """Admin > Stok Eşitleme ekranı için: her parçanın Good Stock'taki mevcut miktarı."""
-        from models.location import Location
-        from sqlalchemy import text
-        db = SessionLocal()
-        try:
-            good_stock_loc = db.query(Location).filter(Location.kind == "good_stock").first()
-            if not good_stock_loc:
-                return json.dumps({"success": False, "message": "Good Stock lokasyonu bulunamadı."})
-
-            rows = db.execute(text("""
-                SELECT p.id, p.item_code, p.name, p.brand, p.model, p.color, p.part_category,
-                       COALESCE(s.quantity, 0) AS quantity
-                FROM warehouse.parts p
-                LEFT JOIN warehouse.stock s ON s.part_id = p.id AND s.location_id = :loc_id
-                ORDER BY p.id
-            """), {"loc_id": good_stock_loc.id}).mappings().all()
-
-            parts = [{
-                "id": r["id"],
-                "item_code": r["item_code"] or "",
-                "name": r["name"] or "",
-                "brand": r["brand"] or "",
-                "model": r["model"] or "",
-                "color": r["color"] or "",
-                "part_category": r["part_category"] or "",
-                "quantity": r["quantity"]
-            } for r in rows]
-            return json.dumps({"success": True, "parts": parts})
-        except Exception as e:
-            return json.dumps({"success": False, "message": str(e)})
-        finally:
-            db.close()
-
-    @Slot(str, str, str, result=str)
-    def equalize_good_stock(self, part_id_str, actual_quantity_str, username):
-        """Fiziksel sayım sonucuna göre Good Stock'taki bir parçanın stoğunu doğrudan
-        ayarlar (atama/sıfırlama/fark denkleştirme). Farkı 'Stok Eşitleme' hareketi
-        olarak kaydeder. Sadece Good Stock içindir; diğer depolar bunu kullanmaz."""
-        from models.stock import Stock
-        from models.stock_movement import StockMovement
-        from models.location import Location
-        db = SessionLocal()
-        try:
-            part_id = int(part_id_str)
-            new_qty = int(actual_quantity_str)
-            if new_qty < 0:
-                return json.dumps({"success": False, "message": "Stok miktarı negatif olamaz."})
-
-            good_stock_loc = db.query(Location).filter(Location.kind == "good_stock").first()
-            if not good_stock_loc:
-                return json.dumps({"success": False, "message": "Good Stock lokasyonu bulunamadı."})
-
-            stock = db.query(Stock).with_for_update().filter(
-                Stock.part_id == part_id, Stock.location_id == good_stock_loc.id
-            ).first()
-            old_qty = stock.quantity if stock else 0
-            diff = new_qty - old_qty
-
-            if diff == 0:
-                return json.dumps({"success": False, "message": "Girilen miktar mevcut stokla aynı, herhangi bir değişiklik yapılmadı."})
-
-            if stock:
-                stock.quantity = new_qty
-            else:
-                stock = Stock(part_id=part_id, location_id=good_stock_loc.id, quantity=new_qty)
-                db.add(stock)
-
-            movement = StockMovement(
-                type="Stok Eşitleme",
-                quantity=abs(diff),
-                part_id=part_id,
-                source_location_id=good_stock_loc.id if diff < 0 else None,
-                target_location_id=good_stock_loc.id if diff > 0 else None,
-                created_by=username or None,
-                description=f"Fark denkleştirme: {old_qty} -> {new_qty} ({'+' if diff > 0 else ''}{diff})"
-            )
-            db.add(movement)
-            db.commit()
-            return json.dumps({"success": True, "old_quantity": old_qty, "new_quantity": new_qty, "difference": diff})
-        except Exception as e:
-            db.rollback()
-            return json.dumps({"success": False, "message": str(e)})
-        finally:
-            db.close()
 
     # ===================    # DEPARTMANLAR MODÜLÜ
     # ==========================
@@ -1329,7 +1292,7 @@ class WebBridge(QObject):
         db = SessionLocal()
         try:
             rows = db.execute(text("""
-                SELECT pc.id, pc.name, '' AS part_type, pc.departments, pc.stock_tracking_type,
+                SELECT pc.id, pc.name, COALESCE(pc.part_type, '') AS part_type, pc.departments, pc.stock_tracking_type,
                        NULL AS default_location_id, '' AS default_location_name,
                        pc.is_active, pc.description
                 FROM warehouse.part_categories pc
@@ -3459,7 +3422,89 @@ class WebBridge(QObject):
                 })
             json_data = json.dumps({"success": True, "stock": res})
             write_to_cache("stock.json", json_data)
-            return json.dumps({"success": True, "fetch_url": "/api_cache/stock.json"})
+            return json.dumps({"success": True, "fetch_url": fetch_url})
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, str, result=str)
+    def get_stock_status_paged(self, search, page, page_size):
+        """Depo sayfası için sunucu taraflı arama + sayfalama. Sadece Good Stock
+        deposundaki kayıtları döndürür; büyük stok tablosunun tamamını istemciye
+        indirmeden sadece görünen sayfayı çeker."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            page = max(1, int(page) if str(page).isdigit() else 1)
+            page_size = min(200, max(1, int(page_size) if str(page_size).isdigit() else 30))
+            offset = (page - 1) * page_size
+            search = (search or "").strip()
+
+            params = {"limit": page_size, "offset": offset}
+            search_clause = ""
+            if search:
+                search_clause = """
+                    AND (
+                        p.item_code ILIKE :q OR p.name ILIKE :q OR p.brand ILIKE :q OR
+                        p.model ILIKE :q OR p.color ILIKE :q OR p.part_category ILIKE :q OR
+                        l.name ILIKE :q OR CAST(s.id AS TEXT) ILIKE :q
+                    )
+                """
+                params["q"] = f"%{search}%"
+
+            rows = db.execute(text(f"""
+                SELECT s.id, p.id as part_id, p.brand, p.model, p.color, p.part_category, p.name as pname, p.item_code,
+                       l.name as location_name, s.quantity, p.critical_limit,
+                       (
+                         SELECT MAX(sm.created_at)
+                         FROM warehouse.stock_movements sm
+                         WHERE sm.part_id = s.part_id AND (sm.source_location_id = s.location_id OR sm.target_location_id = s.location_id)
+                       ) as last_movement_at,
+                       COUNT(*) OVER() as total_count,
+                       COALESCE(SUM(s.quantity) OVER(), 0) as total_qty
+                FROM warehouse.stock s
+                JOIN warehouse.parts p ON s.part_id = p.id
+                JOIN warehouse.locations l ON s.location_id = l.id
+                WHERE l.kind = 'good_stock'
+                {search_clause}
+                ORDER BY s.id DESC
+                LIMIT :limit OFFSET :offset
+            """), params).mappings().all()
+
+            res = []
+            total_count = 0
+            total_qty = 0
+            for row in rows:
+                total_count = row["total_count"]
+                total_qty = row["total_qty"]
+                lm_at = row.get("last_movement_at")
+                date_str = lm_at.strftime("%d.%m.%Y %H:%M") if lm_at else "-"
+                part_name = " ".join(filter(None, [row.get("brand"), row.get("model"), row.get("color"), row.get("part_category")]))
+                if not part_name:
+                    part_name = (row.get("pname") or "").strip()
+                if not part_name:
+                    part_name = row.get("item_code") or "İsimsiz Parça"
+
+                res.append({
+                    "id": row["id"],
+                    "part_id": row["part_id"],
+                    "item_code": row["item_code"] or "-",
+                    "part_name": part_name,
+                    "location_name": row["location_name"],
+                    "quantity": row["quantity"],
+                    "critical_limit": row["critical_limit"] or 50,
+                    "updated_at": date_str
+                })
+
+            return json.dumps({
+                "success": True,
+                "stock": res,
+                "total": total_count,
+                "total_quantity": int(total_qty or 0),
+                "page": page,
+                "page_size": page_size
+            })
         except Exception as e:
             return json.dumps({"success": False, "message": str(e)})
         finally:
@@ -3526,8 +3571,6 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-
-
     @Slot(str, result=str)
     def get_stock_movements(self, mov_type):
         # mov_type can be 'in' or 'out' or 'all'
@@ -3559,7 +3602,7 @@ class WebBridge(QObject):
                     "type": mov.type,
                     "quantity": mov.quantity,
                     "part_id": mov.part_id,
-                    "part_name": p.name if p else "Silinmiş Parça",
+                    "part_name": p.name if p else (f"{mov.part_name_snapshot} (silindi)" if mov.part_name_snapshot else "Silinmiş Parça"),
                     "source_location_id": mov.source_location_id,
                     "source_location": sloc.name if sloc else "-",
                     "target_location_id": mov.target_location_id,
@@ -3726,7 +3769,7 @@ class WebBridge(QObject):
                     "id": mov.id,
                     "date": mov.created_at.strftime("%Y-%m-%d %H:%M") if mov.created_at else "",
                     "type": mov.type,
-                    "part_name": p.name if p else "-",
+                    "part_name": p.name if p else (f"{mov.part_name_snapshot} (silindi)" if mov.part_name_snapshot else "-"),
                     "item_code": p.item_code if p else "-",
                     "location": loc_name,
                     "source_location": sloc.name if sloc else "-",
@@ -3804,16 +3847,26 @@ class WebBridge(QObject):
                 critical_count = 0
             
             from datetime import datetime, time
+            from sqlalchemy import or_
             today = date.today()
             today_start = datetime.combine(today, time.min)
             
+            inbound_types = ["Giriş", "İç Transfer", "Yeni Alım", "Inbound", "Transfer", "Yeni Alım (Tedarikçiden)", "İade Girişi", "Diğer"]
+            outbound_types = ["Çıkış", "İç Transfer", "Müşteri Satışı", "Tedarikçiye İade", "Outbound", "Transfer", "Teknik Servis", "Fire", "Fire / Bozuk", "Servis Kullanımı"]
+
             todays_inbound = db.query(func.sum(StockMovement.quantity)).filter(
-                StockMovement.type.in_(["Giriş", "İç Transfer", "Yeni Alım", "Inbound", "Transfer"]),
+                or_(
+                    StockMovement.movement_kind == "Inbound",
+                    StockMovement.type.in_(inbound_types)
+                ),
                 StockMovement.created_at >= today_start
             ).scalar() or 0
             
             todays_outbound = db.query(func.sum(StockMovement.quantity)).filter(
-                StockMovement.type.in_(["Çıkış", "İç Transfer", "Müşteri Satışı", "Tedarikçiye İade", "Outbound", "Transfer"]),
+                or_(
+                    StockMovement.movement_kind.in_(["Outbound", "Scrap"]),
+                    StockMovement.type.in_(outbound_types)
+                ),
                 StockMovement.created_at >= today_start
             ).scalar() or 0
             

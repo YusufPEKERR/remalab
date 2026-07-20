@@ -49,11 +49,13 @@ export default function Dashboard() {
   const loadDashboardData = async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      const statRes = await api.getDashboardStats();
+      const [statRes, movRes] = await Promise.all([
+        api.getDashboardStats(),
+        api.getStockMovements('all')
+      ]);
       if (statRes.success) {
         setStats(statRes.stats);
       }
-      const movRes = await api.getStockMovements('all');
       if (movRes.success) {
         setRecentMovements(movRes.movements.slice(0, 5)); // show top 5
       }
@@ -83,11 +85,19 @@ export default function Dashboard() {
     <div className="h-full flex flex-col space-y-6 overflow-y-auto pr-2 pb-10">
       
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center bg-white dark:bg-[#1e2330] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Kontrol Paneli</h1>
-          <p className="text-slate-500 mt-1">Hoş geldiniz, sistemin güncel durumunu buradan takip edebilirsiniz.</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">Kontrol Paneli</h1>
+          <p className="text-slate-400 mt-1">Hoş geldiniz, sistemin güncel durumunu buradan takip edebilirsiniz.</p>
         </div>
+        <button
+          type="button"
+          onClick={() => loadDashboardData()}
+          className="p-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors"
+          title="Yenile"
+        >
+          <RefreshCw size={18} className={loading ? "animate-spin text-blue-500" : ""} />
+        </button>
       </div>
 
       {/* Cards */}

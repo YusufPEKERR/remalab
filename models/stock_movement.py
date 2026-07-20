@@ -17,6 +17,7 @@ class StockMovement(Base):
     created_by = Column(String(100), nullable=True)
     technician = Column(String(150), nullable=True)
     description = Column(String, nullable=True)
+    part_name_snapshot = Column(String, nullable=True)
     unit_price = Column(Numeric(12, 2), nullable=True)
     total_cost = Column(Numeric(12, 2), nullable=True)
     created_at = Column(DateTime, server_default=text("CURRENT_TIMESTAMP"))

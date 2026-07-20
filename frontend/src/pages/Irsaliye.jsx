@@ -171,16 +171,17 @@ export default function Irsaliye() {
   const fetchData = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      const res = await api.getStockMovements('all');
+      const [res, resS] = await Promise.all([
+        api.getStockMovements('all'),
+        api.getStockStatus()
+      ]);
       if (res && res.success) {
         setMovements(res.movements || []);
       } else {
         setError(res ? res.message : 'Hata');
       }
-      
-      const resS = await api.getStockStatus();
       if (resS && resS.success) setStockStatus(resS.stock || []);
-      
+
     } catch (_err) {
       setError('Bağlantı hatası.');
     } finally {
@@ -224,15 +225,17 @@ export default function Irsaliye() {
   };
 
   const fetchDependencies = async () => {
-    const resP = await api.getParts();
+    const [resP, resL, resS, resU, resSys] = await Promise.all([
+      api.getParts(),
+      api.getLocations(),
+      api.getStockStatus(),
+      api.getUsers(),
+      api.getSystemLocations()
+    ]);
     if (resP && resP.success) setParts(resP.parts);
-    const resL = await api.getLocations();
     if (resL && resL.success) setLocations(resL.locations);
-    const resS = await api.getStockStatus();
     if (resS && resS.success) setStockStatus(resS.stock);
-    const resU = await api.getUsers();
     if (resU && resU.success) setUsers(resU.users);
-    const resSys = await api.getSystemLocations();
     if (resSys && resSys.success) setSystemLocations(resSys.locations || []);
   };
 

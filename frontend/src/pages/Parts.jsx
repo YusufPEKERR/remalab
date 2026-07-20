@@ -241,7 +241,7 @@ export default function Parts() {
     e.target.value = '';
 
     if (action === 'download_template') {
-      const templateData = [{ item_code: 'ORNEK-KOD-001', barcode: '', name: 'Örnek Parça', item_category: 'Orijinal', part_category: 'Ekran', stock_tracking_type: 'Stok Takipli', department: 'Servis, Kalite', status: 'Aktif' }];
+      const templateData = [{ item_code: 'ORNEK-KOD-001', barcode: '', name: 'Örnek Parça', item_category: 'Orijinal', part_category: 'Ekran', part_type: 'Yedek Parça', stock_tracking_type: 'Stok Takipli', department: 'Servis, Kalite', status: 'Aktif' }];
       await api.exportTableToExcel(templateData, "stok_karti_sablonu.xlsx");
     } else if (action === 'export') {
       setIsExportModalOpen(true);
@@ -266,27 +266,12 @@ export default function Parts() {
   };
 
   const executeExport = async () => {
-    let dataToExport = selectedRows.length > 0
+    const dataToExport = selectedRows.length > 0
       ? parts.filter(p => selectedRows.includes(p.id))
       : filteredParts;
 
-    try {
-      const res = await api.getStockStatus();
-      if (res.success) {
-        const stockMap = {};
-        res.stock.forEach(s => {
-          if (!stockMap[s.part_id]) stockMap[s.part_id] = 0;
-          stockMap[s.part_id] += Number(s.quantity);
-        });
-        
-        dataToExport = dataToExport.filter(p => stockMap[p.id] > 0);
-      }
-    } catch (err) {
-      console.error("Stock status fetch failed during export", err);
-    }
-
     if (dataToExport.length === 0) {
-      alert("Stokta mevcut dışa aktarılacak veri bulunamadı.");
+      alert("Dışa aktarılacak parça kaydı bulunamadı.");
       setIsExportModalOpen(false);
       return;
     }
@@ -294,13 +279,13 @@ export default function Parts() {
     const exportReadyData = dataToExport.map(p => {
       const row = {};
       if (selectedExportColumns["ID"]) row["ID"] = p.id;
-      if (selectedExportColumns["Parça Kodu"]) row["Parça Kodu"] = p.item_code;
-      if (selectedExportColumns["Barkod"]) row["Barkod"] = p.barcode;
-      if (selectedExportColumns["Parça Adı"]) row["Parça Adı"] = p.name;
-      if (selectedExportColumns["Parça Kategorisi"]) row["Parça Kategorisi"] = p.item_category;
-      if (selectedExportColumns["Item Code"]) row["Item Code"] = p.part_category;
-      if (selectedExportColumns["Parça Tipi"]) row["Parça Tipi"] = p.part_type;
-      if (selectedExportColumns["Parça Statüsü"]) row["Parça Statüsü"] = p.status;
+      if (selectedExportColumns["Parça Kodu"]) row["Parça Kodu"] = p.item_code || '';
+      if (selectedExportColumns["Barkod"]) row["Barkod"] = p.barcode || '';
+      if (selectedExportColumns["Parça Adı"]) row["Parça Adı"] = p.name || '';
+      if (selectedExportColumns["Parça Kategorisi"]) row["Parça Kategorisi"] = p.item_category || '';
+      if (selectedExportColumns["Item Code"]) row["Item Code"] = p.part_category || '';
+      if (selectedExportColumns["Parça Tipi"]) row["Parça Tipi"] = p.part_type || '';
+      if (selectedExportColumns["Parça Statüsü"]) row["Parça Statüsü"] = p.status || '';
       return row;
     });
 
