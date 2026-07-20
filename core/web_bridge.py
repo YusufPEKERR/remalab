@@ -902,7 +902,7 @@ class WebBridge(QObject):
         from sqlalchemy import text
         db = SessionLocal()
         try:
-            result = db.execute(text("""
+            bom_result = db.execute(text("""
                 SELECT b.id, b.parent_item_id, b.child_item_id, b.quantity,
                        p_parent.name AS parent_name, p_parent.id AS parent_part_id,
                        p_child.name AS child_name, p_child.id AS child_part_id
@@ -913,7 +913,7 @@ class WebBridge(QObject):
             """)).mappings().all()
 
             bom_map = {}
-            for row in result:
+            for row in bom_result:
                 parent_code = row["parent_item_id"]
                 if parent_code not in bom_map:
                     bom_map[parent_code] = {
@@ -928,6 +928,25 @@ class WebBridge(QObject):
                     "child_name": row["child_name"] or row["child_item_id"],
                     "quantity": int(row["quantity"])
                 })
+
+            # Reçetesi (BOM) olmayan ama 'Mamül' veya 'Yarı Mamül' olan parçaları da listeye ekle
+            products = db.execute(text("""
+                SELECT id, item_code, name 
+                FROM warehouse.parts 
+                WHERE part_type ILIKE '%Mamül%' OR part_type ILIKE '%Mamul%'
+                   OR part_category ILIKE '%Mamül%' OR part_category ILIKE '%Mamul%'
+                   OR item_category ILIKE '%Mamül%' OR item_category ILIKE '%Mamul%'
+            """)).mappings().all()
+
+            for p in products:
+                parent_code = p["item_code"]
+                if parent_code and parent_code not in bom_map:
+                    bom_map[parent_code] = {
+                        "parent_item_id": parent_code,
+                        "parent_part_id": str(p["id"]),
+                        "parent_name": p["name"] or parent_code,
+                        "materials": []
+                    }
 
             return json.dumps({"success": True, "item_boms": list(bom_map.values())}, ensure_ascii=False)
         except Exception as e:
