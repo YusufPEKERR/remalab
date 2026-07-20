@@ -2611,10 +2611,14 @@ export default function WorkOrders() {
               <div>
                 <label className="block text-sm font-medium text-slate-400 mb-1.5">Parça</label>
                 <PartSelectCombobox
-                  parts={parts}
+                  parts={(extraPartDialog.materials || []).map(m => ({
+                    id: m.child_part_id,
+                    item_code: m.child_item_id,
+                    name: m.child_name
+                  }))}
                   value={extraPartSelectedId}
                   onChange={setExtraPartSelectedId}
-                  placeholder="Çıkış yapılacak parçayı seçin veya arayın..."
+                  placeholder="Bu reçetedeki hammaddelerden birini seçin..."
                 />
                 {extraPartSelectedId && (
                   <p className="text-xs text-slate-400 mt-1.5">
