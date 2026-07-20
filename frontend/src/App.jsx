@@ -45,7 +45,6 @@ function App() {
           <Route path="/parts" element={<Parts />} />
           <Route path="/part-categories" element={<PartCategories />} />
           <Route path="/products" element={<Products />} />
-          <Route path="/item-bom" element={<ItemBOM />} />
           <Route path="/suppliers" element={<Suppliers />} />
           <Route path="/locations" element={<Locations />} />
 
@@ -56,6 +55,9 @@ function App() {
           <Route path="/service-records" element={<ServiceRecords />} />
           <Route path="/data-management" element={<DataManagement />} />
           <Route path="/tedarik-talepleri" element={<SupplyRequestForm />} />
+
+          {/* HIDDEN MODULES */}
+          <Route path="/item-bom" element={<ItemBOM />} />
         </Route>
       </Routes>
     </BrowserRouter>

@@ -3,7 +3,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
   LogOut, LayoutDashboard, Users, Package, Settings, Bell,
   Warehouse, FileText, BarChart2, Box, Truck, MapPin,
-  CheckCircle, Search, AlertTriangle, Zap, RefreshCw, Sun, Moon, Database, Building2, Wrench, ClipboardList, PackageSearch, PackagePlus, Tags, ChevronDown, ChevronRight, GitBranch
+  CheckCircle, Search, AlertTriangle, Zap, RefreshCw, Sun, Moon, Database, Building2, Wrench, ClipboardList, PackageSearch, PackagePlus, Tags, ChevronDown, ChevronRight
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useTheme } from '../context/ThemeContext';
@@ -95,9 +95,9 @@ export default function MainLayout() {
 
   // Permission maps based on Python code:
   const allowedPaths = {
-    'admin': ['/dashboard', '/depo', '/irsaliye', '/work-orders', '/supply-requests', '/raporlar', '/parts', '/part-categories', '/products', '/item-bom', '/suppliers', '/locations', '/users', '/settings', '/departments', '/service-records', '/data-management', '/tedarik-talepleri', '/quality', '/refurbishment', '/priority'],
+    'admin': ['/dashboard', '/depo', '/irsaliye', '/work-orders', '/supply-requests', '/raporlar', '/parts', '/part-categories', '/products', '/suppliers', '/locations', '/users', '/settings', '/departments', '/service-records', '/data-management', '/tedarik-talepleri', '/quality', '/refurbishment', '/priority'],
     'depo': ['/depo', '/irsaliye', '/work-orders', '/raporlar'],
-    'depo müdürü': ['/dashboard', '/depo', '/irsaliye', '/work-orders', '/supply-requests', '/raporlar', '/parts', '/products', '/item-bom', '/suppliers', '/locations', '/tedarik-talepleri', '/service-records'],
+    'depo müdürü': ['/dashboard', '/depo', '/irsaliye', '/work-orders', '/supply-requests', '/raporlar', '/parts', '/products', '/suppliers', '/locations', '/tedarik-talepleri', '/service-records'],
     'teknisyen': ['/dashboard', '/quality', '/refurbishment', '/priority']
   };
 
@@ -132,8 +132,7 @@ export default function MainLayout() {
       items: [
         { name: 'Parçalar', icon: Package, path: '/parts' },
         { name: 'Ürün Listesi', icon: Box, path: '/products' },
-        { name: 'Ürün Ağacı / BOM', icon: GitBranch, path: '/item-bom' },
-        { name: 'Tedarikçiler', icon: Truck, path: '/suppliers' },
+        { name: 'Müşteriler', icon: Truck, path: '/suppliers' },
         { name: 'Lokasyonlar', icon: MapPin, path: '/locations' }
       ]
     },
