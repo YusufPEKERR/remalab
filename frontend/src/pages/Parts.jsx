@@ -3,8 +3,9 @@ import { Plus, Search, Trash2, Edit, AlertCircle, RefreshCw, X, Download, Upload
 import { api } from '../services/api';
 import ExcelMappingModal from '../components/ExcelMappingModal';
 
-const KALITE_OPTIONS = ['Orijinal', 'Muadil', 'Çıkma'];
 const MEMORY_OPTIONS = ['64GB', '128GB', '256GB', '512GB', '1TB'];
+// Backend'deki CUSTOMER_FLOW_VALUES (core/web_bridge.py) ile birebir aynı olmalı.
+const FLOW_VALUES = ['Refurbish', 'Repair', 'RMA', 'Battery Replacement'];
 
 const EMPTY_FORM = {
   item_code: '', barcode: '', name: '',
@@ -675,14 +676,14 @@ export default function Parts() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1">Parça Kategorisi</label>
+                  <label className="block text-sm font-medium text-slate-400 mb-1">Parça Tipi</label>
                   <select
                     className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
-                    value={formData.item_category}
-                    onChange={e => setFormData({...formData, item_category: e.target.value})}
+                    value={formData.part_type}
+                    onChange={e => setFormData({...formData, part_type: e.target.value})}
                   >
                     <option value="">Seçiniz...</option>
-                    {KALITE_OPTIONS.map(k => <option key={k} value={k}>{k}</option>)}
+                    {FLOW_VALUES.map(f => <option key={f} value={f}>{f}</option>)}
                   </select>
                 </div>
                 <div>
@@ -736,17 +737,6 @@ export default function Parts() {
                   value={formData.critical_limit}
                   onChange={e => setFormData({...formData, critical_limit: e.target.value})}
                   placeholder="Opsiyonel (Varsayılan: 50)"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-400 mb-1">Parça Tipi</label>
-                <input
-                  type="text"
-                  className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
-                  value={formData.part_type}
-                  onChange={e => setFormData({...formData, part_type: e.target.value})}
-                  placeholder="Örn: SparePart, Labour vb."
                 />
               </div>
 
