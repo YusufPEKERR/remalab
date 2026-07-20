@@ -629,6 +629,17 @@ export const api = {
         });
     },
 
+    reportMaterialFire: async (mrId, fireQty, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.report_material_fire) {
+                backend.report_material_fire(String(mrId), String(fireQty), username || '', (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true });
+            }
+        });
+    },
+
     returnBomPartToDoa: async (partId, returnQty, username) => {
         const backend = await getBackend();
         return new Promise((resolve) => {

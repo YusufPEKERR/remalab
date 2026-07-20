@@ -435,7 +435,10 @@ class WebBridge(QObject):
         """warehouse.material_requests tablosunu yoksa oluşturur. Bir Production Work
         Order'ın Recipe'sindeki (item_bom) her satır için bir Material Request kaydı
         tutulur. remaining_quantity kalıcı sütun değil; okuma sırasında
-        (required_quantity - issued_quantity) olarak hesaplanır."""
+        (required_quantity + fire_quantity - issued_quantity) olarak hesaplanır.
+        fire_quantity: teknisyenden fire olarak DOA Stock'a iade edilip sisteme
+        işlenmiş miktardır (bkz. report_material_fire) — depocunun ek teslim
+        yapabileceği miktarı, fire bildirilmeden büyütmeden, açar."""
         from sqlalchemy import text
         db = SessionLocal()
         try:
@@ -450,6 +453,7 @@ class WebBridge(QObject):
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
             """))
+            db.execute(text("ALTER TABLE warehouse.material_requests ADD COLUMN IF NOT EXISTS fire_quantity INTEGER NOT NULL DEFAULT 0;"))
             db.execute(text("CREATE INDEX IF NOT EXISTS idx_material_requests_work_order_id ON warehouse.material_requests(work_order_id);"))
             db.commit()
         except Exception as e:
@@ -1906,8 +1910,15 @@ class WebBridge(QObject):
             if not bom_rows:
                 return json.dumps({"success": False, "message": "Bu parça için tanımlı bir Recipe (ItemBOM) bulunamadı."})
 
-            qty = int(planned_quantity) if planned_quantity and planned_quantity.strip() else None
-            multiplier = qty if qty else 1
+            if not planned_quantity or not planned_quantity.strip():
+                return json.dumps({"success": False, "message": "Planlanan Üretim Adedi zorunludur."})
+            try:
+                qty = int(planned_quantity)
+            except (ValueError, TypeError):
+                return json.dumps({"success": False, "message": "Planlanan Üretim Adedi geçerli bir sayı olmalıdır."})
+            if qty <= 0:
+                return json.dumps({"success": False, "message": "Planlanan Üretim Adedi sıfırdan büyük olmalıdır."})
+            multiplier = qty
 
             new_id = db.execute(text("""
                 INSERT INTO warehouse.work_orders (
@@ -1993,9 +2004,17 @@ class WebBridge(QObject):
     def complete_production_work_order(self, work_order_id_str, produced_quantity_str, scrap_quantity_str, production_notes, username):
         """PRODUCTION tipi bir iş emrini URETIMDE durumundan TAMAMLANDI durumuna geçirir.
         Üretilen Adet + Fire Adedi, Planlanan Üretim'e eşit olmak zorundadır; değilse
-        işlem reddedilir ve hiçbir kayıt değişmez. Stok düşme, depo transferi, yarı mamul
-        stok oluşturma veya Scrap Stock hareketi yapmaz — bunlar sonraki aşamada eklenecek."""
+        işlem reddedilir ve hiçbir kayıt değişmez. Üretilen Adet kadar hedef parça Good
+        Stock'a eklenir; Fire Adedi kadar hedef parça Scrap Stock'a eklenir (bu, hammadde
+        fire'ından farklıdır -- burada bahsedilen, sonuçta kullanılamaz çıkan bitmiş
+        ürün miktarıdır). Üretilen Adet > 0 ise, "Hızlı Üretim" (create_production_run)
+        ile aynı production_runs/produced_units/production_materials kayıtları açılır ki
+        Üretim Raporu'nda görünsün ve aynı iade/değişim akışıyla (delete_production_run)
+        yönetilebilsin. Tüketilen hammadde miktarı, her Material Request'in
+        (issued_quantity - fire_quantity) değerinden hesaplanır."""
         from sqlalchemy import text
+        from models.stock import Stock
+        from models.stock_movement import StockMovement
         db = SessionLocal()
         try:
             work_order_id = int(work_order_id_str)
@@ -2012,7 +2031,7 @@ class WebBridge(QObject):
                 return json.dumps({"success": False, "message": "Üretilen Adet ve Fire Adedi negatif olamaz."})
 
             row = db.execute(
-                text("""SELECT id, work_order_type, status, planned_quantity
+                text("""SELECT id, work_order_type, status, planned_quantity, target_part_id
                         FROM warehouse.work_orders WHERE id = :id FOR UPDATE"""),
                 {"id": work_order_id}
             ).mappings().first()
@@ -2026,12 +2045,94 @@ class WebBridge(QObject):
                 return json.dumps({"success": False, "message": "Bu iş emrinde Planlanan Üretim Adedi tanımlı değil, tamamlanamaz."})
 
             planned_quantity = row["planned_quantity"]
+            target_part_id = row["target_part_id"]
             if produced_quantity + scrap_quantity != planned_quantity:
                 return json.dumps({
                     "success": False,
                     "message": f"Üretilen Adet ({produced_quantity}) + Fire Adedi ({scrap_quantity}) = {produced_quantity + scrap_quantity}, "
                                 f"Planlanan Üretim'e ({planned_quantity}) eşit olmalıdır."
                 })
+
+            good_stock_id = _get_system_location_id(db, "good_stock")
+            scrap_stock_id = _get_system_location_id(db, "scrap_stock")
+            if not good_stock_id:
+                return json.dumps({"success": False, "message": "Good Stock deposu bulunamadı."})
+            if scrap_quantity > 0 and not scrap_stock_id:
+                return json.dumps({"success": False, "message": "Scrap Stock deposu bulunamadı."})
+
+            # Tüketilen hammaddeler: her malzeme talebinin fiilen üretime giden kısmı
+            # (issued - fire). Fire olarak DOA'ya iade edilenler zaten oradan çıkarılmıştı.
+            material_rows = db.execute(text("""
+                SELECT part_id, issued_quantity, fire_quantity
+                FROM warehouse.material_requests
+                WHERE work_order_id = :wid
+            """), {"wid": work_order_id}).all()
+            net_materials = [(m[0], m[1] - m[2]) for m in material_rows if (m[1] - m[2]) > 0]
+
+            if produced_quantity > 0:
+                existing = db.execute(text("""
+                    SELECT id FROM warehouse.stock WHERE part_id = :pid AND location_id = :lid
+                """), {"pid": target_part_id, "lid": good_stock_id}).first()
+                if existing:
+                    db.execute(text("UPDATE warehouse.stock SET quantity = quantity + :qty WHERE id = :id"),
+                               {"qty": produced_quantity, "id": existing[0]})
+                else:
+                    db.execute(text("""
+                        INSERT INTO warehouse.stock (part_id, location_id, quantity) VALUES (:pid, :lid, :qty)
+                    """), {"pid": target_part_id, "lid": good_stock_id, "qty": produced_quantity})
+
+                run_id = db.execute(text("""
+                    INSERT INTO warehouse.production_runs (target_part_id, quantity_produced, source_location_id, location_id, produced_by, notes)
+                    VALUES (:tgt, :qty, :slid, :tlid, :by, :notes) RETURNING id
+                """), {
+                    "tgt": target_part_id, "qty": produced_quantity, "slid": good_stock_id, "tlid": good_stock_id,
+                    "by": username or None, "notes": f"Üretim İş Emri #{work_order_id} tamamlandı (Fire: {scrap_quantity} adet)" + (f" - {production_notes}" if production_notes else "")
+                }).scalar()
+
+                next_id = db.execute(text("SELECT nextval(pg_get_serial_sequence('warehouse.produced_units', 'id'))")).scalar()
+                serial_num = f"REM-PRD-{next_id:06d}"
+                db.execute(text("""
+                    INSERT INTO warehouse.produced_units (id, production_run_id, serial_number)
+                    VALUES (:id, :run_id, :serial)
+                """), {"id": next_id, "run_id": run_id, "serial": serial_num})
+
+                for part_id, qty_consumed in net_materials:
+                    db.execute(text("""
+                        INSERT INTO warehouse.production_materials (production_run_id, part_id, quantity_consumed)
+                        VALUES (:run_id, :pid, :qty)
+                    """), {"run_id": run_id, "pid": part_id, "qty": qty_consumed})
+
+                db.add(StockMovement(
+                    type="Üretim",
+                    movement_kind="Inbound",
+                    quantity=produced_quantity,
+                    part_id=target_part_id,
+                    target_location_id=good_stock_id,
+                    created_by=username or None,
+                    description=f"Üretim İş Emri #{work_order_id} ({serial_num}) tamamlandı"
+                ))
+
+            if scrap_quantity > 0:
+                existing_scrap = db.execute(text("""
+                    SELECT id FROM warehouse.stock WHERE part_id = :pid AND location_id = :lid
+                """), {"pid": target_part_id, "lid": scrap_stock_id}).first()
+                if existing_scrap:
+                    db.execute(text("UPDATE warehouse.stock SET quantity = quantity + :qty WHERE id = :id"),
+                               {"qty": scrap_quantity, "id": existing_scrap[0]})
+                else:
+                    db.execute(text("""
+                        INSERT INTO warehouse.stock (part_id, location_id, quantity) VALUES (:pid, :lid, :qty)
+                    """), {"pid": target_part_id, "lid": scrap_stock_id, "qty": scrap_quantity})
+
+                db.add(StockMovement(
+                    type="Üretim Fire (Hurda)",
+                    movement_kind="Inbound",
+                    quantity=scrap_quantity,
+                    part_id=target_part_id,
+                    target_location_id=scrap_stock_id,
+                    created_by=username or None,
+                    description=f"Üretim İş Emri #{work_order_id} tamamlanırken fire çıkan {scrap_quantity} adet hurdaya ayrıldı"
+                ))
 
             db.execute(text("""
                 UPDATE warehouse.work_orders
@@ -2057,16 +2158,17 @@ class WebBridge(QObject):
     def get_material_requests(self, work_order_id_str):
         """Bir Production Work Order'a bağlı Material Request kayıtlarını, parça
         bilgileriyle birlikte getirir. Salt okunurdur; stok düşme/depo transferi bu
-        aşamada yapılmaz. remaining_quantity, required_quantity - issued_quantity olarak
-        canlı hesaplanır."""
+        aşamada yapılmaz. remaining_quantity, (required_quantity + fire_quantity -
+        issued_quantity) olarak canlı hesaplanır -- fire_quantity, bildirilmiş fire
+        kadar ek teslim hakkı açar (bkz. report_material_fire)."""
         from sqlalchemy import text
         db = SessionLocal()
         try:
             work_order_id = int(work_order_id_str)
             rows = db.execute(text("""
                 SELECT mr.id, mr.work_order_id, mr.part_id,
-                       mr.required_quantity, mr.issued_quantity,
-                       (mr.required_quantity - mr.issued_quantity) AS remaining_quantity,
+                       mr.required_quantity, mr.issued_quantity, mr.fire_quantity,
+                       (mr.required_quantity + mr.fire_quantity - mr.issued_quantity) AS remaining_quantity,
                        mr.status, mr.created_at,
                        p.item_code, p.name AS part_name_raw, p.brand, p.model, p.color, p.part_category
                 FROM warehouse.material_requests mr
@@ -2086,6 +2188,7 @@ class WebBridge(QObject):
                     "item_code": row["item_code"] or "",
                     "required_quantity": row["required_quantity"],
                     "issued_quantity": row["issued_quantity"],
+                    "fire_quantity": row["fire_quantity"],
                     "remaining_quantity": row["remaining_quantity"],
                     "status": row["status"] or MATERIAL_REQUEST_STATUS_WAITING,
                     "created_at": row["created_at"].strftime("%Y-%m-%d %H:%M") if row["created_at"] else ""
@@ -2100,11 +2203,13 @@ class WebBridge(QObject):
     def issue_material_request(self, mr_id_str, quantity_str, username):
         """Bir Material Request satırının bir kısmını veya tamamını Good Stock'tan teslim
         eder (Malzeme Teslim / Material Issue). Kısmi teslimi destekler: WAITING ->
-        PARTIAL -> ISSUED, issued_quantity/required_quantity oranına göre otomatik
-        hesaplanır. Stok yetersizse işlem iptal edilir, hiçbir kayıt değişmez. Başarılı
-        teslimde bir StockMovement kaydı açılır. Sadece PRODUCTION tipi Work Order'lara
-        aittir; Service Work Order akışını hiçbir şekilde etkilemez. Üretim tamamlama,
-        fire hesaplama, yarı mamul oluşturma bu aşamada yapılmaz."""
+        PARTIAL -> ISSUED, issued_quantity/(required_quantity + fire_quantity) oranına
+        göre otomatik hesaplanır. fire_quantity, bildirilmiş fire kadar ek teslim hakkı
+        açar (bkz. report_material_fire) -- fire bildirilmeden limit büyümez. Stok
+        yetersizse işlem iptal edilir, hiçbir kayıt değişmez. Başarılı teslimde bir
+        StockMovement kaydı açılır. Sadece PRODUCTION tipi Work Order'lara aittir;
+        Service Work Order akışını hiçbir şekilde etkilemez. Üretim tamamlama, yarı
+        mamul oluşturma bu aşamada yapılmaz."""
         from sqlalchemy import text
         from models.stock import Stock
         from models.stock_movement import StockMovement
@@ -2119,7 +2224,7 @@ class WebBridge(QObject):
                 return json.dumps({"success": False, "message": "Teslim miktarı 0'dan büyük olmalıdır."})
 
             row = db.execute(
-                text("""SELECT id, work_order_id, part_id, required_quantity, issued_quantity, status
+                text("""SELECT id, work_order_id, part_id, required_quantity, issued_quantity, fire_quantity, status
                         FROM warehouse.material_requests WHERE id = :id FOR UPDATE"""),
                 {"id": mr_id}
             ).mappings().first()
@@ -2133,7 +2238,8 @@ class WebBridge(QObject):
             if wo_type != WORK_ORDER_TYPE_PRODUCTION:
                 return json.dumps({"success": False, "message": "Malzeme teslimi sadece Production Work Order'lar için yapılabilir."})
 
-            remaining = row["required_quantity"] - row["issued_quantity"]
+            effective_limit = row["required_quantity"] + row["fire_quantity"]
+            remaining = effective_limit - row["issued_quantity"]
             if quantity > remaining:
                 return json.dumps({"success": False, "message": f"Kalan miktardan ({remaining}) fazla teslim edilemez."})
 
@@ -2159,7 +2265,7 @@ class WebBridge(QObject):
             ))
 
             new_issued = row["issued_quantity"] + quantity
-            new_status = _compute_material_request_status(new_issued, row["required_quantity"])
+            new_status = _compute_material_request_status(new_issued, effective_limit)
 
             db.execute(text("""
                 UPDATE warehouse.material_requests
@@ -2172,12 +2278,93 @@ class WebBridge(QObject):
                 "success": True,
                 "message": "Malzeme teslim edildi",
                 "issued_quantity": new_issued,
-                "remaining_quantity": row["required_quantity"] - new_issued,
+                "remaining_quantity": effective_limit - new_issued,
                 "status": new_status
             })
         except Exception as e:
             db.rollback()
             return json.dumps({"success": False, "message": f"Teslim hatası: {str(e)}"})
+        finally:
+            db.close()
+
+    @Slot(str, str, str, result=str)
+    def report_material_fire(self, mr_id_str, fire_qty_str, username):
+        """Bir Material Request'e ait, teknisyenden fire (kullanılamayan/bozuk) olarak
+        geri gelen malzemeyi DOA Stock'a iade eder ve fire_quantity'yi artırır. Fire
+        bildirilen miktar kadar ek teslim hakkı açılır (required_quantity +
+        fire_quantity - issued_quantity, bkz. issue_material_request); fire
+        bildirilmeden depocu ek malzeme veremez. Bildirilecek miktar, o ana kadar
+        teslim edilip henüz fire olarak işlenmemiş miktarı (issued - fire) aşamaz --
+        hiç teslim edilmemiş bir parça için fire bildirilemez."""
+        from sqlalchemy import text
+        from models.stock import Stock
+        from models.stock_movement import StockMovement
+        db = SessionLocal()
+        try:
+            mr_id = int(mr_id_str)
+            try:
+                fire_qty = int(fire_qty_str)
+            except (ValueError, TypeError):
+                fire_qty = 0
+            if fire_qty <= 0:
+                return json.dumps({"success": False, "message": "Fire miktarı 0'dan büyük olmalıdır."})
+
+            row = db.execute(
+                text("""SELECT id, work_order_id, part_id, issued_quantity, fire_quantity
+                        FROM warehouse.material_requests WHERE id = :id FOR UPDATE"""),
+                {"id": mr_id}
+            ).mappings().first()
+            if not row:
+                return json.dumps({"success": False, "message": "Malzeme talebi bulunamadı."})
+
+            wo_type = db.execute(
+                text("SELECT work_order_type FROM warehouse.work_orders WHERE id = :id"),
+                {"id": row["work_order_id"]}
+            ).scalar()
+            if wo_type != WORK_ORDER_TYPE_PRODUCTION:
+                return json.dumps({"success": False, "message": "Fire bildirimi sadece Production Work Order'lar için yapılabilir."})
+
+            unaccounted = row["issued_quantity"] - row["fire_quantity"]
+            if fire_qty > unaccounted:
+                return json.dumps({"success": False, "message": f"En fazla {unaccounted} adet fire bildirebilirsiniz (teslim edilmiş, henüz fire işlenmemiş miktarı aşamaz)."})
+
+            doa_stock_id = _get_system_location_id(db, "doa_stock")
+            if not doa_stock_id:
+                return json.dumps({"success": False, "message": "DOA Stock deposu bulunamadı."})
+
+            doa_stock = db.query(Stock).filter(Stock.part_id == row["part_id"], Stock.location_id == doa_stock_id).first()
+            if doa_stock:
+                doa_stock.quantity += fire_qty
+            else:
+                db.add(Stock(part_id=row["part_id"], location_id=doa_stock_id, quantity=fire_qty))
+
+            db.add(StockMovement(
+                type="Fire İadesi",
+                movement_kind="Inbound",
+                quantity=fire_qty,
+                part_id=row["part_id"],
+                target_location_id=doa_stock_id,
+                created_by=username or None,
+                technician=username or None,
+                description=f"Production Work Order #{row['work_order_id']} - Material Request #{mr_id} fire iadesi"
+            ))
+
+            new_fire_total = row["fire_quantity"] + fire_qty
+            db.execute(text("""
+                UPDATE warehouse.material_requests
+                SET fire_quantity = :fire
+                WHERE id = :id
+            """), {"fire": new_fire_total, "id": mr_id})
+
+            db.commit()
+            return json.dumps({
+                "success": True,
+                "message": "Fire bildirildi ve DOA stoğa iade edildi",
+                "fire_quantity": new_fire_total
+            })
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": f"Fire bildirme hatası: {str(e)}"})
         finally:
             db.close()
 
@@ -3140,6 +3327,44 @@ class WebBridge(QObject):
                 })
                 return result_str
                 
+            # 2.5. Değişim (replacement) talep edildiyse, iadeyi mutasyona başlamadan önce
+            # fizibilite kontrolü yap: reçete var mı, gereken hammadde stokta yeterli mi?
+            # Yetersizse tüm iade işlemi iptal edilir (hiçbir şey değişmez) — kısmi başarı
+            # istenmiyor, ya iade+değişim birlikte gerçekleşir ya da hiçbiri.
+            replacement_materials = []
+            if replacement_qty > 0:
+                target_part_row = db.execute(
+                    text("SELECT item_code FROM warehouse.parts WHERE id = :id"), {"id": target_part_id}
+                ).first()
+                target_item_code = target_part_row[0] if target_part_row else None
+                if not target_item_code:
+                    raise Exception("Değişim üretimi için parçanın item_code bilgisi bulunamadı.")
+
+                bom_rows = db.execute(text("""
+                    SELECT b.child_item_id, b.quantity, cp.id AS child_part_id
+                    FROM warehouse.item_bom b
+                    LEFT JOIN warehouse.parts cp ON cp.item_code = b.child_item_id
+                    WHERE b.parent_item_id = :code
+                """), {"code": target_item_code}).mappings().all()
+                if not bom_rows:
+                    raise Exception("Değişim üretimi için bu parçaya ait bir Reçete (ItemBOM) bulunamadı. İade iptal edildi.")
+
+                for bom_row in bom_rows:
+                    if not bom_row["child_part_id"]:
+                        raise Exception(f"Reçetedeki '{bom_row['child_item_id']}' parçası sistemde bulunamadı, değişim üretimi yapılamıyor. İade iptal edildi.")
+                    needed = int(bom_row["quantity"]) * replacement_qty
+                    replacement_materials.append((bom_row["child_part_id"], needed))
+
+                for part_id, needed in replacement_materials:
+                    total_available = db.execute(text("""
+                        SELECT COALESCE(SUM(quantity), 0) FROM warehouse.stock WHERE part_id = :pid
+                    """), {"pid": part_id}).scalar()
+                    if total_available < needed:
+                        raise Exception(
+                            f"Değişim üretimi için yetersiz stok (parça id {part_id}): mevcut {total_available}, "
+                            f"gerekli {needed}. İade işlemi iptal edildi."
+                        )
+
             # 3. Tüketilen malzemeleri çek
             materials = db.execute(text("""
                 SELECT part_id, quantity_consumed
@@ -3249,6 +3474,81 @@ class WebBridge(QObject):
                         created_by=None,
                         description=f"Üretilen cihaz {unit['serial_number']} iadesinden sorunsuz malzeme"
                     ))
+
+            # 5.5. Değişim üretimi: fizibilitesi 2.5'te doğrulanmış replacement_materials'ı
+            # tüket, replacement_qty kadar yeni bir üretim partisi (yeni seri no) oluştur.
+            # Bu, orijinal iade edilen partiden bağımsız yeni bir production_runs kaydıdır;
+            # notes alanı üzerinden hangi iadenin karşılığı olduğu izlenebilir.
+            if replacement_qty > 0:
+                replacement_consumption_records = []
+                for part_id, needed in replacement_materials:
+                    remaining = needed
+                    rows = db.execute(text("""
+                        SELECT id, location_id, quantity FROM warehouse.stock
+                        WHERE part_id = :pid AND quantity > 0
+                        ORDER BY id
+                        FOR UPDATE
+                    """), {"pid": part_id}).all()
+                    for stock_id, stock_location_id, stock_qty in rows:
+                        if remaining <= 0:
+                            break
+                        take = min(stock_qty, remaining)
+                        db.execute(text("UPDATE warehouse.stock SET quantity = quantity - :take WHERE id = :id"),
+                                   {"take": take, "id": stock_id})
+                        remaining -= take
+                        replacement_consumption_records.append((part_id, stock_location_id, take))
+
+                existing_repl = db.execute(text("""
+                    SELECT id FROM warehouse.stock WHERE part_id = :pid AND location_id = :lid
+                """), {"pid": target_part_id, "lid": GOOD_STOCK_ID}).first()
+                if existing_repl:
+                    db.execute(text("UPDATE warehouse.stock SET quantity = quantity + :qty WHERE id = :id"),
+                               {"qty": replacement_qty, "id": existing_repl[0]})
+                else:
+                    db.execute(text("""
+                        INSERT INTO warehouse.stock (part_id, location_id, quantity) VALUES (:pid, :lid, :qty)
+                    """), {"pid": target_part_id, "lid": GOOD_STOCK_ID, "qty": replacement_qty})
+
+                replacement_run_id = db.execute(text("""
+                    INSERT INTO warehouse.production_runs (target_part_id, quantity_produced, source_location_id, location_id, produced_by, notes)
+                    VALUES (:tgt, :qty, :slid, :tlid, :by, :notes) RETURNING id
+                """), {
+                    "tgt": target_part_id, "qty": replacement_qty, "slid": GOOD_STOCK_ID, "tlid": GOOD_STOCK_ID,
+                    "by": None, "notes": f"'{unit['serial_number']}' iadesi icin otomatik degisim uretimi (neden: {return_reason})"
+                }).scalar()
+
+                replacement_next_id = db.execute(text("SELECT nextval(pg_get_serial_sequence('warehouse.produced_units', 'id'))")).scalar()
+                replacement_serial = f"REM-PRD-{replacement_next_id:06d}"
+                db.execute(text("""
+                    INSERT INTO warehouse.produced_units (id, production_run_id, serial_number)
+                    VALUES (:id, :run_id, :serial)
+                """), {"id": replacement_next_id, "run_id": replacement_run_id, "serial": replacement_serial})
+
+                for part_id, needed in replacement_materials:
+                    db.execute(text("""
+                        INSERT INTO warehouse.production_materials (production_run_id, part_id, quantity_consumed)
+                        VALUES (:run_id, :pid, :qty)
+                    """), {"run_id": replacement_run_id, "pid": part_id, "qty": needed})
+
+                for part_id, stock_location_id, take in replacement_consumption_records:
+                    db.add(StockMovement(
+                        type="Değişim Üretimi İçin Malzeme Tüketimi",
+                        movement_kind="Outbound",
+                        quantity=take,
+                        part_id=part_id,
+                        source_location_id=stock_location_id,
+                        created_by=None,
+                        description=f"Değişim Üretimi #{replacement_run_id} ({replacement_serial}) için tüketildi — iade edilen {unit['serial_number']} yerine"
+                    ))
+                db.add(StockMovement(
+                    type="Değişim Üretimi",
+                    movement_kind="Inbound",
+                    quantity=replacement_qty,
+                    part_id=target_part_id,
+                    target_location_id=GOOD_STOCK_ID,
+                    created_by=None,
+                    description=f"Değişim Üretimi #{replacement_run_id} ({replacement_serial}) — iade edilen {unit['serial_number']} yerine üretildi"
+                ))
 
             # 6. Cihaz kaydını iade edildi olarak işaretle ve nedenini kaydet
             db.execute(text("""
