@@ -55,8 +55,7 @@ SYSTEM_LOCATION_KINDS = {
 
 # Depolar arası manuel "Stok Transferi" akışının izin verdiği kaynak->hedef
 # eşleşmeleri. Bir kaynak kind burada yoksa (ör. custom raf lokasyonu) kısıtlama
-# uygulanmaz. Good Stock'un doğrudan stok atama/sıfırlama/fark denkleştirmesi
-# bu fonksiyondan değil, Admin > Stok Eşitleme panelinden yapılır.
+# uygulanmaz.
 SYSTEM_TRANSFER_RULES = {
     "good_stock": {"repair_stock"},
     "repair_stock": {"out_stock", "doa_stock"},
@@ -1252,100 +1251,6 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    # ==========================
-    # STOK EŞİTLEME (ADMIN) MODÜLÜ
-    # Good Stock, normal akışta sadece Repair Depo'ya transfer yapabilir (bkz.
-    # SYSTEM_TRANSFER_RULES / transfer_stock). Good Stock'un stok atama/sıfırlama/
-    # fark denkleştirme gibi doğrudan müdahaleleri SADECE bu iki fonksiyon
-    # üzerinden, Admin paneli aracılığıyla yapılır.
-    # ==========================
-
-    @Slot(result=str)
-    def get_good_stock_overview(self):
-        """Admin > Stok Eşitleme ekranı için: her parçanın Good Stock'taki mevcut miktarı."""
-        from models.location import Location
-        from sqlalchemy import text
-        db = SessionLocal()
-        try:
-            good_stock_loc = db.query(Location).filter(Location.kind == "good_stock").first()
-            if not good_stock_loc:
-                return json.dumps({"success": False, "message": "Good Stock lokasyonu bulunamadı."})
-
-            rows = db.execute(text("""
-                SELECT p.id, p.item_code, p.name, p.brand, p.model, p.color, p.part_category,
-                       COALESCE(s.quantity, 0) AS quantity
-                FROM warehouse.parts p
-                LEFT JOIN warehouse.stock s ON s.part_id = p.id AND s.location_id = :loc_id
-                ORDER BY p.id
-            """), {"loc_id": good_stock_loc.id}).mappings().all()
-
-            parts = [{
-                "id": r["id"],
-                "item_code": r["item_code"] or "",
-                "name": r["name"] or "",
-                "brand": r["brand"] or "",
-                "model": r["model"] or "",
-                "color": r["color"] or "",
-                "part_category": r["part_category"] or "",
-                "quantity": r["quantity"]
-            } for r in rows]
-            return json.dumps({"success": True, "parts": parts})
-        except Exception as e:
-            return json.dumps({"success": False, "message": str(e)})
-        finally:
-            db.close()
-
-    @Slot(str, str, str, result=str)
-    def equalize_good_stock(self, part_id_str, actual_quantity_str, username):
-        """Fiziksel sayım sonucuna göre Good Stock'taki bir parçanın stoğunu doğrudan
-        ayarlar (atama/sıfırlama/fark denkleştirme). Farkı 'Stok Eşitleme' hareketi
-        olarak kaydeder. Sadece Good Stock içindir; diğer depolar bunu kullanmaz."""
-        from models.stock import Stock
-        from models.stock_movement import StockMovement
-        from models.location import Location
-        db = SessionLocal()
-        try:
-            part_id = int(part_id_str)
-            new_qty = int(actual_quantity_str)
-            if new_qty < 0:
-                return json.dumps({"success": False, "message": "Stok miktarı negatif olamaz."})
-
-            good_stock_loc = db.query(Location).filter(Location.kind == "good_stock").first()
-            if not good_stock_loc:
-                return json.dumps({"success": False, "message": "Good Stock lokasyonu bulunamadı."})
-
-            stock = db.query(Stock).with_for_update().filter(
-                Stock.part_id == part_id, Stock.location_id == good_stock_loc.id
-            ).first()
-            old_qty = stock.quantity if stock else 0
-            diff = new_qty - old_qty
-
-            if diff == 0:
-                return json.dumps({"success": False, "message": "Girilen miktar mevcut stokla aynı, herhangi bir değişiklik yapılmadı."})
-
-            if stock:
-                stock.quantity = new_qty
-            else:
-                stock = Stock(part_id=part_id, location_id=good_stock_loc.id, quantity=new_qty)
-                db.add(stock)
-
-            movement = StockMovement(
-                type="Stok Eşitleme",
-                quantity=abs(diff),
-                part_id=part_id,
-                source_location_id=good_stock_loc.id if diff < 0 else None,
-                target_location_id=good_stock_loc.id if diff > 0 else None,
-                created_by=username or None,
-                description=f"Fark denkleştirme: {old_qty} -> {new_qty} ({'+' if diff > 0 else ''}{diff})"
-            )
-            db.add(movement)
-            db.commit()
-            return json.dumps({"success": True, "old_quantity": old_qty, "new_quantity": new_qty, "difference": diff})
-        except Exception as e:
-            db.rollback()
-            return json.dumps({"success": False, "message": str(e)})
-        finally:
-            db.close()
 
     # ===================    # DEPARTMANLAR MODÜLÜ
     # ==========================
