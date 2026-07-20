@@ -4,12 +4,14 @@ import { api } from '../services/api';
 import ExcelMappingModal from '../components/ExcelMappingModal';
 
 const MEMORY_OPTIONS = ['64GB', '128GB', '256GB', '512GB', '1TB'];
+// Backend'deki CUSTOMER_FLOW_VALUES (core/web_bridge.py) ile birebir aynı olmalı.
+const FLOW_VALUES = ['Refurbish', 'Repair', 'RMA', 'Battery Replacement'];
 
 const EMPTY_FORM = {
   item_code: '', barcode: '', name: '',
   item_category: '', part_category_id: '',
   department: [], stock_tracking_type: 'Stok Takipli', status: 'Aktif', critical_limit: '',
-  memory: [], part_type: 'Stoklu Parça'
+  memory: [], part_type: ''
 };
 
 export default function Parts() {
@@ -684,9 +686,7 @@ export default function Parts() {
                     onChange={e => setFormData({...formData, part_type: e.target.value})}
                   >
                     <option value="">Seçiniz...</option>
-                    <option value="Stoklu Parça">Stoklu Parça</option>
-                    <option value="Labor (İşçilik)">Labor (İşçilik)</option>
-                    <option value="Stoksuz Parça / Hizmet">Stoksuz Parça / Hizmet</option>
+                    {FLOW_VALUES.map(f => <option key={f} value={f}>{f}</option>)}
                   </select>
                 </div>
               </div>
