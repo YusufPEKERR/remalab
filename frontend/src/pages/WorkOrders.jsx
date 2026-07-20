@@ -90,6 +90,8 @@ export default function WorkOrders() {
   const [orders, setOrders] = useState([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [editingOrder, setEditingOrder] = useState(null);
+  const [expandedWorkOrders, setExpandedWorkOrders] = useState(new Set());
+  const [startSaving, setStartSaving] = useState(false);
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [partsUsed, setPartsUsed] = useState([]);
 
@@ -1056,11 +1058,11 @@ export default function WorkOrders() {
   const paginatedProductionRuns = productionRuns.slice((productionReportPage - 1) * REPORT_ITEMS_PER_PAGE, productionReportPage * REPORT_ITEMS_PER_PAGE);
 
   const TABS = [
-    { key: 'production_work_orders', label: 'Üretim İş Emirleri', icon: Layers },
     { key: 'production', label: 'Yarı Mamul Üretimi', icon: Factory },
     { key: 'recent_productions', label: 'Hızlı Tekrar Üretim', icon: Repeat },
     { key: 'consumption', label: 'Malzeme Tüketimi', icon: Package },
-    { key: 'production_report', label: 'Üretim Raporu', icon: TrendingUp }
+    { key: 'production_report', label: 'Üretim Raporu', icon: TrendingUp },
+    { key: 'production_work_orders', label: 'Üretim İş Emirleri', icon: Layers }
   ];
 
   return (
@@ -1991,7 +1993,7 @@ export default function WorkOrders() {
                         className={`cursor-pointer hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors text-slate-700 dark:text-slate-300 ${String(selectedProductionOrder?.id) === String(order.id) ? 'bg-slate-100 dark:bg-[#2a3142]' : ''}`}
                         title="Malzeme taleplerini görmek için tıklayın"
                       >
-                        <td className="px-6 py-4 font-mono font-medium text-slate-800 dark:text-slate-200">#{order.id}</td>
+                        <td className="px-6 py-4 font-mono font-medium text-slate-800 dark:text-slate-200">REM-PRD-{String(order.id).padStart(6, '0')}</td>
                         <td className="px-6 py-4">
                           <div className="font-medium text-slate-800 dark:text-slate-200">{order.target_part_name || '-'}</div>
                           <div className="text-xs text-slate-400">{order.target_part_code}</div>
@@ -2021,7 +2023,7 @@ export default function WorkOrders() {
                 <div className="flex justify-between items-center p-6 pb-4">
                   <div>
                     <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                      <Layers size={20} className="text-teal-400" /> İş Emri #{selectedProductionOrder.id} — {selectedProductionOrder.target_part_name || '-'}
+                      <Layers size={20} className="text-teal-400" /> İş Emri REM-PRD-{String(selectedProductionOrder.id).padStart(6, '0')} — {selectedProductionOrder.target_part_name || '-'}
                     </h3>
                     <p className="text-slate-400 text-sm mt-1">{selectedProductionOrder.target_part_code}</p>
                   </div>
@@ -2266,7 +2268,7 @@ export default function WorkOrders() {
               </button>
             </div>
             <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
-              İş Emri #{completeDialog.id} — {completeDialog.target_part_name}
+              İş Emri REM-PRD-{String(completeDialog.id).padStart(6, '0')} — {completeDialog.target_part_name}
             </p>
             <form onSubmit={handleConfirmComplete} className="space-y-4">
               <div>
