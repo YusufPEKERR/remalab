@@ -144,7 +144,7 @@ export const api = {
                 try {
                     const res = JSON.parse(resStr);
                     if (res.fetch_url) {
-                        const fetchRes = await fetch(res.fetch_url);
+                        const fetchRes = await fetch(res.fetch_url, { cache: 'no-store' });
                         const jsonData = await fetchRes.json();
                         resolve(jsonData);
                     } else {
@@ -895,7 +895,7 @@ export const api = {
                     try {
                         const res = JSON.parse(resStr);
                         if (res.fetch_url) {
-                            const fetchRes = await fetch(res.fetch_url);
+                            const fetchRes = await fetch(res.fetch_url, { cache: 'no-store' });
                             const jsonData = await fetchRes.json();
                             resolve(jsonData);
                         } else {
@@ -982,7 +982,7 @@ export const api = {
                     try {
                         const res = JSON.parse(resStr);
                         if (res.fetch_url) {
-                            const fetchRes = await fetch(res.fetch_url);
+                            const fetchRes = await fetch(res.fetch_url, { cache: 'no-store' });
                             const jsonData = await fetchRes.json();
                             resolve(jsonData);
                         } else {
@@ -994,6 +994,23 @@ export const api = {
                 });
             } else {
                 resolve({ success: true, stock: [] });
+            }
+        });
+    },
+
+    getStockStatusPaged: async (search, page, pageSize) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_stock_status_paged) {
+                backend.get_stock_status_paged(search || '', String(page || 1), String(pageSize || 30), (resStr) => {
+                    try {
+                        resolve(JSON.parse(resStr));
+                    } catch (e) {
+                        resolve({ success: false, message: e.message });
+                    }
+                });
+            } else {
+                resolve({ success: true, stock: [], total: 0, total_quantity: 0 });
             }
         });
     },
@@ -1072,7 +1089,7 @@ export const api = {
                     try {
                         const res = JSON.parse(resStr);
                         if (res.fetch_url) {
-                            const fetchRes = await fetch(res.fetch_url);
+                            const fetchRes = await fetch(res.fetch_url, { cache: 'no-store' });
                             const jsonData = await fetchRes.json();
                             resolve(jsonData);
                         } else {

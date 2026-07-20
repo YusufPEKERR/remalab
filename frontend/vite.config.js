@@ -17,6 +17,7 @@ export default defineConfig({
           if (fs.existsSync(filePath)) {
             res.setHeader('Content-Type', 'application/json');
             res.setHeader('Access-Control-Allow-Origin', '*');
+            res.setHeader('Cache-Control', 'no-store');
             res.end(fs.readFileSync(filePath));
           } else {
             next();

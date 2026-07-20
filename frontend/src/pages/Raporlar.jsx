@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Download, Filter, RefreshCw, AlertTriangle } from 'lucide-react';
 import { api } from '../services/api';
 
@@ -136,9 +136,9 @@ export default function Raporlar() {
     loadLocations();
   }, []);
 
-  const filteredStockReports = stockReports.filter(r => selectedLocation === '' || r.location_name === selectedLocation);
-  const filteredTransferReports = transferReports.filter(r => selectedLocation === '' || r.source_location === selectedLocation || r.target_location === selectedLocation);
-  const filteredCriticalReports = criticalReports.filter(r => selectedLocation === '' || r.location_name === selectedLocation);
+  const filteredStockReports = useMemo(() => stockReports.filter(r => selectedLocation === '' || r.location_name === selectedLocation), [stockReports, selectedLocation]);
+  const filteredTransferReports = useMemo(() => transferReports.filter(r => selectedLocation === '' || r.source_location === selectedLocation || r.target_location === selectedLocation), [transferReports, selectedLocation]);
+  const filteredCriticalReports = useMemo(() => criticalReports.filter(r => selectedLocation === '' || r.location_name === selectedLocation), [criticalReports, selectedLocation]);
 
   useEffect(() => { setCurrentPage(1); }, [activeTab, selectedLocation, startDate, endDate]);
 

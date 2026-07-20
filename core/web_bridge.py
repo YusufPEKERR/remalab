@@ -857,7 +857,7 @@ class WebBridge(QObject):
                 })
             json_data = json.dumps({"success": True, "parts": parts_list})
             write_to_cache("parts.json", json_data)
-            return json.dumps({"success": True, "fetch_url": "/api_cache/parts.json"})
+            return json.dumps({"success": True, "fetch_url": fetch_url})
         except Exception as e:
             return json.dumps({"success": False, "message": str(e)})
         finally:
@@ -3397,7 +3397,89 @@ class WebBridge(QObject):
                 })
             json_data = json.dumps({"success": True, "stock": res})
             write_to_cache("stock.json", json_data)
-            return json.dumps({"success": True, "fetch_url": "/api_cache/stock.json"})
+            return json.dumps({"success": True, "fetch_url": fetch_url})
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, str, result=str)
+    def get_stock_status_paged(self, search, page, page_size):
+        """Depo sayfası için sunucu taraflı arama + sayfalama. Sadece Good Stock
+        deposundaki kayıtları döndürür; büyük stok tablosunun tamamını istemciye
+        indirmeden sadece görünen sayfayı çeker."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            page = max(1, int(page) if str(page).isdigit() else 1)
+            page_size = min(200, max(1, int(page_size) if str(page_size).isdigit() else 30))
+            offset = (page - 1) * page_size
+            search = (search or "").strip()
+
+            params = {"limit": page_size, "offset": offset}
+            search_clause = ""
+            if search:
+                search_clause = """
+                    AND (
+                        p.item_code ILIKE :q OR p.name ILIKE :q OR p.brand ILIKE :q OR
+                        p.model ILIKE :q OR p.color ILIKE :q OR p.part_category ILIKE :q OR
+                        l.name ILIKE :q OR CAST(s.id AS TEXT) ILIKE :q
+                    )
+                """
+                params["q"] = f"%{search}%"
+
+            rows = db.execute(text(f"""
+                SELECT s.id, p.id as part_id, p.brand, p.model, p.color, p.part_category, p.name as pname, p.item_code,
+                       l.name as location_name, s.quantity, p.critical_limit,
+                       (
+                         SELECT MAX(sm.created_at)
+                         FROM warehouse.stock_movements sm
+                         WHERE sm.part_id = s.part_id AND (sm.source_location_id = s.location_id OR sm.target_location_id = s.location_id)
+                       ) as last_movement_at,
+                       COUNT(*) OVER() as total_count,
+                       COALESCE(SUM(s.quantity) OVER(), 0) as total_qty
+                FROM warehouse.stock s
+                JOIN warehouse.parts p ON s.part_id = p.id
+                JOIN warehouse.locations l ON s.location_id = l.id
+                WHERE l.kind = 'good_stock'
+                {search_clause}
+                ORDER BY s.id DESC
+                LIMIT :limit OFFSET :offset
+            """), params).mappings().all()
+
+            res = []
+            total_count = 0
+            total_qty = 0
+            for row in rows:
+                total_count = row["total_count"]
+                total_qty = row["total_qty"]
+                lm_at = row.get("last_movement_at")
+                date_str = lm_at.strftime("%d.%m.%Y %H:%M") if lm_at else "-"
+                part_name = " ".join(filter(None, [row.get("brand"), row.get("model"), row.get("color"), row.get("part_category")]))
+                if not part_name:
+                    part_name = (row.get("pname") or "").strip()
+                if not part_name:
+                    part_name = row.get("item_code") or "İsimsiz Parça"
+
+                res.append({
+                    "id": row["id"],
+                    "part_id": row["part_id"],
+                    "item_code": row["item_code"] or "-",
+                    "part_name": part_name,
+                    "location_name": row["location_name"],
+                    "quantity": row["quantity"],
+                    "critical_limit": row["critical_limit"] or 50,
+                    "updated_at": date_str
+                })
+
+            return json.dumps({
+                "success": True,
+                "stock": res,
+                "total": total_count,
+                "total_quantity": int(total_qty or 0),
+                "page": page,
+                "page_size": page_size
+            })
         except Exception as e:
             return json.dumps({"success": False, "message": str(e)})
         finally:
