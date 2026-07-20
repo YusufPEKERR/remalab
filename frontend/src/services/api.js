@@ -570,6 +570,7 @@ export const api = {
                     order.priority || 'Orta',
                     order.planned_quantity != null ? String(order.planned_quantity) : '',
                     order.assigned_technician || '',
+                    order.department || '',
                     (res) => resolve(JSON.parse(res))
                 );
             } else {
@@ -825,6 +826,8 @@ export const api = {
                     run.produced_by || '',
                     run.notes || '',
                     run.materials_json || '[]',
+                    run.department || '',
+                    String(run.scrap_quantity || '0'),
                     (res) => resolve(JSON.parse(res))
                 );
             } else {

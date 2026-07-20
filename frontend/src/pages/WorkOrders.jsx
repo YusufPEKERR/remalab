@@ -38,13 +38,13 @@ const EMPTY_FORM = {
 };
 
 const EMPTY_PRODUCTION_FORM = {
-  target_part_id: '', target_part_code: '', quantity_produced: 1, source_location_id: '', target_location_id: '', produced_by: '', notes: ''
+  target_part_id: '', target_part_code: '', quantity_produced: 1, source_location_id: '', target_location_id: '', produced_by: '', department: '', scrap_quantity: 0, notes: ''
 };
 
 // Production Work Order: Service Record'a bağlı değildir, work_orders tablosunu
 // work_order_type='PRODUCTION' ile paylaşır (bkz. create_production_work_order).
 const EMPTY_PRODUCTION_WO_FORM = {
-  target_part_id: '', description: '', priority: 'Orta', planned_quantity: 1, assigned_technician: ''
+  target_part_id: '', description: '', priority: 'Orta', planned_quantity: 1, assigned_technician: '', department: ''
 };
 
 const EMPTY_COMPLETE_FORM = { produced_quantity: '', scrap_quantity: '', production_notes: '' };
@@ -955,8 +955,8 @@ export default function WorkOrders() {
     if (!completeDialog) return;
     const produced = Number(completeForm.produced_quantity);
     const scrap = Number(completeForm.scrap_quantity);
-    if (completeForm.produced_quantity === '' || completeForm.scrap_quantity === '' || isNaN(produced) || isNaN(scrap) || produced < 0 || scrap < 0) {
-      alert('Üretilen Adet ve Fire Adedi geçerli, negatif olmayan sayılar olmalıdır.');
+    if (completeForm.produced_quantity === '' || isNaN(produced) || produced < 0) {
+      alert('Üretilen Adet geçerli, negatif olmayan bir sayı olmalıdır.');
       return;
     }
     setCompleteSaving(true);
@@ -1422,7 +1422,7 @@ export default function WorkOrders() {
 
               <div className="grid grid-cols-1 gap-5">
                 <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1.5">Üretici / Sorumlu</label>
+                  <label className="block text-sm font-medium text-slate-400 mb-1.5">Teknisyen</label>
                   <select className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={productionForm.produced_by} onChange={e => setProductionForm({ ...productionForm, produced_by: e.target.value })}>
                     <option value="">Seçiniz...</option>
                     {users.map(u => <option key={u.id} value={u.username}>{u.username}</option>)}
@@ -1765,7 +1765,7 @@ export default function WorkOrders() {
                     <th className="px-6 py-4">KAYNAK LOKASYON</th>
                     <th className="px-6 py-4">HEDEF LOKASYON</th>
                     <th className="px-6 py-4 min-w-[200px]">TÜKETİLEN MALZEMELER</th>
-                    <th className="px-6 py-4">ÜRETİCİ</th>
+                    <th className="px-6 py-4">TEKNİSYEN</th>
                     <th className="px-6 py-4">TARİH</th>
                     <th className="px-6 py-4">DURUM</th>
                     <th className="px-6 py-4 text-center">İŞLEMLER</th>
@@ -1774,11 +1774,11 @@ export default function WorkOrders() {
                 <tbody className="divide-y divide-slate-700/50">
                   {productionLoading ? (
                     <tr>
-                      <td colSpan="10" className="px-6 py-8 text-center text-slate-400">Yükleniyor...</td>
+                      <td colSpan="12" className="px-6 py-8 text-center text-slate-400">Yükleniyor...</td>
                     </tr>
                   ) : productionRuns.length === 0 ? (
                     <tr>
-                      <td colSpan="10" className="px-6 py-8 text-center text-slate-500">Kayıt bulunamadı.</td>
+                      <td colSpan="12" className="px-6 py-8 text-center text-slate-500">Kayıt bulunamadı.</td>
                     </tr>
                   ) : (
                     paginatedProductionRuns.map(run => (
@@ -1942,16 +1942,18 @@ export default function WorkOrders() {
                     </div>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-slate-400 mb-1.5">Atanan Teknisyen</label>
-                    <select
-                      className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-teal-500"
-                      value={productionWOForm.assigned_technician}
-                      onChange={e => setProductionWOForm({ ...productionWOForm, assigned_technician: e.target.value })}
-                    >
-                      <option value="">Seçiniz...</option>
-                      {users.map(u => <option key={u.id} value={u.username}>{u.username}</option>)}
-                    </select>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-400 mb-1.5">Atanan Teknisyen</label>
+                      <select
+                        className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-teal-500"
+                        value={productionWOForm.assigned_technician}
+                        onChange={e => setProductionWOForm({ ...productionWOForm, assigned_technician: e.target.value })}
+                      >
+                        <option value="">Seçiniz...</option>
+                        {users.map(u => <option key={u.id} value={u.username}>{u.username}</option>)}
+                      </select>
+                    </div>
                   </div>
 
                   <div className="flex justify-end gap-3 pt-6 border-t border-slate-200 dark:border-slate-700/50 mt-6">
@@ -1971,6 +1973,7 @@ export default function WorkOrders() {
                     <th className="px-6 py-4">İş Emri No</th>
                     <th className="px-6 py-4">Üretilecek Parça</th>
                     <th className="px-6 py-4">Planlanan Adet</th>
+                    <th className="px-6 py-4">Teknisyen</th>
                     <th className="px-6 py-4">Öncelik</th>
                     <th className="px-6 py-4">Durum</th>
                     <th className="px-6 py-4">Oluşturma Tarihi</th>
@@ -1979,11 +1982,11 @@ export default function WorkOrders() {
                 <tbody className="divide-y divide-slate-700/50">
                   {ordersLoading ? (
                     <tr>
-                      <td colSpan="6" className="px-6 py-8 text-center text-slate-400">Yükleniyor...</td>
+                      <td colSpan="7" className="px-6 py-8 text-center text-slate-400">Yükleniyor...</td>
                     </tr>
                   ) : productionWorkOrders.length === 0 ? (
                     <tr>
-                      <td colSpan="6" className="px-6 py-8 text-center text-slate-500">Henüz Üretim İş Emri oluşturulmadı.</td>
+                      <td colSpan="7" className="px-6 py-8 text-center text-slate-500">Henüz Üretim İş Emri oluşturulmadı.</td>
                     </tr>
                   ) : (
                     productionWorkOrders.map(order => (
@@ -1999,6 +2002,7 @@ export default function WorkOrders() {
                           <div className="text-xs text-slate-400">{order.target_part_code}</div>
                         </td>
                         <td className="px-6 py-4 font-mono">{order.planned_quantity !== '' ? order.planned_quantity : '-'}</td>
+                        <td className="px-6 py-4">{order.assigned_technician || '-'}</td>
                         <td className="px-6 py-4">
                           <span className={`inline-block whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-medium border ${PRIORITY_STYLES[order.priority] || PRIORITY_STYLES['Orta']}`}>
                             {order.priority}
@@ -2075,10 +2079,6 @@ export default function WorkOrders() {
                     <div className="text-xs text-slate-400 mb-1">Üretilen</div>
                     <div className="text-sm font-medium font-mono text-slate-800 dark:text-slate-200">{selectedProductionOrder.produced_quantity !== '' ? selectedProductionOrder.produced_quantity : '-'}</div>
                   </div>
-                  <div>
-                    <div className="text-xs text-slate-400 mb-1">Fire</div>
-                    <div className="text-sm font-medium font-mono text-slate-800 dark:text-slate-200">{selectedProductionOrder.scrap_quantity !== '' ? selectedProductionOrder.scrap_quantity : '-'}</div>
-                  </div>
                   <div className="col-span-2 md:col-span-4">
                     <div className="text-xs text-slate-400 mb-1">Üretim Notu</div>
                     <div className="text-sm text-slate-800 dark:text-slate-200">{selectedProductionOrder.production_notes || '-'}</div>
@@ -2094,6 +2094,7 @@ export default function WorkOrders() {
                   <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs">
                     <tr>
                       <th className="px-6 py-4">Parça</th>
+                      <th className="px-6 py-4">Teknisyen</th>
                       <th className="px-6 py-4">Gerekli</th>
                       <th className="px-6 py-4">Verilen</th>
                       <th className="px-6 py-4">Kalan</th>
@@ -2104,11 +2105,11 @@ export default function WorkOrders() {
                   <tbody className="divide-y divide-slate-700/50">
                     {materialRequestsLoading ? (
                       <tr>
-                        <td colSpan="6" className="px-6 py-8 text-center text-slate-400">Yükleniyor...</td>
+                        <td colSpan="7" className="px-6 py-8 text-center text-slate-400">Yükleniyor...</td>
                       </tr>
                     ) : materialRequests.length === 0 ? (
                       <tr>
-                        <td colSpan="6" className="px-6 py-8 text-center text-slate-500">Malzeme talebi bulunamadı.</td>
+                        <td colSpan="7" className="px-6 py-8 text-center text-slate-500">Malzeme talebi bulunamadı.</td>
                       </tr>
                     ) : (
                       materialRequests.map(mr => (
@@ -2117,6 +2118,7 @@ export default function WorkOrders() {
                             <div className="font-medium text-slate-800 dark:text-slate-200">{mr.part_name || '-'}</div>
                             <div className="text-xs text-slate-400">{mr.item_code}</div>
                           </td>
+                          <td className="px-6 py-4">{selectedProductionOrder?.assigned_technician || '-'}</td>
                           <td className="px-6 py-4 font-mono">{mr.required_quantity}</td>
                           <td className="px-6 py-4 font-mono">{mr.issued_quantity}</td>
                           <td className="px-6 py-4 font-mono">{mr.remaining_quantity}</td>
@@ -2282,28 +2284,19 @@ export default function WorkOrders() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-5 mb-5">
                 <div>
                   <label className="block text-sm font-medium text-slate-400 mb-1.5">Üretilen Adet</label>
                   <input
                     type="number"
                     autoFocus
-                    min="0"
+                    min="1"
                     className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-emerald-500"
                     value={completeForm.produced_quantity}
                     onChange={e => setCompleteForm({ ...completeForm, produced_quantity: e.target.value })}
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1.5">Fire Adedi</label>
-                  <input
-                    type="number"
-                    min="0"
-                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-emerald-500"
-                    value={completeForm.scrap_quantity}
-                    onChange={e => setCompleteForm({ ...completeForm, scrap_quantity: e.target.value })}
-                  />
-                </div>
+
               </div>
 
               <div>
@@ -2502,7 +2495,7 @@ export default function WorkOrders() {
                   </div>
                 )}
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-400">Üretici:</span>
+                  <span className="text-slate-400">Teknisyen:</span>
                   <span className="text-slate-800 dark:text-slate-200">{detailDialog.produced_by || '-'}</span>
                 </div>
                 <div className="flex justify-between text-sm">

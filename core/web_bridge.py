@@ -934,6 +934,9 @@ class WebBridge(QObject):
                 INSERT INTO warehouse.parts (name, item_code, barcode, brand, model, item_category, part_category, part_category_id, stock_tracking_type, department, status, critical_limit, memory, part_type)
                 VALUES (:name, :code, :barcode, :brand, :model, :icat, :pcat, :pcat_id, :stt, :dept, :status, :critical_limit, :memory, :part_type)
             """
+            if part_type in ["Labor (İşçilik)", "Stoksuz Parça / Hizmet"]:
+                stock_tracking_type = "Stok Takipsiz"
+            
             db.execute(text(sql), {
                 "name": part_name, "code": code, "barcode": barcode or None,
                 "brand": brand or None, "model": model or None,
@@ -978,6 +981,9 @@ class WebBridge(QObject):
                     memory = :memory, part_type = :part_type
                 WHERE id = :id
             """
+            if part_type in ["Labor (İşçilik)", "Stoksuz Parça / Hizmet"]:
+                stock_tracking_type = "Stok Takipsiz"
+
             db.execute(text(sql), {
                 "name": part_name, "code": code, "barcode": barcode or None,
                 "brand": brand or None, "model": model or None,
@@ -1617,7 +1623,7 @@ class WebBridge(QObject):
                        w.start_date, w.end_date, w.parts_used, w.status, w.created_at,
                        w.source_location_id, w.stock_settled_at,
                        w.work_order_type, w.target_part_id, w.planned_quantity,
-                       w.started_at, w.completed_at, w.produced_quantity, w.scrap_quantity, w.production_notes,
+                       w.started_at, w.completed_at, w.produced_quantity, w.scrap_quantity, w.production_notes, w.department,
                        s.customer_name, s.brand, s.model, s.fault_category, s.fault_type,
                        tp.item_code AS target_part_code, tp.name AS target_part_name
                 FROM warehouse.work_orders w
@@ -1646,6 +1652,7 @@ class WebBridge(QObject):
                     "produced_quantity": row["produced_quantity"] if row["produced_quantity"] is not None else "",
                     "scrap_quantity": row["scrap_quantity"] if row["scrap_quantity"] is not None else "",
                     "production_notes": row["production_notes"] or "",
+                    "department": row["department"] or "",
                     "description": row["description"] or "",
                     "assigned_technician": row["assigned_technician"] or "",
                     "priority": row["priority"] or "Orta",
@@ -1877,8 +1884,8 @@ class WebBridge(QObject):
     # malzeme talebi (Material Request) veya stok hareketi oluşturulmaz.
     # ==========================
 
-    @Slot(str, str, str, str, str, result=str)
-    def create_production_work_order(self, target_part_id, description, priority, planned_quantity, assigned_technician):
+    @Slot(str, str, str, str, str, str, result=str)
+    def create_production_work_order(self, target_part_id, description, priority, planned_quantity, assigned_technician, department):
         """PRODUCTION tipinde yeni bir iş emri oluşturur. target_part_id, üretilecek yarı
         mamulün parça id'sidir; bu parçanın item_code'una karşılık gelen bir Recipe
         (warehouse.item_bom kaydı) bulunmalıdır. Service Record gerekmez. Recipe'deki her
@@ -1912,9 +1919,9 @@ class WebBridge(QObject):
             new_id = db.execute(text("""
                 INSERT INTO warehouse.work_orders (
                     work_order_type, target_part_id, description, priority, planned_quantity,
-                    assigned_technician, status
+                    assigned_technician, department, status
                 ) VALUES (
-                    :wtype, :target, :desc, :priority, :qty, :tech, :status
+                    :wtype, :target, :desc, :priority, :qty, :tech, :dept, :status
                 ) RETURNING id
             """), {
                 "wtype": WORK_ORDER_TYPE_PRODUCTION,
@@ -1923,6 +1930,7 @@ class WebBridge(QObject):
                 "priority": priority or "Orta",
                 "qty": qty,
                 "tech": assigned_technician or None,
+                "dept": department or None,
                 "status": PRODUCTION_WO_STATUS_WAITING
             }).scalar()
 
@@ -2863,7 +2871,7 @@ class WebBridge(QObject):
             units = db.execute(text("""
                 SELECT pu.id AS unit_id, pu.serial_number, pu.is_returned, pu.return_reason, pu.returned_at, pu.return_location_id, pu.returned_materials, pu.replacement_requested_qty,
                        pr.id AS run_id, pr.target_part_id, pr.quantity_produced, pr.location_id, pr.source_location_id,
-                       pr.produced_by, pr.notes, pr.created_at,
+                       pr.produced_by, pr.notes, pr.created_at, pr.department, pr.scrap_quantity, pr.work_order_id,
                        p.brand AS target_brand, p.model AS target_model,
                        p.item_code AS target_code, p.name AS target_name,
                        l.name AS location_name,
@@ -2936,6 +2944,9 @@ class WebBridge(QObject):
                     "source_location_id": str(u["source_location_id"]) if u["source_location_id"] else "",
                     "source_location_name": u["source_location_name"] or "",
                     "produced_by": u["produced_by"] or "",
+                    "department": u["department"] or "",
+                    "scrap_quantity": u["scrap_quantity"] or 0,
+                    "work_order_id": str(u["work_order_id"]) if u["work_order_id"] else "",
                     "notes": u["notes"] or "",
                     "created_at": u["created_at"].strftime("%Y-%m-%d %H:%M") if u["created_at"] else "",
                     "materials": unit_materials
@@ -2946,8 +2957,8 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    @Slot(str, str, str, str, str, str, str, result=str)
-    def create_production_run(self, target_part_id, quantity_produced, source_location_id, target_location_id, produced_by, notes, materials_json):
+    @Slot(str, str, str, str, str, str, str, str, str, result=str)
+    def create_production_run(self, target_part_id, quantity_produced, source_location_id, target_location_id, produced_by, notes, materials_json, department, scrap_quantity_str):
         """Hammadde tüketip yarı mamul/ürün stoku oluşturan bir üretim kaydı ekler."""
         from sqlalchemy import text
         import json as json_module
@@ -2958,6 +2969,8 @@ class WebBridge(QObject):
             tgt_loc_id = int(target_location_id)
             tgt_id = int(target_part_id)
             materials = json_module.loads(materials_json or "[]")
+            scrap_qty = int(scrap_quantity_str) if scrap_quantity_str else 0
+            dept = department or None
 
             if qty <= 0:
                 return json.dumps({"success": False, "message": "Üretilecek miktar sıfırdan büyük olmalıdır."})
@@ -3003,13 +3016,29 @@ class WebBridge(QObject):
                     INSERT INTO warehouse.stock (part_id, location_id, quantity) VALUES (:pid, :lid, :qty)
                 """), {"pid": tgt_id, "lid": tgt_loc_id, "qty": qty})
 
+            # Hızlı Üretim için de bir İş Emri (Work Order) oluştur ve tamamlandı işaretle
+            wo_id = db.execute(text("""
+                INSERT INTO warehouse.work_orders (
+                    work_order_type, target_part_id, description, priority, planned_quantity,
+                    assigned_technician, department, status, completed_at, produced_quantity, scrap_quantity, production_notes
+                ) VALUES (
+                    :wtype, :tgt, :desc, 'Orta', :qty, :tech, :dept, :status, CURRENT_TIMESTAMP, :qty, :scrap, :notes
+                ) RETURNING id
+            """), {
+                "wtype": WORK_ORDER_TYPE_PRODUCTION,
+                "tgt": tgt_id, "desc": "Hızlı Üretim (Otomatik İş Emri)",
+                "qty": qty, "tech": produced_by or None, "dept": dept,
+                "status": PRODUCTION_WO_STATUS_COMPLETED,
+                "scrap": scrap_qty, "notes": notes or None
+            }).scalar()
+
             # Üretim kaydını oluştur
             run_id = db.execute(text("""
-                INSERT INTO warehouse.production_runs (target_part_id, quantity_produced, source_location_id, location_id, produced_by, notes)
-                VALUES (:tgt, :qty, :slid, :tlid, :by, :notes) RETURNING id
+                INSERT INTO warehouse.production_runs (target_part_id, quantity_produced, source_location_id, location_id, produced_by, notes, department, scrap_quantity, work_order_id)
+                VALUES (:tgt, :qty, :slid, :tlid, :by, :notes, :dept, :scrap, :wo_id) RETURNING id
             """), {
                 "tgt": tgt_id, "qty": qty, "slid": src_loc_id, "tlid": tgt_loc_id,
-                "by": produced_by or None, "notes": notes or None
+                "by": produced_by or None, "notes": notes or None, "dept": dept, "scrap": scrap_qty, "wo_id": wo_id
             }).scalar()
 
             # Tek bir ortak serial number (Cihaz Kimlik ID) oluştur ve tek satır olarak ekle

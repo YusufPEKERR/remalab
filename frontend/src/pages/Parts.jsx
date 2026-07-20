@@ -10,7 +10,7 @@ const EMPTY_FORM = {
   item_code: '', barcode: '', name: '',
   item_category: '', part_category_id: '',
   department: [], stock_tracking_type: 'Stok Takipli', status: 'Aktif', critical_limit: '',
-  memory: [], part_type: ''
+  memory: [], part_type: 'Stoklu Parça'
 };
 
 export default function Parts() {
@@ -675,45 +675,22 @@ export default function Parts() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1">Parça Kategorisi</label>
-                  <select
-                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
-                    value={formData.item_category}
-                    onChange={e => setFormData({...formData, item_category: e.target.value})}
-                  >
-                    <option value="">Seçiniz...</option>
-                    {KALITE_OPTIONS.map(k => <option key={k} value={k}>{k}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1.5">
-                    Item Code <span className="text-red-400">*</span>
+                  <label className="block text-sm font-medium text-slate-400 mb-1">
+                    Parça Tipi <span className="text-red-400">*</span>
                   </label>
                   <select
                     required
-                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
-                    value={formData.part_category_id}
-                    onChange={(e) => setFormData({...formData, part_category_id: e.target.value})}
+                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                    value={formData.part_type}
+                    onChange={e => setFormData({...formData, part_type: e.target.value})}
                   >
-                    <option value="">Seçiniz</option>
-                    {partCategories.map(cat => (
-                      <option key={cat.id} value={cat.id}>{cat.name}</option>
-                    ))}
+                    <option value="">Seçiniz...</option>
+                    <option value="Stoklu Parça">Stoklu Parça</option>
+                    <option value="Labor (İşçilik)">Labor (İşçilik)</option>
+                    <option value="Stoksuz Parça / Hizmet">Stoksuz Parça / Hizmet</option>
                   </select>
                 </div>
               </div>
-
-              {selectedCategory ? (
-                <div className="bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg p-4 space-y-2">
-                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Kategoriden Otomatik Gelen Bilgiler</p>
-                  <div className="grid grid-cols-2 gap-y-2 text-sm">
-                    <span className="text-slate-400">Item Category</span>
-                    <span className="text-slate-800 dark:text-slate-200">{selectedCategory.part_type || '-'}</span>
-                    <span className="text-slate-400">Varsayılan Lokasyon</span>
-                    <span className="text-slate-800 dark:text-slate-200">{selectedCategory.default_location_name || '-'}</span>
-                  </div>
-                </div>
-              ) : null}
 
               {currentPart && (
                 <div>
@@ -736,17 +713,6 @@ export default function Parts() {
                   value={formData.critical_limit}
                   onChange={e => setFormData({...formData, critical_limit: e.target.value})}
                   placeholder="Opsiyonel (Varsayılan: 50)"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-400 mb-1">Parça Tipi</label>
-                <input
-                  type="text"
-                  className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
-                  value={formData.part_type}
-                  onChange={e => setFormData({...formData, part_type: e.target.value})}
-                  placeholder="Örn: SparePart, Labour vb."
                 />
               </div>
 

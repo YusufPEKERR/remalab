@@ -109,6 +109,9 @@ export default function ExcelMappingModal({
         newRow[dbCol] = row[excelCol];
       });
       return newRow;
+    }).filter(row => {
+      // Check if row has at least one non-empty value
+      return Object.values(row).some(val => val !== undefined && val !== null && String(val).trim() !== '');
     });
 
     onImport(mappedData);
