@@ -3509,9 +3509,15 @@ class WebBridge(QObject):
         db = SessionLocal()
         try:
             part_id = int(part_id)
-            location_id = int(location_id)
+            location_id = int(location_id) if (location_id and str(location_id).isdigit()) else 0
             qty = int(qty)
             price = float(unit_price) if unit_price else 0.0
+
+            target_loc = db.query(Location).filter(Location.id == location_id).first()
+            if not target_loc:
+                target_loc = db.query(Location).filter(Location.kind == "good_stock").first()
+                if target_loc:
+                    location_id = target_loc.id
 
             stock = db.query(Stock).filter(Stock.part_id == part_id, Stock.location_id == location_id).first()
             if stock:
@@ -3520,7 +3526,6 @@ class WebBridge(QObject):
                 stock = Stock(part_id=part_id, location_id=location_id, quantity=qty)
                 db.add(stock)
 
-            target_loc = db.query(Location).filter(Location.id == location_id).first()
             movement_kind = "Inbound" if target_loc and target_loc.kind in ("good_stock", "doa_stock") else None
 
             mov = StockMovement(
