@@ -1010,7 +1010,9 @@ class WebBridge(QObject):
 
             queries = [
                 "DELETE FROM warehouse.stock WHERE part_id = :id",
-                "DELETE FROM warehouse.stock_movements WHERE part_id = :id",
+                # İrsaliye geçmişi korunsun diye hareket kayıtları silinmiyor, sadece
+                # silinen parçaya olan referans temizleniyor (ekranda "Silinmiş Parça" gösterilir).
+                "UPDATE warehouse.stock_movements SET part_id = NULL WHERE part_id = :id",
                 "DELETE FROM warehouse.inbound_entries WHERE part_id = :id",
                 "DELETE FROM warehouse.outbound_entries WHERE part_id = :id",
                 "DELETE FROM warehouse.work_order_parts WHERE part_id = :id",
@@ -1070,7 +1072,9 @@ class WebBridge(QObject):
                 
             queries = [
                 "DELETE FROM warehouse.stock WHERE part_id = :id",
-                "DELETE FROM warehouse.stock_movements WHERE part_id = :id",
+                # İrsaliye geçmişi korunsun diye hareket kayıtları silinmiyor, sadece
+                # silinen parçaya olan referans temizleniyor (ekranda "Silinmiş Parça" gösterilir).
+                "UPDATE warehouse.stock_movements SET part_id = NULL WHERE part_id = :id",
                 "DELETE FROM warehouse.inbound_entries WHERE part_id = :id",
                 "DELETE FROM warehouse.outbound_entries WHERE part_id = :id",
                 "DELETE FROM warehouse.work_order_parts WHERE part_id = :id",
