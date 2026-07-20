@@ -681,7 +681,7 @@ export default function WorkOrders() {
       setShowResultsDropdown(false);
       fetchProductionRuns();
       api.getStockStatus().then(r => { if (r.success) setStockStatus(r.stock || []); });
-      alert('Üretim kaydı başarıyla oluşturuldu.');
+      alert(`Üretim kaydı başarıyla oluşturuldu.\nİş Emri Numarası: ${res.serial_number || 'Bilinmiyor'}`);
     } else {
       alert(res.message || 'Üretim kaydı oluşturulamadı.');
     }
@@ -849,7 +849,7 @@ export default function WorkOrders() {
     if (res.success) {
       fetchProductionRuns();
       await refreshStockStatus();
-      setQuickProduceSuccess(true);
+      setQuickProduceSuccess(res.serial_number || 'Bilinmiyor');
     } else {
       alert(res.message || "Üretim başarısız oldu.");
     }
@@ -2601,8 +2601,13 @@ export default function WorkOrders() {
 
             <div className="p-6 space-y-4">
               {quickProduceSuccess && (
-                <div className="flex items-center gap-2 px-4 py-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 rounded-xl text-sm font-medium">
-                  <Check size={16} /> Üretim tamamlandı, malzeme çıkışı yapıldı — miktarlar aşağıda güncellendi.
+                <div className="flex flex-col gap-1 px-4 py-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-500 rounded-xl text-sm font-medium">
+                  <div className="flex items-center gap-2">
+                    <Check size={16} /> <span>Üretim tamamlandı, malzeme çıkışı yapıldı.</span>
+                  </div>
+                  <div className="ml-6 mt-1 font-semibold">
+                    İş Emri Numarası: <span className="font-mono bg-emerald-500/20 px-2 py-0.5 rounded text-emerald-700 dark:text-emerald-400">{typeof quickProduceSuccess === 'string' ? quickProduceSuccess : 'Bilinmiyor'}</span>
+                  </div>
                 </div>
               )}
 

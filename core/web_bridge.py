@@ -3028,7 +3028,7 @@ class WebBridge(QObject):
                 """), {"run_id": run_id, "pid": int(m["part_id"]), "qty": int(m["quantity_consumed"])})
 
             db.commit()
-            return json.dumps({"success": True, "message": "Üretim kaydı oluşturuldu"})
+            return json.dumps({"success": True, "message": "Üretim kaydı oluşturuldu", "serial_number": serial_num, "run_id": run_id})
         except Exception as e:
             db.rollback()
             return json.dumps({"success": False, "message": f"Üretim kaydı hatası: {str(e)}"})
