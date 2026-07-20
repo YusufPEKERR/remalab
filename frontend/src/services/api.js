@@ -640,11 +640,22 @@ export const api = {
         });
     },
 
-    issueExtraBomMaterials: async (partId, extraQty, username) => {
+    issueExtraBomMaterials: async (partId, extraQty, sourceLocationId, username) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
             if (backend.issue_extra_bom_materials) {
-                backend.issue_extra_bom_materials(String(partId), String(extraQty), username || '', (res) => resolve(JSON.parse(res)));
+                backend.issue_extra_bom_materials(String(partId), String(extraQty), String(sourceLocationId || ''), username || '', (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true });
+            }
+        });
+    },
+
+    receiveExtraBomMaterials: async (partId, extraQty, technician) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.receive_extra_bom_materials) {
+                backend.receive_extra_bom_materials(String(partId), String(extraQty), technician || '', (res) => resolve(JSON.parse(res)));
             } else {
                 resolve({ success: true });
             }
