@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ClipboardList, Plus, Trash2, Edit, X, Save, Factory, Package, TrendingUp, Repeat, AlertTriangle, Layers, Search, RotateCcw, Eye, Info } from 'lucide-react';
+import { ClipboardList, Plus, Trash2, Edit, X, Save, Factory, Package, TrendingUp, Repeat, AlertTriangle, Layers, Search, RotateCcw, Eye, Info, ChevronDown, Zap, FileText, PlusCircle } from 'lucide-react';
 import { api } from '../services/api';
 import PartSupplyMenu from '../components/PartSupplyMenu';
 import DeliverPartPopover from '../components/DeliverPartPopover';
@@ -123,6 +123,7 @@ export default function WorkOrders() {
   const [consumptionPage, setConsumptionPage] = useState(1);
   const [productionReportPage, setProductionReportPage] = useState(1);
   const REPORT_ITEMS_PER_PAGE = 30;
+  const [openBomMenuIdx, setOpenBomMenuIdx] = useState(null);
 
   // --- Production Work Order state (work_orders, work_order_type = 'PRODUCTION') ---
   const [showProductionWOForm, setShowProductionWOForm] = useState(false);
@@ -271,6 +272,85 @@ export default function WorkOrders() {
       refreshStockStatus();
     } else {
       alert(res.message || 'Geri alma işlemi başarısız oldu.');
+    }
+  };
+
+  const handleReturnToDoa = async (row) => {
+    const rawQty = window.prompt(`${row.part_name} (${row.quantity} adet) için DOA stoğa geri alınacak miktarı giriniz:`, String(row.quantity));
+    if (!rawQty) return;
+    const qty = parseInt(rawQty, 10);
+    if (isNaN(qty) || qty <= 0 || qty > row.quantity) {
+      alert(`Lütfen 1 ile ${row.quantity} arasında geçerli bir miktar giriniz.`);
+      return;
+    }
+    const res = await api.returnPartToDoa(row.id, qty, currentUser?.username);
+    if (res.success) {
+      fetchWorkOrderParts(editingOrder.id);
+      refreshStockStatus();
+    } else {
+      alert(res.message || 'DOA stoğa geri alma başarısız oldu.');
+    }
+  };
+
+  const handleExtraPart = async (row) => {
+    const rawQty = window.prompt(`${row.part_name} için ekstra çıkış miktarı giriniz:`, '1');
+    if (!rawQty) return;
+    const qty = parseInt(rawQty, 10);
+    if (isNaN(qty) || qty <= 0) {
+      alert('Geçerli bir miktar giriniz.');
+      return;
+    }
+    const res = await api.addWorkOrderPart(editingOrder.id, row.part_id, qty, currentUser?.username);
+    if (res.success && res.part) {
+      setWorkOrderParts(prev => [...prev, res.part]);
+    } else {
+      alert(res.message || 'Ekstra parça eklenemedi.');
+    }
+  };
+
+  const handleReturnBomToDoa = async (bom) => {
+    const targetPartId = bom.parent_part_id || (bom.materials && bom.materials[0]?.child_part_id);
+    if (!targetPartId) {
+      alert("Hata: Reçete parça ID'si bulunamadı.");
+      return;
+    }
+    const partName = bom.parent_name || bom.parent_item_id || 'Reçete parçası';
+    const rawQty = window.prompt(`"${partName}" parçası için DOA stoğa geri alınacak miktarı giriniz:`, '1');
+    if (!rawQty) return;
+    const qty = parseInt(rawQty, 10);
+    if (isNaN(qty) || qty <= 0) {
+      alert('Geçerli bir miktar giriniz.');
+      return;
+    }
+    const res = await api.returnBomPartToDoa(targetPartId, qty, currentUser?.username);
+    if (res.success) {
+      alert(`"${partName}" parçasından ${qty} adet DOA stoğa geri alındı.`);
+      refreshStockStatus();
+    } else {
+      alert(res.message || 'DOA stoğa geri alma başarısız oldu.');
+    }
+  };
+
+  const handleIssueExtraBomMaterials = async (bom) => {
+    const targetPartId = bom.parent_part_id || (bom.materials && bom.materials[0]?.child_part_id);
+    if (!targetPartId) {
+      alert("Hata: Reçete parça ID'si bulunamadı.");
+      return;
+    }
+    const partName = bom.parent_name || bom.parent_item_id || 'Reçete parçası';
+    const rawQty = window.prompt(`"${partName}" için ekstra parça/hammadde çıkış miktarı giriniz:`, '1');
+    if (!rawQty) return;
+    const qty = parseInt(rawQty, 10);
+    if (isNaN(qty) || qty <= 0) {
+      alert('Geçerli bir miktar giriniz.');
+      return;
+    }
+    const res = await api.issueExtraBomMaterials(targetPartId, qty, currentUser?.username);
+    if (res.success) {
+      alert(`"${partName}" için ${qty} adet ekstra parça çıkışı yapıldı.`);
+      refreshStockStatus();
+    } else {
+      alert(res.message || 'Ekstra parça çıkışı başarısız oldu.');
     }
   };
 
@@ -1388,21 +1468,51 @@ export default function WorkOrders() {
                           </td>
                           <td className="px-6 py-4 font-mono">{mat2 ? mat2.quantity : '-'}</td>
                           <td className="px-6 py-4 text-center">
-                            <div className="flex gap-2 justify-center">
+                            <div className="relative inline-block text-left">
                               <button
                                 type="button"
-                                onClick={() => handleFillFormFromBOM(bom)}
-                                className="px-2.5 py-1.5 bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white rounded-lg text-xs font-bold transition-colors"
+                                onClick={() => setOpenBomMenuIdx(openBomMenuIdx === index ? null : index)}
+                                className="px-3 py-1.5 bg-slate-100 dark:bg-[#242a38] hover:bg-slate-200 dark:hover:bg-[#2a3142] border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-bold transition-colors inline-flex items-center gap-1.5 shadow-sm"
                               >
-                                Forma Aktar
+                                Aksiyonlar <ChevronDown size={14} className={`transition-transform duration-200 ${openBomMenuIdx === index ? 'rotate-180' : ''}`} />
                               </button>
-                              <button
-                                type="button"
-                                onClick={() => handleProduceFromBOM(bom)}
-                                className="px-2.5 py-1.5 bg-orange-500/10 text-orange-500 hover:bg-orange-500 hover:text-white rounded-lg text-xs font-bold transition-colors"
-                              >
-                                Hızlı Üret
-                              </button>
+
+                              {openBomMenuIdx === index && (
+                                <>
+                                  <div className="fixed inset-0 z-40" onClick={() => setOpenBomMenuIdx(null)} />
+                                  <div className="absolute right-0 mt-1.5 w-52 bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl z-50 py-1 text-left animate-in fade-in zoom-in-95">
+                                    <button
+                                      type="button"
+                                      onClick={() => { setOpenBomMenuIdx(null); handleFillFormFromBOM(bom); }}
+                                      className="w-full px-4 py-2.5 text-xs text-blue-600 dark:text-blue-400 hover:bg-slate-100 dark:hover:bg-[#2a3142] flex items-center gap-2.5 font-medium transition-colors"
+                                    >
+                                      <FileText size={15} /> Forma Aktar
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => { setOpenBomMenuIdx(null); handleProduceFromBOM(bom); }}
+                                      className="w-full px-4 py-2.5 text-xs text-emerald-600 dark:text-emerald-400 hover:bg-slate-100 dark:hover:bg-[#2a3142] flex items-center gap-2.5 font-medium transition-colors"
+                                    >
+                                      <Zap size={15} /> Hızlı Üret
+                                    </button>
+                                    <div className="border-t border-slate-100 dark:border-slate-700/50 my-1"></div>
+                                    <button
+                                      type="button"
+                                      onClick={() => { setOpenBomMenuIdx(null); handleReturnBomToDoa(bom); }}
+                                      className="w-full px-4 py-2.5 text-xs text-orange-600 dark:text-orange-400 hover:bg-slate-100 dark:hover:bg-[#2a3142] flex items-center gap-2.5 font-medium transition-colors"
+                                    >
+                                      <RotateCcw size={15} /> Doğa Stoğa Geri Al
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => { setOpenBomMenuIdx(null); handleIssueExtraBomMaterials(bom); }}
+                                      className="w-full px-4 py-2.5 text-xs text-indigo-600 dark:text-indigo-400 hover:bg-slate-100 dark:hover:bg-[#2a3142] flex items-center gap-2.5 font-medium transition-colors"
+                                    >
+                                      <PlusCircle size={15} /> Ekstra Parça Çıkışı Yap
+                                    </button>
+                                  </div>
+                                </>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -1884,6 +1994,7 @@ export default function WorkOrders() {
                           <td className="px-6 py-4 text-center">
                             {mr.remaining_quantity > 0 ? (
                               <button
+                                type="button"
                                 onClick={() => handleOpenIssueDialog(mr)}
                                 className="px-2.5 py-1.5 bg-teal-500/10 text-teal-500 hover:bg-teal-500 hover:text-white rounded-lg text-xs font-bold transition-colors"
                               >
@@ -1908,19 +2019,27 @@ export default function WorkOrders() {
         position={contextMenu ? { x: contextMenu.x, y: contextMenu.y } : null}
         currentStatus={contextMenu?.status}
         onDeliver={() => {
-          const row = workOrderParts.find(p => p.id === contextMenu.wopId);
+          const row = workOrderParts.find(p => p.id === contextMenu?.wopId);
           if (row) handleOpenDeliverPopover(row);
         }}
         onMarkWaiting={() => {
-          const row = workOrderParts.find(p => p.id === contextMenu.wopId);
+          const row = workOrderParts.find(p => p.id === contextMenu?.wopId);
           if (row) handleMarkWaiting(row);
         }}
+        onReturnToDoa={() => {
+          const row = workOrderParts.find(p => p.id === contextMenu?.wopId);
+          if (row) handleReturnToDoa(row);
+        }}
+        onExtraPart={() => {
+          const row = workOrderParts.find(p => p.id === contextMenu?.wopId);
+          if (row) handleExtraPart(row);
+        }}
         onRevert={() => {
-          const row = workOrderParts.find(p => p.id === contextMenu.wopId);
+          const row = workOrderParts.find(p => p.id === contextMenu?.wopId);
           if (row) handleRevertPart(row);
         }}
         onRemove={() => {
-          const row = workOrderParts.find(p => p.id === contextMenu.wopId);
+          const row = workOrderParts.find(p => p.id === contextMenu?.wopId);
           if (row) handleRemoveLivePart(row);
         }}
         onClose={() => setContextMenu(null)}

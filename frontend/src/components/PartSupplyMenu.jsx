@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
-import { Truck, Hourglass, Undo2, Trash2 } from 'lucide-react';
+import { Truck, Hourglass, Undo2, Trash2, RotateCcw, PlusCircle } from 'lucide-react';
 
-export default function PartSupplyMenu({ position, currentStatus, onDeliver, onMarkWaiting, onRevert, onRemove, onClose }) {
+export default function PartSupplyMenu({ position, currentStatus, onDeliver, onMarkWaiting, onRevert, onReturnToDoa, onExtraPart, onRemove, onClose }) {
   const ref = useRef(null);
 
   useEffect(() => {
@@ -26,10 +26,13 @@ export default function PartSupplyMenu({ position, currentStatus, onDeliver, onM
   const canDeliver = currentStatus !== 'Teslim Edildi';
   const canMarkWaiting = currentStatus === 'Stokta Var';
   const canRevert = currentStatus !== 'Stokta Var';
+  const canReturnToDoa = currentStatus === 'Teslim Edildi';
 
   const items = [
     canDeliver && { key: 'deliver', label: 'Depodan Teslim Al', icon: Truck, onClick: onDeliver, className: 'text-blue-500 dark:text-blue-400' },
     canMarkWaiting && { key: 'waiting', label: 'Yedek Parça Bekleniyor İşaretle', icon: Hourglass, onClick: onMarkWaiting, className: 'text-amber-500 dark:text-amber-400' },
+    canReturnToDoa && onReturnToDoa && { key: 'return_doa', label: 'Doğa Stoğa Geri Al', icon: RotateCcw, onClick: onReturnToDoa, className: 'text-orange-500 dark:text-orange-400' },
+    onExtraPart && { key: 'extra_part', label: 'Ekstra Parça Çıkışı Yap', icon: PlusCircle, onClick: onExtraPart, className: 'text-indigo-500 dark:text-indigo-400' },
     canRevert && { key: 'revert', label: 'İşlemi Geri Al', icon: Undo2, onClick: onRevert, className: 'text-slate-500 dark:text-slate-400' },
     { key: 'remove', label: 'Satırı Sil', icon: Trash2, onClick: onRemove, className: 'text-red-500 dark:text-red-400' }
   ].filter(Boolean);
