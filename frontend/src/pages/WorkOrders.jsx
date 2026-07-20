@@ -137,6 +137,7 @@ export default function WorkOrders() {
   const [extraPartSelectedId, setExtraPartSelectedId] = useState('');
   const [extraPartQty, setExtraPartQty] = useState(1);
   const [extraPartSaving, setExtraPartSaving] = useState(false);
+  const [extraPartLocationId, setExtraPartLocationId] = useState('');
   const [extraPartInDialog, setExtraPartInDialog] = useState(null); // bom | null
   const [extraPartInSelectedId, setExtraPartInSelectedId] = useState('');
   const [extraPartInQty, setExtraPartInQty] = useState(1);
@@ -369,7 +370,7 @@ export default function WorkOrders() {
 
     if (extraPartSaving) return;
     setExtraPartSaving(true);
-    const res = await api.issueExtraBomMaterials(extraPartSelectedId, qty, currentUser?.username);
+    const res = await api.issueExtraBomMaterials(extraPartSelectedId, qty, extraPartLocationId || '', currentUser?.username);
     setExtraPartSaving(false);
 
     if (res.success) {
@@ -535,7 +536,7 @@ export default function WorkOrders() {
     }
   };
 
-  const selectedTargetPart = parts.find(p => 
+  const selectedTargetPart = parts.find(p =>
     (productionForm.target_part_id && String(p.id) === String(productionForm.target_part_id)) ||
     (p.item_code && p.item_code.trim().toLowerCase() === (productionForm.target_part_code || '').trim().toLowerCase()) ||
     (p.name && p.name.trim().toLowerCase() === (productionForm.target_part_code || '').trim().toLowerCase())
@@ -545,15 +546,15 @@ export default function WorkOrders() {
     if (!selectedTargetPart || !filterByBrandModel) return parts;
     const targetBrand = (selectedTargetPart.brand || '').toLowerCase().trim();
     const targetModel = (selectedTargetPart.model || '').toLowerCase().trim();
-    
+
     if (!targetBrand && !targetModel) return parts;
-    
+
     return parts.filter(p => {
       if (selectedRowPartId && String(p.id) === String(selectedRowPartId)) return true;
-      
+
       const b = (p.brand || '').toLowerCase().trim();
       const m = (p.model || '').toLowerCase().trim();
-      
+
       if (targetBrand && targetModel) {
         return b === targetBrand && m === targetModel;
       } else if (targetBrand) {
@@ -596,8 +597,8 @@ export default function WorkOrders() {
       setShowResultsDropdown(false);
       return;
     }
-    const matches = parts.filter(p => 
-      (p.name || '').toLowerCase().includes(q) || 
+    const matches = parts.filter(p =>
+      (p.name || '').toLowerCase().includes(q) ||
       (p.item_code || '').toLowerCase().includes(q)
     );
     setSearchResults(matches);
@@ -625,8 +626,8 @@ export default function WorkOrders() {
       return;
     }
 
-    const targetPart = parts.find(p => 
-      (p.item_code && p.item_code.toLowerCase() === (productionForm.target_part_code || '').trim().toLowerCase()) || 
+    const targetPart = parts.find(p =>
+      (p.item_code && p.item_code.toLowerCase() === (productionForm.target_part_code || '').trim().toLowerCase()) ||
       (p.name && p.name.toLowerCase() === (productionForm.target_part_code || '').trim().toLowerCase()) ||
       String(p.id) === String(productionForm.target_part_code).trim()
     );
@@ -694,7 +695,7 @@ export default function WorkOrders() {
         return;
       }
     }
-    
+
     if (repeatLoading) return;
     setRepeatLoading(true);
 
@@ -737,7 +738,7 @@ export default function WorkOrders() {
 
   const executeReturn = async () => {
     if (!returnDialog) return;
-    
+
     // Sorunlu parça adedi toplamını kontrol et
     const totalDefectiveQty = Object.values(defectiveParts).reduce((sum, val) => sum + (parseInt(val, 10) || 0), 0);
     if (totalDefectiveQty <= 0) {
@@ -1069,7 +1070,7 @@ export default function WorkOrders() {
             <form onSubmit={handleSave} className="space-y-5">
               <div>
                 <label className="block text-sm font-medium text-slate-400 mb-1.5">Servis Kaydı <span className="text-red-400">*</span></label>
-                <select required className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={formData.service_record_id} onChange={e => setFormData({...formData, service_record_id: e.target.value})}>
+                <select required className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={formData.service_record_id} onChange={e => setFormData({ ...formData, service_record_id: e.target.value })}>
                   <option value="">Servis kaydı seçiniz...</option>
                   {serviceRecords.map(rec => (
                     <option key={rec.id} value={rec.id}>
@@ -1081,20 +1082,20 @@ export default function WorkOrders() {
 
               <div>
                 <label className="block text-sm font-medium text-slate-400 mb-1.5">Açıklama</label>
-                <textarea rows={2} placeholder="Bu iş emrinde yapılacak işin açıklaması..." className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 resize-none" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} />
+                <textarea rows={2} placeholder="Bu iş emrinde yapılacak işin açıklaması..." className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 resize-none" value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
                   <label className="block text-sm font-medium text-slate-400 mb-1.5">Atanan Teknisyen</label>
-                  <select className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={formData.assigned_technician} onChange={e => setFormData({...formData, assigned_technician: e.target.value})}>
+                  <select className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={formData.assigned_technician} onChange={e => setFormData({ ...formData, assigned_technician: e.target.value })}>
                     <option value="">Seçiniz...</option>
                     {users.map(u => <option key={u.id} value={u.username}>{u.username}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-400 mb-1.5">Öncelik</label>
-                  <select className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={formData.priority} onChange={e => setFormData({...formData, priority: e.target.value})}>
+                  <select className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={formData.priority} onChange={e => setFormData({ ...formData, priority: e.target.value })}>
                     {PRIORITY_OPTIONS.map(p => <option key={p} value={p}>{p}</option>)}
                   </select>
                 </div>
@@ -1103,18 +1104,18 @@ export default function WorkOrders() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
                   <label className="block text-sm font-medium text-slate-400 mb-1.5">Başlangıç Tarihi</label>
-                  <input type="date" className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={formData.start_date} onChange={e => setFormData({...formData, start_date: e.target.value})} />
+                  <input type="date" className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={formData.start_date} onChange={e => setFormData({ ...formData, start_date: e.target.value })} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-400 mb-1.5">Bitiş Tarihi</label>
-                  <input type="date" className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={formData.end_date} onChange={e => setFormData({...formData, end_date: e.target.value})} />
+                  <input type="date" className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={formData.end_date} onChange={e => setFormData({ ...formData, end_date: e.target.value })} />
                 </div>
               </div>
 
               {!editingOrder && (
                 <div>
                   <label className="block text-sm font-medium text-slate-400 mb-1.5">Kaynak Depo (Kullanılan Parçalar İçin)</label>
-                  <select className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={formData.source_location_id} onChange={e => setFormData({...formData, source_location_id: e.target.value})} disabled>
+                  <select className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={formData.source_location_id} onChange={e => setFormData({ ...formData, source_location_id: e.target.value })} disabled>
                     {workOrderSourceLocations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
                   </select>
                   <p className="text-xs text-slate-500 mt-1">Aşağıda eklenen parçalar, iş emri oluşturulduğunda bu depodan Repair Stock'a otomatik taşınır.</p>
@@ -1214,7 +1215,7 @@ export default function WorkOrders() {
 
               <div>
                 <label className="block text-sm font-medium text-slate-400 mb-1.5">Durum</label>
-                <select className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})}>
+                <select className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={formData.status} onChange={e => setFormData({ ...formData, status: e.target.value })}>
                   {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
@@ -1223,7 +1224,7 @@ export default function WorkOrders() {
                 {editingOrder && (
                   <button type="button" onClick={() => { setEditingOrder(null); setFormData({ ...EMPTY_FORM, source_location_id: getSystemLocationId('good_stock') }); setPartsUsed([]); }} className="px-5 py-2.5 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:bg-[#2a3142] text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors border border-slate-300 dark:border-slate-600">İptal</button>
                 )}
-                <button type="submit" className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors shadow-lg shadow-blue-900/20 flex items-center gap-2"><Save size={18}/> Kaydet</button>
+                <button type="submit" className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors shadow-lg shadow-blue-900/20 flex items-center gap-2"><Save size={18} /> Kaydet</button>
               </div>
             </form>
           </div>
@@ -1312,15 +1313,15 @@ export default function WorkOrders() {
                   <label className="block text-sm font-medium text-slate-400 mb-1.5">Üretilen Parça Kodu/Adı <span className="text-red-400">*</span></label>
                   <div className="relative target-part-search-container">
                     <div className="flex gap-2">
-                      <input 
-                        type="text" 
-                        required 
+                      <input
+                        type="text"
+                        required
                         autoComplete="off"
-                        placeholder="Parça Kodu veya Adı (Örn: P-001)" 
-                        className="flex-1 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" 
-                        value={productionForm.target_part_code || ''} 
+                        placeholder="Parça Kodu veya Adı (Örn: P-001)"
+                        className="flex-1 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                        value={productionForm.target_part_code || ''}
                         onChange={e => {
-                          setProductionForm({...productionForm, target_part_code: e.target.value});
+                          setProductionForm({ ...productionForm, target_part_code: e.target.value });
                         }}
                         onKeyDown={e => {
                           if (e.key === 'Enter') {
@@ -1343,8 +1344,8 @@ export default function WorkOrders() {
                           searchResults.map(part => {
                             const hasBom = itemBoms.some(b => String(b.parent_part_id) === String(part.id));
                             return (
-                              <div 
-                                key={part.id} 
+                              <div
+                                key={part.id}
                                 className="px-4 py-3 hover:bg-slate-100 dark:hover:bg-[#2a3142] cursor-pointer text-sm text-slate-800 dark:text-slate-200 border-b border-slate-100 dark:border-slate-700/50 last:border-0 flex justify-between items-center"
                                 onMouseDown={e => {
                                   e.preventDefault();
@@ -1381,7 +1382,7 @@ export default function WorkOrders() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-400 mb-1.5">Miktar <span className="text-red-400">*</span></label>
-                  <input type="number" required min="1" className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={productionForm.quantity_produced} onChange={e => setProductionForm({...productionForm, quantity_produced: e.target.value})} />
+                  <input type="number" required min="1" className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={productionForm.quantity_produced} onChange={e => setProductionForm({ ...productionForm, quantity_produced: e.target.value })} />
                 </div>
               </div>
 
@@ -1389,7 +1390,7 @@ export default function WorkOrders() {
               <div className="grid grid-cols-1 gap-5">
                 <div>
                   <label className="block text-sm font-medium text-slate-400 mb-1.5">Üretici / Sorumlu</label>
-                  <select className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={productionForm.produced_by} onChange={e => setProductionForm({...productionForm, produced_by: e.target.value})}>
+                  <select className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={productionForm.produced_by} onChange={e => setProductionForm({ ...productionForm, produced_by: e.target.value })}>
                     <option value="">Seçiniz...</option>
                     {users.map(u => <option key={u.id} value={u.username}>{u.username}</option>)}
                   </select>
@@ -1413,12 +1414,12 @@ export default function WorkOrders() {
                 )}
                 {selectedTargetPart && (selectedTargetPart.brand || selectedTargetPart.model) && (
                   <div className="mb-3 flex items-center gap-2">
-                    <input 
-                      type="checkbox" 
-                      id="filter-brand-model" 
+                    <input
+                      type="checkbox"
+                      id="filter-brand-model"
                       className="rounded border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-[#242a38] text-blue-500 focus:ring-blue-500 focus:ring-offset-0 focus:outline-none"
-                      checked={filterByBrandModel} 
-                      onChange={e => setFilterByBrandModel(e.target.checked)} 
+                      checked={filterByBrandModel}
+                      onChange={e => setFilterByBrandModel(e.target.checked)}
                     />
                     <label htmlFor="filter-brand-model" className="text-xs font-semibold text-blue-500 dark:text-blue-400 cursor-pointer select-none">
                       Sadece aynı marka ve modele ait parçaları listele ({selectedTargetPart.brand || ''} {selectedTargetPart.model || ''})
@@ -1458,7 +1459,7 @@ export default function WorkOrders() {
 
               <div>
                 <label className="block text-sm font-medium text-slate-400 mb-1.5">Notlar</label>
-                <textarea rows={2} placeholder="İsteğe bağlı not..." className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 resize-none" value={productionForm.notes} onChange={e => setProductionForm({...productionForm, notes: e.target.value})} />
+                <textarea rows={2} placeholder="İsteğe bağlı not..." className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 resize-none" value={productionForm.notes} onChange={e => setProductionForm({ ...productionForm, notes: e.target.value })} />
               </div>
 
               <div className="flex justify-end gap-3 pt-6 border-t border-slate-200 dark:border-slate-700/50 mt-6">
@@ -1467,7 +1468,7 @@ export default function WorkOrders() {
                   disabled={productionMaterials.filter(r => r.part_id && Number(r.quantity_consumed) > 0).length === 0}
                   className="px-5 py-2.5 bg-orange-600 hover:bg-orange-700 disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors shadow-lg shadow-orange-900/20 flex items-center gap-2"
                 >
-                  <Save size={18}/> Üretimi Kaydet
+                  <Save size={18} /> Üretimi Kaydet
                 </button>
               </div>
             </form>
@@ -1483,7 +1484,7 @@ export default function WorkOrders() {
             <p className="text-slate-400 text-sm mb-6 shrink-0">
               Sistemdeki ürün reçeteleri (BOM) listelenmektedir. Hızlı üretim yapmak istediğiniz ürünün yanındaki "Hızlı Üret" butonuna basarak tek tıkla üretim gerçekleştirebilir veya "Forma Aktar" seçeneğiyle parametreleri forma doldurabilirsiniz.
             </p>
-            
+
             <div className="flex items-center gap-3 mb-6 shrink-0">
               <input
                 type="text"
@@ -1493,7 +1494,7 @@ export default function WorkOrders() {
                 onChange={e => setBomSearchQuery(e.target.value)}
               />
             </div>
-            
+
             <div className="max-h-[480px] overflow-y-auto border border-slate-200 dark:border-slate-700/50 rounded-2xl">
               <table className="w-full text-left text-sm">
                 <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs sticky top-0 z-10">
@@ -1748,63 +1749,63 @@ export default function WorkOrders() {
                     </tr>
                   ) : (
                     paginatedProductionRuns.map(run => (
-                    <tr key={run.unit_id} className="hover:bg-slate-100 dark:bg-[#2a3142] transition-colors text-slate-700 dark:text-slate-300">
-                      <td className="px-6 py-4">
-                        <div className="font-mono font-bold text-slate-900 dark:text-slate-200">
-                          {run.serial_number}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="font-medium text-slate-800 dark:text-slate-200">
-                          {run.target_part_name || '-'} {parts.find(p => p.id == run.target_part_id)?.part_category ? `(${parts.find(p => p.id == run.target_part_id).part_category})` : ''}
-                        </div>
-                        <div className="text-xs text-slate-400">{run.target_item_code}</div>
-                      </td>
-                      <td className="px-6 py-4 font-mono text-center font-medium">
-                        {run.is_returned ? (
-                          <span className="text-red-500">-{run.quantity_produced}</span>
-                        ) : (
-                          <span className="text-emerald-500">+{run.quantity_produced}</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4">{run.source_location_name || '-'}</td>
-                      <td className="px-6 py-4">{run.location_name || '-'}</td>
-                      <td className="px-6 py-4 text-xs text-slate-400">
-                        {(run.materials || []).length > 0
-                          ? run.materials.map(m => `${m.part_name}${m.item_code ? ` [${m.item_code}]` : ''} (${m.quantity_consumed})`).join(', ')
-                          : '-'}
-                      </td>
-                      <td className="px-6 py-4">{run.produced_by || '-'}</td>
-                      <td className="px-6 py-4 text-slate-400 whitespace-nowrap">{run.created_at}</td>
-                      <td className="px-6 py-4">
-                        {run.is_returned ? (
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-red-500/10 text-red-500 border border-red-500/20 rounded-lg">
-                            ✕ İade Edildi
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded-lg">
-                            ✓ Üretildi
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        <div className="flex justify-center gap-2">
-                          <button onClick={() => setDetailDialog(run)} className="p-1.5 text-slate-400 hover:bg-slate-400/10 rounded-lg transition-colors" title="Detayları Göster">
-                            <Info size={16} />
-                          </button>
-                          <button onClick={() => handleRepeatProduction(run)} className="p-1.5 text-blue-400 hover:bg-blue-400/10 rounded-lg transition-colors" title="İşlemi Tekrarla">
-                            <Repeat size={16} />
-                          </button>
-                          {!run.is_returned && (
-                            <button onClick={() => { setReturnDialog(run); setReturnLocationId('27'); setReturnReason(''); setDefectiveParts({}); setReplacementQty(0); }} className="p-1.5 text-amber-500 hover:bg-amber-500/10 rounded-lg transition-colors" title="İade / Değişim">
-                              <RotateCcw size={16} />
-                            </button>
+                      <tr key={run.unit_id} className="hover:bg-slate-100 dark:bg-[#2a3142] transition-colors text-slate-700 dark:text-slate-300">
+                        <td className="px-6 py-4">
+                          <div className="font-mono font-bold text-slate-900 dark:text-slate-200">
+                            {run.serial_number}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="font-medium text-slate-800 dark:text-slate-200">
+                            {run.target_part_name || '-'} {parts.find(p => p.id == run.target_part_id)?.part_category ? `(${parts.find(p => p.id == run.target_part_id).part_category})` : ''}
+                          </div>
+                          <div className="text-xs text-slate-400">{run.target_item_code}</div>
+                        </td>
+                        <td className="px-6 py-4 font-mono text-center font-medium">
+                          {run.is_returned ? (
+                            <span className="text-red-500">-{run.quantity_produced}</span>
+                          ) : (
+                            <span className="text-emerald-500">+{run.quantity_produced}</span>
                           )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
+                        </td>
+                        <td className="px-6 py-4">{run.source_location_name || '-'}</td>
+                        <td className="px-6 py-4">{run.location_name || '-'}</td>
+                        <td className="px-6 py-4 text-xs text-slate-400">
+                          {(run.materials || []).length > 0
+                            ? run.materials.map(m => `${m.part_name}${m.item_code ? ` [${m.item_code}]` : ''} (${m.quantity_consumed})`).join(', ')
+                            : '-'}
+                        </td>
+                        <td className="px-6 py-4">{run.produced_by || '-'}</td>
+                        <td className="px-6 py-4 text-slate-400 whitespace-nowrap">{run.created_at}</td>
+                        <td className="px-6 py-4">
+                          {run.is_returned ? (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-red-500/10 text-red-500 border border-red-500/20 rounded-lg">
+                              ✕ İade Edildi
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded-lg">
+                              ✓ Üretildi
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <div className="flex justify-center gap-2">
+                            <button onClick={() => setDetailDialog(run)} className="p-1.5 text-slate-400 hover:bg-slate-400/10 rounded-lg transition-colors" title="Detayları Göster">
+                              <Info size={16} />
+                            </button>
+                            <button onClick={() => handleRepeatProduction(run)} className="p-1.5 text-blue-400 hover:bg-blue-400/10 rounded-lg transition-colors" title="İşlemi Tekrarla">
+                              <Repeat size={16} />
+                            </button>
+                            {!run.is_returned && (
+                              <button onClick={() => { setReturnDialog(run); setReturnLocationId('27'); setReturnReason(''); setDefectiveParts({}); setReplacementQty(0); }} className="p-1.5 text-amber-500 hover:bg-amber-500/10 rounded-lg transition-colors" title="İade / Değişim">
+                                <RotateCcw size={16} />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -2155,13 +2156,16 @@ export default function WorkOrders() {
         locations={
           deliverPopover
             ? stockStatus
-                .filter(s => String(s.part_id) === String(deliverPopover.partId) && s.quantity > 0)
-                .map(s => ({ id: s.location_id, name: s.location_name, quantity: s.quantity }))
+              .filter(s => String(s.part_id) === String(deliverPopover.partId) && s.quantity > 0)
+              .map(s => ({ id: s.location_id, name: s.location_name, quantity: s.quantity }))
             : []
         }
         onConfirm={handleConfirmDeliver}
         onClose={() => setDeliverPopover(null)}
       />
+
+
+
 
       {/* --- MATERIAL ISSUE DIALOG (Production Work Order Material Request teslimi) --- */}
       {issueDialog && (
@@ -2295,7 +2299,7 @@ export default function WorkOrders() {
 
       {/* --- İADE / DEĞİŞİM DIALOG --- */}
       {returnDialog && (
-        <div className="fixed inset-0 bg-slate-900/80 flex items-center justify-center z-50 animate-in fade-in duration-200" style={{overflowY:'auto'}}>
+        <div className="fixed inset-0 bg-slate-900/80 flex items-center justify-center z-50 animate-in fade-in duration-200" style={{ overflowY: 'auto' }}>
           <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 shadow-2xl rounded-2xl w-full max-w-lg p-6 animate-in zoom-in-95 duration-200 my-8">
             <div className="flex justify-between items-center mb-2">
               <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
@@ -2305,7 +2309,7 @@ export default function WorkOrders() {
                 <X size={18} />
               </button>
             </div>
-            
+
             <p className="text-sm text-slate-500 dark:text-slate-400 mb-5">
               <span className="font-semibold text-slate-800 dark:text-slate-200">{returnDialog.serial_number}</span> kimlik numaralı ve <span className="font-semibold text-slate-800 dark:text-slate-200">{returnDialog.quantity_produced} adetlik</span> üretim grubu iade ediliyor.
             </p>
@@ -2328,7 +2332,7 @@ export default function WorkOrders() {
                             <div className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">{m.part_name}</div>
                             {m.item_code && <div className="text-xs text-slate-400 font-mono">{m.item_code}</div>}
                           </div>
-                          
+
                           <div className="flex items-center gap-2 shrink-0">
                             <div className="flex flex-col items-end">
                               <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Sorunlu Miktar</span>
@@ -2417,17 +2421,17 @@ export default function WorkOrders() {
             </div>
 
             <div className="flex justify-end gap-3">
-              <button 
-                type="button" 
-                onClick={() => setReturnDialog(null)} 
+              <button
+                type="button"
+                onClick={() => setReturnDialog(null)}
                 className="px-4 py-2.5 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors border border-slate-300 dark:border-slate-600 text-sm"
               >
                 Vazgeç
               </button>
-              <button 
-                type="button" 
-                onClick={executeReturn} 
-                disabled={returnSaving || !returnLocationId || !returnReason.trim()} 
+              <button
+                type="button"
+                onClick={executeReturn}
+                disabled={returnSaving || !returnLocationId || !returnReason.trim()}
                 className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 disabled:opacity-60 text-white rounded-xl font-medium transition-colors shadow-lg shadow-amber-500/20 flex items-center gap-2 text-sm"
               >
                 {returnSaving ? 'Aktarılıyor...' : 'Hammaddeleri İade Et'}
@@ -2567,9 +2571,9 @@ export default function WorkOrders() {
             </div>
 
             <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-700/40 mt-4">
-              <button 
-                type="button" 
-                onClick={() => setDetailDialog(null)} 
+              <button
+                type="button"
+                onClick={() => setDetailDialog(null)}
                 className="px-5 py-2.5 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors border border-slate-300 dark:border-slate-600 text-sm"
               >
                 Kapat
@@ -2719,15 +2723,41 @@ export default function WorkOrders() {
                     name: m.child_name
                   }))}
                   value={extraPartSelectedId}
-                  onChange={setExtraPartSelectedId}
+                  onChange={(val) => { setExtraPartSelectedId(val); setExtraPartLocationId(''); }}
                   placeholder="Bu reçetedeki hammaddelerden birini seçin..."
                 />
                 {extraPartSelectedId && (
                   <p className="text-xs text-slate-400 mt-1.5">
-                    Good Stock'ta mevcut: <span className="font-mono font-semibold text-slate-600 dark:text-slate-300">{getTotalStockQty(extraPartSelectedId)}</span> adet
+                    Toplam stok: <span className="font-mono font-semibold text-slate-600 dark:text-slate-300">{getTotalStockQty(extraPartSelectedId)}</span> adet
                   </p>
                 )}
               </div>
+
+              {extraPartSelectedId && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-400 mb-1.5">Çıkış Yapılacak Depo / Lokasyon</label>
+                  <select
+                    className="w-full bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500"
+                    value={extraPartLocationId}
+                    onChange={e => setExtraPartLocationId(e.target.value)}
+                  >
+                    <option value="">Depo seçiniz...</option>
+                    {stockStatus
+                      .filter(s => String(s.part_id) === String(extraPartSelectedId))
+                      .map(s => (
+                        <option key={s.location_id} value={s.location_id}>
+                          {s.location_name} (Stok: {s.quantity} Adet)
+                        </option>
+                      ))
+                    }
+                    {stockStatus.filter(s => String(s.part_id) === String(extraPartSelectedId)).length === 0 &&
+                      systemLocations.map(l => (
+                        <option key={l.id} value={l.id}>{l.name} (Stok: 0 Adet)</option>
+                      ))
+                    }
+                  </select>
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-slate-400 mb-1.5">Çıkış Miktarı</label>

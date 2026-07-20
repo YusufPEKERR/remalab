@@ -2232,12 +2232,13 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    @Slot(str, str, str, result=str)
-    def issue_extra_bom_materials(self, part_id_str, extra_qty_str, username):
-        """Hızlı Tekrar Üretim reçetesi için Good Stock'tan ekstra malzeme/parça çıkışı yapar."""
+    @Slot(str, str, str, str, result=str)
+    def issue_extra_bom_materials(self, part_id_str, extra_qty_str, source_location_id_str, username):
+        """Reçete/İş Emri için seçilen depodan ekstra malzeme/parça çıkışı yapar."""
         from sqlalchemy import text
         from models.stock import Stock
         from models.stock_movement import StockMovement
+        from models.location import Location
         db = SessionLocal()
         try:
             part_id = int(part_id_str)
@@ -2248,28 +2249,36 @@ class WebBridge(QObject):
             if extra_qty <= 0:
                 return json.dumps({"success": False, "message": "Ekstra miktar 0'dan büyük olmalıdır."})
 
-            good_stock_id = _get_system_location_id(db, "good_stock")
-            if not good_stock_id:
-                return json.dumps({"success": False, "message": "Good Stock deposu bulunamadı."})
+            source_loc_id = int(source_location_id_str) if (source_location_id_str and str(source_location_id_str).isdigit()) else 0
+            source_loc = db.query(Location).filter(Location.id == source_loc_id).first()
+            if not source_loc:
+                source_loc = db.query(Location).filter(Location.kind == "good_stock").first()
+                if source_loc:
+                    source_loc_id = source_loc.id
 
-            good_stock = db.query(Stock).filter(Stock.part_id == part_id, Stock.location_id == good_stock_id).first()
-            if not good_stock or good_stock.quantity < extra_qty:
-                available = good_stock.quantity if good_stock else 0
-                return json.dumps({"success": False, "message": f"Good Stock'ta yeterli stok yok. Mevcut: {available}, İstenen: {extra_qty}."})
+            if not source_loc_id:
+                return json.dumps({"success": False, "message": "Kaynak depo bulunamadı."})
 
-            good_stock.quantity -= extra_qty
+            stock = db.query(Stock).filter(Stock.part_id == part_id, Stock.location_id == source_loc_id).first()
+            if not stock or stock.quantity < extra_qty:
+                available = stock.quantity if stock else 0
+                loc_name = source_loc.name if source_loc else "Seçilen depo"
+                return json.dumps({"success": False, "message": f"{loc_name}'da yeterli stok yok. Mevcut: {available}, İstenen: {extra_qty}."})
+
+            stock.quantity -= extra_qty
             db.add(StockMovement(
                 type="Ekstra Malzeme Çıkışı",
-                movement_kind="Transfer",
+                movement_kind="Outbound",
                 quantity=extra_qty,
                 part_id=part_id,
-                source_location_id=good_stock_id,
+                source_location_id=source_loc_id,
                 created_by=username or None,
                 technician=username or None,
-                description=f"Hızlı Tekrar Üretim için ekstra parça çıkışı ({extra_qty} adet)"
+                description=f"İş Emri / Reçete için ekstra parça çıkışı ({extra_qty} adet) - Depo: {source_loc.name}"
             ))
 
             db.commit()
+            clear_api_cache()
             return json.dumps({"success": True, "message": "Ekstra parça çıkışı yapıldı"})
         except Exception as e:
             db.rollback()
