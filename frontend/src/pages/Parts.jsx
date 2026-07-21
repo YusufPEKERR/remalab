@@ -700,14 +700,30 @@ export default function Parts() {
                     setFormData({
                       ...formData, 
                       part_category_id: selectedCatId,
-                      name: cat ? cat.name : '',
-                      part_type: cat && cat.part_type ? cat.part_type : ''
+                      name: cat ? cat.name : ''
                     });
                   }}
                 >
                   <option value="">Seçiniz...</option>
                   {categoryOptions.map(c => (
                     <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-1">
+                  Parça Tipi <span className="text-red-400">*</span>
+                </label>
+                <select
+                  required
+                  className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                  value={formData.part_type}
+                  onChange={e => setFormData({...formData, part_type: e.target.value})}
+                >
+                  <option value="">Seçiniz...</option>
+                  {PART_TYPE_OPTIONS.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
                   ))}
                 </select>
               </div>
