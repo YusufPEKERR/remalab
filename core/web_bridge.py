@@ -2501,11 +2501,23 @@ class WebBridge(QObject):
             # Tüketilen hammaddeler: her malzeme talebinin fiilen üretime giden kısmı
             # (issued - fire). Fire olarak DOA'ya iade edilenler zaten oradan çıkarılmıştı.
             material_rows = db.execute(text("""
-                SELECT part_id, issued_quantity, fire_quantity
+                SELECT part_id, issued_quantity, fire_quantity, required_quantity
                 FROM warehouse.material_requests
                 WHERE work_order_id = :wid
-            """), {"wid": work_order_id}).all()
-            net_materials = [(m[0], m[1] - m[2]) for m in material_rows if (m[1] - m[2]) > 0]
+            """), {"wid": work_order_id}).mappings().all()
+
+            # KONTROL: Teknisyene verilen net malzeme (issued - fire), üretimi tamamlamak için yeterli mi?
+            for mr in material_rows:
+                net_issued = mr["issued_quantity"] - mr["fire_quantity"]
+                required = mr["required_quantity"]
+                if net_issued < required:
+                    part_name = db.execute(text("SELECT name FROM warehouse.parts WHERE id = :pid"), {"pid": mr["part_id"]}).scalar()
+                    return json.dumps({
+                        "success": False, 
+                        "message": f"Teknisyene verilen malzeme yetersiz! {part_name} için en az {required} adet teslim edilmeli (Şu anki net teslim: {net_issued})."
+                    })
+
+            net_materials = [(m["part_id"], m["issued_quantity"] - m["fire_quantity"]) for m in material_rows if (m["issued_quantity"] - m["fire_quantity"]) > 0]
 
             if produced_quantity > 0:
                 existing = db.execute(text("""
