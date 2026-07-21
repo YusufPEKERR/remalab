@@ -1253,6 +1253,14 @@ class WebBridge(QObject):
             if not part_name:
                 part_name = f"{brand.strip()} {model.strip()}".strip() or code
 
+            # Check if item_code already exists
+            existing = db.execute(text("SELECT id FROM warehouse.parts WHERE item_code = :code"), {"code": code}).scalar()
+            if existing:
+                return json.dumps({
+                    "success": False, 
+                    "message": f"'{code}' kodlu parça zaten sistemde kayıtlı. Eklemek yerine arama çubuğundan bulup düzenleyebilirsiniz."
+                })
+
             sql = """
                 INSERT INTO warehouse.parts (name, item_code, barcode, brand, model, item_category, part_category, part_category_id, stock_tracking_type, department, status, critical_limit, memory, part_type)
                 VALUES (:name, :code, :barcode, :brand, :model, :icat, :pcat, :pcat_id, :stt, :dept, :status, :critical_limit, :memory, :part_type)
