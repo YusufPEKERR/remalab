@@ -1258,7 +1258,7 @@ export default function WorkOrders() {
                 <div className="flex justify-between items-center p-6 pb-4">
                   <div>
                     <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                      <Layers size={20} className="text-teal-400" /> İş Emri REM-PRD-{String(selectedProductionOrder.id).padStart(6, '0')} — {selectedProductionOrder.target_part_name || '-'}
+                      <Layers size={20} className="text-teal-400" /> İş Emri {String(selectedProductionOrder.id).padStart(15, '0')} — {selectedProductionOrder.target_part_name || '-'}
                     </h3>
                     <p className="text-slate-400 text-sm mt-1">{selectedProductionOrder.target_part_code}</p>
                   </div>
