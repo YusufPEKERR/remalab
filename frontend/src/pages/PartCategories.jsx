@@ -23,11 +23,15 @@ const DEPARTMENTS = [
 // Backend'deki CUSTOMER_FLOW_VALUES (core/web_bridge.py) ile birebir aynı olmalı.
 const FLOW_VALUES = ['Refurbish', 'Repair', 'RMA', 'Battery Replacement'];
 
-// "Labor (İşçilik)" seçilirse backend (core/web_bridge.py) stok takibini otomatik "Stok Takipsiz" yapar.
+// "Labour" veya "Service" vb. seçilirse backend (core/web_bridge.py) stok takibini otomatik "Stok Takipsiz" yapar.
 const PART_TYPE_OPTIONS = [
-  { value: 'Labor (İşçilik)', label: 'Labor' },
-  { value: 'Spare (Yedek Parça)', label: 'Spare' },
-  { value: 'Scrap (Hurda)', label: 'Scrap' }
+  { value: 'SparePart', label: 'SparePart (Yedek Parça)' },
+  { value: 'Labour', label: 'Labour (İşçilik)' },
+  { value: 'ScrapPart', label: 'ScrapPart (Çıkma Parça)' },
+  { value: 'Service', label: 'Service (Hizmet)' },
+  { value: 'Cost', label: 'Cost (Masraf)' },
+  { value: 'SparePartLabour', label: 'SparePartLabour (Yedek Parça Değişim İşçiliği)' },
+  { value: 'Component', label: 'Component (Bileşen)' }
 ];
 
 const EMPTY_FORM = {
@@ -301,22 +305,17 @@ export default function PartCategories() {
                 <label className="block text-sm font-medium text-slate-400 mb-1.5">
                   Parça Tipi <span className="text-red-400">*</span>
                 </label>
-                <div className="flex gap-2">
+                <select
+                  required
+                  className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                  value={formData.part_type}
+                  onChange={e => setFormData({...formData, part_type: e.target.value})}
+                >
+                  <option value="">Seçiniz...</option>
                   {PART_TYPE_OPTIONS.map(opt => (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => setFormData({...formData, part_type: opt.value})}
-                      className={`flex-1 px-3 py-2.5 rounded-xl border text-sm font-medium transition-colors ${
-                        formData.part_type === opt.value
-                          ? 'bg-blue-600 border-blue-600 text-white'
-                          : 'bg-slate-50 dark:bg-[#242a38] border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 hover:border-blue-500'
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
                   ))}
-                </div>
+                </select>
               </div>
 
               <div>

@@ -156,6 +156,7 @@ class WebBridge(QObject):
         self._ensure_user_gorev_column()
         self._ensure_user_fullname_column()
         self._ensure_item_bom_data()
+        self._ensure_item_model_lookup()
 
     def _ensure_item_bom_data(self):
         """ItemBOM tablosunun verilerini Excel dosyasından okuyarak veri tabanına senkronize eder."""
@@ -185,18 +186,20 @@ class WebBridge(QObject):
             item_rows = list(ws_item.iter_rows(values_only=True))
             h_idx = next(i for i, r in enumerate(item_rows) if r and 'code' in [str(x).lower() for x in r])
             headers_item = item_rows[h_idx]
+            code_col = next(i for i, h in enumerate(headers_item) if h == 'code')
             shortname_col = next(i for i, h in enumerate(headers_item) if h == 'shortName')
             category_col = next(i for i, h in enumerate(headers_item) if h == 'itemCategory')
             type_col = next(i for i, h in enumerate(headers_item) if h == 'itemType')
-            
+
             item_info_map = {}
             for r in item_rows[h_idx+1:]:
+                item_code_val = r[code_col]
                 s_name = r[shortname_col]
                 cat_val = r[category_col]
                 type_val = r[type_col]
-                if s_name:
-                    item_info_map[str(s_name)] = {
-                        "name": str(s_name),
+                if item_code_val:
+                    item_info_map[str(item_code_val)] = {
+                        "name": str(s_name) if s_name else str(item_code_val),
                         "item_category": str(cat_val) if cat_val else None,
                         "part_type": str(type_val) if type_val else None
                     }
@@ -279,6 +282,89 @@ class WebBridge(QObject):
         except Exception as e:
             db.rollback()
             print(f"[WebBridge] ItemBOM senkronizasyon hatası: {e}")
+        finally:
+            db.close()
+
+    def _ensure_item_model_lookup(self):
+        """Parça kodu girildiğinde 'Model' alanının otomatik doldurulabilmesi için
+        ProductBom (item -> productFamily) ve ProductFamily (productFamily -> shortName)
+        sayfalarından warehouse.item_models (item_code -> model) eşleşme tablosunu kurar."""
+        from sqlalchemy import text
+        import openpyxl
+        import os
+
+        db = SessionLocal()
+        try:
+            db.execute(text("""
+                CREATE TABLE IF NOT EXISTS warehouse.item_models (
+                    item_code VARCHAR(100) PRIMARY KEY,
+                    model VARCHAR(500)
+                );
+            """))
+            db.commit()
+
+            count = db.execute(text("SELECT COUNT(*) FROM warehouse.item_models;")).scalar()
+            if count > 0:
+                return
+
+            files = [f for f in os.listdir('.') if 'dosya' in f.lower() and not f.startswith('~$')]
+            if not files:
+                return
+
+            print("[WebBridge] item_models tablosu boş. Excel'den Parça Kodu -> Model eşleşmesi içe aktarılıyor...")
+            wb = openpyxl.load_workbook(files[0], data_only=True)
+
+            # ProductFamily: kod (örn. 'iP11') -> okunabilir model adı (örn. 'iPhone 11')
+            ws_family = wb['ProductFamily']
+            family_rows = list(ws_family.iter_rows(values_only=True))
+            h_idx_family = next(i for i, r in enumerate(family_rows) if r and 'code' in [str(x).lower() for x in r])
+            headers_family = family_rows[h_idx_family]
+            fam_code_col = next(i for i, h in enumerate(headers_family) if h == 'code')
+            fam_shortname_col = next(i for i, h in enumerate(headers_family) if h == 'shortName')
+
+            family_name_map = {}
+            for r in family_rows[h_idx_family + 1:]:
+                fam_code = r[fam_code_col]
+                fam_name = r[fam_shortname_col]
+                if fam_code:
+                    family_name_map[str(fam_code)] = str(fam_name) if fam_name else str(fam_code)
+
+            # ProductBom: item_code -> productFamily kodları (bir parça birden fazla modelde kullanılabilir)
+            ws_bom = wb['ProductBom']
+            bom_rows = list(ws_bom.iter_rows(values_only=True))
+            h_idx_bom = next(i for i, r in enumerate(bom_rows) if r and 'item' in [str(x).lower() for x in r])
+            headers_bom = bom_rows[h_idx_bom]
+            item_col = next(i for i, h in enumerate(headers_bom) if h == 'item')
+            family_col = next(i for i, h in enumerate(headers_bom) if h == 'productFamily')
+
+            item_families = {}
+            for r in bom_rows[h_idx_bom + 1:]:
+                item_code = r[item_col]
+                fam_code = r[family_col]
+                if not item_code or not fam_code:
+                    continue
+                item_families.setdefault(str(item_code), set()).add(str(fam_code))
+
+            wb.close()
+
+            inserted = 0
+            for item_code, fam_codes in item_families.items():
+                model_names = sorted({family_name_map.get(fc, fc) for fc in fam_codes})
+                model_str = ', '.join(model_names)
+                if not model_str:
+                    continue
+                db.execute(text("""
+                    INSERT INTO warehouse.item_models (item_code, model)
+                    VALUES (:code, :model)
+                    ON CONFLICT (item_code) DO UPDATE SET model = EXCLUDED.model;
+                """), {"code": item_code, "model": model_str})
+                inserted += 1
+
+            db.commit()
+            print(f"[WebBridge] item_models eşleşmesi tamamlandı. Toplam {inserted} parça kodu için model belirlendi.")
+        except Exception as e:
+            db.rollback()
+            print(f"[WebBridge] item_models senkronizasyon hatası: {e}")
         finally:
             db.close()
 
@@ -637,6 +723,8 @@ class WebBridge(QObject):
             db.execute(text("ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS part_category_id INTEGER REFERENCES warehouse.part_categories(id);"))
             db.execute(text("ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS barcode VARCHAR(100);"))
             db.execute(text("ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS part_type VARCHAR(100);"))
+            db.execute(text("ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS brand VARCHAR(100);"))
+            db.execute(text("ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS model VARCHAR(100);"))
             db.commit()
         except Exception as e:
             db.rollback()
@@ -957,6 +1045,37 @@ class WebBridge(QObject):
         finally:
             db.close()
 
+    @Slot(str, result=str)
+    def get_item_model(self, item_code):
+        """Parça Kodu girildiğinde Model alanını otomatik doldurmak için warehouse.item_models
+        (ProductBom/ProductFamily'den türetilmiş) ve mevcut parts kayıtlarını sorgular."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            code = (item_code or "").strip()
+            if not code:
+                return json.dumps({"success": False, "model": ""})
+
+            row = db.execute(
+                text("SELECT model FROM warehouse.item_models WHERE item_code = :code"),
+                {"code": code}
+            ).first()
+            if row and row[0]:
+                return json.dumps({"success": True, "model": row[0]})
+
+            row2 = db.execute(
+                text("SELECT model FROM warehouse.parts WHERE item_code = :code AND model IS NOT NULL AND model <> '' LIMIT 1"),
+                {"code": code}
+            ).first()
+            if row2 and row2[0]:
+                return json.dumps({"success": True, "model": row2[0]})
+
+            return json.dumps({"success": False, "model": ""})
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
     @Slot(str, str, str, str, str, str, str, str, str, str, str, str, str, str, result=str)
     def create_part(self, name, item_code, barcode, brand, model, item_category, part_category, part_category_id, stock_tracking_type, department, status, critical_limit, memory, part_type):
         """Yeni parça ekler."""
@@ -975,7 +1094,7 @@ class WebBridge(QObject):
                 INSERT INTO warehouse.parts (name, item_code, barcode, brand, model, item_category, part_category, part_category_id, stock_tracking_type, department, status, critical_limit, memory, part_type)
                 VALUES (:name, :code, :barcode, :brand, :model, :icat, :pcat, :pcat_id, :stt, :dept, :status, :critical_limit, :memory, :part_type)
             """
-            if part_type in ["Labor (İşçilik)", "Stoksuz Parça / Hizmet"]:
+            if part_type in ["Labour", "Service", "Cost", "SparePartLabour", "Labor (İşçilik)", "Stoksuz Parça / Hizmet"]:
                 stock_tracking_type = "Stok Takipsiz"
             
             db.execute(text(sql), {
@@ -1022,7 +1141,7 @@ class WebBridge(QObject):
                     memory = :memory, part_type = :part_type
                 WHERE id = :id
             """
-            if part_type in ["Labor (İşçilik)", "Stoksuz Parça / Hizmet"]:
+            if part_type in ["Labour", "Service", "Cost", "SparePartLabour", "Labor (İşçilik)", "Stoksuz Parça / Hizmet"]:
                 stock_tracking_type = "Stok Takipsiz"
 
             db.execute(text(sql), {

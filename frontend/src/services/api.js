@@ -177,6 +177,17 @@ export const api = {
         });
     },
 
+    getItemModel: async (itemCode) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_item_model) {
+                backend.get_item_model(itemCode || '', (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false, model: '' });
+            }
+        });
+    },
+
     createPart: async (partData) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
