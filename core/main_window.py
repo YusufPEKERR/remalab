@@ -6,6 +6,7 @@ from PySide6.QtWidgets import QMainWindow, QVBoxLayout, QWidget
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWebChannel import QWebChannel, QWebChannelAbstractTransport
 from PySide6.QtWebSockets import QWebSocketServer
+from PySide6.QtNetwork import QHostAddress
 from PySide6.QtCore import QUrl
 import os
 import functools
@@ -140,7 +141,7 @@ class MainWindow(QMainWindow):
             QWebSocketServer.NonSecureMode,
             self
         )
-        if self.websocket_server.listen(host="0.0.0.0", port=5174):
+        if self.websocket_server.listen(QHostAddress.Any, 5174):
             print("[INFO] QWebChannel WebSocket sunucusu 5174 portunda başlatıldı.")
             self.websocket_server.newConnection.connect(self.on_new_websocket_connection)
         else:
