@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Plus, Search, Trash2, Edit, AlertCircle, RefreshCw, X, Download, Upload, FileSpreadsheet, ArrowUpDown } from 'lucide-react';
 import { api } from '../services/api';
 import ExcelMappingModal from '../components/ExcelMappingModal';
+import TextCombobox from '../components/TextCombobox';
 
 
 const EMPTY_FORM = {
@@ -458,12 +459,6 @@ export default function Parts() {
                     <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'item_code' ? 'text-blue-500' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
                   </div>
                 </th>
-                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('barcode')}>
-                  <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
-                    BARKOD
-                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'barcode' ? 'text-blue-500' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
-                  </div>
-                </th>
                 <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('name')}>
                   <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
                     PARÇA ADI
@@ -500,14 +495,14 @@ export default function Parts() {
             <tbody className="divide-y divide-slate-700/50">
               {loading ? (
                 <tr>
-                  <td colSpan="10" className="px-6 py-8 text-center text-slate-400">
+                  <td colSpan="9" className="px-6 py-8 text-center text-slate-400">
                     <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-400" />
                     Yükleniyor...
                   </td>
                 </tr>
               ) : paginatedParts.length === 0 ? (
                 <tr>
-                  <td colSpan="10" className="px-6 py-8 text-center text-slate-500">
+                  <td colSpan="9" className="px-6 py-8 text-center text-slate-500">
                     Kayıt bulunamadı.
                   </td>
                 </tr>
@@ -526,7 +521,6 @@ export default function Parts() {
                     </td>
                     <td className="px-6 py-4 font-mono text-slate-400">{part.id}</td>
                     <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200">{part.item_code}</td>
-                    <td className="px-6 py-4 font-mono text-slate-400">{part.barcode || '-'}</td>
                     <td className="px-6 py-4">{part.name}</td>
                     <td className="px-6 py-4">
                       {part.item_category && (
@@ -691,17 +685,13 @@ export default function Parts() {
 
               <div>
                 <label className="block text-sm font-medium text-slate-400 mb-1">Parça Adı <span className="text-red-400">*</span></label>
-                <input
-                  type="text" required
-                  list="product-family-list"
-                  className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                <TextCombobox
+                  required
+                  options={productFamilyNames}
                   value={formData.name}
-                  onChange={e => setFormData({...formData, name: e.target.value})}
+                  onChange={v => setFormData({...formData, name: v})}
                   placeholder="Örn: iPhone 13"
                 />
-                <datalist id="product-family-list">
-                  {productFamilyNames.map(n => <option key={n} value={n} />)}
-                </datalist>
               </div>
 
               {currentPart && (
