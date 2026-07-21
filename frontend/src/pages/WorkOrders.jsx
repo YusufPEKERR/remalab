@@ -739,7 +739,7 @@ export default function WorkOrders() {
       setShowResultsDropdown(false);
       fetchProductionRuns();
       api.getStockStatus().then(r => { if (r.success) setStockStatus(r.stock || []); });
-      alert(`Üretim kaydı başarıyla oluşturuldu.\nİş Emri Numarası: ${res.serial_number || 'Bilinmiyor'}`);
+      alert(`Üretim kaydı başarıyla oluşturuldu.\nÜretim Barkodu: ${res.serial_number || 'Bilinmiyor'}`);
     } else {
       alert(res.message || 'Üretim kaydı oluşturulamadı.');
     }
@@ -2069,7 +2069,7 @@ export default function WorkOrders() {
                 <table className="w-full text-left text-sm whitespace-nowrap">
                   <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs sticky top-0 z-10">
                     <tr>
-                    <th className="px-6 py-4">İş Emri No</th>
+                    <th className="px-6 py-4">Üretim Barkodu</th>
                     <th className="px-6 py-4">Üretilecek Parça</th>
                     <th className="px-6 py-4">Planlanan Adet</th>
                     <th className="px-6 py-4">Teknisyen</th>
@@ -2516,7 +2516,7 @@ export default function WorkOrders() {
             </div>
 
             <p className="text-sm text-slate-500 dark:text-slate-400 mb-5">
-              <span className="font-semibold text-slate-800 dark:text-slate-200">{returnDialog.serial_number}</span> iş emri numaralı ve <span className="font-semibold text-slate-800 dark:text-slate-200">{returnDialog.quantity_produced} adetlik</span> üretim grubu iade ediliyor.
+              <span className="font-semibold text-slate-800 dark:text-slate-200">{returnDialog.serial_number}</span> üretim barkodlu ve <span className="font-semibold text-slate-800 dark:text-slate-200">{returnDialog.quantity_produced} adetlik</span> üretim grubu iade ediliyor.
             </p>
 
             <div className="space-y-5 mb-6">
@@ -2660,7 +2660,7 @@ export default function WorkOrders() {
               {/* Genel Bilgiler */}
               <div className="bg-slate-50 dark:bg-[#242a38] p-4 rounded-xl space-y-2 border border-slate-200 dark:border-slate-700/30">
                 <div className="flex justify-between items-center pb-2 border-b border-slate-200 dark:border-slate-700/40">
-                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">İş Emri Numarası</span>
+                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Üretim Barkodu</span>
                   <span className="font-mono font-bold text-slate-800 dark:text-slate-200 text-sm bg-slate-200 dark:bg-[#1e2330] px-2 py-0.5 rounded">{detailDialog.serial_number}</span>
                 </div>
                 <div className="flex justify-between text-sm">
@@ -2809,7 +2809,7 @@ export default function WorkOrders() {
                     <Check size={16} /> <span>Üretim tamamlandı, malzeme çıkışı yapıldı.</span>
                   </div>
                   <div className="ml-6 mt-1 font-semibold">
-                    İş Emri Numarası: <span className="font-mono bg-emerald-500/20 px-2 py-0.5 rounded text-emerald-700 dark:text-emerald-400">{typeof quickProduceSuccess === 'string' ? quickProduceSuccess : 'Bilinmiyor'}</span>
+                    Üretim Barkodu: <span className="font-mono bg-emerald-500/20 px-2 py-0.5 rounded text-emerald-700 dark:text-emerald-400">{typeof quickProduceSuccess === 'string' ? quickProduceSuccess : 'Bilinmiyor'}</span>
                   </div>
                 </div>
               )}
