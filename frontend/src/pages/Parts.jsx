@@ -3,7 +3,6 @@ import { Plus, Search, Trash2, Edit, AlertCircle, RefreshCw, X, Download, Upload
 import { api } from '../services/api';
 import ExcelMappingModal from '../components/ExcelMappingModal';
 
-const MEMORY_OPTIONS = ['64GB', '128GB', '256GB', '512GB', '1TB'];
 
 const EMPTY_FORM = {
   item_code: '', barcode: '', name: '',
@@ -693,54 +692,6 @@ export default function Parts() {
                   onChange={e => setFormData({...formData, critical_limit: e.target.value})}
                   placeholder="Opsiyonel (Varsayılan: 50)"
                 />
-              </div>
-
-              {/* Hafıza Multi-Select */}
-              <div>
-                <label className="block text-sm font-medium text-slate-400 mb-2">
-                  Hafıza
-                  {formData.memory.length > 0 && (
-                    <span className="ml-2 text-xs text-blue-400 font-normal">
-                      ({formData.memory.join(', ')})
-                    </span>
-                  )}
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {MEMORY_OPTIONS.map(opt => {
-                    const selected = formData.memory.includes(opt);
-                    return (
-                      <button
-                        key={opt}
-                        type="button"
-                        onClick={() => {
-                          setFormData(prev => ({
-                            ...prev,
-                            memory: selected
-                              ? prev.memory.filter(m => m !== opt)
-                              : [...prev.memory, opt]
-                          }));
-                        }}
-                        className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all duration-150 ${
-                          selected
-                            ? 'bg-blue-500/20 border-blue-500/50 text-blue-400'
-                            : 'bg-slate-50 dark:bg-[#242a38] border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:border-blue-400/50 hover:text-blue-400'
-                        }`}
-                      >
-                        {selected && <span className="mr-1">✓</span>}
-                        {opt}
-                      </button>
-                    );
-                  })}
-                </div>
-                {formData.memory.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, memory: [] }))}
-                    className="mt-2 text-xs text-slate-400 hover:text-red-400 transition-colors"
-                  >
-                    Tümünü Temizle
-                  </button>
-                )}
               </div>
 
               <div className="pt-2 flex justify-end gap-3 mt-6 border-t border-slate-200 dark:border-slate-700/50">
