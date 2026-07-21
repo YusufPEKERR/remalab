@@ -1923,8 +1923,8 @@ export default function WorkOrders() {
                             <span className="text-emerald-500">+{run.quantity_produced}</span>
                           )}
                         </td>
-                        <td className="px-6 py-4">{run.source_location_name || '-'}</td>
-                        <td className="px-6 py-4">{run.location_name || '-'}</td>
+                        <td className="px-6 py-4">{run.is_returned ? (run.location_name || '-') : (run.source_location_name || '-')}</td>
+                        <td className="px-6 py-4">{run.is_returned ? (run.return_location_name || 'DOA STOCK') : (run.location_name || '-')}</td>
                         <td className="px-6 py-4 text-xs text-slate-400">
                           {(run.materials || []).length > 0
                             ? run.materials.map(m => `${m.part_name}${m.item_code ? ` [${m.item_code}]` : ''} (${m.quantity_consumed})`).join(', ')
@@ -2429,11 +2429,15 @@ export default function WorkOrders() {
                     <div className="space-y-3 text-sm">
                       <div className="flex justify-between items-center">
                         <span className="text-slate-400">Kaynak Lokasyon:</span>
-                        <span className="font-medium text-slate-800 dark:text-slate-200">{searchedBarcodeResult.source_location_name || '-'}</span>
+                        <span className="font-medium text-slate-800 dark:text-slate-200">
+                          {searchedBarcodeResult.is_returned ? (searchedBarcodeResult.location_name || '-') : (searchedBarcodeResult.source_location_name || '-')}
+                        </span>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-slate-400">Hedef Lokasyon:</span>
-                        <span className="font-medium text-slate-800 dark:text-slate-200">{searchedBarcodeResult.location_name || '-'}</span>
+                        <span className="font-medium text-slate-800 dark:text-slate-200">
+                          {searchedBarcodeResult.is_returned ? (searchedBarcodeResult.return_location_name || 'DOA STOCK') : (searchedBarcodeResult.location_name || '-')}
+                        </span>
                       </div>
                     </div>
                   </div>
