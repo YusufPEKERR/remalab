@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
-import { ClipboardList, Plus, Trash2, Edit, X, Save, Factory, Package, TrendingUp, Repeat, AlertTriangle, Layers, Search, RotateCcw, Eye, Info, ChevronDown, Zap, FileText, PlusCircle, Check, ArrowDownToLine } from 'lucide-react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { ClipboardList, Plus, Trash2, Edit, X, Save, Factory, Package, TrendingUp, Repeat, AlertTriangle, Layers, Search, RotateCcw, Eye, Info, ChevronDown, Zap, FileText, PlusCircle, Check, ArrowDownToLine, Scan } from 'lucide-react';
 import { api } from '../services/api';
 import PartSupplyMenu from '../components/PartSupplyMenu';
 import DeliverPartPopover from '../components/DeliverPartPopover';
@@ -178,8 +178,35 @@ export default function WorkOrders() {
   const [returnReason, setReturnReason] = useState('');
   const [defectiveParts, setDefectiveParts] = useState({}); // { part_id: true/false }
   const [replacementQty, setReplacementQty] = useState(0);
+  const [replacementParts, setReplacementParts] = useState({}); // { part_id: qty }
   const [returnSaving, setReturnSaving] = useState(false);
   const [detailDialog, setDetailDialog] = useState(null);
+
+  const [barcodeSearchInput, setBarcodeSearchInput] = useState('');
+  const [searchedBarcodeResult, setSearchedBarcodeResult] = useState(null);
+  const barcodeInputRef = useRef(null);
+
+  const handleBarcodeSearch = (e) => {
+    if (e) e.preventDefault();
+    const query = barcodeSearchInput.trim();
+    if (!query) return;
+    const found = productionRuns.find(run => run.serial_number === query);
+    if (found) {
+      setSearchedBarcodeResult(found);
+    } else {
+      setSearchedBarcodeResult('not_found');
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'barcode_search') {
+      setBarcodeSearchInput('');
+      setSearchedBarcodeResult(null);
+      setTimeout(() => {
+        if (barcodeInputRef.current) barcodeInputRef.current.focus();
+      }, 50);
+    }
+  }, [activeTab]);
 
   const fetchOrders = async () => {
     setOrdersLoading(true);
@@ -738,7 +765,7 @@ export default function WorkOrders() {
       setShowResultsDropdown(false);
       fetchProductionRuns();
       api.getStockStatus().then(r => { if (r.success) setStockStatus(r.stock || []); });
-      alert(`Üretim kaydı başarıyla oluşturuldu.\nİş Emri Numarası: ${res.serial_number || 'Bilinmiyor'}`);
+      alert(`Üretim kaydı başarıyla oluşturuldu.\nÜretim Barkodu: ${res.serial_number || 'Bilinmiyor'}`);
     } else {
       alert(res.message || 'Üretim kaydı oluşturulamadı.');
     }
@@ -810,18 +837,23 @@ export default function WorkOrders() {
         part_id: m.part_id,
         defective_qty: parseInt(defectiveParts[m.part_id] || 0, 10)
       }));
+      const replacementList = (returnDialog.materials || []).map(m => ({
+        part_id: m.part_id,
+        replacement_qty: parseInt(replacementParts[m.part_id] || 0, 10)
+      }));
       const res = await api.deleteProductionRun(
         returnDialog.unit_id,
         returnLocationId,
         returnReason,
         JSON.stringify(defectiveList),
-        replacementQty
+        JSON.stringify(replacementList)
       );
       if (res.success) {
         alert("İade/değişim işlemi başarıyla tamamlandı. Hammaddeler ilgili depolara aktarıldı.");
         setReturnDialog(null);
         setReturnReason('');
         setDefectiveParts({});
+        setReplacementParts({});
         setReplacementQty(0);
         fetchProductionRuns();
         refreshStockStatus();
@@ -1103,10 +1135,14 @@ export default function WorkOrders() {
 
     (parts || []).forEach(part => {
       if (!part) return;
+      const partType = String(part.part_type || '').toLowerCase();
+      const itemCat = String(part.item_category || '').toLowerCase();
+      const partCat = String(part.part_category || '').toLowerCase();
+      
       const isYariMamul = 
-        (String(part.part_type || '').toLowerCase() === 'yarı mamul') ||
-        (String(part.item_category || '').toLowerCase() === 'yarı mamul') ||
-        (String(part.part_category || '').toLowerCase() === 'yarı mamul');
+        partType === 'yarı mamul' || partType === 'yarı mamül' ||
+        itemCat === 'yarı mamul' || itemCat === 'yarı mamül' ||
+        partCat === 'yarı mamul' || partCat === 'yarı mamül';
       
       if (isYariMamul && part.id && !bomsMap.has(String(part.id))) {
         bomsMap.set(String(part.id), {
@@ -1123,7 +1159,7 @@ export default function WorkOrders() {
 
   const filteredBoms = (combinedBoms || []).filter(bom => {
     if (!bom) return false;
-    const q = (bomSearchQuery || '').toLowerCase();
+    const q = (bomSearchQuery || '').trim().toLowerCase();
     const parentMatch = 
       (bom.parent_item_id || '').toLowerCase().includes(q) || 
       (bom.parent_name || '').toLowerCase().includes(q);
@@ -1149,7 +1185,8 @@ export default function WorkOrders() {
     { key: 'recent_productions', label: 'Hızlı Tekrar Üretim', icon: Repeat },
     { key: 'consumption', label: 'Malzeme Tüketimi', icon: Package },
     { key: 'production_report', label: 'Üretim Raporu', icon: TrendingUp },
-    { key: 'production_work_orders', label: 'Üretim İş Emirleri', icon: Layers }
+    { key: 'production_work_orders', label: 'Üretim İş Emirleri', icon: Layers },
+    { key: 'barcode_search', label: 'Barkod Sorgula', icon: Scan }
   ];
 
   return (
@@ -1846,7 +1883,7 @@ export default function WorkOrders() {
               <table className="w-full text-left text-sm">
                 <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs sticky top-0 z-10">
                   <tr>
-                    <th className="px-6 py-4">İŞ EMRİ NO</th>
+                    <th className="px-6 py-4">ÜRETİM BARKODU</th>
                     <th className="px-6 py-4">ÜRETİLEN PARÇA</th>
                     <th className="px-6 py-4 text-center">MİKTAR</th>
                     <th className="px-6 py-4">KAYNAK LOKASYON</th>
@@ -1917,7 +1954,7 @@ export default function WorkOrders() {
                               <Repeat size={16} />
                             </button>
                             {!run.is_returned && (
-                              <button onClick={() => { setReturnDialog(run); setReturnLocationId('27'); setReturnReason(''); setDefectiveParts({}); setReplacementQty(0); }} className="p-1.5 text-amber-500 hover:bg-amber-500/10 rounded-lg transition-colors" title="İade / Değişim">
+                              <button onClick={() => { setReturnDialog(run); setReturnLocationId('27'); setReturnReason(''); setDefectiveParts({}); setReplacementParts({}); setReplacementQty(0); }} className="p-1.5 text-amber-500 hover:bg-amber-500/10 rounded-lg transition-colors" title="İade / Değişim">
                                 <RotateCcw size={16} />
                               </button>
                             )}
@@ -2059,7 +2096,7 @@ export default function WorkOrders() {
                 <table className="w-full text-left text-sm whitespace-nowrap">
                   <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs sticky top-0 z-10">
                     <tr>
-                    <th className="px-6 py-4">İş Emri No</th>
+                    <th className="px-6 py-4">Üretim Barkodu</th>
                     <th className="px-6 py-4">Üretilecek Parça</th>
                     <th className="px-6 py-4">Planlanan Adet</th>
                     <th className="px-6 py-4">Teknisyen</th>
@@ -2320,6 +2357,160 @@ export default function WorkOrders() {
             )}
           </div>
         )}
+
+        {/* --- BARKOD SORGULA --- */}
+        {activeTab === 'barcode_search' && (
+          <div className="space-y-6">
+            {/* Search Input Box */}
+            <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-sm">
+              <div className="max-w-xl mx-auto text-center py-6">
+                <div className="w-16 h-16 bg-blue-500/10 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-4 border border-blue-500/20 shadow-lg shadow-blue-500/5">
+                  <Scan size={32} className="animate-pulse" />
+                </div>
+                <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">Üretim Barkodu Sorgula</h2>
+                <p className="text-slate-400 text-sm mt-1 mb-6">15 haneli üretim barkodunu okutarak veya yazarak arama yapın.</p>
+                
+                <form onSubmit={handleBarcodeSearch} className="flex gap-2">
+                  <input
+                    ref={barcodeInputRef}
+                    type="text"
+                    placeholder="Üretim Barkodunu Okutun..."
+                    value={barcodeSearchInput}
+                    onChange={(e) => setBarcodeSearchInput(e.target.value)}
+                    className="flex-1 bg-slate-50 dark:bg-[#242a38] text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700/60 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 font-mono tracking-wider text-center text-lg"
+                  />
+                  <button
+                    type="submit"
+                    className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors shadow-lg shadow-blue-900/20"
+                  >
+                    Sorgula
+                  </button>
+                </form>
+              </div>
+            </div>
+
+            {/* Results Section */}
+            {searchedBarcodeResult === 'not_found' && (
+              <div className="bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 rounded-2xl p-6 flex items-center gap-4 max-w-xl mx-auto shadow-sm animate-in fade-in slide-in-from-top-4 duration-300">
+                <AlertTriangle size={24} className="shrink-0 text-red-500" />
+                <div className="text-left">
+                  <h3 className="font-bold text-base">Barkod Bulunamadı</h3>
+                  <p className="text-xs text-red-500/70 dark:text-red-400/70 mt-0.5">"{barcodeSearchInput}" numaralı barkoda ait herhangi bir üretim kaydı bulunamadı. Lütfen numarayı kontrol ediniz.</p>
+                </div>
+              </div>
+            )}
+
+            {searchedBarcodeResult && searchedBarcodeResult !== 'not_found' && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                {/* 1. Genel Bilgiler */}
+                <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-sm space-y-4">
+                  <div className="flex items-center gap-2 pb-3 border-b border-slate-200 dark:border-slate-700/40">
+                    <Info className="text-blue-500" size={20} />
+                    <h3 className="font-bold text-slate-800 dark:text-slate-100">Genel Bilgiler</h3>
+                  </div>
+                  
+                  <div className="space-y-3 text-sm">
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400">Üretim Barkodu:</span>
+                      <span className="font-mono font-bold text-slate-800 dark:text-slate-200 text-base">{searchedBarcodeResult.serial_number}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400">Üretilen Parça:</span>
+                      <span className="font-medium text-slate-800 dark:text-slate-200 text-right">{searchedBarcodeResult.target_part_name || '-'} {parts.find(p => p.id == searchedBarcodeResult.target_part_id)?.part_category ? `(${parts.find(p => p.id == searchedBarcodeResult.target_part_id).part_category})` : ''}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400">Parça Kodu:</span>
+                      <span className="font-mono text-slate-800 dark:text-slate-200">{searchedBarcodeResult.target_item_code}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400">Miktar:</span>
+                      <span className="font-mono font-semibold text-emerald-500">+{searchedBarcodeResult.quantity_produced} adet</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400">Teknisyen:</span>
+                      <span className="font-medium text-slate-800 dark:text-slate-200">{searchedBarcodeResult.produced_by || '-'}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400">Tarih:</span>
+                      <span className="text-slate-500">{searchedBarcodeResult.created_at}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400">Durum:</span>
+                      {searchedBarcodeResult.is_returned ? (
+                        <span className="px-2 py-0.5 text-xs font-semibold bg-red-500/10 text-red-500 border border-red-500/20 rounded-full">İade Edildi</span>
+                      ) : (
+                        <span className="px-2 py-0.5 text-xs font-semibold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded-full">Aktif Üretim</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Lokasyon Bilgileri */}
+                <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 pb-3 border-b border-slate-200 dark:border-slate-700/40">
+                      <Layers className="text-purple-500" size={20} />
+                      <h3 className="font-bold text-slate-800 dark:text-slate-100">Lokasyon Bilgileri</h3>
+                    </div>
+                    
+                    <div className="space-y-3 text-sm">
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-400">Kaynak Lokasyon:</span>
+                        <span className="font-medium text-slate-800 dark:text-slate-200">{searchedBarcodeResult.source_location_name || '-'}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-400">Hedef Lokasyon:</span>
+                        <span className="font-medium text-slate-800 dark:text-slate-200">{searchedBarcodeResult.location_name || '-'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {!searchedBarcodeResult.is_returned && (
+                    <div className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-700/40">
+                      <button
+                        onClick={() => {
+                          setReturnDialog(searchedBarcodeResult);
+                          setReturnLocationId('27');
+                          setReturnReason('');
+                          setDefectiveParts({});
+                          setReplacementParts({});
+                          setReplacementQty(0);
+                        }}
+                        className="w-full py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2 shadow-lg shadow-amber-900/10"
+                      >
+                        <RotateCcw size={16} /> İade / Değişim İşlemi Başlat
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* 3. Tüketilen Malzemeler (BOM) */}
+                <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-sm space-y-4">
+                  <div className="flex items-center gap-2 pb-3 border-b border-slate-200 dark:border-slate-700/40">
+                    <Package className="text-teal-500" size={20} />
+                    <h3 className="font-bold text-slate-800 dark:text-slate-100">Tüketilen Malzemeler</h3>
+                  </div>
+
+                  <div className="max-h-[220px] overflow-y-auto pr-1 divide-y divide-slate-200 dark:divide-slate-700/30">
+                    {(searchedBarcodeResult.materials || []).length > 0 ? (
+                      searchedBarcodeResult.materials.map(m => (
+                        <div key={m.part_id} className="py-2.5 flex justify-between items-center text-sm gap-2">
+                          <div className="min-w-0">
+                            <div className="font-medium text-slate-800 dark:text-slate-200 truncate">{m.part_name}</div>
+                            {m.item_code && <div className="text-[11px] text-slate-400 font-mono">{m.item_code}</div>}
+                          </div>
+                          <span className="font-mono bg-slate-100 dark:bg-[#242a38] px-2 py-0.5 rounded text-xs text-slate-600 dark:text-slate-300 font-bold shrink-0">{m.quantity_consumed} adet</span>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="py-8 text-center text-slate-500 text-xs">Bu üretime ait malzeme tüketim kaydı yok.</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <PartSupplyMenu
@@ -2506,7 +2697,7 @@ export default function WorkOrders() {
             </div>
 
             <p className="text-sm text-slate-500 dark:text-slate-400 mb-5">
-              <span className="font-semibold text-slate-800 dark:text-slate-200">{returnDialog.serial_number}</span> iş emri numaralı ve <span className="font-semibold text-slate-800 dark:text-slate-200">{returnDialog.quantity_produced} adetlik</span> üretim grubu iade ediliyor.
+              <span className="font-semibold text-slate-800 dark:text-slate-200">{returnDialog.serial_number}</span> üretim barkodlu ve <span className="font-semibold text-slate-800 dark:text-slate-200">{returnDialog.quantity_produced} adetlik</span> üretim grubu iade ediliyor.
             </p>
 
             <div className="space-y-5 mb-6">
@@ -2514,13 +2705,14 @@ export default function WorkOrders() {
               {(returnDialog.materials || []).length > 0 && (
                 <div>
                   <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
-                    Sorunlu Parçaları İşaretle
-                    <span className="ml-2 text-slate-500 normal-case font-normal">(İşaretlenenler seçili depoya, diğerleri Good Stock'a gider)</span>
+                    Sorunlu Parçaları İşaretle & Değişim Adedi
+                    <span className="ml-2 text-slate-500 normal-case font-normal">(Sorunlu olanlar DOA Stock'a, diğerleri Good Stock'a gider. Değişim adedi girilen parçalar için yeniden üretim planlanır.)</span>
                   </label>
                   <div className="rounded-xl border border-slate-200 dark:border-slate-700/60 divide-y divide-slate-200 dark:divide-slate-700/40 overflow-hidden bg-slate-50/50 dark:bg-[#1a1d26]">
                     {returnDialog.materials.map(m => {
                       const maxQty = m.quantity_consumed;
                       const currentVal = defectiveParts[m.part_id] || 0;
+                      const repVal = replacementParts[m.part_id] || 0;
                       return (
                         <div key={m.part_id} className="flex items-center justify-between gap-4 px-4 py-3">
                           <div className="flex-1 min-w-0">
@@ -2528,10 +2720,11 @@ export default function WorkOrders() {
                             {m.item_code && <div className="text-xs text-slate-400 font-mono">{m.item_code}</div>}
                           </div>
 
-                          <div className="flex items-center gap-2 shrink-0">
+                          <div className="flex items-center gap-4 shrink-0">
+                            {/* Sorunlu Miktar */}
                             <div className="flex flex-col items-end">
-                              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Sorunlu Miktar</span>
-                              <div className="flex items-center gap-1.5">
+                              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Sorunlu</span>
+                              <div className="flex items-center gap-1">
                                 <input
                                   type="number"
                                   min="0"
@@ -2541,17 +2734,36 @@ export default function WorkOrders() {
                                     let val = parseInt(e.target.value, 10) || 0;
                                     if (val < 0) val = 0;
                                     if (val > maxQty) val = maxQty;
-                                    setDefectiveParts(prev => {
-                                      const next = { ...prev, [m.part_id]: val };
-                                      // En yüksek sorunlu parça adedini bulup değişim adedine ata
-                                      const maxDefect = Math.max(0, ...Object.values(next).map(v => Number(v || 0)));
-                                      setReplacementQty(maxDefect);
-                                      return next;
+                                    setDefectiveParts(prev => ({ ...prev, [m.part_id]: val }));
+                                    setReplacementParts(prev => {
+                                      const oldRep = prev[m.part_id] || 0;
+                                      return { ...prev, [m.part_id]: Math.min(oldRep, val) };
                                     });
                                   }}
-                                  className="w-16 bg-white dark:bg-[#242a38] text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700/60 rounded-lg px-2 py-1 text-sm text-center font-mono focus:outline-none focus:border-amber-500"
+                                  className="w-14 bg-white dark:bg-[#242a38] text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700/60 rounded-lg px-2 py-1 text-sm text-center font-mono focus:outline-none focus:border-amber-500"
                                 />
-                                <span className="text-xs font-mono text-slate-400">/ {maxQty} adet</span>
+                                <span className="text-[10px] text-slate-500">/ {maxQty}</span>
+                              </div>
+                            </div>
+
+                            {/* Değişim Adedi */}
+                            <div className="flex flex-col items-end">
+                              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Değişim</span>
+                              <div className="flex items-center gap-1">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max={currentVal}
+                                  value={repVal}
+                                  onChange={e => {
+                                    let val = parseInt(e.target.value, 10) || 0;
+                                    if (val < 0) val = 0;
+                                    if (val > currentVal) val = currentVal;
+                                    setReplacementParts(prev => ({ ...prev, [m.part_id]: val }));
+                                  }}
+                                  className="w-14 bg-white dark:bg-[#242a38] text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700/60 rounded-lg px-2 py-1 text-sm text-center font-mono focus:outline-none focus:border-amber-500"
+                                />
+                                <span className="text-[10px] text-slate-500">/ {currentVal}</span>
                               </div>
                             </div>
                           </div>
@@ -2572,33 +2784,10 @@ export default function WorkOrders() {
                   value={returnLocationId}
                   onChange={(e) => setReturnLocationId(e.target.value)}
                 >
-                  {systemLocations.filter(loc => loc.id !== 26).map(loc => (
+                  {systemLocations.filter(loc => loc.kind === 'doa_stock').map(loc => (
                     <option key={loc.id} value={String(loc.id)}>{loc.name}</option>
                   ))}
                 </select>
-              </div>
-
-              {/* Değişim İstenecek Ürün Adedi */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                  Değişim İstenecek Ürün Adedi
-                </label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    min="0"
-                    max={returnDialog.quantity_produced}
-                    value={replacementQty}
-                    onChange={e => {
-                      let val = parseInt(e.target.value, 10) || 0;
-                      if (val < 0) val = 0;
-                      if (val > returnDialog.quantity_produced) val = returnDialog.quantity_produced;
-                      setReplacementQty(val);
-                    }}
-                    className="w-24 bg-slate-50 dark:bg-[#242a38] text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700/60 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-amber-500 font-mono"
-                  />
-                  <span className="text-xs text-slate-400 font-mono">/ {returnDialog.quantity_produced} adet (Maksimum iade edilen kadar)</span>
-                </div>
               </div>
 
               {/* İade nedeni */}
@@ -2652,7 +2841,7 @@ export default function WorkOrders() {
               {/* Genel Bilgiler */}
               <div className="bg-slate-50 dark:bg-[#242a38] p-4 rounded-xl space-y-2 border border-slate-200 dark:border-slate-700/30">
                 <div className="flex justify-between items-center pb-2 border-b border-slate-200 dark:border-slate-700/40">
-                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">İş Emri Numarası</span>
+                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Üretim Barkodu</span>
                   <span className="font-mono font-bold text-slate-800 dark:text-slate-200 text-sm bg-slate-200 dark:bg-[#1e2330] px-2 py-0.5 rounded">{detailDialog.serial_number}</span>
                 </div>
                 <div className="flex justify-between text-sm">
@@ -2801,7 +2990,7 @@ export default function WorkOrders() {
                     <Check size={16} /> <span>Üretim tamamlandı, malzeme çıkışı yapıldı.</span>
                   </div>
                   <div className="ml-6 mt-1 font-semibold">
-                    İş Emri Numarası: <span className="font-mono bg-emerald-500/20 px-2 py-0.5 rounded text-emerald-700 dark:text-emerald-400">{typeof quickProduceSuccess === 'string' ? quickProduceSuccess : 'Bilinmiyor'}</span>
+                    Üretim Barkodu: <span className="font-mono bg-emerald-500/20 px-2 py-0.5 rounded text-emerald-700 dark:text-emerald-400">{typeof quickProduceSuccess === 'string' ? quickProduceSuccess : 'Bilinmiyor'}</span>
                   </div>
                 </div>
               )}
