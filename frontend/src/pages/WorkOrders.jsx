@@ -2232,7 +2232,6 @@ export default function WorkOrders() {
             </div>
             </div>
 
-<<<<<<< HEAD
             {/* --- PRODUCTION WORK ORDER DETAY --- */}
             {selectedProductionOrder && (
               <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden">
@@ -2369,9 +2368,6 @@ export default function WorkOrders() {
                 </table>
               </div>
             )}
-=======
-
->>>>>>> bd158b2 (fix(stock): update transfer reports and dashboard to display correct location labels and descriptions; add copy clipboard alerts)
           </div>
         )}
 
