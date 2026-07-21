@@ -24,7 +24,7 @@ const DEPARTMENTS = [
 const FLOW_VALUES = ['Refurbish', 'Repair', 'RMA', 'Battery Replacement'];
 
 const EMPTY_FORM = {
-  name: '', part_type: '', flow: '', departments: [], stock_tracking_type: 'Stok Takipli',
+  name: '', part_type: '', flow: [], departments: [], stock_tracking_type: 'Stok Takipli',
   is_active: true, description: ''
 };
 
@@ -80,7 +80,7 @@ export default function PartCategories() {
       setFormData({
         name: cat.name || '',
         part_type: cat.part_type || '',
-        flow: cat.flow || '',
+        flow: cat.flow ? cat.flow.split(',').map(f => f.trim()).filter(Boolean) : [],
         departments: cat.departments ? cat.departments.split(',').map(d => d.trim()).filter(Boolean) : [],
         stock_tracking_type: cat.stock_tracking_type || 'Stok Takipli',
         is_active: cat.is_active !== false,
@@ -104,11 +104,15 @@ export default function PartCategories() {
 
   const handleSave = async (e) => {
     e.preventDefault();
-    if (!formData.flow) {
-      alert('Flow seçiniz.');
+    if (!formData.flow || formData.flow.length === 0) {
+      alert('En az bir Flow seçiniz.');
       return;
     }
-    const payload = { ...formData };
+    const payload = { 
+      ...formData, 
+      departments: formData.departments.join(','),
+      flow: formData.flow.join(',') 
+    };
     const res = editingCat
       ? await api.updatePartCategory(editingCat.id, payload)
       : await api.createPartCategory(payload);
@@ -287,18 +291,25 @@ export default function PartCategories() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-1.5">
-                  Flow <span className="text-red-400">*</span>
-                </label>
-                <select
-                  required
-                  className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
-                  value={formData.flow}
-                  onChange={e => setFormData({...formData, flow: e.target.value})}
-                >
-                  <option value="">Seçiniz...</option>
-                  {FLOW_VALUES.map(f => <option key={f} value={f}>{f}</option>)}
-                </select>
+                <label className="block text-sm font-medium text-slate-400 mb-2">Flow Seçimleri <span className="text-red-400">*</span></label>
+                <div className="grid grid-cols-2 gap-2">
+                  {FLOW_VALUES.map(f => (
+                    <label key={f} className="flex items-center gap-2 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 cursor-pointer hover:border-slate-500 transition-colors">
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700 dark:ring-offset-slate-800"
+                        checked={formData.flow.includes(f)}
+                        onChange={(e) => {
+                          const newFlows = e.target.checked
+                            ? [...formData.flow, f]
+                            : formData.flow.filter(x => x !== f);
+                          setFormData({ ...formData, flow: newFlows });
+                        }}
+                      />
+                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{f}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
 
               <div>
