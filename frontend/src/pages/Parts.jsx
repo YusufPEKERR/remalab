@@ -649,17 +649,6 @@ export default function Parts() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-1">Barkod</label>
-                <input
-                  type="text"
-                  className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
-                  value={formData.barcode}
-                  onChange={e => setFormData({...formData, barcode: e.target.value})}
-                  placeholder="Ayrı bir barkod numarası varsa girin"
-                />
-              </div>
-
-              <div>
                 <label className="block text-sm font-medium text-slate-400 mb-1">Parça Adı <span className="text-red-400">*</span></label>
                 <input
                   type="text" required
