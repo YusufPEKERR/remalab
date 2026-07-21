@@ -1109,10 +1109,14 @@ export default function WorkOrders() {
 
     (parts || []).forEach(part => {
       if (!part) return;
+      const partType = String(part.part_type || '').toLowerCase();
+      const itemCat = String(part.item_category || '').toLowerCase();
+      const partCat = String(part.part_category || '').toLowerCase();
+      
       const isYariMamul = 
-        (String(part.part_type || '').toLowerCase() === 'yarı mamul') ||
-        (String(part.item_category || '').toLowerCase() === 'yarı mamul') ||
-        (String(part.part_category || '').toLowerCase() === 'yarı mamul');
+        partType === 'yarı mamul' || partType === 'yarı mamül' ||
+        itemCat === 'yarı mamul' || itemCat === 'yarı mamül' ||
+        partCat === 'yarı mamul' || partCat === 'yarı mamül';
       
       if (isYariMamul && part.id && !bomsMap.has(String(part.id))) {
         bomsMap.set(String(part.id), {
@@ -1129,7 +1133,7 @@ export default function WorkOrders() {
 
   const filteredBoms = (combinedBoms || []).filter(bom => {
     if (!bom) return false;
-    const q = (bomSearchQuery || '').toLowerCase();
+    const q = (bomSearchQuery || '').trim().toLowerCase();
     const parentMatch = 
       (bom.parent_item_id || '').toLowerCase().includes(q) || 
       (bom.parent_name || '').toLowerCase().includes(q);
