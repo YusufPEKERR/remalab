@@ -1098,7 +1098,6 @@ export default function WorkOrders() {
   const handleSelectProductionOrder = (order) => {
     setSelectedProductionOrderId(order.id);
     fetchMaterialRequests(order.id);
-    setActiveTab('barcode_search');
   };
 
   const handleOpenIssueDialog = (mr) => {
@@ -1315,7 +1314,14 @@ export default function WorkOrders() {
                         Üretimi Başlat
                       </button>
                     )}
-
+                    {selectedProductionOrder.status === 'URETIMDE' && (
+                      <button
+                        onClick={() => handleOpenCompleteDialog(selectedProductionOrder)}
+                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium transition-colors shadow-lg shadow-emerald-900/20"
+                      >
+                        Tamamla
+                      </button>
+                    )}
                     <span className={`inline-block whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-medium border ${PRODUCTION_WO_STATUS_STYLES[selectedProductionOrder.status] || PRODUCTION_WO_STATUS_STYLES['BEKLIYOR']}`}>
                       {PRODUCTION_WO_STATUS_LABELS[selectedProductionOrder.status] || selectedProductionOrder.status}
                     </span>
@@ -2435,6 +2441,8 @@ export default function WorkOrders() {
             </div>
             </div>
 
+            {/* --- PRODUCTION WORK ORDER DETAY --- */}
+            {renderProductionOrderDetails()}
           </div>
         )}
 
