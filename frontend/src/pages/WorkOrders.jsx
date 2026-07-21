@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
-import { ClipboardList, Plus, Trash2, Edit, X, Save, Factory, Package, TrendingUp, Repeat, AlertTriangle, Layers, Search, RotateCcw, Eye, Info, ChevronDown, Zap, FileText, PlusCircle, Check, ArrowDownToLine } from 'lucide-react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { ClipboardList, Plus, Trash2, Edit, X, Save, Factory, Package, TrendingUp, Repeat, AlertTriangle, Layers, Search, RotateCcw, Eye, Info, ChevronDown, Zap, FileText, PlusCircle, Check, ArrowDownToLine, Scan } from 'lucide-react';
 import { api } from '../services/api';
 import PartSupplyMenu from '../components/PartSupplyMenu';
 import DeliverPartPopover from '../components/DeliverPartPopover';
@@ -181,6 +181,32 @@ export default function WorkOrders() {
   const [replacementParts, setReplacementParts] = useState({}); // { part_id: qty }
   const [returnSaving, setReturnSaving] = useState(false);
   const [detailDialog, setDetailDialog] = useState(null);
+
+  const [barcodeSearchInput, setBarcodeSearchInput] = useState('');
+  const [searchedBarcodeResult, setSearchedBarcodeResult] = useState(null);
+  const barcodeInputRef = useRef(null);
+
+  const handleBarcodeSearch = (e) => {
+    if (e) e.preventDefault();
+    const query = barcodeSearchInput.trim();
+    if (!query) return;
+    const found = productionRuns.find(run => run.serial_number === query);
+    if (found) {
+      setSearchedBarcodeResult(found);
+    } else {
+      setSearchedBarcodeResult('not_found');
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'barcode_search') {
+      setBarcodeSearchInput('');
+      setSearchedBarcodeResult(null);
+      setTimeout(() => {
+        if (barcodeInputRef.current) barcodeInputRef.current.focus();
+      }, 50);
+    }
+  }, [activeTab]);
 
   const fetchOrders = async () => {
     setOrdersLoading(true);
@@ -1159,7 +1185,8 @@ export default function WorkOrders() {
     { key: 'recent_productions', label: 'Hızlı Tekrar Üretim', icon: Repeat },
     { key: 'consumption', label: 'Malzeme Tüketimi', icon: Package },
     { key: 'production_report', label: 'Üretim Raporu', icon: TrendingUp },
-    { key: 'production_work_orders', label: 'Üretim İş Emirleri', icon: Layers }
+    { key: 'production_work_orders', label: 'Üretim İş Emirleri', icon: Layers },
+    { key: 'barcode_search', label: 'Barkod Sorgula', icon: Scan }
   ];
 
   return (
@@ -2326,6 +2353,160 @@ export default function WorkOrders() {
                     )}
                   </tbody>
                 </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* --- BARKOD SORGULA --- */}
+        {activeTab === 'barcode_search' && (
+          <div className="space-y-6">
+            {/* Search Input Box */}
+            <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-sm">
+              <div className="max-w-xl mx-auto text-center py-6">
+                <div className="w-16 h-16 bg-blue-500/10 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-4 border border-blue-500/20 shadow-lg shadow-blue-500/5">
+                  <Scan size={32} className="animate-pulse" />
+                </div>
+                <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">Üretim Barkodu Sorgula</h2>
+                <p className="text-slate-400 text-sm mt-1 mb-6">15 haneli üretim barkodunu okutarak veya yazarak arama yapın.</p>
+                
+                <form onSubmit={handleBarcodeSearch} className="flex gap-2">
+                  <input
+                    ref={barcodeInputRef}
+                    type="text"
+                    placeholder="Üretim Barkodunu Okutun..."
+                    value={barcodeSearchInput}
+                    onChange={(e) => setBarcodeSearchInput(e.target.value)}
+                    className="flex-1 bg-slate-50 dark:bg-[#242a38] text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700/60 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 font-mono tracking-wider text-center text-lg"
+                  />
+                  <button
+                    type="submit"
+                    className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors shadow-lg shadow-blue-900/20"
+                  >
+                    Sorgula
+                  </button>
+                </form>
+              </div>
+            </div>
+
+            {/* Results Section */}
+            {searchedBarcodeResult === 'not_found' && (
+              <div className="bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 rounded-2xl p-6 flex items-center gap-4 max-w-xl mx-auto shadow-sm animate-in fade-in slide-in-from-top-4 duration-300">
+                <AlertTriangle size={24} className="shrink-0 text-red-500" />
+                <div className="text-left">
+                  <h3 className="font-bold text-base">Barkod Bulunamadı</h3>
+                  <p className="text-xs text-red-500/70 dark:text-red-400/70 mt-0.5">"{barcodeSearchInput}" numaralı barkoda ait herhangi bir üretim kaydı bulunamadı. Lütfen numarayı kontrol ediniz.</p>
+                </div>
+              </div>
+            )}
+
+            {searchedBarcodeResult && searchedBarcodeResult !== 'not_found' && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                {/* 1. Genel Bilgiler */}
+                <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-sm space-y-4">
+                  <div className="flex items-center gap-2 pb-3 border-b border-slate-200 dark:border-slate-700/40">
+                    <Info className="text-blue-500" size={20} />
+                    <h3 className="font-bold text-slate-800 dark:text-slate-100">Genel Bilgiler</h3>
+                  </div>
+                  
+                  <div className="space-y-3 text-sm">
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400">Üretim Barkodu:</span>
+                      <span className="font-mono font-bold text-slate-800 dark:text-slate-200 text-base">{searchedBarcodeResult.serial_number}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400">Üretilen Parça:</span>
+                      <span className="font-medium text-slate-800 dark:text-slate-200 text-right">{searchedBarcodeResult.target_part_name || '-'} {parts.find(p => p.id == searchedBarcodeResult.target_part_id)?.part_category ? `(${parts.find(p => p.id == searchedBarcodeResult.target_part_id).part_category})` : ''}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400">Parça Kodu:</span>
+                      <span className="font-mono text-slate-800 dark:text-slate-200">{searchedBarcodeResult.target_item_code}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400">Miktar:</span>
+                      <span className="font-mono font-semibold text-emerald-500">+{searchedBarcodeResult.quantity_produced} adet</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400">Teknisyen:</span>
+                      <span className="font-medium text-slate-800 dark:text-slate-200">{searchedBarcodeResult.produced_by || '-'}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400">Tarih:</span>
+                      <span className="text-slate-500">{searchedBarcodeResult.created_at}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400">Durum:</span>
+                      {searchedBarcodeResult.is_returned ? (
+                        <span className="px-2 py-0.5 text-xs font-semibold bg-red-500/10 text-red-500 border border-red-500/20 rounded-full">İade Edildi</span>
+                      ) : (
+                        <span className="px-2 py-0.5 text-xs font-semibold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded-full">Aktif Üretim</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Lokasyon Bilgileri */}
+                <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 pb-3 border-b border-slate-200 dark:border-slate-700/40">
+                      <Layers className="text-purple-500" size={20} />
+                      <h3 className="font-bold text-slate-800 dark:text-slate-100">Lokasyon Bilgileri</h3>
+                    </div>
+                    
+                    <div className="space-y-3 text-sm">
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-400">Kaynak Lokasyon:</span>
+                        <span className="font-medium text-slate-800 dark:text-slate-200">{searchedBarcodeResult.source_location_name || '-'}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-400">Hedef Lokasyon:</span>
+                        <span className="font-medium text-slate-800 dark:text-slate-200">{searchedBarcodeResult.location_name || '-'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {!searchedBarcodeResult.is_returned && (
+                    <div className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-700/40">
+                      <button
+                        onClick={() => {
+                          setReturnDialog(searchedBarcodeResult);
+                          setReturnLocationId('27');
+                          setReturnReason('');
+                          setDefectiveParts({});
+                          setReplacementParts({});
+                          setReplacementQty(0);
+                        }}
+                        className="w-full py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2 shadow-lg shadow-amber-900/10"
+                      >
+                        <RotateCcw size={16} /> İade / Değişim İşlemi Başlat
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* 3. Tüketilen Malzemeler (BOM) */}
+                <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-sm space-y-4">
+                  <div className="flex items-center gap-2 pb-3 border-b border-slate-200 dark:border-slate-700/40">
+                    <Package className="text-teal-500" size={20} />
+                    <h3 className="font-bold text-slate-800 dark:text-slate-100">Tüketilen Malzemeler</h3>
+                  </div>
+
+                  <div className="max-h-[220px] overflow-y-auto pr-1 divide-y divide-slate-200 dark:divide-slate-700/30">
+                    {(searchedBarcodeResult.materials || []).length > 0 ? (
+                      searchedBarcodeResult.materials.map(m => (
+                        <div key={m.part_id} className="py-2.5 flex justify-between items-center text-sm gap-2">
+                          <div className="min-w-0">
+                            <div className="font-medium text-slate-800 dark:text-slate-200 truncate">{m.part_name}</div>
+                            {m.item_code && <div className="text-[11px] text-slate-400 font-mono">{m.item_code}</div>}
+                          </div>
+                          <span className="font-mono bg-slate-100 dark:bg-[#242a38] px-2 py-0.5 rounded text-xs text-slate-600 dark:text-slate-300 font-bold shrink-0">{m.quantity_consumed} adet</span>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="py-8 text-center text-slate-500 text-xs">Bu üretime ait malzeme tüketim kaydı yok.</div>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
           </div>
