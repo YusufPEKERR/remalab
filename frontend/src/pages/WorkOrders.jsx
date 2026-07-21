@@ -225,7 +225,7 @@ export default function WorkOrders() {
       
       // 1. Prioritize active Work Orders
       const activeWO = productionWorkOrders.find(wo => 
-        wo.id === numericQuery && (wo.status === 'BEKLIYOR' || wo.status === 'URETIMDE')
+        Number(wo.id) === numericQuery && (wo.status === 'BEKLIYOR' || wo.status === 'URETIMDE')
       );
       if (activeWO) {
         handleSelectProductionOrder(activeWO);
@@ -244,7 +244,7 @@ export default function WorkOrders() {
     // 3. Finally, check if it's an inactive Work Order
     if (isNumber) {
       const numericQuery = parseInt(query, 10);
-      const anyWO = productionWorkOrders.find(wo => wo.id === numericQuery);
+      const anyWO = productionWorkOrders.find(wo => Number(wo.id) === numericQuery);
       if (anyWO) {
         handleSelectProductionOrder(anyWO);
         setActiveTab('production');
