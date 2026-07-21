@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Plus, Search, Trash2, Edit, AlertCircle, RefreshCw, X, Download, Upload, FileSpreadsheet, ArrowUpDown } from 'lucide-react';
 import { api } from '../services/api';
 import ExcelMappingModal from '../components/ExcelMappingModal';
+import { PRODUCT_FAMILY_NAMES } from '../data/productFamilyNames';
 
 
 const EMPTY_FORM = {
@@ -652,11 +653,15 @@ export default function Parts() {
                 <label className="block text-sm font-medium text-slate-400 mb-1">Parça Adı <span className="text-red-400">*</span></label>
                 <input
                   type="text" required
+                  list="product-family-list"
                   className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
                   value={formData.name}
                   onChange={e => setFormData({...formData, name: e.target.value})}
-                  placeholder="Örn: iPhone 13 Ekran"
+                  placeholder="Örn: iPhone 13"
                 />
+                <datalist id="product-family-list">
+                  {PRODUCT_FAMILY_NAMES.map(n => <option key={n} value={n} />)}
+                </datalist>
               </div>
 
               {currentPart && (
