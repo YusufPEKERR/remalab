@@ -569,6 +569,7 @@ class WebBridge(QObject):
             db.execute(text("ALTER TABLE warehouse.work_orders ADD COLUMN IF NOT EXISTS produced_quantity INTEGER;"))
             db.execute(text("ALTER TABLE warehouse.work_orders ADD COLUMN IF NOT EXISTS scrap_quantity INTEGER;"))
             db.execute(text("ALTER TABLE warehouse.work_orders ADD COLUMN IF NOT EXISTS production_notes TEXT;"))
+            db.execute(text("UPDATE warehouse.work_orders SET status = 'URETIMDE' WHERE work_order_type = 'PRODUCTION' AND status = 'BEKLIYOR';"))
             db.commit()
         except Exception as e:
             db.rollback()
@@ -2533,7 +2534,7 @@ class WebBridge(QObject):
                 "qty": qty,
                 "tech": assigned_technician or None,
                 "dept": department or None,
-                "status": PRODUCTION_WO_STATUS_WAITING
+                "status": PRODUCTION_WO_STATUS_IN_PRODUCTION
             }).scalar()
 
             for bom_row in bom_rows:
@@ -3388,7 +3389,7 @@ class WebBridge(QObject):
             wop_id = int(wop_id_str)
             result = db.execute(text("""
                 UPDATE warehouse.work_order_parts
-                SET status = 'Tedarik Bekleniyor', waiting_notes = :notes,
+                SET status = 'Stokta Var', waiting_notes = :notes,
                     marked_waiting_by = :user, marked_waiting_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
                 WHERE id = :id AND status != 'Teslim Edildi'
             """), {"notes": notes or None, "user": username or None, "id": wop_id})
@@ -3604,7 +3605,7 @@ class WebBridge(QObject):
                 INSERT INTO warehouse.work_order_parts
                     (work_order_id, part_id, quantity, status, waiting_notes, marked_waiting_by, marked_waiting_at, requested_by)
                 VALUES
-                    (:wid, :pid, :qty, 'Tedarik Bekleniyor', :notes, :user, CURRENT_TIMESTAMP, :user)
+                    (:wid, :pid, :qty, 'Stokta Var', :notes, :user, CURRENT_TIMESTAMP, :user)
             """), {"wid": work_order_id, "pid": part_id, "qty": qty, "notes": notes or None, "user": username or None})
             db.commit()
             return json.dumps({"success": True})
@@ -3629,7 +3630,7 @@ class WebBridge(QObject):
                 JOIN warehouse.work_orders w ON w.id = wop.work_order_id
                 LEFT JOIN warehouse.service_records s ON s.id = w.service_record_id
                 LEFT JOIN warehouse.parts p ON p.id = wop.part_id
-                WHERE wop.status = 'Tedarik Bekleniyor'
+                WHERE wop.status IN ('Tedarik Bekleniyor', 'Stokta Var')
                 ORDER BY wop.marked_waiting_at ASC
             """)).mappings().all()
 
