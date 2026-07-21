@@ -102,7 +102,8 @@ export default function WorkOrders() {
   const currentUser = getCurrentUser();
   // MainLayout.jsx'teki rol normalizasyonuyla aynı mantık (bkz. o dosya)
   const rawRole = (currentUser?.role || 'Admin').toLowerCase();
-  const userRole = (rawRole === 'developer') ? 'admin' : (rawRole.startsWith('tec_') || rawRole === 'staff' || rawRole === 'qac' || rawRole === 'log_p') ? 'teknisyen' : rawRole;
+  const isDeveloper = rawRole === 'developer';
+  const userRole = isDeveloper ? 'admin' : (rawRole.startsWith('tec_') || rawRole === 'staff' || rawRole === 'qac' || rawRole === 'log_p') ? 'teknisyen' : rawRole;
   const canManageStock = userRole === 'admin' || userRole === 'depo' || userRole === 'depo müdürü';
 
   // --- Parça Tedarik Durumu (live, kayıtlı iş emri için) state ---
@@ -1182,7 +1183,7 @@ export default function WorkOrders() {
 
   const TABS = [
     { key: 'production', label: 'Yarı Mamul Üretimi', icon: Factory },
-    { key: 'recent_productions', label: 'Hızlı Tekrar Üretim', icon: Repeat },
+    ...(isDeveloper ? [{ key: 'recent_productions', label: 'Hızlı Tekrar Üretim', icon: Repeat }] : []),
     { key: 'consumption', label: 'Malzeme Tüketimi', icon: Package },
     { key: 'production_report', label: 'Üretim Raporu', icon: TrendingUp },
     { key: 'production_work_orders', label: 'Üretim İş Emirleri', icon: Layers },
@@ -1237,10 +1238,7 @@ export default function WorkOrders() {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-400 mb-1.5">Açıklama</label>
-                <textarea rows={2} placeholder="Bu iş emrinde yapılacak işin açıklaması..." className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 resize-none" value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} />
-              </div>
+
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
@@ -1614,10 +1612,7 @@ export default function WorkOrders() {
                 )}
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-400 mb-1.5">Notlar</label>
-                <textarea rows={2} placeholder="İsteğe bağlı not..." className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 resize-none" value={productionForm.notes} onChange={e => setProductionForm({ ...productionForm, notes: e.target.value })} />
-              </div>
+
 
               <div className="flex justify-end gap-3 pt-6 border-t border-slate-200 dark:border-slate-700/50 mt-6">
                 <button
@@ -1950,9 +1945,11 @@ export default function WorkOrders() {
                             <button onClick={() => setDetailDialog(run)} className="p-1.5 text-slate-400 hover:bg-slate-400/10 rounded-lg transition-colors" title="Detayları Göster">
                               <Info size={16} />
                             </button>
-                            <button onClick={() => handleRepeatProduction(run)} className="p-1.5 text-blue-400 hover:bg-blue-400/10 rounded-lg transition-colors" title="İşlemi Tekrarla">
-                              <Repeat size={16} />
-                            </button>
+                            {isDeveloper && (
+                              <button onClick={() => handleRepeatProduction(run)} className="p-1.5 text-blue-400 hover:bg-blue-400/10 rounded-lg transition-colors" title="İşlemi Tekrarla">
+                                <Repeat size={16} />
+                              </button>
+                            )}
                             {!run.is_returned && (
                               <button onClick={() => { setReturnDialog(run); setReturnLocationId('27'); setReturnReason(''); setDefectiveParts({}); setReplacementParts({}); setReplacementQty(0); }} className="p-1.5 text-amber-500 hover:bg-amber-500/10 rounded-lg transition-colors" title="İade / Değişim">
                                 <RotateCcw size={16} />
@@ -2032,28 +2029,9 @@ export default function WorkOrders() {
                     <p className="text-xs text-slate-500 mt-1">Yalnızca tanımlı bir reçetesi olan parçalar listelenir.</p>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-slate-400 mb-1.5">Açıklama</label>
-                    <textarea
-                      rows={2}
-                      placeholder="Bu üretim iş emrinin açıklaması..."
-                      className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-teal-500 resize-none"
-                      value={productionWOForm.description}
-                      onChange={e => setProductionWOForm({ ...productionWOForm, description: e.target.value })}
-                    />
-                  </div>
+
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <div>
-                      <label className="block text-sm font-medium text-slate-400 mb-1.5">Öncelik</label>
-                      <select
-                        className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-teal-500"
-                        value={productionWOForm.priority}
-                        onChange={e => setProductionWOForm({ ...productionWOForm, priority: e.target.value })}
-                      >
-                        {PRIORITY_OPTIONS.map(p => <option key={p} value={p}>{p}</option>)}
-                      </select>
-                    </div>
                     <div>
                       <label className="block text-sm font-medium text-slate-400 mb-1.5">Planlanan Üretim Adedi <span className="text-red-400">*</span></label>
                       <input
@@ -2100,7 +2078,7 @@ export default function WorkOrders() {
                     <th className="px-6 py-4">Üretilecek Parça</th>
                     <th className="px-6 py-4">Planlanan Adet</th>
                     <th className="px-6 py-4">Teknisyen</th>
-                    <th className="px-6 py-4">Öncelik</th>
+
                     <th className="px-6 py-4">Durum</th>
                     <th className="px-6 py-4">Oluşturma Tarihi</th>
                   </tr>
@@ -2129,11 +2107,7 @@ export default function WorkOrders() {
                         </td>
                         <td className="px-6 py-4 font-mono">{order.planned_quantity !== '' ? order.planned_quantity : '-'}</td>
                         <td className="px-6 py-4">{order.assigned_technician || '-'}</td>
-                        <td className="px-6 py-4">
-                          <span className={`inline-block whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-medium border ${PRIORITY_STYLES[order.priority] || PRIORITY_STYLES['Orta']}`}>
-                            {order.priority}
-                          </span>
-                        </td>
+
                         <td className="px-6 py-4">
                           <span className={`inline-block whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-medium border ${PRODUCTION_WO_STATUS_STYLES[order.status] || PRODUCTION_WO_STATUS_STYLES['BEKLIYOR']}`}>
                             {PRODUCTION_WO_STATUS_LABELS[order.status] || order.status}
@@ -2273,10 +2247,7 @@ export default function WorkOrders() {
                     <div className="text-xs text-slate-400 mb-1">Üretilen</div>
                     <div className="text-sm font-medium font-mono text-slate-800 dark:text-slate-200">{selectedProductionOrder.produced_quantity !== '' ? selectedProductionOrder.produced_quantity : '-'}</div>
                   </div>
-                  <div className="col-span-2 md:col-span-4">
-                    <div className="text-xs text-slate-400 mb-1">Üretim Notu</div>
-                    <div className="text-sm text-slate-800 dark:text-slate-200">{selectedProductionOrder.production_notes || '-'}</div>
-                  </div>
+
                 </div>
 
                 <div className="border-t border-slate-200 dark:border-slate-700/50 flex items-center gap-2 px-6 py-4">
@@ -2661,16 +2632,7 @@ export default function WorkOrders() {
 
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-400 mb-1.5">Üretim Notu</label>
-                <textarea
-                  rows={2}
-                  placeholder="İsteğe bağlı not..."
-                  className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-emerald-500 resize-none"
-                  value={completeForm.production_notes}
-                  onChange={e => setCompleteForm({ ...completeForm, production_notes: e.target.value })}
-                />
-              </div>
+
 
               <div className="flex justify-end gap-3 pt-2">
                 <button type="button" onClick={() => setCompleteDialog(null)} className="px-4 py-2.5 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors border border-slate-300 dark:border-slate-600">İptal</button>
