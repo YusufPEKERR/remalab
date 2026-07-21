@@ -223,6 +223,7 @@ export default function Parts() {
         ...formData,
         department: selectedCategory ? selectedCategory.departments : formData.department,
         stock_tracking_type: selectedCategory ? selectedCategory.stock_tracking_type : formData.stock_tracking_type,
+        part_category: selectedCategory ? selectedCategory.name : formData.part_category,
         part_type: formData.part_type,
         memory: Array.isArray(formData.memory) ? formData.memory.join(', ') : (formData.memory || '')
       };
@@ -700,6 +701,7 @@ export default function Parts() {
                     setFormData({
                       ...formData, 
                       part_category_id: selectedCatId,
+                      part_category: cat ? cat.name : '',
                       name: cat ? cat.name : ''
                     });
                   }}
