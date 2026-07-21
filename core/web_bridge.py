@@ -51,6 +51,7 @@ SYSTEM_LOCATION_KINDS = {
     "repair_stock": "Repair Stock",
     "scrap_stock": "Scrap Stock",
     "out_stock": "Out Stock",
+    "wip_stock": "Üretim Alanı (WIP)",
 }
 
 # Depolar arası manuel "Stok Transferi" akışının izin verdiği kaynak->hedef
@@ -62,6 +63,7 @@ SYSTEM_TRANSFER_RULES = {
     "doa_stock": {"good_stock", "scrap_stock"},
     "out_stock": set(),
     "scrap_stock": set(),
+    "wip_stock": set(),
 }
 
 # work_orders.work_order_type için desteklenen değerler. SERVICE, mevcut/varsayılan
@@ -2350,10 +2352,13 @@ class WebBridge(QObject):
 
             good_stock_id = _get_system_location_id(db, "good_stock")
             scrap_stock_id = _get_system_location_id(db, "scrap_stock")
+            wip_stock_id = _get_system_location_id(db, "wip_stock")
             if not good_stock_id:
                 return json.dumps({"success": False, "message": "Good Stock deposu bulunamadı."})
             if scrap_quantity > 0 and not scrap_stock_id:
                 return json.dumps({"success": False, "message": "Scrap Stock deposu bulunamadı."})
+            if not wip_stock_id:
+                return json.dumps({"success": False, "message": "Üretim Alanı (WIP) deposu bulunamadı."})
 
             # Tüketilen hammaddeler: her malzeme talebinin fiilen üretime giden kısmı
             # (issued - fire). Fire olarak DOA'ya iade edilenler zaten oradan çıkarılmıştı.
@@ -2396,6 +2401,21 @@ class WebBridge(QObject):
                         INSERT INTO warehouse.production_materials (production_run_id, part_id, quantity_consumed)
                         VALUES (:run_id, :pid, :qty)
                     """), {"run_id": run_id, "pid": part_id, "qty": qty_consumed})
+                    
+                    # Deduct from WIP Stock
+                    wip_stock_entry = db.query(Stock).filter(Stock.part_id == part_id, Stock.location_id == wip_stock_id).first()
+                    if wip_stock_entry:
+                        wip_stock_entry.quantity -= qty_consumed
+                        
+                    db.add(StockMovement(
+                        type="Üretim İçin Malzeme Tüketimi",
+                        movement_kind="Outbound",
+                        quantity=qty_consumed,
+                        part_id=part_id,
+                        source_location_id=wip_stock_id,
+                        created_by=username or None,
+                        description=f"İş Emri REM-PRD-{work_order_id:06d} tamamlandı, malzemeler tüketildi"
+                    ))
 
                 db.add(StockMovement(
                     type="Üretim",
@@ -2550,8 +2570,11 @@ class WebBridge(QObject):
                 return json.dumps({"success": False, "message": f"Kalan miktardan ({remaining}) fazla teslim edilemez."})
 
             good_stock_id = _get_system_location_id(db, "good_stock")
+            wip_stock_id = _get_system_location_id(db, "wip_stock")
             if not good_stock_id:
                 return json.dumps({"success": False, "message": "Good Stock deposu bulunamadı."})
+            if not wip_stock_id:
+                return json.dumps({"success": False, "message": "Üretim Alanı (WIP) deposu bulunamadı."})
 
             stock = db.query(Stock).filter(Stock.part_id == row["part_id"], Stock.location_id == good_stock_id).first()
             available = stock.quantity if stock else 0
@@ -2559,15 +2582,23 @@ class WebBridge(QObject):
                 return json.dumps({"success": False, "message": f"Good Stock'ta yeterli stok yok. Mevcut: {available}, İstenen: {quantity}."})
 
             stock.quantity -= quantity
+            
+            wip_stock_entry = db.query(Stock).filter(Stock.part_id == row["part_id"], Stock.location_id == wip_stock_id).first()
+            if wip_stock_entry:
+                wip_stock_entry.quantity += quantity
+            else:
+                db.add(Stock(part_id=row["part_id"], location_id=wip_stock_id, quantity=quantity))
+
             db.add(StockMovement(
                 type="Üretim İçin Malzeme Teslimi",
                 movement_kind="Transfer",
                 quantity=quantity,
                 part_id=row["part_id"],
                 source_location_id=good_stock_id,
+                target_location_id=wip_stock_id,
                 created_by=username or None,
                 technician=username or None,
-                description=f"Production Work Order #{row['work_order_id']} - Material Request #{mr_id} teslimi"
+                description=f"Hedef: İş Emri REM-PRD-{row['work_order_id']:06d} - Material Request #{mr_id} teslimi"
             ))
 
             new_issued = row["issued_quantity"] + quantity
@@ -2635,8 +2666,15 @@ class WebBridge(QObject):
                 return json.dumps({"success": False, "message": f"En fazla {unaccounted} adet fire bildirebilirsiniz (teslim edilmiş, henüz fire işlenmemiş miktarı aşamaz)."})
 
             doa_stock_id = _get_system_location_id(db, "doa_stock")
+            wip_stock_id = _get_system_location_id(db, "wip_stock")
             if not doa_stock_id:
                 return json.dumps({"success": False, "message": "DOA Stock deposu bulunamadı."})
+            if not wip_stock_id:
+                return json.dumps({"success": False, "message": "Üretim Alanı (WIP) deposu bulunamadı."})
+
+            wip_stock_entry = db.query(Stock).filter(Stock.part_id == row["part_id"], Stock.location_id == wip_stock_id).first()
+            if wip_stock_entry:
+                wip_stock_entry.quantity -= fire_qty
 
             doa_stock = db.query(Stock).filter(Stock.part_id == row["part_id"], Stock.location_id == doa_stock_id).first()
             if doa_stock:
@@ -2646,13 +2684,14 @@ class WebBridge(QObject):
 
             db.add(StockMovement(
                 type="Fire İadesi",
-                movement_kind="Inbound",
+                movement_kind="Transfer",
                 quantity=fire_qty,
                 part_id=row["part_id"],
+                source_location_id=wip_stock_id,
                 target_location_id=doa_stock_id,
                 created_by=username or None,
                 technician=username or None,
-                description=f"Production Work Order #{row['work_order_id']} - Material Request #{mr_id} fire iadesi"
+                description=f"Kaynak: İş Emri REM-PRD-{row['work_order_id']:06d} - Material Request #{mr_id} fire iadesi"
             ))
 
             new_fire_total = row["fire_quantity"] + fire_qty
