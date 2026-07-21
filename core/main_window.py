@@ -7,7 +7,7 @@ from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWebChannel import QWebChannel, QWebChannelAbstractTransport
 from PySide6.QtWebSockets import QWebSocketServer
 from PySide6.QtNetwork import QHostAddress
-from PySide6.QtCore import QUrl
+from PySide6.QtCore import QUrl, QObject
 import os
 import functools
 import http.server
@@ -242,4 +242,92 @@ class MainWindow(QMainWindow):
         self.channel.connectTo(transport)
         self.transports.append(transport)
         socket.disconnected.connect(lambda: self.transports.remove(transport) if transport in self.transports else None)
+
+
+class HeadlessServer(QObject):
+    """Penceresiz (headless) sunucu modu için arka plan servislerini yöneten sınıf."""
+    def __init__(self):
+        super().__init__()
+        self.channel = QWebChannel()
+        self.web_bridge = WebBridge()
+        self.channel.registerObject("backend", self.web_bridge)
+
+        self.transports = []
+        self.websocket_server = QWebSocketServer(
+            "RemaLab WMS WebSocket Server",
+            QWebSocketServer.NonSecureMode,
+            self
+        )
+        if self.websocket_server.listen(QHostAddress.Any, 5174):
+            print("[INFO] QWebChannel WebSocket sunucusu 5174 portunda başlatıldı (HEADLESS).")
+            self.websocket_server.newConnection.connect(self.on_new_websocket_connection)
+        else:
+            print("[ERROR] QWebChannel WebSocket sunucusu başlatılamadı!")
+
+        self._dev_process = None
+        self._static_httpd = None
+
+        if os.getenv("DEV_MODE", "1") == "1":
+            if not _is_port_in_use("127.0.0.1", 5173):
+                base_dir = os.path.dirname(os.path.dirname(__file__))
+                frontend_dir = os.path.join(base_dir, "frontend")
+                import subprocess
+                import sys
+
+                cmd = "npm run dev"
+                try:
+                    creationflags = 0
+                    if sys.platform == "win32":
+                        creationflags = subprocess.CREATE_NO_WINDOW
+
+                    self._dev_process = subprocess.Popen(
+                        cmd,
+                        shell=True,
+                        cwd=frontend_dir,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                        creationflags=creationflags
+                    )
+                    print("[INFO] React Vite dev sunucusu otomatik başlatılıyor...")
+                except Exception as e:
+                    print(f"[ERROR] React dev sunucusu başlatılamadı: {e}")
+        else:
+            base_dir = os.path.dirname(os.path.dirname(__file__))
+            dist_dir = os.path.join(base_dir, "frontend", "dist")
+            self._static_httpd = _start_static_server(dist_dir)
+            port = self._static_httpd.server_address[1]
+            print(f"[INFO] Statik sunucu 127.0.0.1:{port} portunda başlatıldı.")
+
+    def on_new_websocket_connection(self):
+        socket = self.websocket_server.nextPendingConnection()
+        transport = WebSocketTransport(socket)
+        self.channel.connectTo(transport)
+        self.transports.append(transport)
+        socket.disconnected.connect(lambda: self.transports.remove(transport) if transport in self.transports else None)
+
+    def stop(self):
+        if self._dev_process:
+            try:
+                import subprocess
+                import sys
+                if sys.platform == "win32":
+                    subprocess.run(
+                        ["taskkill", "/F", "/T", "/PID", str(self._dev_process.pid)],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                        creationflags=subprocess.CREATE_NO_WINDOW
+                    )
+                else:
+                    self._dev_process.terminate()
+                    self._dev_process.wait(timeout=2)
+                print("[INFO] React Vite dev sunucusu durduruldu.")
+            except Exception as e:
+                print(f"[WARN] React dev sunucusu kapatılamadı: {e}")
+
+        if self._static_httpd:
+            try:
+                self._static_httpd.shutdown()
+                print("[INFO] Statik sunucu durduruldu.")
+            except Exception as e:
+                print(f"[WARN] Statik sunucu kapatılamadı: {e}")
 
