@@ -43,6 +43,7 @@ export default function Parts() {
     "ID": true,
     "Parça Kodu": true,
     "Barkod": true,
+    "Parça Adı": true,
     "Item Category": true,
     "Parça Kategorisi": true,
     "Parça Tipi": true,
@@ -58,10 +59,11 @@ export default function Parts() {
 
   const PART_STATUSES = ['Aktif', 'Pasif', 'Beklemede', 'Hurda'];
 
-  const dbColumns = ["item_code", "barcode", "item_category", "part_category", "status", "part_type"];
+  const dbColumns = ["item_code", "barcode", "name", "item_category", "part_category", "status", "part_type"];
   const friendlyNames = {
     item_code: "Parça Kodu (item_code) *",
     barcode: "Barkod (barcode)",
+    name: "Parça Adı (name)",
     item_category: "Item Category (item_category)",
     part_category: "Parça Kategorisi (part_category)",
     status: "Parça Statüsü (status)",
@@ -470,7 +472,12 @@ export default function Parts() {
                     <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'item_code' ? 'text-blue-500' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
                   </div>
                 </th>
-
+                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('name')}>
+                  <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                    PARÇA ADI
+                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'name' ? 'text-blue-500' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
+                  </div>
+                </th>
                 <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('item_category')}>
                   <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
                     ITEM CATEGORY
@@ -501,14 +508,14 @@ export default function Parts() {
             <tbody className="divide-y divide-slate-700/50">
               {loading ? (
                 <tr>
-                  <td colSpan="8" className="px-6 py-8 text-center text-slate-400">
+                  <td colSpan="9" className="px-6 py-8 text-center text-slate-400">
                     <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-400" />
                     Yükleniyor...
                   </td>
                 </tr>
               ) : paginatedParts.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="px-6 py-8 text-center text-slate-500">
+                  <td colSpan="9" className="px-6 py-8 text-center text-slate-500">
                     Kayıt bulunamadı.
                   </td>
                 </tr>
@@ -527,6 +534,7 @@ export default function Parts() {
                     </td>
                     <td className="px-6 py-4 font-mono text-slate-400">{part.id}</td>
                     <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200">{part.item_code}</td>
+                    <td className="px-6 py-4">{part.name}</td>
 
                     <td className="px-6 py-4">
                       {part.item_category && (
