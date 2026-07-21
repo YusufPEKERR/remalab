@@ -935,7 +935,7 @@ class WebBridge(QObject):
     def get_parts(self):
         filename = "parts.json"
         path = os.path.join(get_cache_dirs()[0], filename)
-        fetch_url = f"http://localhost:5173/api_cache/{filename}" if os.getenv("DEV_MODE", "1") == "1" else f"/api_cache/{filename}"
+        fetch_url = f"/api_cache/{filename}"
         if os.path.exists(path):
             return json.dumps({"success": True, "fetch_url": fetch_url})
             
@@ -4351,7 +4351,7 @@ class WebBridge(QObject):
     def get_stock_status(self):
         filename = "stock.json"
         path = os.path.join(get_cache_dirs()[0], filename)
-        fetch_url = f"http://localhost:5173/api_cache/{filename}" if os.getenv("DEV_MODE", "1") == "1" else f"/api_cache/{filename}"
+        fetch_url = f"/api_cache/{filename}"
         if os.path.exists(path):
             return json.dumps({"success": True, "fetch_url": fetch_url})
 
@@ -4928,7 +4928,7 @@ class WebBridge(QObject):
     def get_critical_stock(self):
         filename = "critical.json"
         path = os.path.join(get_cache_dirs()[0], filename)
-        fetch_url = f"http://localhost:5173/api_cache/{filename}" if os.getenv("DEV_MODE", "1") == "1" else f"/api_cache/{filename}"
+        fetch_url = f"/api_cache/{filename}"
         if os.path.exists(path):
             return json.dumps({"success": True, "fetch_url": fetch_url})
 
