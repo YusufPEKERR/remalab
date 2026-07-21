@@ -1331,6 +1331,25 @@ class WebBridge(QObject):
         finally:
             db.close()
 
+    @Slot(result=str)
+    def get_product_families(self):
+        """Aktif ürün ailesi (cihaz modeli) adlarını getirir. MioCreate.xlsx -> ProductFamily'den seed edilmiştir."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            rows = db.execute(text("""
+                SELECT id, name
+                FROM warehouse.product_families
+                WHERE is_active IS TRUE
+                ORDER BY name ASC
+            """)).mappings().all()
+            families = [{"id": r["id"], "name": r["name"]} for r in rows]
+            return json.dumps({"success": True, "product_families": families})
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
     # --- PARÇA KATEGORİSİ MODÜLÜ ---
     @Slot(result=str)
     def get_part_categories(self):

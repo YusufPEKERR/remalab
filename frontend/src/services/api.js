@@ -301,6 +301,17 @@ export const api = {
         });
     },
 
+    getProductFamilies: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_product_families) {
+                backend.get_product_families((res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true, product_families: [] });
+            }
+        });
+    },
+
     // ==========================
     // PARÇA KATEGORİLERİ
     // ==========================

@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo } from 'react';
 import { Plus, Search, Trash2, Edit, AlertCircle, RefreshCw, X, Download, Upload, FileSpreadsheet, ArrowUpDown } from 'lucide-react';
 import { api } from '../services/api';
 import ExcelMappingModal from '../components/ExcelMappingModal';
-import { PRODUCT_FAMILY_NAMES } from '../data/productFamilyNames';
 
 
 const EMPTY_FORM = {
@@ -48,6 +47,7 @@ export default function Parts() {
   const [partCategories, setPartCategories] = useState([]);
   const [departmentList, setDepartmentList] = useState([]);
   const [products, setProducts] = useState([]);
+  const [productFamilyNames, setProductFamilyNames] = useState([]);
 
   const PART_STATUSES = ['Aktif', 'Pasif', 'Beklemede', 'Hurda'];
 
@@ -95,6 +95,17 @@ export default function Parts() {
     }
   };
 
+  const fetchProductFamilies = async () => {
+    try {
+      const res = await api.getProductFamilies();
+      if (res.success) {
+        setProductFamilyNames((res.product_families || []).map(f => f.name));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const fetchParts = async (silent = false) => {
     if (!silent) setLoading(true);
     try {
@@ -114,6 +125,7 @@ export default function Parts() {
     fetchPartCategories();
     fetchDepartments();
     fetchProducts();
+    fetchProductFamilies();
     // Başka bilgisayarlardan yapılan değişiklikleri yakalamak için periyodik, sessiz yenileme
     const interval = setInterval(() => fetchParts(true), 60000);
     return () => clearInterval(interval);
@@ -660,7 +672,7 @@ export default function Parts() {
                   placeholder="Örn: iPhone 13"
                 />
                 <datalist id="product-family-list">
-                  {PRODUCT_FAMILY_NAMES.map(n => <option key={n} value={n} />)}
+                  {productFamilyNames.map(n => <option key={n} value={n} />)}
                 </datalist>
               </div>
 
