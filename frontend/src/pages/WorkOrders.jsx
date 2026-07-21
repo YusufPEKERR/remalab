@@ -225,11 +225,11 @@ export default function WorkOrders() {
       
       // 1. Prioritize active Work Orders
       const activeWO = productionWorkOrders.find(wo => 
-        wo.id === numericQuery && (wo.status === 'BEKLIYOR' || wo.status === 'URETIMDE')
+        Number(wo.id) === numericQuery && (wo.status === 'BEKLIYOR' || wo.status === 'URETIMDE')
       );
       if (activeWO) {
         handleSelectProductionOrder(activeWO);
-        setActiveTab('production');
+        setSearchedBarcodeResult(null); // Clear any previous production run result
         return;
       }
     }
@@ -238,21 +238,23 @@ export default function WorkOrders() {
     const found = productionRuns.find(run => run.serial_number === query);
     if (found) {
       setSearchedBarcodeResult(found);
+      setSelectedProductionOrderId(null); // Hide Work Order details if a Production Run is found
       return;
     }
 
     // 3. Finally, check if it's an inactive Work Order
     if (isNumber) {
       const numericQuery = parseInt(query, 10);
-      const anyWO = productionWorkOrders.find(wo => wo.id === numericQuery);
+      const anyWO = productionWorkOrders.find(wo => Number(wo.id) === numericQuery);
       if (anyWO) {
         handleSelectProductionOrder(anyWO);
-        setActiveTab('production');
+        setSearchedBarcodeResult(null);
         return;
       }
     }
 
     setSearchedBarcodeResult('not_found');
+    setSelectedProductionOrderId(null);
   };
 
   useEffect(() => {
@@ -1248,6 +1250,121 @@ export default function WorkOrders() {
     { key: 'production_work_orders', label: 'Üretim İş Emirleri', icon: Layers },
     { key: 'barcode_search', label: 'Barkod Sorgula', icon: Scan }
   ];
+
+  const renderProductionOrderDetails = () => {
+    if (!selectedProductionOrder) return null;
+    return (
+              <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden">
+                <div className="flex justify-between items-center p-6 pb-4">
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                      <Layers size={20} className="text-teal-400" /> İş Emri {String(selectedProductionOrder.id).padStart(15, '0')} — {selectedProductionOrder.target_part_name || '-'}
+                    </h3>
+                    <p className="text-slate-400 text-sm mt-1">{selectedProductionOrder.target_part_code}</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {selectedProductionOrder.status === 'BEKLIYOR' && (
+                      <button
+                        onClick={() => handleStartProduction(selectedProductionOrder)}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium transition-colors shadow-lg shadow-blue-900/20"
+                      >
+                        Üretimi Başlat
+                      </button>
+                    )}
+                    {selectedProductionOrder.status === 'URETIMDE' && (
+                      <button
+                        onClick={() => handleOpenCompleteDialog(selectedProductionOrder)}
+                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium transition-colors shadow-lg shadow-emerald-900/20"
+                      >
+                        Tamamla
+                      </button>
+                    )}
+                    <span className={`inline-block whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-medium border ${PRODUCTION_WO_STATUS_STYLES[selectedProductionOrder.status] || PRODUCTION_WO_STATUS_STYLES['BEKLIYOR']}`}>
+                      {PRODUCTION_WO_STATUS_LABELS[selectedProductionOrder.status] || selectedProductionOrder.status}
+                    </span>
+                    <button onClick={() => setSelectedProductionOrderId(null)} className="p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-[#2a3142] rounded-lg transition-colors">
+                      <X size={18} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="border-t border-slate-200 dark:border-slate-700/50 flex items-center gap-2 px-6 py-4">
+                  <Package size={18} className="text-teal-400" />
+                  <h4 className="font-bold text-slate-800 dark:text-slate-100">Malzeme Talepleri</h4>
+                  <span className="text-xs text-slate-400">(bu iş emrinin reçetesinden otomatik oluşturulan, salt okunur)</span>
+                </div>
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs">
+                    <tr>
+                      <th className="px-6 py-4">Parça</th>
+                      <th className="px-6 py-4">Teknisyen</th>
+                      <th className="px-6 py-4">Gerekli</th>
+                      <th className="px-6 py-4">Verilen</th>
+                      <th className="px-6 py-4">Fire</th>
+                      <th className="px-6 py-4">Kalan</th>
+                      <th className="px-6 py-4">Durum</th>
+                      <th className="px-6 py-4 text-center">İşlemler</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-700/50">
+                    {materialRequestsLoading ? (
+                      <tr>
+                        <td colSpan="8" className="px-6 py-8 text-center text-slate-400">Yükleniyor...</td>
+                      </tr>
+                    ) : materialRequests.length === 0 ? (
+                      <tr>
+                        <td colSpan="8" className="px-6 py-8 text-center text-slate-500">Malzeme talebi bulunamadı.</td>
+                      </tr>
+                    ) : (
+                      materialRequests.map(mr => (
+                        <tr key={mr.id} className="text-slate-700 dark:text-slate-300">
+                          <td className="px-6 py-4">
+                            <div className="font-medium text-slate-800 dark:text-slate-200">{mr.part_name || '-'}</div>
+                            <div className="text-xs text-slate-400">{mr.item_code}</div>
+                          </td>
+                          <td className="px-6 py-4">{selectedProductionOrder?.assigned_technician || '-'}</td>
+                          <td className="px-6 py-4 font-mono">{mr.required_quantity}</td>
+                          <td className="px-6 py-4 font-mono">{mr.issued_quantity}</td>
+                          <td className="px-6 py-4 font-mono text-orange-500">{mr.fire_quantity || 0}</td>
+                          <td className="px-6 py-4 font-mono">{mr.remaining_quantity}</td>
+                          <td className="px-6 py-4">
+                            <span className={`inline-block whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-medium border ${MATERIAL_REQUEST_STATUS_STYLES[mr.status] || MATERIAL_REQUEST_STATUS_STYLES['WAITING']}`}>
+                              {MATERIAL_REQUEST_STATUS_LABELS[mr.status] || mr.status}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <div className="flex items-center justify-center gap-1.5">
+                              {mr.remaining_quantity > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenIssueDialog(mr)}
+                                  className="px-2.5 py-1.5 bg-teal-500/10 text-teal-500 hover:bg-teal-500 hover:text-white rounded-lg text-xs font-bold transition-colors"
+                                >
+                                  Teslim Et
+                                </button>
+                              )}
+                              {/* {(mr.issued_quantity - (mr.fire_quantity || 0)) > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleReportFire(mr)}
+                                  className="px-2.5 py-1.5 bg-orange-500/10 text-orange-500 hover:bg-orange-500 hover:text-white rounded-lg text-xs font-bold transition-colors"
+                                >
+                                  Fire Bildir
+                                </button>
+                              )} */}
+                              {mr.remaining_quantity <= 0 && (mr.issued_quantity - (mr.fire_quantity || 0)) <= 0 && (
+                                <span className="text-xs text-slate-500">—</span>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+    );
+  };
 
   return (
     <div className="h-full flex flex-col space-y-6 overflow-hidden">
@@ -2275,141 +2392,7 @@ export default function WorkOrders() {
             </div>
 
             {/* --- PRODUCTION WORK ORDER DETAY --- */}
-            {selectedProductionOrder && (
-              <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden">
-                <div className="flex justify-between items-center p-6 pb-4">
-                  <div>
-                    <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                      <Layers size={20} className="text-teal-400" /> İş Emri REM-PRD-{String(selectedProductionOrder.id).padStart(6, '0')} — {selectedProductionOrder.target_part_name || '-'}
-                    </h3>
-                    <p className="text-slate-400 text-sm mt-1">{selectedProductionOrder.target_part_code}</p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    {selectedProductionOrder.status === 'BEKLIYOR' && (
-                      <button
-                        onClick={() => handleStartProduction(selectedProductionOrder)}
-                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium transition-colors shadow-lg shadow-blue-900/20"
-                      >
-                        Üretimi Başlat
-                      </button>
-                    )}
-                    {selectedProductionOrder.status === 'URETIMDE' && (
-                      <button
-                        onClick={() => handleOpenCompleteDialog(selectedProductionOrder)}
-                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium transition-colors shadow-lg shadow-emerald-900/20"
-                      >
-                        Tamamla
-                      </button>
-                    )}
-                    <span className={`inline-block whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-medium border ${PRODUCTION_WO_STATUS_STYLES[selectedProductionOrder.status] || PRODUCTION_WO_STATUS_STYLES['BEKLIYOR']}`}>
-                      {PRODUCTION_WO_STATUS_LABELS[selectedProductionOrder.status] || selectedProductionOrder.status}
-                    </span>
-                    <button onClick={() => setSelectedProductionOrderId(null)} className="p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-[#2a3142] rounded-lg transition-colors">
-                      <X size={18} />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 px-6 pb-6">
-                  <div>
-                    <div className="text-xs text-slate-400 mb-1">Teknisyen</div>
-                    <div className="text-sm font-medium text-slate-800 dark:text-slate-200">{selectedProductionOrder.assigned_technician || '-'}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-slate-400 mb-1">Başlama Zamanı</div>
-                    <div className="text-sm font-medium text-slate-800 dark:text-slate-200">{selectedProductionOrder.started_at || '-'}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-slate-400 mb-1">Bitiş Zamanı</div>
-                    <div className="text-sm font-medium text-slate-800 dark:text-slate-200">{selectedProductionOrder.completed_at || '-'}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-slate-400 mb-1">Planlanan</div>
-                    <div className="text-sm font-medium font-mono text-slate-800 dark:text-slate-200">{selectedProductionOrder.planned_quantity !== '' ? selectedProductionOrder.planned_quantity : '-'}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-slate-400 mb-1">Üretilen</div>
-                    <div className="text-sm font-medium font-mono text-slate-800 dark:text-slate-200">{selectedProductionOrder.produced_quantity !== '' ? selectedProductionOrder.produced_quantity : '-'}</div>
-                  </div>
-
-                </div>
-
-                <div className="border-t border-slate-200 dark:border-slate-700/50 flex items-center gap-2 px-6 py-4">
-                  <Package size={18} className="text-teal-400" />
-                  <h4 className="font-bold text-slate-800 dark:text-slate-100">Malzeme Talepleri</h4>
-                  <span className="text-xs text-slate-400">(bu iş emrinin reçetesinden otomatik oluşturulan, salt okunur)</span>
-                </div>
-                <table className="w-full text-left text-sm">
-                  <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs">
-                    <tr>
-                      <th className="px-6 py-4">Parça</th>
-                      <th className="px-6 py-4">Teknisyen</th>
-                      <th className="px-6 py-4">Gerekli</th>
-                      <th className="px-6 py-4">Verilen</th>
-                      <th className="px-6 py-4">Fire</th>
-                      <th className="px-6 py-4">Kalan</th>
-                      <th className="px-6 py-4">Durum</th>
-                      <th className="px-6 py-4 text-center">İşlemler</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-700/50">
-                    {materialRequestsLoading ? (
-                      <tr>
-                        <td colSpan="8" className="px-6 py-8 text-center text-slate-400">Yükleniyor...</td>
-                      </tr>
-                    ) : materialRequests.length === 0 ? (
-                      <tr>
-                        <td colSpan="8" className="px-6 py-8 text-center text-slate-500">Malzeme talebi bulunamadı.</td>
-                      </tr>
-                    ) : (
-                      materialRequests.map(mr => (
-                        <tr key={mr.id} className="text-slate-700 dark:text-slate-300">
-                          <td className="px-6 py-4">
-                            <div className="font-medium text-slate-800 dark:text-slate-200">{mr.part_name || '-'}</div>
-                            <div className="text-xs text-slate-400">{mr.item_code}</div>
-                          </td>
-                          <td className="px-6 py-4">{selectedProductionOrder?.assigned_technician || '-'}</td>
-                          <td className="px-6 py-4 font-mono">{mr.required_quantity}</td>
-                          <td className="px-6 py-4 font-mono">{mr.issued_quantity}</td>
-                          <td className="px-6 py-4 font-mono text-orange-500">{mr.fire_quantity || 0}</td>
-                          <td className="px-6 py-4 font-mono">{mr.remaining_quantity}</td>
-                          <td className="px-6 py-4">
-                            <span className={`inline-block whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-medium border ${MATERIAL_REQUEST_STATUS_STYLES[mr.status] || MATERIAL_REQUEST_STATUS_STYLES['WAITING']}`}>
-                              {MATERIAL_REQUEST_STATUS_LABELS[mr.status] || mr.status}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-center">
-                            <div className="flex items-center justify-center gap-1.5">
-                              {mr.remaining_quantity > 0 && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleOpenIssueDialog(mr)}
-                                  className="px-2.5 py-1.5 bg-teal-500/10 text-teal-500 hover:bg-teal-500 hover:text-white rounded-lg text-xs font-bold transition-colors"
-                                >
-                                  Teslim Et
-                                </button>
-                              )}
-                              {/* {(mr.issued_quantity - (mr.fire_quantity || 0)) > 0 && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleReportFire(mr)}
-                                  className="px-2.5 py-1.5 bg-orange-500/10 text-orange-500 hover:bg-orange-500 hover:text-white rounded-lg text-xs font-bold transition-colors"
-                                >
-                                  Fire Bildir
-                                </button>
-                              )} */}
-                              {mr.remaining_quantity <= 0 && (mr.issued_quantity - (mr.fire_quantity || 0)) <= 0 && (
-                                <span className="text-xs text-slate-500">—</span>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            {renderProductionOrderDetails()}
           </div>
         )}
 
@@ -2568,6 +2551,9 @@ export default function WorkOrders() {
                 </div>
               </div>
             )}
+            
+            {/* Work Order Detay Gösterimi */}
+            {renderProductionOrderDetails()}
           </div>
         )}
       </div>
