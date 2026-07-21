@@ -2372,7 +2372,7 @@ class WebBridge(QObject):
                 }).scalar()
 
                 next_id = db.execute(text("SELECT nextval(pg_get_serial_sequence('warehouse.produced_units', 'id'))")).scalar()
-                serial_num = f"REM-PRD-{next_id:06d}"
+                serial_num = f"{next_id:015d}"
                 db.execute(text("""
                     INSERT INTO warehouse.produced_units (id, production_run_id, serial_number)
                     VALUES (:id, :run_id, :serial)
@@ -3514,7 +3514,7 @@ class WebBridge(QObject):
 
             # Tek bir ortak serial number (Cihaz Kimlik ID) oluştur ve tek satır olarak ekle
             next_id = db.execute(text("SELECT nextval(pg_get_serial_sequence('warehouse.produced_units', 'id'))")).scalar()
-            serial_num = f"REM-PRD-{next_id:06d}"
+            serial_num = f"{next_id:015d}"
 
             db.execute(text("""
                 INSERT INTO warehouse.produced_units (id, production_run_id, serial_number)
@@ -3821,7 +3821,7 @@ class WebBridge(QObject):
                 }).scalar()
 
                 replacement_next_id = db.execute(text("SELECT nextval(pg_get_serial_sequence('warehouse.produced_units', 'id'))")).scalar()
-                replacement_serial = f"REM-PRD-{replacement_next_id:06d}"
+                replacement_serial = f"{replacement_next_id:015d}"
                 db.execute(text("""
                     INSERT INTO warehouse.produced_units (id, production_run_id, serial_number)
                     VALUES (:id, :run_id, :serial)
