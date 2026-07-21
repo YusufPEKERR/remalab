@@ -1086,6 +1086,78 @@ class WebBridge(QObject):
         finally:
             db.close()
 
+    @Slot(result=str)
+    def get_product_boms(self):
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            bom_result = db.execute(text("""
+                SELECT b.id, b.product_model, b.child_item_code, b.quantity,
+                       p_child.name AS child_name, p_child.id AS child_part_id
+                FROM warehouse.product_boms b
+                LEFT JOIN warehouse.parts p_child ON p_child.item_code = b.child_item_code
+                ORDER BY b.product_model, b.child_item_code;
+            """)).mappings().all()
+
+            bom_map = {}
+            for row in bom_result:
+                model = row["product_model"]
+                if model not in bom_map:
+                    bom_map[model] = {
+                        "model": model,
+                        "materials": []
+                    }
+                bom_map[model]["materials"].append({
+                    "id": row["id"],
+                    "child_item_code": row["child_item_code"],
+                    "child_part_id": str(row["child_part_id"]) if row["child_part_id"] else "",
+                    "child_name": row["child_name"] or row["child_item_code"],
+                    "quantity": int(row["quantity"])
+                })
+            
+            return json.dumps({"success": True, "product_boms": list(bom_map.values())}, ensure_ascii=False)
+        except Exception as e:
+            print(f"[WebBridge] get_product_boms hatası: {e}")
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, str, result=str)
+    def create_product_bom(self, product_model, child_item_code, quantity):
+        from models.product_bom import ProductBOM
+        db = SessionLocal()
+        try:
+            new_bom = ProductBOM(
+                product_model=product_model,
+                child_item_code=child_item_code,
+                quantity=int(quantity) if quantity else 1
+            )
+            db.add(new_bom)
+            db.commit()
+            return json.dumps({"success": True})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
+    def delete_product_bom(self, bom_id):
+        from models.product_bom import ProductBOM
+        db = SessionLocal()
+        try:
+            bom = db.query(ProductBOM).filter(ProductBOM.id == int(bom_id)).first()
+            if bom:
+                db.delete(bom)
+                db.commit()
+                return json.dumps({"success": True})
+            return json.dumps({"success": False, "message": "BOM bulunamadı"})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
     @Slot(str, result=str)
     def get_item_model(self, item_code):
         """Parça Kodu girildiğinde Model alanını otomatik doldurmak için warehouse.item_models
@@ -1112,6 +1184,30 @@ class WebBridge(QObject):
                 return json.dumps({"success": True, "model": row2[0] or "", "brand": row2[1] or ""})
 
             return json.dumps({"success": False, "model": "", "brand": ""})
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
+    def get_item_codes_by_model(self, model_name):
+        """Ürün Ağacı (BOM) ekranında Model seçilince, Ana Parça/Alt Parça alanlarını
+        sadece o modele ait parça kodlarıyla sınırlamak için warehouse.item_models'i
+        (virgülle ayrılmış model listesi) sorgular."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            name = (model_name or "").strip()
+            if not name:
+                return json.dumps({"success": False, "item_codes": []})
+
+            rows = db.execute(text("""
+                SELECT item_code FROM warehouse.item_models
+                WHERE :name = ANY(string_to_array(model, ', '))
+                ORDER BY item_code
+            """), {"name": name}).all()
+            codes = [r[0] for r in rows]
+            return json.dumps({"success": True, "item_codes": codes})
         except Exception as e:
             return json.dumps({"success": False, "message": str(e)})
         finally:

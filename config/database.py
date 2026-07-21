@@ -93,6 +93,7 @@ def init_database_schema():
     from models.user import User  # Modellerin kaydolması için import
     from models.item_bom import ItemBOM
     from models.product import Product
+    from models.product_bom import ProductBOM
     # Diğer modeller de buraya eklenebilir
     try:
         Base.metadata.create_all(bind=get_engine())

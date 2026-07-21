@@ -3,7 +3,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
   LogOut, LayoutDashboard, Users, Package, Settings, Bell,
   Warehouse, FileText, BarChart2, Box, Truck, MapPin,
-  CheckCircle, Search, AlertTriangle, Zap, RefreshCw, Sun, Moon, Database, Building2, Wrench, ClipboardList, PackageSearch, PackagePlus, Tags, ChevronDown, ChevronRight, Menu, X
+  CheckCircle, Search, AlertTriangle, Zap, RefreshCw, Sun, Moon, Database, Building2, Wrench, ClipboardList, PackageSearch, PackagePlus, Tags, ChevronDown, ChevronRight, Menu, X, Layers
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useTheme } from '../context/ThemeContext';
@@ -96,7 +96,7 @@ export default function MainLayout() {
 
   // Permission maps based on Python code:
   const allowedPaths = {
-    'admin': ['/dashboard', '/depo', '/irsaliye', '/work-orders', '/supply-requests', '/raporlar', '/parts', '/part-categories', '/products', '/suppliers', '/locations', '/users', '/settings', '/departments', '/service-records', '/data-management', '/tedarik-talepleri', '/quality', '/refurbishment', '/priority'],
+    'admin': ['/dashboard', '/depo', '/irsaliye', '/work-orders', '/supply-requests', '/raporlar', '/parts', '/part-categories', '/products', '/suppliers', '/locations', '/users', '/settings', '/departments', '/service-records', '/data-management', '/tedarik-talepleri', '/quality', '/refurbishment', '/priority', '/item-bom'],
     'depo': ['/depo', '/irsaliye', '/work-orders', '/raporlar'],
     'depo müdürü': ['/dashboard', '/depo', '/irsaliye', '/work-orders', '/supply-requests', '/raporlar', '/parts', '/products', '/suppliers', '/locations', '/tedarik-talepleri', '/service-records'],
     'teknisyen': ['/dashboard', '/quality', '/refurbishment', '/priority']
@@ -143,6 +143,7 @@ export default function MainLayout() {
       items: [
         { name: 'Kullanıcılar', icon: Users, path: '/users' },
         { name: 'Parça Kategorileri', icon: Tags, path: '/part-categories' },
+        { name: 'Ürün Ağacı', icon: Layers, path: '/item-bom' },
         { name: 'Ayarlar', icon: Settings, path: '/settings' },
         { name: 'Veri Yönetimi', icon: Database, path: '/data-management' },
         { name: 'Departman Yönetimi', icon: Building2, path: '/departments' },
