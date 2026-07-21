@@ -23,17 +23,6 @@ const DEPARTMENTS = [
 // Backend'deki CUSTOMER_FLOW_VALUES (core/web_bridge.py) ile birebir aynı olmalı.
 const FLOW_VALUES = ['Refurbish', 'Repair', 'RMA', 'Battery Replacement'];
 
-// "Labour" veya "Service" vb. seçilirse backend (core/web_bridge.py) stok takibini otomatik "Stok Takipsiz" yapar.
-const PART_TYPE_OPTIONS = [
-  { value: 'SparePart', label: 'SparePart (Yedek Parça)' },
-  { value: 'Labour', label: 'Labour (İşçilik)' },
-  { value: 'ScrapPart', label: 'ScrapPart (Çıkma Parça)' },
-  { value: 'Service', label: 'Service (Hizmet)' },
-  { value: 'Cost', label: 'Cost (Masraf)' },
-  { value: 'SparePartLabour', label: 'SparePartLabour (Yedek Parça Değişim İşçiliği)' },
-  { value: 'Component', label: 'Component (Bileşen)' }
-];
-
 const EMPTY_FORM = {
   name: '', part_type: '', flow: '', departments: [], stock_tracking_type: 'Stok Takipli',
   is_active: true, description: ''
@@ -115,10 +104,6 @@ export default function PartCategories() {
 
   const handleSave = async (e) => {
     e.preventDefault();
-    if (!formData.part_type) {
-      alert('Parça Tipi seçiniz.');
-      return;
-    }
     if (!formData.flow) {
       alert('Flow seçiniz.');
       return;
@@ -299,23 +284,6 @@ export default function PartCategories() {
                     {dynamicPartTypes.map(t => <option key={t} value={t} />)}
                   </datalist>
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-400 mb-1.5">
-                  Parça Tipi <span className="text-red-400">*</span>
-                </label>
-                <select
-                  required
-                  className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
-                  value={formData.part_type}
-                  onChange={e => setFormData({...formData, part_type: e.target.value})}
-                >
-                  <option value="">Seçiniz...</option>
-                  {PART_TYPE_OPTIONS.map(opt => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
               </div>
 
               <div>

@@ -4,6 +4,13 @@ import { api } from '../services/api';
 import ExcelMappingModal from '../components/ExcelMappingModal';
 import TextCombobox from '../components/TextCombobox';
 
+// MioCreate.xlsx -> ItemType sayfasındaki kanonik kodların bir alt kümesi.
+// "Labour" seçilirse backend (core/web_bridge.py) stok takibini otomatik "Stok Takipsiz" yapar.
+const PART_TYPE_OPTIONS = [
+  { value: 'SparePart', label: 'SparePart (Yedek Parça)' },
+  { value: 'Labour', label: 'Labour (İşçilik)' },
+  { value: 'ScrapPart', label: 'ScrapPart (Çıkma Parça)' }
+];
 
 const EMPTY_FORM = {
   item_code: '', barcode: '', name: '', model: '', brand: '',
@@ -216,7 +223,7 @@ export default function Parts() {
         ...formData,
         department: selectedCategory ? selectedCategory.departments : formData.department,
         stock_tracking_type: selectedCategory ? selectedCategory.stock_tracking_type : formData.stock_tracking_type,
-        part_type: selectedCategory ? (selectedCategory.part_type || '') : formData.part_type,
+        part_type: formData.part_type,
         memory: Array.isArray(formData.memory) ? formData.memory.join(', ') : (formData.memory || '')
       };
       const res = currentPart
@@ -710,6 +717,23 @@ export default function Parts() {
                   onChange={v => setFormData({...formData, name: v})}
                   placeholder="Örn: iPhone 13"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-1">
+                  Parça Tipi <span className="text-red-400">*</span>
+                </label>
+                <select
+                  required
+                  className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                  value={formData.part_type}
+                  onChange={e => setFormData({...formData, part_type: e.target.value})}
+                >
+                  <option value="">Seçiniz...</option>
+                  {PART_TYPE_OPTIONS.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
               </div>
 
               {currentPart && (
