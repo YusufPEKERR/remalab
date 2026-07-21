@@ -2414,7 +2414,7 @@ class WebBridge(QObject):
                         part_id=part_id,
                         source_location_id=wip_stock_id,
                         created_by=username or None,
-                        description=f"İş Emri REM-PRD-{work_order_id:06d} tamamlandı, malzemeler tüketildi"
+                        description=f"İş Emri {work_order_id:015d} tamamlandı, malzemeler tüketildi"
                     ))
 
                 db.add(StockMovement(
@@ -2598,7 +2598,7 @@ class WebBridge(QObject):
                 target_location_id=wip_stock_id,
                 created_by=username or None,
                 technician=username or None,
-                description=f"Hedef: İş Emri REM-PRD-{row['work_order_id']:06d} - Material Request #{mr_id} teslimi"
+                description=f"Hedef: İş Emri {row['work_order_id']:015d} - Material Request #{mr_id} teslimi"
             ))
 
             new_issued = row["issued_quantity"] + quantity
@@ -2691,7 +2691,7 @@ class WebBridge(QObject):
                 target_location_id=doa_stock_id,
                 created_by=username or None,
                 technician=username or None,
-                description=f"Kaynak: İş Emri REM-PRD-{row['work_order_id']:06d} - Material Request #{mr_id} fire iadesi"
+                description=f"Kaynak: İş Emri {row['work_order_id']:015d} - Material Request #{mr_id} fire iadesi"
             ))
 
             new_fire_total = row["fire_quantity"] + fire_qty

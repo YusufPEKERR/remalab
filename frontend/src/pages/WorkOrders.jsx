@@ -216,18 +216,6 @@ export default function WorkOrders() {
     const query = barcodeSearchInput.trim();
     if (!query) return;
 
-    // Check if it is a Production Work Order barcode (e.g. REM-PRD-000001)
-    const woMatch = query.match(/^REM-PRD-(\d+)$/i);
-    if (woMatch) {
-      const woId = parseInt(woMatch[1], 10);
-      const foundWO = productionWorkOrders.find(wo => wo.id === woId);
-      if (foundWO) {
-        handleSelectProductionOrder(foundWO);
-        setActiveTab('production');
-        return;
-      }
-    }
-
     // Akıllı Tahmin (Smart Guessing) for numeric barcodes
     const isNumber = /^\d+$/.test(query);
     if (isNumber) {
@@ -2423,7 +2411,7 @@ export default function WorkOrders() {
                   <Scan size={32} className="animate-pulse" />
                 </div>
                 <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">Üretim Barkodu Sorgula</h2>
-                <p className="text-slate-400 text-sm mt-1 mb-6">İş Emri (Örn: REM-PRD-000001) veya 15 haneli üretim barkodunu okutarak arama yapın.</p>
+                <p className="text-slate-400 text-sm mt-1 mb-6">İş Emri (Örn: 000000000000051) veya 15 haneli üretim barkodunu okutarak arama yapın.</p>
                 
                 <form onSubmit={handleBarcodeSearch} className="flex gap-2">
                   <input
