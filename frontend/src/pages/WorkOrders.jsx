@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { ClipboardList, Plus, Trash2, Edit, X, Save, Factory, Package, TrendingUp, Repeat, AlertTriangle, Layers, Search, RotateCcw, Eye, Info, ChevronDown, Zap, FileText, PlusCircle, Check, ArrowDownToLine, Scan, Copy, Printer } from 'lucide-react';
+import { ClipboardList, Plus, Trash2, Edit, X, Save, Factory, Package, TrendingUp, Repeat, AlertTriangle, Layers, Search, RotateCcw, Eye, Info, ChevronDown, Zap, FileText, PlusCircle, Check, ArrowDownToLine, Scan, Copy, Printer, CheckCircle2 } from 'lucide-react';
 import Barcode from 'react-barcode';
 import { api } from '../services/api';
 import PartSupplyMenu from '../components/PartSupplyMenu';
@@ -211,12 +211,49 @@ export default function WorkOrders() {
 
   const [barcodeSearchInput, setBarcodeSearchInput] = useState('');
   const [searchedBarcodeResult, setSearchedBarcodeResult] = useState(null);
+  const [scanMessage, setScanMessage] = useState(null);
   const barcodeInputRef = useRef(null);
 
   const handleBarcodeSearch = (e) => {
     if (e) e.preventDefault();
     const query = barcodeSearchInput.trim();
     if (!query) return;
+
+    // EĞER AÇIK BİR İŞ EMRİ VARSA VE BARKOD BİR MALZEMEYSE, 1 ADET TESLİM ET
+    if (selectedProductionOrderId && activeTab === 'barcode_search' && materialRequests.length > 0) {
+      const matchingMR = materialRequests.find(mr => 
+        (mr.item_code && mr.item_code === query) || 
+        (mr.part_name && mr.part_name === query) ||
+        (mr.part_barcode && mr.part_barcode === query)
+      );
+
+      if (matchingMR) {
+        const remaining = matchingMR.required_quantity - (matchingMR.issued_quantity || 0);
+        if (remaining > 0) {
+          // Trigger issue 1 quantity!
+          api.issueMaterialRequest(matchingMR.id, 1, currentUser?.username).then(res => {
+            if (res.success) {
+              setScanMessage({ text: `${matchingMR.part_name} okutuldu, listeden 1 adet düşüldü.`, type: 'success' });
+              fetchMaterialRequests(selectedProductionOrderId);
+              refreshStockStatus();
+              setBarcodeSearchInput('');
+              if (barcodeInputRef.current) barcodeInputRef.current.focus();
+              
+              setTimeout(() => setScanMessage(null), 3000);
+            } else {
+              setScanMessage({ text: res.message || 'Teslim işlemi başarısız.', type: 'error' });
+              setTimeout(() => setScanMessage(null), 3000);
+            }
+          });
+          return;
+        } else {
+          setScanMessage({ text: 'Bu parça için gerekli miktar zaten teslim edilmiş.', type: 'error' });
+          setBarcodeSearchInput('');
+          setTimeout(() => setScanMessage(null), 3000);
+          return;
+        }
+      }
+    }
 
     // Akıllı Tahmin (Smart Guessing) for numeric barcodes
     const isNumber = /^\d+$/.test(query);
@@ -2437,6 +2474,14 @@ export default function WorkOrders() {
                     Sorgula
                   </button>
                 </form>
+
+                {/* Okutma Mesajı (Toast) */}
+                {scanMessage && (
+                  <div className={`mt-4 p-3 rounded-xl border flex items-center gap-3 text-left animate-in fade-in slide-in-from-top-2 ${scanMessage.type === 'success' ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20' : 'bg-red-50 text-red-700 border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20'}`}>
+                    {scanMessage.type === 'success' ? <CheckCircle2 size={20} className="shrink-0" /> : <AlertTriangle size={20} className="shrink-0" />}
+                    <span className="text-sm font-medium">{scanMessage.text}</span>
+                  </div>
+                )}
               </div>
             </div>
 
