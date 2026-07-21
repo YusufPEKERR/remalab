@@ -31,7 +31,8 @@ export default function ItemBOM() {
             product_model: group.model,
             child_item_code: mat.child_item_code,
             child_name: mat.child_name,
-            quantity: mat.quantity
+            quantity: mat.quantity,
+            status: mat.status || 'Aktif'
           });
         });
       });
@@ -90,6 +91,15 @@ export default function ItemBOM() {
     }
   };
 
+  const handleToggleStatus = async (id) => {
+    const res = await api.toggleProductBomStatus(id);
+    if (res.success) {
+      fetchBOMs();
+    } else {
+      alert("Durum güncellenemedi: " + (res.message || ""));
+    }
+  };
+
   const handleExcelAction = async (e) => {
     const action = e.target.value;
     e.target.value = '';
@@ -102,7 +112,8 @@ export default function ItemBOM() {
         "Cihaz Modeli": b.product_model,
         "Alt Parça Kodu": b.child_item_code,
         "Bileşen Adı": b.child_name,
-        "Miktar": b.quantity
+        "Miktar": b.quantity,
+        "Durum": b.status
       }));
       await api.exportTableToExcel(exportData, "bom_listesi.xlsx");
     } else if (action === 'import') {
@@ -159,6 +170,7 @@ export default function ItemBOM() {
                 <th className="px-6 py-4">Alt Parça Kodu (Bileşen)</th>
                 <th className="px-6 py-4">Bileşen Adı</th>
                 <th className="px-6 py-4">Miktar</th>
+                <th className="px-6 py-4">Durum</th>
                 <th className="px-6 py-4 text-center">İşlemler</th>
               </tr>
             </thead>
@@ -174,9 +186,20 @@ export default function ItemBOM() {
                     <td className="px-6 py-4 font-mono">{bom.child_item_code}</td>
                     <td className="px-6 py-4 font-medium">{bom.child_name}</td>
                     <td className="px-6 py-4">{bom.quantity}</td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2 py-1 text-xs font-semibold rounded-full border ${
+                        bom.status === 'Pasif' ? 'bg-slate-500/10 text-slate-400 border-slate-500/20' :
+                        'bg-green-500/10 text-green-400 border-green-500/20'
+                      }`}>
+                        {bom.status}
+                      </span>
+                    </td>
                     <td className="px-6 py-4 text-center">
                       <div className="flex justify-center gap-3">
-                        <button onClick={() => handleDelete(bom.id)} className="text-red-400 hover:text-red-300"><Trash2 size={16} /></button>
+                        <button onClick={() => handleToggleStatus(bom.id)} className="text-slate-400 hover:text-blue-400 transition-colors" title="Durumu Değiştir">
+                          <RefreshCw size={16} />
+                        </button>
+                        <button onClick={() => handleDelete(bom.id)} className="text-red-400 hover:text-red-300 transition-colors" title="Sil"><Trash2 size={16} /></button>
                       </div>
                     </td>
                   </tr>

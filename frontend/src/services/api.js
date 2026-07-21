@@ -1353,6 +1353,17 @@ export const api = {
         });
     },
 
+    toggleProductBomStatus: async (id) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.toggle_product_bom_status) {
+                backend.toggle_product_bom_status(String(id), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false, message: "Backend eksik" });
+            }
+        });
+    },
+
     exportAllTablesToExcel: async (filename) => {
         const backend = await getBackend();
         return new Promise((resolve) => {

@@ -1093,7 +1093,7 @@ class WebBridge(QObject):
         db = SessionLocal()
         try:
             bom_result = db.execute(text("""
-                SELECT b.id, b.product_model, b.child_item_code, b.quantity,
+                SELECT b.id, b.product_model, b.child_item_code, b.quantity, b.status,
                        p_child.name AS child_name, p_child.id AS child_part_id
                 FROM warehouse.product_boms b
                 LEFT JOIN warehouse.parts p_child ON p_child.item_code = b.child_item_code
@@ -1113,7 +1113,8 @@ class WebBridge(QObject):
                     "child_item_code": row["child_item_code"],
                     "child_part_id": str(row["child_part_id"]) if row["child_part_id"] else "",
                     "child_name": row["child_name"] or row["child_item_code"],
-                    "quantity": int(row["quantity"])
+                    "quantity": int(row["quantity"]),
+                    "status": row["status"] or "Aktif"
                 })
             
             return json.dumps({"success": True, "product_boms": list(bom_map.values())}, ensure_ascii=False)
@@ -1155,6 +1156,26 @@ class WebBridge(QObject):
             return json.dumps({"success": False, "message": "BOM bulunamadı"})
         except Exception as e:
             db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
+    def toggle_product_bom_status(self, bom_id):
+        from models.product_bom import ProductBOM
+        db = SessionLocal()
+        try:
+            bom = db.query(ProductBOM).filter(ProductBOM.id == int(bom_id)).first()
+            if not bom:
+                return json.dumps({"success": False, "message": "BOM kaydı bulunamadı."})
+            
+            # Toggle between Aktif and Pasif
+            bom.status = "Pasif" if bom.status == "Aktif" else "Aktif"
+            db.commit()
+            return json.dumps({"success": True, "message": f"Durum '{bom.status}' olarak güncellendi."})
+        except Exception as e:
+            db.rollback()
+            print(f"[WebBridge] toggle_product_bom_status hatası: {e}")
             return json.dumps({"success": False, "message": str(e)})
         finally:
             db.close()
