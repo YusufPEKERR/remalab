@@ -4388,13 +4388,23 @@ class WebBridge(QObject):
                 source_name = sloc.name if sloc else None
                 target_name = tloc.name if tloc else None
                 
-                if not source_name and target_name:
-                    source_name = target_name
-                elif not target_name and source_name:
-                    target_name = source_name
-                elif not source_name and not target_name:
-                    source_name = "Sistem"
-                    target_name = "Sistem"
+                if not source_name:
+                    if "İade" in mov.type and "İptal" not in mov.type:
+                        source_name = "Good Stock"
+                    elif "İptali" in mov.type:
+                        source_name = "Good Stock"
+                    elif mov.type == "Giriş":
+                        source_name = "Dış Kaynak"
+                    else:
+                        source_name = "Bilinmiyor"
+                        
+                if not target_name:
+                    if "Çıkış" in mov.type or "Tüketimi" in mov.type or ("İptal" in mov.type and "İptali" not in mov.type):
+                        target_name = "Kullanım/Tüketim"
+                    elif mov.type == "Çıkış":
+                        target_name = "Dış Kaynak"
+                    else:
+                        target_name = "Bilinmiyor"
                 res.append({
                     "id": mov.id,
                     "type": mov.type,
@@ -4583,13 +4593,23 @@ class WebBridge(QObject):
                 source_name = sloc.name if sloc else None
                 target_name = tloc.name if tloc else None
                 
-                if not source_name and target_name:
-                    source_name = target_name
-                elif not target_name and source_name:
-                    target_name = source_name
-                elif not source_name and not target_name:
-                    source_name = "Sistem"
-                    target_name = "Sistem"
+                if not source_name:
+                    if "İade" in mov.type and "İptal" not in mov.type:
+                        source_name = "Good Stock"
+                    elif "İptali" in mov.type:
+                        source_name = "Good Stock"
+                    elif mov.type == "Giriş":
+                        source_name = "Dış Kaynak"
+                    else:
+                        source_name = "Bilinmiyor"
+                        
+                if not target_name:
+                    if "Çıkış" in mov.type or "Tüketimi" in mov.type or ("İptal" in mov.type and "İptali" not in mov.type):
+                        target_name = "Kullanım/Tüketim"
+                    elif mov.type == "Çıkış":
+                        target_name = "Dış Kaynak"
+                    else:
+                        target_name = "Bilinmiyor"
                 res.append({
                     "id": mov.id,
                     "date": mov.created_at.strftime("%Y-%m-%d %H:%M") if mov.created_at else "",
