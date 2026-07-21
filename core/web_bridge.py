@@ -4385,6 +4385,26 @@ class WebBridge(QObject):
             
             res = []
             for mov, p, sloc, tloc in results:
+                source_name = sloc.name if sloc else None
+                target_name = tloc.name if tloc else None
+                
+                if not source_name:
+                    if "İade" in mov.type and "İptal" not in mov.type:
+                        source_name = "Good Stock"
+                    elif "İptali" in mov.type:
+                        source_name = "Good Stock"
+                    elif mov.type == "Giriş":
+                        source_name = "Dış Kaynak"
+                    else:
+                        source_name = "Bilinmiyor"
+                        
+                if not target_name:
+                    if "Çıkış" in mov.type or "Tüketimi" in mov.type or ("İptal" in mov.type and "İptali" not in mov.type):
+                        target_name = "Kullanım/Tüketim"
+                    elif mov.type == "Çıkış":
+                        target_name = "Dış Kaynak"
+                    else:
+                        target_name = "Bilinmiyor"
                 res.append({
                     "id": mov.id,
                     "type": mov.type,
@@ -4392,9 +4412,9 @@ class WebBridge(QObject):
                     "part_id": mov.part_id,
                     "part_name": p.name if p else (f"{mov.part_name_snapshot} (silindi)" if mov.part_name_snapshot else "Silinmiş Parça"),
                     "source_location_id": mov.source_location_id,
-                    "source_location": sloc.name if sloc else "-",
+                    "source_location": source_name,
                     "target_location_id": mov.target_location_id,
-                    "target_location": tloc.name if tloc else "-",
+                    "target_location": target_name,
                     "created_by": mov.created_by,
                     "technician": mov.technician or "-",
                     "description": mov.description or "-",
@@ -4570,6 +4590,26 @@ class WebBridge(QObject):
                 if mov.type == "İç Transfer" and sloc and tloc:
                     loc_name = f"{sloc.name} -> {tloc.name}"
                     
+                source_name = sloc.name if sloc else None
+                target_name = tloc.name if tloc else None
+                
+                if not source_name:
+                    if "İade" in mov.type and "İptal" not in mov.type:
+                        source_name = "Good Stock"
+                    elif "İptali" in mov.type:
+                        source_name = "Good Stock"
+                    elif mov.type == "Giriş":
+                        source_name = "Dış Kaynak"
+                    else:
+                        source_name = "Bilinmiyor"
+                        
+                if not target_name:
+                    if "Çıkış" in mov.type or "Tüketimi" in mov.type or ("İptal" in mov.type and "İptali" not in mov.type):
+                        target_name = "Kullanım/Tüketim"
+                    elif mov.type == "Çıkış":
+                        target_name = "Dış Kaynak"
+                    else:
+                        target_name = "Bilinmiyor"
                 res.append({
                     "id": mov.id,
                     "date": mov.created_at.strftime("%Y-%m-%d %H:%M") if mov.created_at else "",
@@ -4577,10 +4617,11 @@ class WebBridge(QObject):
                     "part_name": p.name if p else (f"{mov.part_name_snapshot} (silindi)" if mov.part_name_snapshot else "-"),
                     "item_code": p.item_code if p else "-",
                     "location": loc_name,
-                    "source_location": sloc.name if sloc else "-",
-                    "target_location": tloc.name if tloc else "-",
+                    "source_location": source_name,
+                    "target_location": target_name,
                     "quantity": mov.quantity,
-                    "user": mov.created_by
+                    "user": mov.created_by,
+                    "description": mov.description if mov.description else ""
                 })
             return json.dumps({"success": True, "reports": res})
         except Exception as e:
