@@ -2085,8 +2085,15 @@ export default function WorkOrders() {
                     paginatedProductionRuns.map(run => (
                       <tr key={run.unit_id} className="hover:bg-slate-100 dark:bg-[#2a3142] transition-colors text-slate-700 dark:text-slate-300">
                         <td className="px-6 py-4">
-                          <div className="font-mono font-bold text-slate-900 dark:text-slate-200">
-                            {run.serial_number}
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono font-bold text-slate-900 dark:text-slate-200">{run.serial_number}</span>
+                            <button 
+                              onClick={(e) => handleCopy(e, run.serial_number, run.serial_number)}
+                              className="p-1 flex items-center gap-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-500/10 rounded transition-colors"
+                              title="Barkodu Kopyala"
+                            >
+                              {copiedBarcodeId === run.serial_number ? <Check size={16} className="text-emerald-500" /> : <Copy size={16} />}
+                            </button>
                           </div>
                         </td>
                         <td className="px-6 py-4">
