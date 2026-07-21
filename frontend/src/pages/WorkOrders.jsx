@@ -1098,6 +1098,7 @@ export default function WorkOrders() {
   const handleSelectProductionOrder = (order) => {
     setSelectedProductionOrderId(order.id);
     fetchMaterialRequests(order.id);
+    setActiveTab('barcode_search');
   };
 
   const handleOpenIssueDialog = (mr) => {
@@ -2441,8 +2442,6 @@ export default function WorkOrders() {
             </div>
             </div>
 
-            {/* --- PRODUCTION WORK ORDER DETAY --- */}
-            {renderProductionOrderDetails()}
           </div>
         )}
 
