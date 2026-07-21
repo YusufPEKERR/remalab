@@ -1342,6 +1342,23 @@ export const api = {
         });
     },
 
+    updateProductBOM: async (id, product_model, child_item_code, quantity) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.update_product_bom) {
+                backend.update_product_bom(
+                    String(id),
+                    product_model, 
+                    child_item_code, 
+                    String(quantity || 1), 
+                    (res) => resolve(JSON.parse(res))
+                );
+            } else {
+                resolve({ success: false, message: "Backend eksik" });
+            }
+        });
+    },
+
     deleteProductBOM: async (id) => {
         const backend = await getBackend();
         return new Promise((resolve) => {

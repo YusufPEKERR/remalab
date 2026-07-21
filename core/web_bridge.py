@@ -1146,6 +1146,28 @@ class WebBridge(QObject):
         finally:
             db.close()
 
+    @Slot(str, str, str, str, result=str)
+    def update_product_bom(self, bom_id, product_model, child_item_code, quantity):
+        from models.product_bom import ProductBOM
+        from datetime import datetime
+        db = SessionLocal()
+        try:
+            bom = db.query(ProductBOM).filter(ProductBOM.id == int(bom_id)).first()
+            if not bom:
+                return json.dumps({"success": False, "message": "BOM bulunamadı."})
+            
+            bom.product_model = product_model
+            bom.child_item_code = child_item_code
+            bom.quantity = int(quantity) if quantity else 1
+            bom.updated_at = datetime.now()
+            db.commit()
+            return json.dumps({"success": True})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
     @Slot(str, result=str)
     def delete_product_bom(self, bom_id):
         from models.product_bom import ProductBOM

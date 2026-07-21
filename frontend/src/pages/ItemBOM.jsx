@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, RefreshCw, X, FileSpreadsheet } from 'lucide-react';
+import { Plus, Trash2, RefreshCw, X, FileSpreadsheet, Edit2 } from 'lucide-react';
 import { api } from '../services/api';
 import ExcelMappingModal from '../components/ExcelMappingModal';
 
@@ -7,6 +7,7 @@ export default function ItemBOM() {
   const [boms, setBoms] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [currentBom, setCurrentBom] = useState(null);
   const [formData, setFormData] = useState({ product_model: '', child_item_code: '', quantity: 1 });
   const [productFamilies, setProductFamilies] = useState([]);
   const [allItemCodes, setAllItemCodes] = useState([]);
@@ -65,14 +66,29 @@ export default function ItemBOM() {
     fetchAllParts();
   }, []);
 
-  const handleOpenModal = () => {
-    setFormData({ product_model: '', child_item_code: '', quantity: 1 });
+  const handleOpenModal = (bom = null) => {
+    if (bom && bom.id) {
+      setCurrentBom(bom);
+      setFormData({ 
+        product_model: bom.product_model, 
+        child_item_code: bom.child_item_code, 
+        quantity: bom.quantity 
+      });
+    } else {
+      setCurrentBom(null);
+      setFormData({ product_model: '', child_item_code: '', quantity: 1 });
+    }
     setIsModalOpen(true);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const res = await api.createProductBOM(formData.product_model, formData.child_item_code, formData.quantity);
+    let res;
+    if (currentBom) {
+      res = await api.updateProductBOM(currentBom.id, formData.product_model, formData.child_item_code, formData.quantity);
+    } else {
+      res = await api.createProductBOM(formData.product_model, formData.child_item_code, formData.quantity);
+    }
     
     if (res.success) {
       setIsModalOpen(false);
@@ -156,7 +172,7 @@ export default function ItemBOM() {
             </div>
           </div>
           <button 
-            onClick={handleOpenModal} 
+            onClick={() => handleOpenModal(null)} 
             className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium shadow-lg shadow-blue-500/30"
           >
             <Plus size={18} />
@@ -205,6 +221,9 @@ export default function ItemBOM() {
                     </td>
                     <td className="px-6 py-4 text-center">
                       <div className="flex justify-center gap-3">
+                        <button onClick={() => handleOpenModal(bom)} className="text-slate-400 hover:text-green-400 transition-colors" title="Düzenle">
+                          <Edit2 size={16} />
+                        </button>
                         <button onClick={() => handleToggleStatus(bom.id)} className="text-slate-400 hover:text-blue-400 transition-colors" title="Durumu Değiştir">
                           <RefreshCw size={16} />
                         </button>
@@ -223,7 +242,7 @@ export default function ItemBOM() {
         <div className="fixed inset-0 bg-slate-900/80 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-md">
             <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex justify-between">
-              <h2 className="text-lg font-bold text-slate-900 dark:text-white">BOM Bileşeni Ekle</h2>
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white">{currentBom ? 'BOM Bileşenini Düzenle' : 'BOM Bileşeni Ekle'}</h2>
               <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-900 dark:text-white"><X size={20} /></button>
             </div>
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
