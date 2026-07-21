@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, RefreshCw, X } from 'lucide-react';
+import { Plus, Trash2, RefreshCw, X, FileSpreadsheet } from 'lucide-react';
 import { api } from '../services/api';
+import ExcelMappingModal from '../components/ExcelMappingModal';
 
 export default function ItemBOM() {
   const [boms, setBoms] = useState([]);
@@ -9,6 +10,14 @@ export default function ItemBOM() {
   const [formData, setFormData] = useState({ product_model: '', child_item_code: '', quantity: 1 });
   const [productFamilies, setProductFamilies] = useState([]);
   const [allItemCodes, setAllItemCodes] = useState([]);
+  const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
+
+  const dbColumns = ["product_model", "child_item_code", "quantity"];
+  const friendlyNames = {
+    product_model: "Cihaz Modeli (product_model) *",
+    child_item_code: "Alt Parça Kodu (child_item_code) *",
+    quantity: "Miktar (quantity) *"
+  };
 
   const fetchBOMs = async () => {
     setLoading(true);
@@ -81,6 +90,34 @@ export default function ItemBOM() {
     }
   };
 
+  const handleExcelAction = async (e) => {
+    const action = e.target.value;
+    e.target.value = '';
+
+    if (action === 'download_template') {
+      const templateData = [{ product_model: 'iPhone 13', child_item_code: 'ORNEK-KOD-001', quantity: 1 }];
+      await api.exportTableToExcel(templateData, "bom_sablonu.xlsx");
+    } else if (action === 'export') {
+      const exportData = boms.map(b => ({
+        "Cihaz Modeli": b.product_model,
+        "Alt Parça Kodu": b.child_item_code,
+        "Bileşen Adı": b.child_name,
+        "Miktar": b.quantity
+      }));
+      await api.exportTableToExcel(exportData, "bom_listesi.xlsx");
+    } else if (action === 'import') {
+      setIsExcelModalOpen(true);
+    }
+  };
+
+  const handleExcelImport = async (data) => {
+    for (const item of data) {
+      await api.createProductBOM(item.product_model, item.child_item_code, item.quantity || 1);
+    }
+    setIsExcelModalOpen(false);
+    fetchBOMs();
+  };
+
   return (
     <div className="p-6 h-full flex flex-col space-y-6">
       <div className="flex justify-between items-center bg-white dark:bg-[#1e2330] p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700/50">
@@ -88,13 +125,29 @@ export default function ItemBOM() {
           <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">BOM (Modele Bağlı Ürün Ağacı) Yönetimi</h1>
           <p className="text-slate-400 mt-1">Cihaz modellerine ait ürün ağaçlarını (BOM) buradan yönetin.</p>
         </div>
-        <button 
-          onClick={handleOpenModal} 
-          className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium shadow-lg shadow-blue-500/30"
-        >
-          <Plus size={18} />
-          Yeni Bileşen Ekle
-        </button>
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <select
+              onChange={handleExcelAction}
+              className="appearance-none bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-2 pr-8 transition-colors font-medium cursor-pointer focus:outline-none focus:border-blue-500"
+            >
+              <option value="">Excel İşlemi Seç...</option>
+              <option value="download_template">Boş Şablon İndir</option>
+              <option value="export">Tümünü Dışa Aktar</option>
+              <option value="import">Excel'den İçe Aktar</option>
+            </select>
+            <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-slate-400">
+              <FileSpreadsheet size={16} />
+            </div>
+          </div>
+          <button 
+            onClick={handleOpenModal} 
+            className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium shadow-lg shadow-blue-500/30"
+          >
+            <Plus size={18} />
+            Yeni Bileşen Ekle
+          </button>
+        </div>
       </div>
 
       <div className="bg-white dark:bg-[#1e2330] rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-lg flex-1 overflow-hidden flex flex-col">
@@ -185,6 +238,15 @@ export default function ItemBOM() {
           </div>
         </div>
       )}
+
+      {/* Excel Mapping Modal */}
+      <ExcelMappingModal
+        isOpen={isExcelModalOpen}
+        onClose={() => setIsExcelModalOpen(false)}
+        onImport={handleExcelImport}
+        dbColumns={dbColumns}
+        friendlyNames={friendlyNames}
+      />
     </div>
   );
 }
