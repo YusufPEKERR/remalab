@@ -1295,6 +1295,84 @@ export default function WorkOrders() {
     { key: 'barcode_search', label: 'Barkod Sorgula', icon: Scan }
   ];
 
+  const renderMaterialScanner = () => {
+    if (!selectedProductionOrder) return null;
+    return (
+      <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden mt-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+        <div className="flex justify-between items-center p-6 bg-slate-50/50 dark:bg-[#242a38]/50 border-b border-slate-200 dark:border-slate-700/50">
+          <div>
+            <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+              <Scan size={24} className="text-blue-500" />
+              Malzeme Teslimat Ekranı
+            </h3>
+            <p className="text-slate-400 text-sm mt-1">İş Emri: {'1' + String(selectedProductionOrder.id).padStart(14, '0')} - {selectedProductionOrder.target_part_name || '-'}</p>
+          </div>
+          <button onClick={() => { setSelectedProductionOrderId(null); setBarcodeSearchInput(''); }} className="p-2 text-slate-400 hover:bg-slate-200 dark:hover:bg-[#2a3142] rounded-xl transition-colors">
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="p-8">
+          <div className="max-w-xl mx-auto mb-8 relative">
+            <div className="w-full bg-blue-50 dark:bg-blue-900/10 text-blue-800 dark:text-blue-200 border-2 border-blue-500/30 rounded-2xl px-6 py-4 text-center">
+               Sıradaki malzemeyi okutmak için yukarıdaki <strong>Üretim Barkodunu Okutun</strong> çubuğunu kullanın. (Bip-Bip)
+            </div>
+          </div>
+
+          <div className="border border-slate-200 dark:border-slate-700/50 rounded-xl overflow-hidden">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs">
+                <tr>
+                  <th className="px-6 py-4">Parça</th>
+                  <th className="px-6 py-4 text-center">Gerekli</th>
+                  <th className="px-6 py-4 text-center text-emerald-500">Teslim Edilen</th>
+                  <th className="px-6 py-4 text-center text-orange-500">Fire</th>
+                  <th className="px-6 py-4 text-center">Kalan</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200 dark:divide-slate-700/50">
+                {materialRequests.length === 0 ? (
+                  <tr>
+                    <td colSpan="5" className="px-6 py-8 text-center text-slate-500">Bu iş emrine ait malzeme talebi bulunamadı.</td>
+                  </tr>
+                ) : (
+                  materialRequests.map(mr => {
+                    const remaining = mr.required_quantity - (mr.issued_quantity || 0);
+                    const isComplete = remaining <= 0;
+                    return (
+                      <tr key={mr.id} className={`${isComplete ? 'bg-emerald-50/30 dark:bg-emerald-900/10' : 'hover:bg-slate-50/50 dark:hover:bg-[#2a3142]/50'} transition-colors`}>
+                        <td className="px-6 py-4">
+                          <div className={`font-medium ${isComplete ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-800 dark:text-slate-200'}`}>
+                            {mr.part_name || '-'}
+                          </div>
+                          <div className="text-xs text-slate-400 font-mono mt-0.5">{mr.item_code}</div>
+                        </td>
+                        <td className="px-6 py-4 text-center font-mono font-medium text-slate-500">{mr.required_quantity}</td>
+                        <td className={`px-6 py-4 text-center font-mono font-bold ${mr.issued_quantity > 0 ? 'text-emerald-500' : 'text-slate-400'}`}>
+                          {mr.issued_quantity || 0}
+                        </td>
+                        <td className="px-6 py-4 text-center font-mono font-medium text-orange-500">{mr.fire_quantity || 0}</td>
+                        <td className="px-6 py-4 text-center">
+                          {isComplete ? (
+                            <span className="inline-flex items-center gap-1 text-emerald-500 text-xs font-bold uppercase">
+                              <CheckCircle size={14} /> Tamam
+                            </span>
+                          ) : (
+                            <span className="font-mono font-semibold text-amber-500">{remaining}</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderProductionOrderDetails = () => {
     if (!selectedProductionOrder) return null;
     return (
@@ -2455,7 +2533,7 @@ export default function WorkOrders() {
                   <input
                     ref={barcodeInputRef}
                     type="text"
-                    placeholder="Üretim Barkodunu Okutun..."
+                    placeholder={selectedProductionOrderId ? "Sıradaki malzemeyi okutun (Bip-bip)..." : "Üretim Barkodunu veya İş Emrini Okutun..."}
                     value={barcodeSearchInput}
                     onChange={(e) => setBarcodeSearchInput(e.target.value)}
                     className="flex-1 bg-slate-50 dark:bg-[#242a38] text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700/60 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 font-mono tracking-wider text-center text-lg"
@@ -2604,7 +2682,7 @@ export default function WorkOrders() {
             )}
             
             {/* Work Order Detay Gösterimi */}
-            {renderProductionOrderDetails()}
+            {renderMaterialScanner()}
           </div>
         )}
       </div>
