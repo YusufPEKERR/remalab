@@ -20,8 +20,6 @@ def main():
 
     from PySide6.QtCore import QLocale
     QLocale.setDefault(QLocale(QLocale.Turkish, QLocale.Turkey))
-    
-    import os
     os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--lang=tr-TR"
 
     if headless:
