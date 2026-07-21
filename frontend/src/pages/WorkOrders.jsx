@@ -228,13 +228,41 @@ export default function WorkOrders() {
       }
     }
 
-    // Existing search for Production Runs (15-digit serial numbers)
+    // Akıllı Tahmin (Smart Guessing) for numeric barcodes
+    const isNumber = /^\d+$/.test(query);
+    if (isNumber) {
+      const numericQuery = parseInt(query, 10);
+      
+      // 1. Prioritize active Work Orders
+      const activeWO = productionWorkOrders.find(wo => 
+        wo.id === numericQuery && (wo.status === 'BEKLIYOR' || wo.status === 'URETIMDE')
+      );
+      if (activeWO) {
+        handleSelectProductionOrder(activeWO);
+        setActiveTab('production');
+        return;
+      }
+    }
+
+    // 2. Then check Production Runs
     const found = productionRuns.find(run => run.serial_number === query);
     if (found) {
       setSearchedBarcodeResult(found);
-    } else {
-      setSearchedBarcodeResult('not_found');
+      return;
     }
+
+    // 3. Finally, check if it's an inactive Work Order
+    if (isNumber) {
+      const numericQuery = parseInt(query, 10);
+      const anyWO = productionWorkOrders.find(wo => wo.id === numericQuery);
+      if (anyWO) {
+        handleSelectProductionOrder(anyWO);
+        setActiveTab('production');
+        return;
+      }
+    }
+
+    setSearchedBarcodeResult('not_found');
   };
 
   useEffect(() => {
