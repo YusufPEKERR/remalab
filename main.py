@@ -9,24 +9,17 @@ from core.main_window import MainWindow
 
 def main():
     """Uygulamayı başlat (PySide6 + React WebEngine via QWebChannel)."""
-    # Server-only (headless) mod kontrolü
-    headless = os.getenv("SERVER_ONLY", "0") == "1" or "--server" in sys.argv
-
-    if not headless:
-        # High DPI desteği
-        QApplication.setHighDpiScaleFactorRoundingPolicy(
-            Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
-        )
+    # High DPI desteği
+    QApplication.setHighDpiScaleFactorRoundingPolicy(
+        Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
+    )
 
     from PySide6.QtCore import QLocale
     QLocale.setDefault(QLocale(QLocale.Turkish, QLocale.Turkey))
+
     os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--lang=tr-TR"
 
-    if headless:
-        from PySide6.QtCore import QCoreApplication
-        app = QCoreApplication(sys.argv)
-    else:
-        app = QApplication(sys.argv)
+    app = QApplication(sys.argv)
 
     if sys.platform == "win32":
         import ctypes
@@ -55,23 +48,16 @@ def main():
 
     threading.Thread(target=_init_db_background, daemon=True).start()
 
-    if headless:
-        from core.main_window import HeadlessServer
-        server = HeadlessServer()
-        app.server = server
-        # Uygulama sonlanırken dev sunucuyu durdurmak için
-        app.aboutToQuit.connect(server.stop)
-        print("RemaLab WMS Headless Server started successfully!")
-    else:
-        # Ana pencereyi (WebEngine) aç
-        window = MainWindow()
-        window.show()
-        window.raise_()
-        window.activateWindow()
-        # Bu referansı app içinde tutuyoruz ki Garbage Collector yok etmesin
-        app.main_window = window 
-        print("RemaLab WMS (React + QWebChannel) started successfully!")
+    # Ana pencereyi (WebEngine) aç
+    window = MainWindow()
+    window.show()
+    window.raise_()
+    window.activateWindow()
 
+    # Bu referansı app içinde tutuyoruz ki Garbage Collector yok etmesin
+    app.main_window = window 
+
+    print("RemaLab WMS (React + QWebChannel) started successfully!")
     sys.exit(app.exec())
 
 if __name__ == "__main__":
