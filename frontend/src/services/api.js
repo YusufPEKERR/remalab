@@ -340,6 +340,7 @@ export const api = {
                 backend.create_part_category(
                     cat.name || '',
                     cat.part_type || '',
+                    cat.flow || '',
                     Array.isArray(cat.departments) ? cat.departments.join(', ') : (cat.departments || ''),
                     cat.stock_tracking_type || 'Stok Takipli',
                     cat.default_location_id ? String(cat.default_location_id) : '',
@@ -360,6 +361,7 @@ export const api = {
                     String(id),
                     cat.name || '',
                     cat.part_type || '',
+                    cat.flow || '',
                     Array.isArray(cat.departments) ? cat.departments.join(', ') : (cat.departments || ''),
                     cat.stock_tracking_type || 'Stok Takipli',
                     cat.default_location_id ? String(cat.default_location_id) : '',

@@ -9,6 +9,8 @@ class PartCategory(Base):
 
     id = Column(Integer, primary_key=True)
     name = Column(String(255), nullable=False, unique=True)
+    part_type = Column(String(255), nullable=True)
+    flow = Column(String(50), nullable=True)
     departments = Column(String(255), nullable=True)
     stock_tracking_type = Column(String(20), nullable=True, default="Stok Takipli")
     is_active = Column(Boolean, nullable=True, default=True)

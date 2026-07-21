@@ -4,8 +4,6 @@ import { api } from '../services/api';
 import ExcelMappingModal from '../components/ExcelMappingModal';
 
 const MEMORY_OPTIONS = ['64GB', '128GB', '256GB', '512GB', '1TB'];
-// Backend'deki CUSTOMER_FLOW_VALUES (core/web_bridge.py) ile birebir aynı olmalı.
-const FLOW_VALUES = ['Refurbish', 'Repair', 'RMA', 'Battery Replacement'];
 
 const EMPTY_FORM = {
   item_code: '', barcode: '', name: '',
@@ -184,6 +182,7 @@ export default function Parts() {
         ...formData,
         department: selectedCategory ? selectedCategory.departments : formData.department,
         stock_tracking_type: selectedCategory ? selectedCategory.stock_tracking_type : formData.stock_tracking_type,
+        part_type: selectedCategory ? (selectedCategory.part_type || '') : formData.part_type,
         memory: Array.isArray(formData.memory) ? formData.memory.join(', ') : (formData.memory || '')
       };
       const res = currentPart
@@ -670,25 +669,6 @@ export default function Parts() {
                   onChange={e => setFormData({...formData, name: e.target.value})}
                   placeholder="Örn: iPhone 13 Ekran"
                 />
-              </div>
-
-
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1">
-                    Parça Tipi <span className="text-red-400">*</span>
-                  </label>
-                  <select
-                    required
-                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
-                    value={formData.part_type}
-                    onChange={e => setFormData({...formData, part_type: e.target.value})}
-                  >
-                    <option value="">Seçiniz...</option>
-                    {FLOW_VALUES.map(f => <option key={f} value={f}>{f}</option>)}
-                  </select>
-                </div>
               </div>
 
               {currentPart && (

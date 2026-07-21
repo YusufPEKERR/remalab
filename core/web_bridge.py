@@ -1337,11 +1337,12 @@ class WebBridge(QObject):
         db = SessionLocal()
         try:
             rows = db.execute(text("""
-                SELECT pc.id, pc.name, COALESCE(pc.part_type, '') AS part_type, pc.departments, pc.stock_tracking_type,
+                SELECT pc.id, pc.name, COALESCE(pc.part_type, '') AS part_type, COALESCE(pc.flow, '') AS flow,
+                       pc.departments, pc.stock_tracking_type,
                        NULL AS default_location_id, '' AS default_location_name,
                        pc.is_active, pc.description
                 FROM warehouse.part_categories pc
-                ORDER BY pc.id ASC
+                ORDER BY pc.id DESC
             """)).mappings().all()
             categories = []
             for r in rows:
@@ -1349,6 +1350,7 @@ class WebBridge(QObject):
                     "id": r["id"],
                     "name": r["name"],
                     "part_type": r["part_type"] or "",
+                    "flow": r["flow"] or "",
                     "departments": r["departments"] or "",
                     "stock_tracking_type": r["stock_tracking_type"] or "Stok Takipli",
                     "default_location_id": str(r["default_location_id"]) if r["default_location_id"] else "",
@@ -1417,8 +1419,8 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    @Slot(str, str, str, str, str, str, result=str)
-    def create_part_category(self, name, part_type, departments, stock_tracking_type, default_location_id, description):
+    @Slot(str, str, str, str, str, str, str, result=str)
+    def create_part_category(self, name, part_type, flow, departments, stock_tracking_type, default_location_id, description):
         """Yeni Parça Kategorisi ekler."""
         from models.part_category import PartCategory
         db = SessionLocal()
@@ -1430,6 +1432,8 @@ class WebBridge(QObject):
                 return json.dumps({"success": False, "message": "Bu kategori zaten var"})
             cat = PartCategory(
                 name=name,
+                part_type=part_type or None,
+                flow=flow or None,
                 departments=departments or None,
                 stock_tracking_type=stock_tracking_type or "Stok Takipli",
                 is_active=True,
@@ -1444,8 +1448,8 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    @Slot(str, str, str, str, str, str, str, str, result=str)
-    def update_part_category(self, id_str, name, part_type, departments, stock_tracking_type, default_location_id, is_active, description):
+    @Slot(str, str, str, str, str, str, str, str, str, result=str)
+    def update_part_category(self, id_str, name, part_type, flow, departments, stock_tracking_type, default_location_id, is_active, description):
         """Var olan bir Parça Kategorisini günceller."""
         from models.part_category import PartCategory
         db = SessionLocal()
@@ -1460,6 +1464,8 @@ class WebBridge(QObject):
             if db.query(PartCategory).filter(PartCategory.name == name, PartCategory.id != cat_id).first():
                 return json.dumps({"success": False, "message": "Bu isimde başka bir kategori zaten var"})
             cat.name = name
+            cat.part_type = part_type or None
+            cat.flow = flow or None
             cat.departments = departments or None
             cat.stock_tracking_type = stock_tracking_type or "Stok Takipli"
             cat.is_active = (is_active == "true" or is_active == "1" or is_active == "True")
