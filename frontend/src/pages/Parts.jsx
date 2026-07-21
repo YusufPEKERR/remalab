@@ -6,7 +6,7 @@ import TextCombobox from '../components/TextCombobox';
 
 
 const EMPTY_FORM = {
-  item_code: '', barcode: '', name: '', model: '',
+  item_code: '', barcode: '', name: '', model: '', brand: '',
   item_category: '', part_category_id: '',
   department: [], stock_tracking_type: 'Stok Takipli', status: 'Aktif', critical_limit: '',
   memory: [], part_type: ''
@@ -149,6 +149,7 @@ export default function Parts() {
         barcode: part.barcode || '',
         name: part.name || '',
         model: part.model || '',
+        brand: part.brand || '',
         item_category: part.item_category || '',
         part_category_id: part.part_category_id || '',
         department: part.department ? String(part.department).split(',').map(d => d.trim()).filter(Boolean) : [],
@@ -176,6 +177,7 @@ export default function Parts() {
         barcode: existing.barcode || '',
         name: existing.name || '',
         model: existing.model || '',
+        brand: existing.brand || '',
         item_category: existing.item_category || '',
         part_category_id: existing.part_category_id || '',
         department: existing.department ? String(existing.department).split(',').map(d => d.trim()).filter(Boolean) : [],
@@ -188,13 +190,17 @@ export default function Parts() {
     }
   };
 
-  // Parça Kodu girilince Model bilgisini ProductFamily eşleşmesinden (warehouse.item_models) otomatik getirir.
+  // Parça Kodu girilince Marka ve Model bilgisini ProductFamily eşleşmesinden (warehouse.item_models) otomatik getirir.
   const handleFetchModel = async (code) => {
     if (!code) return;
     try {
       const res = await api.getItemModel(code);
-      if (res.success && res.model) {
-        setFormData(prev => ({ ...prev, model: res.model }));
+      if (res.success) {
+        setFormData(prev => ({
+          ...prev,
+          model: res.model || prev.model,
+          brand: res.brand || prev.brand
+        }));
       }
     } catch (err) {
       console.error(err);
@@ -672,15 +678,27 @@ export default function Parts() {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-400 mb-1">Model</label>
-                <input
-                  type="text"
-                  className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
-                  value={formData.model}
-                  onChange={e => setFormData({...formData, model: e.target.value})}
-                  placeholder="Parça kodu girilince otomatik gelir"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-slate-400 mb-1">Marka</label>
+                  <input
+                    type="text"
+                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                    value={formData.brand}
+                    onChange={e => setFormData({...formData, brand: e.target.value})}
+                    placeholder="Parça kodu girilince otomatik gelir"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-400 mb-1">Model</label>
+                  <input
+                    type="text"
+                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                    value={formData.model}
+                    onChange={e => setFormData({...formData, model: e.target.value})}
+                    placeholder="Parça kodu girilince otomatik gelir"
+                  />
+                </div>
               </div>
 
               <div>

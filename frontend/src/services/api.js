@@ -188,6 +188,30 @@ export const api = {
         });
     },
 
+    getItemCodes: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (!backend.get_item_codes) {
+                resolve({ success: false, item_codes: [] });
+                return;
+            }
+            backend.get_item_codes(async (resStr) => {
+                try {
+                    const res = JSON.parse(resStr);
+                    if (res.fetch_url) {
+                        const fetchRes = await fetch(res.fetch_url, { cache: 'no-store' });
+                        const jsonData = await fetchRes.json();
+                        resolve(jsonData);
+                    } else {
+                        resolve(res);
+                    }
+                } catch (e) {
+                    resolve({ success: false, item_codes: [], message: e.message });
+                }
+            });
+        });
+    },
+
     createPart: async (partData) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
