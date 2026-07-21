@@ -1856,7 +1856,7 @@ export default function WorkOrders() {
               <table className="w-full text-left text-sm">
                 <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs sticky top-0 z-10">
                   <tr>
-                    <th className="px-6 py-4">İŞ EMRİ NO</th>
+                    <th className="px-6 py-4">ÜRETİM BARKODU</th>
                     <th className="px-6 py-4">ÜRETİLEN PARÇA</th>
                     <th className="px-6 py-4 text-center">MİKTAR</th>
                     <th className="px-6 py-4">KAYNAK LOKASYON</th>
