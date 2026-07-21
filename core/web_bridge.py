@@ -1094,6 +1094,7 @@ class WebBridge(QObject):
         try:
             bom_result = db.execute(text("""
                 SELECT b.id, b.product_model, b.child_item_code, b.quantity, b.status,
+                       b.created_at, b.updated_at,
                        p_child.name AS child_name, p_child.id AS child_part_id
                 FROM warehouse.product_boms b
                 LEFT JOIN warehouse.parts p_child ON p_child.item_code = b.child_item_code
@@ -1114,7 +1115,9 @@ class WebBridge(QObject):
                     "child_part_id": str(row["child_part_id"]) if row["child_part_id"] else "",
                     "child_name": row["child_name"] or row["child_item_code"],
                     "quantity": int(row["quantity"]),
-                    "status": row["status"] or "Aktif"
+                    "status": row["status"] or "Aktif",
+                    "created_at": row["created_at"].strftime("%d.%m.%Y %H:%M") if row["created_at"] else "-",
+                    "updated_at": row["updated_at"].strftime("%d.%m.%Y %H:%M") if row["updated_at"] else "-"
                 })
             
             return json.dumps({"success": True, "product_boms": list(bom_map.values())}, ensure_ascii=False)
@@ -1170,7 +1173,9 @@ class WebBridge(QObject):
                 return json.dumps({"success": False, "message": "BOM kaydı bulunamadı."})
             
             # Toggle between Aktif and Pasif
+            from datetime import datetime
             bom.status = "Pasif" if bom.status == "Aktif" else "Aktif"
+            bom.updated_at = datetime.now()
             db.commit()
             return json.dumps({"success": True, "message": f"Durum '{bom.status}' olarak güncellendi."})
         except Exception as e:

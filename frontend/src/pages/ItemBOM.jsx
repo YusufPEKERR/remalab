@@ -32,7 +32,9 @@ export default function ItemBOM() {
             child_item_code: mat.child_item_code,
             child_name: mat.child_name,
             quantity: mat.quantity,
-            status: mat.status || 'Aktif'
+            status: mat.status || 'Aktif',
+            created_at: mat.created_at,
+            updated_at: mat.updated_at
           });
         });
       });
@@ -113,7 +115,9 @@ export default function ItemBOM() {
         "Alt Parça Kodu": b.child_item_code,
         "Bileşen Adı": b.child_name,
         "Miktar": b.quantity,
-        "Durum": b.status
+        "Durum": b.status,
+        "Eklenme Tarihi": b.created_at,
+        "Düzenlenme Tarihi": b.updated_at
       }));
       await api.exportTableToExcel(exportData, "bom_listesi.xlsx");
     } else if (action === 'import') {
@@ -171,6 +175,7 @@ export default function ItemBOM() {
                 <th className="px-6 py-4">Bileşen Adı</th>
                 <th className="px-6 py-4">Miktar</th>
                 <th className="px-6 py-4">Durum</th>
+                <th className="px-6 py-4 text-xs">Eklenme / Düzenlenme</th>
                 <th className="px-6 py-4 text-center">İşlemler</th>
               </tr>
             </thead>
@@ -193,6 +198,10 @@ export default function ItemBOM() {
                       }`}>
                         {bom.status}
                       </span>
+                    </td>
+                    <td className="px-6 py-4 text-xs text-slate-500 dark:text-slate-400">
+                      <div><span className="font-semibold text-slate-700 dark:text-slate-300">Eklenme:</span> {bom.created_at}</div>
+                      <div><span className="font-semibold text-slate-700 dark:text-slate-300">Düzenlenme:</span> {bom.updated_at}</div>
                     </td>
                     <td className="px-6 py-4 text-center">
                       <div className="flex justify-center gap-3">
