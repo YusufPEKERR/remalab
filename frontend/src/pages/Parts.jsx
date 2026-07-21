@@ -685,28 +685,7 @@ export default function Parts() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1">Marka</label>
-                  <input
-                    type="text"
-                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
-                    value={formData.brand}
-                    onChange={e => setFormData({...formData, brand: e.target.value})}
-                    placeholder="Parça kodu girilince otomatik gelir"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1">Model</label>
-                  <input
-                    type="text"
-                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
-                    value={formData.model}
-                    onChange={e => setFormData({...formData, model: e.target.value})}
-                    placeholder="Parça kodu girilince otomatik gelir"
-                  />
-                </div>
-              </div>
+
 
               <div>
                 <label className="block text-sm font-medium text-slate-400 mb-1">Parça Adı <span className="text-red-400">*</span></label>
