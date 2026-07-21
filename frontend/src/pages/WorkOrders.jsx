@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { ClipboardList, Plus, Trash2, Edit, X, Save, Factory, Package, TrendingUp, Repeat, AlertTriangle, Layers, Search, RotateCcw, Eye, Info, ChevronDown, Zap, FileText, PlusCircle, Check, ArrowDownToLine, Scan } from 'lucide-react';
+import { ClipboardList, Plus, Trash2, Edit, X, Save, Factory, Package, TrendingUp, Repeat, AlertTriangle, Layers, Search, RotateCcw, Eye, Info, ChevronDown, Zap, FileText, PlusCircle, Check, ArrowDownToLine, Scan, Copy } from 'lucide-react';
 import { api } from '../services/api';
 import PartSupplyMenu from '../components/PartSupplyMenu';
 import DeliverPartPopover from '../components/DeliverPartPopover';
@@ -85,7 +85,31 @@ const MATERIAL_REQUEST_STATUS_LABELS = {
 
 export default function WorkOrders() {
   const [activeTab, setActiveTab] = useState('production');
+  const [copiedBarcodeId, setCopiedBarcodeId] = useState(null);
 
+  const handleCopy = (e, text, id) => {
+    e.stopPropagation();
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).catch(err => console.error("Clipboard API failed: ", err));
+    } else {
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      textArea.style.position = "fixed";
+      textArea.style.left = "-999999px";
+      textArea.style.top = "-999999px";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      try {
+        document.execCommand('copy');
+      } catch (error) {
+        console.error("ExecCommand copy failed", error);
+      }
+      textArea.remove();
+    }
+    setCopiedBarcodeId(id);
+    setTimeout(() => setCopiedBarcodeId(null), 3000);
+  };
   // --- İş Emirleri (work orders) state ---
   const [orders, setOrders] = useState([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
@@ -2099,11 +2123,27 @@ export default function WorkOrders() {
                     paginatedProdWOs.map(order => (
                       <tr
                         key={order.id}
-                        onClick={() => handleSelectProductionOrder(order)}
-                        className={`cursor-pointer hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors text-slate-700 dark:text-slate-300 ${String(selectedProductionOrder?.id) === String(order.id) ? 'bg-slate-100 dark:bg-[#2a3142]' : ''}`}
-                        title="Malzeme taleplerini görmek için tıklayın"
+                        className="text-slate-700 dark:text-slate-300"
                       >
-                        <td className="px-6 py-4 font-mono font-medium text-slate-800 dark:text-slate-200">REM-PRD-{String(order.id).padStart(6, '0')}</td>
+                        <td className="px-6 py-4 font-mono font-medium text-slate-800 dark:text-slate-200">
+                          <div className="flex items-center gap-2">
+                            <span>{String(order.id).padStart(15, '0')}</span>
+                            <button 
+                              onClick={(e) => handleCopy(e, String(order.id).padStart(15, '0'), order.id)}
+                              className="p-1 flex items-center gap-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-500/10 rounded transition-colors"
+                              title="Barkodu Kopyala"
+                            >
+                              {copiedBarcodeId === order.id ? (
+                                <>
+                                  <Check size={14} className="text-emerald-500" />
+                                  <span className="text-xs text-emerald-500 font-medium">Kopyalandı</span>
+                                </>
+                              ) : (
+                                <Copy size={14} />
+                              )}
+                            </button>
+                          </div>
+                        </td>
                         <td className="px-6 py-4">
                           <div className="font-medium text-slate-800 dark:text-slate-200">{order.target_part_name || '-'}</div>
                           <div className="text-xs text-slate-400">{order.target_part_code}</div>
@@ -2192,6 +2232,7 @@ export default function WorkOrders() {
             </div>
             </div>
 
+<<<<<<< HEAD
             {/* --- PRODUCTION WORK ORDER DETAY --- */}
             {selectedProductionOrder && (
               <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden">
@@ -2328,6 +2369,9 @@ export default function WorkOrders() {
                 </table>
               </div>
             )}
+=======
+
+>>>>>>> bd158b2 (fix(stock): update transfer reports and dashboard to display correct location labels and descriptions; add copy clipboard alerts)
           </div>
         )}
 
@@ -2609,7 +2653,7 @@ export default function WorkOrders() {
               </button>
             </div>
             <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
-              İş Emri REM-PRD-{String(completeDialog.id).padStart(6, '0')} — {completeDialog.target_part_name}
+              İş Emri {String(completeDialog.id).padStart(15, '0')} — {completeDialog.target_part_name}
             </p>
             <form onSubmit={handleConfirmComplete} className="space-y-4">
               <div>

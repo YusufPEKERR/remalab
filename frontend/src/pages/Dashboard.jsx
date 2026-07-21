@@ -220,7 +220,11 @@ export default function Dashboard() {
                 <tr key={mov.id || i} className="hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 transition-colors">
                   <td className="px-4 py-4 font-mono text-slate-400">{mov.id}</td>
                   <td className="px-4 py-4 font-medium text-slate-800 dark:text-slate-200">{mov.part_name || '-'}</td>
-                  <td className="px-4 py-4">{mov.type === 'Giriş' ? mov.target_location : mov.source_location}</td>
+                  <td className="px-4 py-4">
+                    {mov.source_location !== '-' && mov.target_location !== '-' 
+                      ? `${mov.source_location} -> ${mov.target_location}` 
+                      : (mov.source_location !== '-' ? mov.source_location : mov.target_location)}
+                  </td>
                   <td className="px-4 py-4">
                     <span style={{color: mov.type && mov.type.includes('Giriş') ? '#58A6FF' : mov.type && mov.type.includes('Çıkış') ? '#F85149' : '#D2A828'}}>
                       {mov.type}

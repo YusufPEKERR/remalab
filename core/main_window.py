@@ -74,6 +74,13 @@ def _is_port_in_use(host, port):
         return False
 
 class WebPage(QWebEnginePage):
+    def __init__(self, profile, parent=None):
+        super().__init__(profile, parent)
+        self.featurePermissionRequested.connect(self.on_feature_permission_requested)
+
+    def on_feature_permission_requested(self, url, feature):
+        self.setFeaturePermission(url, feature, QWebEnginePage.PermissionPolicy.PermissionGrantedByUser)
+
     def javaScriptConsoleMessage(self, level, message, lineNumber, sourceID):
         print(f"[JS] {message} (line: {lineNumber}, source: {sourceID})")
 
