@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { ClipboardList, Plus, Trash2, Edit, X, Save, Factory, Package, TrendingUp, Repeat, AlertTriangle, Layers, Search, RotateCcw, Eye, Info, ChevronDown, Zap, FileText, PlusCircle, Check, ArrowDownToLine, Scan, Copy } from 'lucide-react';
+import { ClipboardList, Plus, Trash2, Edit, X, Save, Factory, Package, TrendingUp, Repeat, AlertTriangle, Layers, Search, RotateCcw, Eye, Info, ChevronDown, Zap, FileText, PlusCircle, Check, ArrowDownToLine, Scan, Copy, Printer } from 'lucide-react';
+import Barcode from 'react-barcode';
 import { api } from '../services/api';
 import PartSupplyMenu from '../components/PartSupplyMenu';
 import DeliverPartPopover from '../components/DeliverPartPopover';
@@ -174,6 +175,7 @@ export default function WorkOrders() {
   const [returnDoaSelectedId, setReturnDoaSelectedId] = useState('');
   const [returnDoaLocationId, setReturnDoaLocationId] = useState('');
   const [returnDoaQty, setReturnDoaQty] = useState(1);
+  const [printBarcodeDialog, setPrintBarcodeDialog] = useState(null);
   const [returnDoaSaving, setReturnDoaSaving] = useState(false);
 
   // Pagination states for Production Work Orders
@@ -215,12 +217,42 @@ export default function WorkOrders() {
     if (e) e.preventDefault();
     const query = barcodeSearchInput.trim();
     if (!query) return;
+
+    // Akıllı Tahmin (Smart Guessing) for numeric barcodes
+    const isNumber = /^\d+$/.test(query);
+    if (isNumber) {
+      const numericQuery = parseInt(query, 10);
+      
+      // 1. Prioritize active Work Orders
+      const activeWO = productionWorkOrders.find(wo => 
+        wo.id === numericQuery && (wo.status === 'BEKLIYOR' || wo.status === 'URETIMDE')
+      );
+      if (activeWO) {
+        handleSelectProductionOrder(activeWO);
+        setActiveTab('production');
+        return;
+      }
+    }
+
+    // 2. Then check Production Runs
     const found = productionRuns.find(run => run.serial_number === query);
     if (found) {
       setSearchedBarcodeResult(found);
-    } else {
-      setSearchedBarcodeResult('not_found');
+      return;
     }
+
+    // 3. Finally, check if it's an inactive Work Order
+    if (isNumber) {
+      const numericQuery = parseInt(query, 10);
+      const anyWO = productionWorkOrders.find(wo => wo.id === numericQuery);
+      if (anyWO) {
+        handleSelectProductionOrder(anyWO);
+        setActiveTab('production');
+        return;
+      }
+    }
+
+    setSearchedBarcodeResult('not_found');
   };
 
   useEffect(() => {
@@ -2142,6 +2174,16 @@ export default function WorkOrders() {
                                 <Copy size={14} />
                               )}
                             </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setPrintBarcodeDialog(order);
+                              }}
+                              className="p-1 flex items-center gap-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-500/10 rounded transition-colors"
+                              title="Barkodu Yazdır"
+                            >
+                              <Printer size={14} />
+                            </button>
                           </div>
                         </td>
                         <td className="px-6 py-4">
@@ -2381,7 +2423,7 @@ export default function WorkOrders() {
                   <Scan size={32} className="animate-pulse" />
                 </div>
                 <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">Üretim Barkodu Sorgula</h2>
-                <p className="text-slate-400 text-sm mt-1 mb-6">15 haneli üretim barkodunu okutarak veya yazarak arama yapın.</p>
+                <p className="text-slate-400 text-sm mt-1 mb-6">İş Emri (Örn: 000000000000051) veya 15 haneli üretim barkodunu okutarak arama yapın.</p>
                 
                 <form onSubmit={handleBarcodeSearch} className="flex gap-2">
                   <input
@@ -3372,6 +3414,66 @@ export default function WorkOrders() {
                 className="px-5 py-2.5 bg-orange-600 hover:bg-orange-700 disabled:opacity-60 text-white rounded-xl font-medium transition-colors shadow-lg shadow-orange-900/20 flex items-center gap-2"
               >
                 <RotateCcw size={16} /> {returnDoaSaving ? 'İşleniyor...' : 'Onayla ve İade Et'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- BARKOD YAZDIRMA MODAL (PRINT/PDF) --- */}
+      {printBarcodeDialog && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 print:bg-white print:p-0">
+          <div className="bg-white dark:bg-[#1e2330] rounded-2xl w-full max-w-sm shadow-2xl border border-slate-200 dark:border-slate-700/50 overflow-hidden print:shadow-none print:border-none print:dark:bg-white">
+            
+            <div className="flex justify-between items-center p-5 border-b border-slate-200 dark:border-slate-700/50 bg-slate-50 dark:bg-[#242a38] print:hidden">
+              <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                <Printer size={20} className="text-blue-500" />
+                Barkod Yazdır
+              </h3>
+              <button onClick={() => setPrintBarcodeDialog(null)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            
+            {/* The Print Area */}
+            <div className="p-8 flex flex-col items-center justify-center print:p-0 print:h-screen print:w-screen print:flex print:flex-col print:items-center print:justify-center">
+              <div className="text-center mb-4 print:mb-2">
+                <h2 className="text-lg font-bold text-slate-800 print:text-black">İş Emri</h2>
+                <p className="text-sm text-slate-500 print:text-gray-700 font-medium">
+                  {printBarcodeDialog.target_part_name || '-'}
+                </p>
+                <p className="text-xs text-slate-400 print:text-gray-500">
+                  {printBarcodeDialog.target_part_code}
+                </p>
+              </div>
+
+              <div className="bg-white p-4 rounded-xl print:p-0">
+                <Barcode 
+                  value={String(printBarcodeDialog.id).padStart(15, '0')} 
+                  width={2} 
+                  height={80} 
+                  fontSize={18}
+                  background="#ffffff"
+                  lineColor="#000000"
+                  margin={0}
+                />
+              </div>
+            </div>
+
+            <div className="p-5 border-t border-slate-200 dark:border-slate-700/50 bg-slate-50 dark:bg-[#242a38] flex justify-end gap-3 print:hidden">
+              <button
+                type="button"
+                onClick={() => setPrintBarcodeDialog(null)}
+                className="px-5 py-2.5 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-[#2a3142] rounded-xl text-sm font-medium transition-colors"
+              >
+                Kapat
+              </button>
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors shadow-lg shadow-blue-900/20 flex items-center gap-2"
+              >
+                <Printer size={16} /> Yazdır
               </button>
             </div>
           </div>
