@@ -681,7 +681,7 @@ export default function Parts() {
 
 
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-1">Parça Kategorisi (Parça Adı) <span className="text-red-400">*</span></label>
+                <label className="block text-sm font-medium text-slate-400 mb-1">Parça Kategorisi <span className="text-red-400">*</span></label>
                 <select
                   required
                   className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
