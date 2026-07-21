@@ -229,7 +229,7 @@ export default function WorkOrders() {
       );
       if (activeWO) {
         handleSelectProductionOrder(activeWO);
-        setActiveTab('production');
+        setActiveTab('production_work_orders');
         return;
       }
     }
@@ -247,7 +247,7 @@ export default function WorkOrders() {
       const anyWO = productionWorkOrders.find(wo => Number(wo.id) === numericQuery);
       if (anyWO) {
         handleSelectProductionOrder(anyWO);
-        setActiveTab('production');
+        setActiveTab('production_work_orders');
         return;
       }
     }
