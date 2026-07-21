@@ -1288,30 +1288,6 @@ export default function WorkOrders() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 px-6 pb-6">
-                  <div>
-                    <div className="text-xs text-slate-400 mb-1">Teknisyen</div>
-                    <div className="text-sm font-medium text-slate-800 dark:text-slate-200">{selectedProductionOrder.assigned_technician || '-'}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-slate-400 mb-1">Başlama Zamanı</div>
-                    <div className="text-sm font-medium text-slate-800 dark:text-slate-200">{selectedProductionOrder.started_at || '-'}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-slate-400 mb-1">Bitiş Zamanı</div>
-                    <div className="text-sm font-medium text-slate-800 dark:text-slate-200">{selectedProductionOrder.completed_at || '-'}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-slate-400 mb-1">Planlanan</div>
-                    <div className="text-sm font-medium font-mono text-slate-800 dark:text-slate-200">{selectedProductionOrder.planned_quantity !== '' ? selectedProductionOrder.planned_quantity : '-'}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-slate-400 mb-1">Üretilen</div>
-                    <div className="text-sm font-medium font-mono text-slate-800 dark:text-slate-200">{selectedProductionOrder.produced_quantity !== '' ? selectedProductionOrder.produced_quantity : '-'}</div>
-                  </div>
-
-                </div>
-
                 <div className="border-t border-slate-200 dark:border-slate-700/50 flex items-center gap-2 px-6 py-4">
                   <Package size={18} className="text-teal-400" />
                   <h4 className="font-bold text-slate-800 dark:text-slate-100">Malzeme Talepleri</h4>
