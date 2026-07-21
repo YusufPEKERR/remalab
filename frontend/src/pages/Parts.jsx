@@ -688,14 +688,26 @@ export default function Parts() {
 
 
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-1">Parça Adı <span className="text-red-400">*</span></label>
-                <TextCombobox
+                <label className="block text-sm font-medium text-slate-400 mb-1">Parça Kategorisi (Parça Adı) <span className="text-red-400">*</span></label>
+                <select
                   required
-                  options={productFamilyNames}
-                  value={formData.name}
-                  onChange={v => setFormData({...formData, name: v})}
-                  placeholder="Örn: iPhone 13"
-                />
+                  className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                  value={formData.part_category_id}
+                  onChange={(e) => {
+                    const selectedCatId = e.target.value;
+                    const cat = partCategories.find(c => String(c.id) === selectedCatId);
+                    setFormData({
+                      ...formData, 
+                      part_category_id: selectedCatId,
+                      name: cat ? cat.name : ''
+                    });
+                  }}
+                >
+                  <option value="">Seçiniz...</option>
+                  {categoryOptions.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
               </div>
 
               <div>
