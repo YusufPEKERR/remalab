@@ -96,6 +96,22 @@ PRODUCTION_WO_STATUS_WAITING = "BEKLIYOR"
 PRODUCTION_WO_STATUS_IN_PRODUCTION = "URETIMDE"
 PRODUCTION_WO_STATUS_COMPLETED = "TAMAMLANDI"
 
+# Müşteriler sayfası toplu (Excel) yükleme modülü için "Flow (İş Akışı)" alanının
+# kabul ettiği sabit değer kümesi. Hem şablon oluşturma (dropdown listesi) hem
+# de içe aktarma doğrulaması bu listeyi kullanır.
+CUSTOMER_FLOW_VALUES = ["Refurbish", "Repair", "RMA", "Battery Replacement"]
+
+# Toplu yüklemede zorunlu olan sütunlar (şablon başlığı -> customers alanı).
+CUSTOMER_BULK_REQUIRED_COLUMNS = [
+    ("IMEI Numarası", "imei_number"),
+    ("Seri Numarası", "serial_number"),
+    ("Internal ID", "internal_id"),
+    ("Cihaz Modeli", "cihaz_modeli"),
+    ("Flow (İş Akışı)", "flow"),
+    ("Müşteri Şikayeti", "customer_reported_complaint"),
+    ("Giriş Tarihi", "intake_date"),
+]
+
 
 def _get_system_location_id(db, kind):
     """Verilen kind'a ('good_stock' vb.) sahip sistem deposunun id'sini döner."""
@@ -886,7 +902,7 @@ class WebBridge(QObject):
         from sqlalchemy import text
         db = SessionLocal()
         try:
-            result = db.execute(text("""
+            bom_result = db.execute(text("""
                 SELECT b.id, b.parent_item_id, b.child_item_id, b.quantity,
                        p_parent.name AS parent_name, p_parent.id AS parent_part_id,
                        p_child.name AS child_name, p_child.id AS child_part_id
@@ -897,7 +913,7 @@ class WebBridge(QObject):
             """)).mappings().all()
 
             bom_map = {}
-            for row in result:
+            for row in bom_result:
                 parent_code = row["parent_item_id"]
                 if parent_code not in bom_map:
                     bom_map[parent_code] = {
@@ -912,6 +928,25 @@ class WebBridge(QObject):
                     "child_name": row["child_name"] or row["child_item_id"],
                     "quantity": int(row["quantity"])
                 })
+
+            # Reçetesi (BOM) olmayan ama 'Mamül' veya 'Yarı Mamül' olan parçaları da listeye ekle
+            products = db.execute(text("""
+                SELECT id, item_code, name 
+                FROM warehouse.parts 
+                WHERE part_type ILIKE '%Mamül%' OR part_type ILIKE '%Mamul%'
+                   OR part_category ILIKE '%Mamül%' OR part_category ILIKE '%Mamul%'
+                   OR item_category ILIKE '%Mamül%' OR item_category ILIKE '%Mamul%'
+            """)).mappings().all()
+
+            for p in products:
+                parent_code = p["item_code"]
+                if parent_code and parent_code not in bom_map:
+                    bom_map[parent_code] = {
+                        "parent_item_id": parent_code,
+                        "parent_part_id": str(p["id"]),
+                        "parent_name": p["name"] or parent_code,
+                        "materials": []
+                    }
 
             return json.dumps({"success": True, "item_boms": list(bom_map.values())}, ensure_ascii=False)
         except Exception as e:
@@ -938,6 +973,9 @@ class WebBridge(QObject):
                 INSERT INTO warehouse.parts (name, item_code, barcode, brand, model, item_category, part_category, part_category_id, stock_tracking_type, department, status, critical_limit, memory, part_type)
                 VALUES (:name, :code, :barcode, :brand, :model, :icat, :pcat, :pcat_id, :stt, :dept, :status, :critical_limit, :memory, :part_type)
             """
+            if part_type in ["Labor (İşçilik)", "Stoksuz Parça / Hizmet"]:
+                stock_tracking_type = "Stok Takipsiz"
+            
             db.execute(text(sql), {
                 "name": part_name, "code": code, "barcode": barcode or None,
                 "brand": brand or None, "model": model or None,
@@ -982,6 +1020,9 @@ class WebBridge(QObject):
                     memory = :memory, part_type = :part_type
                 WHERE id = :id
             """
+            if part_type in ["Labor (İşçilik)", "Stoksuz Parça / Hizmet"]:
+                stock_tracking_type = "Stok Takipsiz"
+
             db.execute(text(sql), {
                 "name": part_name, "code": code, "barcode": barcode or None,
                 "brand": brand or None, "model": model or None,
@@ -1296,11 +1337,12 @@ class WebBridge(QObject):
         db = SessionLocal()
         try:
             rows = db.execute(text("""
-                SELECT pc.id, pc.name, COALESCE(pc.part_type, '') AS part_type, pc.departments, pc.stock_tracking_type,
+                SELECT pc.id, pc.name, COALESCE(pc.part_type, '') AS part_type, COALESCE(pc.flow, '') AS flow,
+                       pc.departments, pc.stock_tracking_type,
                        NULL AS default_location_id, '' AS default_location_name,
                        pc.is_active, pc.description
                 FROM warehouse.part_categories pc
-                ORDER BY pc.id ASC
+                ORDER BY pc.id DESC
             """)).mappings().all()
             categories = []
             for r in rows:
@@ -1308,6 +1350,7 @@ class WebBridge(QObject):
                     "id": r["id"],
                     "name": r["name"],
                     "part_type": r["part_type"] or "",
+                    "flow": r["flow"] or "",
                     "departments": r["departments"] or "",
                     "stock_tracking_type": r["stock_tracking_type"] or "Stok Takipli",
                     "default_location_id": str(r["default_location_id"]) if r["default_location_id"] else "",
@@ -1376,8 +1419,8 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    @Slot(str, str, str, str, str, str, result=str)
-    def create_part_category(self, name, part_type, departments, stock_tracking_type, default_location_id, description):
+    @Slot(str, str, str, str, str, str, str, result=str)
+    def create_part_category(self, name, part_type, flow, departments, stock_tracking_type, default_location_id, description):
         """Yeni Parça Kategorisi ekler."""
         from models.part_category import PartCategory
         db = SessionLocal()
@@ -1389,6 +1432,8 @@ class WebBridge(QObject):
                 return json.dumps({"success": False, "message": "Bu kategori zaten var"})
             cat = PartCategory(
                 name=name,
+                part_type=part_type or None,
+                flow=flow or None,
                 departments=departments or None,
                 stock_tracking_type=stock_tracking_type or "Stok Takipli",
                 is_active=True,
@@ -1403,8 +1448,8 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    @Slot(str, str, str, str, str, str, str, str, result=str)
-    def update_part_category(self, id_str, name, part_type, departments, stock_tracking_type, default_location_id, is_active, description):
+    @Slot(str, str, str, str, str, str, str, str, str, result=str)
+    def update_part_category(self, id_str, name, part_type, flow, departments, stock_tracking_type, default_location_id, is_active, description):
         """Var olan bir Parça Kategorisini günceller."""
         from models.part_category import PartCategory
         db = SessionLocal()
@@ -1419,6 +1464,8 @@ class WebBridge(QObject):
             if db.query(PartCategory).filter(PartCategory.name == name, PartCategory.id != cat_id).first():
                 return json.dumps({"success": False, "message": "Bu isimde başka bir kategori zaten var"})
             cat.name = name
+            cat.part_type = part_type or None
+            cat.flow = flow or None
             cat.departments = departments or None
             cat.stock_tracking_type = stock_tracking_type or "Stok Takipli"
             cat.is_active = (is_active == "true" or is_active == "1" or is_active == "True")
@@ -1606,6 +1653,245 @@ class WebBridge(QObject):
         finally:
             db.close()
 
+    @Slot(result=str)
+    def generate_customer_bulk_template(self):
+        """Müşteriler sayfası toplu (Excel) yükleme şablonunu üretir. Cihaz Modeli ve Flow
+        (İş Akışı) sütunlarına Excel Data Validation ile açılır liste eklenir; zorunlu
+        sütun başlıkları kırmızı ile işaretlenir. export_table_to_excel ile aynı
+        konvansiyonu kullanır: Downloads klasörüne kaydeder ve dosyayı otomatik açar."""
+        import os
+        from pathlib import Path
+        from sqlalchemy import text
+        import openpyxl
+        from openpyxl.worksheet.datavalidation import DataValidation
+        from openpyxl.styles import Font, PatternFill, Alignment
+        from core.excel_utils import style_excel_file
+
+        db = SessionLocal()
+        try:
+            model_rows = db.execute(text("""
+                SELECT DISTINCT brand, model FROM warehouse.products
+                WHERE brand IS NOT NULL AND model IS NOT NULL AND brand <> '' AND model <> ''
+                ORDER BY brand, model
+            """)).mappings().all()
+            device_models = [f"{r['brand']} {r['model']}".strip() for r in model_rows] or ["Tanımlı ürün bulunamadı"]
+
+            wb = openpyxl.Workbook()
+            sheet = wb.active
+            sheet.title = "Toplu Cihaz Girişi"
+
+            headers = [c[0] for c in CUSTOMER_BULK_REQUIRED_COLUMNS] + [
+                "Müşteri Adı", "Müşteri Telefon", "Müşteri E-posta", "Firma"
+            ]
+            required_col_count = len(CUSTOMER_BULK_REQUIRED_COLUMNS)
+            sheet.append(headers)
+
+            # Örnek satır, kullanıcıya beklenen formatı gösterir.
+            sheet.append([
+                "353XXXXXXXXXXXX", "SN-000123", "INT-000123",
+                device_models[0], CUSTOMER_FLOW_VALUES[0],
+                "Ekran kırık, dokunmatik çalışmıyor", "2026-01-15",
+                "Ahmet Yılmaz", "05XXXXXXXXX", "", ""
+            ])
+
+            max_data_row = 500
+
+            # Gizli "Listeler" sayfası: dropdown kaynakları buradan referans alınır
+            # (Cihaz Modeli listesi 255 karakter inline sınırını aşabileceği için).
+            list_sheet = wb.create_sheet("Listeler")
+            list_sheet["A1"] = "Cihaz Modelleri"
+            for i, dm in enumerate(device_models, start=2):
+                list_sheet.cell(row=i, column=1, value=dm)
+            list_sheet.sheet_state = "hidden"
+
+            model_range = f"Listeler!$A$2:$A${len(device_models) + 1}"
+            model_dv = DataValidation(type="list", formula1=f"={model_range}", allow_blank=True, showErrorMessage=True)
+            model_dv.error = "Lütfen listeden geçerli bir Cihaz Modeli seçin."
+            model_dv.errorTitle = "Geçersiz Cihaz Modeli"
+            sheet.add_data_validation(model_dv)
+
+            flow_list = ",".join(CUSTOMER_FLOW_VALUES)
+            flow_dv = DataValidation(type="list", formula1=f'"{flow_list}"', allow_blank=True, showErrorMessage=True)
+            flow_dv.error = "Lütfen listeden geçerli bir Flow (İş Akışı) değeri seçin."
+            flow_dv.errorTitle = "Geçersiz Flow"
+            sheet.add_data_validation(flow_dv)
+
+            model_col_letter = openpyxl.utils.get_column_letter(headers.index("Cihaz Modeli") + 1)
+            flow_col_letter = openpyxl.utils.get_column_letter(headers.index("Flow (İş Akışı)") + 1)
+            model_dv.add(f"{model_col_letter}2:{model_col_letter}{max_data_row}")
+            flow_dv.add(f"{flow_col_letter}2:{flow_col_letter}{max_data_row}")
+
+            # Giriş Tarihi sütununu metin olarak biçimlendir (kullanıcı YYYY-AA-GG girer);
+            # Excel'in kendi tarih otomatik-biçimlendirmesiyle karışmasın diye.
+            intake_col_letter = openpyxl.utils.get_column_letter(headers.index("Giriş Tarihi") + 1)
+            for row_idx in range(2, max_data_row + 1):
+                sheet[f"{intake_col_letter}{row_idx}"].number_format = "@"
+
+            downloads_path = str(Path.home() / "Downloads")
+            filename = "musteriler_toplu_yukleme_sablonu.xlsx"
+            file_path = os.path.join(downloads_path, filename)
+            counter = 1
+            base_name, ext = os.path.splitext(filename)
+            while os.path.exists(file_path):
+                file_path = os.path.join(downloads_path, f"{base_name}_{counter}{ext}")
+                counter += 1
+
+            wb.save(file_path)
+
+            try:
+                style_excel_file(file_path)
+            except Exception:
+                pass
+
+            # Zorunlu sütun başlıklarını kırmızıyla vurgula (style_excel_file'dan SONRA,
+            # üzerine yazılmasın diye tekrar açıp kaydediyoruz).
+            wb2 = openpyxl.load_workbook(file_path)
+            sheet2 = wb2["Toplu Cihaz Girişi"]
+            required_fill = PatternFill(start_color="B71C1C", end_color="B71C1C", fill_type="solid")
+            for col_idx in range(1, required_col_count + 1):
+                cell = sheet2.cell(row=1, column=col_idx)
+                cell.value = f"{cell.value} *"
+                cell.fill = required_fill
+                cell.font = Font(name="Segoe UI", color="FFFFFF", bold=True, size=11)
+                cell.alignment = Alignment(horizontal="center", vertical="center")
+            sheet2["A3"] = "(*) işaretli sütunlar zorunludur. Örnek satırı (2. satır) silip kendi verilerinizi girin."
+            wb2.save(file_path)
+
+            os.startfile(file_path)
+            return json.dumps({"success": True})
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
+    def bulk_import_customers(self, rows_json):
+        """Toplu (Excel) müşteri/cihaz kabul içe aktarma. Tüm satırları önce doğrular;
+        herhangi bir satırda herhangi bir zorunlu alan eksikse veya geçersizse HİÇBİR
+        satır kaydedilmez, tüm hatalar satır numarasıyla birlikte tek seferde döner."""
+        from sqlalchemy import text
+        from datetime import datetime
+        db = SessionLocal()
+        try:
+            try:
+                rows = json.loads(rows_json or "[]")
+            except (ValueError, TypeError):
+                return json.dumps({"success": False, "message": "Geçersiz dosya verisi.", "errors": []})
+
+            if not rows:
+                return json.dumps({"success": False, "message": "Dosyada içe aktarılacak satır bulunamadı.", "errors": []})
+
+            # Cihaz Modeli -> (brand, model, product_code) eşlemesi için ürün listesini çek.
+            product_rows = db.execute(text("""
+                SELECT brand, model, item_code FROM warehouse.products
+                WHERE brand IS NOT NULL AND model IS NOT NULL
+            """)).mappings().all()
+            model_lookup = {f"{r['brand']} {r['model']}".strip().lower(): r for r in product_rows}
+
+            existing_imeis = {r[0] for r in db.execute(text(
+                "SELECT imei_number FROM warehouse.customers WHERE imei_number IS NOT NULL"
+            )).all()}
+            existing_serials = {r[0] for r in db.execute(text(
+                "SELECT serial_number FROM warehouse.customers WHERE serial_number IS NOT NULL"
+            )).all()}
+
+            errors = []
+            seen_imeis_in_file = {}
+            seen_serials_in_file = {}
+            valid_rows = []
+
+            for idx, row in enumerate(rows):
+                row_num = idx + 2  # 1. satır başlık; ilk veri satırı Excel'de 2. satır
+                row = row or {}
+
+                def get_val(key):
+                    v = row.get(key)
+                    return str(v).strip() if v is not None else ""
+
+                imei = get_val("imei_number")
+                serial = get_val("serial_number")
+                internal_id = get_val("internal_id")
+                cihaz_modeli = get_val("cihaz_modeli")
+                flow = get_val("flow")
+                complaint = get_val("customer_reported_complaint")
+                intake_date = get_val("intake_date")
+
+                for label, value in [
+                    ("IMEI Numarası", imei), ("Seri Numarası", serial), ("Internal ID", internal_id),
+                    ("Cihaz Modeli", cihaz_modeli), ("Flow (İş Akışı)", flow),
+                    ("Müşteri Şikayeti", complaint), ("Giriş Tarihi", intake_date)
+                ]:
+                    if not value:
+                        errors.append({"row": row_num, "field": label, "message": f"{label} boş olamaz."})
+
+                if flow and flow not in CUSTOMER_FLOW_VALUES:
+                    errors.append({"row": row_num, "field": "Flow (İş Akışı)", "message": f"Geçersiz değer: \"{flow}\". Geçerli değerler: {', '.join(CUSTOMER_FLOW_VALUES)}"})
+
+                product = None
+                if cihaz_modeli:
+                    product = model_lookup.get(cihaz_modeli.strip().lower())
+                    if not product:
+                        errors.append({"row": row_num, "field": "Cihaz Modeli", "message": f"\"{cihaz_modeli}\" sistemde tanımlı bir ürün değil."})
+
+                if intake_date:
+                    try:
+                        datetime.strptime(intake_date[:10], "%Y-%m-%d")
+                    except ValueError:
+                        errors.append({"row": row_num, "field": "Giriş Tarihi", "message": f"\"{intake_date}\" geçerli bir tarih değil (YYYY-AA-GG bekleniyor)."})
+
+                if imei:
+                    if imei in existing_imeis:
+                        errors.append({"row": row_num, "field": "IMEI Numarası", "message": f"\"{imei}\" zaten sistemde kayıtlı."})
+                    elif imei in seen_imeis_in_file:
+                        errors.append({"row": row_num, "field": "IMEI Numarası", "message": f"\"{imei}\" dosyada birden fazla satırda tekrarlanıyor (satır {seen_imeis_in_file[imei]})."})
+                    else:
+                        seen_imeis_in_file[imei] = row_num
+
+                if serial:
+                    if serial in existing_serials:
+                        errors.append({"row": row_num, "field": "Seri Numarası", "message": f"\"{serial}\" zaten sistemde kayıtlı."})
+                    elif serial in seen_serials_in_file:
+                        errors.append({"row": row_num, "field": "Seri Numarası", "message": f"\"{serial}\" dosyada birden fazla satırda tekrarlanıyor (satır {seen_serials_in_file[serial]})."})
+                    else:
+                        seen_serials_in_file[serial] = row_num
+
+                valid_rows.append({
+                    "imei_number": imei or None, "serial_number": serial or None, "internal_id": internal_id or None,
+                    "flow": flow or None, "customer_reported_complaint": complaint or None,
+                    "intake_date": intake_date[:10] if intake_date else None,
+                    "brand": product["brand"] if product else None,
+                    "model": product["model"] if product else None,
+                    "product_code": product["item_code"] if product else None,
+                    "customer_name": get_val("customer_name") or None,
+                    "customer_phone": get_val("customer_phone") or None,
+                    "customer_email": get_val("customer_email") or None,
+                    "company": get_val("company") or None,
+                })
+
+            if errors:
+                return json.dumps({"success": False, "message": f"{len(errors)} hata bulundu, hiçbir satır içe aktarılmadı.", "errors": errors})
+
+            for r in valid_rows:
+                db.execute(text("""
+                    INSERT INTO warehouse.customers (
+                        imei_number, serial_number, internal_id, flow, customer_reported_complaint,
+                        intake_date, brand, model, product_code,
+                        customer_name, customer_phone, customer_email, company
+                    ) VALUES (
+                        :imei_number, :serial_number, :internal_id, :flow, :customer_reported_complaint,
+                        :intake_date, :brand, :model, :product_code,
+                        :customer_name, :customer_phone, :customer_email, :company
+                    )
+                """), r)
+
+            db.commit()
+            return json.dumps({"success": True, "message": f"{len(valid_rows)} müşteri kaydı başarıyla içe aktarıldı.", "imported": len(valid_rows)})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": f"İçe aktarma hatası: {str(e)}", "errors": []})
+        finally:
+            db.close()
+
     # ==========================
     # İŞ EMİRLERİ MODÜLÜ
     # ==========================
@@ -1621,7 +1907,7 @@ class WebBridge(QObject):
                        w.start_date, w.end_date, w.parts_used, w.status, w.created_at,
                        w.source_location_id, w.stock_settled_at,
                        w.work_order_type, w.target_part_id, w.planned_quantity,
-                       w.started_at, w.completed_at, w.produced_quantity, w.scrap_quantity, w.production_notes,
+                       w.started_at, w.completed_at, w.produced_quantity, w.scrap_quantity, w.production_notes, w.department,
                        s.customer_name, s.brand, s.model, s.fault_category, s.fault_type,
                        tp.item_code AS target_part_code, tp.name AS target_part_name
                 FROM warehouse.work_orders w
@@ -1650,6 +1936,7 @@ class WebBridge(QObject):
                     "produced_quantity": row["produced_quantity"] if row["produced_quantity"] is not None else "",
                     "scrap_quantity": row["scrap_quantity"] if row["scrap_quantity"] is not None else "",
                     "production_notes": row["production_notes"] or "",
+                    "department": row["department"] or "",
                     "description": row["description"] or "",
                     "assigned_technician": row["assigned_technician"] or "",
                     "priority": row["priority"] or "Orta",
@@ -1881,8 +2168,8 @@ class WebBridge(QObject):
     # malzeme talebi (Material Request) veya stok hareketi oluşturulmaz.
     # ==========================
 
-    @Slot(str, str, str, str, str, result=str)
-    def create_production_work_order(self, target_part_id, description, priority, planned_quantity, assigned_technician):
+    @Slot(str, str, str, str, str, str, result=str)
+    def create_production_work_order(self, target_part_id, description, priority, planned_quantity, assigned_technician, department):
         """PRODUCTION tipinde yeni bir iş emri oluşturur. target_part_id, üretilecek yarı
         mamulün parça id'sidir; bu parçanın item_code'una karşılık gelen bir Recipe
         (warehouse.item_bom kaydı) bulunmalıdır. Service Record gerekmez. Recipe'deki her
@@ -1923,9 +2210,9 @@ class WebBridge(QObject):
             new_id = db.execute(text("""
                 INSERT INTO warehouse.work_orders (
                     work_order_type, target_part_id, description, priority, planned_quantity,
-                    assigned_technician, status, started_at
+                    assigned_technician, department, status
                 ) VALUES (
-                    :wtype, :target, :desc, :priority, :qty, :tech, :status, CURRENT_TIMESTAMP
+                    :wtype, :target, :desc, :priority, :qty, :tech, :dept, :status
                 ) RETURNING id
             """), {
                 "wtype": WORK_ORDER_TYPE_PRODUCTION,
@@ -1934,7 +2221,8 @@ class WebBridge(QObject):
                 "priority": priority or "Orta",
                 "qty": qty,
                 "tech": assigned_technician or None,
-                "status": PRODUCTION_WO_STATUS_IN_PRODUCTION
+                "dept": department or None,
+                "status": PRODUCTION_WO_STATUS_WAITING
             }).scalar()
 
             for bom_row in bom_rows:
@@ -2097,7 +2385,7 @@ class WebBridge(QObject):
                 }).scalar()
 
                 next_id = db.execute(text("SELECT nextval(pg_get_serial_sequence('warehouse.produced_units', 'id'))")).scalar()
-                serial_num = f"REM-PRD-{next_id:06d}"
+                serial_num = f"{next_id:015d}"
                 db.execute(text("""
                     INSERT INTO warehouse.produced_units (id, production_run_id, serial_number)
                     VALUES (:id, :run_id, :serial)
@@ -2386,14 +2674,9 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    @Slot(str, str, str, result=str)
-    def return_bom_part_to_doa(self, part_id_str, return_qty_str, username):
-        """Hızlı Tekrar Üretim (BOM) reçetesindeki bir parçayı DOA Stock'a iade eder.
-        Bu, genel bir depo-transferi değil; Hızlı Üretim'de (create_production_run)
-        tüketilen hammaddenin bir kısmının bozuk/fire çıkması durumunda üretimden DOA'ya
-        dönüşüdür -- report_material_fire ile aynı kategoride (malzeme üretim
-        kullanımından dönüyor), bu yüzden SYSTEM_TRANSFER_RULES'a (transfer_stock'un
-        depolar arası manuel transferleri kısıtladığı kural setine) tabi değildir."""
+    @Slot(str, str, str, str, result=str)
+    def return_bom_part_to_doa(self, part_id_str, return_qty_str, source_location_id_str, username):
+        """Hızlı Tekrar Üretim (BOM) reçetesindeki bir parçayı seçili lokasyondan DOA Stock'a iade eder."""
         from sqlalchemy import text
         from models.stock import Stock
         from models.stock_movement import StockMovement
@@ -2406,15 +2689,20 @@ class WebBridge(QObject):
                 return_qty = 0
             if return_qty <= 0:
                 return json.dumps({"success": False, "message": "İade miktarı 0'dan büyük olmalıdır."})
+            
+            source_location_id = int(source_location_id_str) if source_location_id_str else None
+            if not source_location_id:
+                return json.dumps({"success": False, "message": "Geçerli bir kaynak lokasyon seçmelisiniz."})
 
-            good_stock_id = _get_system_location_id(db, "good_stock")
             doa_stock_id = _get_system_location_id(db, "doa_stock")
             if not doa_stock_id:
                 return json.dumps({"success": False, "message": "DOA Stock deposu bulunamadı."})
 
-            good_stock = db.query(Stock).filter(Stock.part_id == part_id, Stock.location_id == good_stock_id).first()
-            if good_stock and good_stock.quantity >= return_qty:
-                good_stock.quantity -= return_qty
+            source_stock = db.query(Stock).filter(Stock.part_id == part_id, Stock.location_id == source_location_id).first()
+            if source_stock and source_stock.quantity >= return_qty:
+                source_stock.quantity -= return_qty
+            else:
+                return json.dumps({"success": False, "message": "Kaynak depoda yeterli stok yok."})
 
             doa_stock = db.query(Stock).filter(Stock.part_id == part_id, Stock.location_id == doa_stock_id).first()
             if doa_stock:
@@ -2427,7 +2715,7 @@ class WebBridge(QObject):
                 movement_kind="Transfer",
                 quantity=return_qty,
                 part_id=part_id,
-                source_location_id=good_stock_id,
+                source_location_id=source_location_id,
                 target_location_id=doa_stock_id,
                 created_by=username or None,
                 technician=username or None,
@@ -2496,38 +2784,38 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    @Slot(str, str, str, result=str)
-    def receive_extra_bom_materials(self, part_id_str, extra_qty_str, technician):
-        """Hızlı Tekrar Üretim reçetesi için Good Stock'a ekstra malzeme/parça girişi yapar."""
+    @Slot(str, str, str, str, result=str)
+    def receive_extra_bom_materials(self, part_id_str, extra_qty_str, target_location_id_str, technician):
+        """Hızlı Tekrar Üretim reçetesi için seçilen depoya ekstra malzeme/parça girişi yapar."""
         from models.stock import Stock
         from models.stock_movement import StockMovement
         db = SessionLocal()
         try:
             part_id = int(part_id_str)
+            target_location_id = int(target_location_id_str) if target_location_id_str else None
             try:
                 extra_qty = int(extra_qty_str)
             except (ValueError, TypeError):
                 extra_qty = 0
             if extra_qty <= 0:
                 return json.dumps({"success": False, "message": "Ekstra miktar 0'dan büyük olmalıdır."})
+            
+            if not target_location_id:
+                return json.dumps({"success": False, "message": "Geçerli bir lokasyon seçmelisiniz."})
 
-            good_stock_id = _get_system_location_id(db, "good_stock")
-            if not good_stock_id:
-                return json.dumps({"success": False, "message": "Good Stock deposu bulunamadı."})
-
-            good_stock = db.query(Stock).filter(Stock.part_id == part_id, Stock.location_id == good_stock_id).first()
-            if good_stock:
-                good_stock.quantity += extra_qty
+            target_stock = db.query(Stock).filter(Stock.part_id == part_id, Stock.location_id == target_location_id).first()
+            if target_stock:
+                target_stock.quantity += extra_qty
             else:
-                good_stock = Stock(part_id=part_id, location_id=good_stock_id, quantity=extra_qty)
-                db.add(good_stock)
+                target_stock = Stock(part_id=part_id, location_id=target_location_id, quantity=extra_qty)
+                db.add(target_stock)
 
             db.add(StockMovement(
                 type="Ekstra Malzeme Girişi",
                 movement_kind="Inbound",
                 quantity=extra_qty,
                 part_id=part_id,
-                target_location_id=good_stock_id,
+                target_location_id=target_location_id,
                 created_by=technician or None,
                 technician=technician or None,
                 description=f"Hızlı Tekrar Üretim için ekstra parça girişi ({extra_qty} adet)"
@@ -3073,7 +3361,7 @@ class WebBridge(QObject):
             units = db.execute(text("""
                 SELECT pu.id AS unit_id, pu.serial_number, pu.is_returned, pu.return_reason, pu.returned_at, pu.return_location_id, pu.returned_materials, pu.replacement_requested_qty,
                        pr.id AS run_id, pr.target_part_id, pr.quantity_produced, pr.location_id, pr.source_location_id,
-                       pr.produced_by, pr.notes, pr.created_at,
+                       pr.produced_by, pr.notes, pr.created_at, pr.department, pr.scrap_quantity, pr.work_order_id,
                        p.brand AS target_brand, p.model AS target_model,
                        p.item_code AS target_code, p.name AS target_name,
                        l.name AS location_name,
@@ -3146,6 +3434,9 @@ class WebBridge(QObject):
                     "source_location_id": str(u["source_location_id"]) if u["source_location_id"] else "",
                     "source_location_name": u["source_location_name"] or "",
                     "produced_by": u["produced_by"] or "",
+                    "department": u["department"] or "",
+                    "scrap_quantity": u["scrap_quantity"] or 0,
+                    "work_order_id": str(u["work_order_id"]) if u["work_order_id"] else "",
                     "notes": u["notes"] or "",
                     "created_at": u["created_at"].strftime("%Y-%m-%d %H:%M") if u["created_at"] else "",
                     "materials": unit_materials
@@ -3156,8 +3447,8 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    @Slot(str, str, str, str, str, str, str, result=str)
-    def create_production_run(self, target_part_id, quantity_produced, source_location_id, target_location_id, produced_by, notes, materials_json):
+    @Slot(str, str, str, str, str, str, str, str, str, result=str)
+    def create_production_run(self, target_part_id, quantity_produced, source_location_id, target_location_id, produced_by, notes, materials_json, department, scrap_quantity_str):
         """Hammadde tüketip yarı mamul/ürün stoku oluşturan bir üretim kaydı ekler."""
         from sqlalchemy import text
         from models.stock_movement import StockMovement
@@ -3169,6 +3460,8 @@ class WebBridge(QObject):
             tgt_loc_id = int(target_location_id)
             tgt_id = int(target_part_id)
             materials = json_module.loads(materials_json or "[]")
+            scrap_qty = int(scrap_quantity_str) if scrap_quantity_str else 0
+            dept = department or None
 
             if qty <= 0:
                 return json.dumps({"success": False, "message": "Üretilecek miktar sıfırdan büyük olmalıdır."})
@@ -3218,18 +3511,34 @@ class WebBridge(QObject):
                     INSERT INTO warehouse.stock (part_id, location_id, quantity) VALUES (:pid, :lid, :qty)
                 """), {"pid": tgt_id, "lid": tgt_loc_id, "qty": qty})
 
+            # Hızlı Üretim için de bir İş Emri (Work Order) oluştur ve tamamlandı işaretle
+            wo_id = db.execute(text("""
+                INSERT INTO warehouse.work_orders (
+                    work_order_type, target_part_id, description, priority, planned_quantity,
+                    assigned_technician, department, status, completed_at, produced_quantity, scrap_quantity, production_notes
+                ) VALUES (
+                    :wtype, :tgt, :desc, 'Orta', :qty, :tech, :dept, :status, CURRENT_TIMESTAMP, :qty, :scrap, :notes
+                ) RETURNING id
+            """), {
+                "wtype": WORK_ORDER_TYPE_PRODUCTION,
+                "tgt": tgt_id, "desc": "Hızlı Üretim (Otomatik İş Emri)",
+                "qty": qty, "tech": produced_by or None, "dept": dept,
+                "status": PRODUCTION_WO_STATUS_COMPLETED,
+                "scrap": scrap_qty, "notes": notes or None
+            }).scalar()
+
             # Üretim kaydını oluştur
             run_id = db.execute(text("""
-                INSERT INTO warehouse.production_runs (target_part_id, quantity_produced, source_location_id, location_id, produced_by, notes)
-                VALUES (:tgt, :qty, :slid, :tlid, :by, :notes) RETURNING id
+                INSERT INTO warehouse.production_runs (target_part_id, quantity_produced, source_location_id, location_id, produced_by, notes, department, scrap_quantity, work_order_id)
+                VALUES (:tgt, :qty, :slid, :tlid, :by, :notes, :dept, :scrap, :wo_id) RETURNING id
             """), {
                 "tgt": tgt_id, "qty": qty, "slid": src_loc_id, "tlid": tgt_loc_id,
-                "by": produced_by or None, "notes": notes or None
+                "by": produced_by or None, "notes": notes or None, "dept": dept, "scrap": scrap_qty, "wo_id": wo_id
             }).scalar()
 
             # Tek bir ortak serial number (Cihaz Kimlik ID) oluştur ve tek satır olarak ekle
             next_id = db.execute(text("SELECT nextval(pg_get_serial_sequence('warehouse.produced_units', 'id'))")).scalar()
-            serial_num = f"REM-PRD-{next_id:06d}"
+            serial_num = f"{next_id:015d}"
 
             db.execute(text("""
                 INSERT INTO warehouse.produced_units (id, production_run_id, serial_number)
@@ -3296,12 +3605,6 @@ class WebBridge(QObject):
             unit_id = int(params["unit_id"])
             return_location_id = int(params["return_location_id"])
             return_reason = params.get("return_reason") or "Belirtilmedi"
-            replacement_qty = max(0, int(params.get("replacement_qty") or 0))
-            GOOD_STOCK_ID = _get_system_location_id(db, "good_stock")
-            if not GOOD_STOCK_ID:
-                result_str = json.dumps({"success": False, "message": "Good Stock deposu bulunamadı."})
-                return result_str
-
             # Sorunlu parça miktarlarını çöz: {part_id: defective_qty}
             defective_qtys = {}
             for entry in (params.get("defective_parts") or []):
@@ -3312,6 +3615,23 @@ class WebBridge(QObject):
                         defective_qtys[p_id] = def_qty
                 except (ValueError, TypeError):
                     pass
+
+            # Değişim istenecek parça miktarlarını çöz: {part_id: replacement_qty}
+            replacement_qtys = {}
+            for entry in (params.get("replacement_parts") or []):
+                try:
+                    p_id = int(entry.get("part_id"))
+                    rep_qty = int(entry.get("replacement_qty", 0))
+                    if rep_qty > 0:
+                        replacement_qtys[p_id] = rep_qty
+                except (ValueError, TypeError):
+                    pass
+
+            replacement_qty = max(replacement_qtys.values()) if replacement_qtys else 0
+            GOOD_STOCK_ID = _get_system_location_id(db, "good_stock")
+            if not GOOD_STOCK_ID:
+                result_str = json.dumps({"success": False, "message": "Good Stock deposu bulunamadı."})
+                return result_str
             
             # 1. Üretilmiş cihaz kaydını ve bağlı olduğu üretim koşusunu çek
             unit = db.execute(text("""
@@ -3354,29 +3674,13 @@ class WebBridge(QObject):
             # fizibilite kontrolü yap: reçete var mı, gereken hammadde stokta yeterli mi?
             # Yetersizse tüm iade işlemi iptal edilir (hiçbir şey değişmez) — kısmi başarı
             # istenmiyor, ya iade+değişim birlikte gerçekleşir ya da hiçbiri.
+
+
+            # 2.5. Değişim (replacement) talep edildiyse, hammadde stok kontrolü yap
             replacement_materials = []
             if replacement_qty > 0:
-                target_part_row = db.execute(
-                    text("SELECT item_code FROM warehouse.parts WHERE id = :id"), {"id": target_part_id}
-                ).first()
-                target_item_code = target_part_row[0] if target_part_row else None
-                if not target_item_code:
-                    raise Exception("Değişim üretimi için parçanın item_code bilgisi bulunamadı.")
-
-                bom_rows = db.execute(text("""
-                    SELECT b.child_item_id, b.quantity, cp.id AS child_part_id
-                    FROM warehouse.item_bom b
-                    LEFT JOIN warehouse.parts cp ON cp.item_code = b.child_item_id
-                    WHERE b.parent_item_id = :code
-                """), {"code": target_item_code}).mappings().all()
-                if not bom_rows:
-                    raise Exception("Değişim üretimi için bu parçaya ait bir Reçete (ItemBOM) bulunamadı. İade iptal edildi.")
-
-                for bom_row in bom_rows:
-                    if not bom_row["child_part_id"]:
-                        raise Exception(f"Reçetedeki '{bom_row['child_item_id']}' parçası sistemde bulunamadı, değişim üretimi yapılamıyor. İade iptal edildi.")
-                    needed = int(bom_row["quantity"]) * replacement_qty
-                    replacement_materials.append((bom_row["child_part_id"], needed))
+                for part_id, rep_qty in replacement_qtys.items():
+                    replacement_materials.append((part_id, rep_qty))
 
                 for part_id, needed in replacement_materials:
                     total_available = db.execute(text("""
@@ -3541,7 +3845,7 @@ class WebBridge(QObject):
                 }).scalar()
 
                 replacement_next_id = db.execute(text("SELECT nextval(pg_get_serial_sequence('warehouse.produced_units', 'id'))")).scalar()
-                replacement_serial = f"REM-PRD-{replacement_next_id:06d}"
+                replacement_serial = f"{replacement_next_id:015d}"
                 db.execute(text("""
                     INSERT INTO warehouse.produced_units (id, production_run_id, serial_number)
                     VALUES (:id, :run_id, :serial)
@@ -3700,43 +4004,150 @@ class WebBridge(QObject):
 
 
     @Slot(result=str)
-    def get_suppliers(self):
-        from models.part import Part
+    def get_customers(self):
+        """Müşteriler sayfası için: warehouse.customers tablosundaki tüm kayıtlar
+        (parts tablosundan tamamen bağımsız, gerçek bir müşteri/cihaz kabul tablosu)."""
+        from sqlalchemy import text
         db = SessionLocal()
         try:
-            parts = db.query(Part).filter(Part.supplier != None).all()
-            res = []
-            for p in parts:
-                res.append({
-                    "id": p.id,
-                    "supplier": p.supplier,
-                    "brand": p.brand,
-                    "model": p.model,
-                    "item_code": p.item_code,
-                    "barcode": p.barcode
+            rows = db.execute(text("""
+                SELECT id, customer_name, customer_phone, customer_email, company,
+                       imei_number, serial_number, internal_id, brand, model, product_code,
+                       flow, customer_reported_complaint, intake_date, created_at
+                FROM warehouse.customers
+                ORDER BY id DESC
+                LIMIT 500
+            """)).mappings().all()
+            customers = []
+            for r in rows:
+                customers.append({
+                    "id": str(r["id"]),
+                    "customer_name": r["customer_name"] or "",
+                    "customer_phone": r["customer_phone"] or "",
+                    "customer_email": r["customer_email"] or "",
+                    "company": r["company"] or "",
+                    "imei_number": r["imei_number"] or "",
+                    "serial_number": r["serial_number"] or "",
+                    "internal_id": r["internal_id"] or "",
+                    "brand": r["brand"] or "",
+                    "model": r["model"] or "",
+                    "product_code": r["product_code"] or "",
+                    "flow": r["flow"] or "",
+                    "customer_reported_complaint": r["customer_reported_complaint"] or "",
+                    "intake_date": r["intake_date"].strftime("%Y-%m-%d") if r["intake_date"] else "",
+                    "created_at": r["created_at"].strftime("%Y-%m-%d %H:%M") if r["created_at"] else ""
                 })
-            return json.dumps({"success": True, "suppliers": res})
+            return json.dumps({"success": True, "customers": customers})
         except Exception as e:
             return json.dumps({"success": False, "message": str(e)})
         finally:
             db.close()
-            
-    @Slot(str, str, str, str, str, result=str)
-    def create_supplier(self, supplier, brand, model, item_code, barcode):
-        from models.part import Part
+
+    @Slot(str, str, str, str, str, str, str, str, str, str, str, result=str)
+    def create_customer(self, customer_name, customer_phone, customer_email, company,
+                         imei_number, serial_number, internal_id, cihaz_modeli, flow,
+                         customer_reported_complaint, intake_date):
+        """Yeni bir müşteri/cihaz kabul kaydı ekler (manuel tek-kayıt formu)."""
+        from sqlalchemy import text
         db = SessionLocal()
         try:
-            part = Part(
-                supplier=supplier,
-                brand=brand,
-                model=model,
-                item_code=item_code,
-                barcode=barcode,
-                name=f"{supplier} - {brand} {model}"
-            )
-            db.add(part)
+            name = (customer_name or "").strip()
+            if not name:
+                return json.dumps({"success": False, "message": "Müşteri adı zorunludur."})
+
+            product = None
+            if cihaz_modeli and cihaz_modeli.strip():
+                product = db.execute(text("""
+                    SELECT brand, model, item_code FROM warehouse.products
+                    WHERE LOWER(TRIM(brand || ' ' || model)) = LOWER(:cm) LIMIT 1
+                """), {"cm": cihaz_modeli.strip()}).mappings().first()
+
+            db.execute(text("""
+                INSERT INTO warehouse.customers (
+                    customer_name, customer_phone, customer_email, company,
+                    imei_number, serial_number, internal_id, brand, model, product_code,
+                    flow, customer_reported_complaint, intake_date
+                ) VALUES (
+                    :name, :phone, :email, :company,
+                    :imei, :serial, :internal_id, :brand, :model, :product_code,
+                    :flow, :complaint, :intake_date
+                )
+            """), {
+                "name": name, "phone": customer_phone or None, "email": customer_email or None,
+                "company": company or None,
+                "imei": imei_number or None, "serial": serial_number or None,
+                "internal_id": internal_id or None,
+                "brand": product["brand"] if product else None,
+                "model": product["model"] if product else None,
+                "product_code": product["item_code"] if product else None,
+                "flow": flow or None, "complaint": customer_reported_complaint or None,
+                "intake_date": intake_date or None
+            })
             db.commit()
-            return json.dumps({"success": True, "id": part.id})
+            return json.dumps({"success": True, "message": "Müşteri kaydı eklendi."})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, str, str, str, str, str, str, str, str, str, str, result=str)
+    def update_customer(self, customer_id_str, customer_name, customer_phone, customer_email, company,
+                         imei_number, serial_number, internal_id, cihaz_modeli, flow,
+                         customer_reported_complaint, intake_date):
+        """Var olan bir müşteri/cihaz kabul kaydını günceller."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            customer_id = int(customer_id_str)
+            name = (customer_name or "").strip()
+            if not name:
+                return json.dumps({"success": False, "message": "Müşteri adı zorunludur."})
+
+            product = None
+            if cihaz_modeli and cihaz_modeli.strip():
+                product = db.execute(text("""
+                    SELECT brand, model, item_code FROM warehouse.products
+                    WHERE LOWER(TRIM(brand || ' ' || model)) = LOWER(:cm) LIMIT 1
+                """), {"cm": cihaz_modeli.strip()}).mappings().first()
+
+            db.execute(text("""
+                UPDATE warehouse.customers
+                SET customer_name = :name, customer_phone = :phone, customer_email = :email, company = :company,
+                    imei_number = :imei, serial_number = :serial, internal_id = :internal_id,
+                    brand = :brand, model = :model, product_code = :product_code,
+                    flow = :flow, customer_reported_complaint = :complaint, intake_date = :intake_date
+                WHERE id = :id
+            """), {
+                "name": name, "phone": customer_phone or None, "email": customer_email or None,
+                "company": company or None,
+                "imei": imei_number or None, "serial": serial_number or None,
+                "internal_id": internal_id or None,
+                "brand": product["brand"] if product else None,
+                "model": product["model"] if product else None,
+                "product_code": product["item_code"] if product else None,
+                "flow": flow or None, "complaint": customer_reported_complaint or None,
+                "intake_date": intake_date or None,
+                "id": customer_id
+            })
+            db.commit()
+            return json.dumps({"success": True, "message": "Müşteri kaydı güncellendi."})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
+    def delete_customer(self, customer_id_str):
+        """Belirtilen id'ye sahip müşteri kaydını siler."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            customer_id = int(customer_id_str)
+            db.execute(text("DELETE FROM warehouse.customers WHERE id = :id"), {"id": customer_id})
+            db.commit()
+            return json.dumps({"success": True, "message": "Müşteri kaydı silindi."})
         except Exception as e:
             db.rollback()
             return json.dumps({"success": False, "message": str(e)})
@@ -4726,13 +5137,35 @@ class WebBridge(QObject):
             if not isinstance(data, dict):
                 return json.dumps({"success": False, "message": "Data must be a dictionary"})
                 
-            columns = list(data.keys())
-            values = list(data.values())
-            
-            placeholders = ', '.join([f':{col}' for col in columns])
-            col_names = ', '.join([f'"{col}"' for col in columns])
-            
             with get_db() as db:
+                # Apply SYSTEM_TRANSFER_RULES if inserting into stock_movements (e.g. via Excel)
+                if table_name == 'stock_movements':
+                    type_ = data.get('type')
+                    movement_kind = data.get('movement_kind')
+                    if type_ == "İç Transfer" or movement_kind == "Transfer":
+                        from_loc_id = data.get('source_location_id')
+                        to_loc_id = data.get('target_location_id')
+                        if from_loc_id and to_loc_id:
+                            sloc = db.execute(text("SELECT kind, name FROM warehouse.locations WHERE id = :id"), {'id': from_loc_id}).fetchone()
+                            tloc = db.execute(text("SELECT kind, name FROM warehouse.locations WHERE id = :id"), {'id': to_loc_id}).fetchone()
+                            if sloc and tloc:
+                                from_kind = sloc[0]
+                                to_kind = tloc[0]
+                                if from_kind in SYSTEM_TRANSFER_RULES:
+                                    allowed_targets = SYSTEM_TRANSFER_RULES[from_kind]
+                                    if to_kind not in allowed_targets:
+                                        allowed_labels = ", ".join(allowed_targets)
+                                        if not allowed_targets:
+                                            msg = f"Excel Hata: {from_kind} sadece çıkış deposudur, buradan başka depoya transfer yapılamaz."
+                                        else:
+                                            msg = f"Excel Hata: {from_kind}'tan sadece {allowed_labels} deposuna transfer yapılabilir."
+                                        return json.dumps({"success": False, "message": msg})
+
+                columns = list(data.keys())
+                values = list(data.values())
+                placeholders = ', '.join([f':{col}' for col in columns])
+                col_names = ', '.join([f'"{col}"' for col in columns])
+            
                 query = text(f'INSERT INTO "{schema}"."{table_name}" ({col_names}) VALUES ({placeholders})')
                 db.execute(query, data)
                 db.commit()

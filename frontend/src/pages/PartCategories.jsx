@@ -20,8 +20,18 @@ const DEPARTMENTS = [
   'TEC_L3REPAIR'
 ];
 
+// Backend'deki CUSTOMER_FLOW_VALUES (core/web_bridge.py) ile birebir aynı olmalı.
+const FLOW_VALUES = ['Refurbish', 'Repair', 'RMA', 'Battery Replacement'];
+
+// "Labor (İşçilik)" seçilirse backend (core/web_bridge.py) stok takibini otomatik "Stok Takipsiz" yapar.
+const PART_TYPE_OPTIONS = [
+  { value: 'Labor (İşçilik)', label: 'Labor' },
+  { value: 'Spare (Yedek Parça)', label: 'Spare' },
+  { value: 'Scrap (Hurda)', label: 'Scrap' }
+];
+
 const EMPTY_FORM = {
-  name: '', departments: [], stock_tracking_type: 'Stok Takipli',
+  name: '', part_type: '', flow: '', departments: [], stock_tracking_type: 'Stok Takipli',
   is_active: true, description: ''
 };
 
@@ -76,6 +86,8 @@ export default function PartCategories() {
       setEditingCat(cat);
       setFormData({
         name: cat.name || '',
+        part_type: cat.part_type || '',
+        flow: cat.flow || '',
         departments: cat.departments ? cat.departments.split(',').map(d => d.trim()).filter(Boolean) : [],
         stock_tracking_type: cat.stock_tracking_type || 'Stok Takipli',
         is_active: cat.is_active !== false,
@@ -99,7 +111,15 @@ export default function PartCategories() {
 
   const handleSave = async (e) => {
     e.preventDefault();
-    const payload = { ...formData, part_type: formData.name };
+    if (!formData.part_type) {
+      alert('Parça Tipi seçiniz.');
+      return;
+    }
+    if (!formData.flow) {
+      alert('Flow seçiniz.');
+      return;
+    }
+    const payload = { ...formData };
     const res = editingCat
       ? await api.updatePartCategory(editingCat.id, payload)
       : await api.createPartCategory(payload);
@@ -173,6 +193,8 @@ export default function PartCategories() {
                   <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs sticky top-0 z-10">
                     <tr>
                       <th className="px-6 py-4">Kategori Adı</th>
+                      <th className="px-6 py-4">Parça Tipi</th>
+                      <th className="px-6 py-4">Flow</th>
                       <th className="px-6 py-4">Departmanlar</th>
                       <th className="px-6 py-4">Stok Takibi</th>
                       <th className="px-6 py-4">Durum</th>
@@ -182,16 +204,26 @@ export default function PartCategories() {
                   <tbody className="divide-y divide-slate-700/50">
                     {loading ? (
                       <tr>
-                        <td colSpan="5" className="px-6 py-8 text-center text-slate-400">Yükleniyor...</td>
+                        <td colSpan="7" className="px-6 py-8 text-center text-slate-400">Yükleniyor...</td>
                       </tr>
                     ) : filteredCategories.length === 0 ? (
                       <tr>
-                        <td colSpan="5" className="px-6 py-8 text-center text-slate-500">Kayıt bulunamadı.</td>
+                        <td colSpan="7" className="px-6 py-8 text-center text-slate-500">Kayıt bulunamadı.</td>
                       </tr>
                     ) : (
                       filteredCategories.map(cat => (
                         <tr key={cat.id} className="hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors text-slate-700 dark:text-slate-300">
                           <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200">{cat.name}</td>
+                          <td className="px-6 py-4">
+                            {cat.part_type ? (
+                              <span className="px-2.5 py-1 rounded-full text-xs font-medium border bg-blue-500/10 text-blue-400 border-blue-500/20">{cat.part_type}</span>
+                            ) : <span className="text-slate-500">-</span>}
+                          </td>
+                          <td className="px-6 py-4">
+                            {cat.flow ? (
+                              <span className="px-2.5 py-1 rounded-full text-xs font-medium border bg-amber-500/10 text-amber-400 border-amber-500/20">{cat.flow}</span>
+                            ) : <span className="text-slate-500">-</span>}
+                          </td>
                           <td className="px-6 py-4">
                             <div className="flex flex-wrap gap-1">
                               {cat.departments ? cat.departments.split(',').map(d => d.trim()).filter(Boolean).map((d, i) => (
@@ -266,6 +298,43 @@ export default function PartCategories() {
               </div>
 
               <div>
+                <label className="block text-sm font-medium text-slate-400 mb-1.5">
+                  Parça Tipi <span className="text-red-400">*</span>
+                </label>
+                <div className="flex gap-2">
+                  {PART_TYPE_OPTIONS.map(opt => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setFormData({...formData, part_type: opt.value})}
+                      className={`flex-1 px-3 py-2.5 rounded-xl border text-sm font-medium transition-colors ${
+                        formData.part_type === opt.value
+                          ? 'bg-blue-600 border-blue-600 text-white'
+                          : 'bg-slate-50 dark:bg-[#242a38] border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 hover:border-blue-500'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-1.5">
+                  Flow <span className="text-red-400">*</span>
+                </label>
+                <select
+                  required
+                  className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                  value={formData.flow}
+                  onChange={e => setFormData({...formData, flow: e.target.value})}
+                >
+                  <option value="">Seçiniz...</option>
+                  {FLOW_VALUES.map(f => <option key={f} value={f}>{f}</option>)}
+                </select>
+              </div>
+
+              <div>
                 <label className="block text-sm font-medium text-slate-400 mb-2">Kullanabilecek Departmanlar</label>
                 <div className="grid grid-cols-2 gap-2">
                   {departmentList.map(dept => (
@@ -292,17 +361,6 @@ export default function PartCategories() {
                   <option value="Stok Takipli">Evet</option>
                   <option value="Stok Takipsiz">Hayır</option>
                 </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-400 mb-1.5">Açıklama</label>
-                <textarea
-                  rows={2}
-                  className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 resize-none"
-                  value={formData.description}
-                  onChange={e => setFormData({...formData, description: e.target.value})}
-                  placeholder="İsteğe bağlı açıklama..."
-                />
               </div>
 
               {editingCat && (
