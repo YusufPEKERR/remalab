@@ -33,6 +33,12 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     allowedHosts: true,
+    proxy: {
+      '/ws': {
+        target: 'ws://127.0.0.1:5174',
+        ws: true
+      }
+    },
     watch: {
       ignored: ['**/api_cache/**']
     }

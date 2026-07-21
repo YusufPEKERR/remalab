@@ -4,17 +4,38 @@ RemaLab WMS - Main Window (React Embedded via QWebChannel)
 
 from PySide6.QtWidgets import QMainWindow, QVBoxLayout, QWidget
 from PySide6.QtWebEngineWidgets import QWebEngineView
-from PySide6.QtWebChannel import QWebChannel
+from PySide6.QtWebChannel import QWebChannel, QWebChannelAbstractTransport
+from PySide6.QtWebSockets import QWebSocketServer
 from PySide6.QtCore import QUrl
 import os
 import functools
 import http.server
 import socketserver
 import threading
+import json
 
 from core.web_bridge import WebBridge
 
 from PySide6.QtWebEngineCore import QWebEnginePage
+
+
+class WebSocketTransport(QWebChannelAbstractTransport):
+    def __init__(self, socket):
+        super().__init__(socket)
+        self.socket = socket
+        self.socket.textMessageReceived.connect(self.on_text_message_received)
+        self.socket.disconnected.connect(self.deleteLater)
+
+    def sendMessage(self, message):
+        json_str = json.dumps(message)
+        self.socket.sendTextMessage(json_str)
+
+    def on_text_message_received(self, text):
+        try:
+            message = json.loads(text)
+            self.messageReceived.emit(message, self)
+        except Exception as e:
+            print(f"[ERROR] WebSocket transport parse error: {e}")
 
 
 class CustomRequestHandler(http.server.SimpleHTTPRequestHandler):
@@ -112,6 +133,19 @@ class MainWindow(QMainWindow):
         self.channel.registerObject("backend", self.web_bridge)
         self.web_view.page().setWebChannel(self.channel)
 
+        # WebSocket Server Kurulumu (Web tarayıcılarından gelen QWebChannel bağlantıları için)
+        self.transports = []
+        self.websocket_server = QWebSocketServer(
+            "RemaLab WMS WebSocket Server",
+            QWebSocketServer.NonSecureMode,
+            self
+        )
+        if self.websocket_server.listen(host="0.0.0.0", port=5174):
+            print("[INFO] QWebChannel WebSocket sunucusu 5174 portunda başlatıldı.")
+            self.websocket_server.newConnection.connect(self.on_new_websocket_connection)
+        else:
+            print("[ERROR] QWebChannel WebSocket sunucusu başlatılamadı!")
+
         # Varsayılan: Vite dev sunucusuna bağlan (DEV_MODE .env'de "0" ise
         # Ayarlar > Dev Mode'dan kapatılmıştır, derlenmiş sürüm yerel bir statik
         # sunucudan yüklenir).
@@ -193,4 +227,11 @@ class MainWindow(QMainWindow):
                 print(f"[WARN] Statik sunucu kapatılamadı: {e}")
 
         event.accept()
+
+    def on_new_websocket_connection(self):
+        socket = self.websocket_server.nextPendingConnection()
+        transport = WebSocketTransport(socket)
+        self.channel.connectTo(transport)
+        self.transports.append(transport)
+        socket.disconnected.connect(lambda: self.transports.remove(transport) if transport in self.transports else None)
 
