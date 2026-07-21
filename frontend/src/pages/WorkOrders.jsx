@@ -221,7 +221,10 @@ export default function WorkOrders() {
     // Akıllı Tahmin (Smart Guessing) for numeric barcodes
     const isNumber = /^\d+$/.test(query);
     if (isNumber) {
-      const numericQuery = parseInt(query, 10);
+      let numericQuery = parseInt(query, 10);
+      if (query.length === 15 && query.startsWith('1')) {
+        numericQuery = parseInt(query.substring(1), 10);
+      }
       
       // 1. Prioritize active Work Orders
       const activeWO = productionWorkOrders.find(wo => 
@@ -244,7 +247,10 @@ export default function WorkOrders() {
 
     // 3. Finally, check if it's an inactive Work Order
     if (isNumber) {
-      const numericQuery = parseInt(query, 10);
+      let numericQuery = parseInt(query, 10);
+      if (query.length === 15 && query.startsWith('1')) {
+        numericQuery = parseInt(query.substring(1), 10);
+      }
       const anyWO = productionWorkOrders.find(wo => Number(wo.id) === numericQuery);
       if (anyWO) {
         handleSelectProductionOrder(anyWO);
@@ -1258,7 +1264,7 @@ export default function WorkOrders() {
                 <div className="flex justify-between items-center p-6 pb-4">
                   <div>
                     <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                      <Layers size={20} className="text-teal-400" /> İş Emri {String(selectedProductionOrder.id).padStart(15, '0')} — {selectedProductionOrder.target_part_name || '-'}
+                      <Layers size={20} className="text-teal-400" /> İş Emri {'1' + String(selectedProductionOrder.id).padStart(14, '0')} — {selectedProductionOrder.target_part_name || '-'}
                     </h3>
                     <p className="text-slate-400 text-sm mt-1">{selectedProductionOrder.target_part_code}</p>
                   </div>
@@ -2276,9 +2282,9 @@ export default function WorkOrders() {
                       >
                         <td className="px-6 py-4 font-mono font-medium text-slate-800 dark:text-slate-200">
                           <div className="flex items-center gap-2">
-                            <span>{String(order.id).padStart(15, '0')}</span>
+                            <span>{'1' + String(order.id).padStart(14, '0')}</span>
                             <button 
-                              onClick={(e) => handleCopy(e, String(order.id).padStart(15, '0'), order.id)}
+                              onClick={(e) => handleCopy(e, '1' + String(order.id).padStart(14, '0'), order.id)}
                               className="p-1 flex items-center gap-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-500/10 rounded transition-colors"
                               title="Barkodu Kopyala"
                             >
@@ -3435,7 +3441,7 @@ export default function WorkOrders() {
 
               <div className="bg-white p-4 rounded-xl print:p-0">
                 <Barcode 
-                  value={String(printBarcodeDialog.id).padStart(15, '0')} 
+                  value={'1' + String(printBarcodeDialog.id).padStart(14, '0')} 
                   width={2} 
                   height={80} 
                   fontSize={18}
