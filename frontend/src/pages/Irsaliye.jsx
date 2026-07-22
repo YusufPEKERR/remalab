@@ -190,8 +190,8 @@ export default function Irsaliye() {
   }, []);
 
   const getDirection = (mov) => {
-    const outTypes = ['Çıkış', 'Müşteri Satışı', 'Tedarikçiye İade', 'Teknik Servis', 'Fire', 'Kayıp/Çalıntı', 'Outbound'];
-    const inTypes = ['Giriş', 'Yeni Alım', 'Yeni Alım (Tedarikçiden)', 'İade Girişi', 'Inbound'];
+    const outTypes = ['Çıkış', 'Müşteri Satışı', 'Tedarikçiye İade', 'Teknik Servis', 'Fire', 'Kayıp/Çalıntı', 'Outbound', 'Servis Kullanımı'];
+    const inTypes = ['Giriş', 'Yeni Alım', 'Yeni Alım (Tedarikçiden)', 'İade Girişi', 'Inbound', 'Teslimat İptali', 'Stock Return'];
     
     if (outTypes.includes(mov.type)) return 'out';
     if (inTypes.includes(mov.type)) return 'in';

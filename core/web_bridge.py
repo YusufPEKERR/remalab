@@ -51,7 +51,6 @@ SYSTEM_LOCATION_KINDS = {
     "repair_stock": "Repair Stock",
     "scrap_stock": "Scrap Stock",
     "out_stock": "Out Stock",
-    "wip_stock": "Üretim Alanı (WIP)",
 }
 
 # Depolar arası manuel "Stok Transferi" akışının izin verdiği kaynak->hedef
@@ -1921,7 +1920,7 @@ class WebBridge(QObject):
         try:
             rows = db.execute(text("""
                 SELECT id, customer_name, customer_phone, customer_email, company,
-                       brand, model, memory, product_code, color, fault_category, fault_type,
+                       brand, model, memory, product_code, imei_number, color, fault_category, fault_type,
                        customer_complaint, preliminary_diagnosis, status, technician_note, created_at
                 FROM warehouse.service_records
                 ORDER BY id DESC
@@ -1939,6 +1938,7 @@ class WebBridge(QObject):
                     "model": row["model"] or "",
                     "memory": row["memory"] or "",
                     "product_code": row["product_code"] or "",
+                    "imei_number": row["imei_number"] or "",
                     "color": row["color"] or "",
                     "fault_category": row["fault_category"] or "",
                     "fault_type": row["fault_type"] or "",
@@ -1954,9 +1954,9 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    @Slot(str, str, str, str, str, str, str, str, str, str, str, str, str, str, str, result=str)
+    @Slot(str, str, str, str, str, str, str, str, str, str, str, str, str, str, str, str, result=str)
     def create_service_record(self, customer_name, customer_phone, customer_email, company,
-                               brand, model, memory, product_code, color, fault_category, fault_type,
+                               brand, model, memory, product_code, imei_number, color, fault_category, fault_type,
                                customer_complaint, preliminary_diagnosis, status, technician_note):
         """Yeni servis kaydı ekler."""
         from sqlalchemy import text
@@ -1969,17 +1969,17 @@ class WebBridge(QObject):
             db.execute(text("""
                 INSERT INTO warehouse.service_records (
                     customer_name, customer_phone, customer_email, company,
-                    brand, model, memory, product_code, color, fault_category, fault_type,
+                    brand, model, memory, product_code, imei_number, color, fault_category, fault_type,
                     customer_complaint, preliminary_diagnosis, status, technician_note
                 ) VALUES (
                     :name, :phone, :email, :company,
-                    :brand, :model, :memory, :code, :color, :fcat, :ftype,
+                    :brand, :model, :memory, :code, :imei, :color, :fcat, :ftype,
                     :complaint, :diagnosis, :status, :note
                 )
             """), {
                 "name": name, "phone": customer_phone or None, "email": customer_email or None,
                 "company": company or None, "brand": brand or None, "model": model or None,
-                "memory": memory or None, "code": product_code or None, "color": color or None,
+                "memory": memory or None, "code": product_code or None, "imei": imei_number or None, "color": color or None,
                 "fcat": fault_category or None, "ftype": fault_type or None,
                 "complaint": customer_complaint or None, "diagnosis": preliminary_diagnosis or None,
                 "status": status or "Arıza Kabul", "note": technician_note or None
@@ -1992,9 +1992,9 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    @Slot(str, str, str, str, str, str, str, str, str, str, str, str, str, str, str, str, result=str)
+    @Slot(str, str, str, str, str, str, str, str, str, str, str, str, str, str, str, str, str, result=str)
     def update_service_record(self, record_id_str, customer_name, customer_phone, customer_email, company,
-                               brand, model, memory, product_code, color, fault_category, fault_type,
+                               brand, model, memory, product_code, imei_number, color, fault_category, fault_type,
                                customer_complaint, preliminary_diagnosis, status, technician_note):
         """Var olan bir servis kaydını günceller."""
         from sqlalchemy import text
@@ -2008,7 +2008,7 @@ class WebBridge(QObject):
             db.execute(text("""
                 UPDATE warehouse.service_records
                 SET customer_name = :name, customer_phone = :phone, customer_email = :email, company = :company,
-                    brand = :brand, model = :model, memory = :memory, product_code = :code, color = :color,
+                    brand = :brand, model = :model, memory = :memory, product_code = :code, imei_number = :imei, color = :color,
                     fault_category = :fcat, fault_type = :ftype,
                     customer_complaint = :complaint, preliminary_diagnosis = :diagnosis,
                     status = :status, technician_note = :note
@@ -2016,7 +2016,7 @@ class WebBridge(QObject):
             """), {
                 "name": name, "phone": customer_phone or None, "email": customer_email or None,
                 "company": company or None, "brand": brand or None, "model": model or None,
-                "memory": memory or None, "code": product_code or None, "color": color or None,
+                "memory": memory or None, "code": product_code or None, "imei": imei_number or None, "color": color or None,
                 "fcat": fault_category or None, "ftype": fault_type or None,
                 "complaint": customer_complaint or None, "diagnosis": preliminary_diagnosis or None,
                 "status": status or "Arıza Kabul", "note": technician_note or None,
@@ -2461,9 +2461,9 @@ class WebBridge(QObject):
                 if lines and src_loc_id:
                     repair_stock_id = _get_system_location_id(db, "repair_stock")
                     if new_status == "Tamamlandı":
-                        target_id = _get_system_location_id(db, "good_stock")
-                        movement_kind = "Repair"
-                        mov_type = "Tamir Başarılı: Good Stock'a Alındı"
+                        target_id = _get_system_location_id(db, "out_stock")
+                        movement_kind = "Outbound"
+                        mov_type = "Servis Tamamlandı: Out Stock'a Alındı"
                     elif new_status == "Başarısız":
                         target_id = _get_system_location_id(db, "scrap_stock")
                         movement_kind = "Scrap"
@@ -2743,13 +2743,13 @@ class WebBridge(QObject):
 
             good_stock_id = _get_system_location_id(db, "good_stock")
             scrap_stock_id = _get_system_location_id(db, "scrap_stock")
-            wip_stock_id = _get_system_location_id(db, "wip_stock")
+            wip_stock_id = _get_system_location_id(db, "repair_stock")  # Redirect WIP to repair_stock
             if not good_stock_id:
                 return json.dumps({"success": False, "message": "Good Stock deposu bulunamadı."})
             if scrap_quantity > 0 and not scrap_stock_id:
                 return json.dumps({"success": False, "message": "Scrap Stock deposu bulunamadı."})
             if not wip_stock_id:
-                return json.dumps({"success": False, "message": "Üretim Alanı (WIP) deposu bulunamadı."})
+                return json.dumps({"success": False, "message": "Repair Stock deposu bulunamadı."})
 
             # Tüketilen hammaddeler: her malzeme talebinin fiilen üretime giden kısmı
             # (issued - fire). Fire olarak DOA'ya iade edilenler zaten oradan çıkarılmıştı.
@@ -2805,7 +2805,7 @@ class WebBridge(QObject):
                         VALUES (:run_id, :pid, :qty)
                     """), {"run_id": run_id, "pid": part_id, "qty": qty_consumed})
                     
-                    # Deduct from WIP Stock
+                    # Deduct from Repair Stock
                     wip_stock_entry = db.query(Stock).filter(Stock.part_id == part_id, Stock.location_id == wip_stock_id).first()
                     if wip_stock_entry:
                         wip_stock_entry.quantity -= qty_consumed
@@ -2973,11 +2973,11 @@ class WebBridge(QObject):
                 return json.dumps({"success": False, "message": f"Kalan miktardan ({remaining}) fazla teslim edilemez."})
 
             good_stock_id = _get_system_location_id(db, "good_stock")
-            wip_stock_id = _get_system_location_id(db, "wip_stock")
+            wip_stock_id = _get_system_location_id(db, "repair_stock")  # Redirect WIP to repair_stock
             if not good_stock_id:
                 return json.dumps({"success": False, "message": "Good Stock deposu bulunamadı."})
             if not wip_stock_id:
-                return json.dumps({"success": False, "message": "Üretim Alanı (WIP) deposu bulunamadı."})
+                return json.dumps({"success": False, "message": "Repair Stock deposu bulunamadı."})
 
             stock = db.query(Stock).filter(Stock.part_id == row["part_id"], Stock.location_id == good_stock_id).first()
             available = stock.quantity if stock else 0
@@ -3030,12 +3030,7 @@ class WebBridge(QObject):
     @Slot(str, str, str, result=str)
     def report_material_fire(self, mr_id_str, fire_qty_str, username):
         """Bir Material Request'e ait, teknisyenden fire (kullanılamayan/bozuk) olarak
-        geri gelen malzemeyi DOA Stock'a iade eder ve fire_quantity'yi artırır. Fire
-        bildirilen miktar kadar ek teslim hakkı açılır (required_quantity +
-        fire_quantity - issued_quantity, bkz. issue_material_request); fire
-        bildirilmeden depocu ek malzeme veremez. Bildirilecek miktar, o ana kadar
-        teslim edilip henüz fire olarak işlenmemiş miktarı (issued - fire) aşamaz --
-        hiç teslim edilmemiş bir parça için fire bildirilemez."""
+        geri gelen malzemeyi DOA Stock'a iade eder ve fire_quantity'yi artırır."""
         from sqlalchemy import text
         from models.stock import Stock
         from models.stock_movement import StockMovement
@@ -3057,27 +3052,20 @@ class WebBridge(QObject):
             if not row:
                 return json.dumps({"success": False, "message": "Malzeme talebi bulunamadı."})
 
-            wo_type = db.execute(
-                text("SELECT work_order_type FROM warehouse.work_orders WHERE id = :id"),
-                {"id": row["work_order_id"]}
-            ).scalar()
-            if wo_type != WORK_ORDER_TYPE_PRODUCTION:
-                return json.dumps({"success": False, "message": "Fire bildirimi sadece Production Work Order'lar için yapılabilir."})
-
             unaccounted = row["issued_quantity"] - row["fire_quantity"]
             if fire_qty > unaccounted:
                 return json.dumps({"success": False, "message": f"En fazla {unaccounted} adet fire bildirebilirsiniz (teslim edilmiş, henüz fire işlenmemiş miktarı aşamaz)."})
 
             doa_stock_id = _get_system_location_id(db, "doa_stock")
-            wip_stock_id = _get_system_location_id(db, "wip_stock")
+            repair_stock_id = _get_system_location_id(db, "repair_stock")
             if not doa_stock_id:
                 return json.dumps({"success": False, "message": "DOA Stock deposu bulunamadı."})
-            if not wip_stock_id:
-                return json.dumps({"success": False, "message": "Üretim Alanı (WIP) deposu bulunamadı."})
+            if not repair_stock_id:
+                return json.dumps({"success": False, "message": "Repair Stock deposu bulunamadı."})
 
-            wip_stock_entry = db.query(Stock).filter(Stock.part_id == row["part_id"], Stock.location_id == wip_stock_id).first()
-            if wip_stock_entry:
-                wip_stock_entry.quantity -= fire_qty
+            repair_stock_entry = db.query(Stock).filter(Stock.part_id == row["part_id"], Stock.location_id == repair_stock_id).first()
+            if repair_stock_entry:
+                repair_stock_entry.quantity -= fire_qty
 
             doa_stock = db.query(Stock).filter(Stock.part_id == row["part_id"], Stock.location_id == doa_stock_id).first()
             if doa_stock:
@@ -3090,7 +3078,7 @@ class WebBridge(QObject):
                 movement_kind="Transfer",
                 quantity=fire_qty,
                 part_id=row["part_id"],
-                source_location_id=wip_stock_id,
+                source_location_id=repair_stock_id,
                 target_location_id=doa_stock_id,
                 created_by=username or None,
                 technician=username or None,
@@ -3276,6 +3264,266 @@ class WebBridge(QObject):
     # ==========================
 
     @Slot(str, result=str)
+    def get_work_order_parts_by_imei(self, imei_number):
+        """Bir IMEI numarasına ait parça satırlarını (ve teknisyen bilgilerini) getirir."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            if not imei_number or not imei_number.strip():
+                return json.dumps({"success": False, "message": "IMEI numarası boş olamaz"})
+            
+            imei_clean = imei_number.strip()
+            
+            wo_id = None
+            pu_run_id = None
+            pu_row = db.execute(text("""
+                SELECT pr.id AS run_id, pr.work_order_id, pr.target_part_id, pr.produced_by AS assigned_technician
+                FROM warehouse.produced_units pu
+                JOIN warehouse.production_runs pr ON pr.id = pu.production_run_id
+                WHERE pu.serial_number = :serial
+            """), {"serial": imei_clean}).mappings().first()
+            
+            if pu_row:
+                pu_run_id = pu_row['run_id']
+                wo_id = pu_row['work_order_id']
+
+            if not wo_id and not pu_run_id and imei_clean.isdigit():
+                possible_wo_id = None
+                if len(imei_clean) == 15 and imei_clean.startswith('1'):
+                    possible_wo_id = int(imei_clean[1:])
+                else:
+                    possible_wo_id = int(imei_clean)
+                    
+                wo_check = db.execute(text("SELECT id FROM warehouse.work_orders WHERE id = :id AND work_order_type = 'PRODUCTION'"), {"id": possible_wo_id}).scalar()
+                if wo_check:
+                    wo_id = wo_check
+
+            rows = []
+            
+            if pu_run_id:
+                rows = db.execute(text("""
+                    SELECT 'pm_' || pm.id::text AS id, pm.production_run_id AS work_order_id, pm.part_id, pm.quantity_consumed AS quantity, 
+                           'Üretimde Kullanıldı' AS status,
+                           NULL AS delivered_location_id, NULL AS delivery_movement_id, NULL AS delivered_by, NULL AS delivered_at,
+                           '' AS waiting_notes, NULL AS marked_waiting_by, NULL AS marked_waiting_at,
+                           NULL AS reversal_movement_id, NULL AS reverted_by, NULL AS reverted_at,
+                           NULL AS requested_by, NULL AS created_at,
+                           p.brand, p.model, p.color, COALESCE(p.part_category, p.item_category) AS part_category, p.item_code, p.name AS part_name_raw,
+                           '' AS delivered_location_name,
+                           :tech AS assigned_technician,
+                           tp.brand AS sr_brand, tp.model AS sr_model, '' AS sr_memory, 'Üretim (Tamamlanmış)' AS customer_name
+                    FROM warehouse.production_materials pm
+                    LEFT JOIN warehouse.parts p ON p.id = pm.part_id
+                    LEFT JOIN warehouse.parts tp ON tp.id = :target_part_id
+                    WHERE pm.production_run_id = :run_id
+                    ORDER BY pm.id DESC
+                """), {
+                    "run_id": pu_run_id, 
+                    "tech": pu_row["assigned_technician"], 
+                    "target_part_id": pu_row["target_part_id"]
+                }).mappings().all()
+
+            elif wo_id:
+                rows = db.execute(text("""
+                    SELECT 'mr_' || mr.id::text AS id, mr.work_order_id, mr.part_id, 
+                           mr.required_quantity AS required_qty,
+                           mr.issued_quantity AS issued_qty,
+                           (mr.required_quantity - mr.issued_quantity) AS remaining_qty,
+                           CASE 
+                               WHEN mr.status = 'CANCELLED' THEN mr.required_quantity
+                               WHEN mr.issued_quantity >= mr.required_quantity THEN mr.issued_quantity
+                               ELSE (mr.required_quantity - mr.issued_quantity)
+                           END AS quantity, 
+                           CASE 
+                               WHEN mr.status = 'CANCELLED' THEN 'İptal Edildi'
+                               WHEN mr.issued_quantity >= mr.required_quantity THEN 'Teslim Edildi' 
+                               WHEN mr.issued_quantity > 0 THEN 'Kısmi Teslim'
+                               ELSE 'Tedarik Bekleniyor' 
+                           END AS status,
+                           NULL AS delivered_location_id, '' AS delivered_location_name,
+                           NULL AS delivery_movement_id, NULL AS delivered_by, NULL AS delivered_at,
+                           '' AS waiting_notes, NULL AS marked_waiting_by, NULL AS marked_waiting_at,
+                           NULL AS reversal_movement_id, NULL AS reverted_by, NULL AS reverted_at,
+                           NULL AS requested_by, NULL AS created_at,
+                           p.brand, p.model, p.color, COALESCE(p.part_category, p.item_category) AS part_category, p.item_code, p.name AS part_name_raw,
+                           wo.assigned_technician,
+                           tp.brand AS sr_brand, tp.model AS sr_model, '' AS sr_memory, 'Üretim İş Emri' AS customer_name
+                    FROM warehouse.material_requests mr
+                    JOIN warehouse.work_orders wo ON wo.id = mr.work_order_id
+                    LEFT JOIN warehouse.parts p ON p.id = mr.part_id
+                    LEFT JOIN warehouse.parts tp ON tp.id = wo.target_part_id
+                    WHERE wo.id = :id
+                    ORDER BY mr.id DESC
+                """), {"id": wo_id}).mappings().all()
+
+                if not rows:
+                    pm_rows = db.execute(text("""
+                        SELECT 'pm_' || pm.id::text AS id, pr.work_order_id, pm.part_id, pm.quantity_consumed AS quantity, 
+                               'Üretimde Kullanıldı' AS status,
+                               NULL AS delivered_location_id, '' AS delivered_location_name,
+                               NULL AS delivery_movement_id, NULL AS delivered_by, NULL AS delivered_at,
+                               '' AS waiting_notes, NULL AS marked_waiting_by, NULL AS marked_waiting_at,
+                               NULL AS reversal_movement_id, NULL AS reverted_by, NULL AS reverted_at,
+                               NULL AS requested_by, NULL AS created_at,
+                               p.brand, p.model, p.color, COALESCE(p.part_category, p.item_category) AS part_category, p.item_code, p.name AS part_name_raw,
+                               pr.produced_by AS assigned_technician,
+                               tp.brand AS sr_brand, tp.model AS sr_model, '' AS sr_memory, 'Üretim (Tamamlanmış)' AS customer_name
+                        FROM warehouse.production_materials pm
+                        JOIN warehouse.production_runs pr ON pr.id = pm.production_run_id
+                        LEFT JOIN warehouse.parts p ON p.id = pm.part_id
+                        LEFT JOIN warehouse.parts tp ON tp.id = pr.target_part_id
+                        WHERE pr.work_order_id = :id
+                        ORDER BY pm.id DESC
+                    """), {"id": wo_id}).mappings().all()
+                    
+                    if pm_rows:
+                        rows = pm_rows
+
+
+            if not rows:
+                rows = db.execute(text("""
+                    SELECT wop.id, wop.work_order_id, wop.part_id, wop.quantity, wop.status,
+                           wop.quantity AS required_qty,
+                           CASE WHEN wop.status = 'Teslim Edildi' THEN wop.quantity ELSE 0 END AS issued_qty,
+                           CASE WHEN wop.status = 'Teslim Edildi' THEN 0 ELSE wop.quantity END AS remaining_qty,
+                           wop.delivered_location_id, wop.delivery_movement_id, wop.delivered_by, wop.delivered_at,
+                           wop.waiting_notes, wop.marked_waiting_by, wop.marked_waiting_at,
+                           wop.reversal_movement_id, wop.reverted_by, wop.reverted_at,
+                           wop.requested_by, wop.created_at,
+                           p.brand, p.model, p.color, COALESCE(p.part_category, p.item_category) AS part_category, p.item_code, p.name AS part_name_raw,
+                           dl.name AS delivered_location_name,
+                           wo.assigned_technician,
+                           sr.brand AS sr_brand, sr.model AS sr_model, sr.memory AS sr_memory, sr.customer_name
+                    FROM warehouse.work_order_parts wop
+                    JOIN warehouse.work_orders wo ON wo.id = wop.work_order_id
+                    JOIN warehouse.service_records sr ON sr.id = wo.service_record_id
+                    LEFT JOIN warehouse.parts p ON p.id = wop.part_id
+                    LEFT JOIN warehouse.locations dl ON dl.id = wop.delivered_location_id
+                    WHERE sr.imei_number = :imei
+                    ORDER BY wop.id DESC
+                """), {"imei": imei_clean}).mappings().all()
+
+            parts = []
+            for row in rows:
+                part_name = " ".join(filter(None, [row["brand"], row["model"], row["color"], row["part_category"]])) or (row["part_name_raw"] or "")
+                parts.append({
+                    "id": str(row["id"]),
+                    "work_order_id": str(row["work_order_id"]),
+                    "part_id": str(row["part_id"]),
+                    "part_name": part_name,
+                    "part_category": row["part_category"] or "",
+                    "item_code": row["item_code"] or "",
+                    "assigned_technician": row["assigned_technician"] or "",
+                    "quantity": row["quantity"],
+                    "required_qty": int(row["required_qty"]) if row.get("required_qty") is not None else row["quantity"],
+                    "issued_qty": int(row["issued_qty"]) if row.get("issued_qty") is not None else (row["quantity"] if row["status"] == "Teslim Edildi" else 0),
+                    "remaining_qty": int(row["remaining_qty"]) if row.get("remaining_qty") is not None else (0 if row["status"] == "Teslim Edildi" else row["quantity"]),
+                    "status": row["status"] or "Stokta Var",
+                    "delivered_location_id": str(row["delivered_location_id"]) if row["delivered_location_id"] else "",
+                    "delivered_location_name": row["delivered_location_name"] or "",
+                    "delivery_movement_id": str(row["delivery_movement_id"]) if row["delivery_movement_id"] else "",
+                    "delivered_by": row["delivered_by"] or "",
+                    "delivered_at": row["delivered_at"].strftime("%Y-%m-%d %H:%M") if row["delivered_at"] else "",
+                    "waiting_notes": row["waiting_notes"] or "",
+                    "marked_waiting_by": row["marked_waiting_by"] or "",
+                    "marked_waiting_at": row["marked_waiting_at"].strftime("%Y-%m-%d %H:%M") if row["marked_waiting_at"] else "",
+                    "reverted_by": row["reverted_by"] or "",
+                    "reverted_at": row["reverted_at"].strftime("%Y-%m-%d %H:%M") if row["reverted_at"] else "",
+                    "requested_by": row["requested_by"] or "",
+                    "created_at": row["created_at"].strftime("%Y-%m-%d %H:%M") if row["created_at"] else ""
+                })
+            if rows:
+                first_row = rows[0]
+                device_info = f"{first_row['sr_brand'] or ''} {first_row['sr_model'] or ''} {first_row['sr_memory'] or ''}".strip()
+                batch_info = first_row["customer_name"] or ""
+            else:
+                device_info = ""
+                batch_info = ""
+
+            # Identify work_order_type
+            wo_type = None
+            recipe_materials = []
+            if wo_id:
+                wo_row = db.execute(text("SELECT work_order_type, target_part_id FROM warehouse.work_orders WHERE id = :id"), {"id": wo_id}).mappings().first()
+                if wo_row:
+                    wo_type = wo_row["work_order_type"]
+                    if wo_type == 'PRODUCTION' and wo_row["target_part_id"]:
+                        target_part = db.execute(text("SELECT item_code FROM warehouse.parts WHERE id = :id"), {"id": wo_row["target_part_id"]}).mappings().first()
+                        if target_part and target_part["item_code"]:
+                            materials = db.execute(text("""
+                                SELECT p_child.id AS child_part_id, p_child.name AS child_name, p_child.item_code AS child_item_code
+                                FROM warehouse.item_bom b
+                                JOIN warehouse.parts p_child ON p_child.item_code = b.child_item_id
+                                WHERE b.parent_item_id = :parent_code
+                            """), {"parent_code": target_part["item_code"]}).mappings().all()
+                            recipe_materials = [{"id": str(m["child_part_id"]), "name": m["child_name"], "item_code": m["child_item_code"]} for m in materials]
+
+            # Query stock movements related to this work order
+            movements = []
+            if wo_id:
+                from models.stock_movement import StockMovement
+                from models.part import Part
+                from models.location import Location
+                from sqlalchemy.orm import aliased
+                
+                MovSourceLoc = aliased(Location)
+                MovTargetLoc = aliased(Location)
+                
+                wo_id_str_std = f"#{wo_id}"
+                wo_id_str_pad = f"{wo_id:015d}"
+                
+                mov_rows = db.query(StockMovement, Part, MovSourceLoc, MovTargetLoc)                     .outerjoin(Part, StockMovement.part_id == Part.id)                     .outerjoin(MovSourceLoc, StockMovement.source_location_id == MovSourceLoc.id)                     .outerjoin(MovTargetLoc, StockMovement.target_location_id == MovTargetLoc.id)                     .filter(
+                        (StockMovement.description.like(f"%{wo_id_str_std}%")) | 
+                        (StockMovement.description.like(f"%{wo_id_str_pad}%"))
+                    ).order_by(StockMovement.created_at.desc()).all()
+                
+                for mov, p, sloc, tloc in mov_rows:
+                    source_name = sloc.name if sloc else "-"
+                    target_name = tloc.name if tloc else "-"
+                    
+                    # Fix fallback names for cleaner UI
+                    if not sloc:
+                        if "İade" in mov.type and "İptal" not in mov.type:
+                            source_name = "Good Stock"
+                        elif "İptali" in mov.type:
+                            source_name = "Good Stock"
+                        elif mov.type == "Giriş":
+                            source_name = "Dış Kaynak"
+                            
+                    if not tloc:
+                        if "Çıkış" in mov.type or "Tüketimi" in mov.type or ("İptal" in mov.type and "İptali" not in mov.type) or mov.type == "Servis Kullanımı":
+                            target_name = "Kullanım/Tüketim"
+                        elif mov.type == "Çıkış":
+                            target_name = "Dış Kaynak"
+                            
+                    movements.append({
+                        "id": mov.id,
+                        "type": mov.type,
+                        "quantity": mov.quantity,
+                        "part_name": p.name if p else (mov.part_name_snapshot or "Bilinmeyen Parça"),
+                        "source_location": source_name,
+                        "target_location": target_name,
+                        "created_by": mov.created_by or "-",
+                        "created_at": mov.created_at.strftime("%Y-%m-%d %H:%M") if mov.created_at else "",
+                        "description": mov.description or ""
+                    })
+
+            return json.dumps({
+                "success": True, 
+                "parts": parts, 
+                "movements": movements,
+                "device_info": device_info, 
+                "batch_info": batch_info,
+                "work_order_id": str(wo_id) if wo_id else None,
+                "work_order_type": wo_type,
+                "recipe_materials": recipe_materials
+            })
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
     def get_work_order_parts(self, work_order_id_str):
         """Bir iş emrine ait parça satırlarını, parça/lokasyon bilgileriyle birlikte getirir."""
         from sqlalchemy import text
@@ -3288,7 +3536,7 @@ class WebBridge(QObject):
                        wop.waiting_notes, wop.marked_waiting_by, wop.marked_waiting_at,
                        wop.reversal_movement_id, wop.reverted_by, wop.reverted_at,
                        wop.requested_by, wop.created_at,
-                       p.brand, p.model, p.color, p.part_category, p.item_code, p.name AS part_name_raw,
+                       p.brand, p.model, p.color, COALESCE(p.part_category, p.item_category) AS part_category, p.item_code, p.name AS part_name_raw,
                        dl.name AS delivered_location_name
                 FROM warehouse.work_order_parts wop
                 LEFT JOIN warehouse.parts p ON p.id = wop.part_id
@@ -3307,6 +3555,9 @@ class WebBridge(QObject):
                     "part_name": part_name,
                     "item_code": row["item_code"] or "",
                     "quantity": row["quantity"],
+                    "required_qty": int(row["required_qty"]) if row.get("required_qty") is not None else row["quantity"],
+                    "issued_qty": int(row["issued_qty"]) if row.get("issued_qty") is not None else (row["quantity"] if row["status"] == "Teslim Edildi" else 0),
+                    "remaining_qty": int(row["remaining_qty"]) if row.get("remaining_qty") is not None else (0 if row["status"] == "Teslim Edildi" else row["quantity"]),
                     "status": row["status"] or "Stokta Var",
                     "delivered_location_id": str(row["delivered_location_id"]) if row["delivered_location_id"] else "",
                     "delivered_location_name": row["delivered_location_name"] or "",
@@ -3361,6 +3612,52 @@ class WebBridge(QObject):
         finally:
             db.close()
 
+
+    @Slot(str, str, str, str, result=str)
+    def add_material_request(self, work_order_id_str, part_id_str, quantity_str, username):
+        """Uretim is emrine manuel olarak ekstra malzeme talebi ekler."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            wo_id = int(work_order_id_str)
+            part_id = int(part_id_str)
+            qty = int(quantity_str)
+            
+            db.execute(text("""
+                INSERT INTO warehouse.material_requests (work_order_id, part_id, required_quantity, issued_quantity, fire_quantity)
+                VALUES (:wid, :pid, :qty, 0, 0)
+            """), {"wid": wo_id, "pid": part_id, "qty": qty})
+            
+            row = db.execute(text("""
+                SELECT 'mr_' || mr.id::text AS id, mr.work_order_id, mr.part_id, mr.required_quantity AS quantity, 
+                       'Tedarik Bekleniyor' AS status, p.brand, p.model, p.color, 
+                       COALESCE(p.part_category, p.item_category) AS part_category, p.item_code, p.name AS part_name_raw
+                FROM warehouse.material_requests mr
+                LEFT JOIN warehouse.parts p ON p.id = mr.part_id
+                WHERE mr.work_order_id = :wid AND mr.part_id = :pid
+                ORDER BY mr.id DESC LIMIT 1
+            """), {"wid": wo_id, "pid": part_id}).mappings().first()
+            
+            db.commit()
+            
+            part_name = " ".join(filter(None, [row['brand'], row['model'], row['color'], row['part_category']])) or (row['part_name_raw'] or "")
+            part_obj = {
+                "id": str(row["id"]),
+                "work_order_id": str(row["work_order_id"]),
+                "part_id": str(row["part_id"]),
+                "quantity": row["quantity"],
+                "status": row["status"],
+                "part_name": part_name,
+                "part_category": row["part_category"] or "",
+                "item_code": row["item_code"] or ""
+            }
+            return json.dumps({"success": True, "part": part_obj})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
     @Slot(str, str, str, str, result=str)
     def add_work_order_part(self, work_order_id_str, part_id_str, quantity_str, username):
         """Kayıtlı bir iş emrine tek bir parça satırı ekler ve eklenen satırı döner."""
@@ -3370,6 +3667,17 @@ class WebBridge(QObject):
             work_order_id = int(work_order_id_str)
             part_id = int(part_id_str)
             qty = int(quantity_str) if quantity_str and int(quantity_str) > 0 else 1
+
+            # Check available Good Stock quantity
+            good_stock_loc = _get_system_location_id(db, "good_stock")
+            if not good_stock_loc:
+                return json.dumps({"success": False, "message": "Good Stock deposu bulunamadı."})
+            
+            from models.stock import Stock
+            stock = db.query(Stock).filter(Stock.part_id == part_id, Stock.location_id == good_stock_loc).first()
+            available_qty = stock.quantity if stock else 0
+            if qty > available_qty:
+                return json.dumps({"success": False, "message": f"Yetersiz stok! Bu parçadan Good Stock deposunda en fazla {available_qty} adet mevcuttur."})
 
             new_id = db.execute(text("""
                 INSERT INTO warehouse.work_order_parts (work_order_id, part_id, quantity, status, requested_by)
@@ -3434,15 +3742,30 @@ class WebBridge(QObject):
             if not stock or stock.quantity < qty:
                 return json.dumps({"success": False, "message": "Seçilen lokasyonda yeterli stok yok."})
 
+            from models.location import Location
+            repair_stock_loc = db.query(Location).filter(Location.kind == "repair_stock").first()
+            if not repair_stock_loc:
+                return json.dumps({"success": False, "message": "Repair Stock deposu bulunamadı."})
+
+            # Transfer: decrease from Good Stock, increase in Repair Stock
             stock.quantity -= qty
+            
+            repair_stock_entry = db.query(Stock).filter(Stock.part_id == row["part_id"], Stock.location_id == repair_stock_loc.id).first()
+            if repair_stock_entry:
+                repair_stock_entry.quantity += qty
+            else:
+                db.add(Stock(part_id=row["part_id"], location_id=repair_stock_loc.id, quantity=qty))
+
             movement = StockMovement(
-                type="Servis Kullanımı",
+                type="Stok Çıkışı (Teknisyene)",
+                movement_kind="Transfer",
                 quantity=qty,
                 part_id=row["part_id"],
                 source_location_id=location_id,
+                target_location_id=repair_stock_loc.id,
                 created_by=username or None,
                 technician=username or None,
-                description=f"İş Emri #{row['work_order_id']} için teslim edildi"
+                description=f"İş Emri #{row['work_order_id']} için teknisyene teslim edildi (Good -> Repair)"
             )
             db.add(movement)
             db.flush()
@@ -3486,13 +3809,53 @@ class WebBridge(QObject):
             db.close()
 
     @Slot(str, str, result=str)
-    def revert_work_order_part_status(self, wop_id_str, username):
+    def revert_work_order_part_status(self, wop_id_str, username, return_qty_str=None):
         """Durumu geri alır: Tedarik Bekleniyor -> Stokta Var, veya Teslim Edildi -> Stokta Var (stok iadeli)."""
         from sqlalchemy import text
         from models.stock import Stock
         from models.stock_movement import StockMovement
         db = SessionLocal()
         try:
+            if str(wop_id_str).startswith('pm_'):
+                return json.dumps({"success": False, "message": "Üretimi tamamlanmış cihazların parçaları tekil olarak iade edilemez. Lütfen cihazın tamamını iade edin."})
+
+            if str(wop_id_str).startswith('mr_'):
+                # Production Work Order material request
+                mr_id = int(str(wop_id_str).replace('mr_', ''))
+                mr = db.execute(text("SELECT id, part_id, issued_quantity FROM warehouse.material_requests WHERE id = :id FOR UPDATE"), {"id": mr_id}).mappings().first()
+                if not mr:
+                    return json.dumps({"success": False, "message": "Material Request bulunamadı."})
+                qty_to_return = int(return_qty_str) if return_qty_str and int(return_qty_str) > 0 else mr["issued_quantity"]
+                if qty_to_return <= 0:
+                    return json.dumps({"success": False, "message": "İade edilecek teslim edilmiş miktar yok."})
+                if qty_to_return > mr["issued_quantity"]:
+                    return json.dumps({"success": False, "message": f"En fazla {mr['issued_quantity']} adet iade edebilirsiniz."})
+
+                good_stock_loc = _get_system_location_id(db, "good_stock")
+                if not good_stock_loc:
+                    return json.dumps({"success": False, "message": "Good Stock lokasyonu bulunamadı."})
+
+                # Add to Good Stock
+                existing_stock = db.query(Stock).filter(Stock.location_id == good_stock_loc, Stock.part_id == mr["part_id"]).first()
+                if existing_stock:
+                    existing_stock.quantity += qty_to_return
+                else:
+                    db.add(Stock(location_id=good_stock_loc, part_id=mr["part_id"], quantity=qty_to_return))
+
+                db.add(StockMovement(
+                    type="Stock Return",
+                    movement_kind="Inbound",
+                    part_id=mr["part_id"],
+                    quantity=qty_to_return,
+                    target_location_id=good_stock_loc,
+                    created_by=username,
+                    description=f"Üretim siparişinden Stoğa Geri Alındı (MR #{mr['id']})"
+                ))
+
+                db.execute(text("UPDATE warehouse.material_requests SET issued_quantity = issued_quantity - :qty WHERE id = :id"), {"qty": qty_to_return, "id": mr_id})
+                db.commit()
+                return json.dumps({"success": True, "message": "Parçalar stoğa geri alındı."})
+            
             wop_id = int(wop_id_str)
             row = db.execute(
                 text("""SELECT id, work_order_id, part_id, quantity, status, delivered_location_id, delivery_movement_id
@@ -3518,7 +3881,10 @@ class WebBridge(QObject):
                 return json.dumps({"success": True})
 
             # status == 'Teslim Edildi' -> stok iadesi + telafi hareketi
-            qty = row["quantity"]
+            qty = int(return_qty_str) if return_qty_str and int(return_qty_str) > 0 else row["quantity"]
+            if qty > row["quantity"]:
+                return json.dumps({"success": False, "message": f"En fazla {row['quantity']} adet iade edebilirsiniz."})
+                
             location_id = row["delivered_location_id"]
             stock = db.query(Stock).filter(Stock.part_id == row["part_id"], Stock.location_id == location_id).first()
             if stock:
@@ -3538,14 +3904,34 @@ class WebBridge(QObject):
             db.add(reversal)
             db.flush()
 
-            db.execute(text("""
-                UPDATE warehouse.work_order_parts
-                SET status = 'Stokta Var', delivered_location_id = NULL, delivery_movement_id = NULL,
-                    delivered_by = NULL, delivered_at = NULL,
-                    reversal_movement_id = :rev, reverted_by = :user, reverted_at = CURRENT_TIMESTAMP,
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE id = :id
-            """), {"rev": reversal.id, "user": username or None, "id": wop_id})
+            if qty == row["quantity"]:
+                db.execute(text("""
+                    UPDATE warehouse.work_order_parts
+                    SET status = 'Stoğa Geri Alındı', delivered_location_id = NULL, delivery_movement_id = NULL,
+                        delivered_by = NULL, delivered_at = NULL,
+                        reversal_movement_id = :rev, reverted_by = :user, reverted_at = CURRENT_TIMESTAMP,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE id = :id
+                """), {"rev": reversal.id, "user": username or None, "id": wop_id})
+            else:
+                # Partial return to good stock: split row
+                db.execute(text("""
+                    UPDATE warehouse.work_order_parts
+                    SET quantity = quantity - :rqty, updated_at = CURRENT_TIMESTAMP
+                    WHERE id = :id
+                """), {"rqty": qty, "id": wop_id})
+                
+                db.execute(text("""
+                    INSERT INTO warehouse.work_order_parts (work_order_id, part_id, quantity, status, delivered_location_id, created_at, updated_at, reverted_by, reverted_at, reversal_movement_id)
+                    VALUES (:wo_id, :part_id, :qty, 'Stoğa Geri Alındı', :delivered_loc, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, :user, CURRENT_TIMESTAMP, :rev)
+                """), {
+                    "wo_id": row["work_order_id"],
+                    "part_id": row["part_id"],
+                    "qty": qty,
+                    "delivered_loc": row["delivered_location_id"],
+                    "user": username or None,
+                    "rev": reversal.id
+                })
             db.commit()
             return json.dumps({"success": True})
         except Exception as e:
@@ -3561,6 +3947,16 @@ class WebBridge(QObject):
         from models.stock import Stock
         from models.stock_movement import StockMovement
         from models.location import Location
+        
+        if str(wop_id_str).startswith('pm_'):
+            return json.dumps({"success": False, "message": "Üretimi tamamlanmış cihazların parçaları tekil olarak DOA'ya alınamaz. Lütfen 'Üretim İş Emirleri' kısmından fire/iade işlemi yapın."})
+
+        if str(wop_id_str).startswith('mr_'):
+            # Production Work Order material request
+            mr_id = str(wop_id_str).replace('mr_', '')
+            # DOA Stoğa al demek fire bildirmekle aynı mantık (DOA stoğa atar, issued_quantity'den eksiltip fire_quantity'ye ekler)
+            return self.report_material_fire(mr_id, return_qty_str, username)
+
         db = SessionLocal()
         try:
             wop_id = int(wop_id_str)
@@ -3615,11 +4011,24 @@ class WebBridge(QObject):
                     WHERE id = :id
                 """), {"id": wop_id})
             else:
+                # Partial return: split the row
+                # 1. Deduct quantity from original "Teslim Edildi" row
                 db.execute(text("""
                     UPDATE warehouse.work_order_parts
                     SET quantity = quantity - :rqty, updated_at = CURRENT_TIMESTAMP
                     WHERE id = :id
                 """), {"rqty": return_qty, "id": wop_id})
+                
+                # 2. Insert new row representing the returned quantity with status "Kısmi İade Edildi"
+                db.execute(text("""
+                    INSERT INTO warehouse.work_order_parts (work_order_id, part_id, quantity, status, delivered_location_id, created_at, updated_at)
+                    VALUES (:wo_id, :part_id, :qty, 'Kısmi İade Edildi', :delivered_loc, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """), {
+                    "wo_id": row["work_order_id"],
+                    "part_id": row["part_id"],
+                    "qty": return_qty,
+                    "delivered_loc": row["delivered_location_id"]
+                })
 
             db.commit()
             return json.dumps({"success": True})
@@ -3630,18 +4039,215 @@ class WebBridge(QObject):
             db.close()
 
     @Slot(str, result=str)
-    def remove_work_order_part(self, wop_id_str):
-        """Bir parça satırını siler. Teslim edilmiş satırlar önce geri alınmadan silinemez."""
+    def remove_work_order_part(self, payload_str):
+        """Bir parça satırını iptal edildi olarak günceller ve sebebini not düşer. (Payload JSON formatında)"""
         from sqlalchemy import text
+        import json
         db = SessionLocal()
         try:
+            try:
+                payload = json.loads(payload_str)
+                wop_id_str = str(payload.get('id', ''))
+                reason_str = str(payload.get('reason', ''))
+            except Exception:
+                # Geriye dönük uyumluluk (sadece ID gelirse)
+                wop_id_str = str(payload_str)
+                reason_str = ''
+
+            if wop_id_str.startswith('pm_'):
+                return json.dumps({"success": False, "message": "Üretimi tamamlanmış cihazların parçaları silinemez/iptal edilemez."})
+
+            if wop_id_str.startswith('mr_'):
+                mr_id = int(wop_id_str.replace('mr_', ''))
+                mr = db.execute(text("SELECT id, part_id, issued_quantity FROM warehouse.material_requests WHERE id = :id FOR UPDATE"), {"id": mr_id}).mappings().first()
+                if not mr:
+                    return json.dumps({"success": False, "message": "Material Request bulunamadı."})
+                
+                qty_to_return = mr["issued_quantity"]
+                if qty_to_return > 0:
+                    # Auto return to Good Stock
+                    from models.stock import Stock
+                    from models.stock_movement import StockMovement
+                    good_stock_loc = _get_system_location_id(db, "good_stock")
+                    repair_stock_id = _get_system_location_id(db, "repair_stock")
+                    
+                    # 1. Decrement from Repair Stock (technician stock)
+                    if repair_stock_id:
+                        rep_stock = db.query(Stock).filter(Stock.location_id == repair_stock_id, Stock.part_id == mr["part_id"]).first()
+                        if rep_stock:
+                            rep_stock.quantity = max(0, rep_stock.quantity - qty_to_return)
+                            
+                    # 2. Increment in Good Stock (warehouse stock)
+                    if good_stock_loc:
+                        existing_stock = db.query(Stock).filter(Stock.location_id == good_stock_loc, Stock.part_id == mr["part_id"]).first()
+                        if existing_stock:
+                            existing_stock.quantity += qty_to_return
+                        else:
+                            db.add(Stock(location_id=good_stock_loc, part_id=mr["part_id"], quantity=qty_to_return))
+
+                        db.add(StockMovement(
+                            type="Stock Return",
+                            movement_kind="Inbound",
+                            part_id=mr["part_id"],
+                            quantity=qty_to_return,
+                            target_location_id=good_stock_loc,
+                            created_by=username or "System",
+                            description=f"İptal nedeniyle Stoğa Geri Alındı (MR #{mr['id']})"
+                        ))
+                
+                # Material Request tablosunda durumu CANCELLED yapıyoruz
+                db.execute(text("UPDATE warehouse.material_requests SET status = 'CANCELLED', issued_quantity = 0 WHERE id = :id"), {"id": mr_id})
+                db.commit()
+                return json.dumps({"success": True})
+
             wop_id = int(wop_id_str)
-            result = db.execute(text("""
-                DELETE FROM warehouse.work_order_parts WHERE id = :id AND status != 'Teslim Edildi'
-            """), {"id": wop_id})
-            if result.rowcount == 0:
-                db.rollback()
-                return json.dumps({"success": False, "message": "Teslim edilmiş bir parça silinemez, önce geri alın."})
+            # Service parçaları için
+            row = db.execute(
+                text("SELECT id, work_order_id, part_id, quantity, status, delivered_location_id, delivery_movement_id FROM warehouse.work_order_parts WHERE id = :id FOR UPDATE"),
+                {"id": wop_id}
+            ).mappings().first()
+            
+            if not row:
+                return json.dumps({"success": False, "message": "İptal edilecek satır bulunamadı."})
+
+            if row["status"] in ("Teslim Edildi", "Kısmi İade Edildi"):
+                # Auto return to source location (Good Stock)
+                from models.stock import Stock
+                from models.stock_movement import StockMovement
+                qty = row["quantity"]
+                location_id = row["delivered_location_id"]
+                repair_stock_id = _get_system_location_id(db, "repair_stock")
+                
+                # 1. Decrement from Repair Stock (technician stock)
+                if repair_stock_id:
+                    rep_stock = db.query(Stock).filter(Stock.location_id == repair_stock_id, Stock.part_id == row["part_id"]).first()
+                    if rep_stock:
+                        rep_stock.quantity = max(0, rep_stock.quantity - qty)
+                
+                # 2. Increment in Good Stock
+                if location_id:
+                    stock = db.query(Stock).filter(Stock.part_id == row["part_id"], Stock.location_id == location_id).first()
+                    if stock:
+                        stock.quantity += qty
+                    else:
+                        db.add(Stock(part_id=row["part_id"], location_id=location_id, quantity=qty))
+
+                    reversal = StockMovement(
+                        type="Teslimat İptali",
+                        quantity=qty,
+                        part_id=row["part_id"],
+                        target_location_id=location_id,
+                        created_by=username or "System",
+                        description=f"İptal nedeniyle teslimat geri alındı (İş Emri #{row['work_order_id']}, orijinal hareket #{row['delivery_movement_id']})"
+                    )
+                    db.add(reversal)
+
+            db.execute(text("""
+                UPDATE warehouse.work_order_parts 
+                SET status = 'İptal Edildi', waiting_notes = :reason, delivered_location_id = NULL, delivery_movement_id = NULL
+                WHERE id = :id
+            """), {"id": wop_id, "reason": reason_str})
+            
+            db.commit()
+            return json.dumps({"success": True})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
+    def get_service_repair_details(self, work_order_id_str):
+        """Servis iş emrine ait arıza tespit, tanı kartları, onarım aşamaları bilgilerini getirir."""
+        from sqlalchemy import text
+        import json
+        db = SessionLocal()
+        try:
+            wo_id = int(work_order_id_str)
+            wo = db.execute(text("""
+                SELECT id, service_record_id, assigned_technician
+                FROM warehouse.work_orders WHERE id = :id
+            """), {"id": wo_id}).mappings().first()
+            if not wo:
+                return json.dumps({"success": False, "message": "İş emri bulunamadı."})
+            
+            sr_id = wo["service_record_id"]
+            if not sr_id:
+                return json.dumps({"success": False, "message": "Bu iş emri bir servis kaydına bağlı değil."})
+                
+            sr = db.execute(text("""
+                SELECT id, customer_name, brand, model, color, memory, imei_number, imei_serial,
+                       customer_complaint, preliminary_diagnosis, technician_note
+                FROM warehouse.service_records WHERE id = :id
+            """), {"id": sr_id}).mappings().first()
+            
+            if not sr:
+                return json.dumps({"success": False, "message": "Servis kaydı bulunamadı."})
+
+            diag_data = None
+            raw_note = sr["technician_note"] or ""
+            if raw_note.strip().startswith('{') and raw_note.strip().endswith('}'):
+                try:
+                    diag_data = json.loads(raw_note)
+                except Exception:
+                    pass
+            
+            if not diag_data or not isinstance(diag_data, dict):
+                diag_data = {
+                    "diagnostics": {
+                        "lcd": "OK",
+                        "mp_camera": "OK",
+                        "b_camera": "OK",
+                        "battery_cycle": "0",
+                        "battery_health": "100"
+                    },
+                    "stages": [
+                        {"group_name": "Kasa Onarımı", "staff_name": wo["assigned_technician"] or "", "count": 1, "status": "Beklemede", "start_time": "", "finish_time": ""},
+                        {"group_name": "Kamera Onarımı", "staff_name": "", "count": 1, "status": "Beklemede", "start_time": "", "finish_time": ""},
+                        {"group_name": "Ekran Onarımı", "staff_name": "", "count": 1, "status": "Beklemede", "start_time": "", "finish_time": ""},
+                        {"group_name": "L1 Onarımı", "staff_name": "", "count": 1, "status": "Beklemede", "start_time": "", "finish_time": ""}
+                    ],
+                    "price": "0.00"
+                }
+
+            res = {
+                "success": True,
+                "service_record_id": sr["id"],
+                "customer_name": sr["customer_name"] or "",
+                "brand": sr["brand"] or "",
+                "model": sr["model"] or "",
+                "color": sr["color"] or "",
+                "memory": sr["memory"] or "",
+                "imei_number": sr["imei_number"] or sr["imei_serial"] or "",
+                "customer_complaint": sr["customer_complaint"] or "",
+                "preliminary_diagnosis": sr["preliminary_diagnosis"] or "",
+                "diagnostics": diag_data.get("diagnostics", {}),
+                "stages": diag_data.get("stages", []),
+                "price": diag_data.get("price", "0.00")
+            }
+            return json.dumps(res)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, result=str)
+    def save_service_repair_details(self, work_order_id_str, details_json):
+        """Servis iş emrine ait arıza tespit, tanı kartları, onarım aşamaları bilgilerini kaydeder."""
+        from sqlalchemy import text
+        import json
+        db = SessionLocal()
+        try:
+            wo_id = int(work_order_id_str)
+            wo = db.execute(text("SELECT service_record_id FROM warehouse.work_orders WHERE id = :id"), {"id": wo_id}).mappings().first()
+            if not wo or not wo["service_record_id"]:
+                return json.dumps({"success": False, "message": "İş emri veya bağlı servis kaydı bulunamadı."})
+                
+            db.execute(text("""
+                UPDATE warehouse.service_records
+                SET technician_note = :note
+                WHERE id = :id
+            """), {"note": details_json, "id": wo["service_record_id"]})
             db.commit()
             return json.dumps({"success": True})
         except Exception as e:
@@ -3704,7 +4310,7 @@ class WebBridge(QObject):
         try:
             rows = db.execute(text("""
                 SELECT wop.id, wop.work_order_id, wop.quantity, wop.waiting_notes, wop.marked_waiting_by, wop.marked_waiting_at,
-                       p.id AS part_id, p.brand, p.model, p.color, p.part_category, p.item_code, p.name AS part_name_raw,
+                       p.id AS part_id, p.brand, p.model, p.color, COALESCE(p.part_category, p.item_category) AS part_category, p.item_code, p.name AS part_name_raw,
                        w.assigned_technician, w.priority, w.status AS work_order_status,
                        s.customer_name, s.brand AS device_brand, s.model AS device_model
                 FROM warehouse.work_order_parts wop
@@ -3752,7 +4358,7 @@ class WebBridge(QObject):
             rows = db.execute(text("""
                 SELECT wop.id, wop.work_order_id, wop.quantity, wop.status, wop.waiting_notes,
                        wop.marked_waiting_by, wop.marked_waiting_at,
-                       p.id AS part_id, p.brand, p.model, p.color, p.part_category, p.item_code, p.name AS part_name_raw,
+                       p.id AS part_id, p.brand, p.model, p.color, COALESCE(p.part_category, p.item_category) AS part_category, p.item_code, p.name AS part_name_raw,
                        w.assigned_technician, w.priority, w.status AS work_order_status,
                        s.customer_name, s.brand AS device_brand, s.model AS device_model
                 FROM warehouse.work_order_parts wop

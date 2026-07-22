@@ -30,7 +30,7 @@ const STATUS_STYLES = {
 
 const EMPTY_FORM = {
   customer_name: '', customer_phone: '', customer_email: '', company: '',
-  brand: '', model: '', memory: '', product_code: '', color: '',
+  brand: '', model: '', memory: '', product_code: '', imei_number: '', color: '',
   fault_category: '', fault_type: '', customer_complaint: '', preliminary_diagnosis: '',
   status: 'Arıza Kabul', technician_note: ''
 };
@@ -197,7 +197,7 @@ export default function ServiceRecords() {
                         </td>
                         <td className="px-6 py-4">
                           <div>{rec.brand} {rec.model}{rec.memory ? ` (${rec.memory})` : ''}</div>
-                          <div className="text-xs text-slate-400">{rec.product_code}</div>
+                          <div className="text-xs text-slate-400">{rec.product_code} {rec.imei_number ? `· IMEI: ${rec.imei_number}` : ''}</div>
                         </td>
                         <td className="px-6 py-4">
                           <div>{rec.fault_category}</div>
@@ -296,6 +296,10 @@ export default function ServiceRecords() {
                     <datalist id="service-code-list">
                       {codesForMemory.map(c => <option key={c} value={c} />)}
                     </datalist>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-400 mb-1.5">IMEI Numarası</label>
+                    <input type="text" placeholder="IMEI veya Seri No..." className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={formData.imei_number || ''} onChange={e => setFormData({...formData, imei_number: e.target.value})} />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-400 mb-1.5">Renk</label>

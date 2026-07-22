@@ -11,6 +11,8 @@ import Locations from './pages/Locations';
 import Depo from './pages/Depo';
 import Irsaliye from './pages/Irsaliye';
 import WorkOrders from './pages/WorkOrders';
+import ServisOnarim from './pages/ServisOnarim';
+import ImeiTracker from './pages/ImeiTracker';
 import SupplyRequests from './pages/SupplyRequests';
 import Raporlar from './pages/Raporlar';
 import Settings from './pages/Settings';
@@ -41,6 +43,7 @@ function App() {
             <Route path="/depo" element={<Depo />} />
             <Route path="/irsaliye" element={<Irsaliye />} />
             <Route path="/work-orders" element={<WorkOrders />} />
+            <Route path="/servis-onarim" element={<ServisOnarim />} />
             <Route path="/supply-requests" element={<SupplyRequests />} />
             <Route path="/raporlar" element={<Raporlar />} />
 

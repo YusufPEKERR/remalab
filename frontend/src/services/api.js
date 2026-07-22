@@ -761,6 +761,15 @@ export const api = {
     // PARÇA TEDARİK DURUMU (İş Emri Parça Satırları)
     // ==========================
 
+    getWorkOrderPartsByImei: async (imei) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_work_order_parts_by_imei(String(imei), (res) => {
+                resolve(JSON.parse(res));
+            });
+        });
+    },
+
     getWorkOrderParts: async (workOrderId) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
@@ -783,6 +792,16 @@ export const api = {
         });
     },
 
+        addMaterialRequest: async (workOrderId, partId, quantity, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.add_material_request) {
+                backend.add_material_request(String(workOrderId), String(partId), String(quantity), username || '', (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false, message: 'Backend method not found.' });
+            }
+        });
+    },
     addWorkOrderPart: async (workOrderId, partId, quantity, username) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
@@ -816,6 +835,20 @@ export const api = {
         });
     },
 
+    removeWorkOrderPart: async (wopId, reason) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.remove_work_order_part) {
+                // Try sending it as a single JSON string!
+                backend.remove_work_order_part(JSON.stringify({id: wopId, reason: reason || ''}), (res) => {
+                    try { resolve(JSON.parse(res)); } catch(e) { resolve({success: false, message: 'Parse error'}); }
+                });
+            } else {
+                resolve({ success: true });
+            }
+        });
+    },
+
     revertWorkOrderPartStatus: async (wopId, username) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
@@ -838,11 +871,14 @@ export const api = {
         });
     },
 
-    removeWorkOrderPart: async (wopId) => {
+    removeWorkOrderPart: async (wopId, reason) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
             if (backend.remove_work_order_part) {
-                backend.remove_work_order_part(String(wopId), (res) => resolve(JSON.parse(res)));
+                // Try sending it as a single JSON string!
+                backend.remove_work_order_part(JSON.stringify({id: wopId, reason: reason || ''}), (res) => {
+                    try { resolve(JSON.parse(res)); } catch(e) { resolve({success: false, message: 'Parse error'}); }
+                });
             } else {
                 resolve({ success: true });
             }

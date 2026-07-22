@@ -199,7 +199,11 @@ export default function Raporlar() {
         if (selectedTransferCols["Tarih"]) row["Tarih"] = r.date;
         if (selectedTransferCols["İtem Kodu"]) row["İtem Kodu"] = r.item_code;
         if (selectedTransferCols["Parça Adı"]) row["Parça Adı"] = r.part_name;
-        if (selectedTransferCols["Miktar"]) row["Miktar"] = r.quantity;
+        if (selectedTransferCols["Miktar"]) {
+          const isOut = (r.type || '').includes('Çıkış') || (r.type || '').includes('Satış') || (r.type || '').includes('Servis Kullanımı') || (r.type || '').includes('Outbound') || (r.type || '').includes('Fire') || (r.type || '').includes('Teknik Servis');
+          const isIn = (r.type || '').includes('Giriş') || (r.type || '').includes('Yeni Alım') || (r.type || '').includes('İade') || (r.type || '').includes('Return') || (r.type || '').includes('İptal') || (r.type || '').includes('Inbound');
+          row["Miktar"] = (isOut ? '-' : (isIn ? '+' : '')) + r.quantity;
+        }
         if (selectedTransferCols["Kaynak Depo"]) row["Kaynak Depo"] = r.source_location;
         if (selectedTransferCols["Hedef Depo"]) row["Hedef Depo"] = r.target_location;
         if (selectedTransferCols["İşlemi Yapan"]) row["İşlemi Yapan"] = r.user;
@@ -364,7 +368,17 @@ export default function Raporlar() {
                         <td className="px-6 py-5 font-mono text-slate-500 dark:text-slate-400">{r.item_code}</td>
                         <td className="px-6 py-5 font-medium text-slate-800 dark:text-slate-200">{r.part_name}</td>
                         <td className="px-6 py-5 text-slate-400">{r.location_name}</td>
-                        <td className="px-6 py-5 font-mono text-slate-800 dark:text-slate-200">{r.quantity}</td>
+                        <td className={`px-6 py-5 font-mono font-semibold ${
+                          (r.type || '').includes('Çıkış') || (r.type || '').includes('Satış') || (r.type || '').includes('Servis Kullanımı') || (r.type || '').includes('Outbound') || (r.type || '').includes('Fire') || (r.type || '').includes('Teknik Servis')
+                            ? 'text-red-500'
+                            : (r.type || '').includes('Giriş') || (r.type || '').includes('Yeni Alım') || (r.type || '').includes('İade') || (r.type || '').includes('Return') || (r.type || '').includes('İptal') || (r.type || '').includes('Inbound')
+                              ? 'text-emerald-500'
+                              : 'text-blue-500'
+                        }`}>
+                          {(r.type || '').includes('Çıkış') || (r.type || '').includes('Satış') || (r.type || '').includes('Servis Kullanımı') || (r.type || '').includes('Outbound') || (r.type || '').includes('Fire') || (r.type || '').includes('Teknik Servis') ? '-' : (
+                            (r.type || '').includes('Giriş') || (r.type || '').includes('Yeni Alım') || (r.type || '').includes('İade') || (r.type || '').includes('Return') || (r.type || '').includes('İptal') || (r.type || '').includes('Inbound') ? '+' : ''
+                          )}{r.quantity}
+                        </td>
                         <td className="px-6 py-5">
                           {isCritical ? (
                             <span className="text-red-500 font-bold flex items-center gap-1.5"><AlertTriangle size={16} /> Kritik</span>
@@ -505,13 +519,23 @@ export default function Raporlar() {
                         <td className="px-6 py-5 font-medium text-slate-800 dark:text-slate-200">{r.part_name}</td>
                         <td className="px-6 py-5 text-slate-400">{r.source_location}</td>
                         <td className="px-6 py-5 text-slate-400">{r.target_location}</td>
-                        <td className="px-6 py-5 font-mono text-slate-800 dark:text-slate-200">{r.quantity}</td>
+                        <td className={`px-6 py-5 font-mono font-semibold ${
+                          (r.type || '').includes('Çıkış') || (r.type || '').includes('Satış') || (r.type || '').includes('Servis Kullanımı') || (r.type || '').includes('Outbound') || (r.type || '').includes('Fire') || (r.type || '').includes('Teknik Servis')
+                            ? 'text-red-500'
+                            : (r.type || '').includes('Giriş') || (r.type || '').includes('Yeni Alım') || (r.type || '').includes('İade') || (r.type || '').includes('Return') || (r.type || '').includes('İptal') || (r.type || '').includes('Inbound')
+                              ? 'text-emerald-500'
+                              : 'text-blue-500'
+                        }`}>
+                          {(r.type || '').includes('Çıkış') || (r.type || '').includes('Satış') || (r.type || '').includes('Servis Kullanımı') || (r.type || '').includes('Outbound') || (r.type || '').includes('Fire') || (r.type || '').includes('Teknik Servis') ? '-' : (
+                            (r.type || '').includes('Giriş') || (r.type || '').includes('Yeni Alım') || (r.type || '').includes('İade') || (r.type || '').includes('Return') || (r.type || '').includes('İptal') || (r.type || '').includes('Inbound') ? '+' : ''
+                          )}{r.quantity}
+                        </td>
                         <td className="px-6 py-5">{r.user}</td>
                         <td className="px-6 py-5">
                           <span className={`px-3 py-1.5 rounded-full text-sm font-medium border ${
-                            r.type.includes('Giriş') 
+                            (r.type || '').includes('Giriş') 
                               ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20' 
-                              : r.type.includes('Çıkış') 
+                              : (r.type || '').includes('Çıkış') 
                                 ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20'
                                 : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-600'
                           }`}>

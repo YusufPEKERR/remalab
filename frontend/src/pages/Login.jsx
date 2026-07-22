@@ -38,7 +38,7 @@ export default function Login() {
         setUsername(savedUsername);
         if (savedPassword) {
           try {
-            setPassword(atob(savedPassword));
+            setPassword(decodeURIComponent(escape(atob(savedPassword))));
           } catch (e) { }
         }
         setRememberMe(true);
@@ -69,7 +69,7 @@ export default function Login() {
         if (rememberMe) {
           localStorage.setItem('user', JSON.stringify(response.user));
           localStorage.setItem('saved_username', username);
-          localStorage.setItem('saved_password', btoa(password));
+          localStorage.setItem('saved_password', btoa(unescape(encodeURIComponent(password))));
           sessionStorage.removeItem('user');
         } else {
           sessionStorage.setItem('user', JSON.stringify(response.user));
