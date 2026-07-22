@@ -1445,6 +1445,17 @@ export const api = {
         });
     },
 
+    getBatchSummary: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_batch_summary) {
+                backend.get_batch_summary((res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true, batches: [] });
+            }
+        });
+    },
+
     exportAllTablesToExcel: async (filename) => {
         const backend = await getBackend();
         return new Promise((resolve) => {

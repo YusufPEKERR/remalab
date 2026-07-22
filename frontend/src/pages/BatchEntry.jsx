@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, Edit2, X, FileSpreadsheet, Search, RefreshCw, RotateCcw, User, Wrench, Smartphone, AlertCircle } from 'lucide-react';
+import { Plus, Trash2, Edit2, X, FileSpreadsheet, Search, RefreshCw, RotateCcw, User, Wrench, Smartphone, AlertCircle, Layers } from 'lucide-react';
 import { api } from '../services/api';
 import ExcelMappingModal from '../components/ExcelMappingModal';
 
@@ -39,6 +39,22 @@ export default function BatchEntry() {
   const [editingRecord, setEditingRecord] = useState(null);
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
+
+  // Batch Summary Table Modal State
+  const [isBatchSummaryModalOpen, setIsBatchSummaryModalOpen] = useState(false);
+  const [batchSummaryList, setBatchSummaryList] = useState([]);
+  const [loadingBatchSummary, setLoadingBatchSummary] = useState(false);
+  const [summarySearch, setSummarySearch] = useState('');
+
+  const handleFetchBatchSummary = async () => {
+    setIsBatchSummaryModalOpen(true);
+    setLoadingBatchSummary(true);
+    const res = await api.getBatchSummary();
+    if (res.success) {
+      setBatchSummaryList(res.batches || []);
+    }
+    setLoadingBatchSummary(false);
+  };
 
   // Pagination & Filters
   const [currentPage, setCurrentPage] = useState(1);
@@ -229,6 +245,13 @@ export default function BatchEntry() {
           <p className="text-slate-400 mt-1">Müşteri parti cihazlarını, servis ve arıza akış bilgilerini buradan yönetin.</p>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            onClick={handleFetchBatchSummary}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-500 border border-emerald-500/30 rounded-xl transition-all font-medium text-sm shadow-sm"
+          >
+            <Layers size={16} />
+            Batch Tablosu (Özet)
+          </button>
           <div className="relative">
             <select
               onChange={handleExcelAction}
@@ -622,6 +645,107 @@ export default function BatchEntry() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* BATCH ÖZETİ TABLOSU MODALI */}
+      {isBatchSummaryModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center bg-white dark:bg-[#1e2330]">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-emerald-500/10 text-emerald-400 rounded-xl border border-emerald-500/20">
+                  <Layers size={20} />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900 dark:text-white">Batch Tablosu (Parti Özetleri)</h2>
+                  <p className="text-xs text-slate-400">Oluşturulan tüm parti gruplarının özet durumları</p>
+                </div>
+              </div>
+              <button onClick={() => setIsBatchSummaryModalOpen(false)} className="text-slate-400 hover:text-white p-1">
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Modal Search Bar */}
+            <div className="p-4 border-b border-slate-200 dark:border-slate-700/50 bg-slate-50/50 dark:bg-[#1a1f2b] flex items-center gap-3">
+              <div className="relative flex-1">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={summarySearch}
+                  onChange={e => setSummarySearch(e.target.value)}
+                  placeholder="Batch No veya Müşteri Adı ile süz..."
+                  className="w-full pl-9 pr-8 py-2 bg-white dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-emerald-500 shadow-sm"
+                />
+              </div>
+            </div>
+
+            {/* Modal Table Content */}
+            <div className="overflow-auto flex-1 p-6">
+              <table className="w-full text-left text-sm whitespace-nowrap">
+                <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs sticky top-0">
+                  <tr>
+                    <th className="px-4 py-3">Batch No</th>
+                    <th className="px-4 py-3">Müşteri</th>
+                    <th className="px-4 py-3 text-center">Toplam Cihaz</th>
+                    <th className="px-4 py-3">Toplam Tutar</th>
+                    <th className="px-4 py-3">Son İşlem Tarihi</th>
+                    <th className="px-4 py-3 text-center">İşlem</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-700/50">
+                  {loadingBatchSummary ? (
+                    <tr>
+                      <td colSpan="6" className="py-8 text-center"><RefreshCw className="animate-spin mx-auto text-emerald-400" /></td>
+                    </tr>
+                  ) : batchSummaryList.filter(b => 
+                      (b.batch_no || '').toLowerCase().includes(summarySearch.toLowerCase()) ||
+                      (b.customer_name || '').toLowerCase().includes(summarySearch.toLowerCase())
+                    ).length === 0 ? (
+                    <tr>
+                      <td colSpan="6" className="py-8 text-center text-slate-500">Batch özeti bulunamadı.</td>
+                    </tr>
+                  ) : (
+                    batchSummaryList.filter(b => 
+                      (b.batch_no || '').toLowerCase().includes(summarySearch.toLowerCase()) ||
+                      (b.customer_name || '').toLowerCase().includes(summarySearch.toLowerCase())
+                    ).map((b, idx) => (
+                      <tr key={idx} className="hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300">
+                        <td className="px-4 py-3 font-bold text-blue-400 font-mono">{b.batch_no}</td>
+                        <td className="px-4 py-3">
+                          <div className="font-semibold text-slate-800 dark:text-slate-100">{b.customer_name}</div>
+                          <div className="text-xs text-slate-400 font-mono">No: {b.customer_no}</div>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span className="px-3 py-1 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-full font-bold text-xs">
+                            {b.total_devices} Cihaz
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 font-semibold text-emerald-400">
+                          ₺{Number(b.total_price || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                        </td>
+                        <td className="px-4 py-3 text-xs text-slate-400">{b.last_created}</td>
+                        <td className="px-4 py-3 text-center">
+                          <button
+                            onClick={() => {
+                              setSearchTerm(b.batch_no === 'Tanımsız Batch' ? '' : b.batch_no);
+                              setCurrentPage(1);
+                              setIsBatchSummaryModalOpen(false);
+                            }}
+                            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium transition-colors shadow-sm"
+                          >
+                            Cihazları Listele
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}

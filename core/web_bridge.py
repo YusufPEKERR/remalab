@@ -5872,3 +5872,39 @@ class WebBridge(QObject):
         finally:
             db.close()
 
+    @Slot(result=str)
+    def get_batch_summary(self):
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            sql = """
+                SELECT 
+                    COALESCE(NULLIF(batch_no, ''), 'Tanımsız Batch') AS batch_no,
+                    MAX(customer_name) AS customer_name,
+                    MAX(customer_no) AS customer_no,
+                    COUNT(*) AS total_devices,
+                    SUM(COALESCE(unit_price, 0)) AS total_price,
+                    MAX(created_at) AS last_created
+                FROM warehouse.batch_entries
+                GROUP BY COALESCE(NULLIF(batch_no, ''), 'Tanımsız Batch')
+                ORDER BY MAX(created_at) DESC;
+            """
+            rows = db.execute(text(sql)).mappings().all()
+
+            batches = [{
+                "batch_no": r["batch_no"],
+                "customer_name": r["customer_name"] or "-",
+                "customer_no": r["customer_no"] or "-",
+                "total_devices": int(r["total_devices"]),
+                "total_price": float(r["total_price"] or 0.0),
+                "last_created": r["last_created"].strftime("%d.%m.%Y %H:%M") if r["last_created"] else "-"
+            } for r in rows]
+
+            return json.dumps({"success": True, "batches": batches}, ensure_ascii=False)
+        except Exception as e:
+            print(f"[WebBridge] get_batch_summary hatası: {e}")
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+
