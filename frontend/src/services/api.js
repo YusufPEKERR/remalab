@@ -1319,13 +1319,13 @@ export const api = {
     // ==========================
     // PRODUCT BOM (ÜRÜN AĞACI - MODELE BAĞLI)
     // ==========================
-    getProductBOMs: async () => {
+    getProductBOMs: async (page = 1, pageSize = 50) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
             if (backend.get_product_boms) {
-                backend.get_product_boms((res) => resolve(JSON.parse(res)));
+                backend.get_product_boms(String(page), String(pageSize), (res) => resolve(JSON.parse(res)));
             } else {
-                resolve({ success: true, product_boms: [] });
+                resolve({ success: true, boms: [], total: 0 });
             }
         });
     },

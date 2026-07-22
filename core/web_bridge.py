@@ -1087,40 +1087,49 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    @Slot(result=str)
-    def get_product_boms(self):
+    @Slot(str, str, result=str)
+    def get_product_boms(self, page="1", page_size="50"):
+        """Sayfalanmis (LIMIT/OFFSET) sekilde doner. Tablo 30binin uzerinde satir
+        icerdigi icin tek seferde tum sonucu cekmek uzak veritabani baglantisinda
+        statement_timeout'a (10sn) takiliyordu."""
         from sqlalchemy import text
         db = SessionLocal()
         try:
+            page = max(1, int(page or 1))
+            page_size = min(1000, max(1, int(page_size or 50)))
+            offset = (page - 1) * page_size
+
+            total = db.execute(text("SELECT COUNT(*) FROM warehouse.product_boms;")).scalar()
+
             bom_result = db.execute(text("""
                 SELECT b.id, b.product_model, b.child_item_code, b.quantity, b.status,
                        b.created_at, b.updated_at,
                        p_child.name AS child_name, p_child.id AS child_part_id
                 FROM warehouse.product_boms b
                 LEFT JOIN warehouse.parts p_child ON p_child.item_code = b.child_item_code
-                ORDER BY b.product_model, b.child_item_code;
-            """)).mappings().all()
+                ORDER BY b.product_model, b.child_item_code
+                LIMIT :limit OFFSET :offset;
+            """), {"limit": page_size, "offset": offset}).mappings().all()
 
-            bom_map = {}
-            for row in bom_result:
-                model = row["product_model"]
-                if model not in bom_map:
-                    bom_map[model] = {
-                        "model": model,
-                        "materials": []
-                    }
-                bom_map[model]["materials"].append({
-                    "id": row["id"],
-                    "child_item_code": row["child_item_code"],
-                    "child_part_id": str(row["child_part_id"]) if row["child_part_id"] else "",
-                    "child_name": row["child_name"] or row["child_item_code"],
-                    "quantity": int(row["quantity"]),
-                    "status": row["status"] or "Aktif",
-                    "created_at": row["created_at"].strftime("%d.%m.%Y %H:%M") if row["created_at"] else "-",
-                    "updated_at": row["updated_at"].strftime("%d.%m.%Y %H:%M") if row["updated_at"] else "-"
-                })
-            
-            return json.dumps({"success": True, "product_boms": list(bom_map.values())}, ensure_ascii=False)
+            boms = [{
+                "id": row["id"],
+                "product_model": row["product_model"],
+                "child_item_code": row["child_item_code"],
+                "child_part_id": str(row["child_part_id"]) if row["child_part_id"] else "",
+                "child_name": row["child_name"] or row["child_item_code"],
+                "quantity": int(row["quantity"]),
+                "status": row["status"] or "Aktif",
+                "created_at": row["created_at"].strftime("%d.%m.%Y %H:%M") if row["created_at"] else "-",
+                "updated_at": row["updated_at"].strftime("%d.%m.%Y %H:%M") if row["updated_at"] else "-"
+            } for row in bom_result]
+
+            return json.dumps({
+                "success": True,
+                "boms": boms,
+                "total": total,
+                "page": page,
+                "page_size": page_size
+            }, ensure_ascii=False)
         except Exception as e:
             print(f"[WebBridge] get_product_boms hatası: {e}")
             return json.dumps({"success": False, "message": str(e)})
