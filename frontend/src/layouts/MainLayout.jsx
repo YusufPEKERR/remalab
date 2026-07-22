@@ -3,7 +3,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
   LogOut, LayoutDashboard, Users, Package, Settings, Bell,
   Warehouse, FileText, BarChart2, Box, Truck, MapPin,
-  CheckCircle, Search, AlertTriangle, Zap, RefreshCw, Sun, Moon, Database, Building2, Wrench, ClipboardList, PackageSearch, PackagePlus, Tags, ChevronDown, ChevronRight, Menu, X, Layers
+  CheckCircle, Search, AlertTriangle, Zap, RefreshCw, Sun, Moon, Database, Building2, Wrench, ClipboardList, PackageSearch, PackagePlus, Tags, ChevronDown, ChevronRight, Menu, X, Layers, FileSpreadsheet
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useTheme } from '../context/ThemeContext';
@@ -142,6 +142,7 @@ export default function MainLayout() {
       colorTheme: 'emerald',
       items: [
         { name: 'Kullanıcılar', icon: Users, path: '/users' },
+        { name: 'Batch Girişi', icon: FileSpreadsheet, path: '/batch-entry' },
         { name: 'Parça Kategorileri', icon: Tags, path: '/part-categories' },
         { name: 'Product Bom', icon: Layers, path: '/item-bom' },
         { name: 'Ayarlar', icon: Settings, path: '/settings' },

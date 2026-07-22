@@ -16,6 +16,7 @@ import Raporlar from './pages/Raporlar';
 import Settings from './pages/Settings';
 import Departments from './pages/Departments';
 import ServiceRecords from './pages/ServiceRecords';
+import BatchEntry from './pages/BatchEntry';
 import DataManagement from './pages/DataManagement';
 import SupplyRequestForm from './pages/SupplyRequestForm';
 import MainLayout from './layouts/MainLayout';
@@ -53,6 +54,7 @@ function App() {
 
             {/* KULLANICI & AYARLAR */}
             <Route path="/users" element={<Users />} />
+            <Route path="/batch-entry" element={<BatchEntry />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/departments" element={<Departments />} />
             <Route path="/service-records" element={<ServiceRecords />} />

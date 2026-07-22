@@ -157,6 +157,7 @@ class WebBridge(QObject):
         self._ensure_user_fullname_column()
         self._ensure_item_bom_data()
         self._ensure_item_model_lookup()
+        self._ensure_batch_entries_table()
 
     def _find_reference_excel_file(self):
         """Proje kök dizininde MioCreate referans veri dosyasını arar.
@@ -5672,3 +5673,202 @@ class WebBridge(QObject):
                 return json.dumps({"success": True})
         except Exception as e:
             return json.dumps({"success": False, "message": str(e)})
+
+    def _ensure_batch_entries_table(self):
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            db.execute(text("""
+                CREATE TABLE IF NOT EXISTS warehouse.batch_entries (
+                    id SERIAL PRIMARY KEY,
+                    customer_no VARCHAR(100),
+                    customer_name VARCHAR(255),
+                    imei_number VARCHAR(100),
+                    serial_number VARCHAR(100),
+                    internal_id VARCHAR(100),
+                    batch_no VARCHAR(100),
+                    model VARCHAR(255),
+                    gb VARCHAR(50),
+                    color VARCHAR(50),
+                    unit_price NUMERIC(12, 2) DEFAULT 0.00,
+                    defects TEXT,
+                    screen_test VARCHAR(100),
+                    power_test VARCHAR(100),
+                    flow VARCHAR(100) DEFAULT 'Giriş Yapıldı',
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                );
+            """))
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            print(f"[WebBridge] _ensure_batch_entries_table hatası: {e}")
+        finally:
+            db.close()
+
+    @Slot(str, str, str, str, result=str)
+    def get_batch_entries(self, page="1", page_size="50", search_term="", flow_filter=""):
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            page = max(1, int(page or 1))
+            page_size = min(1000, max(1, int(page_size or 50)))
+            offset = (page - 1) * page_size
+
+            where_clauses = []
+            params = {"limit": page_size, "offset": offset}
+
+            if search_term and str(search_term).strip():
+                term = f"%{str(search_term).strip()}%"
+                where_clauses.append("""(
+                    customer_no ILIKE :search OR 
+                    customer_name ILIKE :search OR 
+                    imei_number ILIKE :search OR 
+                    serial_number ILIKE :search OR 
+                    internal_id ILIKE :search OR 
+                    batch_no ILIKE :search OR 
+                    model ILIKE :search OR 
+                    defects ILIKE :search
+                )""")
+                params["search"] = term
+
+            if flow_filter and str(flow_filter).strip() and str(flow_filter).strip().lower() != "tümü":
+                where_clauses.append("flow = :flow_filter")
+                params["flow_filter"] = str(flow_filter).strip()
+
+            where_sql = ("WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
+
+            count_sql = f"SELECT COUNT(*) FROM warehouse.batch_entries {where_sql};"
+            total = db.execute(text(count_sql), params).scalar()
+
+            data_sql = f"""
+                SELECT id, customer_no, customer_name, imei_number, serial_number, internal_id, batch_no,
+                       model, gb, color, unit_price, defects, screen_test, power_test, flow, created_at, updated_at
+                FROM warehouse.batch_entries
+                {where_sql}
+                ORDER BY id DESC
+                LIMIT :limit OFFSET :offset;
+            """
+            rows = db.execute(text(data_sql), params).mappings().all()
+
+            records = [{
+                "id": r["id"],
+                "customer_no": r["customer_no"] or "",
+                "customer_name": r["customer_name"] or "",
+                "imei_number": r["imei_number"] or "",
+                "serial_number": r["serial_number"] or "",
+                "internal_id": r["internal_id"] or "",
+                "batch_no": r["batch_no"] or "",
+                "model": r["model"] or "",
+                "gb": r["gb"] or "",
+                "color": r["color"] or "",
+                "unit_price": float(r["unit_price"]) if r["unit_price"] is not None else 0.0,
+                "defects": r["defects"] or "",
+                "screen_test": r["screen_test"] or "",
+                "power_test": r["power_test"] or "",
+                "flow": r["flow"] or "Giriş Yapıldı",
+                "created_at": r["created_at"].strftime("%d.%m.%Y %H:%M") if r["created_at"] else "-",
+                "updated_at": r["updated_at"].strftime("%d.%m.%Y %H:%M") if r["updated_at"] else "-"
+            } for r in rows]
+
+            return json.dumps({
+                "success": True,
+                "records": records,
+                "total": total,
+                "page": page,
+                "page_size": page_size
+            }, ensure_ascii=False)
+        except Exception as e:
+            print(f"[WebBridge] get_batch_entries hatası: {e}")
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
+    def create_batch_entry(self, data_json):
+        from models.batch_entry import BatchEntry
+        db = SessionLocal()
+        try:
+            d = json.loads(data_json or "{}")
+            new_entry = BatchEntry(
+                customer_no=d.get("customer_no", "").strip(),
+                customer_name=d.get("customer_name", "").strip(),
+                imei_number=d.get("imei_number", "").strip(),
+                serial_number=d.get("serial_number", "").strip(),
+                internal_id=d.get("internal_id", "").strip(),
+                batch_no=d.get("batch_no", "").strip(),
+                model=d.get("model", "").strip(),
+                gb=d.get("gb", "").strip(),
+                color=d.get("color", "").strip(),
+                unit_price=float(d.get("unit_price") or 0.0),
+                defects=d.get("defects", "").strip(),
+                screen_test=d.get("screen_test", "").strip(),
+                power_test=d.get("power_test", "").strip(),
+                flow=d.get("flow", "Giriş Yapıldı").strip() or "Giriş Yapıldı"
+            )
+            db.add(new_entry)
+            db.commit()
+            return json.dumps({"success": True, "id": new_entry.id})
+        except Exception as e:
+            db.rollback()
+            print(f"[WebBridge] create_batch_entry hatası: {e}")
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, result=str)
+    def update_batch_entry(self, entry_id, data_json):
+        from models.batch_entry import BatchEntry
+        from datetime import datetime
+        db = SessionLocal()
+        try:
+            entry = db.query(BatchEntry).filter(BatchEntry.id == int(entry_id)).first()
+            if not entry:
+                return json.dumps({"success": False, "message": "Kayıt bulunamadı."})
+
+            d = json.loads(data_json or "{}")
+            entry.customer_no = d.get("customer_no", entry.customer_no).strip()
+            entry.customer_name = d.get("customer_name", entry.customer_name).strip()
+            entry.imei_number = d.get("imei_number", entry.imei_number).strip()
+            entry.serial_number = d.get("serial_number", entry.serial_number).strip()
+            entry.internal_id = d.get("internal_id", entry.internal_id).strip()
+            entry.batch_no = d.get("batch_no", entry.batch_no).strip()
+            entry.model = d.get("model", entry.model).strip()
+            entry.gb = d.get("gb", entry.gb).strip()
+            entry.color = d.get("color", entry.color).strip()
+            if "unit_price" in d:
+                entry.unit_price = float(d.get("unit_price") or 0.0)
+            entry.defects = d.get("defects", entry.defects).strip()
+            entry.screen_test = d.get("screen_test", entry.screen_test).strip()
+            entry.power_test = d.get("power_test", entry.power_test).strip()
+            if "flow" in d:
+                entry.flow = d.get("flow", entry.flow).strip()
+            entry.updated_at = datetime.now()
+
+            db.commit()
+            return json.dumps({"success": True})
+        except Exception as e:
+            db.rollback()
+            print(f"[WebBridge] update_batch_entry hatası: {e}")
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
+    def delete_batch_entry(self, entry_id):
+        from models.batch_entry import BatchEntry
+        db = SessionLocal()
+        try:
+            entry = db.query(BatchEntry).filter(BatchEntry.id == int(entry_id)).first()
+            if not entry:
+                return json.dumps({"success": False, "message": "Kayıt bulunamadı."})
+            db.delete(entry)
+            db.commit()
+            return json.dumps({"success": True})
+        except Exception as e:
+            db.rollback()
+            print(f"[WebBridge] delete_batch_entry hatası: {e}")
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+

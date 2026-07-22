@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { useState } from 'react';
 import { Layers, Plus, X, Save, Settings, Smartphone } from 'lucide-react';
 
@@ -59,10 +60,419 @@ export default function BatchEntry() {
                 Yeni Batch Girişi
               </h2>
               <button onClick={() => setShowForm(false)} className="text-slate-400 hover:text-white p-1">
+=======
+import { useState, useEffect } from 'react';
+import { Plus, Trash2, Edit2, X, FileSpreadsheet, Search, RefreshCw, RotateCcw, User, Wrench, Smartphone, AlertCircle } from 'lucide-react';
+import { api } from '../services/api';
+import ExcelMappingModal from '../components/ExcelMappingModal';
+
+const FLOW_OPTIONS = ['Giriş Yapıldı', 'İncelemede', 'Onarımda', 'Testte', 'Tamamlandı', 'İptal'];
+
+const FLOW_STYLES = {
+  'Giriş Yapıldı': 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+  'İncelemede': 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20',
+  'Onarımda': 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+  'Testte': 'bg-purple-500/10 text-purple-400 border-purple-500/20',
+  'Tamamlandı': 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+  'İptal': 'bg-red-500/10 text-red-400 border-red-500/20'
+};
+
+const EMPTY_FORM = {
+  customer_no: '',
+  customer_name: '',
+  imei_number: '',
+  serial_number: '',
+  internal_id: '',
+  batch_no: '',
+  model: '',
+  gb: '',
+  color: '',
+  unit_price: '',
+  defects: '',
+  screen_test: '',
+  power_test: '',
+  flow: 'Giriş Yapıldı'
+};
+
+export default function BatchEntry() {
+  const [records, setRecords] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingRecord, setEditingRecord] = useState(null);
+  const [formData, setFormData] = useState(EMPTY_FORM);
+  const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
+
+  // Pagination & Filters
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(50);
+  const [totalCount, setTotalCount] = useState(0);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedFlow, setSelectedFlow] = useState('Tümü');
+
+  const dbColumns = [
+    "customer_no", "customer_name", "batch_no", "internal_id", "imei_number",
+    "serial_number", "model", "gb", "color", "defects", "screen_test",
+    "power_test", "flow", "unit_price"
+  ];
+
+  const friendlyNames = {
+    customer_no: "Müşteri No (Customer no)",
+    customer_name: "Müşteri Adı (Customer Name)",
+    batch_no: "Batch No (Batch No)",
+    internal_id: "Internal ID (Internal ID)",
+    imei_number: "IMEI Numarası (IMEI Number)",
+    serial_number: "Seri Numarası (Serial Number)",
+    model: "Model (Model)",
+    gb: "GB (GB)",
+    color: "Renk (Color)",
+    defects: "Kusur/Arıza (Defects)",
+    screen_test: "Ekran Testi (Screen Test)",
+    power_test: "Güç Testi (Power Test)",
+    flow: "Akış Durumu (Flow)",
+    unit_price: "Birim Fiyat (Unit Price)"
+  };
+
+  const fetchRecords = async (page = currentPage, pageSize = itemsPerPage, search = searchTerm, flow = selectedFlow) => {
+    setLoading(true);
+    const res = await api.getBatchEntries(page, pageSize, search, flow);
+    if (res.success) {
+      setRecords(res.records || []);
+      setTotalCount(res.total || 0);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchRecords(currentPage, itemsPerPage, searchTerm, selectedFlow);
+  }, [currentPage, itemsPerPage, searchTerm, selectedFlow]);
+
+  const totalPages = Math.ceil(totalCount / itemsPerPage) || 1;
+
+  const handleOpenModal = (record = null) => {
+    if (record) {
+      setEditingRecord(record);
+      setFormData({
+        customer_no: record.customer_no || '',
+        customer_name: record.customer_name || '',
+        imei_number: record.imei_number || '',
+        serial_number: record.serial_number || '',
+        internal_id: record.internal_id || '',
+        batch_no: record.batch_no || '',
+        model: record.model || '',
+        gb: record.gb || '',
+        color: record.color || '',
+        unit_price: record.unit_price || '',
+        defects: record.defects || '',
+        screen_test: record.screen_test || '',
+        power_test: record.power_test || '',
+        flow: record.flow || 'Giriş Yapıldı'
+      });
+    } else {
+      setEditingRecord(null);
+      setFormData(EMPTY_FORM);
+    }
+    setIsModalOpen(true);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    let res;
+    if (editingRecord) {
+      res = await api.updateBatchEntry(editingRecord.id, formData);
+    } else {
+      res = await api.createBatchEntry(formData);
+    }
+
+    if (res.success) {
+      setIsModalOpen(false);
+      fetchRecords();
+    } else {
+      alert("Hata: " + (res.message || "İşlem gerçekleştirilemedi."));
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (window.confirm("Bu Batch kaydını silmek istediğinize emin misiniz?")) {
+      const res = await api.deleteBatchEntry(id);
+      if (res.success) {
+        fetchRecords();
+      } else {
+        alert("Silme başarısız: " + (res.message || ""));
+      }
+    }
+  };
+
+  const handleExcelAction = async (e) => {
+    const action = e.target.value;
+    e.target.value = '';
+
+    if (action === 'download_template') {
+      const templateData = [{
+        customer_no: 'CUST-001',
+        customer_name: 'Örnek Müşteri Ltd.',
+        batch_no: 'BATCH-2026-01',
+        internal_id: 'INT-9901',
+        imei_number: '358901234567890',
+        serial_number: 'SN99887766',
+        model: 'iPhone 13 Pro',
+        gb: '128GB',
+        color: 'Graphite',
+        defects: 'Dokunmatik yanıt vermiyor',
+        screen_test: 'BAŞARISIZ',
+        power_test: 'BAŞARILI',
+        flow: 'Giriş Yapıldı',
+        unit_price: 1500
+      }];
+      await api.exportTableToExcel(templateData, "Batch_Entry_Template.xlsx");
+    } else if (action === 'export') {
+      setLoading(true);
+      const allRes = await api.getBatchEntries(1, 10000, searchTerm, selectedFlow);
+      setLoading(false);
+      if (allRes.success && allRes.records) {
+        const exportData = allRes.records.map(r => ({
+          "Customer no": r.customer_no,
+          "Customer Name": r.customer_name,
+          "Batch No": r.batch_no,
+          "Internal ID": r.internal_id,
+          "IMEI Number": r.imei_number,
+          "Serial Number": r.serial_number,
+          "Model": r.model,
+          "GB": r.gb,
+          "Color": r.color,
+          "Defects": r.defects,
+          "Screen Test": r.screen_test,
+          "Power Test": r.power_test,
+          "Flow": r.flow,
+          "Unit Price": r.unit_price
+        }));
+        await api.exportTableToExcel(exportData, "batch_giris_listesi.xlsx");
+      }
+    } else if (action === 'import') {
+      setIsExcelModalOpen(true);
+    }
+  };
+
+  const handleExcelImport = async (data) => {
+    for (const item of data) {
+      await api.createBatchEntry({
+        customer_no: item.customer_no || item["Customer no"] || '',
+        customer_name: item.customer_name || item["Customer Name"] || '',
+        batch_no: item.batch_no || item["Batch No"] || '',
+        internal_id: item.internal_id || item["Internal ID"] || '',
+        imei_number: item.imei_number || item["IMEI Number"] || '',
+        serial_number: item.serial_number || item["Serial Number"] || '',
+        model: item.model || item["Model"] || '',
+        gb: item.gb || item["GB"] || '',
+        color: item.color || item["Color"] || '',
+        defects: item.defects || item["Defects"] || '',
+        screen_test: item.screen_test || item["Screen Test"] || '',
+        power_test: item.power_test || item["Power Test"] || '',
+        flow: item.flow || item["Flow"] || 'Giriş Yapıldı',
+        unit_price: item.unit_price || item["Unit Price"] || 0
+      });
+    }
+    setIsExcelModalOpen(false);
+    fetchRecords();
+  };
+
+  return (
+    <div className="p-6 h-full flex flex-col space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-center bg-white dark:bg-[#1e2330] p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700/50">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Batch Girişi Yönetimi</h1>
+          <p className="text-slate-400 mt-1">Müşteri parti cihazlarını, servis ve arıza akış bilgilerini buradan yönetin.</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <select
+              onChange={handleExcelAction}
+              className="appearance-none bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-2 pr-8 transition-colors font-medium cursor-pointer focus:outline-none focus:border-blue-500 text-sm"
+            >
+              <option value="">Excel İşlemi Seç...</option>
+              <option value="download_template">Boş Şablon İndir</option>
+              <option value="export">Tümünü Dışa Aktar</option>
+              <option value="import">Excel'den İçe Aktar</option>
+            </select>
+            <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-slate-400">
+              <FileSpreadsheet size={16} />
+            </div>
+          </div>
+          <button
+            onClick={() => handleOpenModal(null)}
+            className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all font-medium text-sm shadow-lg shadow-blue-500/20"
+          >
+            <Plus size={18} />
+            Yeni Batch Girişi
+          </button>
+        </div>
+      </div>
+
+      {/* Main Table Container */}
+      <div className="bg-white dark:bg-[#1e2330] rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-lg flex-1 overflow-hidden flex flex-col">
+        {/* Filter Bar */}
+        <div className="p-4 border-b border-slate-200 dark:border-slate-700/50 bg-slate-50/50 dark:bg-[#1a1f2b] flex flex-wrap items-center gap-3">
+          <div className="relative flex-1 min-w-[240px]">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+              placeholder="Müşteri, IMEI, Seri No, Batch No veya Model ile ara..."
+              className="w-full pl-9 pr-8 py-2 bg-white dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 shadow-sm"
+            />
+            {searchTerm && (
+              <button
+                onClick={() => { setSearchTerm(''); setCurrentPage(1); }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+
+          <div className="w-44">
+            <select
+              value={selectedFlow}
+              onChange={(e) => { setSelectedFlow(e.target.value); setCurrentPage(1); }}
+              className="w-full px-3 py-2 bg-white dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 shadow-sm cursor-pointer"
+            >
+              <option value="Tümü">Akış: Tümü</option>
+              {FLOW_OPTIONS.map(f => <option key={f} value={f}>{f}</option>)}
+            </select>
+          </div>
+
+          {(searchTerm || selectedFlow !== 'Tümü') && (
+            <button
+              onClick={() => {
+                setSearchTerm('');
+                setSelectedFlow('Tümü');
+                setCurrentPage(1);
+              }}
+              className="flex items-center gap-1.5 px-3 py-2 bg-slate-200 dark:bg-slate-700/60 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs rounded-xl transition-colors font-medium"
+            >
+              <RotateCcw size={14} />
+              Temizle
+            </button>
+          )}
+        </div>
+
+        {/* Table */}
+        <div className="overflow-auto flex-1">
+          <table className="w-full text-left text-sm whitespace-nowrap">
+            <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs sticky top-0 z-10">
+              <tr>
+                <th className="px-6 py-4">Müşteri</th>
+                <th className="px-6 py-4">Servis & Batch Bilgisi</th>
+                <th className="px-6 py-4">Cihaz</th>
+                <th className="px-6 py-4">Fiyat</th>
+                <th className="px-6 py-4">Kusur / Testler</th>
+                <th className="px-6 py-4">Akış Durumu</th>
+                <th className="px-6 py-4 text-xs">Tarih</th>
+                <th className="px-6 py-4 text-center">İşlemler</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-700/50">
+              {loading ? (
+                <tr>
+                  <td colSpan="8" className="px-6 py-8 text-center"><RefreshCw className="animate-spin mx-auto text-blue-400" /></td>
+                </tr>
+              ) : records.length === 0 ? (
+                <tr>
+                  <td colSpan="8" className="px-6 py-8 text-center text-slate-500">Kayıt bulunamadı.</td>
+                </tr>
+              ) : (
+                records.map(rec => (
+                  <tr key={rec.id} className="hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 transition-colors">
+                    <td className="px-6 py-4">
+                      <div className="font-bold text-slate-800 dark:text-slate-100">{rec.customer_name || '-'}</div>
+                      <div className="text-xs text-slate-400 font-mono">No: {rec.customer_no || '-'}</div>
+                    </td>
+                    <td className="px-6 py-4 text-xs">
+                      <div><span className="font-semibold text-slate-400">IMEI:</span> <span className="font-mono">{rec.imei_number || '-'}</span></div>
+                      <div><span className="font-semibold text-slate-400">SN:</span> <span className="font-mono">{rec.serial_number || '-'}</span></div>
+                      <div><span className="font-semibold text-slate-400">Batch / Internal:</span> {rec.batch_no || '-'} / {rec.internal_id || '-'}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="font-semibold text-blue-400">{rec.model || '-'}</div>
+                      <div className="text-xs text-slate-400">{[rec.gb, rec.color].filter(Boolean).join(' · ')}</div>
+                    </td>
+                    <td className="px-6 py-4 font-semibold text-emerald-400">
+                      ₺{Number(rec.unit_price || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                    </td>
+                    <td className="px-6 py-4 text-xs">
+                      <div className="max-w-xs truncate font-medium text-slate-700 dark:text-slate-300" title={rec.defects}>
+                        {rec.defects || '-'}
+                      </div>
+                      <div className="text-slate-400 mt-0.5">
+                        Scr: <span className="text-slate-200">{rec.screen_test || '-'}</span> | Pwr: <span className="text-slate-200">{rec.power_test || '-'}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2.5 py-1 text-xs font-semibold rounded-full border ${FLOW_STYLES[rec.flow] || FLOW_STYLES['Giriş Yapıldı']}`}>
+                        {rec.flow}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-xs text-slate-400">
+                      {rec.created_at}
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <div className="flex justify-center gap-3">
+                        <button onClick={() => handleOpenModal(rec)} className="text-slate-400 hover:text-green-400 transition-colors" title="Düzenle">
+                          <Edit2 size={16} />
+                        </button>
+                        <button onClick={() => handleDelete(rec.id)} className="text-red-400 hover:text-red-300 transition-colors" title="Sil">
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Footer Pagination */}
+        <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-700/50 bg-slate-50 dark:bg-[#1a1f2b] flex items-center justify-between text-xs text-slate-400">
+          <div>Toplam <b>{totalCount}</b> kayıt</div>
+          <div className="flex items-center gap-2">
+            <button
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              className="px-3 py-1.5 bg-slate-200 dark:bg-slate-700 disabled:opacity-40 rounded-lg"
+            >
+              ← Önceki
+            </button>
+            <span>Sayfa {currentPage} / {totalPages}</span>
+            <button
+              disabled={currentPage >= totalPages}
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              className="px-3 py-1.5 bg-slate-200 dark:bg-slate-700 disabled:opacity-40 rounded-lg"
+            >
+              Sonraki →
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* YENİ BATCH GİRİŞİ MODAL FORMU (4 Bölüm) */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center sticky top-0 bg-white dark:bg-[#1e2330] z-10">
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <FileSpreadsheet size={20} className="text-blue-500" />
+                {editingRecord ? 'Batch Kaydını Düzenle' : 'Yeni Batch Girişi'}
+              </h2>
+              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white p-1">
+>>>>>>> d75c08b (Add Batch Entry module under Kullanıcı & Ayarlar with 4-section modal, table listing, filtering, and Excel import/export)
                 <X size={20} />
               </button>
             </div>
 
+<<<<<<< HEAD
             <form onSubmit={handleSave} className="space-y-6">
               
               {/* Servis Bilgileri */}
@@ -86,10 +496,41 @@ export default function BatchEntry() {
                   <div>
                     <label className="block text-sm font-medium text-slate-400 mb-1.5">Batch No</label>
                     <input type="text" className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500" value={formData.batch_no} onChange={e => setFormData({...formData, batch_no: e.target.value})} />
+=======
+            {/* Modal Form */}
+            <form onSubmit={handleSubmit} className="p-6 space-y-6">
+
+              {/* BÖLÜM 1: Müşteri Bilgileri */}
+              <div className="bg-slate-50/50 dark:bg-[#242a38]/40 p-4 rounded-xl border border-slate-200 dark:border-slate-700/50">
+                <h3 className="text-sm font-semibold text-blue-400 mb-3 flex items-center gap-2 uppercase tracking-wider">
+                  <User size={16} /> 1. Müşteri Bilgileri
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-slate-400 mb-1">Customer No (Müşteri No)</label>
+                    <input
+                      type="text"
+                      className="w-full bg-white dark:bg-[#0f1219] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-blue-500"
+                      value={formData.customer_no}
+                      onChange={e => setFormData({ ...formData, customer_no: e.target.value })}
+                      placeholder="Örn: CUST-001"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-slate-400 mb-1">Customer Name (Müşteri Adı)</label>
+                    <input
+                      type="text"
+                      className="w-full bg-white dark:bg-[#0f1219] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-blue-500"
+                      value={formData.customer_name}
+                      onChange={e => setFormData({ ...formData, customer_name: e.target.value })}
+                      placeholder="Örn: ABC İletişim Ltd."
+                    />
+>>>>>>> d75c08b (Add Batch Entry module under Kullanıcı & Ayarlar with 4-section modal, table listing, filtering, and Excel import/export)
                   </div>
                 </div>
               </div>
 
+<<<<<<< HEAD
               {/* Cihaz Bilgileri */}
               <div className="border-t border-slate-200 dark:border-slate-700/50 pt-6">
                 <h3 className="text-sm font-semibold text-indigo-400 mb-3 flex items-center gap-2 uppercase tracking-wider">
@@ -103,11 +544,161 @@ export default function BatchEntry() {
                   <div>
                     <label className="block text-sm font-medium text-slate-400 mb-1.5">GB (Kapasite)</label>
                     <input type="text" placeholder="Örn: 128 GB" className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500" value={formData.gb} onChange={e => setFormData({...formData, gb: e.target.value})} />
+=======
+              {/* BÖLÜM 2: Servis Bilgileri */}
+              <div className="bg-slate-50/50 dark:bg-[#242a38]/40 p-4 rounded-xl border border-slate-200 dark:border-slate-700/50">
+                <h3 className="text-sm font-semibold text-indigo-400 mb-3 flex items-center gap-2 uppercase tracking-wider">
+                  <Wrench size={16} /> 2. Servis Bilgileri
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-slate-400 mb-1">IMEI Number (IMEI Numarası)</label>
+                    <input
+                      type="text"
+                      className="w-full bg-white dark:bg-[#0f1219] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-blue-500"
+                      value={formData.imei_number}
+                      onChange={e => setFormData({ ...formData, imei_number: e.target.value })}
+                      placeholder="15 haneli IMEI giriniz"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-slate-400 mb-1">Serial Number (Seri Numarası)</label>
+                    <input
+                      type="text"
+                      className="w-full bg-white dark:bg-[#0f1219] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-blue-500"
+                      value={formData.serial_number}
+                      onChange={e => setFormData({ ...formData, serial_number: e.target.value })}
+                      placeholder="Cihaz seri numarası"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-slate-400 mb-1">Internal ID (Dahili Kimlik)</label>
+                    <input
+                      type="text"
+                      className="w-full bg-white dark:bg-[#0f1219] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-blue-500"
+                      value={formData.internal_id}
+                      onChange={e => setFormData({ ...formData, internal_id: e.target.value })}
+                      placeholder="İç takip ID"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-slate-400 mb-1">Batch No (Parti Numarası)</label>
+                    <input
+                      type="text"
+                      className="w-full bg-white dark:bg-[#0f1219] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-blue-500"
+                      value={formData.batch_no}
+                      onChange={e => setFormData({ ...formData, batch_no: e.target.value })}
+                      placeholder="Batch grup numarası"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* BÖLÜM 3: Cihaz Bilgileri */}
+              <div className="bg-slate-50/50 dark:bg-[#242a38]/40 p-4 rounded-xl border border-slate-200 dark:border-slate-700/50">
+                <h3 className="text-sm font-semibold text-purple-400 mb-3 flex items-center gap-2 uppercase tracking-wider">
+                  <Smartphone size={16} /> 3. Cihaz Bilgileri
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-slate-400 mb-1">Model (Cihaz Modeli)</label>
+                    <input
+                      type="text"
+                      className="w-full bg-white dark:bg-[#0f1219] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-blue-500"
+                      value={formData.model}
+                      onChange={e => setFormData({ ...formData, model: e.target.value })}
+                      placeholder="Örn: iPhone 13 Pro"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-slate-400 mb-1">GB (Depolama / Hafıza)</label>
+                    <input
+                      type="text"
+                      className="w-full bg-white dark:bg-[#0f1219] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-blue-500"
+                      value={formData.gb}
+                      onChange={e => setFormData({ ...formData, gb: e.target.value })}
+                      placeholder="Örn: 128GB, 256GB"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-slate-400 mb-1">Color (Renk)</label>
+                    <input
+                      type="text"
+                      className="w-full bg-white dark:bg-[#0f1219] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-blue-500"
+                      value={formData.color}
+                      onChange={e => setFormData({ ...formData, color: e.target.value })}
+                      placeholder="Örn: Graphite, Siyah"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-slate-400 mb-1">Unit Price (Birim Fiyat ₺)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      className="w-full bg-white dark:bg-[#0f1219] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-blue-500"
+                      value={formData.unit_price}
+                      onChange={e => setFormData({ ...formData, unit_price: e.target.value })}
+                      placeholder="0.00"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* BÖLÜM 4: Cihazın Servise Geliş Nedeni & Durum */}
+              <div className="bg-slate-50/50 dark:bg-[#242a38]/40 p-4 rounded-xl border border-slate-200 dark:border-slate-700/50">
+                <h3 className="text-sm font-semibold text-amber-400 mb-3 flex items-center gap-2 uppercase tracking-wider">
+                  <AlertCircle size={16} /> 4. Cihazın Servise Geliş Nedeni & Durum
+                </h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm text-slate-400 mb-1">Defects (Kusur / Arıza Detayı)</label>
+                    <textarea
+                      rows={2}
+                      className="w-full bg-white dark:bg-[#0f1219] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-blue-500"
+                      value={formData.defects}
+                      onChange={e => setFormData({ ...formData, defects: e.target.value })}
+                      placeholder="Müşterinin belirttiği kusur veya arızalar..."
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm text-slate-400 mb-1">Screen Test (Ekran Testi)</label>
+                      <input
+                        type="text"
+                        className="w-full bg-white dark:bg-[#0f1219] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-blue-500"
+                        value={formData.screen_test}
+                        onChange={e => setFormData({ ...formData, screen_test: e.target.value })}
+                        placeholder="Örn: Tamamlandı / Hasarlı"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-slate-400 mb-1">Power Test (Güç Testi)</label>
+                      <input
+                        type="text"
+                        className="w-full bg-white dark:bg-[#0f1219] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-blue-500"
+                        value={formData.power_test}
+                        onChange={e => setFormData({ ...formData, power_test: e.target.value })}
+                        placeholder="Örn: Açılıyor / Şarj Olmuyor"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-slate-400 mb-1">Flow (Akış / Durum Takibi)</label>
+                      <select
+                        className="w-full bg-white dark:bg-[#0f1219] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-blue-500 cursor-pointer"
+                        value={formData.flow}
+                        onChange={e => setFormData({ ...formData, flow: e.target.value })}
+                      >
+                        {FLOW_OPTIONS.map(f => <option key={f} value={f}>{f}</option>)}
+                      </select>
+                    </div>
+>>>>>>> d75c08b (Add Batch Entry module under Kullanıcı & Ayarlar with 4-section modal, table listing, filtering, and Excel import/export)
                   </div>
                 </div>
               </div>
 
               {/* Submit Buttons */}
+<<<<<<< HEAD
               <div className="flex justify-end gap-3 pt-6 border-t border-slate-200 dark:border-slate-700/50">
                 <button type="button" onClick={() => setShowForm(false)} className="px-5 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-[#2a3142] rounded-xl transition-colors">
                   İptal
@@ -121,6 +712,36 @@ export default function BatchEntry() {
           </div>
         )}
       </div>
+=======
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="px-5 py-2.5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors font-medium text-sm"
+                >
+                  İptal
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all font-medium text-sm shadow-lg shadow-blue-500/20"
+                >
+                  {editingRecord ? 'Güncelle' : 'Kaydet'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Excel Mapping Modal */}
+      <ExcelMappingModal
+        isOpen={isExcelModalOpen}
+        onClose={() => setIsExcelModalOpen(false)}
+        onImport={handleExcelImport}
+        dbColumns={dbColumns}
+        friendlyNames={friendlyNames}
+      />
+>>>>>>> d75c08b (Add Batch Entry module under Kullanıcı & Ayarlar with 4-section modal, table listing, filtering, and Excel import/export)
     </div>
   );
 }

@@ -1392,6 +1392,59 @@ export const api = {
         });
     },
 
+    // ==========================
+    // BATCH ENTRY (BATCH GİRİŞİ)
+    // ==========================
+    getBatchEntries: async (page = 1, pageSize = 50, searchTerm = '', flowFilter = '') => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_batch_entries) {
+                backend.get_batch_entries(
+                    String(page),
+                    String(pageSize),
+                    String(searchTerm || ''),
+                    String(flowFilter || ''),
+                    (res) => resolve(JSON.parse(res))
+                );
+            } else {
+                resolve({ success: true, records: [], total: 0 });
+            }
+        });
+    },
+
+    createBatchEntry: async (data) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.create_batch_entry) {
+                backend.create_batch_entry(JSON.stringify(data), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false, message: "Backend eksik" });
+            }
+        });
+    },
+
+    updateBatchEntry: async (id, data) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.update_batch_entry) {
+                backend.update_batch_entry(String(id), JSON.stringify(data), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false, message: "Backend eksik" });
+            }
+        });
+    },
+
+    deleteBatchEntry: async (id) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.delete_batch_entry) {
+                backend.delete_batch_entry(String(id), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false, message: "Backend eksik" });
+            }
+        });
+    },
+
     exportAllTablesToExcel: async (filename) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
