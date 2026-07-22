@@ -16,7 +16,7 @@ const KNOWN_TABLE_NAMES = {
   departments: "Departmanlar (departments)",
   service_records: "Servis Kayıtları (service_records)",
   service_parts: "Servis Parçaları (service_parts)",
-  item_bom: "Ürün Ağacı / BOM (item_bom)"
+  item_bom: "Product Bom (item_bom)"
 };
 
 const KNOWN_FRIENDLY_NAMES = {

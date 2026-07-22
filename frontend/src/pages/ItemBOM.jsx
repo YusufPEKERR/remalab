@@ -182,8 +182,8 @@ export default function ItemBOM() {
     <div className="p-6 h-full flex flex-col space-y-6">
       <div className="flex justify-between items-center bg-white dark:bg-[#1e2330] p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700/50">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">BOM (Modele Bağlı Ürün Ağacı) Yönetimi</h1>
-          <p className="text-slate-400 mt-1">Cihaz modellerine ait ürün ağaçlarını (BOM) buradan yönetin.</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Product Bom Yönetimi</h1>
+          <p className="text-slate-400 mt-1">Cihaz modellerine ait Product Bom kayıtlarını buradan yönetin.</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="relative">

@@ -143,7 +143,7 @@ export default function MainLayout() {
       items: [
         { name: 'Kullanıcılar', icon: Users, path: '/users' },
         { name: 'Parça Kategorileri', icon: Tags, path: '/part-categories' },
-        { name: 'Ürün Ağacı', icon: Layers, path: '/item-bom' },
+        { name: 'Product Bom', icon: Layers, path: '/item-bom' },
         { name: 'Ayarlar', icon: Settings, path: '/settings' },
         { name: 'Veri Yönetimi', icon: Database, path: '/data-management' },
         { name: 'Departman Yönetimi', icon: Building2, path: '/departments' },
