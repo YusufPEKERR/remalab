@@ -209,19 +209,24 @@ export default function Suppliers() {
       let valA = a[sortField];
       let valB = b[sortField];
 
-      // Boolean tipi sorting (CRM / use_mio için)
-      if (typeof valA === 'boolean' || typeof valB === 'boolean') {
-        valA = valA ? 1 : 0;
-        valB = valB ? 1 : 0;
-        return sortDirection === 'asc' ? valA - valB : valB - valA;
+      // Boş/Null/Undefined değerleri her zaman en sona at
+      if ((valA === null || valA === undefined || valA === '') && (valB !== null && valB !== undefined && valB !== '')) return 1;
+      if ((valB === null || valB === undefined || valB === '') && (valA !== null && valA !== undefined && valA !== '')) return -1;
+      if ((valA === null || valA === undefined || valA === '') && (valB === null || valB === undefined || valB === '')) return 0;
+
+      // Boolean tipi sıralama (Sadece CRM / use_mio için)
+      if (sortField === 'use_mio') {
+        const boolA = Boolean(valA) ? 1 : 0;
+        const boolB = Boolean(valB) ? 1 : 0;
+        return sortDirection === 'asc' ? boolA - boolB : boolB - boolA;
       }
 
-      // String tipi sorting (MÜŞTERİ, FİRMA KODU, GİRİŞ TARİHİ vb.)
-      const strA = (valA ?? '').toString();
-      const strB = (valB ?? '').toString();
-      const comparison = strA.localeCompare(strB, 'tr', { numeric: true, sensitivity: 'base' });
+      // Metin / Tarih / Kod sıralaması (MÜŞTERİ, FİRMA KODU, GİRİŞ TARİHİ)
+      const strA = String(valA).trim();
+      const strB = String(valB).trim();
+      const cmp = strA.localeCompare(strB, 'tr', { numeric: true, sensitivity: 'base' });
 
-      return sortDirection === 'asc' ? comparison : -comparison;
+      return sortDirection === 'asc' ? cmp : -cmp;
     });
   }, [customers, searchTerm, sortField, sortDirection]);
 
