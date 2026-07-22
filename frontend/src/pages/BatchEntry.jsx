@@ -209,6 +209,16 @@ export default function BatchEntry() {
       }
     } else if (action === 'import') {
       setIsExcelModalOpen(true);
+    } else if (action === 'clear_all') {
+      if (window.confirm("DİKKAT: Batch tablosundaki TÜM veriler (girilen kayıtlar) silinecektir! Bu işlemi onaylıyor musunuz?")) {
+        const res = await api.clearAllBatchEntries();
+        if (res.success) {
+          alert("Tüm Batch verileri başarıyla temizlendi.");
+          fetchRecords();
+        } else {
+          alert("Hata: " + (res.message || "İşlem gerçekleştirilemedi."));
+        }
+      }
     }
   };
 
@@ -260,6 +270,7 @@ export default function BatchEntry() {
               <option value="download_template">Boş Şablon İndir</option>
               <option value="export">Tümünü Dışa Aktar</option>
               <option value="import">Excel'den İçe Aktar</option>
+              <option value="clear_all">Tüm Verileri Temizle (Geri Al)</option>
             </select>
             <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-slate-400">
               <FileSpreadsheet size={16} />

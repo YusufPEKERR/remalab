@@ -5907,4 +5907,20 @@ class WebBridge(QObject):
         finally:
             db.close()
 
+    @Slot(result=str)
+    def clear_all_batch_entries(self):
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            db.execute(text("TRUNCATE TABLE warehouse.batch_entries RESTART IDENTITY;"))
+            db.commit()
+            return json.dumps({"success": True, "message": "Tüm Batch kayıtları başarıyla temizlendi."})
+        except Exception as e:
+            db.rollback()
+            print(f"[WebBridge] clear_all_batch_entries hatası: {e}")
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+
 

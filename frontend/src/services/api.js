@@ -1456,6 +1456,17 @@ export const api = {
         });
     },
 
+    clearAllBatchEntries: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.clear_all_batch_entries) {
+                backend.clear_all_batch_entries((res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false, message: "Backend eksik" });
+            }
+        });
+    },
+
     exportAllTablesToExcel: async (filename) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
