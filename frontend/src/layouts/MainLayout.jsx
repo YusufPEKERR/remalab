@@ -96,17 +96,10 @@ export default function MainLayout() {
 
   // Permission maps based on Python code:
   const allowedPaths = {
-<<<<<<< HEAD
     'admin': ['/dashboard', '/depo', '/irsaliye', '/work-orders', '/supply-requests', '/raporlar', '/parts', '/part-categories', '/products', '/suppliers', '/locations', '/users', '/settings', '/departments', '/service-records', '/data-management', '/tedarik-talepleri', '/quality', '/refurbishment', '/priority', '/item-bom', '/batch-entry'],
     'depo': ['/depo', '/irsaliye', '/work-orders', '/raporlar'],
     'depo müdürü': ['/dashboard', '/depo', '/irsaliye', '/work-orders', '/supply-requests', '/raporlar', '/parts', '/products', '/suppliers', '/locations', '/tedarik-talepleri', '/service-records', '/batch-entry'],
     'teknisyen': ['/dashboard', '/quality', '/refurbishment', '/priority', '/batch-entry']
-=======
-    'admin': ['/dashboard', '/depo', '/irsaliye', '/work-orders', '/servis-onarim', '/supply-requests', '/raporlar', '/parts', '/part-categories', '/products', '/suppliers', '/locations', '/users', '/settings', '/departments', '/service-records', '/data-management', '/tedarik-talepleri', '/quality', '/refurbishment', '/priority', '/item-bom'],
-    'depo': ['/depo', '/irsaliye', '/work-orders', '/servis-onarim', '/raporlar'],
-    'depo müdürü': ['/dashboard', '/depo', '/irsaliye', '/work-orders', '/servis-onarim', '/supply-requests', '/raporlar', '/parts', '/products', '/suppliers', '/locations', '/tedarik-talepleri', '/service-records'],
-    'teknisyen': ['/dashboard', '/servis-onarim', '/quality', '/refurbishment', '/priority']
->>>>>>> 887eff5 (Yaptığın değişiklik)
   };
 
   const allowed = allowedPaths[userRole] || allowedPaths['admin'];
