@@ -61,14 +61,27 @@ export default function ExcelMappingModal({
         dbColumns.forEach(dbCol => {
           const friendlyName = (friendlyNames?.[dbCol] || dbCol).split('(')[0].trim().toLowerCase();
           
-          let aliases = [dbCol.toLowerCase(), friendlyName];
+          let aliases = [dbCol.toLowerCase(), dbCol.replace(/_/g, ' ').toLowerCase(), friendlyName];
+          if (dbCol === 'customer_no') aliases.push('customer no', 'müşteri no', 'musteri no', 'müşt no');
+          if (dbCol === 'customer_name') aliases.push('customer name', 'müşteri adı', 'musteri adi', 'müşteri unvanı');
+          if (dbCol === 'batch_no') aliases.push('batch no', 'parti no');
+          if (dbCol === 'internal_id') aliases.push('internal id', 'dahili id');
+          if (dbCol === 'imei_number') aliases.push('imei number', 'imei', 'imei no');
+          if (dbCol === 'serial_number') aliases.push('serial number', 'seri no', 'sn');
+          if (dbCol === 'unit_price') aliases.push('unit price', 'birim fiyat', 'fiyat');
+          if (dbCol === 'screen_test') aliases.push('screen test', 'ekran testi');
+          if (dbCol === 'power_test') aliases.push('power test', 'güç testi');
+          if (dbCol === 'defects') aliases.push('defects', 'kusur', 'arıza');
+          if (dbCol === 'flow') aliases.push('flow', 'akış', 'durum');
+          if (dbCol === 'color') aliases.push('color', 'renk');
+          if (dbCol === 'gb') aliases.push('gb', 'kapasite', 'hafıza');
           if (dbCol === 'item_code') aliases.push('shortname', 'code');
           if (dbCol === 'name') aliases.push('itemcategory');
           if (dbCol === 'part_type') aliases.push('itemtype', 'parça tipi');
           if (dbCol === 'item_category') aliases.push('kalite');
 
           const match = headers.find(h => {
-            const hLower = String(h).toLowerCase();
+            const hLower = String(h).toLowerCase().trim();
             return aliases.some(alias => hLower === alias || hLower.includes(alias));
           });
           
