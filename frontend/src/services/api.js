@@ -1014,6 +1014,8 @@ export const api = {
                     c.customer_name || '', c.customer_phone || '', c.customer_email || '', c.company || '',
                     c.imei_number || '', c.serial_number || '', c.internal_id || '', c.cihaz_modeli || '',
                     c.flow || '', c.customer_reported_complaint || '', c.intake_date || '',
+                    c.code || '', c.short_name || '', c.currency || '', c.customer_language || '',
+                    c.use_mio ? 'true' : 'false',
                     (res) => resolve(JSON.parse(res))
                 );
             } else {
@@ -1031,6 +1033,8 @@ export const api = {
                     c.customer_name || '', c.customer_phone || '', c.customer_email || '', c.company || '',
                     c.imei_number || '', c.serial_number || '', c.internal_id || '', c.cihaz_modeli || '',
                     c.flow || '', c.customer_reported_complaint || '', c.intake_date || '',
+                    c.code || '', c.short_name || '', c.currency || '', c.customer_language || '',
+                    c.use_mio ? 'true' : 'false',
                     (res) => resolve(JSON.parse(res))
                 );
             } else {

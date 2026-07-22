@@ -4202,7 +4202,8 @@ class WebBridge(QObject):
             rows = db.execute(text("""
                 SELECT id, customer_name, customer_phone, customer_email, company,
                        imei_number, serial_number, internal_id, brand, model, product_code,
-                       flow, customer_reported_complaint, intake_date, created_at
+                       flow, customer_reported_complaint, intake_date, created_at,
+                       code, short_name, currency, customer_language, use_mio
                 FROM warehouse.customers
                 ORDER BY id DESC
                 LIMIT 500
@@ -4224,7 +4225,12 @@ class WebBridge(QObject):
                     "flow": r["flow"] or "",
                     "customer_reported_complaint": r["customer_reported_complaint"] or "",
                     "intake_date": r["intake_date"].strftime("%Y-%m-%d") if r["intake_date"] else "",
-                    "created_at": r["created_at"].strftime("%Y-%m-%d %H:%M") if r["created_at"] else ""
+                    "created_at": r["created_at"].strftime("%Y-%m-%d %H:%M") if r["created_at"] else "",
+                    "code": r["code"] or "",
+                    "short_name": r["short_name"] or "",
+                    "currency": r["currency"] or "",
+                    "customer_language": r["customer_language"] or "",
+                    "use_mio": bool(r["use_mio"])
                 })
             return json.dumps({"success": True, "customers": customers})
         except Exception as e:
@@ -4232,10 +4238,11 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    @Slot(str, str, str, str, str, str, str, str, str, str, str, result=str)
+    @Slot(str, str, str, str, str, str, str, str, str, str, str, str, str, str, str, str, result=str)
     def create_customer(self, customer_name, customer_phone, customer_email, company,
                          imei_number, serial_number, internal_id, cihaz_modeli, flow,
-                         customer_reported_complaint, intake_date):
+                         customer_reported_complaint, intake_date,
+                         code, short_name, currency, customer_language, use_mio):
         """Yeni bir müşteri/cihaz kabul kaydı ekler (manuel tek-kayıt formu)."""
         from sqlalchemy import text
         db = SessionLocal()
@@ -4255,11 +4262,13 @@ class WebBridge(QObject):
                 INSERT INTO warehouse.customers (
                     customer_name, customer_phone, customer_email, company,
                     imei_number, serial_number, internal_id, brand, model, product_code,
-                    flow, customer_reported_complaint, intake_date
+                    flow, customer_reported_complaint, intake_date,
+                    code, short_name, currency, customer_language, use_mio
                 ) VALUES (
                     :name, :phone, :email, :company,
                     :imei, :serial, :internal_id, :brand, :model, :product_code,
-                    :flow, :complaint, :intake_date
+                    :flow, :complaint, :intake_date,
+                    :code, :short_name, :currency, :customer_language, :use_mio
                 )
             """), {
                 "name": name, "phone": customer_phone or None, "email": customer_email or None,
@@ -4270,7 +4279,10 @@ class WebBridge(QObject):
                 "model": product["model"] if product else None,
                 "product_code": product["item_code"] if product else None,
                 "flow": flow or None, "complaint": customer_reported_complaint or None,
-                "intake_date": intake_date or None
+                "intake_date": intake_date or None,
+                "code": code or None, "short_name": short_name or None,
+                "currency": currency or None, "customer_language": customer_language or None,
+                "use_mio": use_mio == "true"
             })
             db.commit()
             return json.dumps({"success": True, "message": "Müşteri kaydı eklendi."})
@@ -4280,10 +4292,11 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    @Slot(str, str, str, str, str, str, str, str, str, str, str, str, result=str)
+    @Slot(str, str, str, str, str, str, str, str, str, str, str, str, str, str, str, str, str, result=str)
     def update_customer(self, customer_id_str, customer_name, customer_phone, customer_email, company,
                          imei_number, serial_number, internal_id, cihaz_modeli, flow,
-                         customer_reported_complaint, intake_date):
+                         customer_reported_complaint, intake_date,
+                         code, short_name, currency, customer_language, use_mio):
         """Var olan bir müşteri/cihaz kabul kaydını günceller."""
         from sqlalchemy import text
         db = SessionLocal()
@@ -4305,7 +4318,9 @@ class WebBridge(QObject):
                 SET customer_name = :name, customer_phone = :phone, customer_email = :email, company = :company,
                     imei_number = :imei, serial_number = :serial, internal_id = :internal_id,
                     brand = :brand, model = :model, product_code = :product_code,
-                    flow = :flow, customer_reported_complaint = :complaint, intake_date = :intake_date
+                    flow = :flow, customer_reported_complaint = :complaint, intake_date = :intake_date,
+                    code = :code, short_name = :short_name, currency = :currency,
+                    customer_language = :customer_language, use_mio = :use_mio
                 WHERE id = :id
             """), {
                 "name": name, "phone": customer_phone or None, "email": customer_email or None,
@@ -4317,6 +4332,9 @@ class WebBridge(QObject):
                 "product_code": product["item_code"] if product else None,
                 "flow": flow or None, "complaint": customer_reported_complaint or None,
                 "intake_date": intake_date or None,
+                "code": code or None, "short_name": short_name or None,
+                "currency": currency or None, "customer_language": customer_language or None,
+                "use_mio": use_mio == "true",
                 "id": customer_id
             })
             db.commit()

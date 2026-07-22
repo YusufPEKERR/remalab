@@ -1,10 +1,66 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
-import { Search, Plus, Trash2, Edit, AlertCircle, RefreshCw, X, Users, Download, Upload, FileSpreadsheet, Check } from 'lucide-react';
+import { Search, Plus, Trash2, Edit, AlertCircle, RefreshCw, X, Users, Download, Upload, FileSpreadsheet, Check, ChevronDown } from 'lucide-react';
 import { api } from '../services/api';
+
+// Native <select> yerine: modal alt kenara yakınken tarayıcı listeyi
+// yukarı açabiliyor. Bu bileşen her zaman aşağı doğru açılır.
+function Dropdown({ value, onChange, options, placeholder }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const selected = options.find(o => o.value === value);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500"
+      >
+        <span className={selected ? '' : 'text-slate-500'}>{selected ? selected.label : (placeholder || 'Seçiniz...')}</span>
+        <ChevronDown size={16} className="text-slate-400 shrink-0" />
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full mt-1 w-full bg-white dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg max-h-52 overflow-y-auto z-50">
+          {options.map(o => (
+            <div
+              key={o.value}
+              onClick={() => { onChange(o.value); setOpen(false); }}
+              className={`px-4 py-2 text-sm cursor-pointer hover:bg-indigo-500/10 ${o.value === value ? 'text-indigo-500 font-medium' : 'text-slate-700 dark:text-slate-300'}`}
+            >
+              {o.label}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // Backend'deki CUSTOMER_FLOW_VALUES (core/web_bridge.py) ile birebir aynı olmalı.
 const FLOW_VALUES = ['Refurbish', 'Repair', 'RMA', 'Battery Replacement'];
+
+const CURRENCY_VALUES = ['TRY', 'EUR', 'USD', 'CHF', 'GBP'];
+
+const LANGUAGE_VALUES = [
+  { value: 'tr', label: 'Türkçe' },
+  { value: 'en', label: 'English' },
+  { value: 'fr', label: 'Français' },
+  { value: 'de', label: 'Deutsch' },
+  { value: 'es', label: 'Español' },
+  { value: 'it', label: 'Italiano' },
+  { value: 'nl', label: 'Nederlands' },
+  { value: 'pt', label: 'Português' }
+];
 
 // Toplu (Excel) yükleme şablonundaki sütun sırası ve zorunluluk bilgisi.
 // generate_customer_bulk_template (core/web_bridge.py) ile birebir eşleşmeli.
@@ -25,7 +81,8 @@ const BULK_TEMPLATE_COLUMNS = [
 const EMPTY_FORM = {
   customer_name: '', customer_phone: '', customer_email: '', company: '',
   imei_number: '', serial_number: '', internal_id: '', cihaz_modeli: '',
-  flow: '', customer_reported_complaint: '', intake_date: ''
+  flow: '', customer_reported_complaint: '', intake_date: '',
+  code: '', short_name: '', currency: '', customer_language: '', use_mio: false
 };
 
 export default function Suppliers() {
@@ -33,7 +90,6 @@ export default function Suppliers() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [products, setProducts] = useState([]);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentCustomer, setCurrentCustomer] = useState(null);
@@ -67,15 +123,9 @@ export default function Suppliers() {
 
   useEffect(() => {
     fetchCustomers();
-    api.getProducts().then(res => { if (res.success) setProducts(res.products || []); });
     const interval = setInterval(() => fetchCustomers(true), 60000);
     return () => clearInterval(interval);
   }, []);
-
-  const deviceModelOptions = useMemo(
-    () => Array.from(new Set(products.filter(p => p.brand && p.model).map(p => `${p.brand} ${p.model}`))).sort(),
-    [products]
-  );
 
   const handleOpenModal = (customer = null) => {
     if (customer) {
@@ -91,7 +141,12 @@ export default function Suppliers() {
         cihaz_modeli: (customer.brand || customer.model) ? `${customer.brand || ''} ${customer.model || ''}`.trim() : '',
         flow: customer.flow || '',
         customer_reported_complaint: customer.customer_reported_complaint || '',
-        intake_date: customer.intake_date || ''
+        intake_date: customer.intake_date || '',
+        code: customer.code || '',
+        short_name: customer.short_name || '',
+        currency: customer.currency || '',
+        customer_language: customer.customer_language || '',
+        use_mio: customer.use_mio || false
       });
     } else {
       setCurrentCustomer(null);
@@ -128,14 +183,16 @@ export default function Suppliers() {
 
   const filteredCustomers = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
-    if (!q) return customers;
-    return customers.filter(c =>
+    const filtered = !q ? customers : customers.filter(c =>
       (c.customer_name && c.customer_name.toLowerCase().includes(q)) ||
       (c.customer_phone && c.customer_phone.toLowerCase().includes(q)) ||
       (c.customer_email && c.customer_email.toLowerCase().includes(q)) ||
       (c.company && c.company.toLowerCase().includes(q)) ||
       (c.imei_number && c.imei_number.toLowerCase().includes(q)) ||
       (c.serial_number && c.serial_number.toLowerCase().includes(q))
+    );
+    return [...filtered].sort((a, b) =>
+      (a.customer_name || '').localeCompare(b.customer_name || '', 'tr')
     );
   }, [customers, searchTerm]);
 
@@ -304,7 +361,7 @@ export default function Suppliers() {
           </div>
           <input
             type="text"
-            placeholder="Ara (Müşteri Adı, Telefon, E-posta, Firma, IMEI, Seri No)..."
+            placeholder="Ara (Müşteri Adı, Posta Kodu, E-posta, Firma)..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:border-indigo-500 shadow-sm"
@@ -319,8 +376,8 @@ export default function Suppliers() {
             <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase text-xs sticky top-0 z-10">
               <tr>
                 <th className="px-6 py-4">MÜŞTERİ</th>
-                <th className="px-6 py-4">CİHAZ</th>
-                <th className="px-6 py-4">FLOW</th>
+                <th className="px-6 py-4">FİRMA KODU</th>
+                <th className="px-6 py-4">CRM</th>
                 <th className="px-6 py-4">GİRİŞ TARİHİ</th>
                 <th className="px-6 py-4 text-right">İŞLEMLER</th>
               </tr>
@@ -344,24 +401,24 @@ export default function Suppliers() {
                   <tr key={customer.id} className="hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors group text-slate-700 dark:text-slate-300">
                     <td className="px-6 py-4">
                       <div className="font-medium text-slate-800 dark:text-slate-200">{customer.customer_name || '-'}</div>
-                      <div className="text-xs text-slate-400">{customer.customer_phone}{customer.company ? ` · ${customer.company}` : ''}</div>
+                      <div className="text-xs text-slate-400">{customer.customer_phone}{(customer.company && customer.company !== customer.customer_name) ? ` · ${customer.company}` : ''}</div>
                     </td>
                     <td className="px-6 py-4">
-                      <div>{customer.brand} {customer.model}</div>
-                      <div className="text-xs text-slate-400 font-mono">
-                        {customer.imei_number && `IMEI: ${customer.imei_number}`}
-                        {customer.imei_number && customer.serial_number && ' · '}
-                        {customer.serial_number && `SN: ${customer.serial_number}`}
-                      </div>
+                      {customer.code || customer.currency ? (
+                        <>
+                          <div className="font-mono text-slate-800 dark:text-slate-200">{customer.code || '-'}</div>
+                          <div className="text-xs text-slate-400">{customer.currency}</div>
+                        </>
+                      ) : <span className="text-slate-400">-</span>}
                     </td>
                     <td className="px-6 py-4">
-                      {customer.flow ? (
-                        <span className="px-2.5 py-1 rounded-full text-xs font-medium border bg-teal-500/10 text-teal-500 border-teal-500/20">
-                          {customer.flow}
-                        </span>
-                      ) : (
-                        <span className="text-slate-400">-</span>
-                      )}
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${
+                        customer.use_mio
+                          ? 'bg-green-500/10 text-green-500 border-green-500/20'
+                          : 'bg-slate-500/10 text-slate-400 border-slate-500/20'
+                      }`}>
+                        {customer.use_mio ? 'Yes' : 'No'}
+                      </span>
                     </td>
                     <td className="px-6 py-4 text-slate-400">{customer.intake_date || '-'}</td>
                     <td className="px-6 py-4 text-right">
@@ -411,7 +468,7 @@ export default function Suppliers() {
                 <input
                   type="text"
                   required
-                  placeholder="Örn. Ahmet Yılmaz"
+                  placeholder="Örn. Jean Dupont"
                   className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500 placeholder-slate-500"
                   value={formData.customer_name}
                   onChange={e => setFormData({...formData, customer_name: e.target.value})}
@@ -420,7 +477,7 @@ export default function Suppliers() {
 
               <div className="grid grid-cols-2 gap-5">
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-slate-400">Telefon</label>
+                  <label className="text-sm font-medium text-slate-400">Posta Kodu</label>
                   <input type="text" className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500" value={formData.customer_phone} onChange={e => setFormData({...formData, customer_phone: e.target.value})} />
                 </div>
                 <div className="space-y-1.5">
@@ -435,54 +492,37 @@ export default function Suppliers() {
               </div>
 
               <div className="border-t border-slate-200 dark:border-slate-700/50 pt-4">
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Cihaz Kabul Bilgileri (opsiyonel)</p>
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Firma Master Verisi</p>
                 <div className="grid grid-cols-2 gap-5 mb-5">
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-slate-400">IMEI Numarası</label>
-                    <input type="text" className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500 font-mono" value={formData.imei_number} onChange={e => setFormData({...formData, imei_number: e.target.value})} />
+                    <label className="text-sm font-medium text-slate-400">Kod</label>
+                    <input type="text" className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500 font-mono" value={formData.code} onChange={e => setFormData({...formData, code: e.target.value})} />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-slate-400">Seri Numarası</label>
-                    <input type="text" className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500 font-mono" value={formData.serial_number} onChange={e => setFormData({...formData, serial_number: e.target.value})} />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-5 mb-5">
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-slate-400">Internal ID</label>
-                    <input type="text" className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500 font-mono" value={formData.internal_id} onChange={e => setFormData({...formData, internal_id: e.target.value})} />
+                    <label className="text-sm font-medium text-slate-400">Kısa Ad</label>
+                    <input type="text" className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500" value={formData.short_name} onChange={e => setFormData({...formData, short_name: e.target.value})} />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-slate-400">Cihaz Modeli</label>
-                    <input
-                      type="text"
-                      list="device-model-list"
-                      placeholder="Model seçin/yazın"
-                      className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500"
-                      value={formData.cihaz_modeli}
-                      onChange={e => setFormData({...formData, cihaz_modeli: e.target.value})}
+                    <label className="text-sm font-medium text-slate-400">Para Birimi</label>
+                    <Dropdown
+                      value={formData.currency}
+                      onChange={cur => setFormData({...formData, currency: cur})}
+                      options={CURRENCY_VALUES.map(cur => ({ value: cur, label: cur }))}
                     />
-                    <datalist id="device-model-list">
-                      {deviceModelOptions.map((m, idx) => <option key={idx} value={m} />)}
-                    </datalist>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-5 mb-5">
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-slate-400">Flow (İş Akışı)</label>
-                    <select className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500" value={formData.flow} onChange={e => setFormData({...formData, flow: e.target.value})}>
-                      <option value="">Seçiniz...</option>
-                      {FLOW_VALUES.map(f => <option key={f} value={f}>{f}</option>)}
-                    </select>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-slate-400">Giriş Tarihi</label>
-                    <input type="date" className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500" value={formData.intake_date} onChange={e => setFormData({...formData, intake_date: e.target.value})} />
+                    <label className="text-sm font-medium text-slate-400">Müşteri Dili</label>
+                    <Dropdown
+                      value={formData.customer_language}
+                      onChange={lang => setFormData({...formData, customer_language: lang})}
+                      options={LANGUAGE_VALUES}
+                    />
                   </div>
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-slate-400">Müşteri Şikayeti</label>
-                  <textarea rows={2} className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500 resize-none" value={formData.customer_reported_complaint} onChange={e => setFormData({...formData, customer_reported_complaint: e.target.value})} />
-                </div>
+                <label className="flex items-center gap-2 cursor-pointer w-fit">
+                  <input type="checkbox" className="w-4 h-4 rounded accent-indigo-600" checked={formData.use_mio} onChange={e => setFormData({...formData, use_mio: e.target.checked})} />
+                  <span className="text-sm text-slate-600 dark:text-slate-300">CRM</span>
+                </label>
               </div>
 
               <div className="pt-4 flex justify-end gap-3 border-t border-slate-200 dark:border-slate-700/50 mt-6">
