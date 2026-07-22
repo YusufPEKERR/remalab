@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
-import { Search, Plus, Trash2, Edit, AlertCircle, RefreshCw, X, Users, Download, Upload, FileSpreadsheet, Check, ChevronDown } from 'lucide-react';
+import { Search, Plus, Trash2, Edit, AlertCircle, RefreshCw, X, Users, Download, Upload, FileSpreadsheet, Check, ChevronDown, ChevronUp } from 'lucide-react';
 import { api } from '../services/api';
 
 // Native <select> yerine: modal alt kenara yakınken tarayıcı listeyi
@@ -91,6 +91,10 @@ export default function Suppliers() {
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
 
+  // Sıralama state'leri (varsayılan: MÜŞTERİ adıp artan sıralama)
+  const [sortField, setSortField] = useState('customer_name');
+  const [sortDirection, setSortDirection] = useState('asc');
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentCustomer, setCurrentCustomer] = useState(null);
   const [formData, setFormData] = useState(EMPTY_FORM);
@@ -115,7 +119,7 @@ export default function Suppliers() {
         setError(res ? res.message : 'Hata');
       }
     } catch (_err) {
-      setError('Bağlantı hatası.');
+      setError('Müşteriler alınamadı.');
     } finally {
       if (!silent) setLoading(false);
     }
@@ -146,7 +150,7 @@ export default function Suppliers() {
         short_name: customer.short_name || '',
         currency: customer.currency || '',
         customer_language: customer.customer_language || '',
-        use_mio: customer.use_mio || false
+        use_mio: Boolean(customer.use_mio)
       });
     } else {
       setCurrentCustomer(null);
@@ -181,6 +185,15 @@ export default function Suppliers() {
     }
   };
 
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
   const filteredCustomers = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
     const filtered = !q ? customers : customers.filter(c =>
@@ -191,10 +204,26 @@ export default function Suppliers() {
       (c.imei_number && c.imei_number.toLowerCase().includes(q)) ||
       (c.serial_number && c.serial_number.toLowerCase().includes(q))
     );
-    return [...filtered].sort((a, b) =>
-      (a.customer_name || '').localeCompare(b.customer_name || '', 'tr')
-    );
-  }, [customers, searchTerm]);
+
+    return [...filtered].sort((a, b) => {
+      let valA = a[sortField];
+      let valB = b[sortField];
+
+      // Boolean tipi sorting (CRM / use_mio için)
+      if (typeof valA === 'boolean' || typeof valB === 'boolean') {
+        valA = valA ? 1 : 0;
+        valB = valB ? 1 : 0;
+        return sortDirection === 'asc' ? valA - valB : valB - valA;
+      }
+
+      // String tipi sorting (MÜŞTERİ, FİRMA KODU, GİRİŞ TARİHİ vb.)
+      const strA = (valA ?? '').toString();
+      const strB = (valB ?? '').toString();
+      const comparison = strA.localeCompare(strB, 'tr', { numeric: true, sensitivity: 'base' });
+
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+  }, [customers, searchTerm, sortField, sortDirection]);
 
   // ===================== Excel İşlemleri =====================
 
@@ -373,12 +402,60 @@ export default function Suppliers() {
       <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl shadow-lg flex-1 overflow-hidden flex flex-col">
         <div className="overflow-auto flex-1">
           <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase text-xs sticky top-0 z-10">
+            <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase text-xs sticky top-0 z-10 select-none">
               <tr>
-                <th className="px-6 py-4">MÜŞTERİ</th>
-                <th className="px-6 py-4">FİRMA KODU</th>
-                <th className="px-6 py-4">CRM</th>
-                <th className="px-6 py-4">GİRİŞ TARİHİ</th>
+                <th
+                  className={`px-6 py-4 cursor-pointer transition-colors select-none ${sortField === 'customer_name' ? 'text-indigo-400 font-semibold' : 'hover:text-slate-200'}`}
+                  onClick={() => handleSort('customer_name')}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span>MÜŞTERİ</span>
+                    {sortField === 'customer_name' ? (
+                      sortDirection === 'asc' ? <ChevronUp size={14} className="text-indigo-400" /> : <ChevronDown size={14} className="text-indigo-400" />
+                    ) : (
+                      <ChevronUp size={14} className="text-slate-600 opacity-40 group-hover:opacity-100" />
+                    )}
+                  </div>
+                </th>
+                <th
+                  className={`px-6 py-4 cursor-pointer transition-colors select-none ${sortField === 'code' ? 'text-indigo-400 font-semibold' : 'hover:text-slate-200'}`}
+                  onClick={() => handleSort('code')}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span>FİRMA KODU</span>
+                    {sortField === 'code' ? (
+                      sortDirection === 'asc' ? <ChevronUp size={14} className="text-indigo-400" /> : <ChevronDown size={14} className="text-indigo-400" />
+                    ) : (
+                      <ChevronUp size={14} className="text-slate-600 opacity-40 group-hover:opacity-100" />
+                    )}
+                  </div>
+                </th>
+                <th
+                  className={`px-6 py-4 cursor-pointer transition-colors select-none ${sortField === 'use_mio' ? 'text-indigo-400 font-semibold' : 'hover:text-slate-200'}`}
+                  onClick={() => handleSort('use_mio')}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span>CRM</span>
+                    {sortField === 'use_mio' ? (
+                      sortDirection === 'asc' ? <ChevronUp size={14} className="text-indigo-400" /> : <ChevronDown size={14} className="text-indigo-400" />
+                    ) : (
+                      <ChevronUp size={14} className="text-slate-600 opacity-40 group-hover:opacity-100" />
+                    )}
+                  </div>
+                </th>
+                <th
+                  className={`px-6 py-4 cursor-pointer transition-colors select-none ${sortField === 'intake_date' ? 'text-indigo-400 font-semibold' : 'hover:text-slate-200'}`}
+                  onClick={() => handleSort('intake_date')}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span>GİRİŞ TARİHİ</span>
+                    {sortField === 'intake_date' ? (
+                      sortDirection === 'asc' ? <ChevronUp size={14} className="text-indigo-400" /> : <ChevronDown size={14} className="text-indigo-400" />
+                    ) : (
+                      <ChevronUp size={14} className="text-slate-600 opacity-40 group-hover:opacity-100" />
+                    )}
+                  </div>
+                </th>
                 <th className="px-6 py-4 text-right">İŞLEMLER</th>
               </tr>
             </thead>
