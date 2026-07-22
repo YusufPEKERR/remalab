@@ -45,21 +45,6 @@ export default function BatchEntry() {
   const [editingRecord, setEditingRecord] = useState(null);
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
-  const [registeredCustomers, setRegisteredCustomers] = useState([]);
-
-  useEffect(() => {
-    const fetchCustomersList = async () => {
-      try {
-        const res = await api.getCustomers();
-        if (res && res.success) {
-          setRegisteredCustomers(res.customers || []);
-        }
-      } catch (err) {
-        console.error("Müşteriler yüklenemedi:", err);
-      }
-    };
-    fetchCustomersList();
-  }, []);
 
   // Batch Summary Table Modal State
   const [isBatchSummaryModalOpen, setIsBatchSummaryModalOpen] = useState(false);
@@ -599,80 +584,29 @@ export default function BatchEntry() {
 
               {/* BÖLÜM 1: Müşteri Bilgileri */}
               <div className="bg-slate-50/50 dark:bg-[#242a38]/40 p-4 rounded-xl border border-slate-200 dark:border-slate-700/50">
-                <div className="flex justify-between items-center mb-3">
-                  <h3 className="text-sm font-semibold text-blue-400 flex items-center gap-2 uppercase tracking-wider">
-                    <User size={16} /> 1. Müşteri Bilgileri
-                  </h3>
-                  {registeredCustomers.length > 0 && (
-                    <span className="text-xs text-slate-400"><b>{registeredCustomers.length}</b> kayıtlı müşteri hazır</span>
-                  )}
-                </div>
-
-                {registeredCustomers.length > 0 && (
-                  <div className="mb-4">
-                    <label className="block text-xs font-medium text-slate-400 mb-1">Müşteriler Modülünden Seç:</label>
-                    <select
-                      onChange={e => {
-                        const selectedId = e.target.value;
-                        if (!selectedId) return;
-                        const cust = registeredCustomers.find(c => String(c.id) === String(selectedId));
-                        if (cust) {
-                          setFormData(prev => ({
-                            ...prev,
-                            customer_no: cust.code || cust.customer_name || prev.customer_no,
-                            customer_name: cust.short_name || cust.customer_name || cust.company || prev.customer_name,
-                            currency: cust.currency && CURRENCY_OPTIONS.includes(cust.currency) ? cust.currency : prev.currency
-                          }));
-                        }
-                      }}
-                      className="w-full bg-white dark:bg-[#0f1219] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-blue-500 cursor-pointer"
-                    >
-                      <option value="">-- Müşteri Seçerek Otomatik Doldur --</option>
-                      {registeredCustomers.map(c => (
-                        <option key={c.id} value={c.id}>
-                          {c.code ? `[${c.code}] ` : ''}{c.short_name || c.customer_name || c.company || 'İsimsiz Müşteri'}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
+                <h3 className="text-sm font-semibold text-blue-400 mb-3 flex items-center gap-2 uppercase tracking-wider">
+                  <User size={16} /> 1. Müşteri Bilgileri
+                </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm text-slate-400 mb-1">Customer No (Müşteri No)</label>
                     <input
                       type="text"
-                      list="customer-list-no"
                       className="w-full bg-white dark:bg-[#0f1219] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-blue-500"
                       value={formData.customer_no}
                       onChange={e => setFormData({ ...formData, customer_no: e.target.value })}
                       placeholder="Örn: CUST-001"
                     />
-                    <datalist id="customer-list-no">
-                      {registeredCustomers.map(c => (
-                        <option key={c.id} value={c.code || c.customer_name}>
-                          {c.short_name || c.customer_name || c.company}
-                        </option>
-                      ))}
-                    </datalist>
                   </div>
                   <div>
                     <label className="block text-sm text-slate-400 mb-1">Customer Name (Müşteri Adı)</label>
                     <input
                       type="text"
-                      list="customer-list-name"
                       className="w-full bg-white dark:bg-[#0f1219] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-blue-500"
                       value={formData.customer_name}
                       onChange={e => setFormData({ ...formData, customer_name: e.target.value })}
                       placeholder="Örn: ABC İletişim Ltd."
                     />
-                    <datalist id="customer-list-name">
-                      {registeredCustomers.map(c => (
-                        <option key={c.id} value={c.short_name || c.customer_name || c.company}>
-                          {c.code ? `Kod: ${c.code}` : ''}
-                        </option>
-                      ))}
-                    </datalist>
                   </div>
                 </div>
               </div>
