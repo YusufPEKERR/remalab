@@ -188,6 +188,41 @@ export const api = {
         });
     },
 
+    getItemCodesByModel: async (modelName) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_item_codes_by_model) {
+                backend.get_item_codes_by_model(modelName || '', (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false, item_codes: [] });
+            }
+        });
+    },
+
+    getItemCodes: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (!backend.get_item_codes) {
+                resolve({ success: false, item_codes: [] });
+                return;
+            }
+            backend.get_item_codes(async (resStr) => {
+                try {
+                    const res = JSON.parse(resStr);
+                    if (res.fetch_url) {
+                        const fetchRes = await fetch(res.fetch_url, { cache: 'no-store' });
+                        const jsonData = await fetchRes.json();
+                        resolve(jsonData);
+                    } else {
+                        resolve(res);
+                    }
+                } catch (e) {
+                    resolve({ success: false, item_codes: [], message: e.message });
+                }
+            });
+        });
+    },
+
     createPart: async (partData) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
@@ -1277,6 +1312,75 @@ export const api = {
                 backend.delete_item_bom(String(id), (res) => resolve(JSON.parse(res)));
             } else {
                 resolve({ success: true });
+            }
+        });
+    },
+
+    // ==========================
+    // PRODUCT BOM (ÜRÜN AĞACI - MODELE BAĞLI)
+    // ==========================
+    getProductBOMs: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_product_boms) {
+                backend.get_product_boms((res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true, product_boms: [] });
+            }
+        });
+    },
+
+    createProductBOM: async (product_model, child_item_code, quantity) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.create_product_bom) {
+                backend.create_product_bom(
+                    product_model, 
+                    child_item_code, 
+                    String(quantity || 1), 
+                    (res) => resolve(JSON.parse(res))
+                );
+            } else {
+                resolve({ success: true });
+            }
+        });
+    },
+
+    updateProductBOM: async (id, product_model, child_item_code, quantity) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.update_product_bom) {
+                backend.update_product_bom(
+                    String(id),
+                    product_model, 
+                    child_item_code, 
+                    String(quantity || 1), 
+                    (res) => resolve(JSON.parse(res))
+                );
+            } else {
+                resolve({ success: false, message: "Backend eksik" });
+            }
+        });
+    },
+
+    deleteProductBOM: async (id) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.delete_product_bom) {
+                backend.delete_product_bom(String(id), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true });
+            }
+        });
+    },
+
+    toggleProductBomStatus: async (id) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.toggle_product_bom_status) {
+                backend.toggle_product_bom_status(String(id), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false, message: "Backend eksik" });
             }
         });
     },

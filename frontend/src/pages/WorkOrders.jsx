@@ -210,6 +210,7 @@ export default function WorkOrders() {
   const [detailDialog, setDetailDialog] = useState(null);
 
   const [barcodeSearchInput, setBarcodeSearchInput] = useState('');
+  const [lastSearchedQuery, setLastSearchedQuery] = useState('');
   const [searchedBarcodeResult, setSearchedBarcodeResult] = useState(null);
   const [scanMessage, setScanMessage] = useState(null);
   const barcodeInputRef = useRef(null);
@@ -218,6 +219,8 @@ export default function WorkOrders() {
     if (e) e.preventDefault();
     const query = barcodeSearchInput.trim();
     if (!query) return;
+
+    setLastSearchedQuery(query);
 
     // EĞER AÇIK BİR İŞ EMRİ VARSA VE BARKOD BİR MALZEMEYSE, 1 ADET TESLİM ET
     if (selectedProductionOrderId && activeTab === 'barcode_search' && materialRequests.length > 0) {
@@ -249,56 +252,61 @@ export default function WorkOrders() {
         } else {
           setScanMessage({ text: 'Bu parça için gerekli miktar zaten teslim edilmiş.', type: 'error' });
           setBarcodeSearchInput('');
+          if (barcodeInputRef.current) barcodeInputRef.current.focus();
           setTimeout(() => setScanMessage(null), 3000);
           return;
         }
       }
     }
 
-    // Akıllı Tahmin (Smart Guessing) for numeric barcodes
-    const isNumber = /^\d+$/.test(query);
-    if (isNumber) {
-      let numericQuery = parseInt(query, 10);
-      if (query.length === 15 && query.startsWith('1')) {
-        numericQuery = parseInt(query.substring(1), 10);
-      }
-      
-      // 1. Prioritize active Work Orders
-      const activeWO = productionWorkOrders.find(wo => 
-        Number(wo.id) === numericQuery && (wo.status === 'BEKLIYOR' || wo.status === 'URETIMDE')
-      );
-      if (activeWO) {
-        handleSelectProductionOrder(activeWO);
-        setSearchedBarcodeResult(null); // Clear any previous production run result
-        setBarcodeSearchInput('');
-        return;
-      }
-    }
-
-    // 2. Then check Production Runs
-    const found = productionRuns.find(run => run.serial_number === query);
-    if (found) {
-      setSearchedBarcodeResult(found);
-      setSelectedProductionOrderId(null); // Hide Work Order details if a Production Run is found
+    // 1. Önce Üretim Kaydı (Production Run) seri numarası kontrolü
+    const foundRun = productionRuns.find(run => 
+      run.serial_number === query || 
+      (query.length < 15 && /^\d+$/.test(query) && run.serial_number === query.padStart(15, '0'))
+    );
+    if (foundRun) {
+      setSearchedBarcodeResult(foundRun);
+      setSelectedProductionOrderId(null); // Üretim kaydı bulunduğunda İş Emri detayını gizle
+      setBarcodeSearchInput(''); // Barkod okutulunca kutuyu temizle, sıradaki okutmaya hazırla
+      setTimeout(() => {
+        if (barcodeInputRef.current) barcodeInputRef.current.focus();
+      }, 50);
       return;
     }
 
-    // 3. Finally, check if it's an inactive Work Order
-    if (isNumber) {
-      let numericQuery = parseInt(query, 10);
-      if (query.length === 15 && query.startsWith('1')) {
-        numericQuery = parseInt(query.substring(1), 10);
-      }
-      const anyWO = productionWorkOrders.find(wo => Number(wo.id) === numericQuery);
-      if (anyWO) {
-        handleSelectProductionOrder(anyWO);
+    // 2. İş Emri (Work Order) Kontrolü
+    // - 15 haneli ve '1' ile başlıyorsa (örn: 100000000000057) -> İş Emri ID: 57
+    // - "REM-PRD-000057" formatındaysa -> İş Emri ID: 57
+    // - 15 haneden KISA ve sadece rakam ise (örn: 57) -> İş Emri ID: 57
+    // Not: 15 haneli ve '0' ile başlayan numaralar (örn: 000000000000057) Üretim Kaydı seri numarasıdır, İş Emri olarak yorumlanmaz.
+    let woIdMatch = null;
+    if (query.length === 15 && query.startsWith('1')) {
+      woIdMatch = parseInt(query.substring(1), 10);
+    } else if (query.toUpperCase().startsWith('REM-PRD-')) {
+      woIdMatch = parseInt(query.toUpperCase().replace('REM-PRD-', ''), 10);
+    } else if (query.length < 15 && /^\d+$/.test(query)) {
+      woIdMatch = parseInt(query, 10);
+    }
+
+    if (woIdMatch !== null && !isNaN(woIdMatch)) {
+      const matchedWO = productionWorkOrders.find(wo => Number(wo.id) === woIdMatch);
+      if (matchedWO) {
+        handleSelectProductionOrder(matchedWO);
         setSearchedBarcodeResult(null);
+        setBarcodeSearchInput(''); // Barkod okutulunca kutuyu temizle
+        setTimeout(() => {
+          if (barcodeInputRef.current) barcodeInputRef.current.focus();
+        }, 50);
         return;
       }
     }
 
     setSearchedBarcodeResult('not_found');
     setSelectedProductionOrderId(null);
+    setBarcodeSearchInput(''); // Bulunamasa da kutuyu temizle, sıradaki bip-bip için hazırla
+    setTimeout(() => {
+      if (barcodeInputRef.current) barcodeInputRef.current.focus();
+    }, 50);
   };
 
   useEffect(() => {
@@ -1385,15 +1393,7 @@ export default function WorkOrders() {
                     <p className="text-slate-400 text-sm mt-1">{selectedProductionOrder.target_part_code}</p>
                   </div>
                   <div className="flex items-center gap-3">
-                    {selectedProductionOrder.status === 'BEKLIYOR' && (
-                      <button
-                        onClick={() => handleStartProduction(selectedProductionOrder)}
-                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium transition-colors shadow-lg shadow-blue-900/20"
-                      >
-                        Üretimi Başlat
-                      </button>
-                    )}
-                    <span className={`inline-block whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-medium border ${PRODUCTION_WO_STATUS_STYLES[selectedProductionOrder.status] || PRODUCTION_WO_STATUS_STYLES['BEKLIYOR']}`}>
+                    <span className={`inline-block whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-medium border ${PRODUCTION_WO_STATUS_STYLES[selectedProductionOrder.status] || PRODUCTION_WO_STATUS_STYLES['URETIMDE']}`}>
                       {PRODUCTION_WO_STATUS_LABELS[selectedProductionOrder.status] || selectedProductionOrder.status}
                     </span>
                     <button onClick={() => setSelectedProductionOrderId(null)} className="p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-[#2a3142] rounded-lg transition-colors">
@@ -2562,7 +2562,7 @@ export default function WorkOrders() {
                 <AlertTriangle size={24} className="shrink-0 text-red-500" />
                 <div className="text-left">
                   <h3 className="font-bold text-base">Barkod Bulunamadı</h3>
-                  <p className="text-xs text-red-500/70 dark:text-red-400/70 mt-0.5">"{barcodeSearchInput}" numaralı barkoda ait herhangi bir üretim kaydı bulunamadı. Lütfen numarayı kontrol ediniz.</p>
+                  <p className="text-xs text-red-500/70 dark:text-red-400/70 mt-0.5">"{lastSearchedQuery || barcodeSearchInput}" numaralı barkoda ait herhangi bir üretim kaydı bulunamadı. Lütfen numarayı kontrol ediniz.</p>
                 </div>
               </div>
             )}
@@ -2579,7 +2579,22 @@ export default function WorkOrders() {
                   <div className="space-y-3 text-sm">
                     <div className="flex justify-between items-center">
                       <span className="text-slate-400">Üretim Barkodu:</span>
-                      <span className="font-mono font-bold text-slate-800 dark:text-slate-200 text-base">{searchedBarcodeResult.serial_number}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-bold text-slate-800 dark:text-slate-200 text-base">{searchedBarcodeResult.serial_number}</span>
+                        <button
+                          type="button"
+                          onClick={() => setPrintBarcodeDialog({
+                            title: 'Üretim Barkodu',
+                            target_part_name: searchedBarcodeResult.target_part_name,
+                            target_part_code: searchedBarcodeResult.target_item_code,
+                            barcodeValue: searchedBarcodeResult.serial_number
+                          })}
+                          className="px-2.5 py-1 text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded-lg transition-colors flex items-center gap-1.5 border border-blue-200 dark:border-blue-800/50 shadow-sm"
+                          title="Barkod Yazdır"
+                        >
+                          <Printer size={13} /> Yazdır
+                        </button>
+                      </div>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-slate-400">Üretilen Parça:</span>
@@ -2639,6 +2654,7 @@ export default function WorkOrders() {
                   {!searchedBarcodeResult.is_returned && (
                     <div className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-700/40">
                       <button
+                        type="button"
                         onClick={() => {
                           setReturnDialog(searchedBarcodeResult);
                           setReturnLocationId('27');
@@ -3543,7 +3559,7 @@ export default function WorkOrders() {
             <div className="flex justify-between items-center p-5 border-b border-slate-200 dark:border-slate-700/50 bg-slate-50 dark:bg-[#242a38] print:hidden">
               <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                 <Printer size={20} className="text-blue-500" />
-                Barkod Yazdır
+                {printBarcodeDialog.title || 'Barkod Yazdır'}
               </h3>
               <button onClick={() => setPrintBarcodeDialog(null)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
                 <X size={20} />
@@ -3553,18 +3569,18 @@ export default function WorkOrders() {
             {/* The Print Area */}
             <div className="p-8 flex flex-col items-center justify-center print:p-0 print:h-screen print:w-screen print:flex print:flex-col print:items-center print:justify-center">
               <div className="text-center mb-4 print:mb-2">
-                <h2 className="text-lg font-bold text-slate-800 print:text-black">İş Emri</h2>
+                <h2 className="text-lg font-bold text-slate-800 print:text-black">{printBarcodeDialog.title || 'İş Emri'}</h2>
                 <p className="text-sm text-slate-500 print:text-gray-700 font-medium">
                   {printBarcodeDialog.target_part_name || '-'}
                 </p>
                 <p className="text-xs text-slate-400 print:text-gray-500">
-                  {printBarcodeDialog.target_part_code}
+                  {printBarcodeDialog.target_part_code || printBarcodeDialog.target_item_code}
                 </p>
               </div>
 
               <div className="bg-white p-4 rounded-xl print:p-0">
                 <Barcode 
-                  value={'1' + String(printBarcodeDialog.id).padStart(14, '0')} 
+                  value={printBarcodeDialog.barcodeValue || ('1' + String(printBarcodeDialog.id).padStart(14, '0'))} 
                   width={2} 
                   height={80} 
                   fontSize={18}

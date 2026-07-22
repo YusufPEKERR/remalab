@@ -4,9 +4,16 @@ import { api } from '../services/api';
 import ExcelMappingModal from '../components/ExcelMappingModal';
 import TextCombobox from '../components/TextCombobox';
 
+// MioCreate.xlsx -> ItemType sayfasındaki kanonik kodların bir alt kümesi.
+// "Labour" seçilirse backend (core/web_bridge.py) stok takibini otomatik "Stok Takipsiz" yapar.
+const PART_TYPE_OPTIONS = [
+  { value: 'SparePart', label: 'SparePart (Yedek Parça)' },
+  { value: 'Labour', label: 'Labour (İşçilik)' },
+  { value: 'ScrapPart', label: 'ScrapPart (Çıkma Parça)' }
+];
 
 const EMPTY_FORM = {
-  item_code: '', barcode: '', name: '', model: '',
+  item_code: '', barcode: '', name: '', model: '', brand: '',
   item_category: '', part_category_id: '',
   department: [], stock_tracking_type: 'Stok Takipli', status: 'Aktif', critical_limit: '',
   memory: [], part_type: ''
@@ -37,8 +44,8 @@ export default function Parts() {
     "Parça Kodu": true,
     "Barkod": true,
     "Parça Adı": true,
+    "Item Category": true,
     "Parça Kategorisi": true,
-    "Item Code": true,
     "Parça Tipi": true,
     "Parça Statüsü": true
   });
@@ -57,8 +64,8 @@ export default function Parts() {
     item_code: "Parça Kodu (item_code) *",
     barcode: "Barkod (barcode)",
     name: "Parça Adı (name)",
-    item_category: "Parça Kategorisi (item_category)",
-    part_category: "Item Code (part_category)",
+    item_category: "Item Category (item_category)",
+    part_category: "Parça Kategorisi (part_category)",
     status: "Parça Statüsü (status)",
     part_type: "Parça Tipi (part_type)"
   };
@@ -149,6 +156,7 @@ export default function Parts() {
         barcode: part.barcode || '',
         name: part.name || '',
         model: part.model || '',
+        brand: part.brand || '',
         item_category: part.item_category || '',
         part_category_id: part.part_category_id || '',
         department: part.department ? String(part.department).split(',').map(d => d.trim()).filter(Boolean) : [],
@@ -176,6 +184,7 @@ export default function Parts() {
         barcode: existing.barcode || '',
         name: existing.name || '',
         model: existing.model || '',
+        brand: existing.brand || '',
         item_category: existing.item_category || '',
         part_category_id: existing.part_category_id || '',
         department: existing.department ? String(existing.department).split(',').map(d => d.trim()).filter(Boolean) : [],
@@ -188,13 +197,17 @@ export default function Parts() {
     }
   };
 
-  // Parça Kodu girilince Model bilgisini ProductFamily eşleşmesinden (warehouse.item_models) otomatik getirir.
+  // Parça Kodu girilince Marka ve Model bilgisini ProductFamily eşleşmesinden (warehouse.item_models) otomatik getirir.
   const handleFetchModel = async (code) => {
     if (!code) return;
     try {
       const res = await api.getItemModel(code);
-      if (res.success && res.model) {
-        setFormData(prev => ({ ...prev, model: res.model }));
+      if (res.success) {
+        setFormData(prev => ({
+          ...prev,
+          model: res.model || prev.model,
+          brand: res.brand || prev.brand
+        }));
       }
     } catch (err) {
       console.error(err);
@@ -210,7 +223,8 @@ export default function Parts() {
         ...formData,
         department: selectedCategory ? selectedCategory.departments : formData.department,
         stock_tracking_type: selectedCategory ? selectedCategory.stock_tracking_type : formData.stock_tracking_type,
-        part_type: selectedCategory ? (selectedCategory.part_type || '') : formData.part_type,
+        part_category: selectedCategory ? selectedCategory.name : formData.part_category,
+        part_type: formData.part_type,
         memory: Array.isArray(formData.memory) ? formData.memory.join(', ') : (formData.memory || '')
       };
       const res = currentPart
@@ -467,13 +481,13 @@ export default function Parts() {
                 </th>
                 <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('item_category')}>
                   <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
-                    PARÇA KATEGORİSİ
+                    ITEM CATEGORY
                     <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'item_category' ? 'text-blue-500' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
                   </div>
                 </th>
                 <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('part_category')}>
                   <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
-                    ITEM CODE
+                    PARÇA KATEGORİSİ
                     <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'part_category' ? 'text-blue-500' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
                   </div>
                 </th>
@@ -522,6 +536,7 @@ export default function Parts() {
                     <td className="px-6 py-4 font-mono text-slate-400">{part.id}</td>
                     <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200">{part.item_code}</td>
                     <td className="px-6 py-4">{part.name}</td>
+
                     <td className="px-6 py-4">
                       {part.item_category && (
                         <span className="px-2.5 py-1 rounded-full text-xs font-medium border bg-blue-500/10 text-blue-400 border-blue-500/20">
@@ -672,27 +687,50 @@ export default function Parts() {
                 </div>
               </div>
 
+
+
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-1">Model</label>
-                <input
-                  type="text"
+                <label className="block text-sm font-medium text-slate-400 mb-1">Parça Kategorisi <span className="text-red-400">*</span></label>
+                <select
+                  required
                   className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
-                  value={formData.model}
-                  onChange={e => setFormData({...formData, model: e.target.value})}
-                  placeholder="Parça kodu girilince otomatik gelir"
-                />
+                  value={formData.part_category_id}
+                  onChange={(e) => {
+                    const selectedCatId = e.target.value;
+                    const cat = partCategories.find(c => String(c.id) === selectedCatId);
+                    setFormData({
+                      ...formData, 
+                      part_category_id: selectedCatId,
+                      part_category: cat ? cat.name : '',
+                      name: cat ? cat.name : ''
+                    });
+                  }}
+                >
+                  <option value="">Seçiniz...</option>
+                  {categoryOptions.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-1">Parça Adı <span className="text-red-400">*</span></label>
-                <TextCombobox
+                <label className="block text-sm font-medium text-slate-400 mb-1">
+                  Parça Tipi <span className="text-red-400">*</span>
+                </label>
+                <select
                   required
-                  options={productFamilyNames}
-                  value={formData.name}
-                  onChange={v => setFormData({...formData, name: v})}
-                  placeholder="Örn: iPhone 13"
-                />
+                  className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                  value={formData.part_type}
+                  onChange={e => setFormData({...formData, part_type: e.target.value})}
+                >
+                  <option value="">Seçiniz...</option>
+                  {PART_TYPE_OPTIONS.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
               </div>
+
+
 
               {currentPart && (
                 <div>

@@ -158,27 +158,37 @@ class WebBridge(QObject):
         self._ensure_item_bom_data()
         self._ensure_item_model_lookup()
 
+    def _find_reference_excel_file(self):
+        """Proje kök dizininde MioCreate referans veri dosyasını arar.
+        Hem eski isimlendirmeyi ('...dosya...') hem de mevcut 'MioCreate.xlsx' adını destekler."""
+        import os
+        candidates = [
+            f for f in os.listdir('.')
+            if f.lower().endswith('.xlsx')
+            and not f.startswith('~$')
+            and ('dosya' in f.lower() or 'miocreate' in f.lower())
+        ]
+        return candidates[0] if candidates else None
+
     def _ensure_item_bom_data(self):
         """ItemBOM tablosunun verilerini Excel dosyasından okuyarak veri tabanına senkronize eder."""
         from sqlalchemy import text
         from models.part import Part
         from models.item_bom import ItemBOM
         import openpyxl
-        import os
-        
+
         db = SessionLocal()
         try:
             # Check if table already has data
             count = db.execute(text("SELECT COUNT(*) FROM warehouse.item_bom;")).scalar()
             if count > 0:
                 return
-            
+
             print("[WebBridge] ItemBOM tablosu boş. Excel'den veri içe aktarılıyor...")
-            files = [f for f in os.listdir('.') if 'dosya' in f.lower() and not f.startswith('~$')]
-            if not files:
+            fname = self._find_reference_excel_file()
+            if not fname:
+                print("[WebBridge] Referans Excel dosyası (MioCreate.xlsx) bulunamadı.")
                 return
-            
-            fname = files[0]
             wb = openpyxl.load_workbook(fname, data_only=True)
             
             # Read Item sheet for names, types
@@ -285,34 +295,55 @@ class WebBridge(QObject):
         finally:
             db.close()
 
+    def _insert_item_models_batch(self, db, batch):
+        """warehouse.item_models tablosuna tek seferde birden çok satır ekler.
+        30k satırı tek tek INSERT etmek uzak veritabanına çok fazla round-trip
+        açıp bağlantının zaman aşımına uğramasına/kopmasına yol açıyordu."""
+        from sqlalchemy import text
+        values_sql = ", ".join(f"(:code{i}, :model{i}, :brand{i})" for i in range(len(batch)))
+        params = {}
+        for i, row in enumerate(batch):
+            params[f"code{i}"] = row["code"]
+            params[f"model{i}"] = row["model"]
+            params[f"brand{i}"] = row["brand"]
+        db.execute(text(f"""
+            INSERT INTO warehouse.item_models (item_code, model, brand)
+            VALUES {values_sql}
+            ON CONFLICT (item_code) DO UPDATE SET model = EXCLUDED.model, brand = EXCLUDED.brand;
+        """), params)
+
     def _ensure_item_model_lookup(self):
         """Parça kodu girildiğinde 'Model' alanının otomatik doldurulabilmesi için
         ProductBom (item -> productFamily) ve ProductFamily (productFamily -> shortName)
         sayfalarından warehouse.item_models (item_code -> model) eşleşme tablosunu kurar."""
         from sqlalchemy import text
         import openpyxl
-        import os
 
         db = SessionLocal()
         try:
             db.execute(text("""
                 CREATE TABLE IF NOT EXISTS warehouse.item_models (
                     item_code VARCHAR(100) PRIMARY KEY,
-                    model VARCHAR(500)
+                    model TEXT
                 );
             """))
+            db.execute(text("ALTER TABLE warehouse.item_models ALTER COLUMN model TYPE TEXT;"))
+            db.execute(text("ALTER TABLE warehouse.item_models ADD COLUMN IF NOT EXISTS brand TEXT;"))
             db.commit()
 
-            count = db.execute(text("SELECT COUNT(*) FROM warehouse.item_models;")).scalar()
+            # brand sütunu sonradan eklendiği için, marka verisi henüz işlenmemiş
+            # kurulumlarda (model dolu ama brand boş) tabloyu yeniden içe aktarmamız gerekir.
+            count = db.execute(text("SELECT COUNT(*) FROM warehouse.item_models WHERE brand IS NOT NULL AND brand <> '';")).scalar()
             if count > 0:
                 return
 
-            files = [f for f in os.listdir('.') if 'dosya' in f.lower() and not f.startswith('~$')]
-            if not files:
+            fname = self._find_reference_excel_file()
+            if not fname:
+                print("[WebBridge] Referans Excel dosyası (MioCreate.xlsx) bulunamadı.")
                 return
 
             print("[WebBridge] item_models tablosu boş. Excel'den Parça Kodu -> Model eşleşmesi içe aktarılıyor...")
-            wb = openpyxl.load_workbook(files[0], data_only=True)
+            wb = openpyxl.load_workbook(fname, data_only=True)
 
             # ProductFamily: kod (örn. 'iP11') -> okunabilir model adı (örn. 'iPhone 11')
             ws_family = wb['ProductFamily']
@@ -321,13 +352,17 @@ class WebBridge(QObject):
             headers_family = family_rows[h_idx_family]
             fam_code_col = next(i for i, h in enumerate(headers_family) if h == 'code')
             fam_shortname_col = next(i for i, h in enumerate(headers_family) if h == 'shortName')
+            fam_brand_col = next((i for i, h in enumerate(headers_family) if h == 'brand'), None)
 
             family_name_map = {}
+            family_brand_map = {}
             for r in family_rows[h_idx_family + 1:]:
                 fam_code = r[fam_code_col]
                 fam_name = r[fam_shortname_col]
                 if fam_code:
                     family_name_map[str(fam_code)] = str(fam_name) if fam_name else str(fam_code)
+                    if fam_brand_col is not None and r[fam_brand_col]:
+                        family_brand_map[str(fam_code)] = str(r[fam_brand_col])
 
             # ProductBom: item_code -> productFamily kodları (bir parça birden fazla modelde kullanılabilir)
             ws_bom = wb['ProductBom']
@@ -348,17 +383,23 @@ class WebBridge(QObject):
             wb.close()
 
             inserted = 0
+            batch = []
+            batch_size = 500
             for item_code, fam_codes in item_families.items():
                 model_names = sorted({family_name_map.get(fc, fc) for fc in fam_codes})
                 model_str = ', '.join(model_names)
                 if not model_str:
                     continue
-                db.execute(text("""
-                    INSERT INTO warehouse.item_models (item_code, model)
-                    VALUES (:code, :model)
-                    ON CONFLICT (item_code) DO UPDATE SET model = EXCLUDED.model;
-                """), {"code": item_code, "model": model_str})
-                inserted += 1
+                brand_names = sorted({family_brand_map[fc] for fc in fam_codes if fc in family_brand_map})
+                brand_str = ', '.join(brand_names)
+                batch.append({"code": item_code, "model": model_str, "brand": brand_str or None})
+                if len(batch) >= batch_size:
+                    self._insert_item_models_batch(db, batch)
+                    inserted += len(batch)
+                    batch = []
+            if batch:
+                self._insert_item_models_batch(db, batch)
+                inserted += len(batch)
 
             db.commit()
             print(f"[WebBridge] item_models eşleşmesi tamamlandı. Toplam {inserted} parça kodu için model belirlendi.")
@@ -528,6 +569,7 @@ class WebBridge(QObject):
             db.execute(text("ALTER TABLE warehouse.work_orders ADD COLUMN IF NOT EXISTS produced_quantity INTEGER;"))
             db.execute(text("ALTER TABLE warehouse.work_orders ADD COLUMN IF NOT EXISTS scrap_quantity INTEGER;"))
             db.execute(text("ALTER TABLE warehouse.work_orders ADD COLUMN IF NOT EXISTS production_notes TEXT;"))
+            db.execute(text("UPDATE warehouse.work_orders SET status = 'URETIMDE' WHERE work_order_type = 'PRODUCTION' AND status = 'BEKLIYOR';"))
             db.commit()
         except Exception as e:
             db.rollback()
@@ -1045,6 +1087,126 @@ class WebBridge(QObject):
         finally:
             db.close()
 
+    @Slot(result=str)
+    def get_product_boms(self):
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            bom_result = db.execute(text("""
+                SELECT b.id, b.product_model, b.child_item_code, b.quantity, b.status,
+                       b.created_at, b.updated_at,
+                       p_child.name AS child_name, p_child.id AS child_part_id
+                FROM warehouse.product_boms b
+                LEFT JOIN warehouse.parts p_child ON p_child.item_code = b.child_item_code
+                ORDER BY b.product_model, b.child_item_code;
+            """)).mappings().all()
+
+            bom_map = {}
+            for row in bom_result:
+                model = row["product_model"]
+                if model not in bom_map:
+                    bom_map[model] = {
+                        "model": model,
+                        "materials": []
+                    }
+                bom_map[model]["materials"].append({
+                    "id": row["id"],
+                    "child_item_code": row["child_item_code"],
+                    "child_part_id": str(row["child_part_id"]) if row["child_part_id"] else "",
+                    "child_name": row["child_name"] or row["child_item_code"],
+                    "quantity": int(row["quantity"]),
+                    "status": row["status"] or "Aktif",
+                    "created_at": row["created_at"].strftime("%d.%m.%Y %H:%M") if row["created_at"] else "-",
+                    "updated_at": row["updated_at"].strftime("%d.%m.%Y %H:%M") if row["updated_at"] else "-"
+                })
+            
+            return json.dumps({"success": True, "product_boms": list(bom_map.values())}, ensure_ascii=False)
+        except Exception as e:
+            print(f"[WebBridge] get_product_boms hatası: {e}")
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, str, result=str)
+    def create_product_bom(self, product_model, child_item_code, quantity):
+        from models.product_bom import ProductBOM
+        db = SessionLocal()
+        try:
+            new_bom = ProductBOM(
+                product_model=product_model,
+                child_item_code=child_item_code,
+                quantity=int(quantity) if quantity else 1
+            )
+            db.add(new_bom)
+            db.commit()
+            return json.dumps({"success": True})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, str, str, result=str)
+    def update_product_bom(self, bom_id, product_model, child_item_code, quantity):
+        from models.product_bom import ProductBOM
+        from datetime import datetime
+        db = SessionLocal()
+        try:
+            bom = db.query(ProductBOM).filter(ProductBOM.id == int(bom_id)).first()
+            if not bom:
+                return json.dumps({"success": False, "message": "BOM bulunamadı."})
+            
+            bom.product_model = product_model
+            bom.child_item_code = child_item_code
+            bom.quantity = int(quantity) if quantity else 1
+            bom.updated_at = datetime.now()
+            db.commit()
+            return json.dumps({"success": True})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
+    def delete_product_bom(self, bom_id):
+        from models.product_bom import ProductBOM
+        db = SessionLocal()
+        try:
+            bom = db.query(ProductBOM).filter(ProductBOM.id == int(bom_id)).first()
+            if bom:
+                db.delete(bom)
+                db.commit()
+                return json.dumps({"success": True})
+            return json.dumps({"success": False, "message": "BOM bulunamadı"})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
+    def toggle_product_bom_status(self, bom_id):
+        from models.product_bom import ProductBOM
+        db = SessionLocal()
+        try:
+            bom = db.query(ProductBOM).filter(ProductBOM.id == int(bom_id)).first()
+            if not bom:
+                return json.dumps({"success": False, "message": "BOM kaydı bulunamadı."})
+            
+            # Toggle between Aktif and Pasif
+            from datetime import datetime
+            bom.status = "Pasif" if bom.status == "Aktif" else "Aktif"
+            bom.updated_at = datetime.now()
+            db.commit()
+            return json.dumps({"success": True, "message": f"Durum '{bom.status}' olarak güncellendi."})
+        except Exception as e:
+            db.rollback()
+            print(f"[WebBridge] toggle_product_bom_status hatası: {e}")
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
     @Slot(str, result=str)
     def get_item_model(self, item_code):
         """Parça Kodu girildiğinde Model alanını otomatik doldurmak için warehouse.item_models
@@ -1054,23 +1216,73 @@ class WebBridge(QObject):
         try:
             code = (item_code or "").strip()
             if not code:
-                return json.dumps({"success": False, "model": ""})
+                return json.dumps({"success": False, "model": "", "brand": ""})
 
             row = db.execute(
-                text("SELECT model FROM warehouse.item_models WHERE item_code = :code"),
+                text("SELECT model, brand FROM warehouse.item_models WHERE item_code = :code"),
                 {"code": code}
             ).first()
-            if row and row[0]:
-                return json.dumps({"success": True, "model": row[0]})
+            if row and (row[0] or row[1]):
+                return json.dumps({"success": True, "model": row[0] or "", "brand": row[1] or ""})
 
             row2 = db.execute(
-                text("SELECT model FROM warehouse.parts WHERE item_code = :code AND model IS NOT NULL AND model <> '' LIMIT 1"),
+                text("SELECT model, brand FROM warehouse.parts WHERE item_code = :code AND ((model IS NOT NULL AND model <> '') OR (brand IS NOT NULL AND brand <> '')) LIMIT 1"),
                 {"code": code}
             ).first()
-            if row2 and row2[0]:
-                return json.dumps({"success": True, "model": row2[0]})
+            if row2 and (row2[0] or row2[1]):
+                return json.dumps({"success": True, "model": row2[0] or "", "brand": row2[1] or ""})
 
-            return json.dumps({"success": False, "model": ""})
+            return json.dumps({"success": False, "model": "", "brand": ""})
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
+    def get_item_codes_by_model(self, model_name):
+        """Ürün Ağacı (BOM) ekranında Model seçilince, Ana Parça/Alt Parça alanlarını
+        sadece o modele ait parça kodlarıyla sınırlamak için warehouse.item_models'i
+        (virgülle ayrılmış model listesi) sorgular."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            name = (model_name or "").strip()
+            if not name:
+                return json.dumps({"success": False, "item_codes": []})
+
+            rows = db.execute(text("""
+                SELECT item_code FROM warehouse.item_models
+                WHERE :name = ANY(string_to_array(model, ', '))
+                ORDER BY item_code
+            """), {"name": name}).all()
+            codes = [r[0] for r in rows]
+            return json.dumps({"success": True, "item_codes": codes})
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(result=str)
+    def get_item_codes(self):
+        """MioCreate.xlsx ProductBom sayfasından (warehouse.item_models üzerinden) bilinen
+        tüm parça kodlarını döner. 'Yeni Stok Kartı Ekle' formundaki Parça Kodu alanı
+        bu listeyi otomatik tamamlama (datalist) için kullanır."""
+        filename = "item_codes.json"
+        path = os.path.join(get_cache_dirs()[0], filename)
+        fetch_url = f"http://localhost:5173/api_cache/{filename}" if os.getenv("DEV_MODE", "1") == "1" else f"/api_cache/{filename}"
+        if os.path.exists(path):
+            return json.dumps({"success": True, "fetch_url": fetch_url})
+
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            result = db.execute(text(
+                "SELECT item_code FROM warehouse.item_models ORDER BY item_code"
+            )).all()
+            codes = [row[0] for row in result if row[0]]
+            json_data = json.dumps({"success": True, "item_codes": codes})
+            write_to_cache(filename, json_data)
+            return json.dumps({"success": True, "fetch_url": fetch_url})
         except Exception as e:
             return json.dumps({"success": False, "message": str(e)})
         finally:
@@ -1089,6 +1301,14 @@ class WebBridge(QObject):
             part_name = name.strip()
             if not part_name:
                 part_name = f"{brand.strip()} {model.strip()}".strip() or code
+
+            # Check if item_code already exists
+            existing = db.execute(text("SELECT id FROM warehouse.parts WHERE item_code = :code"), {"code": code}).scalar()
+            if existing:
+                return json.dumps({
+                    "success": False, 
+                    "message": f"'{code}' kodlu parça zaten sistemde kayıtlı. Eklemek yerine arama çubuğundan bulup düzenleyebilirsiniz."
+                })
 
             sql = """
                 INSERT INTO warehouse.parts (name, item_code, barcode, brand, model, item_category, part_category, part_category_id, stock_tracking_type, department, status, critical_limit, memory, part_type)
@@ -2362,7 +2582,7 @@ class WebBridge(QObject):
                 "qty": qty,
                 "tech": assigned_technician or None,
                 "dept": department or None,
-                "status": PRODUCTION_WO_STATUS_WAITING
+                "status": PRODUCTION_WO_STATUS_IN_PRODUCTION
             }).scalar()
 
             for bom_row in bom_rows:
@@ -3217,7 +3437,7 @@ class WebBridge(QObject):
             wop_id = int(wop_id_str)
             result = db.execute(text("""
                 UPDATE warehouse.work_order_parts
-                SET status = 'Tedarik Bekleniyor', waiting_notes = :notes,
+                SET status = 'Stokta Var', waiting_notes = :notes,
                     marked_waiting_by = :user, marked_waiting_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
                 WHERE id = :id AND status != 'Teslim Edildi'
             """), {"notes": notes or None, "user": username or None, "id": wop_id})
@@ -3433,7 +3653,7 @@ class WebBridge(QObject):
                 INSERT INTO warehouse.work_order_parts
                     (work_order_id, part_id, quantity, status, waiting_notes, marked_waiting_by, marked_waiting_at, requested_by)
                 VALUES
-                    (:wid, :pid, :qty, 'Tedarik Bekleniyor', :notes, :user, CURRENT_TIMESTAMP, :user)
+                    (:wid, :pid, :qty, 'Stokta Var', :notes, :user, CURRENT_TIMESTAMP, :user)
             """), {"wid": work_order_id, "pid": part_id, "qty": qty, "notes": notes or None, "user": username or None})
             db.commit()
             return json.dumps({"success": True})
@@ -3458,7 +3678,7 @@ class WebBridge(QObject):
                 JOIN warehouse.work_orders w ON w.id = wop.work_order_id
                 LEFT JOIN warehouse.service_records s ON s.id = w.service_record_id
                 LEFT JOIN warehouse.parts p ON p.id = wop.part_id
-                WHERE wop.status = 'Tedarik Bekleniyor'
+                WHERE wop.status IN ('Tedarik Bekleniyor', 'Stokta Var')
                 ORDER BY wop.marked_waiting_at ASC
             """)).mappings().all()
 

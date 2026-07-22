@@ -126,9 +126,6 @@ export default function SupplyRequests() {
                     <td className="px-6 py-4 text-xs text-slate-400">{formatWaitDuration(row.marked_waiting_at)}</td>
                     <td className="px-6 py-4 text-center">
                       <div className="flex justify-center gap-3">
-                        <button onClick={() => handleApprove(row)} className="p-1.5 text-emerald-500 hover:bg-emerald-500/10 rounded-lg transition-colors" title="Onayla (Depodan teslim alınabilir)">
-                          <CheckCircle size={16} />
-                        </button>
                         <button onClick={() => handleDelete(row)} className="p-1.5 text-red-400 hover:bg-red-400/10 rounded-lg transition-colors" title="Sil">
                           <Trash2 size={16} />
                         </button>

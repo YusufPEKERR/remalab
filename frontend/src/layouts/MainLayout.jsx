@@ -3,7 +3,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
   LogOut, LayoutDashboard, Users, Package, Settings, Bell,
   Warehouse, FileText, BarChart2, Box, Truck, MapPin,
-  CheckCircle, Search, AlertTriangle, Zap, RefreshCw, Sun, Moon, Database, Building2, Wrench, ClipboardList, PackageSearch, PackagePlus, Tags, ChevronDown, ChevronRight
+  CheckCircle, Search, AlertTriangle, Zap, RefreshCw, Sun, Moon, Database, Building2, Wrench, ClipboardList, PackageSearch, PackagePlus, Tags, ChevronDown, ChevronRight, Menu, X, Layers
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useTheme } from '../context/ThemeContext';
@@ -17,6 +17,7 @@ export default function MainLayout() {
   const [showNotifications, setShowNotifications] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const notifRef = useRef(null);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
 
   const [openGroups, setOpenGroups] = useState({
     'GENEL BAKIŞ': true,
@@ -95,7 +96,7 @@ export default function MainLayout() {
 
   // Permission maps based on Python code:
   const allowedPaths = {
-    'admin': ['/dashboard', '/depo', '/irsaliye', '/work-orders', '/supply-requests', '/raporlar', '/parts', '/part-categories', '/products', '/suppliers', '/locations', '/users', '/settings', '/departments', '/service-records', '/data-management', '/tedarik-talepleri', '/quality', '/refurbishment', '/priority'],
+    'admin': ['/dashboard', '/depo', '/irsaliye', '/work-orders', '/supply-requests', '/raporlar', '/parts', '/part-categories', '/products', '/suppliers', '/locations', '/users', '/settings', '/departments', '/service-records', '/data-management', '/tedarik-talepleri', '/quality', '/refurbishment', '/priority', '/item-bom'],
     'depo': ['/depo', '/irsaliye', '/work-orders', '/raporlar'],
     'depo müdürü': ['/dashboard', '/depo', '/irsaliye', '/work-orders', '/supply-requests', '/raporlar', '/parts', '/products', '/suppliers', '/locations', '/tedarik-talepleri', '/service-records'],
     'teknisyen': ['/dashboard', '/quality', '/refurbishment', '/priority']
@@ -142,6 +143,7 @@ export default function MainLayout() {
       items: [
         { name: 'Kullanıcılar', icon: Users, path: '/users' },
         { name: 'Parça Kategorileri', icon: Tags, path: '/part-categories' },
+        { name: 'Ürün Ağacı', icon: Layers, path: '/item-bom' },
         { name: 'Ayarlar', icon: Settings, path: '/settings' },
         { name: 'Veri Yönetimi', icon: Database, path: '/data-management' },
         { name: 'Departman Yönetimi', icon: Building2, path: '/departments' },
@@ -165,8 +167,28 @@ export default function MainLayout() {
 
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-[#0f1219] overflow-hidden">
+      {/* Mobile Sidebar Backdrop Overlay */}
+      {isMobileOpen && (
+        <div 
+          className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 lg:hidden"
+          onClick={() => setIsMobileOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="w-64 bg-white dark:bg-[#161B22] text-slate-700 dark:text-slate-300 flex flex-col border-r border-slate-200 dark:border-[#30363D] z-20">
+      <aside className={`
+        fixed inset-y-0 left-0 w-64 bg-white dark:bg-[#161B22] text-slate-700 dark:text-slate-300 flex flex-col border-r border-slate-200 dark:border-[#30363D] z-50
+        transition-transform duration-300 transform lg:translate-x-0 lg:static lg:inset-auto
+        ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'}
+      `}>
+        {/* Mobile Close Button */}
+        <button 
+          onClick={() => setIsMobileOpen(false)}
+          className="absolute top-4 right-4 p-1.5 rounded-lg bg-slate-100 dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 lg:hidden"
+        >
+          <X size={16} />
+        </button>
+
         <div className="flex items-center justify-center pb-6 pt-10 border-b border-slate-200 dark:border-[#30363D]">
           <img src="/logo.png" alt="Remalab Logo" className="h-36 w-full object-contain drop-shadow-md scale-110 dark:hidden" />
           <img src="/karanlık-mod.png" alt="Remalab Logo" className="h-36 w-full object-contain drop-shadow-md scale-110 hidden dark:block" />
@@ -236,6 +258,7 @@ export default function MainLayout() {
                             }`}
                             onClick={(e) => {
                               e.preventDefault();
+                              setIsMobileOpen(false);
                               navigate(item.path);
                             }}
                           >
@@ -266,14 +289,25 @@ export default function MainLayout() {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Topbar */}
-        <header className="h-16 bg-white dark:bg-[#161B22] border-b border-slate-200 dark:border-[#30363D] flex items-center justify-between px-6 shadow-sm z-50 shrink-0">
-          <div className="flex flex-col">
-            <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100 tracking-tight">
-              {currentPage ? currentPage.name : 'Depo Yönetim Sistemi'}
-            </h2>
-            <p className="text-[11px] font-medium text-slate-500 tracking-wide uppercase">
-              Ana Sayfa &rsaquo; {currentPage ? currentPage.name : 'Genel'}
-            </p>
+        <header className="h-16 bg-white dark:bg-[#161B22] border-b border-slate-200 dark:border-[#30363D] flex items-center justify-between px-6 shadow-sm z-30 shrink-0">
+          <div className="flex items-center gap-3">
+            {/* Mobile Hamburger Button */}
+            <button
+              onClick={() => setIsMobileOpen(true)}
+              className="p-2 -ml-2 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors lg:hidden rounded-xl bg-slate-100 dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50"
+              title="Menüyü Aç"
+            >
+              <Menu size={20} />
+            </button>
+            
+            <div className="flex flex-col">
+              <h2 className="text-sm sm:text-lg font-bold text-slate-900 dark:text-slate-100 tracking-tight leading-none">
+                {currentPage ? currentPage.name : 'Depo Yönetim Sistemi'}
+              </h2>
+              <p className="text-[10px] sm:text-[11px] font-medium text-slate-500 tracking-wide uppercase mt-1">
+                Ana Sayfa &rsaquo; {currentPage ? currentPage.name : 'Genel'}
+              </p>
+            </div>
           </div>
 
           <div className="flex items-center gap-4">
@@ -317,7 +351,7 @@ export default function MainLayout() {
               </button>
 
               {showNotifications && (
-                <div className="absolute right-0 mt-3 w-[360px] bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
+                <div className="absolute right-0 mt-3 w-[calc(100vw-32px)] sm:w-[360px] bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
                   <div className="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#242a38] flex flex-col gap-2">
                     <div className="flex items-center justify-between">
                       <h3 className="font-bold text-slate-800 dark:text-slate-100">Kritik Stok Bildirimleri</h3>
@@ -411,7 +445,7 @@ export default function MainLayout() {
         </header>
 
         {/* Page Content (Outlet renders child routes) */}
-        <main className="flex-1 overflow-y-auto p-6 bg-slate-50 dark:bg-[#0f1219]">
+        <main className="flex-1 overflow-y-auto p-3 sm:p-6 bg-slate-50 dark:bg-[#0f1219]">
           <div className="min-h-full max-w-[1600px] mx-auto">
             <Outlet />
           </div>
