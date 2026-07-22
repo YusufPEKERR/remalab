@@ -148,7 +148,28 @@ export default function BatchEntry() {
 
   const totalPages = Math.ceil(totalCount / itemsPerPage) || 1;
 
+  const [autoFilledMessage, setAutoFilledMessage] = useState('');
+
+  const handleAutoLookup = async (fieldKey, value) => {
+    const updated = { ...formData, [fieldKey]: value };
+    setFormData(updated);
+
+    const term = String(value || '').trim();
+    if (term.length >= 3) {
+      const res = await api.lookupBatchEntry(term);
+      if (res.success && res.found && res.data) {
+        setFormData(prev => ({
+          ...res.data,
+          [fieldKey]: value
+        }));
+        setAutoFilledMessage(`Kayıtlı cihaz bulundu! "${term}" eşleşmesine göre tüm bilgiler otomatik dolduruldu.`);
+        setTimeout(() => setAutoFilledMessage(''), 6000);
+      }
+    }
+  };
+
   const handleOpenModal = (record = null) => {
+    setAutoFilledMessage('');
     if (record) {
       setEditingRecord(record);
       setFormData({
@@ -546,6 +567,13 @@ export default function BatchEntry() {
             {/* Modal Form */}
             <form onSubmit={handleSubmit} className="p-6 space-y-6">
 
+              {autoFilledMessage && (
+                <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 p-3.5 rounded-xl text-xs font-medium flex items-center gap-2 animate-in fade-in">
+                  <Check size={16} />
+                  <span>{autoFilledMessage}</span>
+                </div>
+              )}
+
               {/* BÖLÜM 1: Müşteri Bilgileri */}
               <div className="bg-slate-50/50 dark:bg-[#242a38]/40 p-4 rounded-xl border border-slate-200 dark:border-slate-700/50">
                 <h3 className="text-sm font-semibold text-blue-400 mb-3 flex items-center gap-2 uppercase tracking-wider">
@@ -590,7 +618,7 @@ export default function BatchEntry() {
                       maxLength={15}
                       className="w-full bg-white dark:bg-[#0f1219] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-blue-500 font-mono tracking-wider"
                       value={formData.imei_number}
-                      onChange={e => setFormData({ ...formData, imei_number: e.target.value.replace(/\D/g, '') })}
+                      onChange={e => handleAutoLookup('imei_number', e.target.value.replace(/\D/g, ''))}
                       placeholder="15 haneli IMEI giriniz"
                     />
                   </div>
@@ -600,7 +628,7 @@ export default function BatchEntry() {
                       type="text"
                       className="w-full bg-white dark:bg-[#0f1219] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-blue-500"
                       value={formData.serial_number}
-                      onChange={e => setFormData({ ...formData, serial_number: e.target.value })}
+                      onChange={e => handleAutoLookup('serial_number', e.target.value)}
                       placeholder="Cihaz seri numarası"
                     />
                   </div>
@@ -610,7 +638,7 @@ export default function BatchEntry() {
                       type="text"
                       className="w-full bg-white dark:bg-[#0f1219] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-blue-500"
                       value={formData.internal_id}
-                      onChange={e => setFormData({ ...formData, internal_id: e.target.value })}
+                      onChange={e => handleAutoLookup('internal_id', e.target.value)}
                       placeholder="İç takip ID"
                     />
                   </div>
@@ -620,7 +648,7 @@ export default function BatchEntry() {
                       type="text"
                       className="w-full bg-white dark:bg-[#0f1219] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-blue-500"
                       value={formData.batch_no}
-                      onChange={e => setFormData({ ...formData, batch_no: e.target.value })}
+                      onChange={e => handleAutoLookup('batch_no', e.target.value)}
                       placeholder="Batch grup numarası"
                     />
                   </div>

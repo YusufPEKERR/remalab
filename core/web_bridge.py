@@ -5964,6 +5964,49 @@ class WebBridge(QObject):
         finally:
             db.close()
 
+    @Slot(str, result=str)
+    def lookup_batch_entry(self, search_term):
+        from models.batch_entry import BatchEntry
+        db = SessionLocal()
+        try:
+            term = (search_term or "").strip()
+            if not term or len(term) < 2:
+                return json.dumps({"success": False, "message": "Arama terimi çok kısa."})
+            
+            entry = db.query(BatchEntry).filter(
+                (BatchEntry.imei_number == term) |
+                (BatchEntry.serial_number == term) |
+                (BatchEntry.internal_id == term) |
+                (BatchEntry.batch_no == term)
+            ).order_by(BatchEntry.id.desc()).first()
+
+            if not entry:
+                return json.dumps({"success": True, "found": False})
+
+            data = {
+                "customer_no": entry.customer_no or '',
+                "customer_name": entry.customer_name or '',
+                "imei_number": entry.imei_number or '',
+                "serial_number": entry.serial_number or '',
+                "internal_id": entry.internal_id or '',
+                "batch_no": entry.batch_no or '',
+                "model": entry.model or '',
+                "gb": entry.gb or '',
+                "color": entry.color or '',
+                "unit_price": float(entry.unit_price or 0.0),
+                "defects": entry.defects or '',
+                "screen_test": entry.screen_test or '',
+                "power_test": entry.power_test or '',
+                "flow": entry.flow or 'Refurbish'
+            }
+            return json.dumps({"success": True, "found": True, "data": data}, ensure_ascii=False)
+        except Exception as e:
+            print(f"[WebBridge] lookup_batch_entry hatası: {e}")
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+
 
 
 

@@ -1489,6 +1489,17 @@ export const api = {
         });
     },
 
+    lookupBatchEntry: async (searchTerm) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.lookup_batch_entry) {
+                backend.lookup_batch_entry(String(searchTerm), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false, found: false });
+            }
+        });
+    },
+
     exportAllTablesToExcel: async (filename) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
