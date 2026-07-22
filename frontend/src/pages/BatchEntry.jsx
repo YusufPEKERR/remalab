@@ -3,10 +3,11 @@ import { Plus, Trash2, Edit2, X, FileSpreadsheet, Search, RefreshCw, RotateCcw, 
 import { api } from '../services/api';
 import ExcelMappingModal from '../components/ExcelMappingModal';
 
-const FLOW_OPTIONS = ['Refurbish', 'Repair', 'RMA', 'Battery Replacement'];
+const FLOW_OPTIONS = ['Hepsi', 'Refurbish', 'Repair', 'RMA', 'Battery Replacement'];
 const GB_OPTIONS = ['16GB', '32GB', '64GB', '128GB', '256GB', '512GB', '1TB', '2TB'];
 
 const FLOW_STYLES = {
+  'Hepsi': 'bg-slate-500/10 text-slate-400 border-slate-500/20',
   'Refurbish': 'bg-blue-500/10 text-blue-400 border-blue-500/20',
   'Repair': 'bg-amber-500/10 text-amber-400 border-amber-500/20',
   'RMA': 'bg-purple-500/10 text-purple-400 border-purple-500/20',
