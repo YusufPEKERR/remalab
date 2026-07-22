@@ -66,6 +66,7 @@ export default function BatchEntry() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(50);
   const [totalCount, setTotalCount] = useState(0);
+  const [searchTerm, setSearchTerm] = useState('');
   const [selectedFlow, setSelectedFlow] = useState('Tümü');
   const [selectedCustomerFilter, setSelectedCustomerFilter] = useState('');
   const [customerList, setCustomerList] = useState([]);
