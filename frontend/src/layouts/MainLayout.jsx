@@ -96,10 +96,10 @@ export default function MainLayout() {
 
   // Permission maps based on Python code:
   const allowedPaths = {
-    'admin': ['/dashboard', '/depo', '/irsaliye', '/work-orders', '/supply-requests', '/raporlar', '/parts', '/part-categories', '/products', '/suppliers', '/locations', '/users', '/settings', '/departments', '/service-records', '/data-management', '/tedarik-talepleri', '/quality', '/refurbishment', '/priority', '/item-bom'],
+    'admin': ['/dashboard', '/depo', '/irsaliye', '/work-orders', '/supply-requests', '/raporlar', '/parts', '/part-categories', '/products', '/suppliers', '/locations', '/users', '/settings', '/departments', '/service-records', '/data-management', '/tedarik-talepleri', '/quality', '/refurbishment', '/priority', '/item-bom', '/batch-entry'],
     'depo': ['/depo', '/irsaliye', '/work-orders', '/raporlar'],
-    'depo müdürü': ['/dashboard', '/depo', '/irsaliye', '/work-orders', '/supply-requests', '/raporlar', '/parts', '/products', '/suppliers', '/locations', '/tedarik-talepleri', '/service-records'],
-    'teknisyen': ['/dashboard', '/quality', '/refurbishment', '/priority']
+    'depo müdürü': ['/dashboard', '/depo', '/irsaliye', '/work-orders', '/supply-requests', '/raporlar', '/parts', '/products', '/suppliers', '/locations', '/tedarik-talepleri', '/service-records', '/batch-entry'],
+    'teknisyen': ['/dashboard', '/quality', '/refurbishment', '/priority', '/batch-entry']
   };
 
   const allowed = allowedPaths[userRole] || allowedPaths['admin'];
@@ -147,7 +147,8 @@ export default function MainLayout() {
         { name: 'Ayarlar', icon: Settings, path: '/settings' },
         { name: 'Veri Yönetimi', icon: Database, path: '/data-management' },
         { name: 'Departman Yönetimi', icon: Building2, path: '/departments' },
-        { name: 'Servis Kaydı', icon: Wrench, path: '/service-records' }
+        { name: 'Servis Kaydı', icon: Wrench, path: '/service-records' },
+        { name: 'Batch Girişi', icon: Layers, path: '/batch-entry' }
       ]
     }
   ];

@@ -190,7 +190,8 @@ export default function Suppliers() {
       setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'));
     } else {
       setSortField(field);
-      if (field === 'use_mio' || field === 'intake_date') {
+      // FİRMA KODU (code), CRM (use_mio) ve GİRİŞ TARİHİ (intake_date) ilk tıklamada büyükten küçüğe (desc) sıralansın
+      if (field === 'code' || field === 'use_mio' || field === 'intake_date') {
         setSortDirection('desc');
       } else {
         setSortDirection('asc');

@@ -20,6 +20,7 @@ import DataManagement from './pages/DataManagement';
 import SupplyRequestForm from './pages/SupplyRequestForm';
 import MainLayout from './layouts/MainLayout';
 import ItemBOM from './pages/ItemBOM';
+import BatchEntry from './pages/BatchEntry';
 
 function App() {
   return (
@@ -57,6 +58,7 @@ function App() {
             <Route path="/service-records" element={<ServiceRecords />} />
             <Route path="/data-management" element={<DataManagement />} />
             <Route path="/tedarik-talepleri" element={<SupplyRequestForm />} />
+            <Route path="/batch-entry" element={<BatchEntry />} />
 
             {/* HIDDEN MODULES */}
             <Route path="/item-bom" element={<ItemBOM />} />
