@@ -13,6 +13,10 @@ export default function ItemBOM() {
   const [productFamilies, setProductFamilies] = useState([]);
   const [allItemCodes, setAllItemCodes] = useState([]);
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(50);
+  const [pageInput, setPageInput] = useState('1');
+  const [totalCount, setTotalCount] = useState(0);
 
   const dbColumns = ["product_model", "child_item_code", "quantity"];
   const friendlyNames = {
@@ -21,26 +25,12 @@ export default function ItemBOM() {
     quantity: "Miktar (quantity) *"
   };
 
-  const fetchBOMs = async () => {
+  const fetchBOMs = async (page = currentPage, pageSize = itemsPerPage) => {
     setLoading(true);
-    const res = await api.getProductBOMs();
+    const res = await api.getProductBOMs(page, pageSize);
     if (res.success) {
-      const flatBoms = [];
-      (res.product_boms || []).forEach(group => {
-        (group.materials || []).forEach(mat => {
-          flatBoms.push({
-            id: mat.id,
-            product_model: group.model,
-            child_item_code: mat.child_item_code,
-            child_name: mat.child_name,
-            quantity: mat.quantity,
-            status: mat.status || 'Aktif',
-            created_at: mat.created_at,
-            updated_at: mat.updated_at
-          });
-        });
-      });
-      setBoms(flatBoms);
+      setBoms(res.boms || []);
+      setTotalCount(res.total || 0);
     }
     setLoading(false);
   };
@@ -62,10 +52,19 @@ export default function ItemBOM() {
   };
 
   useEffect(() => {
-    fetchBOMs();
     fetchProductFamilies();
     fetchAllParts();
   }, []);
+
+  useEffect(() => {
+    fetchBOMs(currentPage, itemsPerPage);
+  }, [currentPage, itemsPerPage]);
+
+  useEffect(() => {
+    setPageInput(String(currentPage));
+  }, [currentPage]);
+
+  const totalPages = Math.ceil(totalCount / itemsPerPage) || 1;
 
   const handleOpenModal = (bom = null) => {
     if (bom && bom.id) {
@@ -133,7 +132,20 @@ export default function ItemBOM() {
       const templateData = [{ product_model: 'iPhone 13', child_item_code: 'ORNEK-KOD-001', quantity: 1 }];
       await api.exportTableToExcel(templateData, "bom_sablonu.xlsx");
     } else if (action === 'export') {
-      const exportData = boms.map(b => ({
+      setLoading(true);
+      const allBoms = [];
+      let page = 1;
+      const batchSize = 1000;
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const res = await api.getProductBOMs(page, batchSize);
+        if (!res.success || !res.boms || res.boms.length === 0) break;
+        allBoms.push(...res.boms);
+        if (allBoms.length >= res.total) break;
+        page += 1;
+      }
+      setLoading(false);
+      const exportData = allBoms.map(b => ({
         "Cihaz Modeli": b.product_model,
         "Alt Parça Kodu": b.child_item_code,
         "Bileşen Adı": b.child_name,
@@ -204,9 +216,9 @@ export default function ItemBOM() {
             </thead>
             <tbody className="divide-y divide-slate-700/50">
               {loading ? (
-                <tr><td colSpan="5" className="px-6 py-8 text-center"><RefreshCw className="animate-spin mx-auto text-blue-400" /></td></tr>
+                <tr><td colSpan="7" className="px-6 py-8 text-center"><RefreshCw className="animate-spin mx-auto text-blue-400" /></td></tr>
               ) : boms.length === 0 ? (
-                <tr><td colSpan="5" className="px-6 py-8 text-center text-slate-500">Kayıt bulunamadı.</td></tr>
+                <tr><td colSpan="7" className="px-6 py-8 text-center text-slate-500">Kayıt bulunamadı.</td></tr>
               ) : (
                 boms.map(bom => (
                   <tr key={bom.id} className="hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 transition-colors">
@@ -242,6 +254,76 @@ export default function ItemBOM() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Pagination Footer */}
+        <div className="bg-slate-50 dark:bg-[#242a38] border-t border-slate-200 dark:border-slate-700/50 px-6 py-4 flex items-center justify-between text-slate-400 text-sm">
+          <div className="flex items-center gap-2">
+            <span>Sayfa Başına:</span>
+            <select
+              value={itemsPerPage}
+              onChange={(e) => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }}
+              className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-slate-500"
+            >
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+              <option value={250}>250</option>
+              <option value={500}>500</option>
+              <option value={1000}>1000</option>
+            </select>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-1.5 bg-white dark:bg-[#1e2330] hover:bg-slate-100 dark:hover:bg-[#2a3142] disabled:opacity-50 disabled:cursor-not-allowed border border-slate-200 dark:border-slate-700 rounded-lg transition-colors text-slate-700 dark:text-slate-300"
+            >
+              ← Önceki
+            </button>
+
+            <div className="flex items-center gap-1.5 font-medium">
+              <span>Sayfa:</span>
+              <input
+                type="number"
+                min="1"
+                max={totalPages}
+                value={pageInput}
+                onChange={(e) => setPageInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    const pageNum = parseInt(pageInput, 10);
+                    if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= totalPages) {
+                      setCurrentPage(pageNum);
+                    } else {
+                      setPageInput(String(currentPage));
+                    }
+                  }
+                }}
+                onBlur={() => {
+                  const pageNum = parseInt(pageInput, 10);
+                  if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= totalPages) {
+                    setCurrentPage(pageNum);
+                  } else {
+                    setPageInput(String(currentPage));
+                  }
+                }}
+                className="w-16 bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-center text-slate-800 dark:text-slate-200 focus:outline-none focus:border-slate-500 font-semibold"
+              />
+              <span>/ {totalPages}</span>
+              <span className="text-xs text-slate-500 ml-1">({boms.length} Kayıt)</span>
+            </div>
+
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1.5 bg-white dark:bg-[#1e2330] hover:bg-slate-100 dark:hover:bg-[#2a3142] disabled:opacity-50 disabled:cursor-not-allowed border border-slate-200 dark:border-slate-700 rounded-lg transition-colors text-slate-700 dark:text-slate-300"
+            >
+              Sonraki →
+            </button>
+          </div>
         </div>
       </div>
 
