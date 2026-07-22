@@ -260,22 +260,31 @@ export default function BatchEntry() {
   };
 
   const handleExcelImport = async (data) => {
+    const getVal = (item, keys, fallback = '') => {
+      for (const k of keys) {
+        if (item[k] !== undefined && item[k] !== null && String(item[k]).trim() !== '') {
+          return String(item[k]).trim();
+        }
+      }
+      return fallback;
+    };
+
     for (const item of data) {
       await api.createBatchEntry({
-        customer_no: item.customer_no || item["Customer no"] || '',
-        customer_name: item.customer_name || item["Customer Name"] || '',
-        batch_no: item.batch_no || item["Batch No"] || '',
-        internal_id: item.internal_id || item["Internal ID"] || '',
-        imei_number: item.imei_number || item["IMEI Number"] || '',
-        serial_number: item.serial_number || item["Serial Number"] || '',
-        model: item.model || item["Model"] || '',
-        gb: item.gb || item["GB"] || '',
-        color: item.color || item["Color"] || '',
-        defects: item.defects || item["Defects"] || '',
-        screen_test: item.screen_test || item["Screen Test"] || '',
-        power_test: item.power_test || item["Power Test"] || '',
-        flow: item.flow || item["Flow"] || 'Refurbish',
-        unit_price: item.unit_price || item["Unit Price"] || 0
+        customer_no: getVal(item, ["customer_no", "Customer no", "Customer No", "Customer NO", "Müşteri No", "Musteri No", "Müşt. No"]),
+        customer_name: getVal(item, ["customer_name", "Customer Name", "Customer name", "Customer NAME", "Müşteri Adı", "Musteri Adi", "Müşteri Unvanı"]),
+        batch_no: getVal(item, ["batch_no", "Batch No", "Batch no", "Batch NO", "Parti No"]),
+        internal_id: getVal(item, ["internal_id", "Internal ID", "Internal Id", "Internal id", "Dahili ID"]),
+        imei_number: getVal(item, ["imei_number", "IMEI Number", "IMEI number", "IMEI", "Imei"]),
+        serial_number: getVal(item, ["serial_number", "Serial Number", "Serial number", "SN", "Seri No"]),
+        model: getVal(item, ["model", "Model", "MODEL", "Cihaz Modeli"]),
+        gb: getVal(item, ["gb", "GB", "Gb", "Kapasite"]),
+        color: getVal(item, ["color", "Color", "Renk"]),
+        defects: getVal(item, ["defects", "Defects", "Arıza", "Kusur"]),
+        screen_test: getVal(item, ["screen_test", "Screen Test", "Ekran Testi"]),
+        power_test: getVal(item, ["power_test", "Power Test", "Güç Testi"]),
+        flow: getVal(item, ["flow", "Flow", "Akış", "Durum"], "Refurbish"),
+        unit_price: parseFloat(getVal(item, ["unit_price", "Unit Price", "Birim Fiyat", "Fiyat"], "0")) || 0
       });
     }
     setIsExcelModalOpen(false);
