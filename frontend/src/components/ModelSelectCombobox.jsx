@@ -6,7 +6,7 @@ export default function ModelSelectCombobox({
   value, 
   onChange, 
   placeholder = "Cihaz ara veya seç...",
-  searchPlaceholder = "Parça kodu, marka, model ara..." 
+  searchPlaceholder = "Ara..." 
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');

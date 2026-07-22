@@ -257,19 +257,13 @@ export default function ItemBOM() {
               </div>
               <div>
                 <label className="block text-sm text-slate-400 mb-1">Alt Parça Kodu</label>
-                <input 
-                  required 
-                  type="text" 
-                  list="bom-model-items" 
-                  className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white" 
-                  value={formData.child_item_code} 
-                  onChange={e => setFormData({...formData, child_item_code: e.target.value})} 
-                  placeholder="Bileşen kodunu seçin/yazın"
+                <ModelSelectCombobox
+                  models={allItemCodes.map(c => ({ name: c }))}
+                  value={formData.child_item_code}
+                  onChange={val => setFormData({...formData, child_item_code: val})}
+                  placeholder="Bileşen kodunu ara veya seç..."
                 />
               </div>
-              <datalist id="bom-model-items">
-                {allItemCodes.map(c => <option key={c} value={c} />)}
-              </datalist>
               <div>
                 <label className="block text-sm text-slate-400 mb-1">Miktar</label>
                 <input 
