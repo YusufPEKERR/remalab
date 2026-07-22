@@ -14,6 +14,13 @@ const FLOW_STYLES = {
   'Battery Replacement': 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
 };
 
+const CURRENCY_OPTIONS = ['EUR', 'USD', 'GBP', 'TRY', 'CHF', 'SEK', 'NOK', 'DKK', 'PLN', 'CZK', 'HUF'];
+
+const CURRENCY_SYMBOLS = {
+  'EUR': '€', 'USD': '$', 'GBP': '£', 'TRY': '₺', 'CHF': 'CHF',
+  'SEK': 'kr', 'NOK': 'kr', 'DKK': 'kr', 'PLN': 'zł', 'CZK': 'Kč', 'HUF': 'Ft'
+};
+
 const EMPTY_FORM = {
   customer_no: '',
   customer_name: '',
@@ -25,6 +32,7 @@ const EMPTY_FORM = {
   gb: '',
   color: '',
   unit_price: '',
+  currency: 'EUR',
   defects: '',
   screen_test: '',
   power_test: '',
@@ -183,6 +191,7 @@ export default function BatchEntry() {
         gb: record.gb || '',
         color: record.color || '',
         unit_price: record.unit_price || '',
+        currency: record.currency || 'EUR',
         defects: record.defects || '',
         screen_test: record.screen_test || '',
         power_test: record.power_test || '',
@@ -491,7 +500,7 @@ export default function BatchEntry() {
                       <div className="text-xs text-slate-400">{[rec.gb, rec.color].filter(Boolean).join(' · ')}</div>
                     </td>
                     <td className="px-6 py-4 font-semibold text-emerald-400">
-                      ₺{Number(rec.unit_price || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                      {CURRENCY_SYMBOLS[rec.currency] || rec.currency || '€'}{Number(rec.unit_price || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
                     </td>
                     <td className="px-6 py-4 text-xs">
                       <div className="max-w-xs truncate font-medium text-slate-700 dark:text-slate-300" title={rec.defects}>
@@ -695,16 +704,27 @@ export default function BatchEntry() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm text-slate-400 mb-1">Unit Price (Birim Fiyat ₺)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      className="w-full bg-white dark:bg-[#0f1219] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-blue-500"
-                      value={formData.unit_price}
-                      onChange={e => setFormData({ ...formData, unit_price: e.target.value })}
-                      placeholder="0.00"
-                    />
+                    <label className="block text-sm text-slate-400 mb-1">Unit Price (Birim Fiyat)</label>
+                    <div className="flex gap-2">
+                      <select
+                        className="w-28 bg-white dark:bg-[#0f1219] border border-slate-300 dark:border-slate-700 rounded-lg px-2 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-blue-500 cursor-pointer"
+                        value={formData.currency}
+                        onChange={e => setFormData({ ...formData, currency: e.target.value })}
+                      >
+                        {CURRENCY_OPTIONS.map(c => (
+                          <option key={c} value={c}>{CURRENCY_SYMBOLS[c]} {c}</option>
+                        ))}
+                      </select>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        className="flex-1 bg-white dark:bg-[#0f1219] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-blue-500"
+                        value={formData.unit_price}
+                        onChange={e => setFormData({ ...formData, unit_price: e.target.value })}
+                        placeholder="0.00"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>

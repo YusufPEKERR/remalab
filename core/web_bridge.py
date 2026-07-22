@@ -5691,6 +5691,7 @@ class WebBridge(QObject):
                     gb VARCHAR(50),
                     color VARCHAR(50),
                     unit_price NUMERIC(12, 2) DEFAULT 0.00,
+                    currency VARCHAR(10) DEFAULT 'EUR',
                     defects TEXT,
                     screen_test VARCHAR(100),
                     power_test VARCHAR(100),
@@ -5698,6 +5699,18 @@ class WebBridge(QObject):
                     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
                 );
+            """))
+            # Mevcut tabloya currency kolonu yoksa ekle
+            db.execute(text("""
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_schema = 'warehouse' AND table_name = 'batch_entries' AND column_name = 'currency'
+                    ) THEN
+                        ALTER TABLE warehouse.batch_entries ADD COLUMN currency VARCHAR(10) DEFAULT 'EUR';
+                    END IF;
+                END $$;
             """))
             db.commit()
         except Exception as e:
@@ -5743,7 +5756,7 @@ class WebBridge(QObject):
 
             data_sql = f"""
                 SELECT id, customer_no, customer_name, imei_number, serial_number, internal_id, batch_no,
-                       model, gb, color, unit_price, defects, screen_test, power_test, flow, created_at, updated_at
+                       model, gb, color, unit_price, currency, defects, screen_test, power_test, flow, created_at, updated_at
                 FROM warehouse.batch_entries
                 {where_sql}
                 ORDER BY id DESC
@@ -5763,6 +5776,7 @@ class WebBridge(QObject):
                 "gb": r["gb"] or "",
                 "color": r["color"] or "",
                 "unit_price": float(r["unit_price"]) if r["unit_price"] is not None else 0.0,
+                "currency": r.get("currency", None) or "EUR",
                 "defects": r["defects"] or "",
                 "screen_test": r["screen_test"] or "",
                 "power_test": r["power_test"] or "",
@@ -5801,6 +5815,7 @@ class WebBridge(QObject):
                 gb=d.get("gb", "").strip(),
                 color=d.get("color", "").strip(),
                 unit_price=float(d.get("unit_price") or 0.0),
+                currency=d.get("currency", "EUR").strip() or "EUR",
                 defects=d.get("defects", "").strip(),
                 screen_test=d.get("screen_test", "").strip(),
                 power_test=d.get("power_test", "").strip(),
@@ -5838,6 +5853,8 @@ class WebBridge(QObject):
             entry.color = d.get("color", entry.color).strip()
             if "unit_price" in d:
                 entry.unit_price = float(d.get("unit_price") or 0.0)
+            if "currency" in d:
+                entry.currency = d.get("currency", entry.currency).strip() or "EUR"
             entry.defects = d.get("defects", entry.defects).strip()
             entry.screen_test = d.get("screen_test", entry.screen_test).strip()
             entry.power_test = d.get("power_test", entry.power_test).strip()

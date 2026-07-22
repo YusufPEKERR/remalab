@@ -16,6 +16,7 @@ class BatchEntry(Base):
     gb = Column(String(50), nullable=True)
     color = Column(String(50), nullable=True)
     unit_price = Column(Numeric(12, 2), default=0.00)
+    currency = Column(String(10), default='EUR')
     defects = Column(Text, nullable=True)
     screen_test = Column(String(100), nullable=True)
     power_test = Column(String(100), nullable=True)
