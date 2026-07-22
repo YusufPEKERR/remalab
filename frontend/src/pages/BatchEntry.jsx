@@ -410,9 +410,9 @@ export default function BatchEntry() {
               className="w-full px-3 py-2 bg-white dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 shadow-sm cursor-pointer"
             >
               <option value="">Müşteri: Tümü</option>
-              {customerList.map(c => {
-                const label = c.short_name || c.customer_name || c.code;
-                return <option key={c.id} value={label}>{c.code ? `[${c.code}] ` : ''}{label}</option>;
+              {(customerList || []).map((c, idx) => {
+                const label = c.short_name || c.customer_name || c.code || 'Müşteri';
+                return <option key={c.id || idx} value={label}>{c.code ? `[${c.code}] ` : ''}{label}</option>;
               })}
             </select>
           </div>
