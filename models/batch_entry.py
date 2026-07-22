@@ -19,6 +19,6 @@ class BatchEntry(Base):
     defects = Column(Text, nullable=True)
     screen_test = Column(String(100), nullable=True)
     power_test = Column(String(100), nullable=True)
-    flow = Column(String(100), default='Giriş Yapıldı')
+    flow = Column(String(100), default='Refurbish')
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

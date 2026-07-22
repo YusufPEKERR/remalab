@@ -5694,7 +5694,7 @@ class WebBridge(QObject):
                     defects TEXT,
                     screen_test VARCHAR(100),
                     power_test VARCHAR(100),
-                    flow VARCHAR(100) DEFAULT 'Giriş Yapıldı',
+                    flow VARCHAR(100) DEFAULT 'Refurbish',
                     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
                 );
@@ -5766,7 +5766,7 @@ class WebBridge(QObject):
                 "defects": r["defects"] or "",
                 "screen_test": r["screen_test"] or "",
                 "power_test": r["power_test"] or "",
-                "flow": r["flow"] or "Giriş Yapıldı",
+                "flow": r["flow"] or "Refurbish",
                 "created_at": r["created_at"].strftime("%d.%m.%Y %H:%M") if r["created_at"] else "-",
                 "updated_at": r["updated_at"].strftime("%d.%m.%Y %H:%M") if r["updated_at"] else "-"
             } for r in rows]
@@ -5804,7 +5804,7 @@ class WebBridge(QObject):
                 defects=d.get("defects", "").strip(),
                 screen_test=d.get("screen_test", "").strip(),
                 power_test=d.get("power_test", "").strip(),
-                flow=d.get("flow", "Giriş Yapıldı").strip() or "Giriş Yapıldı"
+                flow=d.get("flow", "Refurbish").strip() or "Refurbish"
             )
             db.add(new_entry)
             db.commit()

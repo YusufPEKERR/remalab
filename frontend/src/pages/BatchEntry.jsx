@@ -3,16 +3,14 @@ import { Plus, Trash2, Edit2, X, FileSpreadsheet, Search, RefreshCw, RotateCcw, 
 import { api } from '../services/api';
 import ExcelMappingModal from '../components/ExcelMappingModal';
 
-const FLOW_OPTIONS = ['Giriş Yapıldı', 'İncelemede', 'Onarımda', 'Testte', 'Tamamlandı', 'İptal'];
+const FLOW_OPTIONS = ['Refurbish', 'Repair', 'RMA', 'Battery Replacement'];
 const GB_OPTIONS = ['16GB', '32GB', '64GB', '128GB', '256GB', '512GB', '1TB', '2TB'];
 
 const FLOW_STYLES = {
-  'Giriş Yapıldı': 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-  'İncelemede': 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20',
-  'Onarımda': 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-  'Testte': 'bg-purple-500/10 text-purple-400 border-purple-500/20',
-  'Tamamlandı': 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-  'İptal': 'bg-red-500/10 text-red-400 border-red-500/20'
+  'Refurbish': 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+  'Repair': 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+  'RMA': 'bg-purple-500/10 text-purple-400 border-purple-500/20',
+  'Battery Replacement': 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
 };
 
 const EMPTY_FORM = {
@@ -29,7 +27,7 @@ const EMPTY_FORM = {
   defects: '',
   screen_test: '',
   power_test: '',
-  flow: 'Giriş Yapıldı'
+  flow: 'Refurbish'
 };
 
 export default function BatchEntry() {
@@ -119,7 +117,7 @@ export default function BatchEntry() {
         defects: record.defects || '',
         screen_test: record.screen_test || '',
         power_test: record.power_test || '',
-        flow: record.flow || 'Giriş Yapıldı'
+        flow: record.flow || 'Refurbish'
       });
     } else {
       setEditingRecord(null);
@@ -181,7 +179,7 @@ export default function BatchEntry() {
         defects: 'Dokunmatik yanıt vermiyor',
         screen_test: 'BAŞARISIZ',
         power_test: 'BAŞARILI',
-        flow: 'Giriş Yapıldı',
+        flow: 'Refurbish',
         unit_price: 1500
       }];
       await api.exportTableToExcel(templateData, "Batch_Entry_Template.xlsx");
@@ -228,7 +226,7 @@ export default function BatchEntry() {
         defects: item.defects || item["Defects"] || '',
         screen_test: item.screen_test || item["Screen Test"] || '',
         power_test: item.power_test || item["Power Test"] || '',
-        flow: item.flow || item["Flow"] || 'Giriş Yapıldı',
+        flow: item.flow || item["Flow"] || 'Refurbish',
         unit_price: item.unit_price || item["Unit Price"] || 0
       });
     }
@@ -377,7 +375,7 @@ export default function BatchEntry() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`px-2.5 py-1 text-xs font-semibold rounded-full border ${FLOW_STYLES[rec.flow] || FLOW_STYLES['Giriş Yapıldı']}`}>
+                      <span className={`px-2.5 py-1 text-xs font-semibold rounded-full border ${FLOW_STYLES[rec.flow] || FLOW_STYLES['Refurbish']}`}>
                         {rec.flow}
                       </span>
                     </td>
