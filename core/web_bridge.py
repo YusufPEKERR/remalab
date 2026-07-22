@@ -6007,28 +6007,128 @@ class WebBridge(QObject):
                     (BatchEntry.batch_no.ilike(f"%{term}%"))
                 ).order_by(BatchEntry.id.desc()).first()
 
-            if not entry:
-                return json.dumps({"success": True, "found": False})
+            if entry:
+                data = {
+                    "customer_no": entry.customer_no or '',
+                    "customer_name": entry.customer_name or '',
+                    "imei_number": entry.imei_number or '',
+                    "serial_number": entry.serial_number or '',
+                    "internal_id": entry.internal_id or '',
+                    "batch_no": entry.batch_no or '',
+                    "model": entry.model or '',
+                    "gb": entry.gb or '',
+                    "color": entry.color or '',
+                    "unit_price": float(entry.unit_price or 0.0),
+                    "defects": entry.defects or '',
+                    "screen_test": entry.screen_test or '',
+                    "power_test": entry.power_test or '',
+                    "flow": entry.flow or 'Refurbish'
+                }
+                return json.dumps({"success": True, "found": True, "data": data}, ensure_ascii=False)
 
-            data = {
-                "customer_no": entry.customer_no or '',
-                "customer_name": entry.customer_name or '',
-                "imei_number": entry.imei_number or '',
-                "serial_number": entry.serial_number or '',
-                "internal_id": entry.internal_id or '',
-                "batch_no": entry.batch_no or '',
-                "model": entry.model or '',
-                "gb": entry.gb or '',
-                "color": entry.color or '',
-                "unit_price": float(entry.unit_price or 0.0),
-                "defects": entry.defects or '',
-                "screen_test": entry.screen_test or '',
-                "power_test": entry.power_test or '',
-                "flow": entry.flow or 'Refurbish'
-            }
-            return json.dumps({"success": True, "found": True, "data": data}, ensure_ascii=False)
+            # If not in BatchEntry, search warehouse.customers (MIO Create)
+            from sqlalchemy import text
+            c_row = db.execute(text("""
+                SELECT id, customer_name, code, short_name, imei_number, serial_number, internal_id,
+                       brand, model, flow, customer_reported_complaint, currency
+                FROM warehouse.customers
+                WHERE LOWER(TRIM(imei_number)) = LOWER(:t)
+                   OR LOWER(TRIM(serial_number)) = LOWER(:t)
+                   OR LOWER(TRIM(internal_id)) = LOWER(:t)
+                   OR LOWER(TRIM(code)) = LOWER(:t)
+                ORDER BY id DESC LIMIT 1
+            """), {"t": term}).mappings().first()
+
+            if c_row:
+                data = {
+                    "customer_no": c_row["code"] or '',
+                    "customer_name": c_row["short_name"] or c_row["customer_name"] or '',
+                    "imei_number": c_row["imei_number"] or '',
+                    "serial_number": c_row["serial_number"] or '',
+                    "internal_id": c_row["internal_id"] or '',
+                    "batch_no": f"BATCH-MIO-{c_row['id']}",
+                    "model": f"{c_row['brand'] or ''} {c_row['model'] or ''}".strip(),
+                    "gb": '',
+                    "color": '',
+                    "unit_price": 0.0,
+                    "defects": c_row["customer_reported_complaint"] or '',
+                    "screen_test": '',
+                    "power_test": '',
+                    "flow": c_row["flow"] if c_row["flow"] in ['Refurbish', 'Repair', 'RMA', 'Battery Replacement'] else 'Refurbish'
+                }
+                return json.dumps({"success": True, "found": True, "data": data}, ensure_ascii=False)
+
+            return json.dumps({"success": True, "found": False})
         except Exception as e:
             print(f"[WebBridge] lookup_batch_entry hatası: {e}")
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(result=str)
+    def sync_customers_to_batch_entries(self):
+        """Müşteriler/MIO tablosundaki cihaz ve müşteri kayıtlarını Batch Girişi tablosuna aktarır."""
+        from models.batch_entry import BatchEntry
+        from sqlalchemy import text, or_
+        from datetime import datetime
+        db = SessionLocal()
+        try:
+            rows = db.execute(text("""
+                SELECT id, customer_name, code, short_name, imei_number, serial_number, internal_id,
+                       brand, model, flow, customer_reported_complaint, currency, created_at
+                FROM warehouse.customers
+            """)).mappings().all()
+
+            added_count = 0
+            for r in rows:
+                imei = (r["imei_number"] or "").strip()
+                serial = (r["serial_number"] or "").strip()
+                internal = (r["internal_id"] or "").strip()
+                c_no = (r["code"] or "").strip()
+                c_name = (r["short_name"] or r["customer_name"] or "").strip()
+
+                filters = []
+                if imei: filters.append(BatchEntry.imei_number == imei)
+                if serial: filters.append(BatchEntry.serial_number == serial)
+                if internal: filters.append(BatchEntry.internal_id == internal)
+                
+                existing = None
+                if filters:
+                    existing = db.query(BatchEntry).filter(or_(*filters)).first()
+
+                if not existing:
+                    full_model = " ".join(filter(None, [r["brand"], r["model"]])).strip()
+                    flow_val = (r["flow"] or "").strip()
+                    if flow_val not in ['Refurbish', 'Repair', 'RMA', 'Battery Replacement']:
+                        flow_val = 'Refurbish'
+
+                    new_entry = BatchEntry(
+                        customer_no=c_no or 'MIO-001',
+                        customer_name=c_name or 'MIO Müşterisi',
+                        imei_number=imei,
+                        serial_number=serial,
+                        internal_id=internal,
+                        batch_no=f"BATCH-MIO-{r['id']}",
+                        model=full_model,
+                        gb='',
+                        color='',
+                        unit_price=0.0,
+                        currency=(r["currency"] or 'TRY').upper(),
+                        defects=r["customer_reported_complaint"] or '',
+                        screen_test='',
+                        power_test='',
+                        flow=flow_val,
+                        created_at=r["created_at"] or datetime.now(),
+                        updated_at=datetime.now()
+                    )
+                    db.add(new_entry)
+                    added_count += 1
+
+            db.commit()
+            return json.dumps({"success": True, "added_count": added_count})
+        except Exception as e:
+            db.rollback()
+            print(f"[WebBridge] sync_customers_to_batch_entries hatası: {e}")
             return json.dumps({"success": False, "message": str(e)})
         finally:
             db.close()
