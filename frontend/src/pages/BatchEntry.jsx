@@ -630,7 +630,8 @@ export default function BatchEntry() {
                       type="text"
                       className="w-full bg-white dark:bg-[#0f1219] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-blue-500"
                       value={formData.customer_no}
-                      onChange={e => setFormData({ ...formData, customer_no: e.target.value })}
+                      onChange={e => handleAutoLookup('customer_no', e.target.value)}
+                      onBlur={e => handleAutoLookup('customer_no', e.target.value)}
                       placeholder="Örn: CUST-001"
                     />
                   </div>

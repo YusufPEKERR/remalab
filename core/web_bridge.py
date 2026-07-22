@@ -6602,7 +6602,8 @@ class WebBridge(QObject):
                 (func.lower(BatchEntry.imei_number) == term_lower) |
                 (func.lower(BatchEntry.serial_number) == term_lower) |
                 (func.lower(BatchEntry.internal_id) == term_lower) |
-                (func.lower(BatchEntry.batch_no) == term_lower)
+                (func.lower(BatchEntry.batch_no) == term_lower) |
+                (func.lower(BatchEntry.customer_no) == term_lower)
             ).order_by(BatchEntry.id.desc()).first()
 
             if not entry and len(term) >= 3:
@@ -6610,7 +6611,8 @@ class WebBridge(QObject):
                     (BatchEntry.imei_number.ilike(f"%{term}%")) |
                     (BatchEntry.serial_number.ilike(f"%{term}%")) |
                     (BatchEntry.internal_id.ilike(f"%{term}%")) |
-                    (BatchEntry.batch_no.ilike(f"%{term}%"))
+                    (BatchEntry.batch_no.ilike(f"%{term}%")) |
+                    (BatchEntry.customer_no.ilike(f"%{term}%"))
                 ).order_by(BatchEntry.id.desc()).first()
 
             if entry:
