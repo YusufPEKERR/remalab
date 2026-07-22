@@ -14,11 +14,10 @@ const FLOW_STYLES = {
   'Battery Replacement': 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
 };
 
-const CURRENCY_OPTIONS = ['EUR', 'USD', 'GBP', 'TRY', 'CHF', 'SEK', 'NOK', 'DKK', 'PLN', 'CZK', 'HUF'];
+const CURRENCY_OPTIONS = ['TRY', 'EUR', 'USD', 'CHF', 'GBP'];
 
 const CURRENCY_SYMBOLS = {
-  'EUR': '€', 'USD': '$', 'GBP': '£', 'TRY': '₺', 'CHF': 'CHF',
-  'SEK': 'kr', 'NOK': 'kr', 'DKK': 'kr', 'PLN': 'zł', 'CZK': 'Kč', 'HUF': 'Ft'
+  'TRY': '₺', 'EUR': '€', 'USD': '$', 'CHF': 'CHF', 'GBP': '£'
 };
 
 const EMPTY_FORM = {
@@ -32,7 +31,7 @@ const EMPTY_FORM = {
   gb: '',
   color: '',
   unit_price: '',
-  currency: 'EUR',
+  currency: 'TRY',
   defects: '',
   screen_test: '',
   power_test: '',
