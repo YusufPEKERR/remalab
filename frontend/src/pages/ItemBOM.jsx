@@ -84,6 +84,12 @@ export default function ItemBOM() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!formData.product_model || !formData.child_item_code || !formData.quantity) {
+      alert("Lütfen tüm alanların (Cihaz Modeli, Alt Parça Kodu, Miktar) doldurulduğundan emin olun.");
+      return;
+    }
+
     let res;
     if (currentBom) {
       res = await api.updateProductBOM(currentBom.id, formData.product_model, formData.child_item_code, formData.quantity);
