@@ -55,12 +55,59 @@ export default function BatchEntry() {
     setLoadingBatchSummary(false);
   };
 
-  // Pagination & Filters
+  // Pagination & Filters & Bulk Selection
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(50);
   const [totalCount, setTotalCount] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFlow, setSelectedFlow] = useState('Tümü');
+  const [selectedIds, setSelectedIds] = useState([]);
+
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      const pageIds = records.map(r => r.id);
+      setSelectedIds(prev => Array.from(new Set([...prev, ...pageIds])));
+    } else {
+      const pageIds = records.map(r => r.id);
+      setSelectedIds(prev => prev.filter(id => !pageIds.includes(id)));
+    }
+  };
+
+  const handleToggleSelect = (id) => {
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
+
+  const isAllSelected = records.length > 0 && records.every(r => selectedIds.includes(r.id));
+
+  const handleBulkDelete = async () => {
+    if (!selectedIds.length) return;
+    if (window.confirm(`Seçilen ${selectedIds.length} adet kaydı silmek istediğinize emin misiniz?`)) {
+      setLoading(true);
+      const res = await api.bulkDeleteBatchEntries(selectedIds);
+      if (res.success) {
+        setSelectedIds([]);
+        fetchRecords();
+      } else {
+        alert("Toplu silme hatası: " + (res.message || ""));
+      }
+      setLoading(false);
+    }
+  };
+
+  const handleBulkFlowChange = async (newFlow) => {
+    if (!selectedIds.length || !newFlow) return;
+    setLoading(true);
+    const res = await api.bulkUpdateBatchFlow(selectedIds, newFlow);
+    if (res.success) {
+      setSelectedIds([]);
+      fetchRecords();
+    } else {
+      alert("Toplu akış güncelleme hatası: " + (res.message || ""));
+    }
+    setLoading(false);
+  };
 
   const dbColumns = [
     "customer_no", "customer_name", "batch_no", "internal_id", "imei_number",
@@ -333,6 +380,39 @@ export default function BatchEntry() {
               Temizle
             </button>
           )}
+
+          {/* Bulk Actions Panel */}
+          {selectedIds.length > 0 && (
+            <div className="flex items-center gap-3 bg-blue-500/10 border border-blue-500/30 text-blue-400 px-4 py-1.5 rounded-xl text-xs font-medium animate-in fade-in ml-auto">
+              <span><b>{selectedIds.length}</b> kayıt seçildi</span>
+              <div className="h-4 w-px bg-blue-500/30 mx-1" />
+              <select
+                onChange={e => {
+                  if (e.target.value) handleBulkFlowChange(e.target.value);
+                  e.target.value = '';
+                }}
+                className="bg-white dark:bg-[#242a38] text-slate-800 dark:text-slate-200 border border-blue-500/30 rounded-lg px-2.5 py-1 text-xs cursor-pointer focus:outline-none"
+              >
+                <option value="">Toplu Akış Değiştir...</option>
+                {FLOW_OPTIONS.filter(f => f !== 'Hepsi').map(f => (
+                  <option key={f} value={f}>{f}</option>
+                ))}
+              </select>
+              <button
+                onClick={handleBulkDelete}
+                className="flex items-center gap-1 bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-lg text-xs font-semibold transition-colors shadow-sm"
+              >
+                <Trash2 size={13} /> Seçilenleri Sil
+              </button>
+              <button
+                onClick={() => setSelectedIds([])}
+                className="text-slate-400 hover:text-slate-200 p-1"
+                title="Seçimi Temizle"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Table */}
@@ -340,6 +420,14 @@ export default function BatchEntry() {
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs sticky top-0 z-10">
               <tr>
+                <th className="px-4 py-4 text-center w-10">
+                  <input
+                    type="checkbox"
+                    checked={isAllSelected}
+                    onChange={handleSelectAll}
+                    className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  />
+                </th>
                 <th className="px-6 py-4">Müşteri</th>
                 <th className="px-6 py-4">Servis & Batch Bilgisi</th>
                 <th className="px-6 py-4">Cihaz</th>
@@ -353,15 +441,23 @@ export default function BatchEntry() {
             <tbody className="divide-y divide-slate-700/50">
               {loading ? (
                 <tr>
-                  <td colSpan="8" className="px-6 py-8 text-center"><RefreshCw className="animate-spin mx-auto text-blue-400" /></td>
+                  <td colSpan="9" className="px-6 py-8 text-center"><RefreshCw className="animate-spin mx-auto text-blue-400" /></td>
                 </tr>
               ) : records.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="px-6 py-8 text-center text-slate-500">Kayıt bulunamadı.</td>
+                  <td colSpan="9" className="px-6 py-8 text-center text-slate-500">Kayıt bulunamadı.</td>
                 </tr>
               ) : (
                 records.map(rec => (
-                  <tr key={rec.id} className="hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 transition-colors">
+                  <tr key={rec.id} className={`hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 transition-colors ${selectedIds.includes(rec.id) ? 'bg-blue-500/5 dark:bg-blue-500/10' : ''}`}>
+                    <td className="px-4 py-4 text-center">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(rec.id)}
+                        onChange={() => handleToggleSelect(rec.id)}
+                        className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                      />
+                    </td>
                     <td className="px-6 py-4">
                       <div className="font-bold text-slate-800 dark:text-slate-100">{rec.customer_name || '-'}</div>
                       <div className="text-xs text-slate-400 font-mono">No: {rec.customer_no || '-'}</div>

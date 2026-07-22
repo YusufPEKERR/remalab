@@ -5922,5 +5922,48 @@ class WebBridge(QObject):
         finally:
             db.close()
 
+    @Slot(str, result=str)
+    def bulk_delete_batch_entries(self, ids_json):
+        from models.batch_entry import BatchEntry
+        db = SessionLocal()
+        try:
+            ids = json.loads(ids_json or "[]")
+            if not ids:
+                return json.dumps({"success": False, "message": "Silinecek kayıt seçilmedi."})
+            int_ids = [int(i) for i in ids]
+            db.query(BatchEntry).filter(BatchEntry.id.in_(int_ids)).delete(synchronize_session=False)
+            db.commit()
+            return json.dumps({"success": True, "count": len(int_ids)})
+        except Exception as e:
+            db.rollback()
+            print(f"[WebBridge] bulk_delete_batch_entries hatası: {e}")
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, result=str)
+    def bulk_update_batch_flow(self, ids_json, new_flow):
+        from models.batch_entry import BatchEntry
+        from datetime import datetime
+        db = SessionLocal()
+        try:
+            ids = json.loads(ids_json or "[]")
+            if not ids or not new_flow:
+                return json.dumps({"success": False, "message": "Kayıt veya durum seçilmedi."})
+            int_ids = [int(i) for i in ids]
+            db.query(BatchEntry).filter(BatchEntry.id.in_(int_ids)).update(
+                {BatchEntry.flow: str(new_flow).strip(), BatchEntry.updated_at: datetime.now()},
+                synchronize_session=False
+            )
+            db.commit()
+            return json.dumps({"success": True, "count": len(int_ids)})
+        except Exception as e:
+            db.rollback()
+            print(f"[WebBridge] bulk_update_batch_flow hatası: {e}")
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+
 
 

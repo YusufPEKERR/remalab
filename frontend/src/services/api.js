@@ -1467,6 +1467,28 @@ export const api = {
         });
     },
 
+    bulkDeleteBatchEntries: async (ids) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.bulk_delete_batch_entries) {
+                backend.bulk_delete_batch_entries(JSON.stringify(ids), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false, message: "Backend eksik" });
+            }
+        });
+    },
+
+    bulkUpdateBatchFlow: async (ids, newFlow) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.bulk_update_batch_flow) {
+                backend.bulk_update_batch_flow(JSON.stringify(ids), String(newFlow), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false, message: "Backend eksik" });
+            }
+        });
+    },
+
     exportAllTablesToExcel: async (filename) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
