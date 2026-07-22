@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, RefreshCw, X, FileSpreadsheet, Edit2 } from 'lucide-react';
+import { Plus, Trash2, RefreshCw, X, FileSpreadsheet, Edit2, Search, RotateCcw } from 'lucide-react';
 import { api } from '../services/api';
 import ExcelMappingModal from '../components/ExcelMappingModal';
 import ModelSelectCombobox from '../components/ModelSelectCombobox';
@@ -18,6 +18,10 @@ export default function ItemBOM() {
   const [pageInput, setPageInput] = useState('1');
   const [totalCount, setTotalCount] = useState(0);
 
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedModel, setSelectedModel] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('Tümü');
+
   const dbColumns = ["product_model", "child_item_code", "quantity"];
   const friendlyNames = {
     product_model: "Cihaz Modeli (product_model) *",
@@ -25,9 +29,15 @@ export default function ItemBOM() {
     quantity: "Miktar (quantity) *"
   };
 
-  const fetchBOMs = async (page = currentPage, pageSize = itemsPerPage) => {
+  const fetchBOMs = async (
+    page = currentPage, 
+    pageSize = itemsPerPage, 
+    search = searchTerm, 
+    model = selectedModel, 
+    status = selectedStatus
+  ) => {
     setLoading(true);
-    const res = await api.getProductBOMs(page, pageSize);
+    const res = await api.getProductBOMs(page, pageSize, search, model, status);
     if (res.success) {
       setBoms(res.boms || []);
       setTotalCount(res.total || 0);
@@ -57,8 +67,8 @@ export default function ItemBOM() {
   }, []);
 
   useEffect(() => {
-    fetchBOMs(currentPage, itemsPerPage);
-  }, [currentPage, itemsPerPage]);
+    fetchBOMs(currentPage, itemsPerPage, searchTerm, selectedModel, selectedStatus);
+  }, [currentPage, itemsPerPage, searchTerm, selectedModel, selectedStatus]);
 
   useEffect(() => {
     setPageInput(String(currentPage));
@@ -201,6 +211,70 @@ export default function ItemBOM() {
       </div>
 
       <div className="bg-white dark:bg-[#1e2330] rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-lg flex-1 overflow-hidden flex flex-col">
+        {/* Filter Bar */}
+        <div className="p-4 border-b border-slate-200 dark:border-slate-700/50 bg-slate-50/50 dark:bg-[#1a1f2b] flex flex-wrap items-center gap-3">
+          {/* General Search Input */}
+          <div className="relative flex-1 min-w-[240px]">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+              placeholder="Model, bileşen kodu veya adı ile ara..."
+              className="w-full pl-9 pr-8 py-2 bg-white dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 shadow-sm"
+            />
+            {searchTerm && (
+              <button 
+                onClick={() => { setSearchTerm(''); setCurrentPage(1); }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+
+          {/* Model Filter Combobox */}
+          <div className="w-64">
+            <ModelSelectCombobox
+              models={productFamilies}
+              value={selectedModel}
+              onChange={(val) => { setSelectedModel(val); setCurrentPage(1); }}
+              placeholder="Tüm Modeller"
+              searchPlaceholder="Model ara..."
+            />
+          </div>
+
+          {/* Status Filter Dropdown */}
+          <div className="w-36">
+            <select
+              value={selectedStatus}
+              onChange={(e) => { setSelectedStatus(e.target.value); setCurrentPage(1); }}
+              className="w-full px-3 py-2 bg-white dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 shadow-sm cursor-pointer"
+            >
+              <option value="Tümü">Durum: Tümü</option>
+              <option value="Aktif">Aktif</option>
+              <option value="Pasif">Pasif</option>
+            </select>
+          </div>
+
+          {/* Clear Filters Button */}
+          {(searchTerm || selectedModel || selectedStatus !== 'Tümü') && (
+            <button
+              onClick={() => {
+                setSearchTerm('');
+                setSelectedModel('');
+                setSelectedStatus('Tümü');
+                setCurrentPage(1);
+              }}
+              className="flex items-center gap-1.5 px-3 py-2 bg-slate-200 dark:bg-slate-700/60 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs rounded-xl transition-colors font-medium"
+              title="Filtreleri Temizle"
+            >
+              <RotateCcw size={14} />
+              Temizle
+            </button>
+          )}
+        </div>
+
         <div className="overflow-auto flex-1">
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs sticky top-0">

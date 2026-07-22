@@ -1087,11 +1087,9 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    @Slot(str, str, result=str)
-    def get_product_boms(self, page="1", page_size="50"):
-        """Sayfalanmis (LIMIT/OFFSET) sekilde doner. Tablo 30binin uzerinde satir
-        icerdigi icin tek seferde tum sonucu cekmek uzak veritabani baglantisinda
-        statement_timeout'a (10sn) takiliyordu."""
+    @Slot(str, str, str, str, str, result=str)
+    def get_product_boms(self, page="1", page_size="50", search_term="", model_filter="", status_filter=""):
+        """Sayfalanmis (LIMIT/OFFSET) ve filtrelemeli sekilde doner."""
         from sqlalchemy import text
         db = SessionLocal()
         try:
@@ -1099,17 +1097,42 @@ class WebBridge(QObject):
             page_size = min(1000, max(1, int(page_size or 50)))
             offset = (page - 1) * page_size
 
-            total = db.execute(text("SELECT COUNT(*) FROM warehouse.product_boms;")).scalar()
+            where_clauses = []
+            params = {"limit": page_size, "offset": offset}
 
-            bom_result = db.execute(text("""
+            if search_term and str(search_term).strip():
+                where_clauses.append("(b.product_model ILIKE :search OR b.child_item_code ILIKE :search OR p_child.name ILIKE :search)")
+                params["search"] = f"%{str(search_term).strip()}%"
+
+            if model_filter and str(model_filter).strip():
+                where_clauses.append("b.product_model = :model_filter")
+                params["model_filter"] = str(model_filter).strip()
+
+            if status_filter and str(status_filter).strip() and str(status_filter).strip().lower() != "tümü":
+                where_clauses.append("b.status = :status_filter")
+                params["status_filter"] = str(status_filter).strip()
+
+            where_sql = ("WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
+
+            count_sql = f"""
+                SELECT COUNT(*)
+                FROM warehouse.product_boms b
+                LEFT JOIN warehouse.parts p_child ON p_child.item_code = b.child_item_code
+                {where_sql};
+            """
+            total = db.execute(text(count_sql), params).scalar()
+
+            data_sql = f"""
                 SELECT b.id, b.product_model, b.child_item_code, b.quantity, b.status,
                        b.created_at, b.updated_at,
                        p_child.name AS child_name, p_child.id AS child_part_id
                 FROM warehouse.product_boms b
                 LEFT JOIN warehouse.parts p_child ON p_child.item_code = b.child_item_code
+                {where_sql}
                 ORDER BY b.product_model, b.child_item_code
                 LIMIT :limit OFFSET :offset;
-            """), {"limit": page_size, "offset": offset}).mappings().all()
+            """
+            bom_result = db.execute(text(data_sql), params).mappings().all()
 
             boms = [{
                 "id": row["id"],
