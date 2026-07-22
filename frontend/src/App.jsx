@@ -21,7 +21,6 @@ import DataManagement from './pages/DataManagement';
 import SupplyRequestForm from './pages/SupplyRequestForm';
 import MainLayout from './layouts/MainLayout';
 import ItemBOM from './pages/ItemBOM';
-import BatchEntry from './pages/BatchEntry';
 
 function App() {
   return (
