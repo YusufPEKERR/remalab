@@ -5,7 +5,7 @@ export default function ModelSelectCombobox({
   models = [], 
   value, 
   onChange, 
-  placeholder = "Parça ara veya seç...",
+  placeholder = "Cihaz ara veya seç...",
   searchPlaceholder = "Parça kodu, marka, model ara..." 
 }) {
   const [isOpen, setIsOpen] = useState(false);
