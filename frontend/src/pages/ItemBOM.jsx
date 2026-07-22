@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Plus, Trash2, RefreshCw, X, FileSpreadsheet, Edit2 } from 'lucide-react';
 import { api } from '../services/api';
 import ExcelMappingModal from '../components/ExcelMappingModal';
+import ModelSelectCombobox from '../components/ModelSelectCombobox';
 
 export default function ItemBOM() {
   const [boms, setBoms] = useState([]);
@@ -248,15 +249,11 @@ export default function ItemBOM() {
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div>
                 <label className="block text-sm text-slate-400 mb-1">Cihaz Modeli</label>
-                <select
-                  required
-                  className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white"
+                <ModelSelectCombobox
+                  models={productFamilies}
                   value={formData.product_model}
-                  onChange={e => setFormData({...formData, product_model: e.target.value})}
-                >
-                  <option value="">Seçiniz...</option>
-                  {productFamilies.map(f => <option key={f.id} value={f.name}>{f.name}</option>)}
-                </select>
+                  onChange={val => setFormData({...formData, product_model: val})}
+                />
               </div>
               <div>
                 <label className="block text-sm text-slate-400 mb-1">Alt Parça Kodu</label>
