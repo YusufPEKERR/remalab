@@ -148,8 +148,7 @@ export default function MainLayout() {
         { name: 'Ayarlar', icon: Settings, path: '/settings' },
         { name: 'Veri Yönetimi', icon: Database, path: '/data-management' },
         { name: 'Departman Yönetimi', icon: Building2, path: '/departments' },
-        { name: 'Servis Kaydı', icon: Wrench, path: '/service-records' },
-        { name: 'Batch Girişi', icon: Layers, path: '/batch-entry' }
+        { name: 'Servis Kaydı', icon: Wrench, path: '/service-records' }
       ]
     }
   ];
