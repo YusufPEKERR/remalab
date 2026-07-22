@@ -66,9 +66,23 @@ export default function BatchEntry() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(50);
   const [totalCount, setTotalCount] = useState(0);
-  const [searchTerm, setSearchTerm] = useState('');
   const [selectedFlow, setSelectedFlow] = useState('Tümü');
-  const [selectedIds, setSelectedIds] = useState([]);
+  const [selectedCustomerFilter, setSelectedCustomerFilter] = useState('');
+  const [customerList, setCustomerList] = useState([]);
+
+  useEffect(() => {
+    const loadCustomers = async () => {
+      try {
+        const res = await api.getCustomers();
+        if (res && res.success) {
+          setCustomerList(res.customers || []);
+        }
+      } catch (err) {
+        console.error("Müşteriler alınamadı:", err);
+      }
+    };
+    loadCustomers();
+  }, []);
 
   const handleSelectAll = (e) => {
     if (e.target.checked) {
@@ -383,6 +397,25 @@ export default function BatchEntry() {
             )}
           </div>
 
+          <div className="w-52">
+            <select
+              value={selectedCustomerFilter}
+              onChange={(e) => {
+                const val = e.target.value;
+                setSelectedCustomerFilter(val);
+                setSearchTerm(val);
+                setCurrentPage(1);
+              }}
+              className="w-full px-3 py-2 bg-white dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 shadow-sm cursor-pointer"
+            >
+              <option value="">Müşteri: Tümü</option>
+              {customerList.map(c => {
+                const label = c.short_name || c.customer_name || c.code;
+                return <option key={c.id} value={label}>{c.code ? `[${c.code}] ` : ''}{label}</option>;
+              })}
+            </select>
+          </div>
+
           <div className="w-44">
             <select
               value={selectedFlow}
@@ -394,10 +427,11 @@ export default function BatchEntry() {
             </select>
           </div>
 
-          {(searchTerm || selectedFlow !== 'Tümü') && (
+          {(searchTerm || selectedFlow !== 'Tümü' || selectedCustomerFilter) && (
             <button
               onClick={() => {
                 setSearchTerm('');
+                setSelectedCustomerFilter('');
                 setSelectedFlow('Tümü');
                 setCurrentPage(1);
               }}
