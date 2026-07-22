@@ -4,6 +4,7 @@ import { api } from '../services/api';
 import ExcelMappingModal from '../components/ExcelMappingModal';
 
 const FLOW_OPTIONS = ['Giriş Yapıldı', 'İncelemede', 'Onarımda', 'Testte', 'Tamamlandı', 'İptal'];
+const GB_OPTIONS = ['16GB', '32GB', '64GB', '128GB', '256GB', '512GB', '1TB', '2TB'];
 
 const FLOW_STYLES = {
   'Giriş Yapıldı': 'bg-blue-500/10 text-blue-400 border-blue-500/20',
@@ -113,6 +114,13 @@ export default function BatchEntry() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    const imei = (formData.imei_number || '').trim();
+    if (!imei || imei.length !== 15 || !/^\d{15}$/.test(imei)) {
+      alert("Hata: IMEI numarası 15 haneli ve sadece rakamlardan oluşmalıdır.");
+      return;
+    }
+
     let res;
     if (editingRecord) {
       res = await api.updateBatchEntry(editingRecord.id, formData);
@@ -447,12 +455,15 @@ export default function BatchEntry() {
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm text-slate-400 mb-1">IMEI Number (IMEI Numarası)</label>
+                    <label className="block text-sm text-slate-400 mb-1">
+                      IMEI Number (IMEI Numarası) <span className="text-red-400 font-semibold">* (15 Haneli)</span>
+                    </label>
                     <input
                       type="text"
-                      className="w-full bg-white dark:bg-[#0f1219] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-blue-500"
+                      maxLength={15}
+                      className="w-full bg-white dark:bg-[#0f1219] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-blue-500 font-mono tracking-wider"
                       value={formData.imei_number}
-                      onChange={e => setFormData({ ...formData, imei_number: e.target.value })}
+                      onChange={e => setFormData({ ...formData, imei_number: e.target.value.replace(/\D/g, '') })}
                       placeholder="15 haneli IMEI giriniz"
                     />
                   </div>
@@ -507,13 +518,16 @@ export default function BatchEntry() {
                   </div>
                   <div>
                     <label className="block text-sm text-slate-400 mb-1">GB (Depolama / Hafıza)</label>
-                    <input
-                      type="text"
-                      className="w-full bg-white dark:bg-[#0f1219] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-blue-500"
+                    <select
+                      className="w-full bg-white dark:bg-[#0f1219] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-blue-500 cursor-pointer"
                       value={formData.gb}
                       onChange={e => setFormData({ ...formData, gb: e.target.value })}
-                      placeholder="Örn: 128GB, 256GB"
-                    />
+                    >
+                      <option value="">Hafıza Seçiniz...</option>
+                      {GB_OPTIONS.map(opt => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
                   </div>
                   <div>
                     <label className="block text-sm text-slate-400 mb-1">Color (Renk)</label>
