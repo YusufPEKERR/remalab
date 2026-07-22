@@ -5984,18 +5984,28 @@ class WebBridge(QObject):
     @Slot(str, result=str)
     def lookup_batch_entry(self, search_term):
         from models.batch_entry import BatchEntry
+        from sqlalchemy import func
         db = SessionLocal()
         try:
             term = (search_term or "").strip()
             if not term or len(term) < 2:
                 return json.dumps({"success": False, "message": "Arama terimi çok kısa."})
             
+            term_lower = term.lower()
             entry = db.query(BatchEntry).filter(
-                (BatchEntry.imei_number == term) |
-                (BatchEntry.serial_number == term) |
-                (BatchEntry.internal_id == term) |
-                (BatchEntry.batch_no == term)
+                (func.lower(BatchEntry.imei_number) == term_lower) |
+                (func.lower(BatchEntry.serial_number) == term_lower) |
+                (func.lower(BatchEntry.internal_id) == term_lower) |
+                (func.lower(BatchEntry.batch_no) == term_lower)
             ).order_by(BatchEntry.id.desc()).first()
+
+            if not entry and len(term) >= 3:
+                entry = db.query(BatchEntry).filter(
+                    (BatchEntry.imei_number.ilike(f"%{term}%")) |
+                    (BatchEntry.serial_number.ilike(f"%{term}%")) |
+                    (BatchEntry.internal_id.ilike(f"%{term}%")) |
+                    (BatchEntry.batch_no.ilike(f"%{term}%"))
+                ).order_by(BatchEntry.id.desc()).first()
 
             if not entry:
                 return json.dumps({"success": True, "found": False})

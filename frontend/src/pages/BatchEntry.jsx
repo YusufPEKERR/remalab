@@ -162,7 +162,7 @@ export default function BatchEntry() {
     setFormData(updated);
 
     const term = String(value || '').trim();
-    if (term.length >= 3) {
+    if (term.length >= 2) {
       const res = await api.lookupBatchEntry(term);
       if (res.success && res.found && res.data) {
         setFormData(prev => ({
@@ -627,6 +627,7 @@ export default function BatchEntry() {
                       className="w-full bg-white dark:bg-[#0f1219] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-blue-500 font-mono tracking-wider"
                       value={formData.imei_number}
                       onChange={e => handleAutoLookup('imei_number', e.target.value.replace(/\D/g, ''))}
+                      onBlur={e => handleAutoLookup('imei_number', e.target.value.replace(/\D/g, ''))}
                       placeholder="15 haneli IMEI giriniz"
                     />
                   </div>
@@ -637,6 +638,7 @@ export default function BatchEntry() {
                       className="w-full bg-white dark:bg-[#0f1219] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-blue-500"
                       value={formData.serial_number}
                       onChange={e => handleAutoLookup('serial_number', e.target.value)}
+                      onBlur={e => handleAutoLookup('serial_number', e.target.value)}
                       placeholder="Cihaz seri numarası"
                     />
                   </div>
@@ -647,6 +649,7 @@ export default function BatchEntry() {
                       className="w-full bg-white dark:bg-[#0f1219] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-blue-500"
                       value={formData.internal_id}
                       onChange={e => handleAutoLookup('internal_id', e.target.value)}
+                      onBlur={e => handleAutoLookup('internal_id', e.target.value)}
                       placeholder="İç takip ID"
                     />
                   </div>
@@ -657,6 +660,7 @@ export default function BatchEntry() {
                       className="w-full bg-white dark:bg-[#0f1219] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-blue-500"
                       value={formData.batch_no}
                       onChange={e => handleAutoLookup('batch_no', e.target.value)}
+                      onBlur={e => handleAutoLookup('batch_no', e.target.value)}
                       placeholder="Batch grup numarası"
                     />
                   </div>
