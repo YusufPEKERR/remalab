@@ -147,8 +147,7 @@ export default function MainLayout() {
         { name: 'Product Bom', icon: Layers, path: '/item-bom' },
         { name: 'Ayarlar', icon: Settings, path: '/settings' },
         { name: 'Veri Yönetimi', icon: Database, path: '/data-management' },
-        { name: 'Departman Yönetimi', icon: Building2, path: '/departments' },
-        { name: 'Servis Kaydı', icon: Wrench, path: '/service-records' }
+        { name: 'Departman Yönetimi', icon: Building2, path: '/departments' }
       ]
     }
   ];
