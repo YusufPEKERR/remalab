@@ -70,6 +70,7 @@ export default function BatchEntry() {
   const [selectedFlow, setSelectedFlow] = useState('Tümü');
   const [selectedCustomerFilter, setSelectedCustomerFilter] = useState('');
   const [customerList, setCustomerList] = useState([]);
+  const [selectedIds, setSelectedIds] = useState([]);
 
   useEffect(() => {
     const loadCustomers = async () => {
