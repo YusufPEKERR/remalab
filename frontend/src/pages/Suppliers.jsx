@@ -91,8 +91,8 @@ export default function Suppliers() {
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Sıralama state'leri (varsayılan: MÜŞTERİ adıp artan sıralama)
-  const [sortField, setSortField] = useState('customer_name');
+  // Sıralama state'leri (varsayılan: sıralama kapalı)
+  const [sortField, setSortField] = useState(null);
   const [sortDirection, setSortDirection] = useState('asc');
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -190,7 +190,11 @@ export default function Suppliers() {
       setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'));
     } else {
       setSortField(field);
-      setSortDirection('asc');
+      if (field === 'use_mio' || field === 'intake_date') {
+        setSortDirection('desc');
+      } else {
+        setSortDirection('asc');
+      }
     }
   };
 
@@ -201,27 +205,37 @@ export default function Suppliers() {
       (c.customer_phone && c.customer_phone.toLowerCase().includes(q)) ||
       (c.customer_email && c.customer_email.toLowerCase().includes(q)) ||
       (c.company && c.company.toLowerCase().includes(q)) ||
-      (c.imei_number && c.imei_number.toLowerCase().includes(q)) ||
-      (c.serial_number && c.serial_number.toLowerCase().includes(q))
+      (c.code && c.code.toLowerCase().includes(q))
     );
+
+    if (!sortField) return filtered;
 
     return [...filtered].sort((a, b) => {
       let valA = a[sortField];
       let valB = b[sortField];
 
-      // Boş/Null/Undefined değerleri her zaman en sona at
-      if ((valA === null || valA === undefined || valA === '') && (valB !== null && valB !== undefined && valB !== '')) return 1;
-      if ((valB === null || valB === undefined || valB === '') && (valA !== null && valA !== undefined && valA !== '')) return -1;
-      if ((valA === null || valA === undefined || valA === '') && (valB === null || valB === undefined || valB === '')) return 0;
+      // Boş değerleri her zaman listenin en sonuna koy
+      const isEmptyA = valA === null || valA === undefined || String(valA).trim() === '';
+      const isEmptyB = valB === null || valB === undefined || String(valB).trim() === '';
+      if (isEmptyA && !isEmptyB) return 1;
+      if (!isEmptyA && isEmptyB) return -1;
+      if (isEmptyA && isEmptyB) return 0;
 
-      // Boolean tipi sıralama (Sadece CRM / use_mio için)
+      // 1. CRM (use_mio) Sıralaması: Yes (1) yukarıda, No (0) aşağıda
       if (sortField === 'use_mio') {
-        const boolA = Boolean(valA) ? 1 : 0;
-        const boolB = Boolean(valB) ? 1 : 0;
-        return sortDirection === 'asc' ? boolA - boolB : boolB - boolA;
+        const numA = Boolean(valA) ? 1 : 0;
+        const numB = Boolean(valB) ? 1 : 0;
+        return sortDirection === 'desc' ? numB - numA : numA - numB;
       }
 
-      // Metin / Tarih / Kod sıralaması (MÜŞTERİ, FİRMA KODU, GİRİŞ TARİHİ)
+      // 2. GİRİŞ TARİHİ (intake_date) Sıralaması: Tarihe çevirerek en yeniyi yukarı alma
+      if (sortField === 'intake_date') {
+        const dateA = new Date(valA).getTime() || 0;
+        const dateB = new Date(valB).getTime() || 0;
+        return sortDirection === 'desc' ? dateB - dateA : dateA - dateB;
+      }
+
+      // 3. MÜŞTERİ (customer_name) & FİRMA KODU (code) Sıralaması
       const strA = String(valA).trim();
       const strB = String(valB).trim();
       const cmp = strA.localeCompare(strB, 'tr', { numeric: true, sensitivity: 'base' });
