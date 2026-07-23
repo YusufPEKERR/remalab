@@ -6330,6 +6330,14 @@ class WebBridge(QObject):
                     END IF;
                 END $$;
             """))
+            # Müşteri para birimlerini batch_entries tablosuna senkronize et
+            db.execute(text("""
+                UPDATE warehouse.batch_entries b
+                SET currency = c.currency
+                FROM warehouse.customers c
+                WHERE (LOWER(b.customer_name) = LOWER(c.customer_name) OR b.customer_no = c.code)
+                  AND c.currency IS NOT NULL AND c.currency != '';
+            """))
             db.commit()
         except Exception as e:
             db.rollback()
@@ -6515,21 +6523,22 @@ class WebBridge(QObject):
             self._ensure_batch_entries_table()
             sql = """
                 SELECT 
-                    COALESCE(NULLIF(batch_no, ''), 'Tanımsız Batch') AS document_number,
-                    COALESCE(NULLIF(batch_no, ''), 'Tanımsız Batch') AS batch_no,
-                    MAX(customer_name) AS account_name,
-                    MAX(customer_name) AS customer_name,
-                    MAX(customer_no) AS customer_no,
+                    COALESCE(NULLIF(b.batch_no, ''), 'Tanımsız Batch') AS document_number,
+                    COALESCE(NULLIF(b.batch_no, ''), 'Tanımsız Batch') AS batch_no,
+                    MAX(b.customer_name) AS account_name,
+                    MAX(b.customer_name) AS customer_name,
+                    MAX(b.customer_no) AS customer_no,
                     COUNT(*) AS item_quantity,
                     COUNT(*) AS total_devices,
-                    SUM(COALESCE(unit_price, 0)) AS total_price,
-                    COALESCE(MAX(NULLIF(currency, '')), 'EUR') AS currency,
-                    COALESCE(BOOL_AND(COALESCE(is_success, false)), false) AS is_success,
-                    COALESCE(MAX(NULLIF(created_by, '')), 'io') AS create_by,
-                    MAX(created_at) AS last_created
-                FROM warehouse.batch_entries
-                GROUP BY COALESCE(NULLIF(batch_no, ''), 'Tanımsız Batch')
-                ORDER BY MAX(created_at) DESC;
+                    SUM(COALESCE(b.unit_price, 0)) AS total_price,
+                    COALESCE(MAX(NULLIF(c.currency, '')), MAX(NULLIF(b.currency, '')), 'EUR') AS currency,
+                    COALESCE(BOOL_AND(COALESCE(b.is_success, false)), false) AS is_success,
+                    COALESCE(MAX(NULLIF(b.created_by, '')), 'io') AS create_by,
+                    MAX(b.created_at) AS last_created
+                FROM warehouse.batch_entries b
+                LEFT JOIN warehouse.customers c ON (LOWER(b.customer_name) = LOWER(c.customer_name) OR b.customer_no = c.code)
+                GROUP BY COALESCE(NULLIF(b.batch_no, ''), 'Tanımsız Batch')
+                ORDER BY MAX(b.created_at) DESC;
             """
             rows = db.execute(text(sql)).mappings().all()
 

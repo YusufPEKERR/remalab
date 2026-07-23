@@ -84,6 +84,26 @@ export default function BatchEntry() {
     alert("Sevkiyat faturalandırma işlemi başlatıldı.");
   };
 
+  const handleDownloadTemplate = async () => {
+    const templateData = [{
+      customer_no: 'CUST-001',
+      customer_name: 'Örnek Müşteri Ltd.',
+      batch_no: 'BATCH-2026-01',
+      internal_id: 'INT-9901',
+      imei_number: '358901234567890',
+      serial_number: 'SN99887766',
+      model: 'iPhone 13 Pro',
+      gb: '128GB',
+      color: 'Graphite',
+      defects: 'Dokunmatik yanıt vermiyor',
+      screen_test: 'BAŞARISIZ',
+      power_test: 'BAŞARILI',
+      flow: 'Refurbish',
+      unit_price: 1500
+    }];
+    await api.exportTableToExcel(templateData, "Batch_Entry_Template.xlsx");
+  };
+
   // Pagination & Filters & Bulk Selection
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(50);
@@ -281,23 +301,7 @@ export default function BatchEntry() {
     e.target.value = '';
 
     if (action === 'download_template') {
-      const templateData = [{
-        customer_no: 'CUST-001',
-        customer_name: 'Örnek Müşteri Ltd.',
-        batch_no: 'BATCH-2026-01',
-        internal_id: 'INT-9901',
-        imei_number: '358901234567890',
-        serial_number: 'SN99887766',
-        model: 'iPhone 13 Pro',
-        gb: '128GB',
-        color: 'Graphite',
-        defects: 'Dokunmatik yanıt vermiyor',
-        screen_test: 'BAŞARISIZ',
-        power_test: 'BAŞARILI',
-        flow: 'Refurbish',
-        unit_price: 1500
-      }];
-      await api.exportTableToExcel(templateData, "Batch_Entry_Template.xlsx");
+      await handleDownloadTemplate();
     } else if (action === 'export') {
       setLoading(true);
       const allRes = await api.getBatchEntries(1, 10000, searchTerm, selectedFlow);
@@ -876,9 +880,9 @@ export default function BatchEntry() {
                 </div>
                 <div>
                   <h2 className="text-base font-bold text-slate-900 dark:text-white font-mono uppercase tracking-wide">
-                    SERVIS_GIRIS_SIPARIS
+                    Batch Tablosu
                   </h2>
-                  <p className="text-xs text-slate-400">Batch Giriş Siparişleri (Parti Özet Listesi)</p>
+                  <p className="text-xs text-slate-400">Parti Özet Listesi</p>
                 </div>
               </div>
               <button 
@@ -905,30 +909,6 @@ export default function BatchEntry() {
                 >
                   <RefreshCw size={15} className={loadingBatchSummary ? "animate-spin" : ""} />
                   Yenile
-                </button>
-                <button
-                  onClick={handleBillShipment}
-                  className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg flex items-center gap-1.5 transition-colors shadow-sm"
-                >
-                  <Truck size={15} />
-                  Sevkiyatı Faturalandır
-                </button>
-                <button
-                  onClick={() => {
-                    setIsBatchSummaryModalOpen(false);
-                    setIsExcelModalOpen(true);
-                  }}
-                  className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg flex items-center gap-1.5 transition-colors shadow-sm"
-                >
-                  <FileText size={15} />
-                  Excell Girişi Yap
-                </button>
-                <button
-                  onClick={handleDownloadTemplate}
-                  className="px-3 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 font-medium rounded-lg flex items-center gap-1.5 transition-colors shadow-sm"
-                >
-                  <Download size={15} />
-                  Excell Template İndir
                 </button>
               </div>
 
