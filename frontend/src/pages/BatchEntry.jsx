@@ -267,13 +267,16 @@ export default function BatchEntry() {
     let updatedCount = 0;
     let createdCount = 0;
 
+    let errorMessages = [];
+
     for (const item of excelFileData) {
-      // 1. Düzenleme modundaysak mevcut kaydı güncelle
-      if (editingRecord && (excelFileData.length === 1 || item.imei_number === editingRecord.imei_number || item.serial_number === editingRecord.serial_number || item.internal_id === editingRecord.internal_id)) {
-        const res = await api.updateBatchEntry(editingRecord.id, item);
+      if (item.id) {
+        // If the item has an ID (we are editing an existing fetched record), use it directly
+        const res = await api.updateBatchEntry(item.id, item);
         if (res.success) updatedCount++;
+        else errorMessages.push(`Kayıt #${item.id} güncellenemedi: ${res.message}`);
       } else {
-        // 2. Yüklenen Excel satırı sistemdeki mevcut bir kayıtla (IMEI, Seri No, Dahili ID) eşleşiyorsa güncelle
+        // Fallback for new items imported via Excel that lack IDs
         const existing = records.find(r => 
           (item.imei_number && r.imei_number === item.imei_number) ||
           (item.serial_number && r.serial_number === item.serial_number) ||
@@ -283,9 +286,11 @@ export default function BatchEntry() {
         if (existing) {
           const res = await api.updateBatchEntry(existing.id, item);
           if (res.success) updatedCount++;
+          else errorMessages.push(`Kayıt #${existing.id} güncellenemedi: ${res.message}`);
         } else {
           const res = await api.createBatchEntry(item);
           if (res.success) createdCount++;
+          else errorMessages.push(`Yeni kayıt oluşturulamadı: ${res.message}`);
         }
       }
     }
@@ -294,7 +299,11 @@ export default function BatchEntry() {
     let msg = "İşlem Tamamlandı:\n";
     if (updatedCount > 0) msg += `• ${updatedCount} adet kayıt Excel verisiyle güncellendi.\n`;
     if (createdCount > 0) msg += `• ${createdCount} adet yeni kayıt sisteme eklendi.`;
-    if (updatedCount === 0 && createdCount === 0) msg = "İşlem gerçekleştirilemedi veya değişiklik algılanmadı.";
+    if (updatedCount === 0 && createdCount === 0) {
+        msg = "İşlem gerçekleştirilemedi veya değişiklik algılanmadı.\n\nNedenler:\n" + errorMessages.join("\n");
+    } else if (errorMessages.length > 0) {
+        msg += "\n\nBazı hatalar oluştu:\n" + errorMessages.join("\n");
+    }
 
     alert(msg);
     setIsModalOpen(false);
@@ -531,48 +540,54 @@ export default function BatchEntry() {
     }
   };
 
-  const handleOpenModal = (record = null) => {
+  const handleOpenModal = async (record = null) => {
     setAutoFilledMessage('');
     if (record) {
       setEditingRecord(record);
-      const recData = {
-        id: record.id,
-        customer_no: record.customer_no || '',
-        customer_name: record.customer_name || '',
-        imei_number: record.imei_number || '',
-        serial_number: record.serial_number || '',
-        internal_id: record.internal_id || '',
-        batch_no: record.batch_no || '',
-        model: record.model || '',
-        gb: record.gb || '',
-        color: record.color || '',
-        defects: record.defects || '',
-        screen_test: record.screen_test || '',
-        power_test: record.power_test || '',
-        flow: record.flow || 'Refurbish'
-      };
+      
+      setLoading(true);
+      const batchNo = record.batch_no || record.document_number;
+      // Fetch all details for this batch_no
+      const res = await api.getBatchEntries(1, 10000, batchNo, 'Tümü');
+      setLoading(false);
 
-      setFormData(recData);
-      setExcelFileData([recData]);
-      setExcelFileName(`Kayıt_${record.id}_${record.model || 'Cihaz'}.xlsx`);
+      let itemsToEdit = [];
+      if (res.success && res.records && res.records.length > 0) {
+        itemsToEdit = res.records.filter(r => r.batch_no === batchNo);
+      }
 
-      const custName = record.customer_name || '';
-      const custNo = record.customer_no || '';
+      if (itemsToEdit.length === 0) {
+        // Fallback to a single pseudo-record if nothing was found
+        const recData = {
+          id: record.id,
+          customer_no: record.customer_no || '',
+          customer_name: record.customer_name || record.account_name || '',
+          imei_number: record.imei_number || '',
+          serial_number: record.serial_number || '',
+          internal_id: record.internal_id || '',
+          batch_no: batchNo || '',
+          model: record.model || '',
+          gb: record.gb || '',
+          color: record.color || '',
+          defects: record.defects || '',
+          screen_test: record.screen_test || '',
+          power_test: record.power_test || '',
+          flow: record.flow || 'Refurbish'
+        };
+        itemsToEdit = [recData];
+      }
+
+      setFormData(itemsToEdit[0]);
+      setExcelFileData(itemsToEdit);
+      setExcelFileName(`Batch_${batchNo || record.id}.xlsx`);
+
+      const custName = itemsToEdit[0].customer_name || '';
+      const custNo = itemsToEdit[0].customer_no || '';
       if (custName) {
         setSelectedCustomer({ name: custName, no: custNo || 'CUST-001' });
       }
 
-      const errors = [];
-      if (!recData.customer_name) {
-        errors.push({ row: 1, column: 'Customer Name (Müşteri Adı)', message: 'Müşteri Adı bilgisi eksik.' });
-      }
-      if (!recData.imei_number && !recData.serial_number && !recData.internal_id && !recData.batch_no) {
-        errors.push({ row: 1, column: 'Servis Bilgileri (Tanımlayıcı)', message: 'IMEI, Seri No, Dahili Kimlik veya Batch No alanlarından en az biri girilmelidir.' });
-      }
-      if (recData.imei_number && (!/^\d+$/.test(recData.imei_number) || recData.imei_number.length !== 15)) {
-        errors.push({ row: 1, column: 'IMEI Number (IMEI Numarası)', message: `IMEI 15 haneli ve yalnız rakamlardan oluşmalıdır (Girilen: "${recData.imei_number}").` });
-      }
-      setExcelValidationErrors(errors);
+      setExcelValidationErrors([]);
     } else {
       setEditingRecord(null);
       setFormData(EMPTY_FORM);
