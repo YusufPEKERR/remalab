@@ -84,7 +84,6 @@ export default function BatchEntry() {
   };
 
   const handleFetchBatchSummary = async () => {
-    setIsBatchSummaryModalOpen(true);
     setLoadingBatchSummary(true);
     const res = await api.getBatchSummary();
     if (res.success) {
@@ -380,10 +379,10 @@ export default function BatchEntry() {
 
   const handleSelectAll = (e) => {
     if (e.target.checked) {
-      const pageIds = records.map(r => r.id);
+      const pageIds = paginatedSummary.map(r => r.id);
       setSelectedIds(prev => Array.from(new Set([...prev, ...pageIds])));
     } else {
-      const pageIds = records.map(r => r.id);
+      const pageIds = paginatedSummary.map(r => r.id);
       setSelectedIds(prev => prev.filter(id => !pageIds.includes(id)));
     }
   };
@@ -394,7 +393,7 @@ export default function BatchEntry() {
     );
   };
 
-  const isAllSelected = records.length > 0 && records.every(r => selectedIds.includes(r.id));
+  const isAllSelected = paginatedSummary.length > 0 && paginatedSummary.every(r => selectedIds.includes(r.id));
 
   const handleBulkDelete = async () => {
     if (!selectedIds.length) return;
@@ -469,6 +468,7 @@ export default function BatchEntry() {
   useEffect(() => {
     fetchRecords(currentPage, itemsPerPage, searchTerm, selectedFlow);
     fetchCustomers();
+    handleFetchBatchSummary();
   }, [currentPage, itemsPerPage, searchTerm, selectedFlow]);
 
 
@@ -675,13 +675,6 @@ export default function BatchEntry() {
           <p className="text-slate-400 mt-1">Müşteri parti cihazlarını, servis ve arıza akış bilgilerini buradan yönetin.</p>
         </div>
         <div className="flex items-center gap-3">
-          <button
-            onClick={handleFetchBatchSummary}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-500 border border-emerald-500/30 rounded-xl transition-all font-medium text-sm shadow-sm"
-          >
-            <Layers size={16} />
-            Batch Tablosu (Özet)
-          </button>
           <div className="relative">
             <select
               onChange={handleExcelAction}
