@@ -6593,6 +6593,7 @@ class WebBridge(QObject):
                     SUM(COALESCE(b.unit_price, 0)) AS total_price,
                     COALESCE(MAX(NULLIF(c.currency, '')), MAX(NULLIF(b.currency, '')), 'EUR') AS currency,
                     COALESCE(BOOL_AND(COALESCE(b.is_success, false)), false) AS is_success,
+                    COALESCE(MAX(NULLIF(b.flow, '')), 'Refurbish') AS flow,
                     COALESCE(MAX(NULLIF(b.created_by, '')), 'io') AS create_by,
                     MAX(b.created_at) AS last_created
                 FROM warehouse.batch_entries b
@@ -6612,6 +6613,7 @@ class WebBridge(QObject):
                 "is_success": bool(r["is_success"]),
                 "item_quantity": int(r["item_quantity"]),
                 "currency": r["currency"] or "EUR",
+                "flow": r["flow"] or "Refurbish",
                 "create_by": r["create_by"] or "io",
 
                 # Legacy/compatibility fields

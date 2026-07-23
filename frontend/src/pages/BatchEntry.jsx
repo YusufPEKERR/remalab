@@ -913,8 +913,8 @@ export default function BatchEntry() {
                     <td className="px-6 py-4 font-semibold text-blue-400">{rec.document_number || rec.batch_no || '-'}</td>
                     <td className="px-6 py-4 font-bold text-slate-800 dark:text-slate-100">{rec.customer_name || rec.account_name || '-'}</td>
                     <td className="px-6 py-4 text-center">
-                      <span className={`px-2 py-1 rounded text-xs font-semibold ${rec.is_success ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
-                        {rec.is_success ? 'Başarılı' : 'Beklemede'}
+                      <span className={`px-2 py-1 rounded text-xs font-semibold border ${FLOW_STYLES[rec.flow] || FLOW_STYLES['Refurbish']}`}>
+                        {rec.flow || 'Refurbish'}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right font-mono font-bold text-slate-700 dark:text-slate-300">{rec.item_quantity || 0}</td>
