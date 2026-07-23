@@ -810,17 +810,6 @@ export default function BatchEntry() {
             </select>
           </div>
 
-          <div className="w-44">
-            <select
-              value={selectedFlow}
-              onChange={(e) => { setSelectedFlow(e.target.value); setCurrentPage(1); }}
-              className="w-full px-3 py-2 bg-white dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 shadow-sm cursor-pointer"
-            >
-              <option value="Tümü">Akış: Tümü</option>
-              {FLOW_OPTIONS.map(f => <option key={f} value={f}>{f}</option>)}
-            </select>
-          </div>
-
           <div className="w-52">
             <select
               value={selectedBatchFilter}
@@ -893,7 +882,6 @@ export default function BatchEntry() {
                 <th className="px-6 py-4">Tarih</th>
                 <th className="px-6 py-4">Batch Bilgisi</th>
                 <th className="px-6 py-4">Müşteri</th>
-                <th className="px-6 py-4 text-center">Durum</th>
                 <th className="px-6 py-4 text-right">Miktar</th>
                 <th className="px-6 py-4">Para Birimi</th>
                 <th className="px-6 py-4">Oluşturan</th>
@@ -923,11 +911,6 @@ export default function BatchEntry() {
                     <td className="px-6 py-4 text-xs font-mono">{rec.document_date || '-'}</td>
                     <td className="px-6 py-4 font-semibold text-blue-400">{rec.document_number || rec.batch_no || '-'}</td>
                     <td className="px-6 py-4 font-bold text-slate-800 dark:text-slate-100">{rec.customer_name || rec.account_name || '-'}</td>
-                    <td className="px-6 py-4 text-center">
-                      <span className={`px-2 py-1 rounded text-xs font-semibold border ${FLOW_STYLES[rec.flow] || FLOW_STYLES['Refurbish']}`}>
-                        {rec.flow || 'Refurbish'}
-                      </span>
-                    </td>
                     <td className="px-6 py-4 text-right font-mono font-bold text-slate-700 dark:text-slate-300">{rec.item_quantity || 0}</td>
                     <td className="px-6 py-4 text-xs">
                       <span className="text-slate-400">{rec.currency}</span>
@@ -1401,16 +1384,8 @@ export default function BatchEntry() {
                                 <td className="px-3.5 py-2.5 text-slate-700 dark:text-slate-300">{row.screen_test || '-'}</td>
                                 <td className="px-3.5 py-2.5 text-slate-700 dark:text-slate-300">{row.power_test || '-'}</td>
                                 <td className="px-3.5 py-2.5 max-w-xs truncate text-slate-700 dark:text-slate-300">{row.defects || '-'}</td>
-                                <td className="px-3.5 py-2.5">
-                                  <select
-                                    value={row.flow || 'Refurbish'}
-                                    onChange={(e) => handleCellChange(idx, 'flow', e.target.value)}
-                                    className="bg-white dark:bg-[#242a38] border border-slate-200 dark:border-slate-600 rounded-lg px-2 py-1 text-xs font-semibold text-slate-800 dark:text-slate-200 cursor-pointer focus:outline-none focus:border-blue-500"
-                                  >
-                                    {FLOW_OPTIONS.filter(f => f !== 'Hepsi').map(f => (
-                                      <option key={f} value={f}>{f}</option>
-                                    ))}
-                                  </select>
+                                <td className="px-3.5 py-2.5 text-slate-700 dark:text-slate-200 font-semibold">
+                                  {row.flow || 'Refurbish'}
                                 </td>
                               </tr>
                             );
