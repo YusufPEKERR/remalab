@@ -626,7 +626,19 @@ export default function BatchEntry() {
       const allRes = await api.getBatchEntries(1, 10000, searchTerm, selectedFlow);
       setLoading(false);
       if (allRes.success && allRes.records) {
-        const exportData = allRes.records.map(r => ({
+        let recordsToExport = allRes.records;
+        
+        if (selectedIds.length > 0) {
+          const selectedBatches = batchSummaryList.filter(b => selectedIds.includes(b.id));
+          recordsToExport = allRes.records.filter(r => 
+            selectedBatches.some(b => 
+              b.batch_no === r.batch_no && 
+              (b.customer_name === r.customer_name || b.account_name === r.customer_name || b.customer_no === r.customer_no)
+            )
+          );
+        }
+
+        const exportData = recordsToExport.map(r => ({
           "DocumentDate": r.document_date || (r.created_at ? r.created_at.split(' ')[0] : '-'),
           "Customer No": r.customer_no || '',
           "Customer Name": r.customer_name || '',
@@ -698,7 +710,7 @@ export default function BatchEntry() {
             >
               <option value="">Excel İşlemi Seç...</option>
               <option value="download_template">Boş Şablon İndir</option>
-              <option value="export">Tümünü Dışa Aktar</option>
+              <option value="export">Dışa Aktar (Seçili / Tümü)</option>
               <option value="import">Excel'den İçe Aktar</option>
             </select>
             <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-slate-400">
