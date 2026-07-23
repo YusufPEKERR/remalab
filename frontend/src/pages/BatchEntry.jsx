@@ -52,6 +52,20 @@ export default function BatchEntry() {
   const [loadingBatchSummary, setLoadingBatchSummary] = useState(false);
   const [summarySearch, setSummarySearch] = useState('');
 
+  // Customers (Müşteriler) entegrasyonu
+  const [customers, setCustomers] = useState([]);
+  
+  const fetchCustomers = async () => {
+    try {
+      const res = await api.getCustomers();
+      if (res && res.success) {
+        setCustomers(res.customers || []);
+      }
+    } catch (err) {
+      console.error("Müşteriler alınamadı", err);
+    }
+  };
+
   const handleFetchBatchSummary = async () => {
     setIsBatchSummaryModalOpen(true);
     setLoadingBatchSummary(true);
@@ -189,7 +203,18 @@ export default function BatchEntry() {
 
   useEffect(() => {
     fetchRecords(currentPage, itemsPerPage, searchTerm, selectedFlow);
+    fetchCustomers();
   }, [currentPage, itemsPerPage, searchTerm, selectedFlow]);
+
+  const handleCustomerNameChange = (e) => {
+    const val = e.target.value;
+    const found = customers.find(c => c.customer_name === val);
+    setFormData(prev => ({
+      ...prev,
+      customer_name: val,
+      customer_no: found ? (found.code || found.customer_no || prev.customer_no) : prev.customer_no
+    }));
+  };
 
   const totalPages = Math.ceil(totalCount / itemsPerPage) || 1;
 
@@ -516,7 +541,6 @@ export default function BatchEntry() {
                 <th className="px-6 py-4">Müşteri</th>
                 <th className="px-6 py-4">Servis & Batch Bilgisi</th>
                 <th className="px-6 py-4">Cihaz</th>
-                <th className="px-6 py-4">Fiyat</th>
                 <th className="px-6 py-4">Kusur / Testler</th>
                 <th className="px-6 py-4">Akış Durumu</th>
                 <th className="px-6 py-4 text-xs">Tarih</th>
@@ -555,9 +579,6 @@ export default function BatchEntry() {
                     <td className="px-6 py-4">
                       <div className="font-semibold text-blue-400">{rec.model || '-'}</div>
                       <div className="text-xs text-slate-400">{[rec.gb, rec.color].filter(Boolean).join(' · ')}</div>
-                    </td>
-                    <td className="px-6 py-4 font-semibold text-emerald-400">
-                      {CURRENCY_SYMBOLS[rec.currency] || rec.currency || '€'}{Number(rec.unit_price || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
                     </td>
                     <td className="px-6 py-4 text-xs">
                       <div className="max-w-xs truncate font-medium text-slate-700 dark:text-slate-300" title={rec.defects}>
@@ -650,22 +671,34 @@ export default function BatchEntry() {
                     <label className="block text-sm text-slate-400 mb-1">Customer No (Müşteri No)</label>
                     <input
                       type="text"
+                      list="batch-customer-no-list"
                       className="w-full bg-white dark:bg-[#0f1219] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-blue-500"
                       value={formData.customer_no}
                       onChange={e => handleAutoLookup('customer_no', e.target.value)}
                       onBlur={e => handleAutoLookup('customer_no', e.target.value)}
                       placeholder="Örn: CUST-001"
                     />
+                    <datalist id="batch-customer-no-list">
+                      {customers.filter(c => c.code || c.customer_no).map((c, idx) => (
+                        <option key={idx} value={c.code || c.customer_no} />
+                      ))}
+                    </datalist>
                   </div>
                   <div>
                     <label className="block text-sm text-slate-400 mb-1">Customer Name (Müşteri Adı)</label>
                     <input
                       type="text"
+                      list="batch-customer-list"
                       className="w-full bg-white dark:bg-[#0f1219] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-blue-500"
                       value={formData.customer_name}
-                      onChange={e => setFormData({ ...formData, customer_name: e.target.value })}
-                      placeholder="Örn: ABC İletişim Ltd."
+                      onChange={handleCustomerNameChange}
+                      placeholder="Müşteri listesinden seçin veya yazın"
                     />
+                    <datalist id="batch-customer-list">
+                      {customers.map((c, idx) => (
+                        <option key={idx} value={c.customer_name} />
+                      ))}
+                    </datalist>
                   </div>
                 </div>
               </div>
@@ -764,29 +797,6 @@ export default function BatchEntry() {
                       onChange={e => setFormData({ ...formData, color: e.target.value })}
                       placeholder="Örn: Graphite, Siyah"
                     />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-slate-400 mb-1">Unit Price (Birim Fiyat)</label>
-                    <div className="flex gap-2">
-                      <select
-                        className="w-28 bg-white dark:bg-[#0f1219] border border-slate-300 dark:border-slate-700 rounded-lg px-2 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-blue-500 cursor-pointer"
-                        value={formData.currency}
-                        onChange={e => setFormData({ ...formData, currency: e.target.value })}
-                      >
-                        {CURRENCY_OPTIONS.map(c => (
-                          <option key={c} value={c}>{CURRENCY_SYMBOLS[c]} {c}</option>
-                        ))}
-                      </select>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        className="flex-1 bg-white dark:bg-[#0f1219] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-blue-500"
-                        value={formData.unit_price}
-                        onChange={e => setFormData({ ...formData, unit_price: e.target.value })}
-                        placeholder="0.00"
-                      />
-                    </div>
                   </div>
                 </div>
               </div>
@@ -985,16 +995,16 @@ export default function BatchEntry() {
                       const docNo = b.document_number || b.batch_no;
                       const isSelected = searchTerm === docNo;
                       return (
-                        <tr 
-                          key={idx} 
+                        <tr
+                          key={idx}
                           onClick={() => {
                             setSearchTerm(docNo === 'Tanımsız Batch' ? '' : docNo);
                             setCurrentPage(1);
                             setIsBatchSummaryModalOpen(false);
                           }}
                           className={`cursor-pointer transition-colors ${
-                            isSelected 
-                              ? 'bg-blue-600 text-white font-medium' 
+                            isSelected
+                              ? 'bg-blue-600 text-white font-medium'
                               : 'hover:bg-blue-50/80 dark:hover:bg-[#262c3d] text-slate-800 dark:text-slate-200'
                           }`}
                         >
@@ -1009,8 +1019,8 @@ export default function BatchEntry() {
                           </td>
                           <td className="px-4 py-2.5 text-center border-r border-slate-100 dark:border-slate-700/30">
                             <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
-                              b.is_success 
-                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' 
+                              b.is_success
+                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
                                 : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
                             }`}>
                               {b.is_success ? 'True' : 'False'}
