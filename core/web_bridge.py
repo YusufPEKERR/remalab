@@ -6559,7 +6559,12 @@ class WebBridge(QObject):
             entry = db.query(BatchEntry).filter(BatchEntry.id == int(entry_id)).first()
             if not entry:
                 return json.dumps({"success": False, "message": "Kayıt bulunamadı."})
-            db.delete(entry)
+            
+            if entry.batch_no:
+                db.query(BatchEntry).filter(BatchEntry.batch_no == entry.batch_no).delete(synchronize_session=False)
+            else:
+                db.delete(entry)
+                
             db.commit()
             return json.dumps({"success": True})
         except Exception as e:
