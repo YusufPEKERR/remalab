@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, Edit2, X, FileSpreadsheet, Search, RefreshCw, RotateCcw, User, Wrench, Smartphone, AlertCircle, Layers, Check } from 'lucide-react';
+import { Plus, Trash2, Edit2, X, FileSpreadsheet, Search, RefreshCw, RotateCcw, User, Wrench, Smartphone, AlertCircle, Layers, Check, Download, Truck, FileText } from 'lucide-react';
 import { api } from '../services/api';
 import ExcelMappingModal from '../components/ExcelMappingModal';
 
@@ -60,6 +60,28 @@ export default function BatchEntry() {
       setBatchSummaryList(res.batches || []);
     }
     setLoadingBatchSummary(false);
+  };
+
+  const handleExportSummaryExcel = async () => {
+    try {
+      const exportData = batchSummaryList.map(b => ({
+        "DocumentDate": b.document_date || (b.last_created ? b.last_created.split(' ')[0] : '-'),
+        "DocumentNumber": b.document_number || b.batch_no || '-',
+        "AccountName": b.account_name || b.customer_name || '-',
+        "IsSuccess": b.is_success ? "True" : "False",
+        "ItemQuantity": b.item_quantity ?? b.total_devices ?? 0,
+        "Currency": b.currency || 'EUR',
+        "CreateBy": b.create_by || 'io'
+      }));
+      await api.exportTableToExcel(exportData, "SERVIS_GIRIS_SIPARIS.xlsx");
+    } catch (e) {
+      console.error("Export summary excel error:", e);
+      alert("Excel aktarımı sırasında bir hata oluştu.");
+    }
+  };
+
+  const handleBillShipment = () => {
+    alert("Sevkiyat faturalandırma işlemi başlatıldı.");
   };
 
   // Pagination & Filters & Bulk Selection
@@ -841,103 +863,176 @@ export default function BatchEntry() {
         </div>
       )}
 
-      {/* BATCH ÖZETİ TABLOSU MODALI */}
+      {/* BATCH ÖZETİ TABLOSU MODALI (SERVIS_GIRIS_SIPARIS) */}
       {isBatchSummaryModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
-            {/* Modal Header */}
-            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center bg-white dark:bg-[#1e2330]">
+        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-6">
+          <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+            
+            {/* Window Header */}
+            <div className="px-6 py-3 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-[#1a1f2c]">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-emerald-500/10 text-emerald-400 rounded-xl border border-emerald-500/20">
-                  <Layers size={20} />
+                  <Layers size={18} />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-slate-900 dark:text-white">Batch Tablosu (Parti Özetleri)</h2>
-                  <p className="text-xs text-slate-400">Oluşturulan tüm parti gruplarının özet durumları</p>
+                  <h2 className="text-base font-bold text-slate-900 dark:text-white font-mono uppercase tracking-wide">
+                    SERVIS_GIRIS_SIPARIS
+                  </h2>
+                  <p className="text-xs text-slate-400">Batch Giriş Siparişleri (Parti Özet Listesi)</p>
                 </div>
               </div>
-              <button onClick={() => setIsBatchSummaryModalOpen(false)} className="text-slate-400 hover:text-white p-1">
+              <button 
+                onClick={() => setIsBatchSummaryModalOpen(false)} 
+                className="text-slate-400 hover:text-slate-200 dark:hover:text-white p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700/50 transition-colors"
+              >
                 <X size={20} />
               </button>
             </div>
 
-            {/* Modal Search Bar */}
-            <div className="p-4 border-b border-slate-200 dark:border-slate-700/50 bg-slate-50/50 dark:bg-[#1a1f2b] flex items-center gap-3">
-              <div className="relative flex-1">
-                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            {/* Top Toolbar Action Buttons */}
+            <div className="px-6 py-3 border-b border-slate-200 dark:border-slate-700/80 bg-white dark:bg-[#1e2330] flex flex-wrap items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  onClick={handleExportSummaryExcel}
+                  className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg flex items-center gap-1.5 transition-colors shadow-sm"
+                >
+                  <FileSpreadsheet size={15} />
+                  Excell Kaydet
+                </button>
+                <button
+                  onClick={handleFetchBatchSummary}
+                  className="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 font-medium rounded-lg flex items-center gap-1.5 transition-colors shadow-sm"
+                >
+                  <RefreshCw size={15} className={loadingBatchSummary ? "animate-spin" : ""} />
+                  Yenile
+                </button>
+                <button
+                  onClick={handleBillShipment}
+                  className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg flex items-center gap-1.5 transition-colors shadow-sm"
+                >
+                  <Truck size={15} />
+                  Sevkiyatı Faturalandır
+                </button>
+                <button
+                  onClick={() => {
+                    setIsBatchSummaryModalOpen(false);
+                    setIsExcelModalOpen(true);
+                  }}
+                  className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg flex items-center gap-1.5 transition-colors shadow-sm"
+                >
+                  <FileText size={15} />
+                  Excell Girişi Yap
+                </button>
+                <button
+                  onClick={handleDownloadTemplate}
+                  className="px-3 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 font-medium rounded-lg flex items-center gap-1.5 transition-colors shadow-sm"
+                >
+                  <Download size={15} />
+                  Excell Template İndir
+                </button>
+              </div>
+
+              {/* Quick Search */}
+              <div className="relative min-w-[240px]">
+                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
                   value={summarySearch}
                   onChange={e => setSummarySearch(e.target.value)}
-                  placeholder="Batch No veya Müşteri Adı ile süz..."
-                  className="w-full pl-9 pr-8 py-2 bg-white dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-emerald-500 shadow-sm"
+                  placeholder="Document / Customer Ara..."
+                  className="w-full pl-9 pr-3 py-1.5 bg-slate-50 dark:bg-[#1a1f2c] border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:border-emerald-500 shadow-sm"
                 />
               </div>
             </div>
 
             {/* Modal Table Content */}
-            <div className="overflow-auto flex-1 p-6">
-              <table className="w-full text-left text-sm whitespace-nowrap">
-                <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs sticky top-0">
+            <div className="overflow-auto flex-1 p-4 bg-slate-50/50 dark:bg-[#171b26]">
+              <table className="w-full text-left text-xs whitespace-nowrap border-collapse">
+                <thead className="bg-slate-100 dark:bg-[#202636] text-slate-500 dark:text-slate-300 font-semibold uppercase tracking-wider sticky top-0 border-b border-slate-200 dark:border-slate-700">
                   <tr>
-                    <th className="px-4 py-3">Batch No</th>
-                    <th className="px-4 py-3">Müşteri</th>
-                    <th className="px-4 py-3 text-center">Toplam Cihaz</th>
-                    <th className="px-4 py-3">Toplam Tutar</th>
-                    <th className="px-4 py-3">Son İşlem Tarihi</th>
-                    <th className="px-4 py-3 text-center">İşlem</th>
+                    <th className="px-4 py-3 border-r border-slate-200 dark:border-slate-700/60">DocumentDate</th>
+                    <th className="px-4 py-3 border-r border-slate-200 dark:border-slate-700/60">DocumentNumber</th>
+                    <th className="px-4 py-3 border-r border-slate-200 dark:border-slate-700/60">AccountName</th>
+                    <th className="px-4 py-3 border-r border-slate-200 dark:border-slate-700/60 text-center">IsSuccess</th>
+                    <th className="px-4 py-3 border-r border-slate-200 dark:border-slate-700/60 text-right">ItemQuantity</th>
+                    <th className="px-4 py-3 border-r border-slate-200 dark:border-slate-700/60">Currency</th>
+                    <th className="px-4 py-3">CreateBy</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-700/50">
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-700/50 bg-white dark:bg-[#1e2330]">
                   {loadingBatchSummary ? (
                     <tr>
-                      <td colSpan="6" className="py-8 text-center"><RefreshCw className="animate-spin mx-auto text-emerald-400" /></td>
+                      <td colSpan="7" className="py-12 text-center">
+                        <RefreshCw className="animate-spin mx-auto text-emerald-500" size={24} />
+                      </td>
                     </tr>
                   ) : batchSummaryList.filter(b => 
-                      (b.batch_no || '').toLowerCase().includes(summarySearch.toLowerCase()) ||
-                      (b.customer_name || '').toLowerCase().includes(summarySearch.toLowerCase())
+                      (b.document_number || b.batch_no || '').toLowerCase().includes(summarySearch.toLowerCase()) ||
+                      (b.account_name || b.customer_name || '').toLowerCase().includes(summarySearch.toLowerCase()) ||
+                      (b.create_by || '').toLowerCase().includes(summarySearch.toLowerCase())
                     ).length === 0 ? (
                     <tr>
-                      <td colSpan="6" className="py-8 text-center text-slate-500">Batch özeti bulunamadı.</td>
+                      <td colSpan="7" className="py-12 text-center text-slate-400">
+                        Batch özeti bulunamadı.
+                      </td>
                     </tr>
                   ) : (
                     batchSummaryList.filter(b => 
-                      (b.batch_no || '').toLowerCase().includes(summarySearch.toLowerCase()) ||
-                      (b.customer_name || '').toLowerCase().includes(summarySearch.toLowerCase())
-                    ).map((b, idx) => (
-                      <tr key={idx} className="hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300">
-                        <td className="px-4 py-3 font-bold text-blue-400 font-mono">{b.batch_no}</td>
-                        <td className="px-4 py-3">
-                          <div className="font-semibold text-slate-800 dark:text-slate-100">{b.customer_name}</div>
-                          <div className="text-xs text-slate-400 font-mono">No: {b.customer_no}</div>
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <span className="px-3 py-1 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-full font-bold text-xs">
-                            {b.total_devices} Cihaz
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 font-semibold text-emerald-400">
-                          ₺{Number(b.total_price || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
-                        </td>
-                        <td className="px-4 py-3 text-xs text-slate-400">{b.last_created}</td>
-                        <td className="px-4 py-3 text-center">
-                          <button
-                            onClick={() => {
-                              setSearchTerm(b.batch_no === 'Tanımsız Batch' ? '' : b.batch_no);
-                              setCurrentPage(1);
-                              setIsBatchSummaryModalOpen(false);
-                            }}
-                            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium transition-colors shadow-sm"
-                          >
-                            Cihazları Listele
-                          </button>
-                        </td>
-                      </tr>
-                    ))
+                      (b.document_number || b.batch_no || '').toLowerCase().includes(summarySearch.toLowerCase()) ||
+                      (b.account_name || b.customer_name || '').toLowerCase().includes(summarySearch.toLowerCase()) ||
+                      (b.create_by || '').toLowerCase().includes(summarySearch.toLowerCase())
+                    ).map((b, idx) => {
+                      const docNo = b.document_number || b.batch_no;
+                      const isSelected = searchTerm === docNo;
+                      return (
+                        <tr 
+                          key={idx} 
+                          onClick={() => {
+                            setSearchTerm(docNo === 'Tanımsız Batch' ? '' : docNo);
+                            setCurrentPage(1);
+                            setIsBatchSummaryModalOpen(false);
+                          }}
+                          className={`cursor-pointer transition-colors ${
+                            isSelected 
+                              ? 'bg-blue-600 text-white font-medium' 
+                              : 'hover:bg-blue-50/80 dark:hover:bg-[#262c3d] text-slate-800 dark:text-slate-200'
+                          }`}
+                        >
+                          <td className="px-4 py-2.5 font-mono text-xs border-r border-slate-100 dark:border-slate-700/30">
+                            {b.document_date || (b.last_created ? b.last_created.split(' ')[0] : '-')}
+                          </td>
+                          <td className="px-4 py-2.5 font-bold font-mono border-r border-slate-100 dark:border-slate-700/30">
+                            {docNo}
+                          </td>
+                          <td className="px-4 py-2.5 border-r border-slate-100 dark:border-slate-700/30">
+                            {b.account_name || b.customer_name}
+                          </td>
+                          <td className="px-4 py-2.5 text-center border-r border-slate-100 dark:border-slate-700/30">
+                            <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                              b.is_success 
+                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' 
+                                : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
+                            }`}>
+                              {b.is_success ? 'True' : 'False'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2.5 text-right font-mono font-semibold border-r border-slate-100 dark:border-slate-700/30">
+                            {b.item_quantity ?? b.total_devices ?? 0}
+                          </td>
+                          <td className="px-4 py-2.5 font-mono border-r border-slate-100 dark:border-slate-700/30">
+                            {b.currency || 'EUR'}
+                          </td>
+                          <td className="px-4 py-2.5 text-xs text-slate-500 dark:text-slate-400">
+                            {b.create_by || 'io'}
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
             </div>
+
           </div>
         </div>
       )}

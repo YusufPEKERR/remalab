@@ -6306,7 +6306,7 @@ class WebBridge(QObject):
                     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
                 );
             """))
-            # Mevcut tabloya currency kolonu yoksa ekle
+            # Mevcut tabloya currency, is_success, created_by kolonları yoksa ekle
             db.execute(text("""
                 DO $$
                 BEGIN
@@ -6315,6 +6315,18 @@ class WebBridge(QObject):
                         WHERE table_schema = 'warehouse' AND table_name = 'batch_entries' AND column_name = 'currency'
                     ) THEN
                         ALTER TABLE warehouse.batch_entries ADD COLUMN currency VARCHAR(10) DEFAULT 'EUR';
+                    END IF;
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_schema = 'warehouse' AND table_name = 'batch_entries' AND column_name = 'is_success'
+                    ) THEN
+                        ALTER TABLE warehouse.batch_entries ADD COLUMN is_success BOOLEAN DEFAULT false;
+                    END IF;
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_schema = 'warehouse' AND table_name = 'batch_entries' AND column_name = 'created_by'
+                    ) THEN
+                        ALTER TABLE warehouse.batch_entries ADD COLUMN created_by VARCHAR(100) DEFAULT 'io';
                     END IF;
                 END $$;
             """))
@@ -6500,13 +6512,20 @@ class WebBridge(QObject):
         from sqlalchemy import text
         db = SessionLocal()
         try:
+            self._ensure_batch_entries_table()
             sql = """
                 SELECT 
+                    COALESCE(NULLIF(batch_no, ''), 'Tanımsız Batch') AS document_number,
                     COALESCE(NULLIF(batch_no, ''), 'Tanımsız Batch') AS batch_no,
+                    MAX(customer_name) AS account_name,
                     MAX(customer_name) AS customer_name,
                     MAX(customer_no) AS customer_no,
+                    COUNT(*) AS item_quantity,
                     COUNT(*) AS total_devices,
                     SUM(COALESCE(unit_price, 0)) AS total_price,
+                    COALESCE(MAX(NULLIF(currency, '')), 'EUR') AS currency,
+                    COALESCE(BOOL_AND(COALESCE(is_success, false)), false) AS is_success,
+                    COALESCE(MAX(NULLIF(created_by, '')), 'io') AS create_by,
                     MAX(created_at) AS last_created
                 FROM warehouse.batch_entries
                 GROUP BY COALESCE(NULLIF(batch_no, ''), 'Tanımsız Batch')
@@ -6515,6 +6534,15 @@ class WebBridge(QObject):
             rows = db.execute(text(sql)).mappings().all()
 
             batches = [{
+                "document_date": r["last_created"].strftime("%d.%m.%Y") if r["last_created"] else "-",
+                "document_number": r["document_number"],
+                "account_name": r["account_name"] or "-",
+                "is_success": bool(r["is_success"]),
+                "item_quantity": int(r["item_quantity"]),
+                "currency": r["currency"] or "EUR",
+                "create_by": r["create_by"] or "io",
+
+                # Legacy/compatibility fields
                 "batch_no": r["batch_no"],
                 "customer_name": r["customer_name"] or "-",
                 "customer_no": r["customer_no"] or "-",
