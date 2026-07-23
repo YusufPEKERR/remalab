@@ -338,6 +338,16 @@ export default function BatchEntry() {
     ].filter(([name]) => Boolean(name))).values()
   );
 
+  const customerNameOptions = useMemo(() => {
+    const list = (customerList || []).map(c => c.customer_name || c.short_name || c.code).filter(Boolean);
+    return [...new Set(list)];
+  }, [customerList]);
+
+  const batchNoOptions = useMemo(() => {
+    const list = (batchSummaryList || []).map(b => b.document_number || b.batch_no || b.internal_id || '').filter(Boolean);
+    return [...new Set(list)];
+  }, [batchSummaryList]);
+
   // Arama veya filtre aktifse tüm kayıtları göster, yoksa müşteri başına tek kayıt göster
   const filteredSummaryList = useMemo(() => {
     let list = [...batchSummaryList];
@@ -786,6 +796,24 @@ export default function BatchEntry() {
             >
               <option value="Tümü">Akış: Tümü</option>
               {FLOW_OPTIONS.map(f => <option key={f} value={f}>{f}</option>)}
+            </select>
+          </div>
+
+          <div className="w-52">
+            <select
+              value={searchTerm}
+              onChange={(e) => {
+                const val = e.target.value;
+                setSearchTerm(val);
+                setCurrentPage(1);
+              }}
+              className="w-full px-3 py-2 bg-white dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 shadow-sm cursor-pointer"
+            >
+              <option value="">Batch: Tümü</option>
+              {(batchSummaryList || []).map((b, idx) => {
+                const batchLabel = b.document_number || b.batch_no || b.internal_id || `Batch-${idx + 1}`;
+                return <option key={batchLabel + idx} value={batchLabel}>{batchLabel}</option>;
+              })}
             </select>
           </div>
 
