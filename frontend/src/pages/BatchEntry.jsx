@@ -629,8 +629,8 @@ export default function BatchEntry() {
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm("Bu Batch kaydını silmek istediğinize emin misiniz?")) {
-      const res = await api.deleteBatchEntry(id);
+    if (window.confirm("Bu Batch kaydını ve içindeki tüm cihazları silmek istediğinize emin misiniz?")) {
+      const res = await api.bulkDeleteBatchEntries([id]);
       if (res.success) {
         fetchRecords();
         fetchCustomerGroups();
