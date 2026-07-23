@@ -341,7 +341,7 @@ export default function BatchEntry() {
 
   // Arama veya filtre aktifse tüm kayıtları göster, yoksa müşteri başına tek kayıt göster
   const filteredSummaryList = useMemo(() => {
-    let list = batchSummaryList;
+    let list = [...batchSummaryList];
     if (searchTerm) {
       const q = searchTerm.toLowerCase();
       list = list.filter(b => 
@@ -353,6 +353,22 @@ export default function BatchEntry() {
     if (selectedCustomerFilter) {
       list = list.filter(b => b.account_name === selectedCustomerFilter || b.customer_name === selectedCustomerFilter);
     }
+
+    const now = Date.now();
+    list.sort((a, b) => {
+      const getDiff = (item) => {
+        const raw = item.document_date || item.last_created || item.created_at;
+        if (!raw) return Number.POSITIVE_INFINITY;
+
+        const date = new Date(String(raw).split(' ')[0] || raw);
+        if (Number.isNaN(date.getTime())) return Number.POSITIVE_INFINITY;
+
+        return Math.abs(date.getTime() - now);
+      };
+
+      return getDiff(a) - getDiff(b);
+    });
+
     return list;
   }, [batchSummaryList, searchTerm, selectedCustomerFilter]);
 
