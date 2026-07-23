@@ -46,6 +46,14 @@ export default function BatchEntry() {
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
 
+  // Ana tabloda müşteri bazlı gruplu görünüm
+  const [customerGroups, setCustomerGroups] = useState([]);
+
+  const fetchCustomerGroups = async () => {
+    const res = await api.getBatchSummary();
+    if (res.success) setCustomerGroups(res.batches || []);
+  };
+
   // Batch Summary Table Modal State
   const [isBatchSummaryModalOpen, setIsBatchSummaryModalOpen] = useState(false);
   const [batchSummaryList, setBatchSummaryList] = useState([]);
@@ -168,6 +176,7 @@ export default function BatchEntry() {
       if (res.success) {
         setSelectedIds([]);
         fetchRecords();
+        fetchCustomerGroups();
       } else {
         alert("Toplu silme hatası: " + (res.message || ""));
       }
@@ -182,6 +191,7 @@ export default function BatchEntry() {
     if (res.success) {
       setSelectedIds([]);
       fetchRecords();
+      fetchCustomerGroups();
     } else {
       alert("Toplu akış güncelleme hatası: " + (res.message || ""));
     }
@@ -232,6 +242,10 @@ export default function BatchEntry() {
     fetchRecords(currentPage, itemsPerPage, searchTerm, selectedFlow);
     fetchCustomers();
   }, [currentPage, itemsPerPage, searchTerm, selectedFlow]);
+
+  useEffect(() => {
+    if (isGroupedView) fetchCustomerGroups();
+  }, [isGroupedView]);
 
   const handleCustomerNameChange = (e) => {
     const val = e.target.value;
@@ -316,6 +330,7 @@ export default function BatchEntry() {
     if (res.success) {
       setIsModalOpen(false);
       fetchRecords();
+      fetchCustomerGroups();
     } else {
       alert("Hata: " + (res.message || "İşlem gerçekleştirilemedi."));
     }
@@ -326,6 +341,7 @@ export default function BatchEntry() {
       const res = await api.deleteBatchEntry(id);
       if (res.success) {
         fetchRecords();
+        fetchCustomerGroups();
       } else {
         alert("Silme başarısız: " + (res.message || ""));
       }
@@ -396,6 +412,7 @@ export default function BatchEntry() {
     }
     setIsExcelModalOpen(false);
     fetchRecords();
+    fetchCustomerGroups();
   };
 
   return (
@@ -986,13 +1003,14 @@ export default function BatchEntry() {
                       (b.account_name || b.customer_name || '').toLowerCase().includes(summarySearch.toLowerCase()) ||
                       (b.create_by || '').toLowerCase().includes(summarySearch.toLowerCase())
                     ).map((b, idx) => {
-                      const docNo = b.document_number || b.batch_no || b.internal_id || b.serial_number || b.imei_number || '-';
-                      const isSelected = searchTerm === docNo;
+                      const docNo = b.document_number || b.batch_no || '-';
+                      const customerKey = b.customer_name || b.account_name || b.customer_no || '';
+                      const isSelected = searchTerm === customerKey;
                       return (
                         <tr
                           key={idx}
                           onClick={() => {
-                            setSearchTerm(docNo === 'Tanımsız Batch' ? '' : docNo);
+                            setSearchTerm(customerKey === 'Tanımsız Müşteri' ? '' : customerKey);
                             setCurrentPage(1);
                             setIsBatchSummaryModalOpen(false);
                           }}

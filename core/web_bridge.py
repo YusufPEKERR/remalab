@@ -6529,23 +6529,11 @@ class WebBridge(QObject):
                 print(f"[WebBridge] sync_customers_to_batch_entries hatası: {sync_err}")
 
             sql = """
-                SELECT 
-                    COALESCE(
-                        NULLIF(b.batch_no, ''),
-                        NULLIF(b.internal_id, ''),
-                        NULLIF(b.serial_number, ''),
-                        NULLIF(b.imei_number, ''),
-                        'Tanımsız Batch'
-                    ) AS document_number,
-                    COALESCE(
-                        NULLIF(b.batch_no, ''),
-                        NULLIF(b.internal_id, ''),
-                        NULLIF(b.serial_number, ''),
-                        NULLIF(b.imei_number, ''),
-                        'Tanımsız Batch'
-                    ) AS batch_no,
-                    COALESCE(MAX(NULLIF(b.customer_name, '')), MAX(NULLIF(c.customer_name, '')), '-') AS account_name,
-                    COALESCE(MAX(NULLIF(b.customer_name, '')), MAX(NULLIF(c.customer_name, '')), '-') AS customer_name,
+                SELECT
+                    COALESCE(MAX(NULLIF(b.customer_no, '')), MAX(NULLIF(c.code, '')), 'Tanımsız Müşteri') AS document_number,
+                    STRING_AGG(DISTINCT NULLIF(b.batch_no, ''), ', ') AS batch_no,
+                    COALESCE(MAX(NULLIF(b.customer_name, '')), MAX(NULLIF(c.customer_name, '')), 'Tanımsız Müşteri') AS account_name,
+                    COALESCE(MAX(NULLIF(b.customer_name, '')), MAX(NULLIF(c.customer_name, '')), 'Tanımsız Müşteri') AS customer_name,
                     COALESCE(MAX(NULLIF(b.customer_no, '')), MAX(NULLIF(c.code, '')), '-') AS customer_no,
                     COUNT(*) AS item_quantity,
                     COUNT(*) AS total_devices,
@@ -6556,13 +6544,7 @@ class WebBridge(QObject):
                     MAX(b.created_at) AS last_created
                 FROM warehouse.batch_entries b
                 LEFT JOIN warehouse.customers c ON (LOWER(b.customer_name) = LOWER(c.customer_name) OR b.customer_no = c.code)
-                GROUP BY COALESCE(
-                    NULLIF(b.batch_no, ''),
-                    NULLIF(b.internal_id, ''),
-                    NULLIF(b.serial_number, ''),
-                    NULLIF(b.imei_number, ''),
-                    'Tanımsız Batch'
-                )
+                GROUP BY COALESCE(NULLIF(b.customer_no, ''), NULLIF(b.customer_name, ''), 'Tanımsız Müşteri')
                 ORDER BY MAX(b.created_at) DESC;
             """
             rows = db.execute(text(sql)).mappings().all()
