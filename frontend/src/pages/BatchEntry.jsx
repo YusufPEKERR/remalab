@@ -321,6 +321,7 @@ export default function BatchEntry() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFlow, setSelectedFlow] = useState('Tümü');
   const [selectedCustomerFilter, setSelectedCustomerFilter] = useState('');
+  const [selectedBatchFilter, setSelectedBatchFilter] = useState('');
   const availableCustomers = Array.from(
     new Map([
       ...customerList.map(c => [
@@ -371,6 +372,12 @@ export default function BatchEntry() {
     if (selectedCustomerFilter) {
       list = list.filter(b => b.account_name === selectedCustomerFilter || b.customer_name === selectedCustomerFilter);
     }
+    if (selectedBatchFilter) {
+      list = list.filter(b => {
+        const batchLabel = b.document_number || b.batch_no || b.internal_id || '';
+        return batchLabel === selectedBatchFilter;
+      });
+    }
 
     const now = Date.now();
     list.sort((a, b) => {
@@ -388,7 +395,7 @@ export default function BatchEntry() {
     });
 
     return list;
-  }, [batchSummaryList, searchTerm, selectedCustomerFilter]);
+  }, [batchSummaryList, searchTerm, selectedCustomerFilter, selectedBatchFilter]);
 
   const paginatedSummary = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
@@ -816,10 +823,10 @@ export default function BatchEntry() {
 
           <div className="w-52">
             <select
-              value={searchTerm}
+              value={selectedBatchFilter}
               onChange={(e) => {
                 const val = e.target.value;
-                setSearchTerm(val);
+                setSelectedBatchFilter(val);
                 setCurrentPage(1);
               }}
               className="w-full px-3 py-2 bg-white dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 shadow-sm cursor-pointer"
@@ -832,11 +839,12 @@ export default function BatchEntry() {
             </select>
           </div>
 
-          {(searchTerm || selectedFlow !== 'Tümü' || selectedCustomerFilter) && (
+          {(searchTerm || selectedFlow !== 'Tümü' || selectedCustomerFilter || selectedBatchFilter) && (
             <button
               onClick={() => {
                 setSearchTerm('');
                 setSelectedCustomerFilter('');
+                setSelectedBatchFilter('');
                 setSelectedFlow('Tümü');
                 setCurrentPage(1);
               }}
