@@ -6552,8 +6552,9 @@ class WebBridge(QObject):
 
             sql = """
                 SELECT
-                    COALESCE(MAX(NULLIF(b.customer_no, '')), MAX(NULLIF(c.code, '')), 'Tanımsız Müşteri') AS document_number,
-                    STRING_AGG(DISTINCT NULLIF(b.batch_no, ''), ', ') AS batch_no,
+                    MAX(b.id) AS id,
+                    COALESCE(NULLIF(b.batch_no, ''), 'Tanımsız Batch') AS document_number,
+                    b.batch_no AS batch_no,
                     COALESCE(MAX(NULLIF(b.customer_name, '')), MAX(NULLIF(c.customer_name, '')), 'Tanımsız Müşteri') AS account_name,
                     COALESCE(MAX(NULLIF(b.customer_name, '')), MAX(NULLIF(c.customer_name, '')), 'Tanımsız Müşteri') AS customer_name,
                     COALESCE(MAX(NULLIF(b.customer_no, '')), MAX(NULLIF(c.code, '')), '-') AS customer_no,
@@ -6566,12 +6567,15 @@ class WebBridge(QObject):
                     MAX(b.created_at) AS last_created
                 FROM warehouse.batch_entries b
                 LEFT JOIN warehouse.customers c ON (LOWER(b.customer_name) = LOWER(c.customer_name) OR b.customer_no = c.code)
-                GROUP BY COALESCE(NULLIF(b.customer_no, ''), NULLIF(b.customer_name, ''), 'Tanımsız Müşteri')
+                GROUP BY
+                    b.batch_no,
+                    COALESCE(NULLIF(b.customer_no, ''), LOWER(NULLIF(b.customer_name, '')), 'tanimsiz')
                 ORDER BY MAX(b.created_at) DESC;
             """
             rows = db.execute(text(sql)).mappings().all()
 
             batches = [{
+                "id": r["id"],
                 "document_date": r["last_created"].strftime("%d.%m.%Y") if r["last_created"] else "-",
                 "document_number": r["document_number"],
                 "account_name": r["account_name"] or "-",
