@@ -826,7 +826,6 @@ export default function BatchEntry() {
                 <th className="px-6 py-4">Müşteri</th>
                 <th className="px-6 py-4 text-center">Durum</th>
                 <th className="px-6 py-4 text-right">Miktar</th>
-                <th className="px-6 py-4">Tutar / Para Birimi</th>
                 <th className="px-6 py-4">Oluşturan</th>
                 <th className="px-6 py-4 text-center">İşlemler</th>
               </tr>
@@ -834,11 +833,11 @@ export default function BatchEntry() {
             <tbody className="divide-y divide-slate-700/50">
               {loadingBatchSummary ? (
                 <tr>
-                  <td colSpan="9" className="px-6 py-8 text-center"><RefreshCw className="animate-spin mx-auto text-blue-400" /></td>
+                  <td colSpan="8" className="px-6 py-8 text-center"><RefreshCw className="animate-spin mx-auto text-blue-400" /></td>
                 </tr>
               ) : paginatedSummary.length === 0 ? (
                 <tr>
-                  <td colSpan="9" className="px-6 py-8 text-center text-slate-500">Kayıt bulunamadı.</td>
+                  <td colSpan="8" className="px-6 py-8 text-center text-slate-500">Kayıt bulunamadı.</td>
                 </tr>
               ) : (
                 paginatedSummary.map(rec => (
@@ -860,9 +859,6 @@ export default function BatchEntry() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right font-mono font-bold text-slate-700 dark:text-slate-300">{rec.item_quantity || 0}</td>
-                    <td className="px-6 py-4 text-xs">
-                      {rec.total_price} <span className="text-slate-400">{rec.currency}</span>
-                    </td>
                     <td className="px-6 py-4 text-xs text-slate-400">{rec.create_by || '-'}</td>
                     <td className="px-6 py-4 text-center">
                       <div className="flex justify-center gap-3">
