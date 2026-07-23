@@ -821,8 +821,18 @@ export default function BatchEntry() {
                 })
                 .map((c, idx) => {
                   const label = c.short_name || c.customer_name || c.code || 'Müşteri';
-                  return <option key={c.id || idx} value={label}>{c.code ? `[${c.code}] ` : ''}{label}</option>;
-              })}
+                  const rawCode = String(c.code || c.customer_no || '').replace(/\D/g, '');
+                  const numericCode = rawCode ? Number(rawCode) : Number.NEGATIVE_INFINITY;
+                  return { label, c, idx, numericCode };
+                })
+                .sort((a, b) => {
+                  const aVal = Number.isFinite(a.numericCode) ? a.numericCode : Number.NEGATIVE_INFINITY;
+                  const bVal = Number.isFinite(b.numericCode) ? b.numericCode : Number.NEGATIVE_INFINITY;
+                  return bVal - aVal;
+                })
+                .map(({ c, idx, label }) => (
+                  <option key={c.id || idx} value={label}>{c.code ? `[${c.code}] ` : ''}{label}</option>
+                ))}
             </select>
           </div>
 
