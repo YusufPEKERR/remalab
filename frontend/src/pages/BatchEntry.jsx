@@ -852,18 +852,6 @@ export default function BatchEntry() {
             <div className="flex items-center gap-3 bg-blue-500/10 border border-blue-500/30 text-blue-400 px-4 py-1.5 rounded-xl text-xs font-medium animate-in fade-in ml-auto">
               <span><b>{selectedIds.length}</b> kayıt seçildi</span>
               <div className="h-4 w-px bg-blue-500/30 mx-1" />
-              <select
-                onChange={e => {
-                  if (e.target.value) handleBulkFlowChange(e.target.value);
-                  e.target.value = '';
-                }}
-                className="bg-white dark:bg-[#242a38] text-slate-800 dark:text-slate-200 border border-blue-500/30 rounded-lg px-2.5 py-1 text-xs cursor-pointer focus:outline-none"
-              >
-                <option value="">Toplu Akış Değiştir...</option>
-                {FLOW_OPTIONS.filter(f => f !== 'Hepsi').map(f => (
-                  <option key={f} value={f}>{f}</option>
-                ))}
-              </select>
               <button
                 onClick={handleBulkDelete}
                 className="flex items-center gap-1 bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-lg text-xs font-semibold transition-colors shadow-sm"
