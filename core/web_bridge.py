@@ -6454,6 +6454,19 @@ class WebBridge(QObject):
         db = SessionLocal()
         try:
             d = json.loads(data_json or "{}")
+            
+            # Validation: Aynı batch numarasıyla farklı müşteri olamaz
+            batch_no = d.get("batch_no", "").strip()
+            customer_name = d.get("customer_name", "").strip()
+            
+            if batch_no:
+                existing_batch = db.query(BatchEntry).filter(BatchEntry.batch_no == batch_no).first()
+                if existing_batch and existing_batch.customer_name and existing_batch.customer_name.strip().lower() != customer_name.lower():
+                    return json.dumps({
+                        "success": False, 
+                        "message": f"Bu batch numarası ({batch_no}) başka bir müşteriye ({existing_batch.customer_name}) aittir. Aynı batch numarasıyla farklı müşteri kaydı oluşturulamaz."
+                    })
+
             new_entry = BatchEntry(
                 customer_no=d.get("customer_no", "").strip(),
                 customer_name=d.get("customer_name", "").strip(),
@@ -6492,6 +6505,23 @@ class WebBridge(QObject):
                 return json.dumps({"success": False, "message": "Kayıt bulunamadı."})
 
             d = json.loads(data_json or "{}")
+            
+            # Validation: Aynı batch numarasıyla farklı müşteri olamaz
+            new_batch_no = d.get("batch_no", entry.batch_no).strip()
+            new_customer_name = d.get("customer_name", entry.customer_name).strip()
+            
+            if new_batch_no:
+                # Kendisi dışındaki kayıtları kontrol et
+                existing_batch = db.query(BatchEntry).filter(
+                    BatchEntry.batch_no == new_batch_no,
+                    BatchEntry.id != entry.id
+                ).first()
+                
+                if existing_batch and existing_batch.customer_name and existing_batch.customer_name.strip().lower() != new_customer_name.lower():
+                    return json.dumps({
+                        "success": False, 
+                        "message": f"Bu batch numarası ({new_batch_no}) başka bir müşteriye ({existing_batch.customer_name}) aittir. Aynı batch numarasıyla farklı müşteri güncellenemez."
+                    })
             entry.customer_no = d.get("customer_no", entry.customer_no).strip()
             entry.customer_name = d.get("customer_name", entry.customer_name).strip()
             entry.imei_number = d.get("imei_number", entry.imei_number).strip()

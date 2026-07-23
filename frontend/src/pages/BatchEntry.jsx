@@ -671,8 +671,9 @@ export default function BatchEntry() {
       return fallback;
     };
 
-    for (const item of data) {
-      await api.createBatchEntry({
+    let errors = [];
+    for (const [idx, item] of data.entries()) {
+      const res = await api.createBatchEntry({
         customer_no: getVal(item, ["customer_no", "Customer no", "Customer No", "Customer NO", "Müşteri No", "Musteri No", "Müşt. No"]),
         customer_name: getVal(item, ["customer_name", "Customer Name", "Customer name", "Customer NAME", "Müşteri Adı", "Musteri Adi", "Müşteri Unvanı"]),
         batch_no: getVal(item, ["batch_no", "Batch No", "Batch no", "Batch NO", "Parti No"]),
@@ -688,10 +689,18 @@ export default function BatchEntry() {
         flow: getVal(item, ["flow", "Flow", "Akış", "Durum"], "Refurbish"),
         unit_price: parseFloat(getVal(item, ["unit_price", "Unit Price", "Birim Fiyat", "Fiyat"], "0")) || 0
       });
+      if (!res.success) {
+        errors.push(`Satır ${idx + 1}: ${res.message}`);
+      }
     }
+    
     setIsExcelModalOpen(false);
     fetchRecords();
     fetchCustomerGroups();
+    
+    if (errors.length > 0) {
+      alert("Bazı kayıtlar içe aktarılamadı:\n" + errors.join("\n"));
+    }
   };
 
   return (
