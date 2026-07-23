@@ -80,14 +80,14 @@ export default function BatchEntry() {
     try {
       const exportData = batchSummaryList.map(b => ({
         "DocumentDate": b.document_date || (b.last_created ? b.last_created.split(' ')[0] : '-'),
-        "DocumentNumber": b.document_number || b.batch_no || '-',
-        "AccountName": b.account_name || b.customer_name || '-',
+        "DocumentNumber": b.document_number || b.batch_no || b.internal_id || b.serial_number || b.imei_number || '-',
+        "CustomerName": b.account_name || b.customer_name || '-',
         "IsSuccess": b.is_success ? "True" : "False",
         "ItemQuantity": b.item_quantity ?? b.total_devices ?? 0,
         "Currency": b.currency || 'EUR',
         "CreateBy": b.create_by || 'io'
       }));
-      await api.exportTableToExcel(exportData, "SERVIS_GIRIS_SIPARIS.xlsx");
+      await api.exportTableToExcel(exportData, "Batch_Tablosu.xlsx");
     } catch (e) {
       console.error("Export summary excel error:", e);
       alert("Excel aktarımı sırasında bir hata oluştu.");
@@ -219,6 +219,13 @@ export default function BatchEntry() {
       setTotalCount(res.total || 0);
     }
     setLoading(false);
+    
+    // Arka planda özet tablosunu da her zaman güncel tut
+    api.getBatchSummary().then(sumRes => {
+      if (sumRes && sumRes.success) {
+        setBatchSummaryList(sumRes.batches || []);
+      }
+    });
   };
 
   useEffect(() => {
@@ -290,8 +297,12 @@ export default function BatchEntry() {
     e.preventDefault();
 
     const imei = (formData.imei_number || '').trim();
-    if (!imei || imei.length !== 15 || !/^\d{15}$/.test(imei)) {
-      alert("Hata: IMEI numarası 15 haneli ve sadece rakamlardan oluşmalıdır.");
+    const serial = (formData.serial_number || '').trim();
+    const internal = (formData.internal_id || '').trim();
+    const batchNo = (formData.batch_no || '').trim();
+
+    if (!imei && !serial && !internal && !batchNo) {
+      alert("Hata: Servis bilgilerinden (IMEI, Seri No, Internal ID veya Batch No) en az bir tanesini girmelisiniz.");
       return;
     }
 
@@ -333,20 +344,20 @@ export default function BatchEntry() {
       setLoading(false);
       if (allRes.success && allRes.records) {
         const exportData = allRes.records.map(r => ({
-          "Customer no": r.customer_no,
-          "Customer Name": r.customer_name,
-          "Batch No": r.batch_no,
-          "Internal ID": r.internal_id,
-          "IMEI Number": r.imei_number,
-          "Serial Number": r.serial_number,
-          "Model": r.model,
-          "GB": r.gb,
-          "Color": r.color,
-          "Defects": r.defects,
-          "Screen Test": r.screen_test,
-          "Power Test": r.power_test,
-          "Flow": r.flow,
-          "Unit Price": r.unit_price
+          "DocumentDate": r.document_date || (r.created_at ? r.created_at.split(' ')[0] : '-'),
+          "Customer No": r.customer_no || '',
+          "Customer Name": r.customer_name || '',
+          "Batch No": r.batch_no || '',
+          "Internal ID": r.internal_id || '',
+          "IMEI Number": r.imei_number || '',
+          "Serial Number": r.serial_number || '',
+          "Model": r.model || '',
+          "GB": r.gb || '',
+          "Color": r.color || '',
+          "Defects": r.defects || '',
+          "Screen Test": r.screen_test || '',
+          "Power Test": r.power_test || '',
+          "Flow": r.flow || ''
         }));
         await api.exportTableToExcel(exportData, "batch_giris_listesi.xlsx");
       }
@@ -547,18 +558,18 @@ export default function BatchEntry() {
                 <th className="px-6 py-4">Cihaz</th>
                 <th className="px-6 py-4">Kusur / Testler</th>
                 <th className="px-6 py-4">Akış Durumu</th>
-                <th className="px-6 py-4 text-xs">Tarih</th>
+                <th className="px-6 py-4 text-xs font-semibold">Tarih</th>
                 <th className="px-6 py-4 text-center">İşlemler</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-700/50">
               {loading ? (
                 <tr>
-                  <td colSpan="9" className="px-6 py-8 text-center"><RefreshCw className="animate-spin mx-auto text-blue-400" /></td>
+                  <td colSpan="8" className="px-6 py-8 text-center"><RefreshCw className="animate-spin mx-auto text-blue-400" /></td>
                 </tr>
               ) : records.length === 0 ? (
                 <tr>
-                  <td colSpan="9" className="px-6 py-8 text-center text-slate-500">Kayıt bulunamadı.</td>
+                  <td colSpan="8" className="px-6 py-8 text-center text-slate-500">Kayıt bulunamadı.</td>
                 </tr>
               ) : (
                 records.map(rec => (
@@ -597,8 +608,8 @@ export default function BatchEntry() {
                         {rec.flow}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-xs text-slate-400">
-                      {rec.created_at}
+                    <td className="px-6 py-4 text-xs font-mono font-medium text-slate-700 dark:text-slate-300">
+                      {rec.document_date || (rec.created_at ? rec.created_at.split(' ')[0] : '-')}
                     </td>
                     <td className="px-6 py-4 text-center">
                       <div className="flex justify-center gap-3">
@@ -709,22 +720,25 @@ export default function BatchEntry() {
 
               {/* BÖLÜM 2: Servis Bilgileri */}
               <div className="bg-slate-50/50 dark:bg-[#242a38]/40 p-4 rounded-xl border border-slate-200 dark:border-slate-700/50">
-                <h3 className="text-sm font-semibold text-indigo-400 mb-3 flex items-center gap-2 uppercase tracking-wider">
+                <h3 className="text-sm font-semibold text-indigo-400 mb-1 flex items-center gap-2 uppercase tracking-wider">
                   <Wrench size={16} /> 2. Servis Bilgileri
                 </h3>
+                <p className="text-xs text-slate-400 mb-3">
+                  *(IMEI, Seri No, Dahili Kimlik veya Batch No bilgilerinden herhangi birinin girilmesi cihazın tanınması ve kaydedilmesi için yeterlidir)
+                </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm text-slate-400 mb-1">
-                      IMEI Number (IMEI Numarası) <span className="text-red-400 font-semibold">* (15 Haneli)</span>
+                      IMEI Number (IMEI Numarası)
                     </label>
                     <input
                       type="text"
-                      maxLength={15}
+                      maxLength={20}
                       className="w-full bg-white dark:bg-[#0f1219] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-blue-500 font-mono tracking-wider"
                       value={formData.imei_number}
-                      onChange={e => handleAutoLookup('imei_number', e.target.value.replace(/\D/g, ''))}
-                      onBlur={e => handleAutoLookup('imei_number', e.target.value.replace(/\D/g, ''))}
-                      placeholder="15 haneli IMEI giriniz"
+                      onChange={e => handleAutoLookup('imei_number', e.target.value)}
+                      onBlur={e => handleAutoLookup('imei_number', e.target.value)}
+                      placeholder="IMEI giriniz (örn: 358901234567890)"
                     />
                   </div>
                   <div>
@@ -768,7 +782,7 @@ export default function BatchEntry() {
                 <h3 className="text-sm font-semibold text-purple-400 mb-3 flex items-center gap-2 uppercase tracking-wider">
                   <Smartphone size={16} /> 3. Cihaz Bilgileri
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-sm text-slate-400 mb-1">Model (Cihaz Modeli)</label>
                     <input
@@ -929,7 +943,7 @@ export default function BatchEntry() {
                   type="text"
                   value={summarySearch}
                   onChange={e => setSummarySearch(e.target.value)}
-                  placeholder="Document / Customer Ara..."
+                  placeholder="Batch / Customer Ara..."
                   className="w-full pl-9 pr-3 py-1.5 bg-slate-50 dark:bg-[#1a1f2c] border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:border-emerald-500 shadow-sm"
                 />
               </div>
@@ -942,7 +956,7 @@ export default function BatchEntry() {
                   <tr>
                     <th className="px-4 py-3 border-r border-slate-200 dark:border-slate-700/60">DocumentDate</th>
                     <th className="px-4 py-3 border-r border-slate-200 dark:border-slate-700/60">DocumentNumber</th>
-                    <th className="px-4 py-3 border-r border-slate-200 dark:border-slate-700/60">AccountName</th>
+                    <th className="px-4 py-3 border-r border-slate-200 dark:border-slate-700/60">CustomerName</th>
                     <th className="px-4 py-3 border-r border-slate-200 dark:border-slate-700/60 text-center">IsSuccess</th>
                     <th className="px-4 py-3 border-r border-slate-200 dark:border-slate-700/60 text-right">ItemQuantity</th>
                     <th className="px-4 py-3 border-r border-slate-200 dark:border-slate-700/60">Currency</th>
@@ -972,7 +986,7 @@ export default function BatchEntry() {
                       (b.account_name || b.customer_name || '').toLowerCase().includes(summarySearch.toLowerCase()) ||
                       (b.create_by || '').toLowerCase().includes(summarySearch.toLowerCase())
                     ).map((b, idx) => {
-                      const docNo = b.document_number || b.batch_no;
+                      const docNo = b.document_number || b.batch_no || b.internal_id || b.serial_number || b.imei_number || '-';
                       const isSelected = searchTerm === docNo;
                       return (
                         <tr

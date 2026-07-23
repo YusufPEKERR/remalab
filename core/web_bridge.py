@@ -6392,6 +6392,8 @@ class WebBridge(QObject):
 
             records = [{
                 "id": r["id"],
+                "document_date": r["created_at"].strftime("%d.%m.%Y") if r["created_at"] else "-",
+                "document_number": r["batch_no"] or r["internal_id"] or r["serial_number"] or r["imei_number"] or "-",
                 "customer_no": r["customer_no"] or "",
                 "customer_name": r["customer_name"] or "",
                 "imei_number": r["imei_number"] or "",
@@ -6521,13 +6523,30 @@ class WebBridge(QObject):
         db = SessionLocal()
         try:
             self._ensure_batch_entries_table()
+            try:
+                self.sync_customers_to_batch_entries()
+            except Exception as sync_err:
+                print(f"[WebBridge] sync_customers_to_batch_entries hatası: {sync_err}")
+
             sql = """
                 SELECT 
-                    COALESCE(NULLIF(b.batch_no, ''), 'Tanımsız Batch') AS document_number,
-                    COALESCE(NULLIF(b.batch_no, ''), 'Tanımsız Batch') AS batch_no,
-                    MAX(b.customer_name) AS account_name,
-                    MAX(b.customer_name) AS customer_name,
-                    MAX(b.customer_no) AS customer_no,
+                    COALESCE(
+                        NULLIF(b.batch_no, ''),
+                        NULLIF(b.internal_id, ''),
+                        NULLIF(b.serial_number, ''),
+                        NULLIF(b.imei_number, ''),
+                        'Tanımsız Batch'
+                    ) AS document_number,
+                    COALESCE(
+                        NULLIF(b.batch_no, ''),
+                        NULLIF(b.internal_id, ''),
+                        NULLIF(b.serial_number, ''),
+                        NULLIF(b.imei_number, ''),
+                        'Tanımsız Batch'
+                    ) AS batch_no,
+                    COALESCE(MAX(NULLIF(b.customer_name, '')), MAX(NULLIF(c.customer_name, '')), '-') AS account_name,
+                    COALESCE(MAX(NULLIF(b.customer_name, '')), MAX(NULLIF(c.customer_name, '')), '-') AS customer_name,
+                    COALESCE(MAX(NULLIF(b.customer_no, '')), MAX(NULLIF(c.code, '')), '-') AS customer_no,
                     COUNT(*) AS item_quantity,
                     COUNT(*) AS total_devices,
                     SUM(COALESCE(b.unit_price, 0)) AS total_price,
@@ -6537,7 +6556,13 @@ class WebBridge(QObject):
                     MAX(b.created_at) AS last_created
                 FROM warehouse.batch_entries b
                 LEFT JOIN warehouse.customers c ON (LOWER(b.customer_name) = LOWER(c.customer_name) OR b.customer_no = c.code)
-                GROUP BY COALESCE(NULLIF(b.batch_no, ''), 'Tanımsız Batch')
+                GROUP BY COALESCE(
+                    NULLIF(b.batch_no, ''),
+                    NULLIF(b.internal_id, ''),
+                    NULLIF(b.serial_number, ''),
+                    NULLIF(b.imei_number, ''),
+                    'Tanımsız Batch'
+                )
                 ORDER BY MAX(b.created_at) DESC;
             """
             rows = db.execute(text(sql)).mappings().all()
@@ -6627,7 +6652,7 @@ class WebBridge(QObject):
     @Slot(str, result=str)
     def lookup_batch_entry(self, search_term):
         from models.batch_entry import BatchEntry
-        from sqlalchemy import func
+        from sqlalchemy import func, text
         db = SessionLocal()
         try:
             term = (search_term or "").strip()
@@ -6635,14 +6660,17 @@ class WebBridge(QObject):
                 return json.dumps({"success": False, "message": "Arama terimi çok kısa."})
             
             term_lower = term.lower()
+            
+            # 1. Search in warehouse.batch_entries (Exact Match)
             entry = db.query(BatchEntry).filter(
-                (func.lower(BatchEntry.imei_number) == term_lower) |
-                (func.lower(BatchEntry.serial_number) == term_lower) |
-                (func.lower(BatchEntry.internal_id) == term_lower) |
-                (func.lower(BatchEntry.batch_no) == term_lower) |
-                (func.lower(BatchEntry.customer_no) == term_lower)
+                (func.lower(func.trim(BatchEntry.imei_number)) == term_lower) |
+                (func.lower(func.trim(BatchEntry.serial_number)) == term_lower) |
+                (func.lower(func.trim(BatchEntry.internal_id)) == term_lower) |
+                (func.lower(func.trim(BatchEntry.batch_no)) == term_lower) |
+                (func.lower(func.trim(BatchEntry.customer_no)) == term_lower)
             ).order_by(BatchEntry.id.desc()).first()
 
+            # 2. Search in warehouse.batch_entries (ILIKE Partial Match)
             if not entry and len(term) >= 3:
                 entry = db.query(BatchEntry).filter(
                     (BatchEntry.imei_number.ilike(f"%{term}%")) |
@@ -6664,6 +6692,7 @@ class WebBridge(QObject):
                     "gb": entry.gb or '',
                     "color": entry.color or '',
                     "unit_price": float(entry.unit_price or 0.0),
+                    "currency": entry.currency or 'EUR',
                     "defects": entry.defects or '',
                     "screen_test": entry.screen_test or '',
                     "power_test": entry.power_test or '',
@@ -6671,18 +6700,24 @@ class WebBridge(QObject):
                 }
                 return json.dumps({"success": True, "found": True, "data": data}, ensure_ascii=False)
 
-            # If not in BatchEntry, search warehouse.customers (MIO Create)
-            from sqlalchemy import text
+            # 3. Search in warehouse.customers (MIO Create)
             c_row = db.execute(text("""
                 SELECT id, customer_name, code, short_name, imei_number, serial_number, internal_id,
                        brand, model, flow, customer_reported_complaint, currency
                 FROM warehouse.customers
-                WHERE LOWER(TRIM(imei_number)) = LOWER(:t)
-                   OR LOWER(TRIM(serial_number)) = LOWER(:t)
-                   OR LOWER(TRIM(internal_id)) = LOWER(:t)
-                   OR LOWER(TRIM(code)) = LOWER(:t)
+                WHERE LOWER(TRIM(COALESCE(imei_number, ''))) = LOWER(:t)
+                   OR LOWER(TRIM(COALESCE(serial_number, ''))) = LOWER(:t)
+                   OR LOWER(TRIM(COALESCE(internal_id, ''))) = LOWER(:t)
+                   OR LOWER(TRIM(COALESCE(code, ''))) = LOWER(:t)
+                   OR LOWER(TRIM(CONCAT('BATCH-MIO-', id))) = LOWER(:t)
+                   OR (LENGTH(:t) >= 3 AND (
+                       COALESCE(imei_number, '') ILIKE :t_like OR
+                       COALESCE(serial_number, '') ILIKE :t_like OR
+                       COALESCE(internal_id, '') ILIKE :t_like OR
+                       COALESCE(code, '') ILIKE :t_like
+                   ))
                 ORDER BY id DESC LIMIT 1
-            """), {"t": term}).mappings().first()
+            """), {"t": term, "t_like": f"%{term}%"}).mappings().first()
 
             if c_row:
                 data = {
@@ -6696,6 +6731,7 @@ class WebBridge(QObject):
                     "gb": '',
                     "color": '',
                     "unit_price": 0.0,
+                    "currency": c_row["currency"] or 'EUR',
                     "defects": c_row["customer_reported_complaint"] or '',
                     "screen_test": '',
                     "power_test": '',
@@ -6731,17 +6767,29 @@ class WebBridge(QObject):
                 internal = (r["internal_id"] or "").strip()
                 c_no = (r["code"] or "").strip()
                 c_name = (r["short_name"] or r["customer_name"] or "").strip()
+                mio_batch_no = f"BATCH-MIO-{r['id']}"
 
-                filters = []
+                filters = [BatchEntry.batch_no == mio_batch_no]
                 if imei: filters.append(BatchEntry.imei_number == imei)
                 if serial: filters.append(BatchEntry.serial_number == serial)
                 if internal: filters.append(BatchEntry.internal_id == internal)
                 
-                existing = None
-                if filters:
-                    existing = db.query(BatchEntry).filter(or_(*filters)).first()
+                existing = db.query(BatchEntry).filter(or_(*filters)).first()
 
-                if not existing:
+                if existing:
+                    changed = False
+                    if c_name and existing.customer_name != c_name:
+                        existing.customer_name = c_name
+                        changed = True
+                    if c_no and existing.customer_no != c_no:
+                        existing.customer_no = c_no
+                        changed = True
+                    if r["currency"] and existing.currency != r["currency"].upper():
+                        existing.currency = r["currency"].upper()
+                        changed = True
+                    if changed:
+                        existing.updated_at = datetime.now()
+                else:
                     full_model = " ".join(filter(None, [r["brand"], r["model"]])).strip()
                     flow_val = (r["flow"] or "").strip()
                     if flow_val not in ['Refurbish', 'Repair', 'RMA', 'Battery Replacement']:
@@ -6753,7 +6801,7 @@ class WebBridge(QObject):
                         imei_number=imei,
                         serial_number=serial,
                         internal_id=internal,
-                        batch_no=f"BATCH-MIO-{r['id']}",
+                        batch_no=mio_batch_no,
                         model=full_model,
                         gb='',
                         color='',
