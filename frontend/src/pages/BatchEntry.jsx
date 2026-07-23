@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import * as XLSX from 'xlsx';
 import { Plus, Trash2, Edit2, X, FileSpreadsheet, Search, RefreshCw, RotateCcw, User, Wrench, Smartphone, AlertCircle, Layers, Check, Download, Truck, FileText, Upload, AlertTriangle, CheckCircle, Table } from 'lucide-react';
 import { api } from '../services/api';
@@ -308,7 +308,7 @@ export default function BatchEntry() {
 
   // Pagination & Filters & Bulk Selection
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(50);
+  const [itemsPerPage, setItemsPerPage] = useState(100);
   const [totalCount, setTotalCount] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFlow, setSelectedFlow] = useState('Tümü');
@@ -338,6 +338,19 @@ export default function BatchEntry() {
       ])
     ].filter(([name]) => Boolean(name))).values()
   );
+
+  // Arama veya filtre aktifse tüm kayıtları göster, yoksa müşteri başına tek kayıt göster
+  const deduplicatedRecords = useMemo(() => {
+    const isFiltering = searchTerm.trim() !== '' || selectedCustomerFilter !== '';
+    if (isFiltering) return records;
+    const seen = new Set();
+    return records.filter(rec => {
+      const key = (rec.customer_name || '').trim().toLowerCase();
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [records, searchTerm, selectedCustomerFilter]);
 
   useEffect(() => {
     const loadCustomers = async () => {
@@ -799,7 +812,7 @@ export default function BatchEntry() {
                   />
                 </th>
                 <th className="px-6 py-4">Müşteri</th>
-                <th className="px-6 py-4">Servis & Batch Bilgisi</th>
+                <th className="px-6 py-4">Batch Bilgisi</th>
                 <th className="px-6 py-4">Cihaz</th>
                 <th className="px-6 py-4">Kusur / Testler</th>
                 <th className="px-6 py-4">Akış Durumu</th>
@@ -812,12 +825,12 @@ export default function BatchEntry() {
                 <tr>
                   <td colSpan="8" className="px-6 py-8 text-center"><RefreshCw className="animate-spin mx-auto text-blue-400" /></td>
                 </tr>
-              ) : records.length === 0 ? (
+              ) : deduplicatedRecords.length === 0 ? (
                 <tr>
                   <td colSpan="8" className="px-6 py-8 text-center text-slate-500">Kayıt bulunamadı.</td>
                 </tr>
               ) : (
-                records.map(rec => (
+                deduplicatedRecords.map(rec => (
                   <tr key={rec.id} className={`hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 transition-colors ${selectedIds.includes(rec.id) ? 'bg-blue-500/5 dark:bg-blue-500/10' : ''}`}>
                     <td className="px-4 py-4 text-center">
                       <input
@@ -875,20 +888,53 @@ export default function BatchEntry() {
 
         {/* Footer Pagination */}
         <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-700/50 bg-slate-50 dark:bg-[#1a1f2b] flex items-center justify-between text-xs text-slate-400">
-          <div>Toplam <b>{totalCount}</b> kayıt</div>
           <div className="flex items-center gap-2">
+            <span>Sayfa Başına:</span>
+            <select
+              value={itemsPerPage}
+              onChange={(e) => {
+                setItemsPerPage(Number(e.target.value));
+                setCurrentPage(1);
+              }}
+              className="px-2 py-1 bg-white dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 font-medium cursor-pointer focus:outline-none"
+            >
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+              <option value={250}>250</option>
+              <option value={500}>500</option>
+            </select>
+          </div>
+
+          <div className="flex items-center gap-3">
             <button
               disabled={currentPage === 1}
               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              className="px-3 py-1.5 bg-slate-200 dark:bg-slate-700 disabled:opacity-40 rounded-lg"
+              className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 disabled:opacity-40 rounded-lg text-slate-700 dark:text-slate-300 font-medium hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
             >
               ← Önceki
             </button>
-            <span>Sayfa {currentPage} / {totalPages}</span>
+
+            <div className="flex items-center gap-1.5">
+              <span>Sayfa:</span>
+              <input
+                type="number"
+                min={1}
+                max={totalPages || 1}
+                value={currentPage}
+                onChange={(e) => {
+                  const p = parseInt(e.target.value, 10);
+                  if (p >= 1 && p <= (totalPages || 1)) setCurrentPage(p);
+                }}
+                className="w-14 px-2 py-1 bg-white dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg text-center font-bold text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+              />
+              <span>/ {totalPages} <span className="text-slate-500 font-normal">({totalCount} Kayıt)</span></span>
+            </div>
+
             <button
               disabled={currentPage >= totalPages}
               onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-              className="px-3 py-1.5 bg-slate-200 dark:bg-slate-700 disabled:opacity-40 rounded-lg"
+              className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 disabled:opacity-40 rounded-lg text-slate-700 dark:text-slate-300 font-medium hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
             >
               Sonraki →
             </button>
@@ -1289,9 +1335,15 @@ export default function BatchEntry() {
                                 <td className="px-3.5 py-2.5 text-slate-700 dark:text-slate-300">{row.power_test || '-'}</td>
                                 <td className="px-3.5 py-2.5 max-w-xs truncate text-slate-700 dark:text-slate-300">{row.defects || '-'}</td>
                                 <td className="px-3.5 py-2.5">
-                                  <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                                    {row.flow || 'Refurbish'}
-                                  </span>
+                                  <select
+                                    value={row.flow || 'Refurbish'}
+                                    onChange={(e) => handleCellChange(idx, 'flow', e.target.value)}
+                                    className="bg-white dark:bg-[#242a38] border border-slate-200 dark:border-slate-600 rounded-lg px-2 py-1 text-xs font-semibold text-slate-800 dark:text-slate-200 cursor-pointer focus:outline-none focus:border-blue-500"
+                                  >
+                                    {FLOW_OPTIONS.filter(f => f !== 'Hepsi').map(f => (
+                                      <option key={f} value={f}>{f}</option>
+                                    ))}
+                                  </select>
                                 </td>
                               </tr>
                             );
