@@ -6358,18 +6358,40 @@ class WebBridge(QObject):
             params = {"limit": page_size, "offset": offset}
 
             if search_term and str(search_term).strip():
-                term = f"%{str(search_term).strip()}%"
-                where_clauses.append("""(
-                    customer_no ILIKE :search OR 
-                    customer_name ILIKE :search OR 
-                    imei_number ILIKE :search OR 
-                    serial_number ILIKE :search OR 
-                    internal_id ILIKE :search OR 
-                    batch_no ILIKE :search OR 
-                    model ILIKE :search OR 
-                    defects ILIKE :search
-                )""")
-                params["search"] = term
+                term_raw = str(search_term).strip()
+                term_like = f"%{term_raw}%"
+
+                # Önce tam eşleşen Batch No, Internal ID, Seri No veya IMEI var mı kontrol et
+                exact_count = db.execute(text("""
+                    SELECT COUNT(*) FROM warehouse.batch_entries
+                    WHERE LOWER(TRIM(COALESCE(batch_no, ''))) = LOWER(:t)
+                       OR LOWER(TRIM(COALESCE(internal_id, ''))) = LOWER(:t)
+                       OR LOWER(TRIM(COALESCE(serial_number, ''))) = LOWER(:t)
+                       OR LOWER(TRIM(COALESCE(imei_number, ''))) = LOWER(:t)
+                       OR LOWER(TRIM(COALESCE(customer_no, ''))) = LOWER(:t)
+                """), {"t": term_raw}).scalar()
+
+                if exact_count > 0:
+                    where_clauses.append("""(
+                        LOWER(TRIM(COALESCE(batch_no, ''))) = LOWER(:exact_term) OR 
+                        LOWER(TRIM(COALESCE(internal_id, ''))) = LOWER(:exact_term) OR 
+                        LOWER(TRIM(COALESCE(serial_number, ''))) = LOWER(:exact_term) OR 
+                        LOWER(TRIM(COALESCE(imei_number, ''))) = LOWER(:exact_term) OR 
+                        LOWER(TRIM(COALESCE(customer_no, ''))) = LOWER(:exact_term)
+                    )""")
+                    params["exact_term"] = term_raw
+                else:
+                    where_clauses.append("""(
+                        customer_no ILIKE :search OR 
+                        customer_name ILIKE :search OR 
+                        imei_number ILIKE :search OR 
+                        serial_number ILIKE :search OR 
+                        internal_id ILIKE :search OR 
+                        batch_no ILIKE :search OR 
+                        model ILIKE :search OR 
+                        defects ILIKE :search
+                    )""")
+                    params["search"] = term_like
 
             if flow_filter and str(flow_filter).strip() and str(flow_filter).strip().lower() != "tümü":
                 where_clauses.append("flow = :flow_filter")

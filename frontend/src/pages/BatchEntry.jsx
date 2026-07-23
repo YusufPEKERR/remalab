@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, Edit2, X, FileSpreadsheet, Search, RefreshCw, RotateCcw, User, Wrench, Smartphone, AlertCircle, Layers, Check, Download, Truck, FileText } from 'lucide-react';
+import * as XLSX from 'xlsx';
+import { Plus, Trash2, Edit2, X, FileSpreadsheet, Search, RefreshCw, RotateCcw, User, Wrench, Smartphone, AlertCircle, Layers, Check, Download, Truck, FileText, Upload, AlertTriangle, CheckCircle, Table } from 'lucide-react';
 import { api } from '../services/api';
 import ExcelMappingModal from '../components/ExcelMappingModal';
 
@@ -45,6 +46,14 @@ export default function BatchEntry() {
   const [editingRecord, setEditingRecord] = useState(null);
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
+  const [customerList, setCustomerList] = useState([]);
+  const [selectedIds, setSelectedIds] = useState([]);
+  // Modal Tabs & Excel Preview State
+  const [modalTab, setModalTab] = useState('excel'); // 'excel' | 'form'
+  const [excelFileData, setExcelFileData] = useState(null);
+  const [excelFileName, setExcelFileName] = useState('');
+  const [excelValidationErrors, setExcelValidationErrors] = useState([]);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
 
   // Batch Summary Table Modal State
   const [isBatchSummaryModalOpen, setIsBatchSummaryModalOpen] = useState(false);
@@ -85,23 +94,194 @@ export default function BatchEntry() {
   };
 
   const handleDownloadTemplate = async () => {
-    const templateData = [{
-      customer_no: 'CUST-001',
-      customer_name: 'Örnek Müşteri Ltd.',
-      batch_no: 'BATCH-2026-01',
-      internal_id: 'INT-9901',
-      imei_number: '358901234567890',
-      serial_number: 'SN99887766',
-      model: 'iPhone 13 Pro',
-      gb: '128GB',
-      color: 'Graphite',
-      defects: 'Dokunmatik yanıt vermiyor',
-      screen_test: 'BAŞARISIZ',
-      power_test: 'BAŞARILI',
-      flow: 'Refurbish',
-      unit_price: 1500
-    }];
-    await api.exportTableToExcel(templateData, "Batch_Entry_Template.xlsx");
+    let templateData = [];
+
+    if (editingRecord && excelFileData && excelFileData.length > 0) {
+      // Düzenlenen kaydın var olan dolu bilgilerini şablona aktar
+      templateData = excelFileData.map(item => ({
+        customer_no: item.customer_no || '',
+        customer_name: item.customer_name || '',
+        batch_no: item.batch_no || '',
+        internal_id: item.internal_id || '',
+        imei_number: item.imei_number || '',
+        serial_number: item.serial_number || '',
+        model: item.model || '',
+        gb: item.gb || '',
+        color: item.color || '',
+        screen_test: item.screen_test || '',
+        power_test: item.power_test || '',
+        defects: item.defects || '',
+        flow: item.flow || 'Refurbish'
+      }));
+    } else {
+      const custName = selectedCustomer?.name || 'Örnek Müşteri Ltd.';
+      const custNo = selectedCustomer?.no || 'CUST-001';
+
+      templateData = [
+        {
+          customer_no: custNo,
+          customer_name: custName,
+          batch_no: 'BATCH-2026-01',
+          internal_id: 'INT-9901',
+          imei_number: '358901234567890',
+          serial_number: 'SN99887766',
+          model: 'iPhone 13 Pro',
+          gb: '128GB',
+          color: 'Graphite',
+          defects: 'Dokunmatik yanıt vermiyor',
+          screen_test: 'BAŞARISIZ',
+          power_test: 'BAŞARILI',
+          flow: 'Refurbish'
+        }
+      ];
+    }
+
+    const safeName = editingRecord
+      ? `Kayit_${editingRecord.id}_Sablon.xlsx`
+      : `Batch_Template_${(selectedCustomer?.name || 'Genel').replace(/[^a-zA-Z0-9_\-]/g, '_')}.xlsx`;
+
+    await api.exportTableToExcel(templateData, safeName);
+  };
+
+  const handleExcelPreviewUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setExcelFileName(file.name);
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = new Uint8Array(event.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json(worksheet);
+
+        if (!rows || rows.length === 0) {
+          setExcelValidationErrors([{ row: 0, column: 'Genel', message: 'Seçilen Excel dosyasında veri bulunamadı.' }]);
+          setExcelFileData([]);
+          return;
+        }
+
+        const mappedRows = rows.map(r => {
+          const getVal = (keys) => {
+            for (const k of keys) {
+              if (r[k] !== undefined && r[k] !== null && String(r[k]).trim() !== '') {
+                return String(r[k]).trim();
+              }
+            }
+            return '';
+          };
+
+          return {
+            customer_no: getVal(['customer_no', 'Customer No', 'Müşteri No', 'Müşteri Kodu', 'Code']),
+            customer_name: getVal(['customer_name', 'Customer Name', 'Müşteri Adı', 'CustomerName', 'AccountName']),
+            batch_no: getVal(['batch_no', 'Batch No', 'BatchNo', 'Parti No', 'DocumentNumber']),
+            internal_id: getVal(['internal_id', 'Internal ID', 'InternalID', 'Dahili ID']),
+            imei_number: getVal(['imei_number', 'IMEI Number', 'IMEI', 'IMEINumber', 'Imei']),
+            serial_number: getVal(['serial_number', 'Serial Number', 'Seri No', 'SerialNumber', 'SN']),
+            model: getVal(['model', 'Model', 'Cihaz Modeli', 'Cihaz']),
+            gb: getVal(['gb', 'GB', 'Hafıza', 'Kapasite']),
+            color: getVal(['color', 'Color', 'Renk']),
+            defects: getVal(['defects', 'Defects', 'Kusur', 'Arıza']),
+            screen_test: getVal(['screen_test', 'Screen Test', 'ScreenTest', 'Ekran Testi']),
+            power_test: getVal(['power_test', 'Power Test', 'PowerTest', 'Güç Testi']),
+            flow: getVal(['flow', 'Flow', 'Akış', 'Durum']) || 'Refurbish'
+          };
+        });
+
+        const errors = [];
+        mappedRows.forEach((r, idx) => {
+          const rowNum = idx + 1;
+          if (!r.customer_name) {
+            errors.push({ row: rowNum, column: 'Customer Name (Müşteri Adı)', message: 'Müşteri Adı boş olamaz.' });
+          }
+          if (!r.imei_number && !r.serial_number && !r.internal_id && !r.batch_no) {
+            errors.push({ row: rowNum, column: 'Servis Bilgileri (Tanımlayıcı)', message: 'IMEI, Seri No, Dahili Kimlik veya Batch No alanlarından en az biri girilmelidir.' });
+          }
+          if (r.imei_number && (!/^\d+$/.test(r.imei_number) || r.imei_number.length !== 15)) {
+            errors.push({ row: rowNum, column: 'IMEI Number (IMEI Numarası)', message: `IMEI 15 haneli ve yalnız rakamlardan oluşmalıdır (Girilen: "${r.imei_number}").` });
+          }
+        });
+
+        setExcelFileData(mappedRows);
+        setExcelValidationErrors(errors);
+      } catch (err) {
+        setExcelValidationErrors([{ row: 0, column: 'Dosya Okuma', message: 'Excel dosyası okunurken hata oluştu: ' + err.message }]);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  const handleCellChange = (rowIndex, field, newValue) => {
+    if (!excelFileData) return;
+    const updated = [...excelFileData];
+    updated[rowIndex] = { ...updated[rowIndex], [field]: newValue };
+
+    const errors = [];
+    updated.forEach((r, idx) => {
+      const rowNum = idx + 1;
+      if (!r.customer_name) {
+        errors.push({ row: rowNum, column: 'Customer Name (Müşteri Adı)', message: 'Müşteri Adı boş olamaz.' });
+      }
+      if (!r.imei_number && !r.serial_number && !r.internal_id && !r.batch_no) {
+        errors.push({ row: rowNum, column: 'Servis Bilgileri (Tanımlayıcı)', message: 'IMEI, Seri No, Dahili Kimlik veya Batch No alanlarından en az biri girilmelidir.' });
+      }
+      if (r.imei_number && (!/^\d+$/.test(r.imei_number) || r.imei_number.length !== 15)) {
+        errors.push({ row: rowNum, column: 'IMEI Number (IMEI Numarası)', message: `IMEI 15 haneli ve yalnız rakamlardan oluşmalıdır (Girilen: "${r.imei_number}").` });
+      }
+    });
+
+    setExcelFileData(updated);
+    setExcelValidationErrors(errors);
+  };
+
+  const handleConfirmExcelImport = async () => {
+    if (!excelFileData || excelFileData.length === 0) {
+      alert("İçe aktarılacak veri bulunamadı.");
+      return;
+    }
+
+    setLoading(true);
+    let updatedCount = 0;
+    let createdCount = 0;
+
+    for (const item of excelFileData) {
+      // 1. Düzenleme modundaysak mevcut kaydı güncelle
+      if (editingRecord && (excelFileData.length === 1 || item.imei_number === editingRecord.imei_number || item.serial_number === editingRecord.serial_number || item.internal_id === editingRecord.internal_id)) {
+        const res = await api.updateBatchEntry(editingRecord.id, item);
+        if (res.success) updatedCount++;
+      } else {
+        // 2. Yüklenen Excel satırı sistemdeki mevcut bir kayıtla (IMEI, Seri No, Dahili ID) eşleşiyorsa güncelle
+        const existing = records.find(r => 
+          (item.imei_number && r.imei_number === item.imei_number) ||
+          (item.serial_number && r.serial_number === item.serial_number) ||
+          (item.internal_id && r.internal_id === item.internal_id)
+        );
+
+        if (existing) {
+          const res = await api.updateBatchEntry(existing.id, item);
+          if (res.success) updatedCount++;
+        } else {
+          const res = await api.createBatchEntry(item);
+          if (res.success) createdCount++;
+        }
+      }
+    }
+
+    setLoading(false);
+    let msg = "İşlem Tamamlandı:\n";
+    if (updatedCount > 0) msg += `• ${updatedCount} adet kayıt Excel verisiyle güncellendi.\n`;
+    if (createdCount > 0) msg += `• ${createdCount} adet yeni kayıt sisteme eklendi.`;
+    if (updatedCount === 0 && createdCount === 0) msg = "İşlem gerçekleştirilemedi veya değişiklik algılanmadı.";
+
+    alert(msg);
+    setIsModalOpen(false);
+    setExcelFileData(null);
+    setExcelFileName('');
+    setExcelValidationErrors([]);
+    setEditingRecord(null);
+    fetchRecords();
   };
 
   // Pagination & Filters & Bulk Selection
@@ -111,8 +291,31 @@ export default function BatchEntry() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFlow, setSelectedFlow] = useState('Tümü');
   const [selectedCustomerFilter, setSelectedCustomerFilter] = useState('');
-  const [customerList, setCustomerList] = useState([]);
-  const [selectedIds, setSelectedIds] = useState([]);
+  const availableCustomers = Array.from(
+    new Map([
+      ...customerList.map(c => [
+        (c.customer_name || c.name || '').trim(),
+        {
+          name: (c.customer_name || c.name || '').trim(),
+          no: c.customer_no || c.code || `CUST-${String(c.id || '001').padStart(3, '0')}`
+        }
+      ]),
+      ...batchSummaryList.map(c => [
+        (c.account_name || c.customer_name || '').trim(),
+        {
+          name: (c.account_name || c.customer_name || '').trim(),
+          no: c.customer_no || c.account_no || `CUST-${String(c.id || '001').padStart(3, '0')}`
+        }
+      ]),
+      ...records.map(c => [
+        (c.customer_name || '').trim(),
+        {
+          name: (c.customer_name || '').trim(),
+          no: c.customer_no || `CUST-${String(c.id || '001').padStart(3, '0')}`
+        }
+      ])
+    ].filter(([name]) => Boolean(name))).values()
+  );
 
   useEffect(() => {
     const loadCustomers = async () => {
@@ -244,7 +447,8 @@ export default function BatchEntry() {
     setAutoFilledMessage('');
     if (record) {
       setEditingRecord(record);
-      setFormData({
+      const recData = {
+        id: record.id,
         customer_no: record.customer_no || '',
         customer_name: record.customer_name || '',
         imei_number: record.imei_number || '',
@@ -254,16 +458,40 @@ export default function BatchEntry() {
         model: record.model || '',
         gb: record.gb || '',
         color: record.color || '',
-        unit_price: record.unit_price || '',
-        currency: record.currency || 'EUR',
         defects: record.defects || '',
         screen_test: record.screen_test || '',
         power_test: record.power_test || '',
         flow: record.flow || 'Refurbish'
-      });
+      };
+
+      setFormData(recData);
+      setExcelFileData([recData]);
+      setExcelFileName(`Kayıt_${record.id}_${record.model || 'Cihaz'}.xlsx`);
+
+      const custName = record.customer_name || '';
+      const custNo = record.customer_no || '';
+      if (custName) {
+        setSelectedCustomer({ name: custName, no: custNo || 'CUST-001' });
+      }
+
+      const errors = [];
+      if (!recData.customer_name) {
+        errors.push({ row: 1, column: 'Customer Name (Müşteri Adı)', message: 'Müşteri Adı bilgisi eksik.' });
+      }
+      if (!recData.imei_number && !recData.serial_number && !recData.internal_id && !recData.batch_no) {
+        errors.push({ row: 1, column: 'Servis Bilgileri (Tanımlayıcı)', message: 'IMEI, Seri No, Dahili Kimlik veya Batch No alanlarından en az biri girilmelidir.' });
+      }
+      if (recData.imei_number && (!/^\d+$/.test(recData.imei_number) || recData.imei_number.length !== 15)) {
+        errors.push({ row: 1, column: 'IMEI Number (IMEI Numarası)', message: `IMEI 15 haneli ve yalnız rakamlardan oluşmalıdır (Girilen: "${recData.imei_number}").` });
+      }
+      setExcelValidationErrors(errors);
     } else {
       setEditingRecord(null);
       setFormData(EMPTY_FORM);
+      setSelectedCustomer(null);
+      setExcelFileData(null);
+      setExcelFileName('');
+      setExcelValidationErrors([]);
     }
     setIsModalOpen(true);
   };
@@ -405,7 +633,7 @@ export default function BatchEntry() {
           </div>
           <button
             onClick={() => handleOpenModal(null)}
-            className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all font-medium text-sm shadow-lg shadow-blue-500/20"
+            className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all font-semibold text-sm shadow-lg shadow-blue-500/20 cursor-pointer"
           >
             <Plus size={18} />
             Yeni Batch Girişi
@@ -626,230 +854,433 @@ export default function BatchEntry() {
         </div>
       </div>
 
-      {/* YENİ BATCH GİRİŞİ MODAL FORMU (4 Bölüm) */}
+      {/* BATCH GİRİŞİ MODALI */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+          <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-4xl max-h-[92vh] overflow-hidden flex flex-col">
             {/* Modal Header */}
-            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center sticky top-0 bg-white dark:bg-[#1e2330] z-10">
-              <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center bg-white dark:bg-[#1e2330]">
+              <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <FileSpreadsheet size={20} className="text-blue-500" />
-                {editingRecord ? 'Batch Kaydını Düzenle' : 'Yeni Batch Girişi'}
+                {editingRecord ? 'Batch Kaydını Düzenle & Excel Ön İzleme' : 'Yeni Batch Girişi'}
               </h2>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white p-1">
-                <X size={20} />
-              </button>
+
+              <div className="flex items-center gap-3">
+                {editingRecord && (
+                  <button
+                    type="button"
+                    onClick={handleDownloadTemplate}
+                    className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-md shadow-emerald-500/20 cursor-pointer"
+                  >
+                    <Download size={14} /> Excel Şablonu İndir
+                  </button>
+                )}
+
+                <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white p-1">
+                  <X size={20} />
+                </button>
+              </div>
             </div>
 
-            {/* Modal Form */}
-            <form onSubmit={handleSubmit} className="p-6 space-y-6">
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto flex-1">
+              {!editingRecord ? (
+                /* YENİ BATCH GİRİŞİ: 4 SECTION CARD MANUAL FORM */
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  {autoFilledMessage && (
+                    <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-xl text-xs font-semibold flex items-center gap-2">
+                      <CheckCircle size={16} />
+                      <span>{autoFilledMessage}</span>
+                    </div>
+                  )}
 
-              {autoFilledMessage && (
-                <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 p-3.5 rounded-xl text-xs font-medium flex items-center gap-2 animate-in fade-in">
-                  <Check size={16} />
-                  <span>{autoFilledMessage}</span>
+                  {/* 1. MÜŞTERİ BİLGİLERİ CARD */}
+                  <div className="bg-slate-100/60 dark:bg-[#1a202c] p-4 rounded-xl border border-slate-200 dark:border-slate-700/60 space-y-3">
+                    <div className="flex items-center gap-2 text-xs font-bold text-blue-500 dark:text-blue-400 tracking-wide uppercase">
+                      <User size={16} />
+                      <span>1. MÜŞTERİ BİLGİLERİ</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+                          Customer No (Müşteri No)
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.customer_no || ''}
+                          onChange={e => setFormData({ ...formData, customer_no: e.target.value })}
+                          className="w-full bg-white dark:bg-[#12151e] border border-slate-300 dark:border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-500 font-mono"
+                          placeholder="Örn: CUST-001"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+                          Customer Name (Müşteri Adı)
+                        </label>
+                        <input
+                          type="text"
+                          list="customer-names-list"
+                          value={formData.customer_name || ''}
+                          onChange={e => {
+                            const val = e.target.value;
+                            const foundCust = (customerList || []).find(c => (c.customer_name || c.short_name || c.code) === val);
+                            setFormData(prev => ({
+                              ...prev,
+                              customer_name: val,
+                              customer_no: foundCust?.code || prev.customer_no || ''
+                            }));
+                          }}
+                          className="w-full bg-white dark:bg-[#12151e] border border-slate-300 dark:border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-500"
+                          placeholder="Müşteri listesinden seçin veya yazın"
+                        />
+                        <datalist id="customer-names-list">
+                          {(customerList || []).map((c, idx) => (
+                            <option key={idx} value={c.customer_name || c.short_name || c.code} />
+                          ))}
+                        </datalist>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 2. SERVİS BİLGİLERİ CARD */}
+                  <div className="bg-slate-100/60 dark:bg-[#1a202c] p-4 rounded-xl border border-slate-200 dark:border-slate-700/60 space-y-3">
+                    <div>
+                      <div className="flex items-center gap-2 text-xs font-bold text-purple-500 dark:text-purple-400 tracking-wide uppercase">
+                        <Wrench size={16} />
+                        <span>2. SERVİS BİLGİLERİ</span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 italic mt-0.5">
+                        *(IMEI, Seri No, Dahili Kimlik veya Batch No bilgilerinden herhangi birinin girilmesi cihazın tanınması ve kaydedilmesi için yeterlidir)
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+                          IMEI Number (IMEI Numarası)
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.imei_number || ''}
+                          onChange={e => handleAutoLookup('imei_number', e.target.value)}
+                          className="w-full bg-white dark:bg-[#12151e] border border-slate-300 dark:border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 font-mono focus:outline-none focus:border-blue-500"
+                          placeholder="IMEI giriniz (örn: 358901234567890)"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+                          Serial Number (Seri Numarası)
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.serial_number || ''}
+                          onChange={e => handleAutoLookup('serial_number', e.target.value)}
+                          className="w-full bg-white dark:bg-[#12151e] border border-slate-300 dark:border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 font-mono focus:outline-none focus:border-blue-500"
+                          placeholder="Cihaz seri numarası"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+                          Internal ID (Dahili Kimlik)
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.internal_id || ''}
+                          onChange={e => handleAutoLookup('internal_id', e.target.value)}
+                          className="w-full bg-white dark:bg-[#12151e] border border-slate-300 dark:border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 font-mono focus:outline-none focus:border-blue-500"
+                          placeholder="İç takip ID"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+                          Batch No (Parti Numarası)
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.batch_no || ''}
+                          onChange={e => setFormData({ ...formData, batch_no: e.target.value })}
+                          className="w-full bg-white dark:bg-[#12151e] border border-slate-300 dark:border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 font-mono focus:outline-none focus:border-blue-500"
+                          placeholder="Batch grup numarası"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 3. CİHAZ BİLGİLERİ CARD */}
+                  <div className="bg-slate-100/60 dark:bg-[#1a202c] p-4 rounded-xl border border-slate-200 dark:border-slate-700/60 space-y-3">
+                    <div className="flex items-center gap-2 text-xs font-bold text-purple-500 dark:text-purple-400 tracking-wide uppercase">
+                      <Smartphone size={16} />
+                      <span>3. CİHAZ BİLGİLERİ</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+                          Model (Cihaz Modeli)
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.model || ''}
+                          onChange={e => setFormData({ ...formData, model: e.target.value })}
+                          className="w-full bg-white dark:bg-[#12151e] border border-slate-300 dark:border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-500"
+                          placeholder="Örn: iPhone 13 Pro"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+                          GB (Depolama / Hafıza)
+                        </label>
+                        <select
+                          value={formData.gb || ''}
+                          onChange={e => setFormData({ ...formData, gb: e.target.value })}
+                          className="w-full bg-white dark:bg-[#12151e] border border-slate-300 dark:border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-500 cursor-pointer"
+                        >
+                          <option value="">Hafıza Seçiniz...</option>
+                          <option value="64GB">64GB</option>
+                          <option value="128GB">128GB</option>
+                          <option value="256GB">256GB</option>
+                          <option value="512GB">512GB</option>
+                          <option value="1TB">1TB</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+                          Color (Renk)
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.color || ''}
+                          onChange={e => setFormData({ ...formData, color: e.target.value })}
+                          className="w-full bg-white dark:bg-[#12151e] border border-slate-300 dark:border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-500"
+                          placeholder="Örn: Graphite, Siyah"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 4. CİHAZIN SERVİSE GELİŞ NEDENİ & DURUM CARD */}
+                  <div className="bg-slate-100/60 dark:bg-[#1a202c] p-4 rounded-xl border border-slate-200 dark:border-slate-700/60 space-y-3">
+                    <div className="flex items-center gap-2 text-xs font-bold text-amber-500 dark:text-amber-400 tracking-wide uppercase">
+                      <AlertCircle size={16} />
+                      <span>4. CİHAZIN SERVİSE GELİŞ NEDENİ & DURUM</span>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+                          Defects (Kusur / Arıza Detayı)
+                        </label>
+                        <textarea
+                          rows={2}
+                          value={formData.defects || ''}
+                          onChange={e => setFormData({ ...formData, defects: e.target.value })}
+                          className="w-full bg-white dark:bg-[#12151e] border border-slate-300 dark:border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-500"
+                          placeholder="Müşterinin belirttiği kusur veya arızalar..."
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+                        <div>
+                          <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+                            Screen Test (Ekran Testi)
+                          </label>
+                          <input
+                            type="text"
+                            value={formData.screen_test || ''}
+                            onChange={e => setFormData({ ...formData, screen_test: e.target.value })}
+                            className="w-full bg-white dark:bg-[#12151e] border border-slate-300 dark:border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-500"
+                            placeholder="Örn: Tamamlandı / Hasarlı"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+                            Power Test (Güç Testi)
+                          </label>
+                          <input
+                            type="text"
+                            value={formData.power_test || ''}
+                            onChange={e => setFormData({ ...formData, power_test: e.target.value })}
+                            className="w-full bg-white dark:bg-[#12151e] border border-slate-300 dark:border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-500"
+                            placeholder="Örn: Açılıyor / Şarj Olmuyor"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+                            Flow (Akış / Durum Takibi)
+                          </label>
+                          <select
+                            value={formData.flow || 'Refurbish'}
+                            onChange={e => setFormData({ ...formData, flow: e.target.value })}
+                            className="w-full bg-white dark:bg-[#12151e] border border-slate-300 dark:border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-500 cursor-pointer"
+                          >
+                            {FLOW_OPTIONS.map(f => <option key={f} value={f}>{f}</option>)}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Footer Buttons */}
+                  <div className="pt-3 flex justify-end gap-3 border-t border-slate-200 dark:border-slate-700">
+                    <button
+                      type="button"
+                      onClick={() => setIsModalOpen(false)}
+                      className="px-5 py-2.5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl font-medium text-xs hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
+                    >
+                      İptal
+                    </button>
+
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl font-semibold text-xs shadow-lg shadow-blue-500/20 flex items-center gap-2 transition-all cursor-pointer"
+                    >
+                      <Check size={16} /> Kaydet
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                /* BATCH KAYDINI DÜZENLE: EXCEL ÖN İZLEMESİ & HATA GÖSTEREN KUTUCUK & ŞABLON İNDİRME */
+                <div className="space-y-5">
+                  {/* Info Header */}
+                  <div className="flex items-center justify-between bg-slate-100 dark:bg-[#242a38] p-3.5 rounded-xl border border-slate-200 dark:border-slate-700">
+                    <div className="flex items-center gap-2 text-xs font-medium text-slate-700 dark:text-slate-200">
+                      <FileSpreadsheet size={18} className="text-emerald-500" />
+                      <span>Düzenlenen Kayıt Detayı: <strong className="font-semibold text-blue-400">Kayıt #{editingRecord.id} ({editingRecord.customer_name || 'Müşteri'})</strong></span>
+                    </div>
+                    <label className="text-xs text-blue-500 hover:underline cursor-pointer font-semibold flex items-center gap-1">
+                      <RotateCcw size={13} /> Güncellenmiş Excel Dosyası Yükle
+                      <input type="file" accept=".xlsx, .xls" className="hidden" onChange={handleExcelPreviewUpload} />
+                    </label>
+                  </div>
+
+                  {/* HATA GÖSTEREN KUTUCUK (Validation Report Box) */}
+                  {excelValidationErrors.length > 0 ? (
+                    <div className="bg-rose-500/10 border border-rose-500/30 text-rose-400 p-4 rounded-xl space-y-3">
+                      <div className="flex items-center justify-between font-bold text-xs">
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle size={18} className="text-rose-500" />
+                          <span>Hata Gösteren Kutucuk ({excelValidationErrors.length} Sütun / Satır Sorunu Tespit Edildi)</span>
+                        </div>
+                        <span className="text-[11px] bg-rose-500/20 px-2.5 py-0.5 rounded-full font-medium text-rose-300">
+                          Sorunlu Sütun ve Satırlar Aşağıda Listelenmiştir
+                        </span>
+                      </div>
+                      <div className="max-h-40 overflow-y-auto space-y-1.5 pr-2 text-xs divide-y divide-rose-500/20 font-mono">
+                        {excelValidationErrors.map((err, i) => (
+                          <div key={i} className="pt-1.5 flex items-start gap-2">
+                            <span className="font-bold text-rose-300 bg-rose-500/20 px-1.5 py-0.5 rounded shrink-0">
+                              Satır {err.row}
+                            </span>
+                            <span>
+                              <strong className="text-rose-200 font-sans">[{err.column}]:</strong> {err.message}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 p-3.5 rounded-xl text-xs font-semibold flex items-center gap-2">
+                      <CheckCircle size={18} />
+                      <span>Tüm veriler başarıyla doğrulandı! Sütun veya satır hatası bulunamadı.</span>
+                    </div>
+                  )}
+
+                  {/* EXCEL ÖN İZLEMESİ TABLOSU */}
+                  <div className="bg-slate-50 dark:bg-[#171b26] rounded-xl border border-slate-200 dark:border-slate-700/60 overflow-hidden shadow-sm">
+                    <div className="px-4 py-3 bg-slate-100 dark:bg-[#202636] border-b border-slate-200 dark:border-slate-700 flex justify-between items-center text-xs font-bold text-slate-800 dark:text-slate-100">
+                      <span className="flex items-center gap-2 text-sm">
+                        <Table size={16} className="text-blue-400" /> Excel Veri Ön İzlemesi ({excelFileData?.length || 0} Kayıt)
+                      </span>
+                      <span className="text-[11px] text-slate-400 font-normal">
+                        Kayıt verilerinin Excel ön izleme görünümüdür.
+                      </span>
+                    </div>
+                    <div className="overflow-x-auto max-h-80">
+                      <table className="w-full text-left text-xs whitespace-nowrap border-collapse">
+                        <thead className="bg-slate-200/80 dark:bg-[#242a38] text-slate-700 dark:text-slate-200 uppercase tracking-wider sticky top-0 font-bold border-b border-slate-300 dark:border-slate-700 text-[11px]">
+                          <tr>
+                            <th className="px-3.5 py-2.5 text-center w-10">#</th>
+                            <th className="px-3.5 py-2.5">Müşteri Adı</th>
+                            <th className="px-3.5 py-2.5">IMEI Number</th>
+                            <th className="px-3.5 py-2.5">Seri No</th>
+                            <th className="px-3.5 py-2.5">Internal ID</th>
+                            <th className="px-3.5 py-2.5">Batch No</th>
+                            <th className="px-3.5 py-2.5">Model</th>
+                            <th className="px-3.5 py-2.5">GB</th>
+                            <th className="px-3.5 py-2.5">Color</th>
+                            <th className="px-3.5 py-2.5">Screen Test</th>
+                            <th className="px-3.5 py-2.5">Power Test</th>
+                            <th className="px-3.5 py-2.5">Arıza / Kusur</th>
+                            <th className="px-3.5 py-2.5">Akış (Flow)</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200 dark:divide-slate-700/50">
+                          {(excelFileData || []).map((row, idx) => {
+                            const rowErrors = excelValidationErrors.filter(e => e.row === idx + 1);
+                            const hasErr = rowErrors.length > 0;
+                            return (
+                              <tr key={idx} className={`hover:bg-slate-100 dark:hover:bg-[#202636] transition-colors ${hasErr ? 'bg-rose-500/10' : 'bg-white dark:bg-[#1e2330]'}`}>
+                                <td className="px-3.5 py-2.5 text-center font-bold text-slate-400 font-mono">{idx + 1}</td>
+                                <td className={`px-3.5 py-2.5 font-bold ${!row.customer_name ? 'text-rose-400 font-bold bg-rose-500/20 px-2 py-1 rounded' : 'text-slate-800 dark:text-slate-100'}`}>
+                                  {row.customer_name || '<BOŞ>'}
+                                </td>
+                                <td className={`px-3.5 py-2.5 font-mono font-medium ${row.imei_number && (row.imei_number.length !== 15 || !/^\d+$/.test(row.imei_number)) ? 'text-rose-400 font-bold bg-rose-500/20 px-2 py-1 rounded' : 'text-slate-700 dark:text-slate-200'}`}>
+                                  {row.imei_number || '-'}
+                                </td>
+                                <td className="px-3.5 py-2.5 font-mono text-slate-700 dark:text-slate-300">{row.serial_number || '-'}</td>
+                                <td className="px-3.5 py-2.5 font-mono text-slate-700 dark:text-slate-300">{row.internal_id || '-'}</td>
+                                <td className="px-3.5 py-2.5 font-mono text-slate-700 dark:text-slate-300">{row.batch_no || '-'}</td>
+                                <td className="px-3.5 py-2.5 font-bold text-blue-500 dark:text-blue-400">{row.model || '-'}</td>
+                                <td className="px-3.5 py-2.5 text-slate-700 dark:text-slate-300">{row.gb || '-'}</td>
+                                <td className="px-3.5 py-2.5 text-slate-700 dark:text-slate-300">{row.color || '-'}</td>
+                                <td className="px-3.5 py-2.5 text-slate-700 dark:text-slate-300">{row.screen_test || '-'}</td>
+                                <td className="px-3.5 py-2.5 text-slate-700 dark:text-slate-300">{row.power_test || '-'}</td>
+                                <td className="px-3.5 py-2.5 max-w-xs truncate text-slate-700 dark:text-slate-300">{row.defects || '-'}</td>
+                                <td className="px-3.5 py-2.5">
+                                  <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                                    {row.flow || 'Refurbish'}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Edit Mode Footer Buttons */}
+                  <div className="pt-3 flex justify-end gap-3 border-t border-slate-200 dark:border-slate-700">
+                    <button
+                      type="button"
+                      onClick={() => setIsModalOpen(false)}
+                      className="px-5 py-2.5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl font-medium text-xs hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
+                    >
+                      İptal
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={loading || !excelFileData || excelFileData.length === 0}
+                      onClick={handleConfirmExcelImport}
+                      className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl font-semibold text-xs shadow-lg shadow-emerald-500/20 flex items-center gap-2 transition-all cursor-pointer"
+                    >
+                      <Check size={16} /> Değişiklikleri Kaydet
+                    </button>
+                  </div>
                 </div>
               )}
-
-              {/* BÖLÜM 1: Müşteri Bilgileri */}
-              <div className="bg-slate-50/50 dark:bg-[#242a38]/40 p-4 rounded-xl border border-slate-200 dark:border-slate-700/50">
-                <h3 className="text-sm font-semibold text-blue-400 mb-3 flex items-center gap-2 uppercase tracking-wider">
-                  <User size={16} /> 1. Müşteri Bilgileri
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm text-slate-400 mb-1">Customer No (Müşteri No)</label>
-                    <input
-                      type="text"
-                      className="w-full bg-white dark:bg-[#0f1219] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-blue-500"
-                      value={formData.customer_no}
-                      onChange={e => handleAutoLookup('customer_no', e.target.value)}
-                      onBlur={e => handleAutoLookup('customer_no', e.target.value)}
-                      placeholder="Örn: CUST-001"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-slate-400 mb-1">Customer Name (Müşteri Adı)</label>
-                    <input
-                      type="text"
-                      className="w-full bg-white dark:bg-[#0f1219] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-blue-500"
-                      value={formData.customer_name}
-                      onChange={e => setFormData({ ...formData, customer_name: e.target.value })}
-                      placeholder="Örn: ABC İletişim Ltd."
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* BÖLÜM 2: Servis Bilgileri */}
-              <div className="bg-slate-50/50 dark:bg-[#242a38]/40 p-4 rounded-xl border border-slate-200 dark:border-slate-700/50">
-                <h3 className="text-sm font-semibold text-indigo-400 mb-1 flex items-center gap-2 uppercase tracking-wider">
-                  <Wrench size={16} /> 2. Servis Bilgileri
-                </h3>
-                <p className="text-xs text-slate-400 mb-3">
-                  *(IMEI, Seri No, Dahili Kimlik veya Batch No bilgilerinden herhangi birinin girilmesi cihazın tanınması ve kaydedilmesi için yeterlidir)
-                </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm text-slate-400 mb-1">
-                      IMEI Number (IMEI Numarası)
-                    </label>
-                    <input
-                      type="text"
-                      maxLength={20}
-                      className="w-full bg-white dark:bg-[#0f1219] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-blue-500 font-mono tracking-wider"
-                      value={formData.imei_number}
-                      onChange={e => handleAutoLookup('imei_number', e.target.value)}
-                      onBlur={e => handleAutoLookup('imei_number', e.target.value)}
-                      placeholder="IMEI giriniz (örn: 358901234567890)"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-slate-400 mb-1">Serial Number (Seri Numarası)</label>
-                    <input
-                      type="text"
-                      className="w-full bg-white dark:bg-[#0f1219] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-blue-500"
-                      value={formData.serial_number}
-                      onChange={e => handleAutoLookup('serial_number', e.target.value)}
-                      onBlur={e => handleAutoLookup('serial_number', e.target.value)}
-                      placeholder="Cihaz seri numarası"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-slate-400 mb-1">Internal ID (Dahili Kimlik)</label>
-                    <input
-                      type="text"
-                      className="w-full bg-white dark:bg-[#0f1219] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-blue-500"
-                      value={formData.internal_id}
-                      onChange={e => handleAutoLookup('internal_id', e.target.value)}
-                      onBlur={e => handleAutoLookup('internal_id', e.target.value)}
-                      placeholder="İç takip ID"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-slate-400 mb-1">Batch No (Parti Numarası)</label>
-                    <input
-                      type="text"
-                      className="w-full bg-white dark:bg-[#0f1219] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-blue-500"
-                      value={formData.batch_no}
-                      onChange={e => handleAutoLookup('batch_no', e.target.value)}
-                      onBlur={e => handleAutoLookup('batch_no', e.target.value)}
-                      placeholder="Batch grup numarası"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* BÖLÜM 3: Cihaz Bilgileri */}
-              <div className="bg-slate-50/50 dark:bg-[#242a38]/40 p-4 rounded-xl border border-slate-200 dark:border-slate-700/50">
-                <h3 className="text-sm font-semibold text-purple-400 mb-3 flex items-center gap-2 uppercase tracking-wider">
-                  <Smartphone size={16} /> 3. Cihaz Bilgileri
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm text-slate-400 mb-1">Model (Cihaz Modeli)</label>
-                    <input
-                      type="text"
-                      className="w-full bg-white dark:bg-[#0f1219] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-blue-500"
-                      value={formData.model}
-                      onChange={e => setFormData({ ...formData, model: e.target.value })}
-                      placeholder="Örn: iPhone 13 Pro"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-slate-400 mb-1">GB (Depolama / Hafıza)</label>
-                    <select
-                      className="w-full bg-white dark:bg-[#0f1219] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-blue-500 cursor-pointer"
-                      value={formData.gb}
-                      onChange={e => setFormData({ ...formData, gb: e.target.value })}
-                    >
-                      <option value="">Hafıza Seçiniz...</option>
-                      {GB_OPTIONS.map(opt => (
-                        <option key={opt} value={opt}>{opt}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm text-slate-400 mb-1">Color (Renk)</label>
-                    <input
-                      type="text"
-                      className="w-full bg-white dark:bg-[#0f1219] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-blue-500"
-                      value={formData.color}
-                      onChange={e => setFormData({ ...formData, color: e.target.value })}
-                      placeholder="Örn: Graphite, Siyah"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* BÖLÜM 4: Cihazın Servise Geliş Nedeni & Durum */}
-              <div className="bg-slate-50/50 dark:bg-[#242a38]/40 p-4 rounded-xl border border-slate-200 dark:border-slate-700/50">
-                <h3 className="text-sm font-semibold text-amber-400 mb-3 flex items-center gap-2 uppercase tracking-wider">
-                  <AlertCircle size={16} /> 4. Cihazın Servise Geliş Nedeni & Durum
-                </h3>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm text-slate-400 mb-1">Defects (Kusur / Arıza Detayı)</label>
-                    <textarea
-                      rows={2}
-                      className="w-full bg-white dark:bg-[#0f1219] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-blue-500"
-                      value={formData.defects}
-                      onChange={e => setFormData({ ...formData, defects: e.target.value })}
-                      placeholder="Müşterinin belirttiği kusur veya arızalar..."
-                    />
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-sm text-slate-400 mb-1">Screen Test (Ekran Testi)</label>
-                      <input
-                        type="text"
-                        className="w-full bg-white dark:bg-[#0f1219] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-blue-500"
-                        value={formData.screen_test}
-                        onChange={e => setFormData({ ...formData, screen_test: e.target.value })}
-                        placeholder="Örn: Tamamlandı / Hasarlı"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm text-slate-400 mb-1">Power Test (Güç Testi)</label>
-                      <input
-                        type="text"
-                        className="w-full bg-white dark:bg-[#0f1219] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-blue-500"
-                        value={formData.power_test}
-                        onChange={e => setFormData({ ...formData, power_test: e.target.value })}
-                        placeholder="Örn: Açılıyor / Şarj Olmuyor"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm text-slate-400 mb-1">Flow (Akış / Durum Takibi)</label>
-                      <select
-                        className="w-full bg-white dark:bg-[#0f1219] border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white text-sm focus:outline-none focus:border-blue-500 cursor-pointer"
-                        value={formData.flow}
-                        onChange={e => setFormData({ ...formData, flow: e.target.value })}
-                      >
-                        {FLOW_OPTIONS.map(f => <option key={f} value={f}>{f}</option>)}
-                      </select>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Submit Buttons */}
-              <div className="flex justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-5 py-2.5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors font-medium text-sm"
-                >
-                  İptal
-                </button>
-                <button
-                  type="submit"
-                  className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all font-medium text-sm shadow-lg shadow-blue-500/20"
-                >
-                  {editingRecord ? 'Güncelle' : 'Kaydet'}
-                </button>
-              </div>
-            </form>
+            </div>
           </div>
         </div>
       )}
