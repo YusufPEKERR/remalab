@@ -6656,7 +6656,15 @@ class WebBridge(QObject):
             if not ids:
                 return json.dumps({"success": False, "message": "Silinecek kayıt seçilmedi."})
             int_ids = [int(i) for i in ids]
-            db.query(BatchEntry).filter(BatchEntry.id.in_(int_ids)).delete(synchronize_session=False)
+            
+            # Find the batch numbers for the selected IDs to delete the entire batch
+            target_batches = db.query(BatchEntry.batch_no).filter(BatchEntry.id.in_(int_ids)).all()
+            batch_nos = [t[0] for t in target_batches if t[0]]
+            
+            db.query(BatchEntry).filter(
+                (BatchEntry.batch_no.in_(batch_nos)) | (BatchEntry.id.in_(int_ids))
+            ).delete(synchronize_session=False)
+            
             db.commit()
             return json.dumps({"success": True, "count": len(int_ids)})
         except Exception as e:
@@ -6676,10 +6684,18 @@ class WebBridge(QObject):
             if not ids or not new_flow:
                 return json.dumps({"success": False, "message": "Kayıt veya durum seçilmedi."})
             int_ids = [int(i) for i in ids]
-            db.query(BatchEntry).filter(BatchEntry.id.in_(int_ids)).update(
+            
+            # Find the batch numbers for the selected IDs to update the entire batch
+            target_batches = db.query(BatchEntry.batch_no).filter(BatchEntry.id.in_(int_ids)).all()
+            batch_nos = [t[0] for t in target_batches if t[0]]
+            
+            db.query(BatchEntry).filter(
+                (BatchEntry.batch_no.in_(batch_nos)) | (BatchEntry.id.in_(int_ids))
+            ).update(
                 {BatchEntry.flow: str(new_flow).strip(), BatchEntry.updated_at: datetime.now()},
                 synchronize_session=False
             )
+            
             db.commit()
             return json.dumps({"success": True, "count": len(int_ids)})
         except Exception as e:
