@@ -61,6 +61,20 @@ export default function BatchEntry() {
   const [loadingBatchSummary, setLoadingBatchSummary] = useState(false);
   const [summarySearch, setSummarySearch] = useState('');
 
+  // Customers (Müşteriler) entegrasyonu
+  const [customers, setCustomers] = useState([]);
+  
+  const fetchCustomers = async () => {
+    try {
+      const res = await api.getCustomers();
+      if (res && res.success) {
+        setCustomers(res.customers || []);
+      }
+    } catch (err) {
+      console.error("Müşteriler alınamadı", err);
+    }
+  };
+
   const handleFetchBatchSummary = async () => {
     setIsBatchSummaryModalOpen(true);
     setLoadingBatchSummary(true);
@@ -419,7 +433,18 @@ export default function BatchEntry() {
 
   useEffect(() => {
     fetchRecords(currentPage, itemsPerPage, searchTerm, selectedFlow);
+    fetchCustomers();
   }, [currentPage, itemsPerPage, searchTerm, selectedFlow]);
+
+  const handleCustomerNameChange = (e) => {
+    const val = e.target.value;
+    const found = customers.find(c => c.customer_name === val);
+    setFormData(prev => ({
+      ...prev,
+      customer_name: val,
+      customer_no: found ? (found.code || found.customer_no || prev.customer_no) : prev.customer_no
+    }));
+  };
 
   const totalPages = Math.ceil(totalCount / itemsPerPage) || 1;
 
@@ -1383,16 +1408,16 @@ export default function BatchEntry() {
                       const docNo = b.document_number || b.batch_no || b.internal_id || b.serial_number || b.imei_number || '-';
                       const isSelected = searchTerm === docNo;
                       return (
-                        <tr 
-                          key={idx} 
+                        <tr
+                          key={idx}
                           onClick={() => {
                             setSearchTerm(docNo === 'Tanımsız Batch' ? '' : docNo);
                             setCurrentPage(1);
                             setIsBatchSummaryModalOpen(false);
                           }}
                           className={`cursor-pointer transition-colors ${
-                            isSelected 
-                              ? 'bg-blue-600 text-white font-medium' 
+                            isSelected
+                              ? 'bg-blue-600 text-white font-medium'
                               : 'hover:bg-blue-50/80 dark:hover:bg-[#262c3d] text-slate-800 dark:text-slate-200'
                           }`}
                         >
@@ -1407,8 +1432,8 @@ export default function BatchEntry() {
                           </td>
                           <td className="px-4 py-2.5 text-center border-r border-slate-100 dark:border-slate-700/30">
                             <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
-                              b.is_success 
-                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' 
+                              b.is_success
+                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
                                 : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
                             }`}>
                               {b.is_success ? 'True' : 'False'}
