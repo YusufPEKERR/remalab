@@ -797,15 +797,31 @@ export default function BatchEntry() {
               onChange={(e) => {
                 const val = e.target.value;
                 setSelectedCustomerFilter(val);
+                // Reset batch filter if it doesn't belong to the new customer
+                if (val && selectedBatchFilter) {
+                  const isValidBatch = batchSummaryList.some(b => 
+                    (b.account_name === val || b.customer_name === val) && 
+                    (b.document_number || b.batch_no || b.internal_id || '') === selectedBatchFilter
+                  );
+                  if (!isValidBatch) setSelectedBatchFilter('');
+                }
                 setSearchTerm(val);
                 setCurrentPage(1);
               }}
               className="w-full px-3 py-2 bg-white dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 shadow-sm cursor-pointer"
             >
               <option value="">Müşteri: Tümü</option>
-              {(customerList || []).map((c, idx) => {
-                const label = c.short_name || c.customer_name || c.code || 'Müşteri';
-                return <option key={c.id || idx} value={label}>{c.code ? `[${c.code}] ` : ''}{label}</option>;
+              {(customerList || [])
+                .filter(c => {
+                  if (!selectedBatchFilter) return true;
+                  const b = batchSummaryList.find(b => (b.document_number || b.batch_no || b.internal_id || '') === selectedBatchFilter);
+                  if (!b) return true;
+                  const label = c.short_name || c.customer_name || c.code || 'Müşteri';
+                  return label === b.account_name || label === b.customer_name;
+                })
+                .map((c, idx) => {
+                  const label = c.short_name || c.customer_name || c.code || 'Müşteri';
+                  return <option key={c.id || idx} value={label}>{c.code ? `[${c.code}] ` : ''}{label}</option>;
               })}
             </select>
           </div>
@@ -816,14 +832,24 @@ export default function BatchEntry() {
               onChange={(e) => {
                 const val = e.target.value;
                 setSelectedBatchFilter(val);
+                // Reset customer filter if it doesn't match the new batch
+                if (val) {
+                  const b = batchSummaryList.find(b => (b.document_number || b.batch_no || b.internal_id || '') === val);
+                  if (b && selectedCustomerFilter && b.account_name !== selectedCustomerFilter && b.customer_name !== selectedCustomerFilter) {
+                    setSelectedCustomerFilter('');
+                    setSearchTerm('');
+                  }
+                }
                 setCurrentPage(1);
               }}
               className="w-full px-3 py-2 bg-white dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 shadow-sm cursor-pointer"
             >
               <option value="">Batch: Tümü</option>
-              {(batchSummaryList || []).map((b, idx) => {
-                const batchLabel = b.document_number || b.batch_no || b.internal_id || `Batch-${idx + 1}`;
-                return <option key={batchLabel + idx} value={batchLabel}>{batchLabel}</option>;
+              {(batchSummaryList || [])
+                .filter(b => !selectedCustomerFilter || b.account_name === selectedCustomerFilter || b.customer_name === selectedCustomerFilter)
+                .map((b, idx) => {
+                  const batchLabel = b.document_number || b.batch_no || b.internal_id || `Batch-${idx + 1}`;
+                  return <option key={batchLabel + idx} value={batchLabel}>{batchLabel}</option>;
               })}
             </select>
           </div>
