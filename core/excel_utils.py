@@ -3,6 +3,7 @@ def style_excel_file(filepath: str):
     try:
         import openpyxl
         from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
+        from openpyxl.worksheet.datavalidation import DataValidation
         
         wb = openpyxl.load_workbook(filepath)
         for sheet in wb.worksheets:
@@ -32,6 +33,32 @@ def style_excel_file(filepath: str):
                 cell.alignment = center_align
                 cell.border = header_border
                 
+            # Flow sütununu bul (başlık "flow" veya "Flow" olan)
+            flow_col_letter = None
+            max_row = sheet.max_row
+            for cell in sheet[1]:
+                if cell.value and str(cell.value).strip().lower() == 'flow':
+                    flow_col_letter = openpyxl.utils.get_column_letter(cell.column)
+                    break
+            
+            # Flow sütununa dropdown validation ekle
+            if flow_col_letter and max_row > 1:
+                flow_options = '"Refurbish,Repair,RMA,Battery Replacement"'
+                dv = DataValidation(
+                    type="list",
+                    formula1=flow_options,
+                    allow_blank=False,
+                    showDropDown=False,
+                    showErrorMessage=True,
+                    errorTitle="Geçersiz Değer",
+                    error="Lütfen listeden bir seçim yapın.",
+                    showInputMessage=True,
+                    promptTitle="Akış Durumu",
+                    prompt="Refurbish, Repair, RMA veya Battery Replacement seçin."
+                )
+                dv.sqref = f"{flow_col_letter}2:{flow_col_letter}{max(max_row, 1000)}"
+                sheet.add_data_validation(dv)
+
             # Tüm veri satırlarını biçimlendir ve sütun genişliklerini ayarla
             for col_idx, col in enumerate(sheet.columns, 1):
                 max_length = 0
@@ -68,3 +95,4 @@ def style_excel_file(filepath: str):
         wb.save(filepath)
     except Exception as e:
         print(f"Excel stili uygulanırken hata oluştu: {e}")
+
