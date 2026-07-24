@@ -24,14 +24,6 @@ export default function Dashboard() {
   const [detailData, setDetailData] = useState([]);
   const [recentMovements, setRecentMovements] = useState([]);
 
-  // Local DB mock stats
-  const localDbStats = {
-    totalDbFiles: 3,
-    totalSqlFiles: 12,
-    totalDbSize: '1.4 MB',
-    activeDb: 'warehouse_v2.db'
-  };
-
   const cards = [
     { id: 'parts', title: 'Kayıtlı Parça Çeşidi', value: stats.totalParts || '0', change: '+12%', isPositive: true, color: '#58A6FF', icon: <Package size={24}/> },
     { id: 'low_stock', title: 'Kritik Stok', value: stats.criticalStock || '0', change: '-3%', isPositive: false, color: '#F85149', icon: <AlertTriangle size={24}/> },
@@ -90,14 +82,6 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">Kontrol Paneli</h1>
           <p className="text-slate-400 mt-1">Hoş geldiniz, sistemin güncel durumunu buradan takip edebilirsiniz.</p>
         </div>
-        <button
-          type="button"
-          onClick={() => loadDashboardData()}
-          className="p-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors"
-          title="Yenile"
-        >
-          <RefreshCw size={18} className={loading ? "animate-spin text-blue-500" : ""} />
-        </button>
       </div>
 
       {/* Cards */}
@@ -126,31 +110,6 @@ export default function Dashboard() {
             </div>
           </div>
         ))}
-      </div>
-
-      {/* Local DB Section */}
-      <div className="bg-white dark:bg-[#1e2330] rounded-2xl p-6 border border-slate-200 dark:border-slate-700/50 shadow-lg">
-        <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2 mb-4">
-          <Server size={18} className="text-indigo-400"/> Lokal Veritabanı Durumu
-        </h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-          <div>
-            <p className="text-slate-500 text-sm mb-1 flex items-center gap-1"><Database size={14}/> Toplam DB Dosyası:</p>
-            <p className="text-slate-800 dark:text-slate-200 font-medium">{localDbStats.totalDbFiles}</p>
-          </div>
-          <div>
-            <p className="text-slate-500 text-sm mb-1 flex items-center gap-1"><FileText size={14}/> Toplam SQL Dosyası:</p>
-            <p className="text-slate-800 dark:text-slate-200 font-medium">{localDbStats.totalSqlFiles}</p>
-          </div>
-          <div>
-            <p className="text-slate-500 text-sm mb-1 flex items-center gap-1"><HardDrive size={14}/> Toplam Boyut:</p>
-            <p className="text-slate-800 dark:text-slate-200 font-medium">{localDbStats.totalDbSize}</p>
-          </div>
-          <div>
-            <p className="text-slate-500 text-sm mb-1 flex items-center gap-1"><Database size={14}/> Aktif DB:</p>
-            <p className="text-indigo-400 font-medium">{localDbStats.activeDb}</p>
-          </div>
-        </div>
       </div>
 
       {/* Details Table (Shows when card clicked) */}

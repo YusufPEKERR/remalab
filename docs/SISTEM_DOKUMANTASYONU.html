@@ -1,0 +1,969 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RemaLab WMS — Sistem Dökümantasyonu</title>
+<style>
+  :root {
+    --bg:#0f1219; --panel:#161b26; --panel2:#1c2230; --text:#e6e9ef; --muted:#9aa4b2;
+    --border:#2a3242; --accent:#4c8dff; --accent2:#7c5cff; --code:#0b0e14; --th:#212b36;
+    --green:#3ddc84; --warn:#ffb454;
+  }
+  * { box-sizing:border-box; }
+  html { scroll-behavior:smooth; }
+  body { margin:0; background:var(--bg); color:var(--text);
+    font:16px/1.7 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; }
+  .wrap { max-width:1080px; margin:0 auto; padding:48px 28px 120px; }
+  h1,h2,h3,h4 { line-height:1.25; font-weight:700; scroll-margin-top:20px; }
+  h1 { font-size:2.1rem; margin:.2em 0 .6em;
+    background:linear-gradient(90deg,var(--accent),var(--accent2));
+    -webkit-background-clip:text; background-clip:text; color:transparent; }
+  h2 { font-size:1.5rem; margin-top:2.2em; padding-bottom:.35em; border-bottom:1px solid var(--border); }
+  h3 { font-size:1.2rem; margin-top:1.8em; color:#cdd6e4; }
+  h4 { font-size:1.03rem; margin-top:1.4em; color:#cdd6e4; }
+  a { color:var(--accent); text-decoration:none; }
+  a:hover { text-decoration:underline; }
+  p, li { color:var(--text); }
+  blockquote { margin:1.2em 0; padding:.6em 1.1em; border-left:4px solid var(--accent);
+    background:var(--panel); border-radius:0 8px 8px 0; color:#c9d2df; }
+  blockquote p { margin:.4em 0; }
+  code { font-family:"JetBrains Mono",Consolas,Menlo,monospace; font-size:.88em;
+    background:var(--panel2); padding:.15em .45em; border-radius:5px; color:#ffd9a0; }
+  pre { background:var(--code); border:1px solid var(--border); border-radius:10px;
+    padding:16px 18px; overflow-x:auto; }
+  pre code { background:none; padding:0; color:#c8e1ff; font-size:.85em; line-height:1.6; }
+  table { border-collapse:collapse; width:100%; margin:1.2em 0; font-size:.92rem;
+    display:block; overflow-x:auto; }
+  th,td { border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top; }
+  th { background:var(--th); color:#fff; font-weight:600; white-space:nowrap; }
+  tr:nth-child(even) td { background:var(--panel); }
+  tr:hover td { background:var(--panel2); }
+  hr { border:none; border-top:1px solid var(--border); margin:2.6em 0; }
+  ul,ol { padding-left:1.4em; }
+  li { margin:.25em 0; }
+  .headerbar { display:flex; align-items:center; gap:14px; margin-bottom:8px; }
+  .badge { display:inline-block; font-size:.72rem; letter-spacing:.08em; text-transform:uppercase;
+    background:var(--panel2); color:var(--muted); border:1px solid var(--border);
+    padding:4px 10px; border-radius:999px; }
+  .toc { background:var(--panel); border:1px solid var(--border); border-radius:12px;
+    padding:14px 20px; margin:1.4em 0 2.4em; }
+  .toc > ul { margin:.3em 0; }
+  .toc .toctitle { font-weight:700; color:#fff; font-size:1rem; }
+  ::selection { background:rgba(76,141,255,.35); }
+  .headerlink { opacity:0; margin-left:.4em; font-size:.8em; }
+  h2:hover .headerlink, h3:hover .headerlink { opacity:.6; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="headerbar">
+    <span class="badge">RemaLab WMS</span>
+    <span class="badge">Sistem Dökümantasyonu</span>
+  </div>
+  <h1 id="remalab-wms-sistem-dokumantasyonu">RemaLab WMS — Sistem Dökümantasyonu<a class="headerlink" href="#remalab-wms-sistem-dokumantasyonu" title="Permanent link">#</a></h1>
+<blockquote>
+<p>Depo ve servis/onarım yönetim sistemi (Warehouse Management System).
+Bu belge; <strong>neyin neyle nasıl bağlantılı olduğunu, sistemin nasıl çalıştığını ve verilerin nereden geldiğini</strong> uçtan uca anlatır.</p>
+</blockquote>
+<hr />
+<h2 id="1-sistem-nedir-ozet">1. Sistem Nedir? (Özet)<a class="headerlink" href="#1-sistem-nedir-ozet" title="Permanent link">#</a></h2>
+<p>RemaLab WMS, telefon <strong>yenileme (refurbish) / onarım (repair) / RMA</strong> operasyonlarını yöneten bir <strong>masaüstü uygulamasıdır</strong>. Fiziksel olarak tek bir <code>.exe</code>/Python süreci gibi çalışır ama içinde iki dünya barındırır:</p>
+<ul>
+<li><strong>Arayüz (UI):</strong> Modern bir <strong>React</strong> uygulaması (web teknolojisi).</li>
+<li><strong>Backend (iş mantığı + veritabanı):</strong> <strong>Python + PySide6 (Qt)</strong>.</li>
+</ul>
+<p>Bu ikisi aynı masaüstü penceresi içinde yaşar. React arayüzü, bir tarayıcı motoru (Qt WebEngine = Chromium) içinde açılır; Python tarafı ise verileri ve iş kurallarını yönetir. Aralarındaki konuşma <strong>QWebChannel</strong> adlı bir köprü ile olur.</p>
+<p>Veriler <strong>uzaktaki bir PostgreSQL sunucusunda</strong> (<code>10.200.246.116</code>, <code>remalab</code> veritabanı) tutulur.</p>
+<hr />
+<h2 id="2-teknoloji-ygn">2. Teknoloji Yığını<a class="headerlink" href="#2-teknoloji-ygn" title="Permanent link">#</a></h2>
+<table>
+<thead>
+<tr>
+<th>Katman</th>
+<th>Teknoloji</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Masaüstü kabuk</td>
+<td><strong>PySide6</strong> (Qt for Python) — <code>QMainWindow</code> + <code>QWebEngineView</code> (Chromium)</td>
+</tr>
+<tr>
+<td>Frontend</td>
+<td><strong>React 19</strong> + <strong>Vite 8</strong> + <strong>React Router 7</strong> + <strong>Tailwind CSS 4</strong> + <strong>lucide-react</strong> ikonları</td>
+</tr>
+<tr>
+<td>Frontend yardımcıları</td>
+<td><code>xlsx</code> (SheetJS, Excel), <code>react-barcode</code>, <code>zustand</code> (hafif state), <code>axios</code></td>
+</tr>
+<tr>
+<td>Köprü (UI ↔ Python)</td>
+<td><strong>QWebChannel</strong> (masaüstünde doğrudan, tarayıcıda WebSocket <code>ws://…:5174</code> üzerinden)</td>
+</tr>
+<tr>
+<td>Backend dili</td>
+<td><strong>Python 3</strong></td>
+</tr>
+<tr>
+<td>ORM</td>
+<td><strong>SQLAlchemy</strong> (+ <code>psycopg2</code> sürücüsü)</td>
+</tr>
+<tr>
+<td>Veritabanı</td>
+<td><strong>PostgreSQL</strong> (uzak sunucu, <code>warehouse</code> şeması)</td>
+</tr>
+<tr>
+<td>Kimlik doğrulama</td>
+<td><code>bcrypt</code> (parola hash), <code>PyJWT</code> (mevcut ama masaüstünde aktif kullanılmıyor)</td>
+</tr>
+<tr>
+<td>Excel</td>
+<td><code>openpyxl</code> + <code>pandas</code></td>
+</tr>
+<tr>
+<td>Ayrı REST API</td>
+<td><strong>FastAPI</strong> + <strong>Pydantic</strong> + <strong>uvicorn</strong> (uzak sunucuda ayrı çalışır — bkz. §12)</td>
+</tr>
+<tr>
+<td>Dökümantasyon</td>
+<td><strong>MkDocs</strong> (Material teması, <code>mkdocstrings</code>)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="3-mimari-nasl-calsyor">3. Mimari — Nasıl Çalışıyor?<a class="headerlink" href="#3-mimari-nasl-calsyor" title="Permanent link">#</a></h2>
+<h3 id="31-buyuk-resim">3.1 Büyük resim<a class="headerlink" href="#31-buyuk-resim" title="Permanent link">#</a></h3>
+<pre><code>┌──────────────────────────────────────────────────────────────────────┐
+│                    MASAÜSTÜ UYGULAMASI (main.py)                        │
+│                                                                        │
+│   ┌────────────────────────────┐        ┌──────────────────────────┐  │
+│   │  QWebEngineView (Chromium) │        │   Python Backend          │  │
+│   │  ── React SPA ──           │◄──────►│   WebBridge (QObject)     │  │
+│   │  pages/, components/       │ QWeb   │   core/web_bridge.py      │  │
+│   │  services/api.js           │ Channel│   (~6700 satır, kalp)     │  │
+│   └────────────┬───────────────┘        └────────────┬─────────────┘  │
+│                │ büyük listeler için HTTP             │ SQLAlchemy     │
+│                ▼                                       ▼                │
+│         /api_cache/*.json  ◄── yazar ──  api_cache/ (yerel disk cache) │
+└────────────────────────────────────────────────────────┼──────────────┘
+                                                          │ psycopg2
+                                                          ▼
+                                        ┌──────────────────────────────┐
+                                        │  PostgreSQL 10.200.246.116     │
+                                        │  veritabanı: remalab           │
+                                        │  şema: warehouse.*             │
+                                        └──────────────────────────────┘
+</code></pre>
+<h3 id="32-uygulama-acls-aks-adm-adm">3.2 Uygulama açılış akışı (adım adım)<a class="headerlink" href="#32-uygulama-acls-aks-adm-adm" title="Permanent link">#</a></h3>
+<ol>
+<li><strong><code>start.bat</code></strong> çalıştırılır → <code>.venv</code> sanal ortamını kurar, <code>requirements.txt</code> ve <code>npm install</code> ile bağımlılıkları yükler, sonra <strong><code>main.py</code></strong> başlatır.</li>
+<li><strong><code>main.py</code></strong>:
+   - Qt uygulamasını (yüksek DPI, Türkçe yerel ayar) başlatır.
+   - <strong>Arka planda</strong> <code>init_database_schema()</code> çağırır (uzak DB'ye bağlanıp tabloları kontrol eder). Bu arka planda yapılır ki pencere anında açılsın.
+   - <strong><code>MainWindow</code></strong> penceresini açar.</li>
+<li><strong><code>core/main_window.py</code> → <code>MainWindow</code></strong>:
+   - Bir <strong><code>QWebEngineView</code></strong> (gömülü Chromium) oluşturur.
+   - <strong><code>WebBridge</code></strong> nesnesini bir <strong><code>QWebChannel</code></strong> üzerinden <code>"backend"</code> adıyla React'e açar.
+   - <strong>5174 portunda</strong> bir WebSocket sunucusu açar (tarayıcı tabanlı QWebChannel bağlantıları için).
+   - <code>DEV_MODE=1</code> ise: <strong>Vite dev sunucusunu</strong> (<code>npm run dev</code>, port 5173) otomatik başlatır ve <code>http://127.0.0.1:5173</code> yüklenir.
+   - <code>DEV_MODE=0</code> ise: derlenmiş <code>frontend/dist/</code> klasörünü yerel statik sunucudan servis eder.</li>
+<li>React uygulaması yüklenir → <code>getBackend()</code> (<code>services/api.js</code>) QWebChannel ile <code>backend</code> nesnesini bulur → artık <code>backend.&lt;metod&gt;()</code> çağrıları yapılabilir.</li>
+</ol>
+<blockquote>
+<p><strong><code>server.py</code></strong> ayrıca "başsız (headless)" bir mod sunar: pencere açmadan sadece WebSocket köprüsü + Vite sunucusunu çalıştırır. Normal kullanımda gerekmez.</p>
+</blockquote>
+<h3 id="33-frontend-backend-konusmas-veri-aksnn-kalbi">3.3 Frontend ↔ Backend konuşması (veri akışının kalbi)<a class="headerlink" href="#33-frontend-backend-konusmas-veri-aksnn-kalbi" title="Permanent link">#</a></h3>
+<p>Tüm iletişim şu desenle çalışır:</p>
+<pre><code class="language-javascript">// frontend/src/services/api.js
+createUser: async (userData) =&gt; {
+    const backend = await getBackend();          // QWebChannel &quot;backend&quot; nesnesi
+    return new Promise((resolve) =&gt; {
+        backend.create_user(username, ..., (res) =&gt; resolve(JSON.parse(res)));
+        //      └── Python WebBridge.create_user  └── callback: JSON string döner
+    });
+}
+</code></pre>
+<ul>
+<li>Frontend'deki her <code>api.xxx()</code> fonksiyonu, Python'daki bir <strong><code>@Slot</code></strong> metoduna karşılık gelir.</li>
+<li>Python metodu <strong>her zaman bir JSON string</strong> döner (<code>{"success": true, ...}</code> gibi), frontend <code>JSON.parse</code> eder.</li>
+<li><code>frontend/src/services/api.js</code> (~1700 satır) bu köprünün tamamını "Promise" haline getiren tek sarmalayıcı katmandır.</li>
+<li>QWebChannel yoksa (ör. saf tarayıcı) <code>api.js</code> içinde <strong>mock backend</strong> devreye girer (geliştirme kolaylığı için).</li>
+</ul>
+<h3 id="34-api_cache-veriler-nereden-geliyor-sorusunun-kilit-noktas">3.4 <code>api_cache</code> — "Veriler nereden geliyor?" sorusunun kilit noktası<a class="headerlink" href="#34-api_cache-veriler-nereden-geliyor-sorusunun-kilit-noktas" title="Permanent link">#</a></h3>
+<p>Büyük listeler (parçalar, stok, ürünler) on binlerce satır olabilir. Bu kadar veriyi QWebChannel köprüsünden JSON string olarak geçirmek yavaştır. Çözüm:</p>
+<ol>
+<li><code>get_parts</code>, <code>get_stock_status</code>, <code>get_products</code>, <code>get_critical_stock</code> gibi metodlar veriyi DB'den çeker, <strong><code>api_cache/*.json</code></strong> dosyasına yazar (<code>write_to_cache</code>).</li>
+<li>Frontend'e köprüden koca JSON yerine kısa bir cevap döner: <code>{"success": true, "fetch_url": "/api_cache/parts.json"}</code>.</li>
+<li>Frontend bu dosyayı <strong>HTTP ile</strong> indirir (<code>/api_cache/parts.json</code> veya dev modda <code>http://localhost:5173/api_cache/parts.json</code>).</li>
+<li><strong>Otomatik geçersizleştirme:</strong> SQLAlchemy'ye takılı bir dinleyici — <code>event.listen(Session, 'after_commit', clear_api_cache)</code> — <strong>her veritabanı commit'inde</strong> <code>parts.json</code>, <code>stock.json</code>, <code>critical.json</code> dosyalarını siler. Böylece bir sonraki okuma güncel veriyi yeniden üretir.</li>
+</ol>
+<blockquote>
+<p><strong>Özetle:</strong> <code>api_cache/</code> dışarıdan gelen bir API verisi <strong>değildir</strong> — kendi PostgreSQL'inizin, hız için diske serileştirilmiş anlık görüntüsüdür. <code>.gitignore</code> içinde olması da bunu doğrular (üretilen, makineye özel veri).</p>
+</blockquote>
+<p>Örnek dosya boyutları: <code>parts.json</code> ~12 MB, <code>stock.json</code> ~9 MB, <code>products.json</code> ~60 KB.</p>
+<hr />
+<h2 id="4-veritaban">4. Veritabanı<a class="headerlink" href="#4-veritaban" title="Permanent link">#</a></h2>
+<ul>
+<li><strong>Motor:</strong> PostgreSQL, SQLAlchemy + <code>psycopg2</code> üzerinden.</li>
+<li><strong>Bağlantı bilgileri</strong> <code>.env</code> dosyasından okunur (<code>config/database.py</code>):</li>
+<li><code>PG_HOST=10.200.246.116</code>, <code>PG_PORT=5432</code>, <code>PG_DATABASE=remalab</code>, <code>PG_USER=postgres</code>, <code>PG_PASSWORD=…</code></li>
+<li><strong>Tüm tablolar <code>warehouse</code> şemasındadır</strong> (<code>warehouse.parts</code>, <code>warehouse.stock</code>, …).</li>
+<li><strong>Tembel (lazy) bağlantı:</strong> Engine ve session ilk kullanımda oluşturulur. Bağlantı ayarları çalışma anında <code>update_db_settings</code> ile değiştirilebilir → <code>reconnect_engine()</code> motoru yeniden kurar.</li>
+<li><strong>Dayanıklılık ayarları:</strong> <code>connect_timeout=5s</code>, sunucu tarafı <code>statement_timeout=10s</code>, TCP keepalive, <code>pool_pre_ping=True</code>, <code>pool_recycle=300</code> — dalgalı bir LAN bağlantısı için ayarlanmış. Global <code>handle_error</code> dinleyicisi bağlantı hatalarını çökertmeden <code>[WARN]</code> olarak loglar; UI tarafında <strong><code>DbErrorModal</code></strong> kullanıcıya bağlantı ayarlarını düzenleme imkânı verir.</li>
+</ul>
+<h3 id="41-kendi-kendine-migrasyon-dikkat">4.1 Kendi kendine migrasyon (dikkat!)<a class="headerlink" href="#41-kendi-kendine-migrasyon-dikkat" title="Permanent link">#</a></h3>
+<p>Klasik migration aracı (Alembic vb.) <strong>yoktur</strong>. Bunun yerine iki mekanizma var:</p>
+<ol>
+<li><code>init_database_schema()</code> → <code>Base.metadata.create_all()</code> (SQLAlchemy modelleri için tabloları oluşturur).</li>
+<li><strong><code>WebBridge.__init__</code></strong> çağrıldığında ~20 adet <strong><code>_ensure_*</code></strong> metodu çalışır. Bunlar ham SQL (<code>ALTER TABLE ... ADD COLUMN IF NOT EXISTS</code>, <code>CREATE TABLE IF NOT EXISTS</code>) ile eksik kolon/tabloları ekler, sistem depolarını ve referans verilerini tohumlar. Yani <strong>şema, uygulama her açıldığında kod tarafından güncel tutulur.</strong></li>
+</ol>
+<p>Örnek <code>_ensure_*</code> işleri: <code>departments</code>, <code>service_records</code>, <code>work_orders</code>, <code>material_requests</code>, üretim tabloları, <code>work_order_parts</code>, <code>batch_entries</code>, <code>item_models</code>, kullanıcı <code>gorev</code>/<code>fullname</code> kolonları, sistem lokasyonları vb.</p>
+<h3 id="42-iki-tur-tablo">4.2 İki tür tablo<a class="headerlink" href="#42-iki-tur-tablo" title="Permanent link">#</a></h3>
+<ul>
+<li><strong>SQLAlchemy modeli olan tablolar</strong> (<code>models/</code> klasörü) — aşağıda §5.</li>
+<li><strong>Sadece ham SQL ile yönetilen tablolar</strong> (<code>web_bridge.py</code> içindeki <code>_ensure_*</code> + <code>text()</code> sorguları). Bunların ORM modeli yoktur: <code>work_orders</code>, <code>work_order_parts</code>, <code>service_records</code>, <code>customers</code>, <code>material_requests</code>, <code>production_runs</code>, <code>produced_units</code>, <code>production_materials</code>, <code>item_models</code>, <code>part_suppliers</code>, <code>part_supplier_prices</code>, <code>bom_items</code>, <code>departments</code>.</li>
+</ul>
+<hr />
+<h2 id="5-veri-modelleri-orm-ve-iliskiler">5. Veri Modelleri (ORM) ve İlişkiler<a class="headerlink" href="#5-veri-modelleri-orm-ve-iliskiler" title="Permanent link">#</a></h2>
+<blockquote>
+<p><strong>Önemli tasarım kararı:</strong> Modellerde <strong>hiç <code>ForeignKey</code> ve hiç <code>relationship()</code> tanımı yoktur.</strong> Tüm bağlantılar "mantıksal"dır — <code>part_id</code>, <code>location_id</code> gibi düz <code>Integer</code> kolonlar sorgu kodunda elle join edilir. Bu, gevşek bağlı (loosely-coupled) bilinçli bir tercihtir.</p>
+</blockquote>
+<h3 id="ana-tablolar">Ana tablolar<a class="headerlink" href="#ana-tablolar" title="Permanent link">#</a></h3>
+<table>
+<thead>
+<tr>
+<th>Model / Tablo</th>
+<th>Amaç</th>
+<th>Kilit kolonlar</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>User</code> / <code>warehouse.users</code></td>
+<td>Kullanıcı + org hiyerarşisi</td>
+<td><code>username</code>(unique), <code>tc_no</code>(unique), <code>password_hash</code>, <code>role</code>, <code>gorev</code>, <code>fullname</code>, <code>account_enabled</code>, <code>team_leader</code>, <code>operation_manager</code>, <code>administrative_manager</code></td>
+</tr>
+<tr>
+<td><code>Part</code> / <code>warehouse.parts</code></td>
+<td>Parça ana kataloğu (sistemin merkezi)</td>
+<td><code>name</code>, <code>item_code</code>, <code>barcode</code>, <code>brand</code>, <code>model</code>, <code>memory</code>, <code>color</code>, <code>part_category_id</code>, <code>stock_tracking_type</code>, <code>department</code>, <code>status</code>, <code>critical_limit</code>, <code>part_type</code></td>
+</tr>
+<tr>
+<td><code>PartCategory</code> / <code>warehouse.part_categories</code></td>
+<td>Parça kategorileri</td>
+<td><code>name</code>(unique), <code>part_type</code>, <code>flow</code>, <code>departments</code>, <code>is_active</code></td>
+</tr>
+<tr>
+<td><code>Location</code> / <code>warehouse.locations</code></td>
+<td>Depo/lokasyonlar</td>
+<td><code>name</code>, <code>kind</code> (sistem deposu türü), <code>description</code></td>
+</tr>
+<tr>
+<td><code>Stock</code> / <code>warehouse.stock</code></td>
+<td>(parça, lokasyon) → miktar</td>
+<td><code>part_id</code>, <code>location_id</code>, <code>quantity</code></td>
+</tr>
+<tr>
+<td><code>StockMovement</code> / <code>warehouse.stock_movements</code></td>
+<td><strong>Tüm stok hareketlerinin defteri (audit)</strong></td>
+<td><code>type</code>, <code>quantity</code>, <code>part_id</code>, <code>source_location_id</code>, <code>target_location_id</code>, <code>created_by</code>, <code>technician</code>, <code>unit_price</code>, <code>total_cost</code>, <code>created_at</code></td>
+</tr>
+<tr>
+<td><code>InboundEntry</code> / <code>warehouse.inbound_entries</code></td>
+<td>Mal giriş kayıtları</td>
+<td><code>part_id</code>, <code>quantity</code>, <code>unit_price</code>, <code>total_cost</code>, <code>created_by</code></td>
+</tr>
+<tr>
+<td><code>OutboundEntry</code> / <code>warehouse.outbound_entries</code></td>
+<td>Mal çıkış kayıtları</td>
+<td><code>part_id</code>, <code>location_id</code>, <code>quantity</code>, <code>destination</code>, <code>outbound_type</code></td>
+</tr>
+<tr>
+<td><code>Product</code> / <code>warehouse.products</code></td>
+<td>Cihaz modeli kataloğu</td>
+<td><code>item_code</code>(unique), <code>brand</code>, <code>model</code>, <code>memory</code>, <code>color</code></td>
+</tr>
+<tr>
+<td><code>ProductFamily</code> / <code>warehouse.product_families</code></td>
+<td>Ürün ailesi (master veri)</td>
+<td><code>name</code>(unique), <code>is_active</code></td>
+</tr>
+<tr>
+<td><code>ProductBOM</code> / <code>warehouse.product_boms</code></td>
+<td>Ürün reçetesi (model → alt kalem)</td>
+<td><code>product_model</code>, <code>child_item_code</code>, <code>quantity</code>, <code>status</code></td>
+</tr>
+<tr>
+<td><code>ItemBOM</code> / <code>warehouse.item_bom</code></td>
+<td>Kalem reçetesi (parent → child)</td>
+<td><code>parent_item_id</code>, <code>child_item_id</code>, <code>quantity</code></td>
+</tr>
+<tr>
+<td><code>BatchEntry</code> / <code>warehouse.batch_entries</code></td>
+<td>Cihaz kabul/batch girişi (IMEI, model, GB, renk)</td>
+<td><code>imei_number</code>, <code>serial_number</code>, <code>internal_id</code>, <code>batch_no</code>, <code>model</code>, <code>gb</code>, <code>color</code>, <code>unit_price</code>, <code>currency</code>, <code>defects</code>, <code>flow</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="51-varlk-iliskileri-mantksal">5.1 Varlık ilişkileri (mantıksal)<a class="headerlink" href="#51-varlk-iliskileri-mantksal" title="Permanent link">#</a></h3>
+<pre><code>                         warehouse.parts (id)  ◄── sistemin merkezi
+              part_id /    |          \ part_id        \ part_id
+        ┌───────────┘  part_category_id  └──────────┐   └──────────┐
+        ▼                  ▼                          ▼              ▼
+   stock (part_id,   part_categories (id)     inbound_entries  stock_movements
+    location_id)                                                (part_id,
+        │                                                        source_loc_id,
+        │ location_id                                            target_loc_id)
+        ▼
+   locations (id) ◄── outbound_entries.location_id, stock_movements.*_location_id
+
+   products(item_code, model) ◄···· product_boms(child_item_code, product_model)
+   item_bom(parent_item_id ──► child_item_id)     [string kodlarla, kendine referanslı]
+
+   product_families / batch_entries / users  → bağımsız (standalone)
+</code></pre>
+<ul>
+<li><strong><code>Part</code></strong> hub'dır: stok, giriş, çıkış ve hareketlerin hepsi <code>parts.id</code>'ye mantıksal olarak bağlıdır.</li>
+<li><strong><code>Stock</code></strong> = (parça, lokasyon) ikilisi; parça ile lokasyon arasındaki pivot.</li>
+<li><strong><code>StockMovement</code></strong> = değiştirilemez denetim defteri; her giriş/çıkış/transfer burada bir satır bırakır.</li>
+<li><strong>BOM tabloları</strong> ürün/kalemleri bileşenlerine <strong>string kodlarla</strong> bağlar (integer FK ile değil).</li>
+</ul>
+<hr />
+<h2 id="6-katmanl-mimari-iki-farkl-yol">6. Katmanlı Mimari (İki farklı yol)<a class="headerlink" href="#6-katmanl-mimari-iki-farkl-yol" title="Permanent link">#</a></h2>
+<p>Projede iş mantığına ulaşan <strong>iki paralel yol</strong> vardır:</p>
+<h3 id="yol-a-temiz-katmanl-mimari-models-repositories-services">Yol A — Temiz katmanlı mimari (<code>models</code> → <code>repositories</code> → <code>services</code>)<a class="headerlink" href="#yol-a-temiz-katmanl-mimari-models-repositories-services" title="Permanent link">#</a></h3>
+<p>Klasik, disiplinli mimari. Masaüstündeki bazı akışlar ve özellikle ayrı FastAPI (§12) bunu kullanır.</p>
+<ul>
+<li><strong><code>repositories/</code></strong> — Ham DB erişimi. <strong>Asla commit etmez</strong>, sadece <code>flush()</code>. Session dışarıdan verilir.</li>
+<li><code>UserRepository</code>, <code>PartRepository</code>, <code>LocationRepository</code>, <code>StockRepository</code>, <code>StockMovementRepository</code>, <code>InboundEntryRepository</code>, <code>OutboundEntryRepository</code>.</li>
+<li><strong><code>services/</code></strong> — İş mantığı + <strong>transaction sahibi</strong> (<code>with get_db()</code> + <code>commit()</code>/<code>rollback()</code>). Girdi doğrular, domain istisnası fırlatır, UI'a düz dict döner.</li>
+<li><code>UserService</code>, <code>PartService</code>, <code>LocationService</code>, <code>InboundService</code>, <code>OutboundService</code>, <code>StockService</code>.</li>
+<li>Örnek atomik iş: <code>InboundService.receive_goods</code> → tek transaction'da <code>inbound_entries</code> kaydı + <code>stock</code> artışı + <code>stock_movements</code> "Inbound" satırı.</li>
+<li><strong><code>services/exceptions.py</code></strong> — istisna hiyerarşisi:
+  <code>ServiceError                    (temel; mesajı UI'da göstermek güvenli)
+  ├── ValidationError             (hatalı/eksik girdi)
+  ├── DuplicateUsernameError      (kullanıcı unique çakışması)
+  ├── NotFoundError               (kayıt yok)
+  └── InsufficientStockError      (yetersiz stok)</code></li>
+</ul>
+<h3 id="yol-b-coreweb_bridgepy-masaustunun-asil-calsan-yolu">Yol B — <code>core/web_bridge.py</code> (masaüstünün ASIL çalışan yolu)<a class="headerlink" href="#yol-b-coreweb_bridgepy-masaustunun-asil-calsan-yolu" title="Permanent link">#</a></h3>
+<p>Masaüstü UI'ının çağırdığı <strong>~120 <code>@Slot</code> metodunun neredeyse tamamı</strong> burada, <strong>doğrudan</strong> veritabanına konuşur (repository/service katmanını çoğunlukla atlar):</p>
+<ul>
+<li>Desen: <code>db = SessionLocal()</code> … <code>try/finally: db.close()</code>; içinde ya ORM modelleri ya da ham <code>text()</code> SQL.</li>
+<li>Modeller/config <strong>tembel import</strong> edilir (her metodun içinde <code>from models.stock import Stock</code>) → import maliyeti ve döngüsel import riski azalır.</li>
+<li>Stok etkileyen her işlem <code>Stock</code> (bakiye) + <code>StockMovement</code> (defter) satırını aynı transaction'da yazar.</li>
+</ul>
+<blockquote>
+<p><strong>Pratik sonuç:</strong> "Bir ekran hangi veriyi nasıl alıyor?" sorusunun cevabı çoğu zaman <code>core/web_bridge.py</code> içindedir; <code>services/</code>+<code>repositories/</code> daha çok FastAPI ve temiz-mimari akışları içindir.</p>
+</blockquote>
+<hr />
+<h2 id="7-backend-api-envanteri-web_bridgepy-slot-metodlar">7. Backend API Envanteri (<code>web_bridge.py</code> <code>@Slot</code> metodları)<a class="headerlink" href="#7-backend-api-envanteri-web_bridgepy-slot-metodlar" title="Permanent link">#</a></h2>
+<p>Frontend'den <code>backend.&lt;isim&gt;(...)</code> ile çağrılabilen uç noktalar, iş alanına göre gruplu:</p>
+<h3 id="kimlik-kullanc">Kimlik / Kullanıcı<a class="headerlink" href="#kimlik-kullanc" title="Permanent link">#</a></h3>
+<p><code>login</code>, <code>get_users</code>, <code>create_user</code>, <code>update_user</code>, <code>delete_user</code> (son Admin'i silmeyi engeller).</p>
+<h3 id="parca-kategori-departman-kalem-arama">Parça / Kategori / Departman / Kalem arama<a class="headerlink" href="#parca-kategori-departman-kalem-arama" title="Permanent link">#</a></h3>
+<p><code>get_parts</code> (→ <strong>parts.json cache</strong>), <code>create_part</code>, <code>update_part</code>, <code>delete_part</code>, <code>delete_parts_bulk</code>, <code>get_item_model</code>, <code>get_item_codes_by_model</code>, <code>get_item_codes</code> (<strong>cache</strong>), <code>get_departments</code>, <code>create/update/delete_department</code>, <code>get_product_families</code>, <code>get_part_categories</code>, <code>create/update/delete_part_category</code>.</p>
+<h3 id="urun">Ürün<a class="headerlink" href="#urun" title="Permanent link">#</a></h3>
+<p><code>get_products</code> (→ <strong>products.json cache</strong>), <code>create_product</code>, <code>update_product</code>, <code>delete_product</code>.</p>
+<h3 id="recete-bom">Reçete (BOM)<a class="headerlink" href="#recete-bom" title="Permanent link">#</a></h3>
+<p><code>get_item_boms</code>, <code>get_product_boms</code> (sayfalı), <code>create/update/delete_product_bom</code>, <code>toggle_product_bom_status</code>.</p>
+<h3 id="lokasyon">Lokasyon<a class="headerlink" href="#lokasyon" title="Permanent link">#</a></h3>
+<p><code>get_locations</code>, <code>get_system_locations</code>, <code>create_location</code>, <code>delete_location</code>.</p>
+<h3 id="musteri-servis-kayd">Müşteri / Servis Kaydı<a class="headerlink" href="#musteri-servis-kayd" title="Permanent link">#</a></h3>
+<p><code>get_customers</code>, <code>create/update/delete_customer</code>, <code>get_service_records</code>, <code>create/update/delete_service_record</code>, <code>generate_customer_bulk_template</code> (Excel şablonu), <code>bulk_import_customers</code>, <code>sync_customers_to_batch_entries</code>.</p>
+<h3 id="is-emirleri-servis-uretim">İş Emirleri (Servis + Üretim)<a class="headerlink" href="#is-emirleri-servis-uretim" title="Permanent link">#</a></h3>
+<p><code>get_work_orders</code>, <code>create_work_order</code>, <code>update_work_order</code>, <code>delete_work_order</code>, <code>create_production_work_order</code>, <code>start_production_work_order</code> (BEKLIYOR→URETIMDE), <code>complete_production_work_order</code> (üretim biter, stok işlenir).</p>
+<h3 id="malzeme-istekleri-uretim-tuketimi">Malzeme İstekleri (üretim tüketimi)<a class="headerlink" href="#malzeme-istekleri-uretim-tuketimi" title="Permanent link">#</a></h3>
+<p><code>get_material_requests</code>, <code>issue_material_request</code> (kısmî/tam), <code>report_material_fire</code> (fire/hurda bildirimi), <code>return_bom_part_to_doa</code>, <code>issue_extra_bom_materials</code>, <code>receive_extra_bom_materials</code>, <code>add_material_request</code>.</p>
+<h3 id="is-emri-parcalar-servis-onarm">İş Emri Parçaları / Servis Onarım<a class="headerlink" href="#is-emri-parcalar-servis-onarm" title="Permanent link">#</a></h3>
+<p><code>get_work_order_parts_by_imei</code> (IMEI ile), <code>get_work_order_parts</code>, <code>add_work_order_part(s_bulk)</code>, <code>deliver_work_order_part</code>, <code>mark_work_order_part_waiting</code>, <code>revert_work_order_part_status</code>, <code>return_part_to_doa</code>, <code>remove_work_order_part</code>, <code>get_service_repair_details</code>, <code>save_service_repair_details</code>.</p>
+<h3 id="tedarik-istekleri">Tedarik İstekleri<a class="headerlink" href="#tedarik-istekleri" title="Permanent link">#</a></h3>
+<p><code>create_supply_request</code>, <code>cancel_supply_request</code>, <code>get_supply_requests</code>, <code>get_supply_request_history</code>.</p>
+<h3 id="uretim-kosular">Üretim Koşuları<a class="headerlink" href="#uretim-kosular" title="Permanent link">#</a></h3>
+<p><code>get_production_runs</code>, <code>create_production_run</code>, <code>delete_production_run</code>.</p>
+<h3 id="stok-depo">Stok / Depo<a class="headerlink" href="#stok-depo" title="Permanent link">#</a></h3>
+<p><code>get_stock_status</code> (→ <strong>stock.json cache</strong>), <code>get_stock_status_paged</code>, <code>transfer_stock</code> (kurallara tabi), <code>get_stock_movements</code>, <code>add_inbound_entry</code>, <code>add_outbound_entry</code>, <code>get_critical_stock</code> (→ <strong>critical.json cache</strong>).</p>
+<h3 id="batch-girisi">Batch Girişi<a class="headerlink" href="#batch-girisi" title="Permanent link">#</a></h3>
+<p><code>get_batch_entries</code> (sayfalı), <code>create/update/delete_batch_entry</code>, <code>get_batch_summary</code>, <code>clear_all_batch_entries</code>, <code>bulk_delete_batch_entries</code>, <code>bulk_update_batch_flow</code>, <code>lookup_batch_entry</code> (IMEI/seri ile arama).</p>
+<h3 id="rapor-dashboard">Rapor / Dashboard<a class="headerlink" href="#rapor-dashboard" title="Permanent link">#</a></h3>
+<p><code>get_reports</code> (tarih aralığı), <code>get_dashboard_stats</code> (KPI'lar).</p>
+<h3 id="ayarlar-dev-db">Ayarlar / Dev / DB<a class="headerlink" href="#ayarlar-dev-db" title="Permanent link">#</a></h3>
+<p><code>get_dev_mode</code>, <code>set_dev_mode</code>, <code>update_db_settings</code>, <code>get/add/create/delete_local_file</code>, <code>open_local_folder</code>, <code>get/add/delete_data_folder</code>.</p>
+<h3 id="genel-db-gezgini-admin">Genel DB Gezgini (admin)<a class="headerlink" href="#genel-db-gezgini-admin" title="Permanent link">#</a></h3>
+<p><code>get_all_tables_schema</code>, <code>get_table_data</code>, <code>insert_table_data</code> (dinamik SELECT/INSERT).</p>
+<h3 id="excel-dsa-aktarma">Excel Dışa Aktarma<a class="headerlink" href="#excel-dsa-aktarma" title="Permanent link">#</a></h3>
+<p><code>export_table_to_excel</code> (JSON→DataFrame→xlsx, <code>~/Downloads</code>'a yazıp açar), <code>export_all_tables_to_excel</code> (tüm tabloları çok sayfalı xlsx).</p>
+<hr />
+<h2 id="8-frontend-yaps">8. Frontend Yapısı<a class="headerlink" href="#8-frontend-yaps" title="Permanent link">#</a></h2>
+<h3 id="81-navigasyon-menusu-modul-haritas">8.1 Navigasyon menüsü (modül haritası)<a class="headerlink" href="#81-navigasyon-menusu-modul-haritas" title="Permanent link">#</a></h3>
+<p><code>layouts/MainLayout.jsx</code> içinde tanımlı; gruplu, katlanabilir, renk temalı ve <strong>role göre filtreli</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Grup</th>
+<th>Modüller (rota)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>GENEL BAKIŞ</strong></td>
+<td>Kontrol Paneli (<code>/dashboard</code>)</td>
+</tr>
+<tr>
+<td><strong>DEPO</strong></td>
+<td>Depo (<code>/depo</code>), İrsaliye (<code>/irsaliye</code>), İş Emirleri (<code>/work-orders</code>), Servis Onarımları (<code>/servis-onarim</code>), Tedarik İstekleri (<code>/supply-requests</code>), Tedarik Talepleri (<code>/tedarik-talepleri</code>), Raporlar (<code>/raporlar</code>)</td>
+</tr>
+<tr>
+<td><strong>ENVANTER</strong></td>
+<td>Parçalar (<code>/parts</code>), Ürün Listesi (<code>/products</code>), Müşteriler (<code>/suppliers</code>), Lokasyonlar (<code>/locations</code>)</td>
+</tr>
+<tr>
+<td><strong>KULLANICI &amp; AYARLAR</strong></td>
+<td>Kullanıcılar (<code>/users</code>), Batch Girişi (<code>/batch-entry</code>), Parça Kategorileri (<code>/part-categories</code>), Product Bom (<code>/item-bom</code>), Ayarlar (<code>/settings</code>), Veri Yönetimi (<code>/data-management</code>), Departman Yönetimi (<code>/departments</code>)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="82-rol-bazl-erisim">8.2 Rol bazlı erişim<a class="headerlink" href="#82-rol-bazl-erisim" title="Permanent link">#</a></h3>
+<p>Kullanıcının <code>role</code> değeri küçük harfe çevrilip <strong>normalize edilir</strong>: <code>developer → admin</code>; <code>tec_*</code>, <code>staff</code>, <code>qac</code>, <code>log_p → teknisyen</code>. Bir <code>allowedPaths</code> haritası hangi rolün hangi rotayı göreceğini belirler:</p>
+<ul>
+<li><strong>admin</strong> — tüm modüller.</li>
+<li><strong>depo</strong> — depo, irsaliye, work-orders, servis-onarim, raporlar.</li>
+<li><strong>depo müdürü</strong> — dashboard, depo, irsaliye, work-orders, servis-onarim, supply-requests, raporlar, parts, products, suppliers, locations, tedarik-talepleri, service-records, batch-entry.</li>
+<li><strong>teknisyen</strong> — dashboard, servis-onarim, quality, refurbishment, priority, batch-entry.</li>
+<li>Özel kural: <strong>Tedarik İstekleri/Talepleri yalnızca <code>depo müdürü</code>ne</strong> görünür (admin dahil diğerleri hariç).</li>
+</ul>
+<blockquote>
+<p>⚠️ Bu yetkilendirme <strong>yalnızca frontend'de</strong> (menü görünürlüğü) yapılır. Backend <code>@Slot</code> metodlarında rol kontrolü <strong>yoktur</strong> (bkz. §11).</p>
+</blockquote>
+<h3 id="83-sayfalar-ozet">8.3 Sayfalar (özet)<a class="headerlink" href="#83-sayfalar-ozet" title="Permanent link">#</a></h3>
+<table>
+<thead>
+<tr>
+<th>Sayfa</th>
+<th>Ne yapar</th>
+<th>Ana <code>api</code> çağrıları</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Login</strong></td>
+<td>Giriş; kullanıcıyı local/session storage'a yazar</td>
+<td><code>login</code></td>
+</tr>
+<tr>
+<td><strong>Dashboard</strong></td>
+<td>KPI kutuları + son stok hareketleri</td>
+<td><code>getDashboardStats</code>, <code>getStockMovements</code></td>
+</tr>
+<tr>
+<td><strong>Users</strong></td>
+<td>Kullanıcı CRUD + Excel</td>
+<td><code>getUsers</code>, <code>create/update/deleteUser</code></td>
+</tr>
+<tr>
+<td><strong>Parts</strong></td>
+<td>Parça kataloğu CRUD, toplu sil, Excel</td>
+<td><code>getParts</code>, <code>create/update/deletePart</code>, <code>deletePartsBulk</code>, lookuplar</td>
+</tr>
+<tr>
+<td><strong>PartCategories</strong></td>
+<td>Kategori CRUD, lokasyon/departman eşleme</td>
+<td><code>getPartCategories</code>, <code>create/update/deletePartCategory</code></td>
+</tr>
+<tr>
+<td><strong>Products</strong></td>
+<td>Cihaz modeli kataloğu CRUD</td>
+<td><code>getProducts</code>, <code>create/update/deleteProduct</code></td>
+</tr>
+<tr>
+<td><strong>Suppliers (Müşteriler)</strong></td>
+<td>Müşteri CRUD, toplu Excel import/şablon</td>
+<td><code>getCustomers</code>, <code>create/update/deleteCustomer</code>, <code>bulkImportCustomers</code></td>
+</tr>
+<tr>
+<td><strong>Locations</strong></td>
+<td>Lokasyon listesi/oluşturma</td>
+<td><code>getLocations</code>, <code>createLocation</code></td>
+</tr>
+<tr>
+<td><strong>Depo</strong></td>
+<td>Sayfalı, aramalı stok görüntüleyici (salt okunur)</td>
+<td><code>getStockStatusPaged</code></td>
+</tr>
+<tr>
+<td><strong>Irsaliye</strong></td>
+<td>Giriş/çıkış kaydı, transfer, hareket görüntüleme</td>
+<td><code>addInboundEntry</code>, <code>addOutboundEntry</code>, <code>transferStock</code>, <code>getStockMovements</code></td>
+</tr>
+<tr>
+<td><strong>WorkOrders</strong></td>
+<td>Servis+üretim iş emirleri merkezi; BOM, malzeme, üretim, teslim/iade, barkod</td>
+<td>~40 <code>api</code> çağrısı (iş emri/BOM/material/production)</td>
+</tr>
+<tr>
+<td><strong>ServisOnarim</strong></td>
+<td>Teknisyen onarım ekranı; cihaz detayı + tüketilen parçalar</td>
+<td><code>getWorkOrders</code>, <code>get/saveServiceRepairDetails</code>, <code>getWorkOrderParts</code></td>
+</tr>
+<tr>
+<td><strong>ImeiTracker</strong></td>
+<td>IMEI ile cihaz takibi; malzeme iste/teslim/iade (WorkOrders içine gömülü)</td>
+<td><code>getWorkOrderPartsByImei</code>, <code>addMaterialRequest</code>, <code>deliverWorkOrderPart</code></td>
+</tr>
+<tr>
+<td><strong>SupplyRequests</strong></td>
+<td>Tedarik istekleri kuyruğu (depo müdürü)</td>
+<td><code>getSupplyRequests</code>, <code>cancelSupplyRequest</code></td>
+</tr>
+<tr>
+<td><strong>SupplyRequestForm</strong></td>
+<td>Teknisyen tedarik talebi oluşturma + geçmiş</td>
+<td><code>createSupplyRequest</code>, <code>getSupplyRequestHistory</code></td>
+</tr>
+<tr>
+<td><strong>Raporlar</strong></td>
+<td>Stok/kritik stok/genel raporlar + Excel</td>
+<td><code>getReports</code>, <code>getStockStatus</code>, <code>getCriticalStock</code></td>
+</tr>
+<tr>
+<td><strong>Settings</strong></td>
+<td>DB bağlantı &amp; dev mode, yerel dosya/klasör yönetimi</td>
+<td><code>get/setDevMode</code>, <code>updateDbSettings</code>, dosya/klasör metodları</td>
+</tr>
+<tr>
+<td><strong>Departments</strong></td>
+<td>Departman CRUD</td>
+<td><code>getDepartments</code>, <code>create/update/deleteDepartment</code></td>
+</tr>
+<tr>
+<td><strong>ServiceRecords</strong></td>
+<td>Servis kayıtları (kabul) CRUD</td>
+<td><code>getServiceRecords</code>, <code>create/update/deleteServiceRecord</code></td>
+</tr>
+<tr>
+<td><strong>BatchEntry</strong></td>
+<td>Cihaz kabul grid'i; lookup, CRUD, toplu güncelle/sil, Excel import/export</td>
+<td><code>getBatchEntries</code>, <code>lookupBatchEntry</code>, <code>bulkUpdateBatchFlow</code></td>
+</tr>
+<tr>
+<td><strong>DataManagement</strong></td>
+<td>Düşük seviye DB admin; tablo şeması/veri gör, satır ekle, Excel</td>
+<td><code>getAllTablesSchema</code>, <code>getTableData</code>, <code>insertTableData</code></td>
+</tr>
+<tr>
+<td><strong>ItemBOM (Product Bom)</strong></td>
+<td>Ürün ailesi başına reçete yönetimi</td>
+<td><code>getProductBOMs</code>, <code>create/update/deleteProductBOM</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="84-yeniden-kullanlabilir-bilesenler">8.4 Yeniden kullanılabilir bileşenler<a class="headerlink" href="#84-yeniden-kullanlabilir-bilesenler" title="Permanent link">#</a></h3>
+<p><code>Table.jsx</code> (genel tablo: arama/sıralama/CRUD hook'ları), <code>DbErrorModal.jsx</code> (DB hatası + ayar düzenleme), <code>DeliverPartPopover.jsx</code>, <code>StockTransferModal.jsx</code> (transfer kuralları uygulanır), <code>PartSupplyMenu.jsx</code> (parça durum menüsü), <code>PartSelectCombobox</code>/<code>ModelSelectCombobox</code>/<code>TextCombobox</code> (performanslı aramalı açılır listeler, max 60 sonuç), <code>ExcelMappingModal.jsx</code> (Excel sütun→DB kolon eşleme sihirbazı), <code>ErrorBoundary.jsx</code>.</p>
+<h3 id="85-tema">8.5 Tema<a class="headerlink" href="#85-tema" title="Permanent link">#</a></h3>
+<p><code>context/ThemeContext.jsx</code> — light/dark; global (<code>global_theme</code>) + <strong>kullanıcıya özel</strong> (<code>theme_&lt;username&gt;</code>) tercih. <code>&lt;html&gt;</code>'e <code>dark</code> sınıfı ekler/çıkarır.</p>
+<h3 id="86-ek-davranslar-mainlayout">8.6 Ek davranışlar (MainLayout)<a class="headerlink" href="#86-ek-davranslar-mainlayout" title="Permanent link">#</a></h3>
+<ul>
+<li><strong>60 saniyede bir</strong> <code>getCriticalStock()</code> → zil/bildirim menüsü (okunanlar localStorage'da).</li>
+<li>Giriş yapan kullanıcı local/session storage'dan okunur; <code>user:updated</code> olayı ile tazelenir.</li>
+<li>Üst bardaki yenile butonu <code>app:refresh</code> özel olayı yayar (sayfalar dinleyip yeniden yükler).</li>
+</ul>
+<hr />
+<h2 id="9-ana-is-kurallar-domain">9. Ana İş Kuralları (Domain)<a class="headerlink" href="#9-ana-is-kurallar-domain" title="Permanent link">#</a></h2>
+<h3 id="91-sistem-depolar-kind">9.1 Sistem depoları (kind)<a class="headerlink" href="#91-sistem-depolar-kind" title="Permanent link">#</a></h3>
+<p><code>web_bridge.py</code> sabit sistem depoları tanımlar ve otomatik iş akışıyla yönetir:
+<code>good_stock</code> (Good Stock), <code>doa_stock</code> (DOA Stock), <code>repair_stock</code> (Repair Stock), <code>scrap_stock</code> (Scrap Stock), <code>out_stock</code> (Out Stock).</p>
+<h3 id="92-izin-verilen-manuel-stok-transferleri-system_transfer_rules">9.2 İzin verilen manuel stok transferleri (<code>SYSTEM_TRANSFER_RULES</code>)<a class="headerlink" href="#92-izin-verilen-manuel-stok-transferleri-system_transfer_rules" title="Permanent link">#</a></h3>
+<pre><code>good_stock  → repair_stock
+repair_stock → out_stock, doa_stock
+doa_stock   → good_stock, scrap_stock
+out_stock   → (hiç)
+scrap_stock → (hiç)
+</code></pre>
+<p>Kaynak bir sistem deposu değilse (ör. özel raf) kısıtlama uygulanmaz. <code>transfer_stock</code> bu kuralı denetler.</p>
+<h3 id="93-is-emri-tipleri">9.3 İş emri tipleri<a class="headerlink" href="#93-is-emri-tipleri" title="Permanent link">#</a></h3>
+<ul>
+<li><strong>SERVICE</strong> (varsayılan): Servis Kaydı'na bağlı onarım süreci.</li>
+<li><strong>PRODUCTION</strong>: Bir reçeteye (<code>ItemBOM</code>, <code>target_part_id</code>) bağlı yarı-mamul üretimi; Servis Kaydı gerektirmez.</li>
+<li>İkisi aynı <code>work_orders.status</code> sütununu paylaşır ama farklı değer kümeleri kullanır:</li>
+<li>Üretim durumları: <code>BEKLIYOR → URETIMDE → TAMAMLANDI</code>.</li>
+<li>Servis durumları: Beklemede/Devam Ediyor/Tamamlandı/…</li>
+</ul>
+<h3 id="94-malzeme-istegi-durumu-material_requestsstatus">9.4 Malzeme isteği durumu (<code>material_requests.status</code>)<a class="headerlink" href="#94-malzeme-istegi-durumu-material_requestsstatus" title="Permanent link">#</a></h3>
+<p>Sadece <strong>üretim</strong> iş emirleri için: <code>WAITING (issued=0) → PARTIAL (0&lt;issued&lt;required) → ISSUED (issued≥required)</code>. <code>_compute_material_request_status</code> ile hesaplanır.</p>
+<h3 id="95-batch-musteri-aks-flow">9.5 Batch / Müşteri akışı (<code>flow</code>)<a class="headerlink" href="#95-batch-musteri-aks-flow" title="Permanent link">#</a></h3>
+<p>Kabul edilen değerler: <code>Refurbish</code>, <code>Repair</code>, <code>RMA</code>, <code>Battery Replacement</code>. Müşteri toplu yüklemesinde zorunlu sütunlar: IMEI, Seri No, Internal ID, Cihaz Modeli, Flow, Müşteri Şikayeti, Giriş Tarihi.</p>
+<h3 id="96-stok-butunlugu">9.6 Stok bütünlüğü<a class="headerlink" href="#96-stok-butunlugu" title="Permanent link">#</a></h3>
+<p>Her giriş/çıkış/transfer/üretim işlemi <strong>tek transaction</strong>'da: <code>stock</code> bakiyesini günceller <strong>ve</strong> <code>stock_movements</code>'a bir denetim satırı yazar. Bu, "ne oldu, kim yaptı, ne zaman" izini garanti eder.</p>
+<hr />
+<h2 id="10-kimlik-dogrulama-yetkilendirme">10. Kimlik Doğrulama &amp; Yetkilendirme<a class="headerlink" href="#10-kimlik-dogrulama-yetkilendirme" title="Permanent link">#</a></h2>
+<ul>
+<li><strong><code>config/auth.py</code>:</strong> <code>bcrypt</code> ile parola hash/doğrulama; <code>PyJWT</code> ile token üretme/çözme fonksiyonları var (<code>create_access_token</code>, <code>decode_access_token</code>) ama masaüstü akışında <strong>kullanılmıyor</strong>.</li>
+<li><strong><code>config/session.py</code>:</strong> Singleton <code>SessionManager</code> (token/kullanıcı/rol, diske kaydetme). <code>DEVELOPER</code> rolü otomatik <code>Admin</code> sayılır.</li>
+<li><strong>Masaüstü gerçeği:</strong> Tek auth girişi <code>login</code>'dir → kullanıcıyı bulur, <code>verify_password</code> ile bcrypt kontrolü yapar, profili döner. <strong>JWT yok, endpoint bazlı koruma yok.</strong> <code>username</code> yazma işlemlerine sadece <strong>denetim/atıf</strong> için parametre olarak geçer.</li>
+<li><strong>Tek rol kuralı backend'de:</strong> <code>delete_user</code>, son kalan Admin'i silmeyi reddeder.</li>
+</ul>
+<hr />
+<h2 id="11-bilinen-riskler-guvenlik-notlar">11. Bilinen Riskler / Güvenlik Notları<a class="headerlink" href="#11-bilinen-riskler-guvenlik-notlar" title="Permanent link">#</a></h2>
+<p>Bunlar mevcut durumu belgeler (kod değiştirilmedi):</p>
+<ol>
+<li><strong>Endpoint yetkilendirmesi yok:</strong> Rol kontrolü yalnızca frontend menü görünürlüğündedir. <code>backend.*</code> metodlarının hepsi köprüye bağlı herkese açıktır.</li>
+<li><strong>Genel DB gezgini uçları:</strong> <code>get_table_data</code> / <code>insert_table_data</code> / <code>export_all_tables_to_excel</code> tablo adını f-string ile SQL'e gömer. Şema beyaz listede ama <code>table_name</code> değil → pratikte kısıtsız DB okuma/yazma.</li>
+<li><strong>Düz metin kimlik bilgileri:</strong> <code>.env</code> içinde canlı PostgreSQL parolası düz metin ve depoya işlenmiş; <code>config/auth.py</code>'de sabit (hardcoded) yedek <code>SECRET_KEY</code> var.</li>
+<li><strong>CORS <code>*</code>:</strong> Ayrı FastAPI uygulaması (§12) tüm origin'lere açık.</li>
+</ol>
+<hr />
+<h2 id="12-ayr-fastapi-rest-servisi-api">12. Ayrı FastAPI REST Servisi (<code>api/</code>)<a class="headerlink" href="#12-ayr-fastapi-rest-servisi-api" title="Permanent link">#</a></h2>
+<p>QWebChannel köprüsünden <strong>tamamen bağımsız</strong>, aynı <code>services</code>/<code>repositories</code>/DB yığınını kullanan klasik bir REST API:</p>
+<ul>
+<li><strong><code>api/main.py</code>:</strong> <code>FastAPI(title="RemaLab WMS API")</code>, geniş CORS, <code>users</code> + <code>parts</code> router'ları, <code>GET /</code> sağlık ucu.</li>
+<li><strong><code>api/routers/parts.py</code></strong> (<code>/api/parts</code>): <code>GET</code> (arama), <code>POST</code>, <code>PUT/{id}</code>, <code>DELETE/{id}</code>.</li>
+<li><strong><code>api/routers/users.py</code></strong> (<code>/api/users</code>): <code>GET</code>, <code>POST</code>, <code>PUT/{id}</code>, <code>DELETE/{id}</code>.</li>
+<li><strong>Şemalar:</strong> Pydantic (<code>part_schema.py</code>, <code>user_schema.py</code>).</li>
+<li><strong>Nerede çalışır?</strong> <code>docs/index.md</code>'ye göre bu API <strong>yerelde değil</strong>, uzak sunucuda (<code>10.200.246.116:8000</code>, Windows Task Scheduler ile kalıcı) çalışır; Swagger: <code>http://10.200.246.116:8000/docs</code> (ZeroTier ağı üzerinden). Yani mobil/web/ERP entegrasyonları için ayrı bir yüzeydir; masaüstü uygulaması bunu kullanmaz.</li>
+</ul>
+<blockquote>
+<p><strong>Kafa karışıklığı uyarısı:</strong> <code>api/</code> (uzak REST API) ile <code>api_cache/</code> (masaüstünün yerel DB önbelleği) <strong>isim benzerliğine rağmen alakasızdır.</strong></p>
+</blockquote>
+<hr />
+<h2 id="13-excel-icedsa-aktarma">13. Excel İçe/Dışa Aktarma<a class="headerlink" href="#13-excel-icedsa-aktarma" title="Permanent link">#</a></h2>
+<ul>
+<li><strong><code>core/excel_utils.py</code> → <code>style_excel_file</code>:</strong> Üretilmiş bir xlsx'i açıp "premium" görünüm uygular (koyu başlık, zebra satırlar, otomatik sütun genişliği, <code>freeze_panes='A2'</code>). Sadece <strong>biçimlendirme</strong> yapar.</li>
+<li><strong>Import:</strong> <code>bulk_import_customers</code> (müşteri), <code>ExcelMappingModal</code> (frontend sütun eşleme), açılışta <code>_ensure_item_bom_data</code> → <strong><code>MioCreate.xlsx</code></strong> referans dosyasından <code>item_bom</code>/<code>parts</code> tohumlama.</li>
+<li><strong>Export:</strong> <code>export_table_to_excel</code>, <code>export_all_tables_to_excel</code> → <code>~/Downloads</code>'a yazar, <code>os.startfile</code> ile açar. Ayrıca birçok sayfada <code>exportTableToExcel</code>.</li>
+</ul>
+<hr />
+<h2 id="14-yardmc-bakm-scriptleri-kok-dizin">14. Yardımcı / Bakım Scriptleri (kök dizin)<a class="headerlink" href="#14-yardmc-bakm-scriptleri-kok-dizin" title="Permanent link">#</a></h2>
+<p>Bunlar çalışan uygulamanın parçası <strong>değildir</strong>; tek seferlik migrasyon/tohumlama/hata ayıklama araçlarıdır:</p>
+<table>
+<thead>
+<tr>
+<th>Script</th>
+<th>İş</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>add_columns.py</code></td>
+<td><code>warehouse.parts</code>'a <code>part_type</code> kolonu ekler</td>
+</tr>
+<tr>
+<td><code>add_imei_column.py</code></td>
+<td><code>warehouse.service_records</code>'a <code>imei_number</code> kolonu ekler (idempotent)</td>
+</tr>
+<tr>
+<td><code>check_boms.py</code> / <code>check_boms_api.py</code> / <code>check_db.py</code></td>
+<td>Teşhis: BOM/DB içeriğini yazdırır</td>
+</tr>
+<tr>
+<td><code>cleanup.py</code></td>
+<td><code>ui/</code> altındaki boş <code>setStyleSheet("")</code> çağrılarını temizler</td>
+</tr>
+<tr>
+<td><code>fix.py</code> / <code>patch.py</code> / <code>patch_bridge.py</code></td>
+<td>Kaynak dosyalara nokta yamalar (web_bridge / WorkOrders.jsx)</td>
+</tr>
+<tr>
+<td><code>resolve_conflicts.py</code></td>
+<td>Toplu git merge-conflict marker temizleyici</td>
+</tr>
+<tr>
+<td><code>truncate_and_seed.py</code></td>
+<td>Tabloları boşaltıp yeni transfer kurallarına uygun demo veri tohumlar</td>
+</tr>
+<tr>
+<td><code>update_part.py</code></td>
+<td>Tek seferlik <code>UPDATE warehouse.parts …</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="15-yaplandrma-ortam">15. Yapılandırma &amp; Ortam<a class="headerlink" href="#15-yaplandrma-ortam" title="Permanent link">#</a></h2>
+<table>
+<thead>
+<tr>
+<th>Öğe</th>
+<th>Yer / Değer</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>DB bağlantısı</td>
+<td><code>.env</code> (<code>PG_HOST/PORT/DATABASE/USER/PASSWORD</code>) → <code>config/database.py</code></td>
+</tr>
+<tr>
+<td>Dev/Prod modu</td>
+<td><code>DEV_MODE</code> ortam değişkeni (1 = Vite dev sunucusu 5173; 0 = derlenmiş <code>dist/</code>)</td>
+</tr>
+<tr>
+<td>QWebChannel WebSocket</td>
+<td>Port <strong>5174</strong></td>
+</tr>
+<tr>
+<td>Vite dev sunucusu</td>
+<td>Port <strong>5173</strong></td>
+</tr>
+<tr>
+<td>Uygulama ayarları</td>
+<td><code>~/.remalab/settings.json</code> (yerel dosyalar, veri klasörleri, dev mode)</td>
+</tr>
+<tr>
+<td>WebEngine profili/cache</td>
+<td><code>~/.remalab/webengine_data</code></td>
+</tr>
+<tr>
+<td>Oturum (opsiyonel)</td>
+<td>proje kökünde <code>.session</code></td>
+</tr>
+<tr>
+<td>Referans veri</td>
+<td>Kök dizinde <code>MioCreate.xlsx</code> (ItemBOM tohumlama)</td>
+</tr>
+<tr>
+<td>Dökümantasyon</td>
+<td><code>mkdocs.yml</code> + <code>docs/</code> (Material teması)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="16-dosya-sorumluluk-haritas-hzl-referans">16. Dosya → Sorumluluk Haritası (Hızlı Referans)<a class="headerlink" href="#16-dosya-sorumluluk-haritas-hzl-referans" title="Permanent link">#</a></h2>
+<table>
+<thead>
+<tr>
+<th>Dosya / Klasör</th>
+<th>Sorumluluk</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>start.bat</code></td>
+<td>Kurulum + uygulamayı başlatma (Windows)</td>
+</tr>
+<tr>
+<td><code>main.py</code></td>
+<td>Masaüstü giriş noktası (pencereli)</td>
+</tr>
+<tr>
+<td><code>server.py</code></td>
+<td>Başsız (headless) sunucu modu</td>
+</tr>
+<tr>
+<td><code>core/main_window.py</code></td>
+<td>Qt pencere, WebEngine, QWebChannel + WebSocket kurulumu, Vite/statik sunucu</td>
+</tr>
+<tr>
+<td><code>core/web_bridge.py</code></td>
+<td><strong>Backend'in kalbi</strong> — ~120 <code>@Slot</code> API metodu, iş kuralları, ham SQL migrasyonlar, cache</td>
+</tr>
+<tr>
+<td><code>core/excel_utils.py</code></td>
+<td>Excel biçimlendirme</td>
+</tr>
+<tr>
+<td><code>config/database.py</code></td>
+<td>SQLAlchemy engine/session, tembel bağlantı, <code>create_all</code>, hata dinleyici</td>
+</tr>
+<tr>
+<td><code>config/auth.py</code></td>
+<td>bcrypt + JWT yardımcıları</td>
+</tr>
+<tr>
+<td><code>config/session.py</code></td>
+<td><code>SessionManager</code> singleton</td>
+</tr>
+<tr>
+<td><code>models/</code></td>
+<td>13 SQLAlchemy modeli (FK/relationship içermez)</td>
+</tr>
+<tr>
+<td><code>repositories/</code></td>
+<td>Ham DB erişim katmanı (commit etmez)</td>
+</tr>
+<tr>
+<td><code>services/</code></td>
+<td>İş mantığı + transaction sahibi + domain istisnaları</td>
+</tr>
+<tr>
+<td><code>api/</code></td>
+<td>Ayrı, uzak-barındırılan FastAPI REST servisi</td>
+</tr>
+<tr>
+<td><code>api_cache/</code></td>
+<td>Masaüstünün yerel DB JSON önbelleği (commit'te temizlenir)</td>
+</tr>
+<tr>
+<td><code>frontend/src/services/api.js</code></td>
+<td>UI ↔ backend köprü sarmalayıcısı (Promise'ler)</td>
+</tr>
+<tr>
+<td><code>frontend/src/layouts/MainLayout.jsx</code></td>
+<td>Menü, roller, bildirimler, tema kabuğu</td>
+</tr>
+<tr>
+<td><code>frontend/src/pages/</code></td>
+<td>22 ekran (modüller)</td>
+</tr>
+<tr>
+<td><code>frontend/src/components/</code></td>
+<td>Yeniden kullanılabilir UI parçaları</td>
+</tr>
+<tr>
+<td><code>frontend/src/context/ThemeContext.jsx</code></td>
+<td>Light/dark tema</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="17-uctan-uca-ornek-aks-irsaliye-ile-parca-girisi">17. Uçtan Uca Örnek Akış: "İrsaliye ile parça girişi"<a class="headerlink" href="#17-uctan-uca-ornek-aks-irsaliye-ile-parca-girisi" title="Permanent link">#</a></h2>
+<ol>
+<li>Kullanıcı <strong>İrsaliye</strong> sayfasında parça + lokasyon + adet + birim fiyat girer, kaydeder.</li>
+<li>Frontend <code>api.addInboundEntry(...)</code> çağırır → <code>services/api.js</code> <code>backend.add_inbound_entry(...)</code>'e köprüler.</li>
+<li>Python <code>WebBridge.add_inbound_entry</code> (web_bridge.py) tek transaction'da:
+   - <code>stock</code> bakiyesini artırır (yoksa oluşturur),
+   - <code>stock_movements</code>'a <code>"Inbound"</code> satırı yazar (<code>created_by</code>, <code>unit_price</code>, <code>total_cost</code>),
+   - <code>commit()</code>.</li>
+<li>Commit → <code>after_commit</code> dinleyicisi <code>stock.json</code>/<code>parts.json</code>/<code>critical.json</code> cache'ini <strong>siler</strong>.</li>
+<li>Frontend <code>{"success": true}</code> alır; Depo/Rapor ekranları bir sonraki okumada güncel veriyi (yeniden üretilen cache veya doğrudan sorgu) görür.</li>
+<li>Kritik limitin altına düşen parça varsa, MainLayout'un 60 sn'lik <code>getCriticalStock</code> yoklaması bildirim zilinde gösterir.</li>
+</ol>
+<hr />
+<h2 id="18-is-emri-olusturma-aks-detayl">18. İş Emri Oluşturma Akışı (Detaylı)<a class="headerlink" href="#18-is-emri-olusturma-aks-detayl" title="Permanent link">#</a></h2>
+<h3 id="180-temel-tek-tablo-iki-tur-is-emri">18.0 Temel: Tek tablo, iki tür iş emri<a class="headerlink" href="#180-temel-tek-tablo-iki-tur-is-emri" title="Permanent link">#</a></h3>
+<p>Her şey <code>warehouse.work_orders</code> tablosunda tutulur ama <code>work_order_type</code> kolonuyla <strong>iki farklı akış</strong> ayrılır. İkisi aynı sütunları paylaşır, farklı durum kümeleri kullanır ve birbirini etkilemez.</p>
+<table>
+<thead>
+<tr>
+<th>Tür</th>
+<th><code>work_order_type</code></th>
+<th>Neye bağlı?</th>
+<th>Durum akışı</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>SERVICE</strong> (servis/onarım)</td>
+<td><code>SERVICE</code> (varsayılan/boş)</td>
+<td>Bir <strong>Servis Kaydı</strong> (<code>service_records</code>)</td>
+<td>Beklemede → Devam Ediyor → Tamamlandı/Başarısız/İptal</td>
+</tr>
+<tr>
+<td><strong>PRODUCTION</strong> (yarı mamul üretimi)</td>
+<td><code>PRODUCTION</code></td>
+<td>Bir <strong>Reçete</strong> (<code>item_bom</code>, <code>target_part_id</code>)</td>
+<td>BEKLIYOR → URETIMDE → TAMAMLANDI</td>
+</tr>
+</tbody>
+</table>
+<h3 id="181-kullanlan-arayuzler">18.1 Kullanılan arayüzler<a class="headerlink" href="#181-kullanlan-arayuzler" title="Permanent link">#</a></h3>
+<table>
+<thead>
+<tr>
+<th>Arayüz (dosya)</th>
+<th>Rolü</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>pages/WorkOrders.jsx</code> (~3400 satır)</td>
+<td>İş emri modülünün merkezi, sekmeli yapı. <strong>Üretim iş emri buradan oluşturulur.</strong></td>
+</tr>
+<tr>
+<td><code>pages/ServiceRecords.jsx</code></td>
+<td>Servis kayıtları (cihaz kabul) CRUD — servis iş emrinin <strong>girdisi</strong>.</td>
+</tr>
+<tr>
+<td><code>pages/ServisOnarim.jsx</code></td>
+<td>Teknisyenin servis iş emrini işlediği ekran (oluşturmaz, <strong>tüketir</strong>).</td>
+</tr>
+<tr>
+<td><code>components/PartSelectCombobox</code>, <code>PartSupplyMenu</code>, <code>DeliverPartPopover</code></td>
+<td>Parça seçimi ve teslim/iade aksiyonları.</td>
+</tr>
+<tr>
+<td><code>services/api.js</code></td>
+<td>Köprü sarmalayıcı: <code>createWorkOrder</code>, <code>createProductionWorkOrder</code>, <code>addWorkOrderPartsBulk</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>WorkOrders.jsx'in <strong>görünür sekmeleri</strong> (<code>TABS</code>): <code>Yarı Mamul Üretimi</code> · <code>Hızlı Tekrar Üretim</code> (dev) · <code>Malzeme Tüketimi</code> · <code>Üretim Raporu</code> · <strong><code>Üretim İş Emirleri</code></strong> · <code>IMEI Parça Takip</code>.</p>
+<blockquote>
+<p>⚠️ <strong>Bulgu:</strong> <code>'new'</code> (Yeni İş Emri formu) ve <code>'list'</code> (servis iş emri listesi) sekmeleri kodda var ama <strong>TABS listesinde yok</strong>. <code>'new'</code> yalnızca <code>handleOpenForm</code> ile (o da yalnızca <code>'list'</code> içindeki Düzenle butonundan) açılıyor; <code>'list'</code> ise yalnızca kayıt sonrası gösteriliyor → <strong>kapalı döngü</strong>. Yani servis iş emri oluşturma formu görünür navigasyondan erişilemiyor (legacy görünüyor). <strong>Şu an canlı ve erişilebilir oluşturma akışı PRODUCTION iş emridir.</strong></p>
+</blockquote>
+<h3 id="182-service-is-emri-aks-kodda-mevcut-uidan-erisilemez">18.2 SERVICE iş emri akışı (kodda mevcut, UI'dan erişilemez)<a class="headerlink" href="#182-service-is-emri-aks-kodda-mevcut-uidan-erisilemez" title="Permanent link">#</a></h3>
+<ol>
+<li><strong><code>ServiceRecords.jsx</code></strong> → <code>createServiceRecord</code> ile <code>warehouse.service_records</code>'a cihaz/müşteri/şikayet kaydı girilir.</li>
+<li><strong><code>WorkOrders.jsx</code> <code>'new'</code> formu</strong>: <code>service_record_id</code> zorunlu dropdown (<code>getServiceRecords</code>), açıklama, atanan teknisyen (<code>getUsers</code>), öncelik, tarihler, <strong>kaynak depo</strong> (<code>getSystemLocations</code>), opsiyonel <strong>kullanılan parçalar</strong> (<code>getParts</code> + <code>getStockStatus</code>).</li>
+<li><strong><code>handleSave</code></strong> (WorkOrders.jsx:674): parça varsa önce frontend'de stok kontrolü → <code>api.createWorkOrder(payload)</code>.</li>
+<li><strong>Backend <code>create_work_order</code></strong> (<code>web_bridge.py:2351</code>):
+   - Parça satırları varsa <strong>kaynak depo zorunlu</strong>; her parça için kaynak depoda yeterli stok kontrol edilir — yetersizse <strong>iş emri hiç oluşturulmaz</strong>.
+   - Yeterliyse her parçayı <strong>kaynak depodan (Good/DOA Stock) → Repair Stock'a otomatik transfer</strong> eder: <code>stock</code> bakiyeleri güncellenir + <code>stock_movements</code>'a <code>"İş Emri: Tamire Alındı"</code> (Transfer) satırı yazılır.
+   - <code>work_orders</code>'a <code>INSERT</code> (varsayılan durum <code>Beklemede</code>, öncelik <code>Orta</code>), commit → cache temizlenir.</li>
+<li>Başarılıysa frontend <code>addWorkOrderPartsBulk</code> ile <code>work_order_parts</code> satırlarını yazar.</li>
+<li>Sonrasında <strong><code>ServisOnarim.jsx</code></strong> bu iş emrini <code>getWorkOrders</code> ile listeleyip teknisyene işletir.</li>
+</ol>
+<p><strong>Yazılan tablolar:</strong> <code>work_orders</code>, <code>stock</code>, <code>stock_movements</code>, <code>work_order_parts</code>.</p>
+<h3 id="183-production-is-emri-aks-canl-erisilebilir-olan">18.3 PRODUCTION iş emri akışı (canlı / erişilebilir olan)<a class="headerlink" href="#183-production-is-emri-aks-canl-erisilebilir-olan" title="Permanent link">#</a></h3>
+<ol>
+<li><strong><code>Üretim İş Emirleri</code> sekmesi</strong> → "+ Yeni" → <code>productionWOForm</code> açılır.</li>
+<li>Form alanları (<code>EMPTY_PRODUCTION_WO_FORM</code>): <strong>üretilecek yarı mamul</strong> (<code>target_part_id</code>, <code>getItemBOMs</code>/<code>getParts</code>), açıklama, öncelik, <strong>planlanan üretim adedi</strong> (zorunlu, &gt;0), atanan teknisyen, departman.</li>
+<li><strong><code>handleSaveProductionWorkOrder</code></strong> (WorkOrders.jsx:1203) → <code>api.createProductionWorkOrder(form)</code>.</li>
+<li><strong>Backend <code>create_production_work_order</code></strong> (<code>web_bridge.py:2565</code>):
+   - <code>target_part_id</code>'nin <strong><code>item_code</code>'una karşılık gelen Reçete</strong> (<code>item_bom WHERE parent_item_id = item_code</code>) aranır — <strong>yoksa hata</strong>, iş emri oluşmaz.
+   - <code>work_orders</code>'a <code>INSERT</code> (<code>work_order_type='PRODUCTION'</code>).
+   - Reçetedeki <strong>her alt kalem</strong> için <code>material_requests</code>'e satır: <code>required_quantity = bom.quantity × planlanan_adet</code>, <code>issued_quantity = 0</code>, <code>status = WAITING</code>.
+   - <strong>Bu aşamada stok düşülmez / transfer yapılmaz</strong> — yalnızca malzeme talepleri açılır. Commit.</li>
+<li>Frontend başarıda iş emrinin <strong>detay panelini otomatik açar</strong>, <code>fetchMaterialRequests</code> ile açılan talepleri gösterir.</li>
+<li>Sonraki adımlar (bu akışın dışında): <code>issue_material_request</code> (malzeme teslimi) → <code>start/complete_production_work_order</code> (yaşam döngüsü) → <code>create_production_run</code> (üretim kaydı → stok işleme).</li>
+</ol>
+<p><strong>Yazılan tablolar:</strong> <code>work_orders</code>, <code>material_requests</code>.</p>
+<blockquote>
+<p>⚠️ <strong>Kod-belge tutarsızlığı:</strong> <code>create_production_work_order</code> docstring'i "durum <strong>BEKLIYOR</strong> ile başlar" der, ama kod aslında <code>URETIMDE</code> ile açar (<code>web_bridge.py:2618</code>). Yani ayrı bir "Başlat" adımı olmadan doğrudan üretimde başlıyor.</p>
+</blockquote>
+<h3 id="184-form-verileri-nereden-geliyor">18.4 Form verileri nereden geliyor?<a class="headerlink" href="#184-form-verileri-nereden-geliyor" title="Permanent link">#</a></h3>
+<table>
+<thead>
+<tr>
+<th>Alan</th>
+<th>Kaynak API → Tablo</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Servis Kaydı dropdown</td>
+<td><code>getServiceRecords</code> → <code>service_records</code></td>
+</tr>
+<tr>
+<td>Atanan teknisyen</td>
+<td><code>getUsers</code> → <code>users</code></td>
+</tr>
+<tr>
+<td>Kaynak/hedef depo</td>
+<td><code>getSystemLocations</code> → <code>locations</code> (kind'lı)</td>
+</tr>
+<tr>
+<td>Kullanılan parçalar</td>
+<td><code>getParts</code> → <code>parts</code> + <code>getStockStatus</code> → <code>stock</code></td>
+</tr>
+<tr>
+<td>Üretilecek yarı mamul / Reçete</td>
+<td><code>getItemBOMs</code> → <code>item_bom</code> + <code>getParts</code> → <code>parts</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="185-ozet-semas">18.5 Özet şeması<a class="headerlink" href="#185-ozet-semas" title="Permanent link">#</a></h3>
+<pre><code>SERVICE:    service_records → [WorkOrders 'new' formu*] → create_work_order
+            → (parça varsa) Good/DOA→Repair transfer → work_orders + work_order_parts
+            → ServisOnarim ekranında işlenir
+            (* form kodda var ama görünür sekmelerden erişilemez — legacy)
+
+PRODUCTION: parts + item_bom(Reçete) → [WorkOrders &quot;Üretim İş Emirleri&quot; sekmesi]
+            → create_production_work_order → work_orders(PRODUCTION)
+            → her BOM satırı için material_requests(WAITING)
+            → malzeme teslimi → üretim tamamlama → production_runs → stok
+            (canlı/erişilebilir akış budur)
+</code></pre>
+<hr />
+<p><em>Bu belge otomatik kod analizi ile üretilmiştir. Kod değiştikçe (özellikle <code>core/web_bridge.py</code>'deki <code>@Slot</code> metodları ve <code>models/</code>) güncel tutulması önerilir.</em></p>
+</div>
+</body>
+</html>
