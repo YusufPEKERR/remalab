@@ -350,12 +350,12 @@ export default function BatchEntry() {
 
   const customerNameOptions = useMemo(() => {
     const list = (customerList || []).map(c => c.customer_name || c.short_name || c.code).filter(Boolean);
-    return [...new Set(list)];
+    return [...new Set(list)].sort((a, b) => a.localeCompare(b, 'tr'));
   }, [customerList]);
 
   const batchNoOptions = useMemo(() => {
     const list = (batchSummaryList || []).map(b => b.document_number || b.batch_no || b.internal_id || '').filter(Boolean);
-    return [...new Set(list)];
+    return [...new Set(list)].sort((a, b) => b.localeCompare(a, 'tr'));
   }, [batchSummaryList]);
 
   // Arama veya filtre aktifse tüm kayıtları göster, yoksa müşteri başına tek kayıt göster

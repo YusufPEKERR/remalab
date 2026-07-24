@@ -317,7 +317,7 @@ export default function ItemBOM() {
                         <button onClick={() => handleOpenModal(bom)} className="text-slate-400 hover:text-green-400 transition-colors" title="Düzenle">
                           <Edit2 size={16} />
                         </button>
-                        <button onClick={() => handleToggleStatus(bom.id)} className="text-slate-400 hover:text-blue-400 transition-colors" title="Durumu Değiştir">
+                        <button onClick={() => handleToggleStatus(bom.id)} className="text-slate-400 hover:text-blue-400 transition-colors" title="Aktif/Pasif">
                           <RefreshCw size={16} />
                         </button>
                         <button onClick={() => handleDelete(bom.id)} className="text-red-400 hover:text-red-300 transition-colors" title="Sil"><Trash2 size={16} /></button>
