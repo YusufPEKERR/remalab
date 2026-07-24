@@ -1,0 +1,2 @@
+-                    value={barcodeSearchInput}
+-                  <p className="text-xs text-red-500/70 dark:text-red-400/70 mt-0.5">"{lastSearchedQuery || barcodeSearchInput}" numaral─▒ barkoda ait herhangi bir ├╝retim kayd─▒ bulunamad─▒. L├╝tfen numaray─▒ kontrol ediniz.</p>

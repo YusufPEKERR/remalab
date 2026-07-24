@@ -2615,7 +2615,7 @@ class WebBridge(QObject):
                 "qty": qty,
                 "tech": assigned_technician or None,
                 "dept": department or None,
-                "status": PRODUCTION_WO_STATUS_IN_PRODUCTION
+                "status": PRODUCTION_WO_STATUS_WAITING
             }).scalar()
 
             for bom_row in bom_rows:
@@ -2642,12 +2642,12 @@ class WebBridge(QObject):
             db.close()
 
     # ==========================
-    # PRODUCTION WORK ORDER YAŞAM DÖNGÜSÜ (URETIMDE -> TAMAMLANDI)
+    # PRODUCTION WORK ORDER YAŞAM DÖNGÜSÜ (BEKLIYOR -> URETIMDE -> TAMAMLANDI)
     # Sadece PRODUCTION tipi work order'lar için çalışır; Service Work Order'ın kendi
     # status akışını (create_work_order/update_work_order) hiç etkilemez. Bir iş emri
-    # oluşturulduğu anda doğrudan URETIMDE durumunda başlar (ayrı bir "Başlat" adımı
-    # yoktur -- malzeme teslimi zaten Malzeme Talepleri panelindeki limit/durum
-    # kontrolüyle yönetiliyor, ek bir manuel adım gereksiz görüldü).
+    # BEKLIYOR durumunda oluşturulur; kullanıcı "Başlat" ile URETIMDE'ye alır
+    # (start_production_work_order). Malzeme teslimi (issue_material_request) yalnızca
+    # URETIMDE durumunda yapılabilir; bu nedenle BEKLIYOR aşamasında malzeme kilitlidir.
     # ==========================
 
     @Slot(str, str, result=str)

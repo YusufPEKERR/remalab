@@ -28,4 +28,5 @@ plugins:
           paths: [.]
 nav:
   - Ana Sayfa: index.md
+  - Sistem Dökümantasyonu: SISTEM_DOKUMANTASYONU.md
   - API Referansı: api_reference.md
