@@ -6,6 +6,15 @@ import {
 } from "lucide-react";
 import { api } from "../services/api";
 
+function getCurrentUser() {
+  try {
+    return JSON.parse(localStorage.getItem("user") || sessionStorage.getItem("user") || "null");
+  } catch (_e) {
+    return null;
+  }
+}
+
+
 // ─── REPAIR STATUS CODES ────────────────────────────────────────────
 const REPAIR_STATUS = {
   1000: { label: "Atanacak", color: "bg-slate-500", textColor: "text-slate-600 dark:text-slate-400", bgLight: "bg-slate-100 dark:bg-slate-800" },
@@ -19,18 +28,12 @@ const REPAIR_STATUS = {
   1008: { label: "Parça Bekliyor", color: "bg-orange-500", textColor: "text-orange-600 dark:text-orange-400", bgLight: "bg-orange-50 dark:bg-orange-500/10" },
 };
 
-// ─── WARRANTY TYPES ─────────────────────────────────────────────────
-const WARRANTY_TYPES = {
-  IW: { label: "IW (Garanti İçi)", color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30" },
-  OOW: { label: "OOW (Garanti Dışı)", color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/30" },
+// ─── ONARIM ÜCRET TİPİ ───────────────────────────────────────────────
+const CHARGE_TYPES = {
+  FREE: { label: "Ücretsiz", color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30" },
+  PAID: { label: "Ücretli", color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/30" },
 };
 
-// ─── MISSION GROUPS (Görev Grupları) ────────────────────────────────
-const MISSION_GROUPS = [
-  "Ekran Onarımı", "Batarya Değişimi", "L3 Ana Kart", "Kamera Onarımı",
-  "Hoparlör Değişimi", "Şarj Soketi", "Arka Kapak", "Vibrasyon Motoru",
-  "Proximity Sensörü", "Face ID Modülü"
-];
 
 // ─── MOCK DATA ──────────────────────────────────────────────────────
 const MOCK_DEVICE = {
@@ -53,10 +56,10 @@ const MOCK_REPAIRS = [
     missionGroup: "Ekran Onarımı",
     technician: "Ahmet Yılmaz",
     statusCode: 1001,
-    warrantyType: "OOW",
+    chargeType: "PAID",
     parts: [
-      { id: "P1", itemCode: "LCD-IP11-BLK", name: "iPhone 11 LCD Assembly Black", qty: 1, warranty: "OOW", unitPrice: 1250, location: "OUT" },
-      { id: "P2", itemCode: "ADH-IP11-SET", name: "Yapışkan Seti iPhone 11", qty: 1, warranty: "OOW", unitPrice: 45, location: "OUT" },
+      { id: "P1", itemCode: "LCD-IP11-BLK", name: "iPhone 11 LCD Assembly Black", qty: 1, chargeType: "PAID", unitPrice: 1250, location: "OUT" },
+      { id: "P2", itemCode: "ADH-IP11-SET", name: "Yapışkan Seti iPhone 11", qty: 1, chargeType: "PAID", unitPrice: 45, location: "OUT" },
     ]
   },
   {
@@ -64,10 +67,10 @@ const MOCK_REPAIRS = [
     missionGroup: "Batarya Değişimi",
     technician: "Mehmet Kaya",
     statusCode: 1002,
-    warrantyType: "IW",
+    chargeType: "FREE",
     parts: [
-      { id: "P3", itemCode: "BAT-IP11-3110", name: "iPhone 11 Battery 3110mAh", qty: 1, warranty: "IW", unitPrice: 0, location: "OUT" },
-      { id: "P4", itemCode: "LAB-BAT-CHG", name: "Batarya Değişim İşçiliği", qty: 1, warranty: "IW", unitPrice: 0, location: "-" },
+      { id: "P3", itemCode: "BAT-IP11-3110", name: "iPhone 11 Battery 3110mAh", qty: 1, chargeType: "FREE", unitPrice: 0, location: "OUT" },
+      { id: "P4", itemCode: "LAB-BAT-CHG", name: "Batarya Değişim İşçiliği", qty: 1, chargeType: "FREE", unitPrice: 0, location: "-" },
     ]
   },
   {
@@ -75,17 +78,12 @@ const MOCK_REPAIRS = [
     missionGroup: "Kamera Onarımı",
     technician: "",
     statusCode: 1000,
-    warrantyType: "OOW",
+    chargeType: "PAID",
     parts: [
-      { id: "P5", itemCode: "CAM-IP11-MAIN", name: "iPhone 11 Main Camera Module", qty: 1, warranty: "OOW", unitPrice: 680, location: "GOOD" },
+      { id: "P5", itemCode: "CAM-IP11-MAIN", name: "iPhone 11 Main Camera Module", qty: 1, chargeType: "PAID", unitPrice: 680, location: "GOOD" },
     ]
   },
 ];
-
-const MOCK_DEVICE_NON109 = {
-  ...MOCK_DEVICE,
-  serviceStatus: 101,
-};
 
 // ─── STATUS BADGE COMPONENT ────────────────────────────────────────
 const StatusBadge = ({ code }) => {
@@ -135,10 +133,15 @@ const Guardrail109Modal = ({ status, onClose }) => (
 );
 
 // ─── ADD REPAIR MODAL ───────────────────────────────────────────────
-const AddRepairModal = ({ onClose, onAdd }) => {
+const AddRepairModal = ({ onClose, onAdd, missionGroups }) => {
   const [group, setGroup] = useState("");
-  const [technician, setTechnician] = useState("");
-  const [warranty, setWarranty] = useState("OOW");
+  const [chargeType, setChargeType] = useState("PAID");
+  const technician = getCurrentUser()?.fullname || getCurrentUser()?.username || "";
+
+  const missionGroupOptions = missionGroups.map(mg => ({
+    code: mg.code,
+    label: `${mg.short_name} (${mg.code})`,
+  }));
 
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm">
@@ -159,19 +162,23 @@ const AddRepairModal = ({ onClose, onAdd }) => {
             <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Görev Grubu *</label>
             <select value={group} onChange={e => setGroup(e.target.value)} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#161B22] text-slate-800 dark:text-slate-200 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
               <option value="">Seçiniz...</option>
-              {MISSION_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
+              {missionGroupOptions.length === 0 ? (
+                <option value="" disabled>Yükleniyor...</option>
+              ) : (
+                missionGroupOptions.map(mg => <option key={mg.code} value={mg.label}>{mg.label}</option>)
+              )}
             </select>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Teknisyen Adı</label>
-            <input type="text" value={technician} onChange={e => setTechnician(e.target.value)} placeholder="Teknisyen adı giriniz..." className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#161B22] text-slate-800 dark:text-slate-200 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all placeholder:text-slate-400" />
+            <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Teknisyen</label>
+            <input type="text" value={technician || "Oturum açılmamış"} disabled readOnly className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-[#0f1219] text-slate-600 dark:text-slate-400 text-sm cursor-not-allowed" />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Garanti Tipi</label>
+            <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Ücret Tipi</label>
             <div className="flex gap-3">
-              {["IW", "OOW"].map(w => (
-                <button key={w} onClick={() => setWarranty(w)} className={`flex-1 py-2.5 rounded-xl text-sm font-semibold border transition-all ${warranty === w ? (w === "IW" ? "bg-emerald-500 text-white border-emerald-500 shadow-lg shadow-emerald-500/20" : "bg-amber-500 text-white border-amber-500 shadow-lg shadow-amber-500/20") : "bg-white dark:bg-[#161B22] text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-slate-300"}`}>
-                  {WARRANTY_TYPES[w].label}
+              {["FREE", "PAID"].map(w => (
+                <button key={w} onClick={() => setChargeType(w)} className={`flex-1 py-2.5 rounded-xl text-sm font-semibold border transition-all ${chargeType === w ? (w === "FREE" ? "bg-emerald-500 text-white border-emerald-500 shadow-lg shadow-emerald-500/20" : "bg-amber-500 text-white border-amber-500 shadow-lg shadow-amber-500/20") : "bg-white dark:bg-[#161B22] text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-slate-300"}`}>
+                  {CHARGE_TYPES[w].label}
                 </button>
               ))}
             </div>
@@ -179,7 +186,7 @@ const AddRepairModal = ({ onClose, onAdd }) => {
         </div>
         <div className="px-6 pb-5 flex gap-3">
           <button onClick={onClose} className="flex-1 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 text-sm font-semibold transition-colors border border-slate-200 dark:border-slate-700">İptal</button>
-          <button onClick={() => { if (!group) return; onAdd({ id: `RPR-${Date.now()}`, missionGroup: group, technician, statusCode: 1000, warrantyType: warranty, parts: [] }); onClose(); }} disabled={!group} className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-colors shadow-lg shadow-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed">
+          <button onClick={() => { if (!group) return; onAdd({ id: `RPR-${Date.now()}`, missionGroup: group, technician, statusCode: 1000, chargeType, parts: [] }); onClose(); }} disabled={!group} className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-colors shadow-lg shadow-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed">
             Onarım Ekle
           </button>
         </div>
@@ -388,53 +395,74 @@ const TechnicianRepairOperations = () => {
   const [notification, setNotification] = useState(null);
   const [techNotes, setTechNotes] = useState("");
   const [chipCode, setChipCode] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
+  const [missionGroups, setMissionGroups] = useState([]);
   const searchRef = useRef(null);
+
+  // Görev grupları MioCreate.xlsx MissionGroup sayfasından seed edilen
+  // organization.mission_groups tablosundan gelir (üretim/onarım ile ilgili olanlar).
+  useEffect(() => {
+    api.getMissionGroups().then(res => {
+      if (res && res.success) setMissionGroups(res.mission_groups || []);
+    });
+  }, []);
 
   const showNotif = useCallback((type, title, message) => {
     setNotification({ type, title, message });
     if (type !== "error") setTimeout(() => setNotification(null), 4000);
   }, []);
 
-  // ── Search Handler ──────────────────────────────────────────
+  // ── Search Handler ───────────────────────────────────────────
   const handleSearch = useCallback(async (e) => {
     e.preventDefault();
-    if (!searchTerm.trim()) return;
+    const term = searchTerm.trim();
+    if (!term || isSearching) return;
 
-    const data = await api.getRepairOperationsByImei(searchTerm.trim());
-    if (!data.success) {
-      showNotif("error", "Cihaz Bulunamadı", data.message || "Bu IMEI için kayıt bulunamadı.");
+    setIsSearching(true);
+    try {
+      const data = await api.getRepairOperationsByImei(term);
+      if (!data.success) {
+        showNotif("error", "Cihaz Bulunamadı", data.message || "Bu IMEI için kayıt bulunamadı.");
+        setDevice(null);
+        setRepairs([]);
+        setDeviceParts([]);
+        return;
+      }
+
+      const realDevice = { ...data.device, workOrderId: data.work_order_id };
+
+      setDevice(realDevice);
+      setDeviceParts(data.parts || []);
+      setTechNotes("");
+      setChipCode("");
+
+      // GUARDRAIL 1: Check status 109
+      if (realDevice.serviceStatus !== 109) {
+        setIsLocked(true);
+        setShow109Modal(true);
+        setRepairs([]);
+        setSelectedRepairIdx(0);
+        return;
+      }
+
+      setIsLocked(false);
+      setRepairs((data.repairs || []).map(r => ({ ...r, technician: "", chargeType: "PAID", parts: [] })));
+      setSelectedRepairIdx(0);
+      showNotif("success", "Cihaz Yüklendi", `${realDevice.productInfo} — IMEI: ${realDevice.imei}`);
+    } catch (err) {
       setDevice(null);
       setRepairs([]);
-      setDeviceParts([]);
-      return;
+      setIsLocked(false);
+      showNotif("error", "Sorgu Hatası", err?.message || "Sorgulama başarısız oldu.");
+    } finally {
+      setIsSearching(false);
     }
-
-    const realDevice = { ...data.device, workOrderId: data.work_order_id };
-
-    setDevice(realDevice);
-    setDeviceParts(data.parts || []);
-    setTechNotes("");
-    setChipCode("");
-
-    // GUARDRAIL 1: Check status 109
-    if (realDevice.serviceStatus !== 109) {
-      setIsLocked(true);
-      setShow109Modal(true);
-      setRepairs([]);
-      setSelectedRepairIdx(0);
-      return;
-    }
-
-    setIsLocked(false);
-    setRepairs((data.repairs || []).map(r => ({ ...r, technician: "", warrantyType: "OOW", parts: [] })));
-    setSelectedRepairIdx(0);
-    showNotif("success", "Cihaz Yüklendi", `${realDevice.productInfo} — IMEI: ${realDevice.imei}`);
-  }, [searchTerm, showNotif]);
+  }, [searchTerm, isSearching, showNotif]);
 
   // ── Repair Actions ──────────────────────────────────────────
   const handleAddRepair = useCallback((newRepair) => {
     setRepairs(prev => [...prev, newRepair]);
-    showNotif("success", "Onarım Eklendi", `${newRepair.missionGroup} — ${newRepair.warrantyType}`);
+    showNotif("success", "Onarım Eklendi", `${newRepair.missionGroup} — ${CHARGE_TYPES[newRepair.chargeType]?.label}`);
   }, [showNotif]);
 
   const handleAdvanceStatus = useCallback((repairId, newStatus) => {
@@ -483,10 +511,10 @@ const TechnicianRepairOperations = () => {
     showNotif("info", "Parça Silindi", "Onarım listesinden kaldırıldı.");
   }, [showNotif]);
 
-  // ── Toggle Part Warranty ────────────────────────────────────
-  const handleToggleWarranty = useCallback((repairId, partId) => {
+  // ── Toggle Part Charge Type ──────────────────────────────────
+  const handleToggleChargeType = useCallback((repairId, partId) => {
     setRepairs(prev => prev.map(r => r.id === repairId ? {
-      ...r, parts: r.parts.map(p => p.id === partId ? { ...p, warranty: p.warranty === "IW" ? "OOW" : "IW" } : p)
+      ...r, parts: r.parts.map(p => p.id === partId ? { ...p, chargeType: p.chargeType === "FREE" ? "PAID" : "FREE" } : p)
     } : r));
   }, []);
 
@@ -505,7 +533,7 @@ const TechnicianRepairOperations = () => {
       {show109Modal && <Guardrail109Modal status={device?.serviceStatus} onClose={() => setShow109Modal(false)} />}
 
       {/* Add Repair Modal */}
-      {showAddModal && <AddRepairModal onClose={() => setShowAddModal(false)} onAdd={handleAddRepair} />}
+      {showAddModal && <AddRepairModal onClose={() => setShowAddModal(false)} onAdd={handleAddRepair} missionGroups={missionGroups} />}
 
       {/* Status Advance Modal */}
       {showAdvanceModal && <StatusAdvanceModal repair={selectedRepair} onClose={() => setShowAdvanceModal(false)} onAdvance={handleAdvanceStatus} />}
@@ -527,12 +555,13 @@ const TechnicianRepairOperations = () => {
                 type="text"
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
+                disabled={isSearching}
                 placeholder="IMEI / Internal ID / Seri No okutunuz..."
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#0f1219] text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#0f1219] text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all disabled:opacity-60"
               />
             </div>
-            <button type="submit" className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-colors shadow-lg shadow-blue-500/20 flex items-center gap-2">
-              <Search size={15} /> Sorgula
+            <button type="submit" disabled={isSearching} className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-semibold transition-colors shadow-lg shadow-blue-500/20 flex items-center gap-2">
+              <Search size={15} /> {isSearching ? "Sorgulanıyor..." : "Sorgula"}
             </button>
             {device && (
               <div className={`ml-auto flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold ${device.serviceStatus === 109 ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30' : 'bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/30'}`}>
@@ -550,7 +579,7 @@ const TechnicianRepairOperations = () => {
               {/* CRM Read-Only Fields */}
               <div className="lg:col-span-8 grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">Müşteri Talebi</label>
+                  <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">Akış Durumu (Flow)</label>
                   <div className="px-3 py-2.5 bg-slate-50 dark:bg-[#0f1219] rounded-xl border border-slate-100 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300 leading-relaxed min-h-[56px]">
                     {device.customerRequest}
                   </div>
@@ -670,7 +699,7 @@ const TechnicianRepairOperations = () => {
                   <th className="text-left px-3 py-3">Görev Grubu</th>
                   <th className="text-left px-3 py-3">Teknisyen</th>
                   <th className="text-left px-3 py-3">Alt Statü</th>
-                  <th className="text-center px-3 py-3">Garanti</th>
+                  <th className="text-center px-3 py-3">Ücret</th>
                   <th className="text-center px-3 py-3">Parça Sayısı</th>
                 </tr>
               </thead>
@@ -682,8 +711,8 @@ const TechnicianRepairOperations = () => {
                     <td className="px-3 py-3 text-xs text-slate-600 dark:text-slate-400">{r.technician || <span className="italic text-slate-400">Atanmadı</span>}</td>
                     <td className="px-3 py-3"><StatusBadge code={r.statusCode} /></td>
                     <td className="px-3 py-3 text-center">
-                      <span className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold border ${WARRANTY_TYPES[r.warrantyType]?.bg} ${WARRANTY_TYPES[r.warrantyType]?.color}`}>
-                        {r.warrantyType}
+                      <span className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold border ${CHARGE_TYPES[r.chargeType]?.bg} ${CHARGE_TYPES[r.chargeType]?.color}`}>
+                        {CHARGE_TYPES[r.chargeType]?.label}
                       </span>
                     </td>
                     <td className="px-3 py-3 text-center text-xs font-bold text-slate-600 dark:text-slate-400">{r.parts.length}</td>
@@ -719,7 +748,7 @@ const TechnicianRepairOperations = () => {
                     <th className="text-left px-5 py-2.5">Parça Kodu</th>
                     <th className="text-left px-3 py-2.5">Parça Adı</th>
                     <th className="text-center px-3 py-2.5">Miktar</th>
-                    <th className="text-center px-3 py-2.5">Garanti</th>
+                    <th className="text-center px-3 py-2.5">Ücret</th>
                     <th className="text-right px-3 py-2.5">Birim Fiyat</th>
                     <th className="text-center px-3 py-2.5">Depo Konumu</th>
                     <th className="text-center px-3 py-2.5">İşlem</th>
@@ -732,8 +761,8 @@ const TechnicianRepairOperations = () => {
                       <td className="px-3 py-2.5 text-xs text-slate-800 dark:text-slate-200">{p.name}</td>
                       <td className="px-3 py-2.5 text-xs text-center font-bold text-slate-700 dark:text-slate-300">{p.qty}</td>
                       <td className="px-3 py-2.5 text-center">
-                        <button onClick={() => !isLocked && handleToggleWarranty(selectedRepair.id, p.id)} disabled={isLocked} className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold border cursor-pointer hover:opacity-80 transition-opacity ${WARRANTY_TYPES[p.warranty]?.bg} ${WARRANTY_TYPES[p.warranty]?.color} disabled:cursor-not-allowed`} title="Tıklayarak garanti tipini değiştirin">
-                          {p.warranty}
+                        <button onClick={() => !isLocked && handleToggleChargeType(selectedRepair.id, p.id)} disabled={isLocked} className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold border cursor-pointer hover:opacity-80 transition-opacity ${CHARGE_TYPES[p.chargeType]?.bg} ${CHARGE_TYPES[p.chargeType]?.color} disabled:cursor-not-allowed`} title="Tıklayarak ücret tipini değiştirin">
+                          {CHARGE_TYPES[p.chargeType]?.label}
                         </button>
                       </td>
                       <td className="px-3 py-2.5 text-xs text-right font-semibold text-slate-700 dark:text-slate-300">

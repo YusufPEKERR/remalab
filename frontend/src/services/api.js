@@ -377,6 +377,17 @@ export const api = {
         });
     },
 
+    getMissionGroups: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_mission_groups) {
+                backend.get_mission_groups((res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true, mission_groups: [] });
+            }
+        });
+    },
+
     // ==========================
     // PARÇA KATEGORİLERİ
     // ==========================

@@ -1870,6 +1870,26 @@ class WebBridge(QObject):
         finally:
             db.close()
 
+    @Slot(result=str)
+    def get_mission_groups(self):
+        """Görev gruplarını getirir. MioCreate.xlsx -> MissionGroup'tan seed edilmiştir (organization.mission_groups).
+        Sadece üretim/onarım ile ilgili gruplar döner (department='Üretim')."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            rows = db.execute(text("""
+                SELECT code, short_name, order_number
+                FROM organization.mission_groups
+                WHERE department = 'Üretim'
+                ORDER BY order_number NULLS LAST, short_name ASC
+            """)).mappings().all()
+            groups = [{"code": r["code"], "short_name": r["short_name"], "order_number": r["order_number"]} for r in rows]
+            return json.dumps({"success": True, "mission_groups": groups}, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
     # --- PARÇA KATEGORİSİ MODÜLÜ ---
     @Slot(result=str)
     def get_part_categories(self):
