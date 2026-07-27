@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
-  Plus, Link2, Save, Search, X, Maximize2, ZoomIn, ZoomOut, AlertTriangle,
+  Plus, Link2, Save, Search, X, Maximize2, ZoomIn, ZoomOut, AlertTriangle, ArrowUpDown, Filter,
   Database, Code, ArrowRight, Trash2, Info, CheckCircle, Table2, Map, List, ChevronRight
 } from 'lucide-react';
 import useCanvasPanZoom from '../hooks/useCanvasPanZoom';
@@ -171,6 +171,8 @@ export default function SchemaMapper() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [notif, setNotif] = useState(null);
   const [inspectorOpen, setInspectorOpen] = useState(true);
+  const [listSortOrder, setListSortOrder] = useState('asc'); // 'asc' | 'desc'
+  const [listModuleFilter, setListModuleFilter] = useState('Tümü');
 
   const canvasRef = useRef(null);
   const { cssTransform, onWheel, onPanStart, onPanMove, onPanEnd, transform, setTransform, resetView, centerView } = useCanvasPanZoom();
@@ -794,15 +796,36 @@ export default function SchemaMapper() {
       </div>
       ) : (
         <div className="flex flex-1 min-h-0 bg-slate-50 dark:bg-[#0f1219] p-4 sm:p-6 gap-6 overflow-hidden">
-          {/* List View Left Sidebar (Tables) */}
-          <div className="w-72 flex flex-col bg-white dark:bg-[#161B22] border border-slate-200 dark:border-[#30363D] rounded-2xl overflow-hidden shadow-sm shrink-0">
-            <div className="px-4 py-3 border-b border-slate-100 dark:border-[#30363D] bg-slate-50/50 dark:bg-[#0f1219]/50">
-              <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-widest flex items-center gap-2">
-                <Database size={14} className="text-blue-500" /> Tablolar
-              </h3>
-            </div>
-            <div className="flex-1 overflow-y-auto p-2 space-y-1">
-              {tables.map(t => {
+            {/* List View Left Sidebar (Tables) */}
+            <div className="w-72 flex flex-col bg-white dark:bg-[#161B22] border border-slate-200 dark:border-[#30363D] rounded-2xl overflow-hidden shadow-sm shrink-0">
+              <div className="px-4 py-3 border-b border-slate-100 dark:border-[#30363D] bg-slate-50/50 dark:bg-[#0f1219]/50 flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-widest flex items-center gap-2">
+                    <Database size={14} className="text-blue-500" /> Tablolar
+                  </h3>
+                  <button 
+                    onClick={() => setListSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                    className="p-1 rounded bg-slate-200 dark:bg-[#30363D] text-slate-600 dark:text-slate-400 hover:bg-slate-300 dark:hover:bg-[#404854] transition-colors"
+                    title={listSortOrder === 'asc' ? 'A-Z Sıralı' : 'Z-A Sıralı'}
+                  >
+                    <ArrowUpDown size={12} />
+                  </button>
+                </div>
+                <div className="relative">
+                  <Filter size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <select
+                    value={listModuleFilter}
+                    onChange={(e) => setListModuleFilter(e.target.value)}
+                    className="w-full pl-7 pr-2 py-1.5 bg-white dark:bg-[#161B22] border border-slate-200 dark:border-[#30363D] text-[11px] font-semibold rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 text-slate-700 dark:text-slate-300 appearance-none cursor-pointer"
+                  >
+                    {['Tümü', 'Stok Yönetimi', 'Toplu İşlemler', 'Servis Yönetimi', 'Operasyon', 'Kullanıcı & Yetki', 'Müşteri Yönetimi', 'Tedarikçi Yönetimi', 'Sistem / Diğer'].map(m => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                {tables.map(t => {
                   let displayName = t.feName;
                   const dbNameLower = t.dbName ? t.dbName.toLowerCase() : '';
                   if (dbNameLower === 'items' || t.id === 'tbl_items') displayName = 'Stok Kartları (Parçalar)';
@@ -818,7 +841,14 @@ export default function SchemaMapper() {
                   if (dbNameLower.includes('customer')) moduleName = "Müşteri Yönetimi";
                   if (dbNameLower.includes('supplier')) moduleName = "Tedarikçi Yönetimi";
 
-                  return (
+                  return { ...t, displayName, moduleName };
+                })
+                .filter(t => listModuleFilter === 'Tümü' || t.moduleName === listModuleFilter)
+                .sort((a, b) => {
+                  const cmp = a.displayName.localeCompare(b.displayName);
+                  return listSortOrder === 'asc' ? cmp : -cmp;
+                })
+                .map(t => (
                     <button
                       key={t.id}
                       onClick={() => setSelectedTableId(t.id)}
@@ -828,20 +858,20 @@ export default function SchemaMapper() {
                           : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50 border border-transparent'
                       }`}
                     >
-                      <span className="font-bold">{displayName}</span>
+                      <span className="font-bold">{t.displayName}</span>
                       <div className="flex items-center justify-between mt-1 w-full gap-2">
                         <span className="text-[10px] font-mono opacity-70 flex items-center gap-1 truncate">
                           <Database size={10} className="shrink-0" /> <span className="truncate">{t.dbName}</span>
                         </span>
                         <span className="text-[8px] uppercase tracking-wider font-bold px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-sm shrink-0">
-                          {moduleName}
+                          {t.moduleName}
                         </span>
                       </div>
                     </button>
-                  );
-              })}
+                  ))
+                }
+              </div>
             </div>
-          </div>
 
           {/* List View Right Content (Fields) */}
           <div className="flex-1 flex flex-col bg-white dark:bg-[#161B22] border border-slate-200 dark:border-[#30363D] rounded-2xl overflow-hidden shadow-sm">
