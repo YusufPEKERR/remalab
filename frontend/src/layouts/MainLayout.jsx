@@ -96,7 +96,7 @@ export default function MainLayout() {
 
   // Permission maps based on Python code:
   const allowedPaths = {
-    'admin': ['/dashboard', '/depo', '/irsaliye', '/work-orders', '/supply-requests', '/raporlar', '/parts', '/part-categories', '/products', '/suppliers', '/locations', '/users', '/settings', '/departments', '/service-records', '/data-management', '/tedarik-talepleri', '/quality', '/refurbishment', '/priority', '/item-bom', '/batch-entry', '/technician-repair'],
+    'admin': ['/dashboard', '/depo', '/irsaliye', '/work-orders', '/supply-requests', '/raporlar', '/parts', '/part-categories', '/products', '/suppliers', '/locations', '/users', '/settings', '/departments', '/service-records', '/data-management', '/tedarik-talepleri', '/quality', '/refurbishment', '/priority', '/item-bom', '/batch-entry', '/technician-repair', '/schema-mapper'],
     'depo': ['/depo', '/irsaliye', '/work-orders', '/raporlar'],
     'depo müdürü': ['/dashboard', '/depo', '/irsaliye', '/work-orders', '/supply-requests', '/raporlar', '/parts', '/products', '/suppliers', '/locations', '/tedarik-talepleri', '/service-records', '/batch-entry'],
     'teknisyen': ['/dashboard', '/quality', '/refurbishment', '/priority', '/batch-entry']
@@ -149,7 +149,8 @@ export default function MainLayout() {
         { name: 'Product Bom', icon: Layers, path: '/item-bom' },
         { name: 'Ayarlar', icon: Settings, path: '/settings' },
         { name: 'Veri Yönetimi', icon: Database, path: '/data-management' },
-        { name: 'Departman Yönetimi', icon: Building2, path: '/departments' }
+        { name: 'Departman Yönetimi', icon: Building2, path: '/departments' },
+        { name: 'Schema Mapper', icon: Database, path: '/schema-mapper' }
       ]
     }
   ];

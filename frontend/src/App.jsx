@@ -28,6 +28,7 @@ import ItemBOM from './pages/ItemBOM';
 import ServiceTransition from './pages/ServiceTransition';
 import TechnicianPanel from './pages/TechnicianPanel';
 import TechnicianRepairOperations from './pages/TechnicianRepairOperations';
+import SchemaMapper from './pages/SchemaMapper';
 function App() {
   return (
     <BrowserRouter>
@@ -74,6 +75,7 @@ function App() {
             <Route path="/service-transition" element={<ServiceTransition />} />
             <Route path="/technician-panel" element={<TechnicianPanel />} />
             <Route path="/technician-repair" element={<TechnicianRepairOperations />} />
+            <Route path="/schema-mapper" element={<SchemaMapper />} />
           </Route>
         </Routes>
       </ErrorBoundary>
