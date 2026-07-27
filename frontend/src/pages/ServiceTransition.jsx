@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { ScanLine, CheckCircle, AlertTriangle, Info, X, ArrowRight } from "lucide-react";
+import { api } from "../services/api";
 
 // ─── NOTIFICATION TOAST (TechnicianRepairOperations.jsx ile aynı desen) ───
 const NotificationToast = ({ notification, onClose }) => {
@@ -46,11 +47,9 @@ const ServiceTransition = () => {
   };
 
   const fetchTransitions = async (statuCode) => {
-    if (!window.webBridge) return;
     setLoading(true);
     try {
-      const resp = await window.webBridge.get_allowed_transitions(statuCode);
-      const data = JSON.parse(resp);
+      const data = await api.getAllowedTransitions(statuCode);
       if (data.success) {
         setTransitions(data.transitions);
       } else {
@@ -65,14 +64,13 @@ const ServiceTransition = () => {
 
   const handleSearch = async (e) => {
     e.preventDefault();
-    if (!barcode || !window.webBridge) return;
+    if (!barcode) return;
 
     setLoading(true);
     setDeviceInfo(null);
     setTransitions([]);
     try {
-      const resp = await window.webBridge.get_device_by_barcode(barcode);
-      const data = JSON.parse(resp);
+      const data = await api.getDeviceByBarcode(barcode);
 
       if (!data.success) {
         showNotification("error", "Cihaz bulunamadı", data.message);
@@ -103,16 +101,9 @@ const ServiceTransition = () => {
   };
 
   const executeTransition = async (targetStatu) => {
-    if (!window.webBridge || !deviceInfo?.workOrderId) return;
+    if (!deviceInfo?.workOrderId) return;
     try {
-      const resp = await window.webBridge.execute_statu_transition(
-        deviceInfo.workOrderId,
-        currentStatu,
-        targetStatu,
-        "",
-        ""
-      );
-      const data = JSON.parse(resp);
+      const data = await api.executeStatuTransition(deviceInfo.workOrderId, currentStatu, targetStatu, "", "");
 
       if (data.success) {
         showNotification("success", "Başarılı", data.message || "Statü güncellendi!");
@@ -129,8 +120,7 @@ const ServiceTransition = () => {
         if (data.error_code === "DOA_TRANSFER_REQUIRED") {
           const confirmDoa = window.confirm(data.message + "\nDOA Store'a aktarmak için Tamam'a basın.");
           if (confirmDoa) {
-            const doaResp = await window.webBridge.transfer_to_doa(deviceInfo.workOrderId);
-            const doaData = JSON.parse(doaResp);
+            const doaData = await api.transferToDoa(deviceInfo.workOrderId);
             if (doaData.success) {
               showNotification("success", "DOA Aktarımı", "Parçalar DOA'ya aktarıldı. Şimdi işlemi tekrar deneyebilirsiniz.");
             } else {

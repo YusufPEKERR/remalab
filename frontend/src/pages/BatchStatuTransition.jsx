@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { ScanLine, CheckCircle, AlertTriangle, Info, X, ArrowRight, History } from "lucide-react";
+import { api } from "../services/api";
 
 // ─── NOTIFICATION TOAST (TechnicianRepairOperations.jsx ile aynı desen) ───
 const NotificationToast = ({ notification, onClose }) => {
@@ -41,12 +42,20 @@ const LOG_ICONS = {
   warning: <AlertTriangle size={15} />,
 };
 
+// Bu ekran şu an tek bir sabit statü geçişini temsil eder (ekran görüntüsündeki
+// "Kayıt kabul yap (100>101)" penceresiyle birebir aynı). Kaynak→hedef statü
+// tablosu netleştikçe her satır için bu bileşenin bir kopyası (farklı
+// SOURCE/TARGET/TITLE ile) yeni bir sayfa olarak eklenebilir.
+const SOURCE_STATU_CODE = 100;
+const TARGET_STATU_CODE = 101;
+const SCREEN_TITLE = "Kayıt Kabul Yap";
+
 const BatchStatuTransition = () => {
   const [term, setTerm] = useState("");
   const [loading, setLoading] = useState(false);
   const [notification, setNotification] = useState(null);
-  const [pendingTransitions, setPendingTransitions] = useState(null);
   const [log, setLog] = useState([]);
+  const [deviceInfo, setDeviceInfo] = useState(null);
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -67,81 +76,54 @@ const BatchStatuTransition = () => {
     ]);
   };
 
-  const resetForNextScan = () => {
-    setTerm("");
-    setPendingTransitions(null);
-    inputRef.current?.focus();
-  };
+  const handleScan = async (e) => {
+    e.preventDefault();
+    if (!term.trim()) return;
 
-  const applyTransition = async (entryId, currentCode, targetCode) => {
-    if (!window.webBridge) return;
     setLoading(true);
+    setDeviceInfo(null);
     try {
-      const resp = await window.webBridge.execute_batch_entry_statu_transition(
-        String(entryId),
-        currentCode,
-        targetCode
+      // 1. Adım: taranan terimi partide bul (entry_id ve mevcut statü lazım)
+      const scanData = await api.scanBatchEntryStatu(term);
+      if (!scanData.success) {
+        showNotification("error", scanData.message);
+        appendLog("error", scanData.message);
+        return;
+      }
+
+      // Okutulan cihazın o anki statüsünü hemen göster (geçiş başarılı olsun olmasın)
+      setDeviceInfo({
+        imei: scanData.imei,
+        batchNo: scanData.batch_no,
+        flow: scanData.flow,
+        statuCode: scanData.current_statu_code,
+        statuName: scanData.current_statu_name,
+      });
+
+      // 2. Adım: bu ekranın sabit kaynak→hedef geçişini uygula.
+      // Parti şu an SOURCE_STATU_CODE'da değilse backend "uygun statü değil" hatası döner.
+      const data = await api.executeBatchEntryStatuTransition(
+        scanData.entry_id,
+        SOURCE_STATU_CODE,
+        TARGET_STATU_CODE
       );
-      const data = JSON.parse(resp);
+
       if (data.success) {
         showNotification("success", data.message);
         appendLog("success", data.message);
+        setDeviceInfo((prev) => (prev ? { ...prev, statuCode: TARGET_STATU_CODE, statuName: null } : prev));
       } else {
         showNotification("error", data.message);
         appendLog("error", data.message);
       }
-    } catch (e) {
-      console.error(e);
-      showNotification("error", "Beklenmeyen bir hata oluştu.");
-      appendLog("error", "Beklenmeyen bir hata oluştu.");
-    } finally {
-      setLoading(false);
-      resetForNextScan();
-    }
-  };
-
-  const handleScan = async (e) => {
-    e.preventDefault();
-    if (!term.trim() || !window.webBridge) return;
-
-    setLoading(true);
-    setPendingTransitions(null);
-    try {
-      const resp = await window.webBridge.scan_batch_entry_statu(term);
-      const data = JSON.parse(resp);
-
-      if (!data.success) {
-        showNotification("error", data.message);
-        appendLog("error", data.message);
-        resetForNextScan();
-        return;
-      }
-
-      if (!data.transitions || data.transitions.length === 0) {
-        const msg = `${data.imei} ${data.batch_no} ${data.flow} — "${data.current_statu_name}" statüsünden tanımlı bir sonraki adım yok.`;
-        showNotification("warning", msg);
-        appendLog("warning", msg);
-        resetForNextScan();
-        return;
-      }
-
-      if (data.transitions.length === 1) {
-        await applyTransition(data.entry_id, data.current_statu_code, data.transitions[0].target_statu_code);
-        return;
-      }
-
-      setPendingTransitions({
-        entryId: data.entry_id,
-        currentCode: data.current_statu_code,
-        currentName: data.current_statu_name,
-        label: `${data.imei} ${data.batch_no} ${data.flow}`,
-        options: data.transitions,
-      });
     } catch (err) {
       console.error(err);
       showNotification("error", "Sistem Hatası: sorgu sırasında beklenmeyen bir hata oluştu.");
+      appendLog("error", "Sistem Hatası: sorgu sırasında beklenmeyen bir hata oluştu.");
     } finally {
       setLoading(false);
+      setTerm("");
+      inputRef.current?.focus();
     }
   };
 
@@ -150,11 +132,16 @@ const BatchStatuTransition = () => {
       <NotificationToast notification={notification} onClose={() => setNotification(null)} />
 
       <div className="bg-white dark:bg-[#1e2330] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm shrink-0">
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-2">
-          <ScanLine className="text-blue-400" size={24} /> Statü Geçiş Ekranı
-        </h1>
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-2">
+            <ScanLine className="text-blue-400" size={24} /> {SCREEN_TITLE}
+          </h1>
+          <span className="px-3 py-1.5 rounded-full text-sm font-bold border bg-blue-500/10 text-blue-500 border-blue-500/20 flex items-center gap-2">
+            {SOURCE_STATU_CODE} <ArrowRight size={14} /> {TARGET_STATU_CODE}
+          </span>
+        </div>
         <p className="text-slate-400 mt-1">
-          IMEI, seri numarası, internal ID veya batch numarasını okutarak partiyi bir sonraki statüye taşıyın.
+          IMEI, seri numarası, internal ID veya batch numarasını okutun. Parti statü {SOURCE_STATU_CODE} değilse işlem reddedilir.
         </p>
       </div>
 
@@ -170,11 +157,11 @@ const BatchStatuTransition = () => {
                 className="flex-1 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-blue-500 disabled:opacity-60"
                 value={term}
                 onChange={(e) => setTerm(e.target.value)}
-                disabled={loading || !!pendingTransitions}
+                disabled={loading}
               />
               <button
                 type="submit"
-                disabled={loading || !!pendingTransitions}
+                disabled={loading}
                 className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-8 py-2.5 rounded-xl transition-all shadow-lg shadow-blue-900/20 font-medium whitespace-nowrap flex items-center gap-2"
               >
                 <ScanLine size={18} /> {loading ? "Sorgulanıyor..." : "Okut"}
@@ -184,32 +171,15 @@ const BatchStatuTransition = () => {
         </form>
       </div>
 
-      {pendingTransitions && (
-        <div className="bg-white dark:bg-[#1e2330] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm shrink-0 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">{pendingTransitions.label}</h3>
-            <span className="px-2.5 py-1 rounded-full text-xs font-medium border bg-blue-500/10 text-blue-500 border-blue-500/20">
-              Mevcut Statü: {pendingTransitions.currentName}
+      {deviceInfo && (
+        <div className="bg-white dark:bg-[#1e2330] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm shrink-0">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">
+              {deviceInfo.imei} <span className="text-slate-400 font-normal">· {deviceInfo.batchNo} · {deviceInfo.flow}</span>
+            </h3>
+            <span className="px-2.5 py-1 rounded-full text-xs font-bold border bg-blue-500/10 text-blue-500 border-blue-500/20">
+              Statü: {deviceInfo.statuCode}{deviceInfo.statuName ? ` — ${deviceInfo.statuName}` : ""}
             </span>
-          </div>
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Hangi statüye alınacak?</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {pendingTransitions.options.map((t, idx) => (
-              <button
-                key={idx}
-                onClick={() =>
-                  applyTransition(pendingTransitions.entryId, pendingTransitions.currentCode, t.target_statu_code)
-                }
-                disabled={loading}
-                className={`px-4 py-3 rounded-xl font-medium text-sm text-white transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 ${
-                  t.is_positive
-                    ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-900/20"
-                    : "bg-red-600 hover:bg-red-700 shadow-red-900/20"
-                }`}
-              >
-                {t.target_statu_name} <ArrowRight size={15} />
-              </button>
-            ))}
           </div>
         </div>
       )}

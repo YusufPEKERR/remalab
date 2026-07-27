@@ -1701,5 +1701,58 @@ export const api = {
                 resolve({ success: false, message: "Backend bridge missing" });
             }
         });
+    },
+
+    // ==========================
+    // MODUL 5: STATE MACHINE / STATU GECIS EKRANLARI
+    // ==========================
+
+    getDeviceByBarcode: async (barcode) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_device_by_barcode(String(barcode), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    getAllowedTransitions: async (currentStatuCode) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_allowed_transitions(currentStatuCode, (res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    executeStatuTransition: async (workOrderId, currentStatuCode, targetStatuCode, requestTypeCode, testResultCode) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.execute_statu_transition(
+                String(workOrderId), currentStatuCode, targetStatuCode,
+                requestTypeCode || "", testResultCode || "",
+                (res) => resolve(JSON.parse(res))
+            );
+        });
+    },
+
+    transferToDoa: async (workOrderId) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.transfer_to_doa(String(workOrderId), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    scanBatchEntryStatu: async (term) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.scan_batch_entry_statu(String(term), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    executeBatchEntryStatuTransition: async (entryId, currentStatuCode, targetStatuCode) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.execute_batch_entry_statu_transition(
+                String(entryId), currentStatuCode, targetStatuCode,
+                (res) => resolve(JSON.parse(res))
+            );
+        });
     }
 };

@@ -7314,14 +7314,14 @@ class WebBridge(QObject):
             if actual_code != current_statu_code:
                 return json.dumps({
                     "success": False,
-                    "message": f"{device_label} mevcut statüsü ({statu_name(actual_code)}) bu okutmaya uygun statü değil."
+                    "message": f"{device_label} mevcut statüsü {statu_name(actual_code)} ({actual_code}) — bu okutmaya uygun statü değil (beklenen: {current_statu_code})."
                 })
 
             svc = StateMachineService(db)
             if not svc.validate_transition(current_statu_code, target_statu_code):
                 return json.dumps({
                     "success": False,
-                    "message": f"{device_label} mevcut statüsü ({statu_name(actual_code)}) bu okutmaya uygun statü değil."
+                    "message": f"{device_label} mevcut statüsü {statu_name(actual_code)} ({actual_code}) — bu okutmaya uygun statü değil."
                 })
 
             old_name = statu_name(current_statu_code)
@@ -7333,7 +7333,7 @@ class WebBridge(QObject):
             return json.dumps({
                 "success": True,
                 "new_statu_code": target_statu_code,
-                "message": f"{device_label} {old_name} statüsünden {new_name} statüsüne alındı."
+                "message": f"{device_label} {old_name} ({current_statu_code}) statüsünden {new_name} ({target_statu_code}) statüsüne alındı."
             })
         except Exception as e:
             db.rollback()
