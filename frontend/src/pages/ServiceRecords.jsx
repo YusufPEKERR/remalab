@@ -43,6 +43,31 @@ export default function ServiceRecords() {
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [products, setProducts] = useState([]);
 
+  // Yeni eklentiler (IMEI ile arama)
+  const [searchImei, setSearchImei] = useState('');
+  const [imeiSearchResult, setImeiSearchResult] = useState(null);
+  const [showImeiDetails, setShowImeiDetails] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const [imeiError, setImeiError] = useState('');
+
+  const handleImeiSearch = async (e) => {
+    e.preventDefault();
+    if (!searchImei.trim()) return;
+    setIsSearching(true);
+    setImeiError('');
+    const res = await api.getRepairDetailsByImei(searchImei.trim());
+    setIsSearching(false);
+    if (res.success && res.data) {
+      setImeiSearchResult(res.data);
+      setShowImeiDetails(true);
+      setShowForm(false); // Eğer normal form açıksa kapat
+    } else {
+      setImeiSearchResult(null);
+      setShowImeiDetails(false); // Detaylar açıksa kapat
+      setImeiError(res.message || 'Cihaz bulunamadı.');
+    }
+  };
+
   const fetchRecords = async () => {
     setLoading(true);
     const res = await api.getServiceRecords();
@@ -148,15 +173,45 @@ export default function ServiceRecords() {
     <div className="h-full flex flex-col space-y-6 overflow-hidden">
 
       {/* Header */}
-      <div className="bg-white dark:bg-[#1e2330] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm shrink-0">
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-2">
-          <Wrench className="text-blue-400" size={24} /> Servis Kaydı
-        </h1>
-        <p className="text-slate-400 mt-1">Teknisyen cihazlarının arıza kabul ve tamir takibini yönetin.</p>
+      <div className="bg-white dark:bg-[#1e2330] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm shrink-0 flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+        <div>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-2">
+            <Wrench className="text-blue-400" size={24} /> Servis Kaydı
+            </h1>
+            <p className="text-slate-400 mt-1">Teknisyen cihazlarının arıza kabul ve tamir takibini yönetin.</p>
+        </div>
+        
+        {/* IMEI Arama Çubuğu */}
+        <form onSubmit={handleImeiSearch} className="flex items-center gap-2">
+            <div className="relative">
+                <Smartphone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <input 
+                    type="text" 
+                    placeholder="IMEI ile Onarım Ara..." 
+                    value={searchImei}
+                    onChange={(e) => setSearchImei(e.target.value)}
+                    className="pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:border-blue-500 min-w-[250px]"
+                />
+            </div>
+            <button 
+                type="submit" 
+                disabled={isSearching}
+                className="bg-slate-800 hover:bg-slate-900 dark:bg-slate-100 dark:hover:bg-white text-white dark:text-slate-900 px-4 py-2.5 rounded-xl font-medium text-sm transition-colors disabled:opacity-50"
+            >
+                {isSearching ? 'Aranıyor...' : 'Ara'}
+            </button>
+        </form>
       </div>
 
+      {imeiError && (
+          <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-xl flex items-center gap-3">
+              <AlertTriangle size={20} />
+              {imeiError}
+          </div>
+      )}
+
       <div className="flex-1 overflow-y-auto pr-2 pb-6 space-y-6">
-        {!showForm ? (
+        {!showForm && !showImeiDetails ? (
           <>
             <div className="flex justify-end items-center">
               <button
@@ -226,6 +281,100 @@ export default function ServiceRecords() {
               </table>
             </div>
           </>
+        ) : showImeiDetails && imeiSearchResult ? (
+          <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-xl animate-in fade-in slide-in-from-bottom-4">
+            <div className="flex justify-between items-center mb-6 border-b border-slate-200 dark:border-slate-700/50 pb-4">
+              <div>
+                  <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                    <Smartphone className="text-blue-500" /> Cihaz ve Onarım Detayları
+                  </h2>
+                  <p className="text-slate-400 text-sm mt-1">IMEI: {imeiSearchResult.imei_number}</p>
+              </div>
+              <button onClick={() => {setShowImeiDetails(false); setImeiSearchResult(null);}} className="text-slate-400 hover:text-white p-2 rounded-lg hover:bg-slate-800 transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Sol Kolon: Cihaz Bilgileri (Salt Okunur) */}
+                <div className="space-y-6 bg-slate-50 dark:bg-[#242a38] p-5 rounded-xl border border-slate-200 dark:border-slate-700">
+                    <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                        <Smartphone size={16} className="text-blue-400"/> Cihaz Bilgileri (Batch)
+                    </h3>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <span className="block text-xs text-slate-400 mb-1">Müşteri</span>
+                            <div className="text-sm font-medium text-slate-700 dark:text-slate-300">{imeiSearchResult.customer_name || '-'}</div>
+                        </div>
+                        <div>
+                            <span className="block text-xs text-slate-400 mb-1">Marka / Model</span>
+                            <div className="text-sm font-medium text-slate-700 dark:text-slate-300">{imeiSearchResult.brand} {imeiSearchResult.model}</div>
+                        </div>
+                        <div>
+                            <span className="block text-xs text-slate-400 mb-1">Hafıza / Renk</span>
+                            <div className="text-sm font-medium text-slate-700 dark:text-slate-300">{imeiSearchResult.memory} / {imeiSearchResult.color}</div>
+                        </div>
+                        <div>
+                            <span className="block text-xs text-slate-400 mb-1">Kayıt Tarihi</span>
+                            <div className="text-sm font-medium text-slate-700 dark:text-slate-300">{imeiSearchResult.created_at || '-'}</div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <span className="block text-xs text-slate-400 mb-1">Müşteri Şikayeti / Kusurlar</span>
+                        <div className="text-sm font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-[#1e2330] p-3 rounded-lg border border-slate-200 dark:border-slate-700 min-h-[60px]">
+                            {imeiSearchResult.customer_complaint || '-'}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Sağ Kolon: Onarım Detayları (Düzenlenebilir) */}
+                <div className="space-y-6">
+                    <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                        <Wrench size={16} className="text-orange-400"/> Onarım Detayları
+                    </h3>
+                    
+                    <form onSubmit={async (e) => {
+                        e.preventDefault();
+                        const res = await api.saveServiceRepair(imeiSearchResult);
+                        if(res.success) {
+                            alert('Kaydedildi!');
+                        } else {
+                            alert('Hata: ' + res.message);
+                        }
+                    }} className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium text-slate-400 mb-1.5">Teknisyen Adı</label>
+                            <input type="text" className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" 
+                                value={imeiSearchResult.technician_name} 
+                                onChange={e => setImeiSearchResult({...imeiSearchResult, technician_name: e.target.value})} 
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-400 mb-1.5">Durum</label>
+                            <select className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" 
+                                value={imeiSearchResult.status} 
+                                onChange={e => setImeiSearchResult({...imeiSearchResult, status: e.target.value})}>
+                                {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-400 mb-1.5">Teknisyen Notları / Yapılan İşlemler</label>
+                            <textarea rows={4} className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 resize-none" 
+                                value={imeiSearchResult.repair_notes} 
+                                onChange={e => setImeiSearchResult({...imeiSearchResult, repair_notes: e.target.value})} 
+                            />
+                        </div>
+                        <div className="flex justify-end pt-4">
+                            <button type="submit" className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors shadow-lg shadow-blue-900/20 flex items-center gap-2">
+                                <Save size={18}/> Değişiklikleri Kaydet
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+          </div>
         ) : (
           <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-xl animate-in fade-in slide-in-from-bottom-4">
             <div className="flex justify-between items-center mb-6">

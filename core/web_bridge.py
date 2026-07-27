@@ -2076,6 +2076,95 @@ class WebBridge(QObject):
     # SERVİS KAYITLARI MODÜLÜ
     # ==========================
 
+    @Slot(str, result=str)
+    def get_repair_details_by_imei(self, imei_number):
+        """IMEI numarasına göre cihaz bilgilerini ve onarım kaydını getirir."""
+        from models.batch_entry import BatchEntry
+        from models.service_repair import ServiceRepair
+        db = SessionLocal()
+        try:
+            # 1. Cihaz bilgilerini BatchEntries'ten al
+            batch_entry = db.query(BatchEntry).filter(BatchEntry.imei_number == imei_number).first()
+            if not batch_entry:
+                return json.dumps({"success": False, "message": f"Bu IMEI numarasına ({imei_number}) ait bir cihaz (BatchEntry) bulunamadı."})
+                
+            # 2. Servis onarım kaydını al
+            repair_record = db.query(ServiceRepair).filter(ServiceRepair.imei_number == imei_number).first()
+            
+            # 3. Verileri birleştir
+            data = {
+                # Cihaz Bilgileri (BatchEntry - Salt Okunur)
+                "imei_number": batch_entry.imei_number,
+                "customer_name": batch_entry.customer_name or "",
+                "customer_phone": "", # BatchEntry'de yok, eklenebilir veya boş kalabilir
+                "brand": batch_entry.model or "", # BatchEntry'deki model genelde marka+model veya sadece model tutuyor
+                "model": batch_entry.model or "",
+                "memory": batch_entry.gb or "",
+                "color": batch_entry.color or "",
+                "customer_complaint": batch_entry.defects or "",
+                "flow": batch_entry.flow or "",
+                "created_at": batch_entry.created_at.strftime('%d.%m.%Y %H:%M') if batch_entry.created_at else "",
+                
+                # Onarım Bilgileri (ServiceRepair - Düzenlenebilir)
+                "repair_id": str(repair_record.id) if repair_record else None,
+                "technician_name": repair_record.technician_name if repair_record else "",
+                "fault_description": repair_record.fault_description if repair_record else (batch_entry.defects or ""),
+                "repair_notes": repair_record.repair_notes if repair_record else "",
+                "status": repair_record.status if repair_record else "Arıza Kabul",
+                "warranty_status": repair_record.warranty_status if repair_record else ""
+            }
+            
+            return json.dumps({"success": True, "data": data})
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
+    def save_service_repair(self, data_json):
+        """IMEI'ye göre servis onarım kaydını günceller veya oluşturur."""
+        from models.service_repair import ServiceRepair
+        db = SessionLocal()
+        try:
+            data = json.loads(data_json)
+            imei_number = data.get("imei_number")
+            if not imei_number:
+                return json.dumps({"success": False, "message": "IMEI numarası eksik."})
+                
+            record = db.query(ServiceRepair).filter(ServiceRepair.imei_number == imei_number).first()
+            
+            if record:
+                # Güncelle
+                record.technician_name = data.get("technician_name", record.technician_name)
+                record.fault_description = data.get("fault_description", record.fault_description)
+                record.repair_notes = data.get("repair_notes", record.repair_notes)
+                record.status = data.get("status", record.status)
+                record.warranty_status = data.get("warranty_status", record.warranty_status)
+            else:
+                # Yeni oluştur
+                new_record = ServiceRepair(
+                    imei_number=imei_number,
+                    technician_name=data.get("technician_name", ""),
+                    fault_description=data.get("fault_description", ""),
+                    repair_notes=data.get("repair_notes", ""),
+                    status=data.get("status", "Arıza Kabul"),
+                    warranty_status=data.get("warranty_status", "")
+                )
+                db.add(new_record)
+                
+            db.commit()
+            return json.dumps({"success": True, "message": "Onarım kaydı başarıyla kaydedildi."})
+        except Exception as e:
+            db.rollback()
+            import traceback
+            traceback.print_exc()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+
     @Slot(result=str)
     def get_service_records(self):
         """Tüm servis kayıtlarını getirir."""

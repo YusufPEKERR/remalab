@@ -504,6 +504,19 @@ export const api = {
     // ==========================
     // SERVİS KAYITLARI
     // ==========================
+    getRepairDetailsByImei: async (imei) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_repair_details_by_imei(imei, (res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    saveServiceRepair: async (data) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.save_service_repair(JSON.stringify(data), (res) => resolve(JSON.parse(res)));
+        });
+    },
 
     getServiceRecords: async () => {
         const backend = await getBackend();
