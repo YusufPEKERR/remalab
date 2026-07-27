@@ -714,12 +714,10 @@ export default function SchemaMapper() {
                           <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
                           <span className="text-[9px] text-slate-500 ml-2 font-mono">{selectedTable.feName}.json</span>
                         </div>
-                        <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-                        <span className="text-[9px] text-slate-500 ml-2 font-mono">{selectedTable.feName}.json</span>
+                        <pre className="px-3 py-3 text-[11px] font-mono text-emerald-400 overflow-x-auto leading-relaxed">
+                          {dtoPreview}
+                        </pre>
                       </div>
-                      <pre className="px-3 py-3 text-[11px] font-mono text-emerald-400 overflow-x-auto leading-relaxed">
-                        {dtoPreview}
-                      </pre>
                     </div>
                   </div>
                 </div>
