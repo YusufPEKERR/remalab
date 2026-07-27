@@ -157,8 +157,9 @@ const AddTableModal = ({ onClose, onAdd }) => {
 // ═══════════════════════════════════════════════════════════════════
 export default function SchemaMapper() {
   // ── Core State ────────────────────────────────────────────
-  const [tables, setTables] = useState(SEED_TABLES);
-  const [edges, setEdges] = useState(SEED_EDGES);
+  const [tables, setTables] = useState([]);
+  const [edges, setEdges] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [selectedTableId, setSelectedTableId] = useState(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState(null);
   const [connectMode, setConnectMode] = useState(false);
@@ -169,15 +170,59 @@ export default function SchemaMapper() {
   const [inspectorOpen, setInspectorOpen] = useState(true);
 
   const canvasRef = useRef(null);
-  const { cssTransform, onWheel, onPanStart, onPanMove, onPanEnd, transform, setTransform, resetView } = useCanvasPanZoom();
+  const { cssTransform, onWheel, onPanStart, onPanMove, onPanEnd, transform, setTransform, resetView, centerView } = useCanvasPanZoom();
 
   // ── Drag State ────────────────────────────────────────────
   const dragRef = useRef({ isDragging: false, tableId: null, startX: 0, startY: 0, origX: 0, origY: 0 });
 
   const showNotif = useCallback((msg, type = 'success') => {
     setNotif({ message: msg, type });
-    setTimeout(() => setNotif(null), 3000);
+    setTimeout(() => setNotif(null), 3500);
   }, []);
+
+  // ── Initial Fetch & Auto-Fit ──────────────────────────────
+  useEffect(() => {
+    const fetchSchema = async () => {
+      try {
+        setIsLoading(true);
+        if (window.webBridge && window.webBridge.get_schema_introspection) {
+          const res = await window.webBridge.get_schema_introspection();
+          const parsed = JSON.parse(res);
+          if (parsed && parsed.tables && parsed.tables.length > 0) {
+            setTables(parsed.tables);
+            setEdges(parsed.edges || []);
+            showNotif('Veritabanı şeması başarıyla yüklendi.');
+            return;
+          }
+        }
+        // Throw to trigger catch fallback if no valid data
+        throw new Error("Boş veri veya API yok");
+      } catch (error) {
+        console.error("[SchemaMapper] API Fetch Error:", error);
+        // Fallback Seed Data
+        setTables(SEED_TABLES);
+        setEdges(SEED_EDGES);
+        showNotif('Veritabanı şeması okunamadı. Varsayılan Şema (Seed Data) yüklendi.', 'warning');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchSchema();
+  }, [showNotif]);
+
+  // Center view on initial load or table change (when not dragging)
+  useEffect(() => {
+    if (!isLoading && canvasRef.current && tables.length > 0) {
+      // PRO-TIP ZAMANLAMA KORUMASI: DOM mount ve render için bekle
+      const timer = setTimeout(() => {
+        if (canvasRef.current) {
+          const rect = canvasRef.current.getBoundingClientRect();
+          centerView(tables, rect);
+        }
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading, centerView]); // Only run once when loaded
 
   // ── Table Drag ────────────────────────────────────────────
   const handleDragStart = useCallback((tableId, e) => {
@@ -442,7 +487,25 @@ export default function SchemaMapper() {
       {/* ═══════════════════════════════════════════════════════
            MAIN AREA: Canvas + Inspector
          ═══════════════════════════════════════════════════════ */}
-      <div className="flex flex-1 min-h-0 overflow-hidden">
+      <div className="flex flex-1 min-h-0 overflow-hidden relative">
+        {isLoading && (
+          <div className="absolute inset-0 z-50 bg-slate-100/50 dark:bg-[#0f1219]/50 backdrop-blur-sm flex items-center justify-center">
+            <div className="animate-spin rounded-full h-10 w-10 border-4 border-blue-500 border-t-transparent"></div>
+          </div>
+        )}
+
+        {!isLoading && tables.length === 0 && (
+          <div className="absolute inset-0 z-40 flex items-center justify-center pointer-events-none">
+            <div className="bg-white dark:bg-[#1e2330] p-8 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 max-w-md text-center pointer-events-auto">
+              <Database size={48} className="text-slate-300 dark:text-slate-600 mx-auto mb-4" />
+              <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 mb-2">Veritabanı Şeması Bulunamadı</h3>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">Herhangi bir tablo veya ilişki verisi okunamadı. Yeni bir tablo ekleyerek başlayabilirsiniz.</p>
+              <button onClick={() => setShowAddModal(true)} className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-lg shadow-blue-500/20">
+                <Plus size={16} className="inline mr-2" /> Yeni Tablo Ekle
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* ── CANVAS ──────────────────────────────────────── */}
         <div

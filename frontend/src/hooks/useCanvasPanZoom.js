@@ -75,6 +75,49 @@ export default function useCanvasPanZoom({ minScale = 0.15, maxScale = 3 } = {})
     setTransform({ x: 0, y: 0, scale: 1 });
   }, []);
 
+  // ── Auto-Fit / Center Viewport ────────────────────────────
+  const centerView = useCallback((nodes, containerRect) => {
+    if (!nodes || nodes.length === 0 || !containerRect) return;
+
+    let minX = Infinity, minY = Infinity;
+    let maxX = -Infinity, maxY = -Infinity;
+
+    nodes.forEach(node => {
+      if (node.x < minX) minX = node.x;
+      if (node.y < minY) minY = node.y;
+      if (node.x > maxX) maxX = node.x;
+      if (node.y > maxY) maxY = node.y;
+    });
+
+    // Add assumed table width/height if not provided in nodes
+    maxX += 280; // TABLE_WIDTH
+    maxY += 200; // estimated max height
+
+    const contentWidth = maxX - minX;
+    const contentHeight = maxY - minY;
+
+    // Padding
+    const padding = 100;
+    const availableWidth = containerRect.width - padding * 2;
+    const availableHeight = containerRect.height - padding * 2;
+
+    const scaleX = availableWidth / contentWidth;
+    const scaleY = availableHeight / contentHeight;
+    let newScale = Math.min(scaleX, scaleY, maxScale); // Max zoom level to fit
+    
+    // Don't zoom in too much if content is small, cap at 1.0
+    if (newScale > 1) newScale = 1;
+
+    // Calculate center
+    const contentCenterX = minX + contentWidth / 2;
+    const contentCenterY = minY + contentHeight / 2;
+
+    const x = (containerRect.width / 2) - (contentCenterX * newScale);
+    const y = (containerRect.height / 2) - (contentCenterY * newScale);
+
+    setTransform({ x, y, scale: newScale });
+  }, [maxScale]);
+
   const cssTransform = `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`;
 
   return {
@@ -87,6 +130,7 @@ export default function useCanvasPanZoom({ minScale = 0.15, maxScale = 3 } = {})
     onPanEnd,
     screenToCanvas,
     resetView,
+    centerView,
     isPanning,
   };
 }

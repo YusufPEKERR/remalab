@@ -157,6 +157,119 @@ class WebBridge(QObject):
         self._ensure_item_bom_data()
         self._ensure_item_model_lookup()
         self._ensure_batch_entries_table()
+        self._schema_cache = None
+
+    @Slot(result=str)
+    def get_schema_introspection(self):
+        """
+        Veritabanındaki 'warehouse' şemasını okuyarak Frontend Schema Mapper
+        için gerekli { tables: [], edges: [] } JSON yapısını döndürür.
+        Önbellekleme (Caching) kullanarak performansı maksimize eder.
+        """
+        if self._schema_cache:
+            return self._schema_cache
+            
+        try:
+            from sqlalchemy import inspect
+            db = SessionLocal()
+            engine = db.get_bind()
+            inspector = inspect(engine)
+            schema_name = 'warehouse'
+            
+            # Eğer şema yoksa boş dön
+            if schema_name not in inspector.get_schema_names():
+                return json.dumps({"tables": [], "edges": []})
+                
+            table_names = inspector.get_table_names(schema=schema_name)
+            
+            tables = []
+            edges = []
+            
+            x_pos, y_pos = 50, 50
+            
+            for t_name in table_names:
+                columns = inspector.get_columns(t_name, schema=schema_name)
+                pk_constraint = inspector.get_pk_constraint(t_name, schema=schema_name)
+                pks = pk_constraint.get('constrained_columns', []) if pk_constraint else []
+                fks = inspector.get_foreign_keys(t_name, schema=schema_name)
+                
+                fields = []
+                for col in columns:
+                    col_name = col['name']
+                    # Tip dönüştürme
+                    col_type_str = str(col['type']).lower()
+                    fe_type = 'string'
+                    if 'int' in col_type_str:
+                        fe_type = 'int'
+                    elif 'bool' in col_type_str:
+                        fe_type = 'boolean'
+                    elif 'time' in col_type_str or 'date' in col_type_str:
+                        fe_type = 'timestamp'
+                    
+                    is_pk = col_name in pks
+                    is_fk = False
+                    fk_ref = None
+                    
+                    # FK işlemleri
+                    for fk in fks:
+                        if col_name in fk['constrained_columns']:
+                            is_fk = True
+                            fe_type = 'relation'
+                            ref_table = fk['referred_table']
+                            ref_col = fk['referred_columns'][0] if fk['referred_columns'] else 'id'
+                            fk_ref = {
+                                'tableId': f"tbl_{ref_table}",
+                                'fieldId': f"f_{ref_table}_{ref_col}"
+                            }
+                            
+                            # Edge oluştur (İstenilen format: id, source, target)
+                            edges.append({
+                                'id': f"fk-{t_name}-{ref_table}-{col_name}",
+                                'sourceTableId': f"tbl_{t_name}",
+                                'sourceFieldId': f"f_{t_name}_{col_name}",
+                                'targetTableId': f"tbl_{ref_table}",
+                                'targetFieldId': f"f_{ref_table}_{ref_col}",
+                                'relationType': 'many-to-one'
+                            })
+                            break
+                            
+                    fields.append({
+                        'id': f"f_{t_name}_{col_name}",
+                        'dbName': col_name,
+                        'feName': col_name,
+                        'type': fe_type,
+                        'isPK': is_pk,
+                        'isFK': is_fk,
+                        'fkRef': fk_ref
+                    })
+                
+                # Tablo feName oluştur (snake_case -> PascalCase)
+                fe_table_name = "".join(word.capitalize() for word in t_name.split('_'))
+                
+                tables.append({
+                    'id': f"tbl_{t_name}",
+                    'dbName': t_name,
+                    'feName': fe_table_name,
+                    'x': x_pos,
+                    'y': y_pos,
+                    'fields': fields
+                })
+                
+                # Izgara (Grid) dizilimi hesapla
+                x_pos += 320
+                if x_pos > 1500:
+                    x_pos = 50
+                    y_pos += 350
+                    
+            db.close()
+            
+            result_json = json.dumps({'tables': tables, 'edges': edges})
+            self._schema_cache = result_json
+            return result_json
+            
+        except Exception as e:
+            logging.error(f"[WebBridge] get_schema_introspection hatası: {e}")
+            return json.dumps({'tables': [], 'edges': []})
 
     def _find_reference_excel_file(self):
         """Proje kök dizininde MioCreate referans veri dosyasını arar.
