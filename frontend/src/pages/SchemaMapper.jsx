@@ -818,7 +818,7 @@ export default function SchemaMapper() {
                     onChange={(e) => setListModuleFilter(e.target.value)}
                     className="w-full pl-7 pr-2 py-1.5 bg-white dark:bg-[#161B22] border border-slate-200 dark:border-[#30363D] text-[11px] font-semibold rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 text-slate-700 dark:text-slate-300 appearance-none cursor-pointer"
                   >
-                    {['Tümü', 'Stok Yönetimi', 'Toplu İşlemler', 'Servis Yönetimi', 'Operasyon', 'Kullanıcı & Yetki', 'Müşteri Yönetimi', 'Tedarikçi Yönetimi', 'Sistem / Diğer'].map(m => (
+                    {['Tümü', 'DEPO', 'ENVANTER', 'KULLANICI & AYARLAR', 'SİSTEM'].map(m => (
                       <option key={m} value={m}>{m}</option>
                     ))}
                   </select>
@@ -832,14 +832,10 @@ export default function SchemaMapper() {
                   if (dbNameLower === 'batch' || t.id === 'tbl_batch') displayName = 'Batch Girişi Yönetimi';
                   if (dbNameLower === 'itemcategory' || dbNameLower === 'item_category' || t.id === 'tbl_item_category') displayName = 'Parça Kategorileri';
                   
-                  let moduleName = "Sistem / Diğer";
-                  if (dbNameLower.includes('item') || dbNameLower.includes('part') || dbNameLower.includes('brand') || dbNameLower.includes('model')) moduleName = "Stok Yönetimi";
-                  if (dbNameLower.includes('batch')) moduleName = "Toplu İşlemler";
-                  if (dbNameLower.includes('service') || dbNameLower.includes('work_order')) moduleName = "Servis Yönetimi";
-                  if (dbNameLower.includes('mission') || dbNameLower.includes('workgroup') || dbNameLower.includes('department')) moduleName = "Operasyon";
-                  if (dbNameLower.includes('user') || dbNameLower.includes('auth') || dbNameLower.includes('role')) moduleName = "Kullanıcı & Yetki";
-                  if (dbNameLower.includes('customer')) moduleName = "Müşteri Yönetimi";
-                  if (dbNameLower.includes('supplier')) moduleName = "Tedarikçi Yönetimi";
+                  let moduleName = "SİSTEM";
+                  if (dbNameLower.includes('item') || dbNameLower.includes('part') || dbNameLower.includes('brand') || dbNameLower.includes('model') || dbNameLower.includes('product') || dbNameLower.includes('supplier') || dbNameLower.includes('location') || dbNameLower.includes('customer')) moduleName = "ENVANTER";
+                  if (dbNameLower.includes('batch') || dbNameLower.includes('service') || dbNameLower.includes('work_order') || dbNameLower.includes('mission') || dbNameLower.includes('workgroup') || dbNameLower.includes('department')) moduleName = "DEPO";
+                  if (dbNameLower.includes('user') || dbNameLower.includes('auth') || dbNameLower.includes('role')) moduleName = "KULLANICI & AYARLAR";
 
                   return { ...t, displayName, moduleName };
                 })
