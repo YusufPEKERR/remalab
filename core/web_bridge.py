@@ -745,6 +745,7 @@ class WebBridge(QObject):
         from sqlalchemy import text
         db = SessionLocal()
         try:
+            db.execute(text("CREATE SCHEMA IF NOT EXISTS warehouse;"))
             db.execute(text("""
                 CREATE TABLE IF NOT EXISTS warehouse.part_categories (
                     id SERIAL PRIMARY KEY,
