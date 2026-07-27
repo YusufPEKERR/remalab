@@ -833,9 +833,16 @@ export default function SchemaMapper() {
                   if (dbNameLower === 'itemcategory' || dbNameLower === 'item_category' || t.id === 'tbl_item_category') displayName = 'Parça Kategorileri';
                   
                   let moduleName = "SİSTEM";
-                  if (dbNameLower.includes('item') || dbNameLower.includes('part') || dbNameLower.includes('brand') || dbNameLower.includes('model') || dbNameLower.includes('product') || dbNameLower.includes('supplier') || dbNameLower.includes('location') || dbNameLower.includes('customer')) moduleName = "ENVANTER";
-                  if (dbNameLower.includes('batch') || dbNameLower.includes('service') || dbNameLower.includes('work_order') || dbNameLower.includes('mission') || dbNameLower.includes('workgroup') || dbNameLower.includes('department')) moduleName = "DEPO";
-                  if (dbNameLower.includes('user') || dbNameLower.includes('auth') || dbNameLower.includes('role')) moduleName = "KULLANICI & AYARLAR";
+                  
+                  if (dbNameLower.includes('user') || dbNameLower.includes('auth') || dbNameLower.includes('role') || dbNameLower.includes('batch') || dbNameLower.includes('category') || dbNameLower.includes('bom') || dbNameLower.includes('department') || dbNameLower.includes('setting') || dbNameLower.includes('data') || dbNameLower.includes('schema')) {
+                    moduleName = "KULLANICI & AYARLAR";
+                  }
+                  else if (dbNameLower.includes('item') || dbNameLower.includes('part') || dbNameLower.includes('brand') || dbNameLower.includes('model') || dbNameLower.includes('product') || dbNameLower.includes('supplier') || dbNameLower.includes('location') || dbNameLower.includes('customer')) {
+                    moduleName = "ENVANTER";
+                  }
+                  else if (dbNameLower.includes('service') || dbNameLower.includes('work_order') || dbNameLower.includes('mission') || dbNameLower.includes('workgroup') || dbNameLower.includes('irsaliye') || dbNameLower.includes('depo')) {
+                    moduleName = "DEPO";
+                  }
 
                   return { ...t, displayName, moduleName };
                 })
