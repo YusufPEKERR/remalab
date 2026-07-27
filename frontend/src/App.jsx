@@ -26,6 +26,7 @@ import ItemBOM from './pages/ItemBOM';
 
 // Modül 5 
 import ServiceTransition from './pages/ServiceTransition';
+import BatchStatuTransition from './pages/BatchStatuTransition';
 import TechnicianPanel from './pages/TechnicianPanel';
 import TechnicianRepairOperations from './pages/TechnicianRepairOperations';
 import SchemaMapper from './pages/SchemaMapper';
@@ -73,6 +74,7 @@ function App() {
             <Route path="/item-bom" element={<ItemBOM />} />
             {/* MODÜL 5 */}
             <Route path="/service-transition" element={<ServiceTransition />} />
+            <Route path="/batch-statu-transition" element={<BatchStatuTransition />} />
             <Route path="/technician-panel" element={<TechnicianPanel />} />
             <Route path="/technician-repair" element={<TechnicianRepairOperations />} />
             <Route path="/schema-mapper" element={<SchemaMapper />} />
