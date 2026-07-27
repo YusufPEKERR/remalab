@@ -27,6 +27,7 @@ import ItemBOM from './pages/ItemBOM';
 // Modül 5 
 import ServiceTransition from './pages/ServiceTransition';
 import TechnicianPanel from './pages/TechnicianPanel';
+import TechnicianRepairOperations from './pages/TechnicianRepairOperations';
 function App() {
   return (
     <BrowserRouter>
@@ -72,6 +73,7 @@ function App() {
             {/* MODÜL 5 */}
             <Route path="/service-transition" element={<ServiceTransition />} />
             <Route path="/technician-panel" element={<TechnicianPanel />} />
+            <Route path="/technician-repair" element={<TechnicianRepairOperations />} />
           </Route>
         </Routes>
       </ErrorBoundary>

@@ -96,7 +96,7 @@ export default function MainLayout() {
 
   // Permission maps based on Python code:
   const allowedPaths = {
-    'admin': ['/dashboard', '/depo', '/irsaliye', '/work-orders', '/supply-requests', '/raporlar', '/parts', '/part-categories', '/products', '/suppliers', '/locations', '/users', '/settings', '/departments', '/service-records', '/data-management', '/tedarik-talepleri', '/quality', '/refurbishment', '/priority', '/item-bom', '/batch-entry'],
+    'admin': ['/dashboard', '/depo', '/irsaliye', '/work-orders', '/supply-requests', '/raporlar', '/parts', '/part-categories', '/products', '/suppliers', '/locations', '/users', '/settings', '/departments', '/service-records', '/data-management', '/tedarik-talepleri', '/quality', '/refurbishment', '/priority', '/item-bom', '/batch-entry', '/technician-repair'],
     'depo': ['/depo', '/irsaliye', '/work-orders', '/raporlar'],
     'depo müdürü': ['/dashboard', '/depo', '/irsaliye', '/work-orders', '/supply-requests', '/raporlar', '/parts', '/products', '/suppliers', '/locations', '/tedarik-talepleri', '/service-records', '/batch-entry'],
     'teknisyen': ['/dashboard', '/quality', '/refurbishment', '/priority', '/batch-entry']
@@ -122,6 +122,7 @@ export default function MainLayout() {
         { name: 'Depo', icon: Warehouse, path: '/depo' },
         { name: 'İrsaliye', icon: FileText, path: '/irsaliye' },
         { name: 'İş Emirleri', icon: ClipboardList, path: '/work-orders' },
+        { name: 'Servis Onarımları', icon: Wrench, path: '/technician-repair' },
 
         { name: 'Tedarik İstekleri', icon: PackageSearch, path: '/supply-requests' },
         { name: 'Tedarik Talepleri', icon: PackagePlus, path: '/tedarik-talepleri' },
