@@ -561,11 +561,7 @@ export default function SchemaMapper() {
         <div
           ref={canvasRef}
           className={`flex-1 relative overflow-hidden ${connectMode ? 'cursor-crosshair' : 'cursor-default'}`}
-          style={{ 
-            backgroundImage: 'radial-gradient(circle, rgba(148,163,184,0.15) 1px, transparent 1px)', 
-            backgroundSize: `${24 * transform.scale}px ${24 * transform.scale}px`,
-            backgroundPosition: `${transform.x}px ${transform.y}px`
-          }}
+          style={{ backgroundColor: 'transparent' }}
           onWheel={onWheel}
           onContextMenu={(e) => e.preventDefault()}
           onMouseDown={(e) => { onPanStart(e); handleCanvasClick(); }}
@@ -587,6 +583,19 @@ export default function SchemaMapper() {
             className="absolute top-0 left-0 origin-top-left will-change-transform"
             style={{ transform: cssTransform }}
           >
+            {/* ── Hardware Accelerated Background Grid ── */}
+            <div 
+              className="absolute pointer-events-none" 
+              style={{
+                left: -40000,
+                top: -40000,
+                width: 80000,
+                height: 80000,
+                backgroundImage: 'radial-gradient(circle, rgba(148,163,184,0.15) 1px, transparent 1px)',
+                backgroundSize: '24px 24px',
+                backgroundPosition: '0 0'
+              }}
+            />
             {/* SVG Layer for Edges */}
             <svg className="absolute top-0 left-0 pointer-events-none" style={{ width: 4000, height: 4000, overflow: 'visible' }}>
               <g className="pointer-events-auto">
