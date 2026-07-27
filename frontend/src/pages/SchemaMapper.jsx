@@ -567,6 +567,7 @@ export default function SchemaMapper() {
           onMouseDown={(e) => { onPanStart(e); handleCanvasClick(); }}
           onMouseMove={handleCanvasMouseMove}
           onMouseUp={handleCanvasMouseUp}
+          onMouseLeave={handleCanvasMouseUp}
         >
           {/* Connect Mode Indicator */}
           {connectMode && (

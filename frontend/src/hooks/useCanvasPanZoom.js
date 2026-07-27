@@ -34,9 +34,11 @@ export default function useCanvasPanZoom({ minScale = 0.15, maxScale = 3 } = {})
 
   // ── Pan Start ─────────────────────────────────────────────
   const onPanStart = useCallback((e) => {
-    // Middle mouse button OR Right click OR Alt + left click
-    if (e.button === 1 || e.button === 2 || (e.button === 0 && e.altKey)) {
-      e.preventDefault();
+    // Any click (left, middle, right) that reaches the canvas will start panning
+    if (e.button === 0 || e.button === 1 || e.button === 2) {
+      if (e.button !== 2) {
+        e.preventDefault(); // Don't prevent default on right click just in case
+      }
       isPanning.current = true;
       lastPos.current = { x: e.clientX, y: e.clientY };
     }
