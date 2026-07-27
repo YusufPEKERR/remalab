@@ -70,7 +70,7 @@ const BezierEdge = memo(function BezierEdge({
       <path
         d={path}
         fill="none"
-        className={`transition-all duration-150 ${
+        className={`${
           isSelected
             ? 'stroke-blue-500 dark:stroke-blue-400'
             : 'stroke-slate-300 dark:stroke-slate-600 hover:stroke-blue-400 dark:hover:stroke-blue-500'

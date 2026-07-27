@@ -110,18 +110,17 @@ const TableNode = memo(function TableNode({
 
   return (
     <div
-      className={`absolute select-none will-change-transform`}
+      className={`absolute select-none`}
       style={{
         left: table.x,
         top: table.y,
         width: TABLE_WIDTH,
         zIndex: isSelected ? 20 : 10,
         opacity,
-        transition: 'opacity 0.3s ease',
       }}
       onClick={handleTableClick}
     >
-      <div className={`rounded-xl overflow-hidden shadow-lg border-2 transition-all duration-150 ${
+      <div className={`rounded-xl overflow-hidden shadow-lg border-2 ${
         isSelected
           ? 'border-blue-500 dark:border-blue-400 shadow-blue-500/20 dark:shadow-blue-500/10 ring-2 ring-blue-500/20'
           : 'border-slate-200 dark:border-[#30363D] shadow-slate-200/50 dark:shadow-black/20 hover:border-slate-300 dark:hover:border-slate-600'
