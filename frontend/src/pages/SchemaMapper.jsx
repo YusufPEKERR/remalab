@@ -90,12 +90,13 @@ const SEED_EDGES = [
 
 // ── Mock value generator for Live DTO Preview ───────────────
 function mockValue(type, feName, index = 1) {
+  if (!feName) return index;
   switch (type) {
     case 'int': return index;
     case 'boolean': return true;
     case 'timestamp': return '2025-07-27T09:00:00Z';
     case 'relation': return index;
-    default: return feName.charAt(0).toUpperCase() + feName.slice(1) + ' Örneği';
+    default: return typeof feName === 'string' ? feName.charAt(0).toUpperCase() + feName.slice(1) + ' Örneği' : 'Örnek';
   }
 }
 
@@ -599,7 +600,7 @@ export default function SchemaMapper() {
 
           {/* Transformable Layer */}
           <div
-            className="absolute top-0 left-0 origin-top-left will-change-transform z-10"
+            className="absolute top-0 left-0 origin-top-left z-10"
             style={{ transform: cssTransform }}
           >
             {/* SVG Layer for Edges */}
