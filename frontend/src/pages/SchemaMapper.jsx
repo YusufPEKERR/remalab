@@ -563,6 +563,7 @@ export default function SchemaMapper() {
           className={`flex-1 relative overflow-hidden ${connectMode ? 'cursor-crosshair' : 'cursor-default'}`}
           style={{ background: 'radial-gradient(circle, rgba(148,163,184,0.15) 1px, transparent 1px)', backgroundSize: '24px 24px' }}
           onWheel={onWheel}
+          onContextMenu={(e) => e.preventDefault()}
           onMouseDown={(e) => { onPanStart(e); handleCanvasClick(); }}
           onMouseMove={handleCanvasMouseMove}
           onMouseUp={handleCanvasMouseUp}
