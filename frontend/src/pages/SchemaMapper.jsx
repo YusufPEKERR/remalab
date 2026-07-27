@@ -806,14 +806,16 @@ export default function SchemaMapper() {
                 <button
                   key={t.id}
                   onClick={() => setSelectedTableId(t.id)}
-                  className={`w-full text-left px-3 py-2 rounded-xl text-sm font-semibold transition-colors flex flex-col ${
+                  className={`w-full text-left px-3 py-2 rounded-xl text-sm transition-colors flex flex-col ${
                     selectedTableId === t.id 
-                      ? 'bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400' 
-                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                      ? 'bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/30' 
+                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50 border border-transparent'
                   }`}
                 >
-                  <span>{t.feName}</span>
-                  <span className="text-[10px] font-mono opacity-60 mt-0.5">{t.dbName}</span>
+                  <span className="font-bold">{t.feName || t.dbName}</span>
+                  <span className="text-[10px] font-mono opacity-70 mt-0.5 flex items-center gap-1">
+                    <Database size={10} /> {t.dbName}
+                  </span>
                 </button>
               ))}
             </div>
@@ -881,7 +883,7 @@ export default function SchemaMapper() {
                                   className="w-full pl-9 pr-8 py-2 rounded-lg border border-slate-200 dark:border-[#30363D] bg-white dark:bg-[#161B22] text-sm text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-blue-500 outline-none appearance-none cursor-pointer transition-colors"
                                 >
                                   {tables.map(t => (
-                                    <option key={t.id} value={t.dbName}>{t.dbName}</option>
+                                    <option key={t.id} value={t.dbName}>{t.feName || t.dbName} ({t.dbName})</option>
                                   ))}
                                 </select>
                                 <ChevronRight size={14} className="absolute right-3 text-slate-400 pointer-events-none rotate-90" />
