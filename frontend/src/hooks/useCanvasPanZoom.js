@@ -15,14 +15,20 @@ export default function useCanvasPanZoom({ minScale = 0.15, maxScale = 3 } = {})
 
   // ── Wheel Zoom ────────────────────────────────────────────
   const onWheel = useCallback((e) => {
-    e.preventDefault();
+    // Note: React passive event warning is expected for wheel, we can ignore it or just remove preventDefault
+    // e.preventDefault(); // Removed to prevent "Unable to preventDefault" console spam
+    
+    if (!e.currentTarget) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clientX = e.clientX;
+    const clientY = e.clientY;
+    
     const factor = e.deltaY < 0 ? 1.08 : 0.92;
     setTransform(prev => {
       const newScale = Math.min(Math.max(prev.scale * factor, minScale), maxScale);
       // Zoom toward cursor position
-      const rect = e.currentTarget.getBoundingClientRect();
-      const cx = e.clientX - rect.left;
-      const cy = e.clientY - rect.top;
+      const cx = clientX - rect.left;
+      const cy = clientY - rect.top;
       const ratio = newScale / prev.scale;
       return {
         x: cx - (cx - prev.x) * ratio,

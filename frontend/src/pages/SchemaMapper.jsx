@@ -218,10 +218,12 @@ export default function SchemaMapper() {
       hasCentered.current = true;
       // PRO-TIP ZAMANLAMA KORUMASI: DOM mount ve render için bekle
       const timer = setTimeout(() => {
-        if (canvasRef.current) {
-          const rect = canvasRef.current.getBoundingClientRect();
-          centerView(tables, rect);
-        }
+        requestAnimationFrame(() => {
+          if (canvasRef.current) {
+            const rect = canvasRef.current.getBoundingClientRect();
+            centerView(tables, rect);
+          }
+        });
       }, 50);
       return () => clearTimeout(timer);
     }
@@ -561,7 +563,7 @@ export default function SchemaMapper() {
         {/* ── CANVAS ──────────────────────────────────────── */}
         <div
           ref={canvasRef}
-          className={`flex-1 relative overflow-hidden ${connectMode ? 'cursor-crosshair' : 'cursor-default'}`}
+          className={`flex-1 relative overflow-hidden select-none ${connectMode ? 'cursor-crosshair' : 'cursor-default'}`}
           style={{ backgroundColor: 'transparent' }}
           onWheel={onWheel}
           onContextMenu={(e) => e.preventDefault()}
