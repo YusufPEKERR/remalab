@@ -149,9 +149,10 @@ export default function useCanvasPanZoom({ minScale = 0.15, maxScale = 3 } = {})
   const safeScale = isNaN(transform.scale) || transform.scale <= 0 || !isFinite(transform.scale) ? 1 : transform.scale;
 
   const cssTransform = `translate(${safeX}px, ${safeY}px) scale(${safeScale})`;
+  const safeTransform = { x: safeX, y: safeY, scale: safeScale };
 
   return {
-    transform,
+    transform: safeTransform, // Replace transform with safeTransform
     setTransform,
     cssTransform,
     onWheel,

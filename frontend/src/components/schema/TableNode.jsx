@@ -86,7 +86,7 @@ const FieldRow = memo(function FieldRow({ field, tableId, index, connectMode, on
 
 // ── Table Node ──────────────────────────────────────────────
 const TableNode = memo(function TableNode({
-  table, isSelected, connectMode,
+  table, isSelected, connectMode, opacity = 1,
   onSelect, onDragStart, onFieldClick,
   onFeNameChange, onFieldFeNameChange,
 }) {
@@ -116,6 +116,8 @@ const TableNode = memo(function TableNode({
         top: table.y,
         width: TABLE_WIDTH,
         zIndex: isSelected ? 20 : 10,
+        opacity,
+        transition: 'opacity 0.3s ease',
       }}
       onClick={handleTableClick}
     >

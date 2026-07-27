@@ -562,7 +562,7 @@ export default function SchemaMapper() {
           ref={canvasRef}
           className={`flex-1 relative overflow-hidden ${connectMode ? 'cursor-crosshair' : 'cursor-default'}`}
           style={{ 
-            background: 'radial-gradient(circle, rgba(148,163,184,0.15) 1px, transparent 1px)', 
+            backgroundImage: 'radial-gradient(circle, rgba(148,163,184,0.15) 1px, transparent 1px)', 
             backgroundSize: `${24 * transform.scale}px ${24 * transform.scale}px`,
             backgroundPosition: `${transform.x}px ${transform.y}px`
           }}
@@ -613,6 +613,7 @@ export default function SchemaMapper() {
                 table={table}
                 isSelected={table.id === selectedTableId}
                 connectMode={connectMode}
+                opacity={selectedTableId && selectedTableId !== table.id ? 0.35 : 1}
                 onSelect={handleSelectTable}
                 onDragStart={handleDragStart}
                 onFieldClick={handleFieldClick}
