@@ -175,12 +175,17 @@ class WebBridge(QObject):
             engine = db.get_bind()
             inspector = inspect(engine)
             schema_name = 'warehouse'
+            schema_names = inspector.get_schema_names()
             
-            # Eğer şema yoksa boş dön
-            if schema_name not in inspector.get_schema_names():
-                return json.dumps({"tables": [], "edges": []})
+            # Eğer 'warehouse' şeması yoksa varsayılan şemayı kullan (None)
+            if schema_name not in schema_names:
+                schema_name = None
                 
             table_names = inspector.get_table_names(schema=schema_name)
+            
+            # Eğer hala tablo bulunamadıysa boş dön
+            if not table_names:
+                return json.dumps({"tables": [], "edges": []})
             
             tables = []
             edges = []
