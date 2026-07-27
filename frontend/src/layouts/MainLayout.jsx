@@ -4,7 +4,7 @@ import {
   LogOut, LayoutDashboard, Users, Package, Settings, Bell,
   Warehouse, FileText, BarChart2, Box, Truck, MapPin,
   CheckCircle, Search, AlertTriangle, Zap, RefreshCw, Sun, Moon, Database, Building2, Wrench, ClipboardList, PackageSearch, PackagePlus, Tags, ChevronDown, ChevronRight, Menu, X, Layers, FileSpreadsheet,
-  Boxes, ClipboardCheck, Cog, Repeat, Undo2
+  Boxes, ClipboardCheck, Cog, Repeat
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useTheme } from '../context/ThemeContext';
@@ -20,7 +20,7 @@ export default function MainLayout() {
   const notifRef = useRef(null);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
-  const [openGroups, setOpenGroups] = useState({
+  const DEFAULT_OPEN_GROUPS = {
     'GENEL BAKIŞ': true,
     'DEPO': true,
     'ENVANTER': true,
@@ -28,12 +28,24 @@ export default function MainLayout() {
     'TEST PERSONELİ': true,
     'DEMONTAJ TEKNİSYENİ': true,
     'ARA TEST': true,
-    'RMA TEKNİSYENİ': true,
     'KULLANICI & AYARLAR': true
+  };
+
+  const [openGroups, setOpenGroups] = useState(() => {
+    try {
+      const saved = localStorage.getItem('sidebarOpenGroups');
+      return saved ? { ...DEFAULT_OPEN_GROUPS, ...JSON.parse(saved) } : DEFAULT_OPEN_GROUPS;
+    } catch (e) {
+      return DEFAULT_OPEN_GROUPS;
+    }
   });
 
   const toggleGroup = (title) => {
-    setOpenGroups(prev => ({ ...prev, [title]: !prev[title] }));
+    setOpenGroups(prev => {
+      const next = { ...prev, [title]: !prev[title] };
+      localStorage.setItem('sidebarOpenGroups', JSON.stringify(next));
+      return next;
+    });
   };
 
   useEffect(() => {
@@ -100,13 +112,12 @@ export default function MainLayout() {
   // Normalize developer to admin, other roles to teknisyen
   const userRole = (rawRole === 'developer') ? 'admin' : (rawRole.startsWith('tec_') || rawRole === 'staff' || rawRole === 'qac' || rawRole === 'log_p') ? 'teknisyen' : rawRole;
 
-  // Statü Geçiş Ekranı'nın 24 alt işlemi (bkz. seed_statu_map_v2.py) — her rol için ortak.
+  // Statü Geçiş Ekranı'nın aktif 11 alt işlemi (bkz. seed_statu_map_v2.py) — her rol için ortak.
   const STATU_GECIS_PATHS = [
-    '/statu-gecis/SPA_P/100_101', '/statu-gecis/SPA_P/101_102', '/statu-gecis/SPA_P/126_127', '/statu-gecis/SPA_P/127_128',
-    '/statu-gecis/QAC/102_103', '/statu-gecis/QAC/102_104', '/statu-gecis/QAC/103_104', '/statu-gecis/QAC/103_105', '/statu-gecis/QAC/124_125', '/statu-gecis/QAC/125_126', '/statu-gecis/QAC/125_109',
-    '/statu-gecis/TEC_DISMANTLE/104_105', '/statu-gecis/TEC_DISMANTLE/105_106', '/statu-gecis/TEC_DISMANTLE/105_109', '/statu-gecis/TEC_DISMANTLE/105_134', '/statu-gecis/TEC_DISMANTLE/109_105', '/statu-gecis/TEC_DISMANTLE/135_125', '/statu-gecis/TEC_DISMANTLE/135_136', '/statu-gecis/TEC_DISMANTLE/109_138',
-    '/statu-gecis/MNG1_AS/106_107', '/statu-gecis/MNG1_AS/107_136', '/statu-gecis/MNG1_AS/138_124',
-    '/statu-gecis/TEC_RMA/134_109', '/statu-gecis/TEC_RMA/134_105'
+    '/statu-gecis/SPA_P/100_101', '/statu-gecis/SPA_P/101_102', '/statu-gecis/SPA_P/126_127',
+    '/statu-gecis/QAC/102_103', '/statu-gecis/QAC/103_104', '/statu-gecis/QAC/124_125', '/statu-gecis/QAC/125_126',
+    '/statu-gecis/TEC_DISMANTLE/104_105', '/statu-gecis/TEC_DISMANTLE/105_106',
+    '/statu-gecis/MNG1_AS/106_107', '/statu-gecis/MNG1_AS/138_124'
   ];
 
   // Permission maps based on Python code:
@@ -160,8 +171,7 @@ export default function MainLayout() {
       items: [
         { name: 'Kayıt kabul yap (100>101)', icon: Boxes, path: '/statu-gecis/SPA_P/100_101' },
         { name: 'İlk teste aktar (101>102)', icon: Boxes, path: '/statu-gecis/SPA_P/101_102' },
-        { name: 'Müşteri için sevket (126>127)', icon: Boxes, path: '/statu-gecis/SPA_P/126_127' },
-        { name: 'Çıkışını yap (127>128)', icon: Boxes, path: '/statu-gecis/SPA_P/127_128' }
+        { name: 'Müşteri için sevket (126>127)', icon: Boxes, path: '/statu-gecis/SPA_P/126_127' }
       ]
     },
     {
@@ -169,12 +179,9 @@ export default function MainLayout() {
       colorTheme: 'blue',
       items: [
         { name: 'İlk teste kabul (102>103)', icon: ClipboardCheck, path: '/statu-gecis/QAC/102_103' },
-        { name: 'Son test için kabul (102>104)', icon: ClipboardCheck, path: '/statu-gecis/QAC/102_104' },
         { name: 'Üretime teslim edilecek (103>104)', icon: ClipboardCheck, path: '/statu-gecis/QAC/103_104' },
-        { name: 'Test Yapılamıyor - Üretime Aktar (103>105)', icon: ClipboardCheck, path: '/statu-gecis/QAC/103_105' },
         { name: 'Son teste kabul (124>125)', icon: ClipboardCheck, path: '/statu-gecis/QAC/124_125' },
-        { name: 'Depoya sevket (125>126)', icon: ClipboardCheck, path: '/statu-gecis/QAC/125_126' },
-        { name: 'Son test dönüş (125>109)', icon: ClipboardCheck, path: '/statu-gecis/QAC/125_109' }
+        { name: 'Depoya sevket (125>126)', icon: ClipboardCheck, path: '/statu-gecis/QAC/125_126' }
       ]
     },
     {
@@ -182,13 +189,7 @@ export default function MainLayout() {
       colorTheme: 'emerald',
       items: [
         { name: 'Teknik departmana kabul et (104>105)', icon: Cog, path: '/statu-gecis/TEC_DISMANTLE/104_105' },
-        { name: 'Müşteri onayına gönder (105>106)', icon: Cog, path: '/statu-gecis/TEC_DISMANTLE/105_106' },
-        { name: 'Üretime aktar (105>109)', icon: Cog, path: '/statu-gecis/TEC_DISMANTLE/105_109' },
-        { name: 'Rma kontrole aktar (105>134)', icon: Cog, path: '/statu-gecis/TEC_DISMANTLE/105_134' },
-        { name: 'Farklı departmana sevk et (109>105)', icon: Cog, path: '/statu-gecis/TEC_DISMANTLE/109_105' },
-        { name: 'Son teste gönder (135>125)', icon: Cog, path: '/statu-gecis/TEC_DISMANTLE/135_125' },
-        { name: 'İade Edilmeyecek - Müşteri Onayı Geldi (135>136)', icon: Cog, path: '/statu-gecis/TEC_DISMANTLE/135_136' },
-        { name: 'Ara Test için Teslim al (109>138)', icon: Cog, path: '/statu-gecis/TEC_DISMANTLE/109_138' }
+        { name: 'Müşteri onayına gönder (105>106)', icon: Cog, path: '/statu-gecis/TEC_DISMANTLE/105_106' }
       ]
     },
     {
@@ -196,16 +197,7 @@ export default function MainLayout() {
       colorTheme: 'purple',
       items: [
         { name: 'Müşteri onayı bekleyecek (106>107)', icon: Repeat, path: '/statu-gecis/MNG1_AS/106_107' },
-        { name: 'Müşteri Onay/Red Geldi (107>136)', icon: Repeat, path: '/statu-gecis/MNG1_AS/107_136' },
         { name: 'Ara Test Yap (138>124)', icon: Repeat, path: '/statu-gecis/MNG1_AS/138_124' }
-      ]
-    },
-    {
-      title: 'RMA TEKNİSYENİ',
-      colorTheme: 'orange',
-      items: [
-        { name: 'RMA kabul edildi (134>109)', icon: Undo2, path: '/statu-gecis/TEC_RMA/134_109' },
-        { name: 'RMA reddedildi (134>105)', icon: Undo2, path: '/statu-gecis/TEC_RMA/134_105' }
       ]
     },
     {
