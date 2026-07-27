@@ -1759,6 +1759,13 @@ export const api = {
         });
     },
 
+    getBatchEntriesByStatu: async (statuCode) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_batch_entries_by_statu(statuCode, (res) => resolve(JSON.parse(res)));
+        });
+    },
+
     scanBatchEntryStatu: async (term) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
@@ -1771,6 +1778,23 @@ export const api = {
         return new Promise((resolve) => {
             backend.execute_batch_entry_statu_transition(
                 String(entryId), currentStatuCode, targetStatuCode,
+                (res) => resolve(JSON.parse(res))
+            );
+        });
+    },
+
+    getRepairOperationsByImei: async (imei) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_repair_operations_by_imei(String(imei), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    executeDeviceReturn: async (workOrderId, returnReason, dispositions) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.execute_device_return(
+                String(workOrderId), returnReason, JSON.stringify(dispositions || {}),
                 (res) => resolve(JSON.parse(res))
             );
         });

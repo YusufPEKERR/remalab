@@ -635,6 +635,7 @@ class WebBridge(QObject):
             """))
             db.execute(text("ALTER TABLE warehouse.work_orders ADD COLUMN IF NOT EXISTS source_location_id INTEGER REFERENCES warehouse.locations(id);"))
             db.execute(text("ALTER TABLE warehouse.work_orders ADD COLUMN IF NOT EXISTS stock_settled_at TIMESTAMP;"))
+            db.execute(text("ALTER TABLE warehouse.work_orders ADD COLUMN IF NOT EXISTS return_reason VARCHAR(500);"))
             db.commit()
         except Exception as e:
             db.rollback()
@@ -7403,6 +7404,26 @@ class WebBridge(QObject):
         finally:
             db.close()
 
+    @Slot(int, result=str)
+    def get_batch_entries_by_statu(self, statu_code):
+        """Belirtilen statüdeki (örn. 106 - Müşteri onayına sunulacak) tüm parti/cihazları
+        listeler. Müşteri onayı bekleyecek ekranındaki tik/çarpı listesi için kullanılır."""
+        from models.batch_entry import BatchEntry
+        db = SessionLocal()
+        try:
+            entries = db.query(BatchEntry).filter(BatchEntry.statu_code == statu_code).order_by(BatchEntry.id.desc()).all()
+            items = [{
+                "entry_id": e.id,
+                "imei": e.imei_number or e.serial_number or e.internal_id or "",
+                "batch_no": e.batch_no or "",
+                "flow": e.flow or "",
+            } for e in entries]
+            return json.dumps({"success": True, "items": items})
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
     @Slot(str, int, int, result=str)
     def execute_batch_entry_statu_transition(self, entry_id, current_statu_code, target_statu_code):
         """Partiyi belirtilen kaynak statüden hedef statüye taşır. Kaynak statü kaydın
@@ -7545,6 +7566,186 @@ class WebBridge(QObject):
                 
             return json.dumps({"success": True, "records": out})
         except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    # ---------------------------------------------------------
+    # "İADE EDİLECEK" (Servis Onarımları -> Cihazı İadeye Al)
+    # repair_records.service_record_id, generate_concurrent_repairs()'in
+    # yazdığı gibi aslında work_orders.id'yi (string) tutar.
+    # ---------------------------------------------------------
+    @Slot(str, result=str)
+    def get_repair_operations_by_imei(self, imei):
+        """Servis Onarımları / İade ekranı için IMEI'ye ait iş emrini, parça
+        listesini (depodan çıkmış olanlar dahil) ve onarım kayıtlarını döner."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            if not imei or not imei.strip():
+                return json.dumps({"success": False, "message": "IMEI boş olamaz"})
+            term = imei.strip()
+
+            sr = db.execute(text("""
+                SELECT id, customer_name, brand, model, memory, color, imei_number, imei_serial,
+                       customer_complaint, preliminary_diagnosis
+                FROM warehouse.service_records
+                WHERE LOWER(TRIM(imei_number)) = LOWER(:term) OR LOWER(TRIM(imei_serial)) = LOWER(:term)
+                ORDER BY id DESC LIMIT 1
+            """), {"term": term}).mappings().first()
+
+            if not sr:
+                return json.dumps({"success": False, "message": f"'{term}' için kayıtlı bir cihaz bulunamadı."})
+
+            wo = db.execute(text("""
+                SELECT id, status, assigned_technician
+                FROM warehouse.work_orders
+                WHERE service_record_id = :sr_id AND work_order_type = 'SERVICE'
+                ORDER BY id DESC LIMIT 1
+            """), {"sr_id": sr["id"]}).mappings().first()
+
+            if not wo:
+                return json.dumps({"success": False, "message": "Bu cihaza ait bir iş emri bulunamadı."})
+
+            try:
+                current_statu_code = int(wo["status"])
+            except (TypeError, ValueError):
+                current_statu_code = None
+
+            part_rows = db.execute(text("""
+                SELECT wop.id, wop.quantity, wop.status,
+                       p.item_code, p.name, p.brand, p.model, p.color
+                FROM warehouse.work_order_parts wop
+                LEFT JOIN warehouse.parts p ON p.id = wop.part_id
+                WHERE wop.work_order_id = :wo_id
+                ORDER BY wop.id DESC
+            """), {"wo_id": wo["id"]}).mappings().all()
+
+            parts = [{
+                "id": str(r["id"]),
+                "itemCode": r["item_code"] or "",
+                "name": " ".join(filter(None, [r["brand"], r["model"], r["color"]])) or (r["name"] or "-"),
+                "qty": r["quantity"],
+                # DOAReturnModal (frontend) sadece "OUT" konumundaki parçaları güvenlik kontrolüne sokar.
+                "location": "OUT" if r["status"] == "Teslim Edildi" else "-",
+            } for r in part_rows]
+
+            repair_rows = db.execute(text("""
+                SELECT rr.id, rr.department_mission, rr.notes, rr.repair_result_type_code,
+                       rrt.short_name AS result_name, rrt.is_cancelled, rrt.is_success
+                FROM warehouse.repair_records rr
+                LEFT JOIN warehouse.repair_result_type rrt ON rrt.code = rr.repair_result_type_code
+                WHERE rr.service_record_id = :wo_id_str
+                ORDER BY rr.created_at DESC
+            """), {"wo_id_str": str(wo["id"])}).mappings().all()
+
+            repairs = [{
+                "id": str(r["id"]),
+                "missionGroup": r["department_mission"] or "-",
+                "statusCode": r["repair_result_type_code"],
+                "statusName": r["result_name"] or str(r["repair_result_type_code"]),
+                "isCancelled": bool(r["is_cancelled"]),
+            } for r in repair_rows]
+
+            return json.dumps({
+                "success": True,
+                "work_order_id": wo["id"],
+                "service_record_id": sr["id"],
+                "current_statu_code": current_statu_code,
+                "device": {
+                    "imei": sr["imei_number"] or sr["imei_serial"] or term,
+                    "productInfo": " ".join(filter(None, [sr["brand"], sr["model"], sr["color"], sr["memory"]])) or "-",
+                    "customerRequest": sr["customer_complaint"] or "",
+                    "customerDiagnosis": sr["preliminary_diagnosis"] or "",
+                    "serviceStatus": current_statu_code,
+                },
+                "parts": parts,
+                "repairs": repairs,
+            })
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, str, result=str)
+    def execute_device_return(self, work_order_id, return_reason, dispositions_json):
+        """Cihazı 'İade Edilecek' akışıyla 124 statüsüne alır.
+        Ön koşullar: (1) tüm onarımlar iptal edilmiş olmalı, (2) depodan çıkmış
+        her parça için GOOD/DOA yönlendirmesi yapılmalı, (3) iade nedeni girilmeli."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            if not return_reason or not return_reason.strip():
+                return json.dumps({"success": False, "message": "İade nedeni girilmelidir."})
+
+            wo_id = int(work_order_id)
+            wo = db.execute(text("SELECT id FROM warehouse.work_orders WHERE id = :id"), {"id": wo_id}).first()
+            if not wo:
+                return json.dumps({"success": False, "message": "İş emri bulunamadı."})
+
+            # 1. Tüm onarımlar iptal edilmiş mi?
+            active_repairs = db.execute(text("""
+                SELECT rr.department_mission
+                FROM warehouse.repair_records rr
+                LEFT JOIN warehouse.repair_result_type rrt ON rrt.code = rr.repair_result_type_code
+                WHERE rr.service_record_id = :wo_id_str AND COALESCE(rrt.is_cancelled, false) = false
+            """), {"wo_id_str": str(wo_id)}).mappings().all()
+
+            if active_repairs:
+                names = ", ".join(r["department_mission"] or "?" for r in active_repairs)
+                return json.dumps({
+                    "success": False,
+                    "message": f"Tüm onarımlar iptal edilmeden cihaz iadeye alınamaz. Aktif onarım(lar): {names}"
+                })
+
+            # 2. Depodan çıkmış (Teslim Edildi) parçalar için yönlendirme kontrolü
+            try:
+                dispositions = json.loads(dispositions_json) if dispositions_json else {}
+            except (TypeError, ValueError):
+                dispositions = {}
+
+            issued_parts = db.execute(text("""
+                SELECT id, quantity FROM warehouse.work_order_parts
+                WHERE work_order_id = :wo_id AND status = 'Teslim Edildi'
+            """), {"wo_id": wo_id}).mappings().all()
+
+            missing = [str(p["id"]) for p in issued_parts if str(p["id"]) not in dispositions]
+            if missing:
+                return json.dumps({
+                    "success": False,
+                    "message": f"Depodan çıkmış {len(missing)} parça için GOOD/DOA yönlendirmesi seçilmelidir."
+                })
+
+            # 3. Parçaları gerçekten geri al (mevcut, çalışan fonksiyonları kullan)
+            username = "system"
+            for p in issued_parts:
+                wop_id_str = str(p["id"])
+                disposition = dispositions.get(wop_id_str)
+                qty = str(p["quantity"])
+                if disposition == "DOA":
+                    result_json = self.return_part_to_doa(wop_id_str, qty, username)
+                else:
+                    result_json = self.revert_work_order_part_status(wop_id_str, username, qty)
+                result = json.loads(result_json)
+                if not result.get("success"):
+                    return json.dumps({
+                        "success": False,
+                        "message": f"Parça iade işlemi başarısız (id={wop_id_str}): {result.get('message')}"
+                    })
+
+            # 4. Statüyü 124'e al ve iade nedenini kaydet (service_statu_map grafiğinden bağımsız, doğrudan)
+            db.execute(text("""
+                UPDATE warehouse.work_orders SET status = '124', return_reason = :reason WHERE id = :id
+            """), {"reason": return_reason.strip(), "id": wo_id})
+            db.commit()
+
+            return json.dumps({
+                "success": True,
+                "new_statu_code": 124,
+                "message": f"Cihaz iade alındı, 124 (Son Teste Teslim Edilecek) statüsüne yönlendirildi."
+            })
+        except Exception as e:
+            db.rollback()
             return json.dumps({"success": False, "message": str(e)})
         finally:
             db.close()

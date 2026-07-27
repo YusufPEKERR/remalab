@@ -4,6 +4,7 @@ import {
   BatteryCharging, Cpu, X, ChevronLeft, ChevronRight, Wrench,
   CheckCircle, Clock, Package, ArrowRightLeft, Info, Lock
 } from "lucide-react";
+import { api } from "../services/api";
 
 // ─── REPAIR STATUS CODES ────────────────────────────────────────────
 const REPAIR_STATUS = {
@@ -253,12 +254,14 @@ const StatusAdvanceModal = ({ repair, onClose, onAdvance }) => {
 };
 
 // ─── DOA RETURN PROTECTION MODAL ────────────────────────────────────
-const DOAReturnModal = ({ parts, onClose, onConfirm }) => {
+const DOAReturnModal = ({ parts, onClose, onConfirm, submitting }) => {
   const [dispositions, setDispositions] = useState(
     parts.filter(p => p.location === "OUT").reduce((acc, p) => ({ ...acc, [p.id]: "" }), {})
   );
+  const [returnReason, setReturnReason] = useState("");
   const outParts = parts.filter(p => p.location === "OUT");
   const allSelected = outParts.length > 0 && outParts.every(p => dispositions[p.id]);
+  const canConfirm = returnReason.trim().length > 0 && (outParts.length === 0 || allSelected) && !submitting;
 
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/70 backdrop-blur-sm">
@@ -280,6 +283,17 @@ const DOAReturnModal = ({ parts, onClose, onConfirm }) => {
               <strong>DİKKAT!</strong> Bu cihaz iadeye ayrılmıştır. Cihaz üzerindeki depodan çıkmış parçaların sistemden temizlenmesi zorunludur! Her parça için aşağıdaki seçeneklerden birini belirlemeniz gerekmektedir.
             </p>
           </div>
+        </div>
+
+        <div className="px-6 pt-4 shrink-0">
+          <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">İade Nedeni *</label>
+          <textarea
+            value={returnReason}
+            onChange={e => setReturnReason(e.target.value)}
+            rows="2"
+            placeholder="İade nedenini yazınız..."
+            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#161B22] text-slate-800 dark:text-slate-200 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all placeholder:text-slate-400 resize-none"
+          />
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-4">
@@ -317,8 +331,8 @@ const DOAReturnModal = ({ parts, onClose, onConfirm }) => {
           <button onClick={onClose} className="flex-1 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 text-sm font-semibold transition-colors border border-slate-200 dark:border-slate-700">
             İptal
           </button>
-          <button onClick={() => { onConfirm(dispositions); onClose(); }} disabled={!allSelected && outParts.length > 0} className="flex-1 py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-bold transition-colors shadow-lg shadow-red-500/20 disabled:opacity-40 disabled:cursor-not-allowed">
-            {outParts.length === 0 ? "İadeyi Onayla" : "Transferleri Tamamla & İadeyi Onayla"}
+          <button onClick={() => onConfirm(dispositions, returnReason.trim())} disabled={!canConfirm} className="flex-1 py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-bold transition-colors shadow-lg shadow-red-500/20 disabled:opacity-40 disabled:cursor-not-allowed">
+            {submitting ? "İşleniyor..." : outParts.length === 0 ? "İadeyi Onayla" : "Transferleri Tamamla & İadeyi Onayla"}
           </button>
         </div>
       </div>
@@ -369,6 +383,8 @@ const TechnicianRepairOperations = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showAdvanceModal, setShowAdvanceModal] = useState(false);
   const [showDOAModal, setShowDOAModal] = useState(false);
+  const [deviceParts, setDeviceParts] = useState([]);
+  const [returnSubmitting, setReturnSubmitting] = useState(false);
   const [notification, setNotification] = useState(null);
   const [techNotes, setTechNotes] = useState("");
   const [chipCode, setChipCode] = useState("");
@@ -380,19 +396,28 @@ const TechnicianRepairOperations = () => {
   }, []);
 
   // ── Search Handler ──────────────────────────────────────────
-  const handleSearch = useCallback((e) => {
+  const handleSearch = useCallback(async (e) => {
     e.preventDefault();
     if (!searchTerm.trim()) return;
 
-    // Simulate API: use mock data
-    const mockDevice = searchTerm.includes("999") ? MOCK_DEVICE_NON109 : MOCK_DEVICE;
+    const data = await api.getRepairOperationsByImei(searchTerm.trim());
+    if (!data.success) {
+      showNotif("error", "Cihaz Bulunamadı", data.message || "Bu IMEI için kayıt bulunamadı.");
+      setDevice(null);
+      setRepairs([]);
+      setDeviceParts([]);
+      return;
+    }
 
-    setDevice(mockDevice);
+    const realDevice = { ...data.device, workOrderId: data.work_order_id };
+
+    setDevice(realDevice);
+    setDeviceParts(data.parts || []);
     setTechNotes("");
     setChipCode("");
 
     // GUARDRAIL 1: Check status 109
-    if (mockDevice.serviceStatus !== 109) {
+    if (realDevice.serviceStatus !== 109) {
       setIsLocked(true);
       setShow109Modal(true);
       setRepairs([]);
@@ -401,9 +426,9 @@ const TechnicianRepairOperations = () => {
     }
 
     setIsLocked(false);
-    setRepairs(MOCK_REPAIRS);
+    setRepairs((data.repairs || []).map(r => ({ ...r, technician: "", warrantyType: "OOW", parts: [] })));
     setSelectedRepairIdx(0);
-    showNotif("success", "Cihaz Yüklendi", `${mockDevice.productInfo} — IMEI: ${mockDevice.imei}`);
+    showNotif("success", "Cihaz Yüklendi", `${realDevice.productInfo} — IMEI: ${realDevice.imei}`);
   }, [searchTerm, showNotif]);
 
   // ── Repair Actions ──────────────────────────────────────────
@@ -418,31 +443,39 @@ const TechnicianRepairOperations = () => {
     showNotif("success", "Statü Güncellendi", `Repair ${repairId} → ${newStatus} - ${statusLabel}`);
   }, [showNotif]);
 
-  // ── DOA Return Handler (Guardrail 3) ────────────────────────
+  // ── DOA Return Handler (Guardrail: tüm onarımlar iptal + parça yönlendirmesi + iade nedeni) ──
   const handleReturnDevice = useCallback(() => {
-    const allParts = repairs.flatMap(r => r.parts);
-    const outParts = allParts.filter(p => p.location === "OUT");
-
-    if (outParts.length > 0) {
-      setShowDOAModal(true);
-    } else {
-      showNotif("warning", "İade Onaylandı", "Cihaz iadeye (RMA 136) ayrıldı. Depodan çıkmış parça bulunmadı.");
+    const activeRepairs = repairs.filter(r => !r.isCancelled);
+    if (activeRepairs.length > 0) {
+      showNotif(
+        "error",
+        "İade Edilemez",
+        `Tüm onarımlar iptal edilmeden cihaz iadeye alınamaz. Aktif onarım(lar): ${activeRepairs.map(r => r.missionGroup).join(", ")}`
+      );
+      return;
     }
+    setShowDOAModal(true);
   }, [repairs, showNotif]);
 
-  const handleDOAConfirm = useCallback((dispositions) => {
-    // Update part locations based on dispositions
-    setRepairs(prev => prev.map(r => ({
-      ...r,
-      parts: r.parts.map(p => {
-        if (dispositions[p.id]) {
-          return { ...p, location: dispositions[p.id] };
-        }
-        return p;
-      })
-    })));
-    showNotif("success", "İade İşlemi Tamamlandı", "Tüm parça transferleri yapıldı. Cihaz RMA 136 statüsüne alındı.");
-  }, [showNotif]);
+  const handleDOAConfirm = useCallback(async (dispositions, returnReason) => {
+    if (!device?.workOrderId) return;
+    setReturnSubmitting(true);
+    try {
+      const result = await api.executeDeviceReturn(device.workOrderId, returnReason, dispositions);
+      if (result.success) {
+        setShowDOAModal(false);
+        setDevice(prev => (prev ? { ...prev, serviceStatus: 124 } : prev));
+        setDeviceParts(prev => prev.map(p => (dispositions[p.id] ? { ...p, location: dispositions[p.id] } : p)));
+        showNotif("success", "İade İşlemi Tamamlandı", result.message || "Cihaz 124 statüsüne alındı.");
+      } else {
+        showNotif("error", "İade Başarısız", result.message || "İşlem tamamlanamadı.");
+      }
+    } catch (err) {
+      showNotif("error", "Sistem Hatası", "İade işlemi sırasında beklenmeyen bir hata oluştu.");
+    } finally {
+      setReturnSubmitting(false);
+    }
+  }, [device, showNotif]);
 
   // ── Delete Part ─────────────────────────────────────────────
   const handleDeletePart = useCallback((repairId, partId) => {
@@ -478,7 +511,7 @@ const TechnicianRepairOperations = () => {
       {showAdvanceModal && <StatusAdvanceModal repair={selectedRepair} onClose={() => setShowAdvanceModal(false)} onAdvance={handleAdvanceStatus} />}
 
       {/* DOA Return Modal */}
-      {showDOAModal && <DOAReturnModal parts={repairs.flatMap(r => r.parts)} onClose={() => setShowDOAModal(false)} onConfirm={handleDOAConfirm} />}
+      {showDOAModal && <DOAReturnModal parts={deviceParts} onClose={() => setShowDOAModal(false)} onConfirm={handleDOAConfirm} submitting={returnSubmitting} />}
 
       {/* ═══════════════════════════════════════════════════════════
            SECTION 1: ÜST PANEL — Header & Telemetry

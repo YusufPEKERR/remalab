@@ -116,8 +116,8 @@ export default function MainLayout() {
   const STATU_GECIS_PATHS = [
     '/statu-gecis/SPA_P/100_101', '/statu-gecis/SPA_P/101_102', '/statu-gecis/SPA_P/126_127',
     '/statu-gecis/QAC/102_103', '/statu-gecis/QAC/103_104', '/statu-gecis/QAC/124_125', '/statu-gecis/QAC/125_126',
-    '/statu-gecis/TEC_DISMANTLE/104_105', '/statu-gecis/TEC_DISMANTLE/105_106',
-    '/statu-gecis/MNG1_AS/106_107', '/statu-gecis/MNG1_AS/138_124'
+    '/statu-gecis/TEC_DISMANTLE/104_105', '/statu-gecis/TEC_DISMANTLE/105_106', '/statu-gecis/TEC_DISMANTLE/105_109',
+    '/musteri-onayi', '/statu-gecis/MNG1_AS/107_136', '/statu-gecis/MNG1_AS/138_124'
   ];
 
   // Permission maps based on Python code:
@@ -189,14 +189,16 @@ export default function MainLayout() {
       colorTheme: 'emerald',
       items: [
         { name: 'Teknik departmana kabul et (104>105)', icon: Cog, path: '/statu-gecis/TEC_DISMANTLE/104_105' },
-        { name: 'Müşteri onayına gönder (105>106)', icon: Cog, path: '/statu-gecis/TEC_DISMANTLE/105_106' }
+        { name: 'Müşteri onayına gönder (105>106)', icon: Cog, path: '/statu-gecis/TEC_DISMANTLE/105_106' },
+        { name: 'Üretime Aktar (105>109)', icon: Cog, path: '/statu-gecis/TEC_DISMANTLE/105_109' }
       ]
     },
     {
       title: 'ARA TEST',
       colorTheme: 'purple',
       items: [
-        { name: 'Müşteri onayı bekleyecek (106>107)', icon: Repeat, path: '/statu-gecis/MNG1_AS/106_107' },
+        { name: 'Müşteri onayı bekleyecek', icon: Repeat, path: '/musteri-onayi' },
+        { name: 'Üretim Kaydını Görüntüle (107>136)', icon: Repeat, path: '/statu-gecis/MNG1_AS/107_136' },
         { name: 'Ara Test Yap (138>124)', icon: Repeat, path: '/statu-gecis/MNG1_AS/138_124' }
       ]
     },

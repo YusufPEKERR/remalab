@@ -30,6 +30,7 @@ import BatchStatuTransition from './pages/BatchStatuTransition';
 import TechnicianPanel from './pages/TechnicianPanel';
 import TechnicianRepairOperations from './pages/TechnicianRepairOperations';
 import SchemaMapper from './pages/SchemaMapper';
+import CustomerApprovalDecision from './pages/CustomerApprovalDecision';
 function App() {
   return (
     <BrowserRouter>
@@ -75,6 +76,7 @@ function App() {
             {/* MODÜL 5 */}
             <Route path="/service-transition" element={<ServiceTransition />} />
             <Route path="/statu-gecis/:groupKey/:code" element={<BatchStatuTransition />} />
+            <Route path="/musteri-onayi" element={<CustomerApprovalDecision />} />
             <Route path="/technician-panel" element={<TechnicianPanel />} />
             <Route path="/technician-repair" element={<TechnicianRepairOperations />} />
             <Route path="/schema-mapper" element={<SchemaMapper />} />
