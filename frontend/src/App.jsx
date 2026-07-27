@@ -27,8 +27,6 @@ import ItemBOM from './pages/ItemBOM';
 // Modül 5 
 import ServiceTransition from './pages/ServiceTransition';
 import TechnicianPanel from './pages/TechnicianPanel';
-
-
 function App() {
   return (
     <BrowserRouter>
@@ -71,7 +69,6 @@ function App() {
 
             {/* HIDDEN MODULES */}
             <Route path="/item-bom" element={<ItemBOM />} />
-            
             {/* MODÜL 5 */}
             <Route path="/service-transition" element={<ServiceTransition />} />
             <Route path="/technician-panel" element={<TechnicianPanel />} />

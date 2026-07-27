@@ -1,0 +1,64 @@
+{
+  "workspaceName": "Phone Parts Warehouse Management System",
+  "version": "1.0.0",
+  "workspaceType": "team",
+  "environment": {
+    "databaseType": "PostgreSQL",
+    "defaultSchema": "warehouse",
+    "autoSync": true,
+    "sharedConfigs": [
+      "config/database.py",
+      "requirements.txt"
+    ]
+  },
+  "modules": [
+    {
+      "name": "Warehouse Module",
+      "path": "ui/warehouse_page.py",
+      "entryPoint": "WarehousePage"
+    },
+    {
+      "name": "Parts Module",
+      "path": "ui/parts_page.py",
+      "entryPoint": "PartsPage"
+    },
+    {
+      "name": "Inbound Stock Entry Module",
+      "path": "ui/inbound_page.py",
+      "entryPoint": "InboundPage"
+    },
+    {
+      "name": "Locations Module",
+      "path": "ui/locations_page.py",
+      "entryPoint": "LocationsPage"
+    },
+    {
+      "name": "Outbound Stock Entry Module",
+      "path": "ui/outbound_page.py",
+      "entryPoint": "OutboundPage"
+    },
+    {
+      "name": "Inventory Module",
+      "path": "ui/inventory_page.py",
+      "entryPoint": "InventoryPage"
+    }
+  ],
+  "roles": {
+    "admin": {
+      "permissions": ["*"]
+    },
+    "warehouse_worker": {
+      "permissions": [
+        "inbound_stock_entry",
+        "outbound_stock_entry",
+        "inventory_view",
+        "warehouse_view",
+        "parts_view"
+      ]
+    }
+  },
+  "git": {
+    "syncBranch": "main",
+    "shareEnvironmentSettings": true
+  }
+}

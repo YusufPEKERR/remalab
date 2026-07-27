@@ -150,9 +150,11 @@ class WebBridge(QObject):
         self._ensure_work_order_parts_table()
         self._ensure_location_kind_column()
         self._ensure_system_locations()
+        self._ensure_part_category_columns()
         self._ensure_part_extra_columns()
         self._ensure_user_gorev_column()
         self._ensure_user_fullname_column()
+        self._ensure_item_bom_data()
         self._ensure_item_model_lookup()
         self._ensure_batch_entries_table()
 
@@ -971,6 +973,7 @@ class WebBridge(QObject):
     # PARTS (PARÇALAR) MODÜLÜ
     # ==========================
 
+<<<<<<< HEAD
     @Slot(int, int, str, str, str, str, result=str)
     def get_parts_paginated(self, page, limit, search_term, filter_category, sort_key, sort_dir):
         from sqlalchemy import text
@@ -1043,6 +1046,60 @@ class WebBridge(QObject):
     def get_parts(self):
         # Backward compatibility or fallback
         return self.get_parts_paginated(1, 100, "", "", "", "")
+=======
+    @Slot(result=str)
+    def get_parts(self):
+        filename = "parts.json"
+        path = os.path.join(get_cache_dirs()[0], filename)
+        fetch_url = f"/api_cache/{filename}"
+        if os.path.exists(path):
+            return json.dumps({"success": True, "fetch_url": fetch_url})
+            
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            result = db.execute(text("""
+                SELECT p.id, p.name, p.item_code, p.barcode, p.brand, p.model, p.color,
+                       p.item_category, p.part_category_id,
+                       COALESCE(pc.name, p.part_category) AS part_category,
+                       COALESCE(NULLIF(p.part_type, ''), NULLIF(pc.part_type, ''), '') AS part_type,
+                       COALESCE(pc.departments, p.department, '') AS department,
+                       COALESCE(pc.stock_tracking_type, p.stock_tracking_type, 'Stok Takipli') AS stock_tracking_type,
+                       NULL AS default_location_id, '' AS default_location_name,
+                       p.status, p.critical_limit
+                FROM warehouse.parts p
+                LEFT JOIN warehouse.part_categories pc ON pc.id = p.part_category_id
+                ORDER BY p.id DESC
+            """)).mappings().all()
+            parts_list = []
+            for row in result:
+                parts_list.append({
+                    "id": str(row["id"]),
+                    "name": row["name"] or "",
+                    "item_code": row["item_code"] or "",
+                    "barcode": row["barcode"] or "",
+                    "brand": row["brand"] or "",
+                    "model": row["model"] or "",
+                    "color": row["color"] or "",
+                    "part_category": row["part_category"] or "",
+                    "part_type": row["part_type"] or "",
+                    "item_category": row["item_category"] or "",
+                    "department": row["department"] or "",
+                    "stock_tracking_type": row["stock_tracking_type"] or "",
+                    "default_location_id": row["default_location_id"] or "",
+                    "default_location_name": row["default_location_name"] or "",
+                    "status": row["status"] or "Aktif",
+                    "critical_limit": row["critical_limit"] or 50,
+                    "part_category_id": row["part_category_id"]
+                })
+            json_data = json.dumps({"success": True, "parts": parts_list})
+            write_to_cache("parts.json", json_data)
+            return json.dumps({"success": True, "fetch_url": fetch_url})
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+>>>>>>> 36caa8c6f3e7ed103aeb60cfbc3b1184fb87127b
 
     @Slot(result=str)
     def get_item_boms(self):
@@ -1119,6 +1176,7 @@ class WebBridge(QObject):
             params = {"limit": page_size, "offset": offset}
 
             if search_term and str(search_term).strip():
+<<<<<<< HEAD
                 where_clauses.append("(b.parent_product_code ILIKE :search OR b.child_item_code ILIKE :search OR i.short_name ILIKE :search)")
                 params["search"] = f"%{str(search_term).strip()}%"
 
@@ -1131,18 +1189,36 @@ class WebBridge(QObject):
                     where_clauses.append("b.enabled = true")
                 else:
                     where_clauses.append("b.enabled = false")
+=======
+                where_clauses.append("(b.product_model ILIKE :search OR b.child_item_code ILIKE :search OR p_child.name ILIKE :search)")
+                params["search"] = f"%{str(search_term).strip()}%"
+
+            if model_filter and str(model_filter).strip():
+                where_clauses.append("b.product_model = :model_filter")
+                params["model_filter"] = str(model_filter).strip()
+
+            if status_filter and str(status_filter).strip() and str(status_filter).strip().lower() != "tümü":
+                where_clauses.append("b.status = :status_filter")
+                params["status_filter"] = str(status_filter).strip()
+>>>>>>> 36caa8c6f3e7ed103aeb60cfbc3b1184fb87127b
 
             where_sql = ("WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
 
             count_sql = f"""
                 SELECT COUNT(*)
+<<<<<<< HEAD
                 FROM warehouse.product_bom_node b
                 LEFT JOIN warehouse.item i ON i.code = b.child_item_code
+=======
+                FROM warehouse.product_boms b
+                LEFT JOIN warehouse.parts p_child ON p_child.item_code = b.child_item_code
+>>>>>>> 36caa8c6f3e7ed103aeb60cfbc3b1184fb87127b
                 {where_sql};
             """
             total = db.execute(text(count_sql), params).scalar()
 
             data_sql = f"""
+<<<<<<< HEAD
                 SELECT b.id, b.parent_product_code, b.child_item_code, b.quantity, b.enabled,
                        i.short_name AS child_name, i.id AS child_part_id
                 FROM warehouse.product_bom_node b
@@ -1166,6 +1242,30 @@ class WebBridge(QObject):
                     "updated_at": "",
                     "child_part_id": str(row.child_part_id) if row.child_part_id else None
                 })
+=======
+                SELECT b.id, b.product_model, b.child_item_code, b.quantity, b.status,
+                       b.created_at, b.updated_at,
+                       p_child.name AS child_name, p_child.id AS child_part_id
+                FROM warehouse.product_boms b
+                LEFT JOIN warehouse.parts p_child ON p_child.item_code = b.child_item_code
+                {where_sql}
+                ORDER BY b.product_model, b.child_item_code
+                LIMIT :limit OFFSET :offset;
+            """
+            bom_result = db.execute(text(data_sql), params).mappings().all()
+
+            boms = [{
+                "id": row["id"],
+                "product_model": row["product_model"],
+                "child_item_code": row["child_item_code"],
+                "child_part_id": str(row["child_part_id"]) if row["child_part_id"] else "",
+                "child_name": row["child_name"] or row["child_item_code"],
+                "quantity": int(row["quantity"]),
+                "status": row["status"] or "Aktif",
+                "created_at": row["created_at"].strftime("%d.%m.%Y %H:%M") if row["created_at"] else "-",
+                "updated_at": row["updated_at"].strftime("%d.%m.%Y %H:%M") if row["updated_at"] else "-"
+            } for row in bom_result]
+>>>>>>> 36caa8c6f3e7ed103aeb60cfbc3b1184fb87127b
 
             return json.dumps({
                 "success": True,
@@ -1745,6 +1845,7 @@ class WebBridge(QObject):
     # --- PARÇA KATEGORİSİ MODÜLÜ ---
     @Slot(result=str)
     def get_part_categories(self):
+<<<<<<< HEAD
         """Tüm Parça Kategorilerini getirir. (Modül 2: ItemCategory ve ItemCategoryMission üzerinden beslenir)"""
         from sqlalchemy import text
         import json
@@ -1776,6 +1877,25 @@ class WebBridge(QObject):
                 categories.append({
                     "id": str(r["id"]),
                     "name": r["name"] or "",
+=======
+        """Tüm Parça Kategorilerini, varsayılan lokasyon adıyla birlikte getirir."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            rows = db.execute(text("""
+                SELECT pc.id, pc.name, COALESCE(pc.part_type, '') AS part_type, COALESCE(pc.flow, '') AS flow,
+                       pc.departments, pc.stock_tracking_type,
+                       NULL AS default_location_id, '' AS default_location_name,
+                       pc.is_active, pc.description
+                FROM warehouse.part_categories pc
+                ORDER BY pc.id DESC
+            """)).mappings().all()
+            categories = []
+            for r in rows:
+                categories.append({
+                    "id": r["id"],
+                    "name": r["name"],
+>>>>>>> 36caa8c6f3e7ed103aeb60cfbc3b1184fb87127b
                     "part_type": r["part_type"] or "",
                     "flow": r["flow"] or "",
                     "departments": r["departments"] or "",
@@ -1785,10 +1905,15 @@ class WebBridge(QObject):
                     "is_active": r["is_active"] if r["is_active"] is not None else True,
                     "description": r["description"] or ""
                 })
+<<<<<<< HEAD
             
             return json.dumps({"success": True, "categories": categories})
         except Exception as e:
             print(f"[WebBridge] get_part_categories error: {e}")
+=======
+            return json.dumps({"success": True, "categories": categories})
+        except Exception as e:
+>>>>>>> 36caa8c6f3e7ed103aeb60cfbc3b1184fb87127b
             return json.dumps({"success": False, "message": str(e)})
         finally:
             db.close()
@@ -5000,6 +5125,7 @@ class WebBridge(QObject):
     # --- YENİ EKLENEN ÜRÜN (TELEFON) VE TEDARİKÇİ FONKSİYONLARI ---
     # Products verileri artik kendi 'products' tablosundan cekiliyor (parts'tan bagimsiz).
 
+<<<<<<< HEAD
     @Slot(str, str, str, str, str, str, result=str)
     def get_products(self, page="1", page_size="50", search_term="", category_filter="", sort_key="", sort_dir=""):
         from sqlalchemy import text
@@ -5067,6 +5193,27 @@ class WebBridge(QObject):
                 "page": page,
                 "limit": limit
             }, ensure_ascii=False)
+=======
+    @Slot(result=str)
+    def get_products(self):
+        from models.product import Product
+        db = SessionLocal()
+        try:
+            products = db.query(Product).all()
+            res = []
+            for p in products:
+                res.append({
+                    "id": p.id,
+                    "item_code": p.item_code,
+                    "brand": p.brand,
+                    "model": p.model,
+                    "memory": p.memory,
+                    "color": p.color
+                })
+            json_data = json.dumps({"success": True, "products": res})
+            write_to_cache("products.json", json_data)
+            return json.dumps({"success": True, "fetch_url": "/api_cache/products.json"})
+>>>>>>> 36caa8c6f3e7ed103aeb60cfbc3b1184fb87127b
         except Exception as e:
             return json.dumps({"success": False, "message": str(e)})
         finally:
@@ -6976,6 +7123,7 @@ class WebBridge(QObject):
 
 
 
+<<<<<<< HEAD
 
     # ---------------------------------------------------------
     # MODUL 5: STATE MACHINE VE DOA GUARDRAIL ENDPOINTLERI
@@ -7145,3 +7293,5 @@ class WebBridge(QObject):
             return json.dumps({"success": False, "message": str(e)})
         finally:
             db.close()
+=======
+>>>>>>> 36caa8c6f3e7ed103aeb60cfbc3b1184fb87127b

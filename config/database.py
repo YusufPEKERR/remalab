@@ -92,6 +92,9 @@ def init_database_schema():
     """Veritabanı tablolarını oluşturur."""
     # Modellerin kaydolması için import
     from models.user import User  
+    from models.item_bom import ItemBOM
+    from models.product import Product
+    from models.product_bom import ProductBOM
     
     # --- Modül 2 (Warehouse) ---
     from models.item_type import ItemType
@@ -143,7 +146,6 @@ def init_database_schema():
         with get_engine().connect() as conn:
             conn.execute(text("CREATE SCHEMA IF NOT EXISTS organization"))
             conn.commit()
-
         Base.metadata.create_all(bind=get_engine())
     except Exception as e:
         print(f"[WARN] Tablo oluşturma başarısız: {e}")
