@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   Plus, Link2, Save, Search, X, Maximize2, ZoomIn, ZoomOut,
-  Database, Code, ArrowRight, Trash2, Info, CheckCircle, Table2
+  Database, Code, ArrowRight, Trash2, Info, CheckCircle, Table2, Map, List, ChevronRight
 } from 'lucide-react';
 import useCanvasPanZoom from '../hooks/useCanvasPanZoom';
 import { api } from '../services/api';
@@ -159,6 +159,7 @@ const AddTableModal = ({ onClose, onAdd }) => {
 // ═══════════════════════════════════════════════════════════════════
 export default function SchemaMapper() {
   // ── Core State ────────────────────────────────────────────
+  const [activeTab, setActiveTab] = useState('visual'); // 'visual' | 'list'
   const [tables, setTables] = useState([]);
   const [edges, setEdges] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -301,9 +302,30 @@ export default function SchemaMapper() {
   const handleFieldFeNameChange = useCallback((tableId, fieldId, newName) => {
     setTables(prev => {
       if (!Array.isArray(prev)) return prev;
-      return prev.map(t => t.id === tableId ? {
-        ...t, fields: Array.isArray(t.fields) ? t.fields.map(f => f.id === fieldId ? { ...f, feName: newName } : f) : t.fields
-      } : t);
+      return prev.map(t => {
+        if (t.id === tableId) {
+          return {
+            ...t,
+            fields: Array.isArray(t.fields) ? t.fields.map(f => f.id === fieldId ? { ...f, feName: newName } : f) : t.fields
+          };
+        }
+        return t;
+      });
+    });
+  }, []);
+
+  const handleDbNameChange = useCallback((tableId, fieldId, newDbName) => {
+    setTables(prev => {
+      if (!Array.isArray(prev)) return prev;
+      return prev.map(t => {
+        if (t.id === tableId) {
+          return {
+            ...t,
+            fields: Array.isArray(t.fields) ? t.fields.map(f => f.id === fieldId ? { ...f, dbName: newDbName } : f) : t.fields
+          };
+        }
+        return t;
+      });
     });
   }, []);
 
@@ -505,6 +527,22 @@ export default function SchemaMapper() {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* TAB BUTTONS */}
+          <div className="flex items-center bg-slate-100 dark:bg-[#0f1219] p-1 rounded-xl mr-2">
+            <button 
+              onClick={() => setActiveTab('visual')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === 'visual' ? 'bg-white dark:bg-[#1e2330] text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+            >
+              <Map size={14} /> Görsel Şema
+            </button>
+            <button 
+              onClick={() => setActiveTab('list')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === 'list' ? 'bg-white dark:bg-[#1e2330] text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+            >
+              <List size={14} /> Liste Görünümü
+            </button>
+          </div>
+
           {/* Search */}
           <div className="relative">
             <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -538,184 +576,144 @@ export default function SchemaMapper() {
         </div>
       </div>
 
-      {/* ═══════════════════════════════════════════════════════
-           MAIN AREA: Canvas + Inspector
+        {/* ═══════════════════════════════════════════════════════
+           MAIN AREA: Canvas + Inspector OR List View
          ═══════════════════════════════════════════════════════ */}
-      <div className="flex flex-1 min-h-0 overflow-hidden relative">
-        {isLoading && (
-          <div className="absolute inset-0 z-50 bg-slate-100/50 dark:bg-[#0f1219]/50 backdrop-blur-sm flex items-center justify-center">
-            <div className="animate-spin rounded-full h-10 w-10 border-4 border-blue-500 border-t-transparent"></div>
-          </div>
-        )}
-
-        {!isLoading && tables.length === 0 && (
-          <div className="absolute inset-0 z-40 flex items-center justify-center pointer-events-none">
-            <div className="bg-white dark:bg-[#1e2330] p-8 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 max-w-md text-center pointer-events-auto">
-              <Database size={48} className="text-slate-300 dark:text-slate-600 mx-auto mb-4" />
-              <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 mb-2">Veritabanı Şeması Bulunamadı</h3>
-              <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">Herhangi bir tablo veya ilişki verisi okunamadı. Yeni bir tablo ekleyerek başlayabilirsiniz.</p>
-              <button onClick={() => setShowAddModal(true)} className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-lg shadow-blue-500/20">
-                <Plus size={16} className="inline mr-2" /> Yeni Tablo Ekle
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ── CANVAS ──────────────────────────────────────── */}
-        <div
-          ref={canvasRef}
-          className={`flex-1 relative overflow-hidden select-none ${connectMode ? 'cursor-crosshair' : 'cursor-default'}`}
-          style={{ backgroundColor: 'transparent' }}
-          onWheel={onWheel}
-          onContextMenu={(e) => e.preventDefault()}
-          onMouseDown={(e) => { onPanStart(e); handleCanvasClick(); }}
-          onMouseMove={handleCanvasMouseMove}
-          onMouseUp={handleCanvasMouseUp}
-          onMouseLeave={handleCanvasMouseUp}
-        >
-          {/* SVG Background Grid - GPU Safe */}
-          <svg className="absolute inset-0 pointer-events-none z-0" style={{ width: '100%', height: '100%' }}>
-            <defs>
-              <pattern
-                id="schema-grid"
-                width={24 * transform.scale}
-                height={24 * transform.scale}
-                patternUnits="userSpaceOnUse"
-                patternTransform={`translate(${transform.x}, ${transform.y})`}
-              >
-                <circle cx={2 * transform.scale} cy={2 * transform.scale} r={1 * transform.scale} className="fill-slate-400/20 dark:fill-slate-500/20" />
-              </pattern>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#schema-grid)" />
-          </svg>
-
-          {/* Connect Mode Indicator */}
-          {connectMode && (
-            <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-xl bg-rose-500/90 text-white text-xs font-bold shadow-lg flex items-center gap-2 backdrop-blur">
-              <Link2 size={14} />
-              {connectSource ? 'Hedef alanı tıklayınız...' : 'Kaynak alanı tıklayınız...'}
-              <button onClick={() => { setConnectMode(false); setConnectSource(null); }} className="ml-2 p-0.5 rounded hover:bg-white/20"><X size={12} /></button>
+      {activeTab === 'visual' ? (
+        <div className="flex flex-1 min-h-0 overflow-hidden relative">
+          {/* Loading Overlay */}
+          {isLoading && (
+            <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/50 dark:bg-[#0f1219]/50 backdrop-blur-sm">
+              <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
             </div>
           )}
 
-          {/* Transformable Layer */}
-          <div
-            className="absolute top-0 left-0 origin-top-left z-10"
-            style={{ transform: cssTransform }}
-          >
-            {/* SVG Layer for Edges */}
-            <svg className="absolute top-0 left-0 pointer-events-none" style={{ width: '100vw', height: '100vh', overflow: 'visible' }}>
-              <g className="pointer-events-auto">
-                {edgePositions.map(ep => (
-                  <BezierEdge
-                    key={ep.id}
-                    edgeId={ep.id}
-                    sourceX={ep.sourceX}
-                    sourceY={ep.sourceY}
-                    targetX={ep.targetX}
-                    targetY={ep.targetY}
-                    isSelected={ep.id === selectedEdgeId}
-                    label={ep.relationType === 'many-to-one' ? 'N:1' : '1:N'}
-                    onSelect={handleSelectEdge}
-                  />
-                ))}
-              </g>
-            </svg>
-
-            {/* Table Nodes */}
-            {tables.map(table => (
-              <TableNode
-                key={table.id}
-                table={table}
-                isSelected={table.id === selectedTableId}
-                connectMode={connectMode}
-                opacity={selectedTableId && selectedTableId !== table.id ? 0.35 : 1}
-                onSelect={handleSelectTable}
-                onDragStart={handleDragStart}
-                onFieldClick={handleFieldClick}
-                onFeNameChange={handleTableFeNameChange}
-                onFieldFeNameChange={handleFieldFeNameChange}
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* ── INSPECTOR PANEL ─────────────────────────────── */}
-        {inspectorOpen && (selectedTable || selectedEdge) && (
-          <div className="w-80 shrink-0 bg-white dark:bg-[#161B22] border-l border-slate-200 dark:border-[#30363D] flex flex-col overflow-hidden">
-            {/* Inspector Header */}
-            <div className="px-4 py-3 border-b border-slate-200 dark:border-[#30363D] flex items-center justify-between bg-slate-50 dark:bg-[#1e2330] shrink-0">
-              <h3 className="text-xs font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                <Info size={14} className="text-blue-500" />
-                {selectedTable ? 'Tablo Detayı' : 'İlişki Detayı'}
-              </h3>
-              <button onClick={() => setInspectorOpen(false)} className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700"><X size={14} className="text-slate-500" /></button>
+          {/* No Schema State */}
+          {!isLoading && tables.length === 0 && (
+            <div className="absolute inset-0 z-40 flex items-center justify-center pointer-events-none">
+              <div className="bg-white dark:bg-[#1e2330] p-8 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 max-w-md text-center pointer-events-auto">
+                <Database size={48} className="text-slate-300 dark:text-slate-600 mx-auto mb-4" />
+                <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 mb-2">Veritabanı Şeması Bulunamadı</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">Herhangi bir tablo veya ilişki verisi okunamadı. Yeni bir tablo ekleyerek başlayabilirsiniz.</p>
+                <button onClick={() => setShowAddModal(true)} className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-lg shadow-blue-500/20">
+                  <Plus size={16} className="inline mr-2" /> Yeni Tablo Ekle
+                </button>
+              </div>
             </div>
+          )}
 
-            <div className="flex-1 overflow-y-auto">
-              {/* ── Table Inspector ─────────────── */}
-              {selectedTable && (
-                <div className="p-4 space-y-4">
-                  {/* Table Identity */}
-                  <div className="p-3 bg-slate-50 dark:bg-[#0f1219] rounded-xl border border-slate-100 dark:border-slate-800">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">DB</span>
-                      <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-300">{selectedTable.dbName}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[9px] font-bold text-blue-400 uppercase tracking-widest">FE</span>
-                      <span className="text-xs font-bold text-blue-600 dark:text-blue-400">{selectedTable.feName}</span>
-                    </div>
-                  </div>
+          {/* ── CANVAS ──────────────────────────────────────── */}
+          <div
+            ref={canvasRef}
+            className={`flex-1 relative overflow-hidden select-none min-w-0 ${connectMode ? 'cursor-crosshair' : 'cursor-default'}`}
+            style={{ backgroundColor: 'transparent' }}
+            onWheel={onWheel}
+            onContextMenu={(e) => e.preventDefault()}
+            onMouseDown={(e) => { onPanStart(e); handleCanvasClick(); }}
+            onMouseMove={handleCanvasMouseMove}
+            onMouseUp={handleCanvasMouseUp}
+            onMouseLeave={handleCanvasMouseUp}
+          >
+            {/* Connect Mode Indicator */}
+            {connectMode && (
+              <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-xl bg-rose-500/90 text-white text-xs font-bold shadow-lg flex items-center gap-2 backdrop-blur">
+                <Link2 size={14} />
+                {connectSource ? 'Hedef alanı tıklayınız...' : 'Kaynak alanı tıklayınız...'}
+                <button onClick={() => { setConnectMode(false); setConnectSource(null); }} className="ml-2 p-0.5 rounded hover:bg-white/20"><X size={12} /></button>
+              </div>
+            )}
 
-                  {/* Relationships */}
-                  <div>
-                    <h4 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">İlişkiler</h4>
-                    {edges.filter(e => e.sourceTableId === selectedTable.id || e.targetTableId === selectedTable.id).length === 0 ? (
-                      <p className="text-xs text-slate-400 italic">Bağlantı yok</p>
-                    ) : (
-                      <div className="space-y-1.5">
-                        {edges.filter(e => e.sourceTableId === selectedTable.id || e.targetTableId === selectedTable.id).map(e => {
-                          const otherTable = tables.find(t => t.id === (e.sourceTableId === selectedTable.id ? e.targetTableId : e.sourceTableId));
-                          return (
-                            <div key={e.id} className="flex items-center gap-2 px-2.5 py-1.5 bg-rose-50 dark:bg-rose-500/5 rounded-lg border border-rose-100 dark:border-rose-500/20">
-                              <Link2 size={12} className="text-rose-400 shrink-0" />
-                              <span className="text-[11px] text-slate-600 dark:text-slate-400 truncate">
-                                {e.relationType} → <strong className="text-slate-800 dark:text-slate-200">{otherTable?.dbName}</strong>
-                              </span>
-                            </div>
-                          );
-                        })}
+            {/* Transformable Layer */}
+            <div
+              className="absolute top-0 left-0 origin-top-left z-10"
+              style={{ transform: cssTransform }}
+            >
+              {/* SVG Layer for Edges */}
+              <svg className="absolute top-0 left-0 pointer-events-none" style={{ width: '100vw', height: '100vh', overflow: 'visible' }}>
+                <g className="pointer-events-auto">
+                  {edgePositions.map(ep => (
+                    <BezierEdge
+                      key={ep.id}
+                      edgeId={ep.id}
+                      sourceX={ep.sourceX}
+                      sourceY={ep.sourceY}
+                      targetX={ep.targetX}
+                      targetY={ep.targetY}
+                      isSelected={ep.id === selectedEdgeId}
+                      label={ep.relationType === 'many-to-one' ? 'N:1' : '1:N'}
+                      onSelect={handleSelectEdge}
+                    />
+                  ))}
+                </g>
+              </svg>
+
+              {/* Table Nodes */}
+              {tables.map(table => (
+                <TableNode
+                  key={table.id}
+                  table={table}
+                  isSelected={table.id === selectedTableId}
+                  connectMode={connectMode}
+                  onSelect={handleSelectTable}
+                  onDragStart={handleDragStart}
+                  onFeNameChange={handleTableFeNameChange}
+                  onFieldFeNameChange={handleFieldFeNameChange}
+                  onFieldClick={handleFieldClick}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* ── INSPECTOR PANEL ─────────────────────────────── */}
+          {inspectorOpen && (selectedTable || selectedEdge) && (
+            <div className="w-80 shrink-0 bg-white dark:bg-[#161B22] border-l border-slate-200 dark:border-[#30363D] flex flex-col overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-[#30363D] bg-slate-50/50 dark:bg-[#0f1219]/50">
+                <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-widest">Özellikler</h3>
+                <button onClick={() => setInspectorOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"><X size={16} /></button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto">
+                {/* ── Table Inspector ──────────────── */}
+                {selectedTable && (
+                  <div className="p-4 space-y-6">
+                    {/* Header Info */}
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <Table2 size={16} className="text-blue-500" />
+                        <h2 className="text-sm font-bold text-slate-800 dark:text-slate-200">{selectedTable.feName}</h2>
                       </div>
-                    )}
-                  </div>
-
-                  {/* Field List */}
-                  <div>
-                    <h4 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Alanlar ({selectedTable.fields.length})</h4>
-                    <div className="space-y-1">
-                      {selectedTable.fields.map(f => (
-                        <div key={f.id} className="flex items-center justify-between px-2 py-1 rounded-lg bg-slate-50 dark:bg-[#0f1219]">
-                          <span className="text-[11px] font-mono text-slate-600 dark:text-slate-400">{f.dbName}</span>
-                          <div className="flex items-center gap-1.5">
-                            <ArrowRight size={10} className="text-slate-300" />
-                            <span className="text-[11px] font-semibold text-blue-600 dark:text-blue-400">{f.feName}</span>
-                          </div>
-                        </div>
-                      ))}
+                      <p className="text-[11px] font-mono text-slate-500 dark:text-slate-400 opacity-80 pl-6">db: {selectedTable.dbName}</p>
                     </div>
-                  </div>
 
-                  {/* ── LIVE DTO PREVIEW ──────────── */}
-                  <div>
-                    <h4 className="text-[10px] font-bold text-emerald-500 dark:text-emerald-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                      <Code size={12} />
-                      Canlı DTO Önizleme (JSON)
-                    </h4>
-                    <div className="bg-[#0d1117] rounded-xl border border-slate-700 overflow-hidden">
-                      <div className="px-3 py-1.5 bg-[#161B22] border-b border-slate-700 flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                        <div className="w-2 h-2 rounded-full bg-amber-500"></div>
+                    {/* Field List */}
+                    <div>
+                      <h4 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Alanlar ({selectedTable.fields.length})</h4>
+                      <div className="space-y-1">
+                        {selectedTable.fields.map(f => (
+                          <div key={f.id} className="flex items-center justify-between px-2 py-1 rounded-lg bg-slate-50 dark:bg-[#0f1219]">
+                            <span className="text-[11px] font-mono text-slate-600 dark:text-slate-400">{f.dbName}</span>
+                            <div className="flex items-center gap-1.5">
+                              <ArrowRight size={10} className="text-slate-300" />
+                              <span className="text-[11px] font-semibold text-blue-600 dark:text-blue-400">{f.feName}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* ── LIVE DTO PREVIEW ──────────── */}
+                    <div>
+                      <h4 className="text-[10px] font-bold text-emerald-500 dark:text-emerald-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                        <Code size={12} />
+                        Canlı DTO Önizleme (JSON)
+                      </h4>
+                      <div className="bg-[#0d1117] rounded-xl border border-slate-700 overflow-hidden">
+                        <div className="px-3 py-1.5 bg-[#161B22] border-b border-slate-700 flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                          <div className="w-2 h-2 rounded-full bg-amber-500"></div>
+                          <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                          <span className="text-[9px] text-slate-500 ml-2 font-mono">{selectedTable.feName}.json</span>
+                        </div>
                         <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
                         <span className="text-[9px] text-slate-500 ml-2 font-mono">{selectedTable.feName}.json</span>
                       </div>
@@ -755,6 +753,106 @@ export default function SchemaMapper() {
           </div>
         )}
       </div>
+      ) : (
+        <div className="flex flex-1 min-h-0 bg-slate-50 dark:bg-[#0f1219] p-4 sm:p-6 gap-6 overflow-hidden">
+          {/* List View Left Sidebar (Tables) */}
+          <div className="w-72 flex flex-col bg-white dark:bg-[#161B22] border border-slate-200 dark:border-[#30363D] rounded-2xl overflow-hidden shadow-sm shrink-0">
+            <div className="px-4 py-3 border-b border-slate-100 dark:border-[#30363D] bg-slate-50/50 dark:bg-[#0f1219]/50">
+              <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-widest flex items-center gap-2">
+                <Database size={14} className="text-blue-500" /> Tablolar
+              </h3>
+            </div>
+            <div className="flex-1 overflow-y-auto p-2 space-y-1">
+              {tables.map(t => (
+                <button
+                  key={t.id}
+                  onClick={() => setSelectedTableId(t.id)}
+                  className={`w-full text-left px-3 py-2 rounded-xl text-sm font-semibold transition-colors flex flex-col ${
+                    selectedTableId === t.id 
+                      ? 'bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400' 
+                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                  }`}
+                >
+                  <span>{t.feName}</span>
+                  <span className="text-[10px] font-mono opacity-60 mt-0.5">{t.dbName}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* List View Right Content (Fields) */}
+          <div className="flex-1 flex flex-col bg-white dark:bg-[#161B22] border border-slate-200 dark:border-[#30363D] rounded-2xl overflow-hidden shadow-sm">
+            {selectedTable ? (
+              <>
+                <div className="px-6 py-4 border-b border-slate-100 dark:border-[#30363D] bg-slate-50/50 dark:bg-[#0f1219]/50 flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-800 dark:text-slate-200">{selectedTable.feName}</h2>
+                    <p className="text-xs text-slate-500 font-mono mt-1">Veritabanı Tablosu: {selectedTable.dbName}</p>
+                  </div>
+                  <div className="px-3 py-1 rounded-full bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400 text-xs font-bold">
+                    {selectedTable.fields.length} Alan
+                  </div>
+                </div>
+                
+                <div className="flex-1 overflow-y-auto p-6">
+                  <div className="rounded-xl border border-slate-200 dark:border-[#30363D] overflow-hidden">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-slate-50 dark:bg-[#0f1219] border-b border-slate-200 dark:border-[#30363D]">
+                          <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Uygulama Alanı (FE Name)</th>
+                          <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest w-32">Veri Tipi</th>
+                          <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest w-1/2">Veritabanı Sütunu (DB Name)</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-[#30363D]">
+                        {selectedTable.fields.map(f => (
+                          <tr key={f.id} className="hover:bg-slate-50/50 dark:hover:bg-[#0f1219]/50 transition-colors">
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold text-sm text-slate-800 dark:text-slate-200">{f.feName}</span>
+                                {f.isPK && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400 uppercase">PK</span>}
+                                {f.isFK && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400 uppercase">FK</span>}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className="text-xs font-mono px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                                {f.type}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="relative flex items-center">
+                                <Database size={14} className="absolute left-3 text-slate-400" />
+                                <select
+                                  value={f.dbName || ''}
+                                  onChange={(e) => handleDbNameChange(selectedTable.id, f.id, e.target.value)}
+                                  className="w-full pl-9 pr-8 py-2 rounded-lg border border-slate-200 dark:border-[#30363D] bg-white dark:bg-[#161B22] text-sm text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-blue-500 outline-none appearance-none cursor-pointer transition-colors"
+                                >
+                                  {Array.from(new Set(selectedTable.fields.map(field => field.dbName))).map(dbCol => (
+                                    <option key={dbCol} value={dbCol}>{dbCol}</option>
+                                  ))}
+                                  {!selectedTable.fields.some(field => field.dbName === f.dbName) && f.dbName && (
+                                    <option value={f.dbName}>{f.dbName}</option>
+                                  )}
+                                </select>
+                                <ChevronRight size={14} className="absolute right-3 text-slate-400 pointer-events-none rotate-90" />
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="flex-1 flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 text-sm">
+                <Database size={48} className="mb-4 opacity-20" />
+                <p>Eşleştirme yapmak için sol taraftan bir tablo seçin</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
