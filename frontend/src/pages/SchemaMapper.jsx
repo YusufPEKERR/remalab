@@ -564,12 +564,7 @@ export default function SchemaMapper() {
         <div
           ref={canvasRef}
           className={`flex-1 relative overflow-hidden select-none ${connectMode ? 'cursor-crosshair' : 'cursor-default'}`}
-          style={{ 
-            backgroundColor: 'transparent',
-            backgroundImage: 'radial-gradient(circle, rgba(148,163,184,0.15) 1px, transparent 1px)',
-            backgroundSize: `${24 * transform.scale}px ${24 * transform.scale}px`,
-            backgroundPosition: `${transform.x}px ${transform.y}px`
-          }}
+          style={{ backgroundColor: 'transparent' }}
           onWheel={onWheel}
           onContextMenu={(e) => e.preventDefault()}
           onMouseDown={(e) => { onPanStart(e); handleCanvasClick(); }}
@@ -577,6 +572,22 @@ export default function SchemaMapper() {
           onMouseUp={handleCanvasMouseUp}
           onMouseLeave={handleCanvasMouseUp}
         >
+          {/* SVG Background Grid - GPU Safe */}
+          <svg className="absolute inset-0 pointer-events-none z-0" style={{ width: '100%', height: '100%' }}>
+            <defs>
+              <pattern
+                id="schema-grid"
+                width={24 * transform.scale}
+                height={24 * transform.scale}
+                patternUnits="userSpaceOnUse"
+                patternTransform={`translate(${transform.x}, ${transform.y})`}
+              >
+                <circle cx={2 * transform.scale} cy={2 * transform.scale} r={1 * transform.scale} className="fill-slate-400/20 dark:fill-slate-500/20" />
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#schema-grid)" />
+          </svg>
+
           {/* Connect Mode Indicator */}
           {connectMode && (
             <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-xl bg-rose-500/90 text-white text-xs font-bold shadow-lg flex items-center gap-2 backdrop-blur">
@@ -588,7 +599,7 @@ export default function SchemaMapper() {
 
           {/* Transformable Layer */}
           <div
-            className="absolute top-0 left-0 origin-top-left will-change-transform"
+            className="absolute top-0 left-0 origin-top-left will-change-transform z-10"
             style={{ transform: cssTransform }}
           >
             {/* SVG Layer for Edges */}
