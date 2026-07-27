@@ -802,22 +802,31 @@ export default function SchemaMapper() {
               </h3>
             </div>
             <div className="flex-1 overflow-y-auto p-2 space-y-1">
-              {tables.map(t => (
-                <button
-                  key={t.id}
-                  onClick={() => setSelectedTableId(t.id)}
-                  className={`w-full text-left px-3 py-2 rounded-xl text-sm transition-colors flex flex-col ${
-                    selectedTableId === t.id 
-                      ? 'bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/30' 
-                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50 border border-transparent'
-                  }`}
-                >
-                  <span className="font-bold">{t.feName || t.dbName}</span>
-                  <span className="text-[10px] font-mono opacity-70 mt-0.5 flex items-center gap-1">
-                    <Database size={10} /> {t.dbName}
-                  </span>
-                </button>
-              ))}
+              {tables
+                .filter(t => ['items', 'tbl_items', 'batch', 'tbl_batch', 'item_category', 'tbl_item_category'].includes(t.dbName) || ['items', 'tbl_items', 'batch', 'tbl_batch', 'item_category', 'tbl_item_category'].includes(t.id))
+                .map(t => {
+                  let displayName = t.feName;
+                  if (t.dbName === 'items' || t.id === 'tbl_items') displayName = 'Stok Kartları (Parçalar)';
+                  if (t.dbName === 'batch' || t.id === 'tbl_batch') displayName = 'Batch Girişi Yönetimi';
+                  if (t.dbName === 'item_category' || t.id === 'tbl_item_category') displayName = 'Parça Kategorileri';
+                  
+                  return (
+                    <button
+                      key={t.id}
+                      onClick={() => setSelectedTableId(t.id)}
+                      className={`w-full text-left px-3 py-2 rounded-xl text-sm transition-colors flex flex-col ${
+                        selectedTableId === t.id 
+                          ? 'bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/30' 
+                          : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50 border border-transparent'
+                      }`}
+                    >
+                      <span className="font-bold">{displayName}</span>
+                      <span className="text-[10px] font-mono opacity-70 mt-0.5 flex items-center gap-1">
+                        <Database size={10} /> {t.dbName}
+                      </span>
+                    </button>
+                  );
+              })}
             </div>
           </div>
 
