@@ -74,7 +74,7 @@ function App() {
             <Route path="/item-bom" element={<ItemBOM />} />
             {/* MODÜL 5 */}
             <Route path="/service-transition" element={<ServiceTransition />} />
-            <Route path="/batch-statu-transition" element={<BatchStatuTransition />} />
+            <Route path="/statu-gecis/:groupKey/:code" element={<BatchStatuTransition />} />
             <Route path="/technician-panel" element={<TechnicianPanel />} />
             <Route path="/technician-repair" element={<TechnicianRepairOperations />} />
             <Route path="/schema-mapper" element={<SchemaMapper />} />

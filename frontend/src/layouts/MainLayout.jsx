@@ -3,7 +3,8 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
   LogOut, LayoutDashboard, Users, Package, Settings, Bell,
   Warehouse, FileText, BarChart2, Box, Truck, MapPin,
-  CheckCircle, Search, AlertTriangle, Zap, RefreshCw, Sun, Moon, Database, Building2, Wrench, ClipboardList, PackageSearch, PackagePlus, Tags, ChevronDown, ChevronRight, Menu, X, Layers, FileSpreadsheet, ScanLine
+  CheckCircle, Search, AlertTriangle, Zap, RefreshCw, Sun, Moon, Database, Building2, Wrench, ClipboardList, PackageSearch, PackagePlus, Tags, ChevronDown, ChevronRight, Menu, X, Layers, FileSpreadsheet,
+  Boxes, ClipboardCheck, Cog, Repeat, Undo2
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useTheme } from '../context/ThemeContext';
@@ -23,6 +24,11 @@ export default function MainLayout() {
     'GENEL BAKIŞ': true,
     'DEPO': true,
     'ENVANTER': true,
+    'YEDEK PARÇA PERSONELİ': true,
+    'TEST PERSONELİ': true,
+    'DEMONTAJ TEKNİSYENİ': true,
+    'ARA TEST': true,
+    'RMA TEKNİSYENİ': true,
     'KULLANICI & AYARLAR': true
   });
 
@@ -94,12 +100,21 @@ export default function MainLayout() {
   // Normalize developer to admin, other roles to teknisyen
   const userRole = (rawRole === 'developer') ? 'admin' : (rawRole.startsWith('tec_') || rawRole === 'staff' || rawRole === 'qac' || rawRole === 'log_p') ? 'teknisyen' : rawRole;
 
+  // Statü Geçiş Ekranı'nın 24 alt işlemi (bkz. seed_statu_map_v2.py) — her rol için ortak.
+  const STATU_GECIS_PATHS = [
+    '/statu-gecis/SPA_P/100_101', '/statu-gecis/SPA_P/101_102', '/statu-gecis/SPA_P/126_127', '/statu-gecis/SPA_P/127_128',
+    '/statu-gecis/QAC/102_103', '/statu-gecis/QAC/102_104', '/statu-gecis/QAC/103_104', '/statu-gecis/QAC/103_105', '/statu-gecis/QAC/124_125', '/statu-gecis/QAC/125_126', '/statu-gecis/QAC/125_109',
+    '/statu-gecis/TEC_DISMANTLE/104_105', '/statu-gecis/TEC_DISMANTLE/105_106', '/statu-gecis/TEC_DISMANTLE/105_109', '/statu-gecis/TEC_DISMANTLE/105_134', '/statu-gecis/TEC_DISMANTLE/109_105', '/statu-gecis/TEC_DISMANTLE/135_125', '/statu-gecis/TEC_DISMANTLE/135_136', '/statu-gecis/TEC_DISMANTLE/109_138',
+    '/statu-gecis/MNG1_AS/106_107', '/statu-gecis/MNG1_AS/107_136', '/statu-gecis/MNG1_AS/138_124',
+    '/statu-gecis/TEC_RMA/134_109', '/statu-gecis/TEC_RMA/134_105'
+  ];
+
   // Permission maps based on Python code:
   const allowedPaths = {
-    'admin': ['/dashboard', '/depo', '/irsaliye', '/work-orders', '/supply-requests', '/raporlar', '/parts', '/part-categories', '/products', '/suppliers', '/locations', '/users', '/settings', '/departments', '/service-records', '/data-management', '/tedarik-talepleri', '/quality', '/refurbishment', '/priority', '/item-bom', '/batch-entry', '/batch-statu-transition', '/technician-repair', '/schema-mapper'],
+    'admin': ['/dashboard', '/depo', '/irsaliye', '/work-orders', '/supply-requests', '/raporlar', '/parts', '/part-categories', '/products', '/suppliers', '/locations', '/users', '/settings', '/departments', '/service-records', '/data-management', '/tedarik-talepleri', '/quality', '/refurbishment', '/priority', '/item-bom', '/batch-entry', ...STATU_GECIS_PATHS, '/technician-repair', '/schema-mapper'],
     'depo': ['/depo', '/irsaliye', '/work-orders', '/raporlar'],
-    'depo müdürü': ['/dashboard', '/depo', '/irsaliye', '/work-orders', '/supply-requests', '/raporlar', '/parts', '/products', '/suppliers', '/locations', '/tedarik-talepleri', '/service-records', '/batch-entry', '/batch-statu-transition'],
-    'teknisyen': ['/dashboard', '/quality', '/refurbishment', '/priority', '/batch-entry', '/batch-statu-transition']
+    'depo müdürü': ['/dashboard', '/depo', '/irsaliye', '/work-orders', '/supply-requests', '/raporlar', '/parts', '/products', '/suppliers', '/locations', '/tedarik-talepleri', '/service-records', '/batch-entry', ...STATU_GECIS_PATHS],
+    'teknisyen': ['/dashboard', '/quality', '/refurbishment', '/priority', '/batch-entry', ...STATU_GECIS_PATHS]
   };
 
   const allowed = allowedPaths[userRole] || allowedPaths['admin'];
@@ -123,7 +138,6 @@ export default function MainLayout() {
         { name: 'İrsaliye', icon: FileText, path: '/irsaliye' },
         { name: 'İş Emirleri', icon: ClipboardList, path: '/work-orders' },
         { name: 'Servis Onarımları', icon: Wrench, path: '/technician-repair' },
-        { name: 'Statü Geçiş Ekranı', icon: ScanLine, path: '/batch-statu-transition' },
 
         { name: 'Tedarik İstekleri', icon: PackageSearch, path: '/supply-requests' },
         { name: 'Tedarik Talepleri', icon: PackagePlus, path: '/tedarik-talepleri' },
@@ -138,6 +152,60 @@ export default function MainLayout() {
         { name: 'Ürün Listesi', icon: Box, path: '/products' },
         { name: 'Müşteriler', icon: Truck, path: '/suppliers' },
         { name: 'Lokasyonlar', icon: MapPin, path: '/locations' }
+      ]
+    },
+    {
+      title: 'YEDEK PARÇA PERSONELİ',
+      colorTheme: 'orange',
+      items: [
+        { name: 'Kayıt kabul yap (100>101)', icon: Boxes, path: '/statu-gecis/SPA_P/100_101' },
+        { name: 'İlk teste aktar (101>102)', icon: Boxes, path: '/statu-gecis/SPA_P/101_102' },
+        { name: 'Müşteri için sevket (126>127)', icon: Boxes, path: '/statu-gecis/SPA_P/126_127' },
+        { name: 'Çıkışını yap (127>128)', icon: Boxes, path: '/statu-gecis/SPA_P/127_128' }
+      ]
+    },
+    {
+      title: 'TEST PERSONELİ',
+      colorTheme: 'blue',
+      items: [
+        { name: 'İlk teste kabul (102>103)', icon: ClipboardCheck, path: '/statu-gecis/QAC/102_103' },
+        { name: 'Son test için kabul (102>104)', icon: ClipboardCheck, path: '/statu-gecis/QAC/102_104' },
+        { name: 'Üretime teslim edilecek (103>104)', icon: ClipboardCheck, path: '/statu-gecis/QAC/103_104' },
+        { name: 'Test Yapılamıyor - Üretime Aktar (103>105)', icon: ClipboardCheck, path: '/statu-gecis/QAC/103_105' },
+        { name: 'Son teste kabul (124>125)', icon: ClipboardCheck, path: '/statu-gecis/QAC/124_125' },
+        { name: 'Depoya sevket (125>126)', icon: ClipboardCheck, path: '/statu-gecis/QAC/125_126' },
+        { name: 'Son test dönüş (125>109)', icon: ClipboardCheck, path: '/statu-gecis/QAC/125_109' }
+      ]
+    },
+    {
+      title: 'DEMONTAJ TEKNİSYENİ',
+      colorTheme: 'emerald',
+      items: [
+        { name: 'Teknik departmana kabul et (104>105)', icon: Cog, path: '/statu-gecis/TEC_DISMANTLE/104_105' },
+        { name: 'Müşteri onayına gönder (105>106)', icon: Cog, path: '/statu-gecis/TEC_DISMANTLE/105_106' },
+        { name: 'Üretime aktar (105>109)', icon: Cog, path: '/statu-gecis/TEC_DISMANTLE/105_109' },
+        { name: 'Rma kontrole aktar (105>134)', icon: Cog, path: '/statu-gecis/TEC_DISMANTLE/105_134' },
+        { name: 'Farklı departmana sevk et (109>105)', icon: Cog, path: '/statu-gecis/TEC_DISMANTLE/109_105' },
+        { name: 'Son teste gönder (135>125)', icon: Cog, path: '/statu-gecis/TEC_DISMANTLE/135_125' },
+        { name: 'İade Edilmeyecek - Müşteri Onayı Geldi (135>136)', icon: Cog, path: '/statu-gecis/TEC_DISMANTLE/135_136' },
+        { name: 'Ara Test için Teslim al (109>138)', icon: Cog, path: '/statu-gecis/TEC_DISMANTLE/109_138' }
+      ]
+    },
+    {
+      title: 'ARA TEST',
+      colorTheme: 'purple',
+      items: [
+        { name: 'Müşteri onayı bekleyecek (106>107)', icon: Repeat, path: '/statu-gecis/MNG1_AS/106_107' },
+        { name: 'Müşteri Onay/Red Geldi (107>136)', icon: Repeat, path: '/statu-gecis/MNG1_AS/107_136' },
+        { name: 'Ara Test Yap (138>124)', icon: Repeat, path: '/statu-gecis/MNG1_AS/138_124' }
+      ]
+    },
+    {
+      title: 'RMA TEKNİSYENİ',
+      colorTheme: 'orange',
+      items: [
+        { name: 'RMA kabul edildi (134>109)', icon: Undo2, path: '/statu-gecis/TEC_RMA/134_109' },
+        { name: 'RMA reddedildi (134>105)', icon: Undo2, path: '/statu-gecis/TEC_RMA/134_105' }
       ]
     },
     {

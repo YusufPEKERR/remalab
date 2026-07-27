@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { useParams } from "react-router-dom";
 import { ScanLine, CheckCircle, AlertTriangle, Info, X, ArrowRight, History } from "lucide-react";
 import { api } from "../services/api";
 
@@ -42,15 +43,11 @@ const LOG_ICONS = {
   warning: <AlertTriangle size={15} />,
 };
 
-// Bu ekran şu an tek bir sabit statü geçişini temsil eder (ekran görüntüsündeki
-// "Kayıt kabul yap (100>101)" penceresiyle birebir aynı). Kaynak→hedef statü
-// tablosu netleştikçe her satır için bu bileşenin bir kopyası (farklı
-// SOURCE/TARGET/TITLE ile) yeni bir sayfa olarak eklenebilir.
-const SOURCE_STATU_CODE = 100;
-const TARGET_STATU_CODE = 101;
-const SCREEN_TITLE = "Kayıt Kabul Yap";
-
 const BatchStatuTransition = () => {
+  const { groupKey, code } = useParams();
+  const [transition, setTransition] = useState(null);
+  const [loadingTransition, setLoadingTransition] = useState(true);
+
   const [term, setTerm] = useState("");
   const [loading, setLoading] = useState(false);
   const [notification, setNotification] = useState(null);
@@ -59,8 +56,29 @@ const BatchStatuTransition = () => {
   const inputRef = useRef(null);
 
   useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
+    const loadTransition = async () => {
+      setLoadingTransition(true);
+      setTransition(null);
+      setLog([]);
+      setDeviceInfo(null);
+      try {
+        const data = await api.getAllStatuTransitions();
+        if (data.success) {
+          const found = data.transitions.find((t) => t.to_dest === groupKey && t.code === code);
+          setTransition(found || null);
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoadingTransition(false);
+      }
+    };
+    loadTransition();
+  }, [groupKey, code]);
+
+  useEffect(() => {
+    if (transition) inputRef.current?.focus();
+  }, [transition]);
 
   const showNotification = (type, message) => {
     setNotification({ type, message });
@@ -78,7 +96,7 @@ const BatchStatuTransition = () => {
 
   const handleScan = async (e) => {
     e.preventDefault();
-    if (!term.trim()) return;
+    if (!term.trim() || !transition) return;
 
     setLoading(true);
     setDeviceInfo(null);
@@ -91,7 +109,6 @@ const BatchStatuTransition = () => {
         return;
       }
 
-      // Okutulan cihazın o anki statüsünü hemen göster (geçiş başarılı olsun olmasın)
       setDeviceInfo({
         imei: scanData.imei,
         batchNo: scanData.batch_no,
@@ -101,17 +118,17 @@ const BatchStatuTransition = () => {
       });
 
       // 2. Adım: bu ekranın sabit kaynak→hedef geçişini uygula.
-      // Parti şu an SOURCE_STATU_CODE'da değilse backend "uygun statü değil" hatası döner.
+      // Parti şu an bu geçişin kaynak statüsünde değilse backend "uygun statü değil" hatası döner.
       const data = await api.executeBatchEntryStatuTransition(
         scanData.entry_id,
-        SOURCE_STATU_CODE,
-        TARGET_STATU_CODE
+        transition.parent_statu,
+        transition.child_statu
       );
 
       if (data.success) {
         showNotification("success", data.message);
         appendLog("success", data.message);
-        setDeviceInfo((prev) => (prev ? { ...prev, statuCode: TARGET_STATU_CODE, statuName: null } : prev));
+        setDeviceInfo((prev) => (prev ? { ...prev, statuCode: transition.child_statu, statuName: null } : prev));
       } else {
         showNotification("error", data.message);
         appendLog("error", data.message);
@@ -127,6 +144,19 @@ const BatchStatuTransition = () => {
     }
   };
 
+  if (loadingTransition) {
+    return <div className="flex items-center justify-center h-full text-slate-400 text-sm">Yükleniyor...</div>;
+  }
+
+  if (!transition) {
+    return (
+      <div className="bg-white dark:bg-[#1e2330] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm flex flex-col items-center justify-center gap-3 py-16 text-slate-500">
+        <AlertTriangle size={32} className="text-slate-300 dark:text-slate-600" />
+        <p className="text-sm">Bu statü geçişi bulunamadı veya artık aktif değil.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="h-full flex flex-col space-y-6 overflow-hidden relative">
       <NotificationToast notification={notification} onClose={() => setNotification(null)} />
@@ -134,14 +164,14 @@ const BatchStatuTransition = () => {
       <div className="bg-white dark:bg-[#1e2330] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm shrink-0">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-2">
-            <ScanLine className="text-blue-400" size={24} /> {SCREEN_TITLE}
+            <ScanLine className="text-blue-400" size={24} /> {transition.short_name}
           </h1>
           <span className="px-3 py-1.5 rounded-full text-sm font-bold border bg-blue-500/10 text-blue-500 border-blue-500/20 flex items-center gap-2">
-            {SOURCE_STATU_CODE} <ArrowRight size={14} /> {TARGET_STATU_CODE}
+            {transition.parent_statu} <ArrowRight size={14} /> {transition.child_statu}
           </span>
         </div>
         <p className="text-slate-400 mt-1">
-          IMEI, seri numarası, internal ID veya batch numarasını okutun. Parti statü {SOURCE_STATU_CODE} değilse işlem reddedilir.
+          IMEI, seri numarası, internal ID veya batch numarasını okutun. Parti statü {transition.parent_statu} değilse işlem reddedilir.
         </p>
       </div>
 

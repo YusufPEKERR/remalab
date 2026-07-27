@@ -7167,6 +7167,30 @@ class WebBridge(QObject):
         finally:
             db.close()
 
+    @Slot(result=str)
+    def get_all_statu_transitions(self):
+        """Statü Geçiş Ekranı'nın buton menüsü için tüm (enabled) kaynak→hedef
+        statü geçişlerini rol (to_dest) bilgisiyle birlikte döner."""
+        from models.service_statu_map import ServiceStatuMap
+        db = SessionLocal()
+        try:
+            rows = db.query(ServiceStatuMap).filter_by(enabled=True).order_by(
+                ServiceStatuMap.to_dest, ServiceStatuMap.order_number
+            ).all()
+            transitions = [{
+                "code": r.code,
+                "parent_statu": r.parent_statu,
+                "child_statu": r.child_statu,
+                "is_positive": r.is_positive,
+                "to_dest": r.to_dest,
+                "short_name": r.short_name,
+            } for r in rows]
+            return json.dumps({"success": True, "transitions": transitions})
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
     @Slot(int, result=str)
     def get_allowed_transitions(self, current_statu_code):
         from services.state_machine_service import StateMachineService
