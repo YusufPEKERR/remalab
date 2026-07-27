@@ -99,6 +99,13 @@ export const api = {
             backend.login(username, password, (res) => resolve(JSON.parse(res)));
         });
     },
+
+    getSchemaIntrospection: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_schema_introspection((res) => resolve(res));
+        });
+    },
     
     getUsers: async () => {
         const backend = await getBackend();

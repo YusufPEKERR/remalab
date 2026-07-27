@@ -4,6 +4,7 @@ import {
   Database, Code, ArrowRight, Trash2, Info, CheckCircle, Table2
 } from 'lucide-react';
 import useCanvasPanZoom from '../hooks/useCanvasPanZoom';
+import { api } from '../services/api';
 import TableNode, { getPortPosition } from '../components/schema/TableNode';
 import BezierEdge from '../components/schema/BezierEdge';
 
@@ -185,8 +186,8 @@ export default function SchemaMapper() {
     const fetchSchema = async () => {
       try {
         setIsLoading(true);
-        if (window.webBridge && window.webBridge.get_schema_introspection) {
-          const res = await window.webBridge.get_schema_introspection();
+        if (api.getSchemaIntrospection) {
+          const res = await api.getSchemaIntrospection();
           const parsed = JSON.parse(res);
           if (parsed && parsed.tables && parsed.tables.length > 0) {
             setTables(parsed.tables);
