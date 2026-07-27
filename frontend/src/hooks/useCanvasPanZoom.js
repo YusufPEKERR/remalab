@@ -36,32 +36,44 @@ export default function useCanvasPanZoom({ minScale = 0.15, maxScale = 3 } = {})
   const onPanStart = useCallback((e) => {
     // Any click (left, middle, right) that reaches the canvas will start panning
     if (e.button === 0 || e.button === 1 || e.button === 2) {
-      if (e.button !== 2) {
-        e.preventDefault(); // Don't prevent default on right click just in case
-      }
+      // Always prevent default to stop native drag/selection which can break mousemove
+      e.preventDefault();
       isPanning.current = true;
       lastPos.current = { x: e.clientX, y: e.clientY };
+
+      const handleGlobalMouseMove = (ev) => {
+        if (!isPanning.current) return;
+        const dx = typeof ev.clientX === 'number' && typeof lastPos.current.x === 'number' ? ev.clientX - lastPos.current.x : 0;
+        const dy = typeof ev.clientY === 'number' && typeof lastPos.current.y === 'number' ? ev.clientY - lastPos.current.y : 0;
+        lastPos.current = { x: ev.clientX, y: ev.clientY };
+        setTransform(prev => {
+          const newX = prev.x + dx;
+          const newY = prev.y + dy;
+          return { 
+            ...prev, 
+            x: isNaN(newX) ? prev.x : newX, 
+            y: isNaN(newY) ? prev.y : newY 
+          };
+        });
+      };
+
+      const handleGlobalMouseUp = () => {
+        isPanning.current = false;
+        window.removeEventListener('mousemove', handleGlobalMouseMove);
+        window.removeEventListener('mouseup', handleGlobalMouseUp);
+      };
+
+      window.addEventListener('mousemove', handleGlobalMouseMove);
+      window.addEventListener('mouseup', handleGlobalMouseUp);
     }
   }, []);
 
-  // ── Pan Move ──────────────────────────────────────────────
+  // ── Pan Move (For backward compatibility, though now handled globally) ──
   const onPanMove = useCallback((e) => {
-    if (!isPanning.current) return;
-    const dx = typeof e.clientX === 'number' && typeof lastPos.current.x === 'number' ? e.clientX - lastPos.current.x : 0;
-    const dy = typeof e.clientY === 'number' && typeof lastPos.current.y === 'number' ? e.clientY - lastPos.current.y : 0;
-    lastPos.current = { x: e.clientX, y: e.clientY };
-    setTransform(prev => {
-      const newX = prev.x + dx;
-      const newY = prev.y + dy;
-      return { 
-        ...prev, 
-        x: isNaN(newX) ? prev.x : newX, 
-        y: isNaN(newY) ? prev.y : newY 
-      };
-    });
+    // intentionally left empty since global listener handles it now
   }, []);
 
-  // ── Pan End ───────────────────────────────────────────────
+  // ── Pan End (For backward compatibility) ────────────────────────────────
   const onPanEnd = useCallback(() => {
     isPanning.current = false;
   }, []);
