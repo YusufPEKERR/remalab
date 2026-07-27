@@ -129,6 +129,7 @@ def init_database_schema():
     from models.repair_item_warranty import RepairItemWarranty
     from models.product_family_mission import ProductFamilyMission
     from models.repair_record import RepairRecord
+    from models.service_repair import ServiceRepair
 
     from models.cost_center import CostCenter
     from models.branch import Branch
