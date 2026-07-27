@@ -1714,6 +1714,13 @@ export const api = {
         });
     },
 
+    getAllStatuTransitions: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_all_statu_transitions((res) => resolve(JSON.parse(res)));
+        });
+    },
+
     getAllowedTransitions: async (currentStatuCode) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
