@@ -802,13 +802,12 @@ export default function SchemaMapper() {
               </h3>
             </div>
             <div className="flex-1 overflow-y-auto p-2 space-y-1">
-              {tables
-                .filter(t => ['items', 'tbl_items', 'batch', 'tbl_batch', 'item_category', 'tbl_item_category'].includes(t.dbName) || ['items', 'tbl_items', 'batch', 'tbl_batch', 'item_category', 'tbl_item_category'].includes(t.id))
-                .map(t => {
+              {tables.map(t => {
                   let displayName = t.feName;
-                  if (t.dbName === 'items' || t.id === 'tbl_items') displayName = 'Stok Kartları (Parçalar)';
-                  if (t.dbName === 'batch' || t.id === 'tbl_batch') displayName = 'Batch Girişi Yönetimi';
-                  if (t.dbName === 'item_category' || t.id === 'tbl_item_category') displayName = 'Parça Kategorileri';
+                  const dbNameLower = t.dbName ? t.dbName.toLowerCase() : '';
+                  if (dbNameLower === 'items' || t.id === 'tbl_items') displayName = 'Stok Kartları (Parçalar)';
+                  if (dbNameLower === 'batch' || t.id === 'tbl_batch') displayName = 'Batch Girişi Yönetimi';
+                  if (dbNameLower === 'itemcategory' || dbNameLower === 'item_category' || t.id === 'tbl_item_category') displayName = 'Parça Kategorileri';
                   
                   return (
                     <button
