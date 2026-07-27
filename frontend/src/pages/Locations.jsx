@@ -1,0 +1,216 @@
+import { useState, useEffect, useMemo } from 'react';
+import { Search, Plus, Trash2, Edit, AlertCircle, RefreshCw } from 'lucide-react';
+import { api } from '../services/api';
+
+const KNOWN_SYSTEM_KINDS = ['good_stock', 'doa_stock', 'repair_stock', 'scrap_stock', 'out_stock'];
+
+export default function Locations() {
+  const [locations, setLocations] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [newLocationName, setNewLocationName] = useState('');
+  const [newLocationDesc, setNewLocationDesc] = useState('');
+
+  const fetchLocations = async (silent = false) => {
+    if (!silent) setLoading(true);
+    try {
+      const res = await api.getLocations();
+      if (res && res.success) {
+        setLocations(res.locations || []);
+        setError('');
+      } else {
+        setError(res ? res.message : 'Hata');
+      }
+    } catch (err) {
+      setError('Bağlantı hatası.');
+    } finally {
+      if (!silent) setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLocations();
+    const interval = setInterval(() => fetchLocations(true), 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleAdd = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await api.createLocation(newLocationName, newLocationDesc);
+      if (res && res.success) {
+        setNewLocationName('');
+        setNewLocationDesc('');
+        setIsModalOpen(false);
+        fetchLocations();
+      } else {
+        alert(res ? res.message : "Hata");
+      }
+    } catch (err) {
+      alert("Hata oluştu.");
+    }
+  };
+
+  // Eski sistem kayıtları tanınmayan (büyük harfli) bir "kind" değeriyle
+  // genel "Sistem" etiketiyle gösteriliyordu — bunlar kaldırılır. İyi/DOA/
+  // Tamir/Hurda/Çıkış etiketli olanlar ve kullanıcı tanımlı lokasyonlar kalır.
+  // Aynı isimli lokasyon birden fazla kayıtla var olabiliyor — isme göre tekilleştiriyoruz.
+  const uniqueLocations = useMemo(() => {
+    const seen = new Set();
+    return locations.filter(l => {
+      if (l.kind && !KNOWN_SYSTEM_KINDS.includes(l.kind)) return false;
+      const key = (l.name || '').trim().toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [locations]);
+
+  const filteredLocations = useMemo(() => {
+    return uniqueLocations.filter(l =>
+      (l.name && l.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      String(l.id).includes(searchTerm)
+    );
+  }, [uniqueLocations, searchTerm]);
+
+  return (
+    <div className="h-full flex flex-col space-y-6">
+      
+      {/* Header */}
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Lokasyonlar</h1>
+          <p className="text-slate-500 mt-1">Depo raf ve depolama lokasyonlarını ekleyin, güncelleyin veya silin</p>
+        </div>
+        <button 
+          onClick={() => setIsModalOpen(true)}
+          className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2.5 rounded-lg transition-all shadow-sm font-medium text-sm"
+        >
+          <Plus size={18} />
+          <span>Lokasyon Ekle</span>
+        </button>
+      </div>
+
+      {error && (
+        <div className="bg-red-50 text-red-600 p-4 rounded-xl flex items-center gap-3 border border-red-100">
+          <AlertCircle size={20} />
+          <p className="font-medium">{error}</p>
+        </div>
+      )}
+
+      {/* Toolbar */}
+      <div className="relative z-10">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+        <input 
+          type="text" 
+          placeholder="Lokasyon ara..." 
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full pl-10 pr-4 py-3 bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 rounded-t-xl focus:outline-none text-slate-800 dark:text-slate-200 transition-all text-sm"
+        />
+      </div>
+
+      {/* Table */}
+      <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-b-xl shadow-lg flex-1 overflow-hidden flex flex-col -mt-6">
+        <div className="overflow-y-auto flex-1 mt-2">
+          <table className="w-full text-left text-sm whitespace-nowrap">
+            <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-700 dark:text-slate-300 font-semibold border-b border-slate-200 dark:border-slate-700/50 sticky top-0 uppercase tracking-wider text-xs z-10">
+              <tr>
+                <th className="px-6 py-4 w-32">LOKASYON ID</th>
+                <th className="px-6 py-4">LOKASYON ADI</th>
+                <th className="px-6 py-4">AÇIKLAMA</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-700/50">
+              {loading ? (
+                <tr>
+                  <td colSpan="3" className="px-6 py-8 text-center text-slate-400">
+                    <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-indigo-400" />
+                    Yükleniyor...
+                  </td>
+                </tr>
+              ) : filteredLocations.length === 0 ? (
+                <tr>
+                  <td colSpan="3" className="px-6 py-8 text-center text-slate-400">
+                    Kayıt bulunamadı.
+                  </td>
+                </tr>
+              ) : (
+                filteredLocations.map((loc) => (
+                  <tr key={loc.id} className="hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors group text-slate-800 dark:text-slate-200">
+                    <td className="px-6 py-3 font-mono">{loc.id}</td>
+                    <td className="px-6 py-3">
+                      <div className="flex items-center gap-2">
+                        {loc.name}
+                        {loc.kind && (
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wider ${
+                            loc.kind === 'good_stock' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
+                            loc.kind === 'doa_stock' ? 'bg-purple-500/10 text-purple-500 border-purple-500/20' :
+                            loc.kind === 'repair_stock' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' :
+                            loc.kind === 'scrap_stock' ? 'bg-stone-500/10 text-stone-500 border-stone-500/20' :
+                            loc.kind === 'out_stock' ? 'bg-teal-500/10 text-teal-500 border-teal-500/20' :
+                            'bg-slate-500/10 text-slate-500 border-slate-500/20'
+                          }`}>
+                            {loc.kind === 'good_stock' ? 'İyi' : 
+                             loc.kind === 'doa_stock' ? 'DOA' : 
+                             loc.kind === 'repair_stock' ? 'Tamir' : 
+                             loc.kind === 'scrap_stock' ? 'Hurda' : 
+                             loc.kind === 'out_stock' ? 'Çıkış' : 'Sistem'}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-3 text-slate-500">{loc.description || '-'}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-[#1e2330] rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200 border border-slate-200 dark:border-slate-700/50">
+            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 flex justify-between items-center bg-slate-50 dark:bg-[#242a38]">
+              <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">Yeni Lokasyon Ekle</h2>
+            </div>
+
+            <form onSubmit={handleAdd} className="p-6 space-y-4">
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Lokasyon Adı</label>
+                <input
+                  type="text" required
+                  placeholder="Örn: A-01-01"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-500"
+                  value={newLocationName}
+                  onChange={e => setNewLocationName(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Açıklama (Opsiyonel)</label>
+                <input
+                  type="text"
+                  placeholder="Örn: Yedek parçalar için raf"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-500"
+                  value={newLocationDesc}
+                  onChange={e => setNewLocationDesc(e.target.value)}
+                />
+              </div>
+
+              <div className="pt-4 flex justify-end gap-3 border-t border-slate-100 dark:border-slate-700/50 mt-6">
+                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-slate-600 dark:text-slate-300 bg-white dark:bg-[#242a38] border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-[#2a3142] text-sm font-medium">İptal</button>
+                <button type="submit" className="px-4 py-2 text-white bg-green-600 hover:bg-green-700 rounded-lg text-sm font-medium shadow-sm">Kaydet</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

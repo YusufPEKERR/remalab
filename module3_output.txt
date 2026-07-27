@@ -1,0 +1,60 @@
+--- SHEET: ServiceStatuMap ---
+HEADERS:
+['id', 'orderNumber', 'code', 'parentStatu', 'childStatu', 'isPositive', 'isUserChangeStatu', 'Kontrol1', 'Kontrol2', 'Kontrol3', 'to', 'shortName', 'fullName', 'description', 'enabled', 'mioControl', 'update']
+DATA (First 3 rows):
+{'id': 'E547E8C4-86D2-4E55-839C-89328293E1B4', 'orderNumber': 1, 'code': '100_101', 'parentStatu': 100, 'childStatu': 101, 'isPositive': True, 'isUserChangeStatu': True, 'Kontrol1': 'Ön bildirim yapıldı', 'Kontrol2': 'Depo kabul yapıldı', 'Kontrol3': 0, 'to': 'SPA_P', 'shortName': 'Kayıt kabul yap', 'fullName': nan, 'description': 'Ön bildirim yapıldı > Depo kabul yapıldı.(100>101)', 'enabled': True, 'mioControl': nan, 'update': False}
+{'id': '060C3DFE-5D95-47BD-8E2B-19B2C5024C22', 'orderNumber': 2, 'code': '101_102', 'parentStatu': 101, 'childStatu': 102, 'isPositive': True, 'isUserChangeStatu': True, 'Kontrol1': 'Depo kabul yapıldı', 'Kontrol2': 'İlk teste aktarıldı', 'Kontrol3': 0, 'to': 'SPA_P', 'shortName': 'İlk teste aktar', 'fullName': nan, 'description': 'Depo kabul yapıldı > İlk teste aktarıldı.(101>102)', 'enabled': True, 'mioControl': nan, 'update': False}
+{'id': '4C23C619-21E3-4F85-ADF9-66238FFD8389', 'orderNumber': 18, 'code': '126_127', 'parentStatu': 126, 'childStatu': 127, 'isPositive': True, 'isUserChangeStatu': True, 'Kontrol1': 'Depoya sevk edilecek', 'Kontrol2': 'Müşteri için sevk bekliyor', 'Kontrol3': 0, 'to': 'SPA_P', 'shortName': 'Müşteri için sevket', 'fullName': nan, 'description': 'Depoya sevk edilecek > Müşteri için sevk bekliyor.(126>127)', 'enabled': True, 'mioControl': nan, 'update': False}
+
+==================================================
+
+--- SHEET: ServiceStatu ---
+HEADERS:
+['code', 'id', 'orderNumber', 'language', 'shortName', 'fullName', 'description', 'costCenter', 'mission', 'isClosed', 'IsRepairContinue', 'enabled', 'update']
+DATA (First 3 rows):
+{'code': 130, 'id': '703A987F-EE1A-4F97-B984-E7F502483837', 'orderNumber': nan, 'language': 'tr', 'shortName': 'Montaj Bekleniyor', 'fullName': nan, 'description': 'alt onarımlar bittiğinde bu konuma alınmalı', 'costCenter': nan, 'mission': 'MNG1_AS', 'isClosed': False, 'IsRepairContinue': True, 'enabled': False, 'update': False}
+{'code': 131, 'id': '68AA6E76-F60D-4F44-BAC6-15B9BF263E01', 'orderNumber': nan, 'language': 'tr', 'shortName': 'L1 Montaj Yapılacak', 'fullName': nan, 'description': nan, 'costCenter': nan, 'mission': 'MNG1_AS', 'isClosed': False, 'IsRepairContinue': True, 'enabled': False, 'update': False}
+{'code': 132, 'id': '70B93067-DC28-4D9D-A6DB-6699CFB64A33', 'orderNumber': nan, 'language': 'tr', 'shortName': 'L2 Montaj Yapılacak', 'fullName': nan, 'description': nan, 'costCenter': nan, 'mission': 'MNG1_AS', 'isClosed': False, 'IsRepairContinue': True, 'enabled': False, 'update': False}
+
+==================================================
+
+--- SHEET: ServiceRequestType ---
+HEADERS:
+['code', 'id', 'orderNumber', 'language', 'shortName', 'update']
+DATA (First 3 rows):
+{'code': 'To repair', 'id': '11E95963-56E0-47D2-AFEA-48D8CE42E39E', 'orderNumber': 1, 'language': 'tr', 'shortName': 'Onarım', 'update': False}
+{'code': 'To refurbish', 'id': '8C370886-C963-4389-AC10-37F6913FB83F', 'orderNumber': 2, 'language': 'tr', 'shortName': 'Yenileme', 'update': False}
+{'code': 'Battery only ', 'id': 'A965D8FB-D4D1-48F7-98DE-D21248BF4AEE', 'orderNumber': 3, 'language': 'tr', 'shortName': 'Batarya Değişimi', 'update': False}
+
+==================================================
+
+--- SHEET: ServiceTestType ---
+HEADERS:
+['id', 'orderNumber', 'code', 'language', 'shortName', 'isSuccess', 'update']
+DATA (First 3 rows):
+{'id': 'F4A9D9B7-1224-48D0-844E-9EEA373ED189', 'orderNumber': 1.0, 'code': 'AT', 'language': 'tr', 'shortName': 'Giriş Testi', 'isSuccess': False, 'update': False}
+{'id': '5585DC7C-195B-4C55-AC9E-D8BF39D75B0B', 'orderNumber': 2.0, 'code': 'FT', 'language': 'tr', 'shortName': 'Çıkış Testi', 'isSuccess': True, 'update': False}
+{'id': '17E41C59-6837-4A49-967A-BA30ABAD55BA', 'orderNumber': 3.0, 'code': 'ST', 'language': 'tr', 'shortName': 'Ara Test', 'isSuccess': False, 'update': False}
+
+==================================================
+
+--- SHEET: ServiceTestResultType ---
+HEADERS:
+['id', 'orderNumber', 'code', 'language', 'shortName', 'isSuccess', 'update', 'enabled']
+DATA (First 3 rows):
+{'id': 'BEA42DD2-8563-4E18-8710-33811DAA73E0', 'orderNumber': 1, 'code': 'Pass1', 'language': 'tr', 'shortName': 'Başarılı', 'isSuccess': True, 'update': False, 'enabled': True}
+{'id': 'CA19AD5A-3EF0-40C3-A35E-00034EB6855D', 'orderNumber': 2, 'code': 'Fail1', 'language': 'tr', 'shortName': 'Başarısız', 'isSuccess': False, 'update': False, 'enabled': True}
+{'id': '8FB5E9A9-2E10-45ED-B5AC-5A9130E55D6B', 'orderNumber': 3, 'code': 'NotRequired', 'language': 'tr', 'shortName': 'Test Gerekmiyor', 'isSuccess': False, 'update': False, 'enabled': True}
+
+==================================================
+
+--- SHEET: ServiceResultType ---
+HEADERS:
+['code', 'id', 'orderNumber', 'shortName', 'fullName', 'description', 'costCenter', 'language', 'isSuccess', 'isEnabled', 'update']
+DATA (First 3 rows):
+{'code': 'Full Functional', 'id': 'AB9FE429-0A4E-4A9E-B9AC-4CB474968684', 'orderNumber': 1, 'shortName': 'Full Functional', 'fullName': nan, 'description': nan, 'costCenter': nan, 'language': 'tr', 'isSuccess': True, 'isEnabled': nan, 'update': False}
+{'code': 'Account', 'id': '27D2D2BF-3CF7-4EC7-8A9D-5307F529FD3F', 'orderNumber': 2, 'shortName': 'Account', 'fullName': nan, 'description': nan, 'costCenter': nan, 'language': 'tr', 'isSuccess': False, 'isEnabled': 1.0, 'update': False}
+{'code': 'Account Locked', 'id': '75FF08CE-99D9-43B5-B18D-248D3799EAAE', 'orderNumber': 3, 'shortName': 'Account Locked', 'fullName': nan, 'description': nan, 'costCenter': nan, 'language': 'tr', 'isSuccess': False, 'isEnabled': nan, 'update': False}
+
+==================================================
+

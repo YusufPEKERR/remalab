@@ -1,0 +1,60 @@
+from config.database import get_db
+from repositories.stock_movement_repository import StockMovementRepository
+from repositories.stock_repository import StockRepository
+from services.exceptions import InsufficientStockError, NotFoundError, ValidationError
+
+
+class StockService:
+    def transfer(
+        self,
+        source_stock_id: int,
+        target_location_id: int,
+        quantity: int,
+        created_by: str = None,
+        unit_price: float = None,
+    ) -> None:
+        """Bir stok satırından başka bir lokasyona atomik transfer: kaynaktan düş,
+        hedefe ekle/oluştur, hareket kaydı oluştur."""
+        if quantity <= 0:
+            raise ValidationError("Miktar sıfırdan büyük olmalıdır.")
+
+        with get_db() as db:
+            stock_repo = StockRepository(db)
+            source = stock_repo.get_by_id(source_stock_id)
+            if source is None:
+                raise NotFoundError("Kaynak stok kaydı bulunamadı.")
+            if source.location_id == target_location_id:
+                raise ValidationError("Aynı depoya transfer yapılamaz.")
+            if source.quantity < quantity:
+                raise InsufficientStockError(
+                    "Kaynak lokasyonda yeterli stok bulunmuyor."
+                )
+
+            source_location_id = source.location_id
+            part_id = source.part_id
+            total_cost = unit_price * quantity if unit_price is not None else None
+
+            stock_repo.decrement(source.id, quantity)
+            stock_repo.upsert_increment(part_id, target_location_id, quantity)
+            StockMovementRepository(db).create(
+                "Transfer",
+                quantity,
+                part_id=part_id,
+                source_location_id=source_location_id,
+                target_location_id=target_location_id,
+                created_by=created_by,
+                unit_price=unit_price,
+                total_cost=total_cost,
+            )
+            db.commit()
+
+    def set_quantity(self, stock_id: int, quantity: int) -> None:
+        """Satır içi düzeltme: hareket kaydı oluşturmadan doğrudan miktarı ayarlar."""
+        if quantity < 0:
+            raise ValidationError("Miktar negatif olamaz.")
+
+        with get_db() as db:
+            stock = StockRepository(db).set_quantity(stock_id, quantity)
+            if stock is None:
+                raise NotFoundError("Stok kaydı bulunamadı.")
+            db.commit()
