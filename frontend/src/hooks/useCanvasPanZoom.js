@@ -45,10 +45,18 @@ export default function useCanvasPanZoom({ minScale = 0.15, maxScale = 3 } = {})
   // ── Pan Move ──────────────────────────────────────────────
   const onPanMove = useCallback((e) => {
     if (!isPanning.current) return;
-    const dx = e.clientX - lastPos.current.x;
-    const dy = e.clientY - lastPos.current.y;
+    const dx = typeof e.clientX === 'number' && typeof lastPos.current.x === 'number' ? e.clientX - lastPos.current.x : 0;
+    const dy = typeof e.clientY === 'number' && typeof lastPos.current.y === 'number' ? e.clientY - lastPos.current.y : 0;
     lastPos.current = { x: e.clientX, y: e.clientY };
-    setTransform(prev => ({ ...prev, x: prev.x + dx, y: prev.y + dy }));
+    setTransform(prev => {
+      const newX = prev.x + dx;
+      const newY = prev.y + dy;
+      return { 
+        ...prev, 
+        x: isNaN(newX) ? prev.x : newX, 
+        y: isNaN(newY) ? prev.y : newY 
+      };
+    });
   }, []);
 
   // ── Pan End ───────────────────────────────────────────────
@@ -115,10 +123,18 @@ export default function useCanvasPanZoom({ minScale = 0.15, maxScale = 3 } = {})
     const x = (containerRect.width / 2) - (contentCenterX * newScale);
     const y = (containerRect.height / 2) - (contentCenterY * newScale);
 
-    setTransform({ x, y, scale: newScale });
+    setTransform({ 
+      x: isNaN(x) || !isFinite(x) ? 0 : x, 
+      y: isNaN(y) || !isFinite(y) ? 0 : y, 
+      scale: isNaN(newScale) || newScale <= 0 ? 1 : newScale 
+    });
   }, [maxScale]);
 
-  const cssTransform = `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`;
+  const safeX = isNaN(transform.x) || !isFinite(transform.x) ? 0 : transform.x;
+  const safeY = isNaN(transform.y) || !isFinite(transform.y) ? 0 : transform.y;
+  const safeScale = isNaN(transform.scale) || transform.scale <= 0 || !isFinite(transform.scale) ? 1 : transform.scale;
+
+  const cssTransform = `translate(${safeX}px, ${safeY}px) scale(${safeScale})`;
 
   return {
     transform,

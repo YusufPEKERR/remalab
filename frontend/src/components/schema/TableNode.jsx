@@ -70,6 +70,8 @@ const FieldRow = memo(function FieldRow({ field, tableId, index, connectMode, on
         value={field.feName}
         onChange={handleFeChange}
         disabled={field.isFK && field.fkRef}
+        onMouseDown={e => e.stopPropagation()}
+        onClick={e => e.stopPropagation()}
         className="flex-1 min-w-0 text-[11px] font-semibold text-slate-800 dark:text-slate-200 bg-transparent border-b border-transparent hover:border-blue-300 dark:hover:border-blue-500/50 focus:border-blue-500 outline-none transition-colors px-0.5 py-0.5 disabled:opacity-60 disabled:cursor-not-allowed"
         title={field.isFK ? `FK → ${field.fkRef?.tableId}.${field.fkRef?.fieldId} (korumalı)` : 'FE alias değiştir'}
       />
@@ -153,6 +155,7 @@ const TableNode = memo(function TableNode({
               onChange={handleFeNameChange}
               className="text-[11px] font-bold text-white bg-transparent border-b border-transparent hover:border-white/30 focus:border-white/60 outline-none leading-tight mt-0.5 w-full"
               onMouseDown={e => e.stopPropagation()}
+              onClick={e => e.stopPropagation()}
             />
           </div>
         </div>

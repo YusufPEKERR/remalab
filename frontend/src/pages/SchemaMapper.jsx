@@ -210,9 +210,11 @@ export default function SchemaMapper() {
     fetchSchema();
   }, [showNotif]);
 
-  // Center view on initial load or table change (when not dragging)
+  // Center view on initial load
+  const hasCentered = useRef(false);
   useEffect(() => {
-    if (!isLoading && canvasRef.current && tables.length > 0) {
+    if (!isLoading && canvasRef.current && tables.length > 0 && !hasCentered.current) {
+      hasCentered.current = true;
       // PRO-TIP ZAMANLAMA KORUMASI: DOM mount ve render için bekle
       const timer = setTimeout(() => {
         if (canvasRef.current) {
@@ -222,7 +224,7 @@ export default function SchemaMapper() {
       }, 50);
       return () => clearTimeout(timer);
     }
-  }, [isLoading, centerView]); // Only run once when loaded
+  }, [isLoading, tables.length, centerView]); 
 
   // ── Table Drag ────────────────────────────────────────────
   const handleDragStart = useCallback((tableId, e) => {
@@ -243,9 +245,19 @@ export default function SchemaMapper() {
     if (!dragRef.current.isDragging) return;
     const { tableId, startX, startY, origX, origY } = dragRef.current;
     const scale = transform.scale;
-    const dx = (e.clientX - startX) / scale;
-    const dy = (e.clientY - startY) / scale;
-    setTables(prev => prev.map(t => t.id === tableId ? { ...t, x: origX + dx, y: origY + dy } : t));
+    const dx = typeof e.clientX === 'number' ? (e.clientX - startX) / scale : 0;
+    const dy = typeof e.clientY === 'number' ? (e.clientY - startY) / scale : 0;
+    
+    setTables(prev => {
+      if (!Array.isArray(prev)) return prev;
+      const newX = origX + dx;
+      const newY = origY + dy;
+      return prev.map(t => t.id === tableId ? { 
+        ...t, 
+        x: isNaN(newX) ? origX : newX, 
+        y: isNaN(newY) ? origY : newY 
+      } : t);
+    });
   }, [onPanMove, transform.scale]);
 
   const handleCanvasMouseUp = useCallback((e) => {
@@ -276,13 +288,19 @@ export default function SchemaMapper() {
 
   // ── FE Name Changes ───────────────────────────────────────
   const handleTableFeNameChange = useCallback((tableId, newName) => {
-    setTables(prev => prev.map(t => t.id === tableId ? { ...t, feName: newName } : t));
+    setTables(prev => {
+      if (!Array.isArray(prev)) return prev;
+      return prev.map(t => t.id === tableId ? { ...t, feName: newName } : t);
+    });
   }, []);
 
   const handleFieldFeNameChange = useCallback((tableId, fieldId, newName) => {
-    setTables(prev => prev.map(t => t.id === tableId ? {
-      ...t, fields: t.fields.map(f => f.id === fieldId ? { ...f, feName: newName } : f)
-    } : t));
+    setTables(prev => {
+      if (!Array.isArray(prev)) return prev;
+      return prev.map(t => t.id === tableId ? {
+        ...t, fields: Array.isArray(t.fields) ? t.fields.map(f => f.id === fieldId ? { ...f, feName: newName } : f) : t.fields
+      } : t);
+    });
   }, []);
 
   // ── Connect Mode (Click & Connect) ────────────────────────
@@ -305,13 +323,16 @@ export default function SchemaMapper() {
         targetFieldId: fieldId,
         relationType: 'many-to-one',
       };
-      setEdges(prev => [...prev, newEdge]);
+      setEdges(prev => Array.isArray(prev) ? [...prev, newEdge] : [newEdge]);
       // Mark source field as FK
-      setTables(prev => prev.map(t => t.id === connectSource.tableId ? {
-        ...t, fields: t.fields.map(f => f.id === connectSource.fieldId ? {
-          ...f, isFK: true, type: 'relation', fkRef: { tableId, fieldId }
-        } : f)
-      } : t));
+      setTables(prev => {
+        if (!Array.isArray(prev)) return prev;
+        return prev.map(t => t.id === connectSource.tableId ? {
+          ...t, fields: Array.isArray(t.fields) ? t.fields.map(f => f.id === connectSource.fieldId ? {
+            ...f, isFK: true, type: 'relation', fkRef: { tableId, fieldId }
+          } : f) : t.fields
+        } : t);
+      });
       setConnectSource(null);
       setConnectMode(false);
       showNotif('Bağlantı başarıyla oluşturuldu!');
@@ -341,11 +362,14 @@ export default function SchemaMapper() {
     const edge = edges.find(e => e.id === edgeId);
     if (edge) {
       // Remove FK flag from source field
-      setTables(prev => prev.map(t => t.id === edge.sourceTableId ? {
-        ...t, fields: t.fields.map(f => f.id === edge.sourceFieldId ? { ...f, isFK: false, type: 'int', fkRef: null } : f)
-      } : t));
+      setTables(prev => {
+        if (!Array.isArray(prev)) return prev;
+        return prev.map(t => t.id === edge.sourceTableId ? {
+          ...t, fields: Array.isArray(t.fields) ? t.fields.map(f => f.id === edge.sourceFieldId ? { ...f, isFK: false, type: 'int', fkRef: null } : f) : t.fields
+        } : t);
+      });
     }
-    setEdges(prev => prev.filter(e => e.id !== edgeId));
+    setEdges(prev => Array.isArray(prev) ? prev.filter(e => e.id !== edgeId) : []);
     setSelectedEdgeId(null);
     showNotif('Bağlantı silindi.');
   }, [edges, showNotif]);
