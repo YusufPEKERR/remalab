@@ -745,6 +745,12 @@ class WebBridge(QObject):
         from sqlalchemy import text
         db = SessionLocal()
         try:
+            db.execute(text("""
+                CREATE TABLE IF NOT EXISTS warehouse.part_categories (
+                    id SERIAL PRIMARY KEY,
+                    name VARCHAR(100) NOT NULL
+                );
+            """))
             db.execute(text("ALTER TABLE warehouse.part_categories ADD COLUMN IF NOT EXISTS departments VARCHAR(255);"))
             db.execute(text("ALTER TABLE warehouse.part_categories ADD COLUMN IF NOT EXISTS stock_tracking_type VARCHAR(20) DEFAULT 'Stok Takipli';"))
             db.execute(text("ALTER TABLE warehouse.part_categories ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;"))
