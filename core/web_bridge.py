@@ -4208,10 +4208,12 @@ class WebBridge(QObject):
                 payload = json.loads(payload_str)
                 wop_id_str = str(payload.get('id', ''))
                 reason_str = str(payload.get('reason', ''))
+                username = str(payload.get('username', 'System'))
             except Exception:
                 # Geriye dönük uyumluluk (sadece ID gelirse)
                 wop_id_str = str(payload_str)
                 reason_str = ''
+                username = 'System'
 
             if wop_id_str.startswith('pm_'):
                 return json.dumps({"success": False, "message": "Üretimi tamamlanmış cihazların parçaları silinemez/iptal edilemez."})
@@ -7119,7 +7121,6 @@ class WebBridge(QObject):
     def execute_statu_transition(self, service_record_id, current_statu_code, target_statu_code, request_type_code, test_result_code):
         from services.state_machine_service import StateMachineService
         from services.repair_service import RepairService
-        from models.service_record import ServiceRecord
         
         db = SessionLocal()
         try:
