@@ -13,12 +13,9 @@ class StateMachineService:
         Belirtilen statüden gidilebilecek olası (izinli) bir sonraki statüleri döndürür.
         """
         transitions = self.db.query(ServiceStatuMap).filter_by(
-            parent_statu=current_statu_code, 
+            parent_statu=current_statu_code,
             enabled=True
-        ).order_number.asc().all() if hasattr(ServiceStatuMap, 'order_number') else self.db.query(ServiceStatuMap).filter_by(
-            parent_statu=current_statu_code, 
-            enabled=True
-        ).all()
+        ).order_by(ServiceStatuMap.order_number.asc()).all()
         
         results = []
         for trans in transitions:

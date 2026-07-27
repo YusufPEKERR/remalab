@@ -6542,6 +6542,13 @@ class WebBridge(QObject):
                     ) THEN
                         ALTER TABLE warehouse.batch_entries ADD COLUMN created_by VARCHAR(100) DEFAULT 'io';
                     END IF;
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_schema = 'warehouse' AND table_name = 'batch_entries' AND column_name = 'statu_code'
+                    ) THEN
+                        ALTER TABLE warehouse.batch_entries ADD COLUMN statu_code INTEGER DEFAULT 100;
+                        UPDATE warehouse.batch_entries SET statu_code = 100 WHERE statu_code IS NULL;
+                    END IF;
                 END $$;
             """))
             # Müşteri para birimlerini batch_entries tablosuna senkronize et
@@ -7109,6 +7116,57 @@ class WebBridge(QObject):
     # ---------------------------------------------------------
     # MODUL 5: STATE MACHINE VE DOA GUARDRAIL ENDPOINTLERI
     # ---------------------------------------------------------
+    @Slot(str, result=str)
+    def get_device_by_barcode(self, barcode):
+        """Barkod/IMEI okutulduğunda ilgili iş emrini ve mevcut statü kodunu bulur."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            if not barcode or not barcode.strip():
+                return json.dumps({"success": False, "message": "Barkod/IMEI boş olamaz"})
+
+            term = barcode.strip()
+
+            sr = db.execute(text("""
+                SELECT id, customer_name, brand, model, imei_number, imei_serial
+                FROM warehouse.service_records
+                WHERE LOWER(TRIM(imei_number)) = LOWER(:term) OR LOWER(TRIM(imei_serial)) = LOWER(:term)
+                ORDER BY id DESC LIMIT 1
+            """), {"term": term}).mappings().first()
+
+            if not sr:
+                return json.dumps({"success": False, "message": f"'{term}' için kayıtlı bir cihaz bulunamadı."})
+
+            wo = db.execute(text("""
+                SELECT id, status
+                FROM warehouse.work_orders
+                WHERE service_record_id = :sr_id AND work_order_type = 'SERVICE'
+                ORDER BY id DESC LIMIT 1
+            """), {"sr_id": sr["id"]}).mappings().first()
+
+            if not wo:
+                return json.dumps({"success": False, "message": "Bu cihaza ait bir iş emri bulunamadı."})
+
+            try:
+                current_statu_code = int(wo["status"])
+            except (TypeError, ValueError):
+                current_statu_code = 100  # Henüz numaralı statü akışına alınmamış eski/legacy iş emri
+
+            return json.dumps({
+                "success": True,
+                "work_order_id": wo["id"],
+                "service_record_id": sr["id"],
+                "imei": sr["imei_number"] or sr["imei_serial"] or term,
+                "customer_name": sr["customer_name"],
+                "model": " ".join(filter(None, [sr["brand"], sr["model"]])) or None,
+                "current_statu_code": current_statu_code,
+                "raw_status": wo["status"],
+            })
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
     @Slot(int, result=str)
     def get_allowed_transitions(self, current_statu_code):
         from services.state_machine_service import StateMachineService
@@ -7173,6 +7231,110 @@ class WebBridge(QObject):
                 
             db.commit()
             return json.dumps({"success": True, "new_statu_code": new_statu, "message": result.get("message")})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    # ---------------------------------------------------------
+    # PARTI/BATCH STATU GECIS EKRANI (ortak kullanilan basit ekran)
+    # Kod tablosu ve gecis kurallari service_statu / service_statu_map
+    # uzerinden okunur; sadece hedef kayit batch_entries.statu_code'dur.
+    # ---------------------------------------------------------
+    def _find_batch_entry_by_term(self, db, term):
+        from models.batch_entry import BatchEntry
+        from sqlalchemy import func as sqlfunc
+        term_clean = term.strip()
+        return db.query(BatchEntry).filter(
+            (sqlfunc.lower(sqlfunc.trim(BatchEntry.imei_number)) == term_clean.lower()) |
+            (sqlfunc.lower(sqlfunc.trim(BatchEntry.serial_number)) == term_clean.lower()) |
+            (sqlfunc.lower(sqlfunc.trim(BatchEntry.internal_id)) == term_clean.lower()) |
+            (sqlfunc.lower(sqlfunc.trim(BatchEntry.batch_no)) == term_clean.lower())
+        ).order_by(BatchEntry.id.desc()).first()
+
+    @Slot(str, result=str)
+    def scan_batch_entry_statu(self, term):
+        """IMEI/Seri/Internal ID/Batch No okutulduğunda partiyi bulur, mevcut statüsünü
+        ve (varsa) izinli bir sonraki statüsünü/statülerini döner. Geçişi uygulamaz."""
+        from models.service_statu import ServiceStatu
+        from services.state_machine_service import StateMachineService
+        db = SessionLocal()
+        try:
+            if not term or not term.strip():
+                return json.dumps({"success": False, "message": "IMEI/Seri/Internal ID/Batch No boş olamaz"})
+
+            entry = self._find_batch_entry_by_term(db, term)
+            if not entry:
+                return json.dumps({"success": False, "message": f"'{term.strip()}' için kayıtlı bir parti/cihaz bulunamadı."})
+
+            current_code = entry.statu_code if entry.statu_code is not None else 100
+            current_statu = db.query(ServiceStatu).filter_by(code=current_code).first()
+            current_name = current_statu.short_name if current_statu else str(current_code)
+
+            svc = StateMachineService(db)
+            transitions = svc.get_allowed_transitions(current_code)
+
+            return json.dumps({
+                "success": True,
+                "entry_id": entry.id,
+                "imei": entry.imei_number or entry.serial_number or entry.internal_id or "",
+                "batch_no": entry.batch_no or "",
+                "flow": entry.flow or "",
+                "current_statu_code": current_code,
+                "current_statu_name": current_name,
+                "transitions": transitions,
+            })
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, int, int, result=str)
+    def execute_batch_entry_statu_transition(self, entry_id, current_statu_code, target_statu_code):
+        """Partiyi belirtilen kaynak statüden hedef statüye taşır. Kaynak statü kaydın
+        mevcut durumuyla eşleşmiyorsa veya geçiş kuralı tanımlı değilse hata döner."""
+        from models.batch_entry import BatchEntry
+        from models.service_statu import ServiceStatu
+        from services.state_machine_service import StateMachineService
+        db = SessionLocal()
+        try:
+            entry = db.query(BatchEntry).filter(BatchEntry.id == int(entry_id)).first()
+            if not entry:
+                return json.dumps({"success": False, "message": "Parti/cihaz bulunamadı."})
+
+            actual_code = entry.statu_code if entry.statu_code is not None else 100
+
+            def statu_name(code):
+                s = db.query(ServiceStatu).filter_by(code=code).first()
+                return s.short_name if s else str(code)
+
+            device_label = " ".join(filter(None, [entry.imei_number, entry.batch_no, entry.flow]))
+
+            if actual_code != current_statu_code:
+                return json.dumps({
+                    "success": False,
+                    "message": f"{device_label} mevcut statüsü ({statu_name(actual_code)}) bu okutmaya uygun statü değil."
+                })
+
+            svc = StateMachineService(db)
+            if not svc.validate_transition(current_statu_code, target_statu_code):
+                return json.dumps({
+                    "success": False,
+                    "message": f"{device_label} mevcut statüsü ({statu_name(actual_code)}) bu okutmaya uygun statü değil."
+                })
+
+            old_name = statu_name(current_statu_code)
+            new_name = statu_name(target_statu_code)
+
+            entry.statu_code = target_statu_code
+            db.commit()
+
+            return json.dumps({
+                "success": True,
+                "new_statu_code": target_statu_code,
+                "message": f"{device_label} {old_name} statüsünden {new_name} statüsüne alındı."
+            })
         except Exception as e:
             db.rollback()
             return json.dumps({"success": False, "message": str(e)})
