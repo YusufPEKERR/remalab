@@ -81,7 +81,8 @@ const CustomerApprovalDecision = () => {
       const data = await api.executeBatchEntryStatuTransition(entry.entry_id, SOURCE_STATU, targetStatu);
       if (data.success) {
         showNotification("success", data.message);
-        setItems((prev) => prev.filter((it) => it.entry_id !== entry.entry_id));
+        const decision = targetStatu === APPROVE_TARGET ? "approved" : "rejected";
+        setItems((prev) => prev.map((it) => (it.entry_id === entry.entry_id ? { ...it, decision } : it)));
       } else {
         showNotification("error", data.message);
       }
@@ -147,22 +148,34 @@ const CustomerApprovalDecision = () => {
                   <p className="text-xs text-slate-400 truncate">{entry.batch_no} · {entry.flow}</p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    onClick={() => handleDecision(entry, REJECT_TARGET)}
-                    disabled={processingId === entry.entry_id}
-                    title="Red geldi"
-                    className="w-10 h-10 flex items-center justify-center rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 transition-colors disabled:opacity-40"
-                  >
-                    <X size={18} />
-                  </button>
-                  <button
-                    onClick={() => handleDecision(entry, APPROVE_TARGET)}
-                    disabled={processingId === entry.entry_id}
-                    title="Onay geldi"
-                    className="w-10 h-10 flex items-center justify-center rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 border border-emerald-500/20 transition-colors disabled:opacity-40"
-                  >
-                    <Check size={18} />
-                  </button>
+                  {entry.decision === "approved" ? (
+                    <span className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-xs font-bold">
+                      <Check size={14} /> Onayladım
+                    </span>
+                  ) : entry.decision === "rejected" ? (
+                    <span className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-red-500/10 text-red-500 border border-red-500/20 text-xs font-bold">
+                      <X size={14} /> Red Verdim
+                    </span>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => handleDecision(entry, REJECT_TARGET)}
+                        disabled={processingId === entry.entry_id}
+                        title="Red geldi"
+                        className="w-10 h-10 flex items-center justify-center rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 transition-colors disabled:opacity-40"
+                      >
+                        <X size={18} />
+                      </button>
+                      <button
+                        onClick={() => handleDecision(entry, APPROVE_TARGET)}
+                        disabled={processingId === entry.entry_id}
+                        title="Onay geldi"
+                        className="w-10 h-10 flex items-center justify-center rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 border border-emerald-500/20 transition-colors disabled:opacity-40"
+                      >
+                        <Check size={18} />
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             ))}
