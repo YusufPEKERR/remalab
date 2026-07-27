@@ -29,7 +29,7 @@ const TYPE_COLORS = {
 };
 
 // ── Field Row ───────────────────────────────────────────────
-const FieldRow = memo(function FieldRow({ field, tableId, index, connectMode, onFieldClick, onFieldFeNameChange }) {
+const FieldRow = memo(function FieldRow({ field, tableId, tableDbName, index, connectMode, onFieldClick, onFieldFeNameChange }) {
   const handleFeChange = useCallback((e) => {
     onFieldFeNameChange?.(tableId, field.id, e.target.value);
   }, [tableId, field.id, onFieldFeNameChange]);
@@ -56,10 +56,18 @@ const FieldRow = memo(function FieldRow({ field, tableId, index, connectMode, on
         {field.isFK && !field.isPK && <Link2 size={12} className="text-rose-400" strokeWidth={2.5} />}
       </div>
 
-      {/* DB Column Name */}
-      <span className="text-[11px] font-mono text-slate-500 dark:text-slate-500 w-[72px] truncate shrink-0" title={field.dbName}>
-        {field.dbName}
-      </span>
+      {/* DB Column Name / Cross-Table Badge */}
+      <div className="flex shrink-0 items-center overflow-hidden" style={{ width: field.dbTable && field.dbTable !== tableDbName ? '100px' : '72px' }}>
+        {field.dbTable && field.dbTable !== tableDbName ? (
+          <span className="inline-flex items-center gap-1 px-1 py-0.5 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded text-[9px] border border-blue-200 dark:border-blue-500/20 truncate" title="Çapraz Tablo">
+            🔗 {field.dbTable}.{field.dbName}
+          </span>
+        ) : (
+          <span className="text-[11px] font-mono text-slate-500 dark:text-slate-500 truncate w-full" title={field.dbName}>
+            {field.dbName}
+          </span>
+        )}
+      </div>
 
       {/* Arrow */}
       <span className="text-[9px] text-slate-300 dark:text-slate-600 shrink-0">→</span>
@@ -168,6 +176,7 @@ const TableNode = memo(function TableNode({
               key={field.id}
               field={field}
               tableId={table.id}
+              tableDbName={table.dbName}
               index={i}
               connectMode={connectMode}
               onFieldClick={onFieldClick}

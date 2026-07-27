@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
-  Plus, Link2, Save, Search, X, Maximize2, ZoomIn, ZoomOut,
+  Plus, Link2, Save, Search, X, Maximize2, ZoomIn, ZoomOut, AlertTriangle,
   Database, Code, ArrowRight, Trash2, Info, CheckCircle, Table2, Map, List, ChevronRight
 } from 'lucide-react';
 import useCanvasPanZoom from '../hooks/useCanvasPanZoom';
@@ -329,6 +329,21 @@ export default function SchemaMapper() {
     });
   }, []);
 
+  const handleDbTableChange = useCallback((tableId, fieldId, newDbTable) => {
+    setTables(prev => {
+      if (!Array.isArray(prev)) return prev;
+      return prev.map(t => {
+        if (t.id === tableId) {
+          return {
+            ...t,
+            fields: Array.isArray(t.fields) ? t.fields.map(f => f.id === fieldId ? { ...f, dbTable: newDbTable, dbName: "" } : f) : t.fields
+          };
+        }
+        return t;
+      });
+    });
+  }, []);
+
   // ── Connect Mode (Click & Connect) ────────────────────────
   const handleFieldClick = useCallback((tableId, fieldId) => {
     if (!connectMode) return;
@@ -408,14 +423,41 @@ export default function SchemaMapper() {
       tables: tables.map(t => ({
         dbName: t.dbName,
         feName: t.feName,
-        fields: t.fields.map(f => ({
-          dbName: f.dbName,
-          feName: f.feName,
-          type: f.type,
-          isPK: f.isPK,
-          isFK: f.isFK,
-          fkRef: f.fkRef,
-        })),
+        fields: t.fields.map(f => {
+          const isCrossTable = f.dbTable && f.dbTable !== t.dbName;
+          let relationPath = undefined;
+          
+          if (isCrossTable) {
+            const otherTable = tables.find(tbl => tbl.dbName === f.dbTable);
+            if (otherTable) {
+              const edge = edges.find(e => 
+                (e.sourceTableId === t.id && e.targetTableId === otherTable.id) ||
+                (e.targetTableId === t.id && e.sourceTableId === otherTable.id)
+              );
+              if (edge) {
+                // If there is an edge, find the foreign key column name
+                const isSource = edge.sourceTableId === t.id;
+                const fkFieldId = isSource ? edge.sourceFieldId : edge.targetFieldId;
+                const fkTable = isSource ? t : otherTable;
+                const fkField = fkTable.fields.find(fld => fld.id === fkFieldId);
+                if (fkField) {
+                  relationPath = fkField.dbName;
+                }
+              }
+            }
+          }
+          
+          return {
+            dbName: f.dbName,
+            feName: f.feName,
+            type: f.type,
+            isPK: f.isPK,
+            isFK: f.isFK,
+            fkRef: f.fkRef,
+            ...(isCrossTable && { dbTable: f.dbTable, isReadOnly: true }),
+            ...(relationPath && { relationPath })
+          };
+        }),
       })),
       edges: edges.map(e => ({
         source: `${tables.find(t => t.id === e.sourceTableId)?.dbName}.${tables.find(t => t.id === e.sourceTableId)?.fields.find(f => f.id === e.sourceFieldId)?.dbName}`,
@@ -797,12 +839,26 @@ export default function SchemaMapper() {
                       <thead>
                         <tr className="bg-slate-50 dark:bg-[#0f1219] border-b border-slate-200 dark:border-[#30363D]">
                           <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Uygulama Alanı (FE Name)</th>
-                          <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest w-32">Veri Tipi</th>
-                          <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest w-1/2">Veritabanı Sütunu (DB Name)</th>
+                          <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest w-24">Veri Tipi</th>
+                          <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest w-48">Veritabanı Tablosu</th>
+                          <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest w-48">Veritabanı Sütunu (DB Name)</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 dark:divide-[#30363D]">
-                        {selectedTable.fields.map(f => (
+                        {selectedTable.fields.map(f => {
+                          const currentDbTable = f.dbTable || selectedTable.dbName;
+                          const targetTable = tables.find(t => t.dbName === currentDbTable) || selectedTable;
+                          const isCrossTable = currentDbTable !== selectedTable.dbName;
+                          
+                          let hasEdge = false;
+                          if (isCrossTable) {
+                             hasEdge = edges.some(e => 
+                               (e.sourceTableId === selectedTable.id && e.targetTableId === targetTable.id) ||
+                               (e.targetTableId === selectedTable.id && e.sourceTableId === targetTable.id)
+                             );
+                          }
+
+                          return (
                           <tr key={f.id} className="hover:bg-slate-50/50 dark:hover:bg-[#0f1219]/50 transition-colors">
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-2">
@@ -818,16 +874,39 @@ export default function SchemaMapper() {
                             </td>
                             <td className="px-4 py-3">
                               <div className="relative flex items-center">
+                                <Table2 size={14} className="absolute left-3 text-slate-400" />
+                                <select
+                                  value={currentDbTable}
+                                  onChange={(e) => handleDbTableChange(selectedTable.id, f.id, e.target.value)}
+                                  className="w-full pl-9 pr-8 py-2 rounded-lg border border-slate-200 dark:border-[#30363D] bg-white dark:bg-[#161B22] text-sm text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-blue-500 outline-none appearance-none cursor-pointer transition-colors"
+                                >
+                                  {tables.map(t => (
+                                    <option key={t.id} value={t.dbName}>{t.dbName}</option>
+                                  ))}
+                                </select>
+                                <ChevronRight size={14} className="absolute right-3 text-slate-400 pointer-events-none rotate-90" />
+                              </div>
+                              {isCrossTable && !hasEdge && (
+                                <div className="mt-1 flex items-center gap-1 text-[9px] text-amber-500 font-bold px-1">
+                                  <AlertTriangle size={10} /> FK Yok
+                                </div>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="relative flex items-center">
                                 <Database size={14} className="absolute left-3 text-slate-400" />
                                 <select
                                   value={f.dbName || ''}
                                   onChange={(e) => handleDbNameChange(selectedTable.id, f.id, e.target.value)}
-                                  className="w-full pl-9 pr-8 py-2 rounded-lg border border-slate-200 dark:border-[#30363D] bg-white dark:bg-[#161B22] text-sm text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-blue-500 outline-none appearance-none cursor-pointer transition-colors"
+                                  className={`w-full pl-9 pr-8 py-2 rounded-lg border bg-white dark:bg-[#161B22] text-sm text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-blue-500 outline-none appearance-none cursor-pointer transition-colors ${
+                                    isCrossTable && !hasEdge ? 'border-amber-200 dark:border-amber-500/30' : 'border-slate-200 dark:border-[#30363D]'
+                                  }`}
                                 >
-                                  {Array.from(new Set(selectedTable.fields.map(field => field.dbName))).map(dbCol => (
+                                  <option value="" disabled>Seçiniz</option>
+                                  {Array.from(new Set(targetTable.fields.map(field => field.dbName))).map(dbCol => (
                                     <option key={dbCol} value={dbCol}>{dbCol}</option>
                                   ))}
-                                  {!selectedTable.fields.some(field => field.dbName === f.dbName) && f.dbName && (
+                                  {!targetTable.fields.some(field => field.dbName === f.dbName) && f.dbName && (
                                     <option value={f.dbName}>{f.dbName}</option>
                                   )}
                                 </select>
@@ -835,7 +914,8 @@ export default function SchemaMapper() {
                               </div>
                             </td>
                           </tr>
-                        ))}
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
