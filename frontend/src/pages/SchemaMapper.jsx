@@ -809,6 +809,15 @@ export default function SchemaMapper() {
                   if (dbNameLower === 'batch' || t.id === 'tbl_batch') displayName = 'Batch Girişi Yönetimi';
                   if (dbNameLower === 'itemcategory' || dbNameLower === 'item_category' || t.id === 'tbl_item_category') displayName = 'Parça Kategorileri';
                   
+                  let moduleName = "Sistem / Diğer";
+                  if (dbNameLower.includes('item') || dbNameLower.includes('part') || dbNameLower.includes('brand') || dbNameLower.includes('model')) moduleName = "Stok Yönetimi";
+                  if (dbNameLower.includes('batch')) moduleName = "Toplu İşlemler";
+                  if (dbNameLower.includes('service') || dbNameLower.includes('work_order')) moduleName = "Servis Yönetimi";
+                  if (dbNameLower.includes('mission') || dbNameLower.includes('workgroup') || dbNameLower.includes('department')) moduleName = "Operasyon";
+                  if (dbNameLower.includes('user') || dbNameLower.includes('auth') || dbNameLower.includes('role')) moduleName = "Kullanıcı & Yetki";
+                  if (dbNameLower.includes('customer')) moduleName = "Müşteri Yönetimi";
+                  if (dbNameLower.includes('supplier')) moduleName = "Tedarikçi Yönetimi";
+
                   return (
                     <button
                       key={t.id}
@@ -820,9 +829,14 @@ export default function SchemaMapper() {
                       }`}
                     >
                       <span className="font-bold">{displayName}</span>
-                      <span className="text-[10px] font-mono opacity-70 mt-0.5 flex items-center gap-1">
-                        <Database size={10} /> {t.dbName}
-                      </span>
+                      <div className="flex items-center justify-between mt-1 w-full gap-2">
+                        <span className="text-[10px] font-mono opacity-70 flex items-center gap-1 truncate">
+                          <Database size={10} className="shrink-0" /> <span className="truncate">{t.dbName}</span>
+                        </span>
+                        <span className="text-[8px] uppercase tracking-wider font-bold px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-sm shrink-0">
+                          {moduleName}
+                        </span>
+                      </div>
                     </button>
                   );
               })}
