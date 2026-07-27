@@ -720,7 +720,6 @@ export default function SchemaMapper() {
                       </div>
                     </div>
                   </div>
-                </div>
               )}
 
               {/* ── Edge Inspector ──────────────── */}
