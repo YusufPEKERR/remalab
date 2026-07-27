@@ -603,7 +603,7 @@ export default function SchemaMapper() {
             style={{ transform: cssTransform }}
           >
             {/* SVG Layer for Edges */}
-            <svg className="absolute top-0 left-0 pointer-events-none" style={{ width: 4000, height: 4000, overflow: 'visible' }}>
+            <svg className="absolute top-0 left-0 pointer-events-none" style={{ width: '100vw', height: '100vh', overflow: 'visible' }}>
               <g className="pointer-events-auto">
                 {edgePositions.map(ep => (
                   <BezierEdge
