@@ -416,6 +416,27 @@ export default function SchemaMapper() {
     setSearchTerm('');
   }, [tables, setTransform]);
 
+  const handleSearchChange = useCallback((e) => {
+    const val = e.target.value;
+    setSearchTerm(val);
+    const query = val.trim().toLowerCase();
+    const isShowAllCommand = ["tüm tablolar", "tümü", "hepsi", "all", "*", "listele"].includes(query);
+
+    if (isShowAllCommand || query === "") {
+      setSelectedTableId(null);
+      if (isShowAllCommand) {
+        requestAnimationFrame(() => {
+          if (canvasRef.current) {
+            const rect = canvasRef.current.getBoundingClientRect();
+            centerView(tables, rect);
+          }
+          setSearchTerm('');
+          showNotif('Tüm tablolar görünür hale getirildi ve hizalandı.', 'success');
+        });
+      }
+    }
+  }, [tables, centerView, showNotif]);
+
   const filteredSearch = useMemo(() => {
     if (!searchTerm.trim()) return [];
     const term = searchTerm.toLowerCase();
@@ -483,8 +504,13 @@ export default function SchemaMapper() {
           {/* Search */}
           <div className="relative">
             <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Tablo ara..." className="pl-8 pr-3 py-1.5 w-44 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#0f1219] text-xs text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-blue-500 outline-none" />
-            {filteredSearch.length > 0 && (
+            <input 
+              value={searchTerm} 
+              onChange={handleSearchChange} 
+              placeholder="Tablo ara veya 'tümü' yaz..." 
+              className="pl-8 pr-3 py-1.5 w-48 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#0f1219] text-xs text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-blue-500 outline-none transition-all" 
+            />
+            {filteredSearch.length > 0 && !["tüm tablolar", "tümü", "hepsi", "all", "*", "listele"].includes(searchTerm.trim().toLowerCase()) && (
               <div className="absolute top-full left-0 mt-1 w-60 bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-30 overflow-hidden">
                 {filteredSearch.map(t => (
                   <button key={t.id} onClick={() => handleSearchFocus(t.id)} className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors text-left">
