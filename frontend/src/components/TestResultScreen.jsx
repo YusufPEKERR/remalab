@@ -60,9 +60,14 @@ export default function TestResultScreen({
   };
 
   const toggleFault = (id) => {
-    setSelectedFaultIds(prev =>
-      prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id]
-    );
+    setSelectedFaultIds(prev => {
+      if (prev.includes(id)) return prev.filter(f => f !== id);
+      if (prev.length >= 10) {
+        showNotification('error', 'En fazla 10 hatalı parça / hata kodu seçebilirsiniz.');
+        return prev;
+      }
+      return [...prev, id];
+    });
   };
 
   const resolveEntry = async (imei) => {

@@ -7801,7 +7801,7 @@ class WebBridge(QObject):
         result='fail' ise açıklama ve en az bir hatalı parça/hata kodu zorunludur, cihaz fail_statu_code'a geri döner."""
         from models.batch_entry import BatchEntry
         from models.service_statu import ServiceStatu
-        from models.test_detected_part import TestDetectedPart
+        from models.test_result_fault import TestResultFault
         from models.repair_record import RepairRecord
         from services.state_machine_service import StateMachineService
         db = SessionLocal()
@@ -7835,6 +7835,8 @@ class WebBridge(QObject):
                     fault_lines = []
                 if not fault_lines:
                     return json.dumps({"success": False, "message": "En az bir hatalı parça / hata kodu seçmelisiniz."})
+                if len(fault_lines) > 10:
+                    return json.dumps({"success": False, "message": "En fazla 10 hatalı parça / hata kodu seçebilirsiniz."})
 
                 timestamp = __import__("datetime").datetime.now().strftime('%d.%m.%Y %H:%M')
                 note = f"[{timestamp}] Test Başarısız — {description.strip()}\nHatalı Parçalar: " + "; ".join(fault_lines)
@@ -7843,13 +7845,16 @@ class WebBridge(QObject):
                 device_ref = entry.imei_number or entry.batch_no or str(entry.id)
                 for fault_line in fault_lines:
                     if ": " in fault_line:
-                        part_category, symptom_code = fault_line.split(": ", 1)
+                        part_category, fault_text = fault_line.split(": ", 1)
                     else:
-                        part_category, symptom_code = None, fault_line
-                    db.add(TestDetectedPart(
-                        device_ref=device_ref,
-                        symptom_code=f"{symptom_code} — {description.strip()}",
+                        part_category, fault_text = None, fault_line
+                    db.add(TestResultFault(
+                        service_id=entry.id,
+                        imei_number=entry.imei_number,
+                        internal_id=entry.internal_id,
                         part_category=part_category,
+                        fault_text=fault_text,
+                        description=description.strip(),
                         created_by=getattr(entry, "created_by", None)
                     ))
 
