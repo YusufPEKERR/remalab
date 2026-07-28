@@ -7801,6 +7801,7 @@ class WebBridge(QObject):
         result='fail' ise açıklama ve en az bir hatalı parça/hata kodu zorunludur, cihaz fail_statu_code'a geri döner."""
         from models.batch_entry import BatchEntry
         from models.service_statu import ServiceStatu
+        from models.test_detected_part import TestDetectedPart
         from services.state_machine_service import StateMachineService
         db = SessionLocal()
         try:
@@ -7837,6 +7838,19 @@ class WebBridge(QObject):
                 timestamp = __import__("datetime").datetime.now().strftime('%d.%m.%Y %H:%M')
                 note = f"[{timestamp}] Test Başarısız — {description.strip()}\nHatalı Parçalar: " + "; ".join(fault_lines)
                 entry.defects = (entry.defects + "\n\n" + note) if entry.defects else note
+
+                device_ref = entry.imei_number or entry.batch_no or str(entry.id)
+                for fault_line in fault_lines:
+                    if ": " in fault_line:
+                        part_category, symptom_code = fault_line.split(": ", 1)
+                    else:
+                        part_category, symptom_code = None, fault_line
+                    db.add(TestDetectedPart(
+                        device_ref=device_ref,
+                        symptom_code=f"{symptom_code} — {description.strip()}",
+                        part_category=part_category,
+                        created_by=getattr(entry, "created_by", None)
+                    ))
 
                 target_statu_code = fail_statu_code
             else:
