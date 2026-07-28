@@ -13,14 +13,12 @@ import Irsaliye from './pages/Irsaliye';
 import WorkOrders from './pages/WorkOrders';
 
 import ImeiTracker from './pages/ImeiTracker';
-import SupplyRequests from './pages/SupplyRequests';
 import Raporlar from './pages/Raporlar';
 import Settings from './pages/Settings';
 import Departments from './pages/Departments';
 import ServiceRecords from './pages/ServiceRecords';
 import BatchEntry from './pages/BatchEntry';
 import DataManagement from './pages/DataManagement';
-import SupplyRequestForm from './pages/SupplyRequestForm';
 import MainLayout from './layouts/MainLayout';
 import ItemBOM from './pages/ItemBOM';
 
@@ -51,7 +49,6 @@ function App() {
             <Route path="/irsaliye" element={<Irsaliye />} />
             <Route path="/work-orders" element={<WorkOrders />} />
 
-            <Route path="/supply-requests" element={<SupplyRequests />} />
             <Route path="/raporlar" element={<Raporlar />} />
 
             {/* ENVANTER */}
@@ -68,8 +65,6 @@ function App() {
             <Route path="/departments" element={<Departments />} />
             <Route path="/service-records" element={<ServiceRecords />} />
             <Route path="/data-management" element={<DataManagement />} />
-            <Route path="/tedarik-talepleri" element={<SupplyRequestForm />} />
-            <Route path="/batch-entry" element={<BatchEntry />} />
 
             {/* HIDDEN MODULES */}
             <Route path="/item-bom" element={<ItemBOM />} />

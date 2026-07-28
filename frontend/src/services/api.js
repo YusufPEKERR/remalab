@@ -958,49 +958,6 @@ export const api = {
         });
     },
 
-    createSupplyRequest: async (workOrderId, partId, quantity, notes, username) => {
-        const backend = await getBackend();
-        return new Promise((resolve) => {
-            if (backend.create_supply_request) {
-                backend.create_supply_request(String(workOrderId), String(partId), String(quantity), notes || '', username || '', (res) => resolve(JSON.parse(res)));
-            } else {
-                resolve({ success: true });
-            }
-        });
-    },
-
-    getSupplyRequests: async () => {
-        const backend = await getBackend();
-        return new Promise((resolve) => {
-            if (backend.get_supply_requests) {
-                backend.get_supply_requests((res) => resolve(JSON.parse(res)));
-            } else {
-                resolve({ success: true, requests: [] });
-            }
-        });
-    },
-
-    getSupplyRequestHistory: async (username) => {
-        const backend = await getBackend();
-        return new Promise((resolve) => {
-            if (backend.get_supply_request_history) {
-                backend.get_supply_request_history(username || '', (res) => resolve(JSON.parse(res)));
-            } else {
-                resolve({ success: true, requests: [] });
-            }
-        });
-    },
-
-    cancelSupplyRequest: async (wopId, username) => {
-        const backend = await getBackend();
-        return new Promise((resolve) => {
-            if (backend.cancel_supply_request) {
-                backend.cancel_supply_request(String(wopId), username || '', (res) => resolve(JSON.parse(res)));
-            } else {
-                resolve({ success: true });
-            }
-        });
-    },
 
     // ==========================
     // ÜRETİM (Yarı Mamul / Malzeme Tüketimi / Geçmiş)

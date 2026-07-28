@@ -125,8 +125,6 @@ export default function MainLayout() {
         { name: 'İş Emirleri', icon: ClipboardList, path: '/work-orders' },
         { name: 'Servis Onarımları', icon: Wrench, path: '/technician-repair' },
 
-        { name: 'Tedarik İstekleri', icon: PackageSearch, path: '/supply-requests' },
-        { name: 'Tedarik Talepleri', icon: PackagePlus, path: '/tedarik-talepleri' },
         { name: 'Raporlar', icon: BarChart2, path: '/raporlar' }
       ]
     },
