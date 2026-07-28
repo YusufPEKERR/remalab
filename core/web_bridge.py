@@ -7650,6 +7650,78 @@ class WebBridge(QObject):
         finally:
             db.close()
 
+    @Slot(str, int, int, int, str, str, str, result=str)
+    def submit_test_result(self, entry_id, current_statu_code, success_statu_code, fail_statu_code, result, description, faults_json):
+        """Ara Test / Son Test sonucunu işler.
+        result='success' ise cihazı success_statu_code'a aktarır.
+        result='fail' ise açıklama ve en az bir hatalı parça/hata kodu zorunludur, cihaz fail_statu_code'a geri döner."""
+        from models.batch_entry import BatchEntry
+        from models.service_statu import ServiceStatu
+        from services.state_machine_service import StateMachineService
+        db = SessionLocal()
+        try:
+            entry = db.query(BatchEntry).filter(BatchEntry.id == int(entry_id)).first()
+            if not entry:
+                return json.dumps({"success": False, "message": "Parti/cihaz bulunamadı."})
+
+            actual_code = entry.statu_code if entry.statu_code is not None else 100
+
+            def statu_name(code):
+                s = db.query(ServiceStatu).filter_by(code=code).first()
+                return s.short_name if s else str(code)
+
+            device_label = " ".join(filter(None, [entry.imei_number, entry.batch_no, entry.flow]))
+
+            if actual_code != current_statu_code:
+                return json.dumps({
+                    "success": False,
+                    "message": f"{device_label} mevcut statüsü {statu_name(actual_code)} ({actual_code}) — bu okutmaya uygun statü değil (beklenen: {current_statu_code})."
+                })
+
+            if result == "success":
+                target_statu_code = success_statu_code
+            elif result == "fail":
+                if not description or not description.strip():
+                    return json.dumps({"success": False, "message": "Test başarısız için açıklama zorunludur."})
+                try:
+                    fault_lines = json.loads(faults_json) if faults_json else []
+                except Exception:
+                    fault_lines = []
+                if not fault_lines:
+                    return json.dumps({"success": False, "message": "En az bir hatalı parça / hata kodu seçmelisiniz."})
+
+                timestamp = __import__("datetime").datetime.now().strftime('%d.%m.%Y %H:%M')
+                note = f"[{timestamp}] Test Başarısız — {description.strip()}\nHatalı Parçalar: " + "; ".join(fault_lines)
+                entry.defects = (entry.defects + "\n\n" + note) if entry.defects else note
+
+                target_statu_code = fail_statu_code
+            else:
+                return json.dumps({"success": False, "message": "Geçersiz sonuç türü."})
+
+            svc = StateMachineService(db)
+            if not svc.validate_transition(current_statu_code, target_statu_code):
+                return json.dumps({
+                    "success": False,
+                    "message": f"{device_label} mevcut statüsü {statu_name(actual_code)} ({actual_code}) — bu okutmaya uygun statü değil."
+                })
+
+            old_name = statu_name(current_statu_code)
+            new_name = statu_name(target_statu_code)
+
+            entry.statu_code = target_statu_code
+            db.commit()
+
+            return json.dumps({
+                "success": True,
+                "new_statu_code": target_statu_code,
+                "message": f"{device_label} {old_name} ({current_statu_code}) statüsünden {new_name} ({target_statu_code}) statüsüne alındı."
+            })
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
     def _internal_check_doa(self, db, service_record_id):
         from sqlalchemy import text
         # Bu is emrine bagli ve is_issued=True olan parcalari getirir

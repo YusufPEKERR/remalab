@@ -41,13 +41,13 @@ ROWS = [
      "short_name": "Son teste kabul", "desc": "Son Teste teslim edilecek > Son teste kabul yapıldı.(124>125)", "enabled": True},
     {"order": 17, "code": "125_126", "parent": 125, "child": 126, "positive": True, "user_change": True,
      "k1": "Son teste kabul yapıldı", "k2": "Depoya sevk edilecek", "k3": None, "to": "QAC",
-     "short_name": "Depoya sevket", "desc": "Son teste kabul yapıldı > Depoya sevk edilecek.(125>126)", "enabled": True},
+     "short_name": "Son Test Başarılı - Depoya Aktar", "desc": "Son Test başarılı > Depoya sevk edilecek.(125>126)", "enabled": True},
     {"order": 6, "code": "104_105", "parent": 104, "child": 105, "positive": True, "user_change": True,
      "k1": "İlk test tamamlandı", "k2": "Üretim planına kabul bekleniyor", "k3": None, "to": "TEC_DISMANTLE",
      "short_name": "Teknik departmana kabul et", "desc": "İlk test tamamlandı > Üretim planına kabul bekleniyor.(104>105)", "enabled": True},
     {"order": 9, "code": "125_109", "parent": 125, "child": 109, "positive": False, "user_change": True,
      "k1": "Son teste kabul yapıldı", "k2": "Üretim aşamasında", "k3": None, "to": "QAC",
-     "short_name": "Son test dönüş", "desc": "Son teste kabul yapıldı > Üretim aşamasında.(125>109)", "enabled": False},
+     "short_name": "Son Test Başarısız - Geri Çevir", "desc": "Son Test başarısız > Üretim aşamasında (teknik departmana geri gönderildi).(125>109)", "enabled": True},
     {"order": 8, "code": "105_106", "parent": 105, "child": 106, "positive": True, "user_change": True,
      "k1": "Üretim planına kabul bekleniyor", "k2": "Müşteri onayına sunulacak", "k3": None, "to": "TEC_DISMANTLE",
      "short_name": "Müşteri onayına gönder", "desc": "Üretim planına kabul bekleniyor > Müşteri onayına sunulacak.(105>106)", "enabled": True},
@@ -126,6 +126,9 @@ ROWS = [
     {"order": 107, "code": "138_124", "parent": 138, "child": 124, "positive": True, "user_change": True,
      "k1": "Ara Test Bekleniyor", "k2": "Son Teste teslim edilecek", "k3": None, "to": "MNG1_AS",
      "short_name": "Ara Test Yap", "desc": "Ara Test Bekleniyor > Son Teste teslim edilecek.(138>124)", "enabled": True},
+    {"order": 108, "code": "138_109", "parent": 138, "child": 109, "positive": False, "user_change": True,
+     "k1": "Ara Test Bekleniyor", "k2": "Üretim aşamasında", "k3": None, "to": "MNG1_AS",
+     "short_name": "Ara Test Başarısız - Geri Çevir", "desc": "Ara Test başarısız > Üretim aşamasında (teknik departmana geri gönderildi).(138>109)", "enabled": True},
 ]
 
 

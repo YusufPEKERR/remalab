@@ -1781,6 +1781,16 @@ export const api = {
         });
     },
 
+    submitTestResult: async (entryId, currentStatuCode, successStatuCode, failStatuCode, result, description, faultLines) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.submit_test_result(
+                String(entryId), currentStatuCode, successStatuCode, failStatuCode, result, description || '', JSON.stringify(faultLines || []),
+                (res) => resolve(JSON.parse(res))
+            );
+        });
+    },
+
     fetchPhonecheckAndTransition: async (imei) => {
         const backend = await getBackend();
         return new Promise((resolve) => {

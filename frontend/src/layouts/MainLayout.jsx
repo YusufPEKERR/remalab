@@ -154,7 +154,7 @@ export default function MainLayout() {
         { name: 'İlk teste kabul (102>103)', icon: ClipboardCheck, path: '/statu-gecis/QAC/102_103' },
         { name: 'Üretime teslim edilecek (103>104)', icon: ClipboardCheck, path: '/statu-gecis/QAC/103_104' },
         { name: 'Son teste kabul (124>125)', icon: ClipboardCheck, path: '/statu-gecis/QAC/124_125' },
-        { name: 'Depoya sevket (125>126)', icon: ClipboardCheck, path: '/statu-gecis/QAC/125_126' }
+        { name: 'Son Test Sonuç (125>126/109)', icon: ClipboardCheck, path: '/statu-gecis/QAC/125_126' }
       ]
     },
     {
