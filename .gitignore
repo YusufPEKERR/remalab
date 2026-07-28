@@ -77,3 +77,7 @@ frontend/dist/
 
 api_cache/
 patch.py
+
+test_phonecheck_api.py
+phonecheck_devices*.xlsx
+phonecheck_device_*.xlsx

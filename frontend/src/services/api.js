@@ -1842,6 +1842,16 @@ export const api = {
         });
     },
 
+    fetchPhonecheckTest: async (term, currentStatuCode, targetStatuCode) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.fetch_phonecheck_test(
+                String(term), currentStatuCode, targetStatuCode,
+                (res) => resolve(JSON.parse(res))
+            );
+        });
+    },
+
     fetchPhonecheckAndTransition: async (imei) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
@@ -1850,6 +1860,17 @@ export const api = {
             } else {
                 resolve({ success: false, message: "Backend eksik (fetch_phonecheck_and_transition)" });
             }
+        });
+    },
+
+    savePhonecheckManual: async (imei, testStage, manualReason, enteredBy, fields) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.save_phonecheck_manual(
+                String(imei), String(testStage), String(manualReason),
+                String(enteredBy || ''), JSON.stringify(fields || {}),
+                (res) => resolve(JSON.parse(res))
+            );
         });
     },
 

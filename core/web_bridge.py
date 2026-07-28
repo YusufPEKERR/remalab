@@ -7723,6 +7723,66 @@ class WebBridge(QObject):
         finally:
             db.close()
 
+    @Slot(str, int, int, result=str)
+    def fetch_phonecheck_test(self, term, current_statu_code, target_statu_code):
+        """Test adımı olan statü geçişlerinde (103>104 ilk test, 125>109 son test)
+        Phonecheck'ten cihaz test verisini çeker ve kaydeder.
+
+        Cihaz Phonecheck'te bulunamazsa needs_manual=True döner; bu durumda
+        arayüz manuel doldurma formunu açmalı ve save_phonecheck_manual çağırmalıdır."""
+        from services.phonecheck_service import PhonecheckService
+        db = SessionLocal()
+        try:
+            svc = PhonecheckService(db)
+            stage = svc.get_stage(current_statu_code, target_statu_code)
+            if not stage:
+                # Test adımı değil, Phonecheck sorgusu gerekmiyor
+                return json.dumps({"success": True, "skipped": True, "test_stage": None})
+
+            result = svc.fetch_device(term)
+            if not result.get("success"):
+                result["test_stage"] = stage
+                return json.dumps(result)
+
+            record = svc.save_from_phonecheck(result["device"], stage)
+            return json.dumps({
+                "success": True,
+                "test_stage": stage,
+                "record_id": record.id,
+                "attempt_no": record.attempt_no,
+                "working": record.working,
+                "grade": record.grade,
+                "failed": record.failed,
+            })
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, str, str, str, result=str)
+    def save_phonecheck_manual(self, imei, test_stage, manual_reason, entered_by, fields_json):
+        """Phonecheck'te bulunamayan cihaz için elle girilen test verisini kaydeder.
+        manual_reason (açıklama) zorunludur."""
+        from services.phonecheck_service import PhonecheckService
+        db = SessionLocal()
+        try:
+            fields = json.loads(fields_json or "{}")
+            svc = PhonecheckService(db)
+            result = svc.save_manual(
+                imei=imei,
+                test_stage=test_stage,
+                manual_reason=manual_reason,
+                entered_by=entered_by or None,
+                fields=fields,
+            )
+            return json.dumps(result)
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
     @Slot(int, result=str)
     def get_batch_entries_by_statu(self, statu_code):
         """Belirtilen statüdeki (örn. 106 - Müşteri onayına sunulacak) tüm parti/cihazları
