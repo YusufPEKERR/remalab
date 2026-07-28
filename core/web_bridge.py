@@ -2183,69 +2183,6 @@ class WebBridge(QObject):
     # ==========================
 
     @Slot(str, result=str)
-    def get_imei_customer_tracking(self, imei_number):
-        """IMEI numarasına göre müşteri/cihaz takip bilgilerini ve güncel statü kaydını getirir."""
-        from models.batch_entry import BatchEntry
-        from models.service_repair import ServiceRepair
-        from models.service_statu import ServiceStatu
-        from models.customer import Customer
-        db = SessionLocal()
-        try:
-            batch_entry = db.query(BatchEntry).filter(BatchEntry.imei_number == imei_number).first()
-            if not batch_entry:
-                return json.dumps({"success": False, "message": f"Bu IMEI numarasına ({imei_number}) ait bir cihaz kaydı bulunamadı."})
-
-            repair_record = db.query(ServiceRepair).filter(ServiceRepair.imei_number == imei_number).first()
-
-            customer_full_name = ""
-            if batch_entry.customer_no:
-                customer = db.query(Customer).filter(Customer.code == batch_entry.customer_no).first()
-                if customer:
-                    customer_full_name = customer.full_name or customer.short_name or ""
-
-            statu = db.query(ServiceStatu).filter(ServiceStatu.code == batch_entry.statu_code).first()
-            statu_name = statu.full_name if statu else None
-
-            history = [{
-                "date": batch_entry.updated_at.strftime('%d.%m.%Y %H:%M') if batch_entry.updated_at else "",
-                "staffName": batch_entry.created_by or "",
-                "type": "STATU",
-                "text": f"{statu_name} ({batch_entry.statu_code})" if statu_name else f"Statü ({batch_entry.statu_code})"
-            }] if batch_entry.statu_code is not None else []
-
-            data = {
-                "serviceNumber": f"SWP{batch_entry.batch_no or ''}-{batch_entry.imei_number or ''}",
-                "productBrand": "",
-                "productFamily": "",
-                "productCategory": "",
-                "productModel": batch_entry.model or "",
-                "product": f"{batch_entry.model or ''} {batch_entry.gb or ''} {batch_entry.color or ''}".strip(),
-                "itemColor": batch_entry.color or "",
-                "itemInternalId": batch_entry.internal_id or "",
-                "itemSerialNo": batch_entry.serial_number or "",
-                "itemImei": batch_entry.imei_number or "",
-                "itemImei2": "",
-                "customer": customer_full_name or batch_entry.customer_no or batch_entry.customer_name or "",
-                "requestType": batch_entry.flow or "",
-                "rmaReason": "",
-                "receiveGrade": "",
-                "createDate": batch_entry.created_at.strftime('%d.%m.%Y %H:%M') if batch_entry.created_at else "",
-                "statuUpdateDate": batch_entry.updated_at.strftime('%d.%m.%Y %H:%M') if batch_entry.updated_at else "",
-                "updateDate": batch_entry.updated_at.strftime('%d.%m.%Y %H:%M') if batch_entry.updated_at else "",
-                "repairStart": repair_record.created_at.strftime('%d.%m.%Y %H:%M') if repair_record and repair_record.created_at else "",
-                "repairFinish": repair_record.updated_at.strftime('%d.%m.%Y %H:%M') if repair_record and repair_record.status == 'Completed' and repair_record.updated_at else "",
-                "history": history
-            }
-
-            return json.dumps({"success": True, "data": data})
-        except Exception as e:
-            import traceback
-            traceback.print_exc()
-            return json.dumps({"success": False, "message": str(e)})
-        finally:
-            db.close()
-
-    @Slot(str, result=str)
     def get_repair_details_by_imei(self, imei_number):
         """IMEI numarasına göre cihaz bilgilerini ve onarım kaydını getirir."""
         from models.batch_entry import BatchEntry

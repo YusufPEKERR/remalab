@@ -13,7 +13,6 @@ import Irsaliye from './pages/Irsaliye';
 import WorkOrders from './pages/WorkOrders';
 
 import ImeiTracker from './pages/ImeiTracker';
-import ImeiCustomerTracking from './pages/ImeiCustomerTracking';
 import Raporlar from './pages/Raporlar';
 import Settings from './pages/Settings';
 import Departments from './pages/Departments';
@@ -49,7 +48,6 @@ function App() {
             <Route path="/depo" element={<Depo />} />
             <Route path="/irsaliye" element={<Irsaliye />} />
             <Route path="/work-orders" element={<WorkOrders />} />
-            <Route path="/imei-musteri-takip" element={<ImeiCustomerTracking />} />
 
             <Route path="/raporlar" element={<Raporlar />} />
 
