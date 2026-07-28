@@ -108,31 +108,6 @@ export default function MainLayout() {
     navigate('/login');
   };
 
-  let rawRole = (user?.role || 'Admin').toLowerCase();
-  // Normalize developer to admin, other roles to teknisyen
-  const userRole = (rawRole === 'developer') ? 'admin' : (rawRole.startsWith('tec_') || rawRole === 'staff' || rawRole === 'qac' || rawRole === 'log_p') ? 'teknisyen' : rawRole;
-
-  // Statü Geçiş Ekranı'nın aktif 11 alt işlemi (bkz. seed_statu_map_v2.py) — her rol için ortak.
-  const STATU_GECIS_PATHS = [
-    '/statu-gecis/SPA_P/100_101', '/statu-gecis/SPA_P/101_102', '/statu-gecis/SPA_P/126_127',
-    '/statu-gecis/QAC/102_103', '/statu-gecis/QAC/103_104', '/statu-gecis/QAC/124_125', '/statu-gecis/QAC/125_126',
-    '/statu-gecis/TEC_DISMANTLE/104_105', '/statu-gecis/TEC_DISMANTLE/105_106', '/statu-gecis/TEC_DISMANTLE/105_109',
-    '/musteri-onayi', '/statu-gecis/MNG1_AS/107_136', '/statu-gecis/MNG1_AS/138_124'
-  ];
-
-  // Permission maps based on Python code:
-  const allowedPaths = {
-    'admin': ['/dashboard', '/depo', '/irsaliye', '/work-orders', '/supply-requests', '/raporlar', '/parts', '/part-categories', '/products', '/suppliers', '/locations', '/users', '/settings', '/departments', '/service-records', '/data-management', '/tedarik-talepleri', '/quality', '/refurbishment', '/priority', '/item-bom', '/batch-entry', ...STATU_GECIS_PATHS, '/technician-repair', '/schema-mapper'],
-    'depo': ['/depo', '/irsaliye', '/work-orders', '/raporlar'],
-    'depo müdürü': ['/dashboard', '/depo', '/irsaliye', '/work-orders', '/supply-requests', '/raporlar', '/parts', '/products', '/suppliers', '/locations', '/tedarik-talepleri', '/service-records', '/batch-entry', ...STATU_GECIS_PATHS],
-    'teknisyen': ['/dashboard', '/quality', '/refurbishment', '/priority', '/batch-entry', ...STATU_GECIS_PATHS]
-  };
-
-  const allowed = allowedPaths[userRole] || allowedPaths['admin'];
-
-  // Bu iki sayfa sadece Depo Müdürü rolüne özel — admin dahil başka hiçbir rol göremez.
-  const EXCLUSIVE_TO_DEPO_MUDURU = ['/supply-requests', '/tedarik-talepleri'];
-
   const menuGroups = [
     {
       title: 'GENEL BAKIŞ',
@@ -218,14 +193,8 @@ export default function MainLayout() {
     }
   ];
 
-  // Filter groups based on role
-  const filteredGroups = menuGroups.map(group => ({
-      ...group,
-      items: group.items.filter(item => {
-        if (EXCLUSIVE_TO_DEPO_MUDURU.includes(item.path)) return userRole === 'depo müdürü';
-        return userRole === 'admin' || allowed.includes(item.path);
-      })
-    })).filter(group => group.items.length > 0);
+  // Rol filtresi kaldırıldı — tüm kullanıcılar tüm menüleri görebilir
+  const filteredGroups = menuGroups;
 
   const currentPage = menuGroups.flatMap(g => g.items).find(i => 
     location.pathname === i.path || (i.path !== '/' && location.pathname.startsWith(i.path))
