@@ -1788,6 +1788,17 @@ export const api = {
         });
     },
 
+    fetchPhonecheckAndTransition: async (imei) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.fetch_phonecheck_and_transition) {
+                backend.fetch_phonecheck_and_transition(String(imei), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false, message: "Backend eksik (fetch_phonecheck_and_transition)" });
+            }
+        });
+    },
+
     getRepairOperationsByImei: async (imei) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
