@@ -1304,7 +1304,7 @@ export default function WorkOrders() {
     { key: 'consumption', label: 'Malzeme Tüketimi', icon: Package },
     { key: 'production_report', label: 'Üretim Raporu', icon: TrendingUp },
     { key: 'production_work_orders', label: 'Üretim İş Emirleri', icon: Layers },
-    { key: 'imei_tracker', label: 'IMEI Parça Takip', icon: Search }
+    { key: 'imei_tracker', label: 'Barkod Parça Takip', icon: Search }
   ];
 
   const renderMaterialScanner = () => {
