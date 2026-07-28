@@ -24,6 +24,8 @@ class RepairRecord(Base):
     warranty_code = Column(String(255), nullable=True) # IW veya OOW
     
     item_category = Column(String(255), nullable=True) # Arızalı parça kategorisi (Orn: Ti-Battery)
+    part_item_code = Column(String(100), nullable=True) # warehouse.item/parts kodu (Demontaj ekranı "Parça" seçimi)
+    item_fault_code = Column(String(255), nullable=True) # warehouse.item_fault kodu (Demontaj ekranı "Arıza Tespiti")
     notes = Column(Text, nullable=True)
     
     created_at = Column(DateTime, default=datetime.datetime.utcnow)

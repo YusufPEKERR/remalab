@@ -139,6 +139,7 @@ class WebBridge(QObject):
         super().__init__(parent)
         self._ensure_department_column()
         self._ensure_status_column()
+        self._ensure_repair_records_extra_columns()
         self._ensure_stock_movement_columns()
         self._ensure_service_records_table()
         self._ensure_work_orders_table()
@@ -925,6 +926,21 @@ class WebBridge(QObject):
         finally:
             db.close()
 
+    def _ensure_repair_records_extra_columns(self):
+        """warehouse.repair_records tablosuna Demontaj ekranı için part_item_code/item_fault_code
+        sütunları yoksa ekler."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            db.execute(text("ALTER TABLE warehouse.repair_records ADD COLUMN IF NOT EXISTS part_item_code VARCHAR(100);"))
+            db.execute(text("ALTER TABLE warehouse.repair_records ADD COLUMN IF NOT EXISTS item_fault_code VARCHAR(255);"))
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            print(f"[WebBridge] repair_records ek kolonları eklenemedi: {e}")
+        finally:
+            db.close()
+
     @Slot(str, str, result=str)
     def login(self, username, password):
         """React üzerinden gelen giriş isteğini işler."""
@@ -1102,24 +1118,29 @@ class WebBridge(QObject):
                 "item_code": "i.code",
                 "barcode": "i.imei",
                 "item_category": "i.item_category",
-                "status": "i.enabled"
+                "status": "i.enabled",
+                "brand": "p.brand",
+                "model": "p.model"
             }
             order_by_sql = "ORDER BY i.short_name ASC"
             if sort_key in valid_sort_keys:
                 direction = "DESC" if sort_dir.upper() == "DESC" else "ASC"
                 order_by_sql = f"ORDER BY {valid_sort_keys[sort_key]} {direction}"
-            
+
             # Total count query
             count_query = text(f"SELECT COUNT(*) FROM warehouse.item i WHERE {where_sql}")
             total_count = db.execute(count_query, params).scalar()
-            
+
+            # warehouse.parts, item ile ayni satirlari item_code=code eslemesiyle tasiyan
+            # ayri bir tablo; brand/model buradan geliyor (product_model.brand her zaman
+            # NULL oldugundan eski pm join'i hicbir zaman gercek deger uretmiyordu).
             query = text(f"""
-                SELECT 
+                SELECT
                     i.id, i.code, i.short_name, i.color, i.item_type, i.item_category, i.enabled,
-                    pm.brand, pm.short_name AS model,
+                    p.brand, p.model,
                     (SELECT string_agg(icm.mission, ', ') FROM warehouse.item_category_mission icm WHERE icm.item_category = i.item_category OR icm.item_category = i.code) AS department
                 FROM warehouse.item i
-                LEFT JOIN warehouse.product_model pm ON pm.code = i.code
+                LEFT JOIN warehouse.parts p ON p.item_code = i.code
                 WHERE {where_sql}
                 {order_by_sql}
                 LIMIT :limit OFFSET :offset
@@ -1903,6 +1924,67 @@ class WebBridge(QObject):
             """)).mappings().all()
             workgroups = [{"id": str(r["id"]), "code": r["code"], "short_name": r["short_name"]} for r in rows]
             return json.dumps({"success": True, "mission_workgroups": workgroups}, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(result=str)
+    def get_item_faults(self):
+        """Arıza tespiti referans listesini getirir. MioCreate.xlsx -> ItemFault'tan seed edilmiştir.
+        Demontaj ekranındaki 'Arıza Tespiti' dropdown'u için kullanılır."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            rows = db.execute(text("""
+                SELECT code, short_name, item_category
+                FROM warehouse.item_fault
+                ORDER BY short_name ASC
+            """)).mappings().all()
+            faults = [{"code": r["code"], "short_name": r["short_name"] or "", "item_category": r["item_category"] or ""} for r in rows]
+            return json.dumps({"success": True, "item_faults": faults}, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(result=str)
+    def get_repair_item_operation_types(self):
+        """İşlem tipi referans listesini getirir (Onar / Parça Değişim).
+        MioCreate.xlsx -> RepairItemOperationType'tan seed edilmiştir."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            rows = db.execute(text("""
+                SELECT code, short_name
+                FROM warehouse.repair_item_operation_type
+                ORDER BY order_number ASC NULLS LAST
+            """)).mappings().all()
+            types = [{"code": r["code"], "short_name": r["short_name"] or ""} for r in rows]
+            return json.dumps({"success": True, "operation_types": types}, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
+    def get_test_detected_parts(self, device_ref):
+        """Test aşamasında (QAC) tespit edilen, onarımda beklenen parçaları getirir.
+        Bu tabloyu şu an hiçbir ekran yazmıyor (QAC test ekranı henüz yok) — bu yüzden
+        gerçek veri gelene kadar hep boş liste döner."""
+        from models.test_detected_part import TestDetectedPart
+        db = SessionLocal()
+        try:
+            if not device_ref or not str(device_ref).strip():
+                return json.dumps({"success": True, "parts": []})
+            rows = db.query(TestDetectedPart).filter(TestDetectedPart.device_ref == str(device_ref).strip()).all()
+            parts = [{
+                "id": str(r.id),
+                "symptomCode": r.symptom_code or "",
+                "partCategory": r.part_category or "",
+                "partItemCode": r.part_item_code or "",
+            } for r in rows]
+            return json.dumps({"success": True, "parts": parts}, ensure_ascii=False)
         except Exception as e:
             return json.dumps({"success": False, "message": str(e)})
         finally:
@@ -5326,67 +5408,127 @@ class WebBridge(QObject):
 
     @Slot(str, str, str, str, str, str, result=str)
     def get_products(self, page="1", page_size="50", search_term="", category_filter="", sort_key="", sort_dir=""):
+        import re
         from sqlalchemy import text
+        from core.product_code_generator import normalize_brand
         db = SessionLocal()
         try:
             page = max(1, int(page or 1))
             limit = min(1000, max(1, int(page_size or 50)))
-            offset = (page - 1) * limit
 
             where_clauses = ["pm.enabled = TRUE"]
-            params = {"limit": limit, "offset": offset}
+            params = {}
 
             if search_term and str(search_term).strip():
-                where_clauses.append("(pm.code ILIKE :search OR pm.short_name ILIKE :search OR b.short_name ILIKE :search)")
+                where_clauses.append("(pmf.code ILIKE :search OR pm.short_name ILIKE :search OR b.short_name ILIKE :search)")
                 params["search"] = f"%{str(search_term).strip()}%"
-            
+
             # ILIKE Smart Phone check (Esnek)
             if category_filter and str(category_filter).strip():
-                where_clauses.append("(pf.short_name ILIKE :category OR :category ILIKE '%phone%' OR :category ILIKE '%telefon%' AND pf.short_name ILIKE '%phone%')")
+                where_clauses.append("(pmf.short_name ILIKE :category OR :category ILIKE '%phone%' OR :category ILIKE '%telefon%' AND pmf.short_name ILIKE '%phone%')")
                 params["category"] = f"%{str(category_filter).strip()}%"
 
             where_sql = "WHERE " + " AND ".join(where_clauses)
-            
-            # Use LEFT JOIN with Brand and ProductFamily
-            # Since UUIDs might be missing or broken, we use COALESCE and LEFT JOIN
-            count_sql = f"""
-                SELECT COUNT(*)
-                FROM warehouse.product_model pm
-                LEFT JOIN warehouse.brand b ON b.id::text = pm.brand OR b.short_name = pm.brand
-                LEFT JOIN warehouse.product_family pf ON pf.id::text = pm.product_family OR pf.short_name = pm.product_family
-                {where_sql};
-            """
-            total = db.execute(text(count_sql), params).scalar()
 
+            # product_model.product_family serbest metin bir kolon: pf.code (kısaltma,
+            # örn. iP12PM) veya pf.short_name (tam ad) ile eşleşebilir - LOWER() ile
+            # her iki ihtimali de büyük/küçük harf duyarsız kontrol eder. Aynı isme
+            # sahip birden çok aile satırı olabileceğinden LATERAL + LIMIT 1 ile tekilleştirilir,
+            # code eşleşmesi short_name eşleşmesine tercih edilir.
+            family_join = """
+                LEFT JOIN LATERAL (
+                    SELECT pf.code, pf.short_name, pf.brand
+                    FROM warehouse.product_family pf
+                    WHERE LOWER(pf.code) = LOWER(pm.product_family)
+                       OR LOWER(pf.short_name) = LOWER(pm.product_family)
+                    ORDER BY (LOWER(pf.code) = LOWER(pm.product_family)) DESC
+                    LIMIT 1
+                ) pmf ON TRUE
+            """
+
+            # warehouse.brand: marka basina tek, temiz gorunum adi (Samsung, Xiaomi, ...).
+            # product_model.brand her zaman NULL oldugundan gercek marka bilgisini
+            # product_family.brand'dan (serbest metin, ayni markanin 20 farkli
+            # buyuk/kucuk harf varyasyonu var) normalize_brand ile okuyup bu tabloya eslistiriyoruz.
+            brand_rows = db.execute(text("SELECT code, short_name FROM warehouse.brand")).fetchall()
+            brand_display = {}
+            for br in brand_rows:
+                key = normalize_brand(br.short_name or br.code)
+                brand_display[key] = br.short_name or br.code
+
+            # pm.short_name = "{model adi} {hafiza}GB/TB" seklinde. Once TUM eslesen
+            # satirlari cekip Python'da model (hafizasiz) bazinda grupluyoruz, boylece
+            # ayni telefonun farkli hafiza secenekleri tek satirda, Hafiza sutununda
+            # yan yana gosterilebiliyor. Veri boyutu (~1000 satir) SQL tarafinda
+            # aggregate etmeye gerek birakmayacak kadar kucuk.
             data_sql = f"""
-                SELECT pm.id, pm.code, pm.short_name, 
-                       COALESCE(b.short_name, 'Bilinmiyor') as brand_name,
-                       COALESCE(pf.short_name, 'Bilinmiyor') as family_name
+                SELECT pm.id, pm.short_name,
+                       COALESCE(b.short_name, '') as legacy_brand_name,
+                       pmf.brand as family_brand,
+                       COALESCE(pmf.short_name, 'Bilinmiyor') as family_name,
+                       pmf.code as family_code
                 FROM warehouse.product_model pm
                 LEFT JOIN warehouse.brand b ON b.id::text = pm.brand OR b.short_name = pm.brand
-                LEFT JOIN warehouse.product_family pf ON pf.id::text = pm.product_family OR pf.short_name = pm.product_family
+                {family_join}
                 {where_sql}
-                ORDER BY pm.short_name ASC
-                LIMIT :limit OFFSET :offset;
+                ORDER BY pm.short_name ASC;
             """
             rows = db.execute(text(data_sql), params).fetchall()
 
-            res = []
+            mem_re = re.compile(r"\s*(\d+\s*(?:GB|TB))\s*$", re.IGNORECASE)
+
+            def split_memory(short_name):
+                m = mem_re.search(short_name or "")
+                if not m:
+                    return (short_name or "").strip(), None
+                mem = m.group(1).replace(" ", "").upper()
+                model_no_mem = short_name[: m.start()].strip()
+                return model_no_mem, mem
+
+            def memory_sort_key(mem):
+                mm = re.match(r"(\d+)(GB|TB)", mem)
+                if not mm:
+                    return 0
+                n, unit = mm.groups()
+                return int(n) * (1024 if unit == "TB" else 1)
+
+            groups = {}
+            order = []
             for row in rows:
-                res.append({
-                    "id": str(row.id),
-                    "item_code": row.code or "",
-                    "brand": row.brand_name,
-                    "model": row.short_name or "",
-                    "category": row.family_name,
-                    "memory": "",
-                    "color": ""
-                })
-            
+                model_no_mem, mem = split_memory(row.short_name)
+                display_model = row.family_name if row.family_name != "Bilinmiyor" else (model_no_mem or row.short_name)
+                brand_name = brand_display.get(normalize_brand(row.family_brand)) or row.legacy_brand_name or "Bilinmiyor"
+                group_key = (brand_name, row.family_code or display_model)
+                if group_key not in groups:
+                    groups[group_key] = {
+                        "id": str(row.id),
+                        "item_code": row.family_code or "",
+                        "brand": brand_name,
+                        "model": display_model,
+                        "category": row.family_name,
+                        "memories": [],
+                        "color": ""
+                    }
+                    order.append(group_key)
+                if mem and mem not in groups[group_key]["memories"]:
+                    groups[group_key]["memories"].append(mem)
+
+            grouped = []
+            for key in order:
+                g = groups[key]
+                g["memories"].sort(key=memory_sort_key)
+                g["memory"] = ", ".join(g["memories"])
+                del g["memories"]
+                grouped.append(g)
+
+            total = len(grouped)
+            offset = (page - 1) * limit
+            res = grouped[offset: offset + limit]
+
             # Return format requested by user { data: [...], total: N }
             return json.dumps({
-                "success": True, 
-                "data": res, 
+                "success": True,
+                "data": res,
                 "total": total,
                 "page": page,
                 "limit": limit
@@ -7174,7 +7316,8 @@ class WebBridge(QObject):
                     "screen_test": entry.screen_test or '',
                     "power_test": entry.power_test or '',
                     "flow": entry.flow or 'Refurbish',
-                    "statu_code": entry.statu_code
+                    "statu_code": entry.statu_code,
+                    "id": entry.id
                 }
                 return json.dumps({"success": True, "found": True, "data": data}, ensure_ascii=False)
 
@@ -7214,7 +7357,8 @@ class WebBridge(QObject):
                     "screen_test": '',
                     "power_test": '',
                     "flow": c_row["flow"] if c_row["flow"] in ['Refurbish', 'Repair', 'RMA', 'Battery Replacement'] else 'Refurbish',
-                    "statu_code": None
+                    "statu_code": None,
+                    "id": None
                 }
                 return json.dumps({"success": True, "found": True, "data": data}, ensure_ascii=False)
 
@@ -7753,7 +7897,10 @@ class WebBridge(QObject):
     @Slot(str, result=str)
     def get_repair_operations_by_imei(self, imei):
         """Servis Onarımları / İade ekranı için IMEI'ye ait iş emrini, parça
-        listesini (depodan çıkmış olanlar dahil) ve onarım kayıtlarını döner."""
+        listesini (depodan çıkmış olanlar dahil) ve onarım kayıtlarını döner.
+        Bağlı bir Servis Kaydı/İş Emri yoksa (üretim verisinde sık görülen durum),
+        onarım kayıtlarını doğrudan IMEI'ye bağlı olarak arar (work_order_id: null döner)
+        ki 'Onarım Ekle' iş emri olmayan cihazlarda da çalışabilsin."""
         from sqlalchemy import text
         db = SessionLocal()
         try:
@@ -7769,52 +7916,83 @@ class WebBridge(QObject):
                 ORDER BY id DESC LIMIT 1
             """), {"term": term}).mappings().first()
 
-            if not sr:
-                return json.dumps({"success": False, "message": f"'{term}' için kayıtlı bir cihaz bulunamadı."})
+            wo = None
+            if sr:
+                wo = db.execute(text("""
+                    SELECT id, status, assigned_technician
+                    FROM warehouse.work_orders
+                    WHERE service_record_id = :sr_id AND work_order_type = 'SERVICE'
+                    ORDER BY id DESC LIMIT 1
+                """), {"sr_id": sr["id"]}).mappings().first()
 
-            wo = db.execute(text("""
-                SELECT id, status, assigned_technician
-                FROM warehouse.work_orders
-                WHERE service_record_id = :sr_id AND work_order_type = 'SERVICE'
-                ORDER BY id DESC LIMIT 1
-            """), {"sr_id": sr["id"]}).mappings().first()
+            # ── Bağlı Servis Kaydı + İş Emri bulundu: tam veri (parçalar dahil) ──
+            if sr and wo:
+                try:
+                    current_statu_code = int(wo["status"])
+                except (TypeError, ValueError):
+                    current_statu_code = None
 
-            if not wo:
-                return json.dumps({"success": False, "message": "Bu cihaza ait bir iş emri bulunamadı."})
+                part_rows = db.execute(text("""
+                    SELECT wop.id, wop.quantity, wop.status,
+                           p.item_code, p.name, p.brand, p.model, p.color
+                    FROM warehouse.work_order_parts wop
+                    LEFT JOIN warehouse.parts p ON p.id = wop.part_id
+                    WHERE wop.work_order_id = :wo_id
+                    ORDER BY wop.id DESC
+                """), {"wo_id": wo["id"]}).mappings().all()
 
-            try:
-                current_statu_code = int(wo["status"])
-            except (TypeError, ValueError):
-                current_statu_code = None
+                parts = [{
+                    "id": str(r["id"]),
+                    "itemCode": r["item_code"] or "",
+                    "name": " ".join(filter(None, [r["brand"], r["model"], r["color"]])) or (r["name"] or "-"),
+                    "qty": r["quantity"],
+                    # DOAReturnModal (frontend) sadece "OUT" konumundaki parçaları güvenlik kontrolüne sokar.
+                    "location": "OUT" if r["status"] == "Teslim Edildi" else "-",
+                } for r in part_rows]
 
-            part_rows = db.execute(text("""
-                SELECT wop.id, wop.quantity, wop.status,
-                       p.item_code, p.name, p.brand, p.model, p.color
-                FROM warehouse.work_order_parts wop
-                LEFT JOIN warehouse.parts p ON p.id = wop.part_id
-                WHERE wop.work_order_id = :wo_id
-                ORDER BY wop.id DESC
-            """), {"wo_id": wo["id"]}).mappings().all()
-
-            parts = [{
-                "id": str(r["id"]),
-                "itemCode": r["item_code"] or "",
-                "name": " ".join(filter(None, [r["brand"], r["model"], r["color"]])) or (r["name"] or "-"),
-                "qty": r["quantity"],
-                # DOAReturnModal (frontend) sadece "OUT" konumundaki parçaları güvenlik kontrolüne sokar.
-                "location": "OUT" if r["status"] == "Teslim Edildi" else "-",
-            } for r in part_rows]
+                repair_ref = str(wo["id"])
+                device_info = {
+                    "imei": sr["imei_number"] or sr["imei_serial"] or term,
+                    "productInfo": " ".join(filter(None, [sr["brand"], sr["model"], sr["color"], sr["memory"]])) or "-",
+                    "customerRequest": sr["customer_complaint"] or "",
+                    "customerDiagnosis": sr["preliminary_diagnosis"] or "",
+                    "serviceStatus": current_statu_code,
+                    # work_orders.status sayısal koda geçmediyse (ör. "Beklemede",
+                    # "Devam Ediyor" gibi eski metin statüler) ham değer burada kalır.
+                    "statusText": wo["status"] or "",
+                }
+                work_order_id_out = wo["id"]
+                service_record_id_out = sr["id"]
+                current_statu_code_out = current_statu_code
+            # ── Bağlı Servis Kaydı/İş Emri yok: onarım kayıtları doğrudan IMEI'ye bağlı aranır ──
+            else:
+                parts = []
+                repair_ref = term
+                device_info = {
+                    "imei": term, "productInfo": "", "customerRequest": "",
+                    "customerDiagnosis": "", "serviceStatus": None, "statusText": "",
+                }
+                work_order_id_out = None
+                service_record_id_out = None
+                current_statu_code_out = None
 
             repair_rows = db.execute(text("""
                 SELECT rr.id, rr.department_mission, rr.notes, rr.repair_result_type_code, rr.warranty_code,
+                       rr.part_item_code, rr.item_fault_code, rr.operation_type_code,
                        rrt.short_name AS result_name, rrt.is_cancelled, rrt.is_success,
-                       mg.short_name AS mission_group_name
+                       mg.short_name AS mission_group_name,
+                       it.short_name AS part_name,
+                       fault.short_name AS fault_name,
+                       opt.short_name AS operation_type_name
                 FROM warehouse.repair_records rr
                 LEFT JOIN warehouse.repair_result_type rrt ON rrt.code = rr.repair_result_type_code
                 LEFT JOIN organization.mission_groups mg ON mg.code = rr.department_mission
-                WHERE rr.service_record_id = :wo_id_str
+                LEFT JOIN warehouse.item it ON it.code = rr.part_item_code
+                LEFT JOIN warehouse.item_fault fault ON fault.code = rr.item_fault_code
+                LEFT JOIN warehouse.repair_item_operation_type opt ON opt.code = rr.operation_type_code
+                WHERE rr.service_record_id = :ref
                 ORDER BY rr.created_at DESC
-            """), {"wo_id_str": str(wo["id"])}).mappings().all()
+            """), {"ref": repair_ref}).mappings().all()
 
             repairs = [{
                 "id": str(r["id"]),
@@ -7824,23 +8002,24 @@ class WebBridge(QObject):
                 "statusName": r["result_name"] or str(r["repair_result_type_code"]),
                 "isCancelled": bool(r["is_cancelled"]),
                 "chargeType": "FREE" if r["warranty_code"] == "IW" else "PAID",
+                "partItemCode": r["part_item_code"] or "",
+                "partName": r["part_name"] or "",
+                "faultCode": r["item_fault_code"] or "",
+                "faultName": r["fault_name"] or "",
+                "operationTypeCode": r["operation_type_code"] or "",
+                "operationTypeName": r["operation_type_name"] or "",
+                "notes": r["notes"] or "",
             } for r in repair_rows]
+
+            if not (sr and wo) and not repairs:
+                return json.dumps({"success": False, "message": "Bu cihaza ait bir iş emri veya onarım kaydı bulunamadı."})
 
             return json.dumps({
                 "success": True,
-                "work_order_id": wo["id"],
-                "service_record_id": sr["id"],
-                "current_statu_code": current_statu_code,
-                "device": {
-                    "imei": sr["imei_number"] or sr["imei_serial"] or term,
-                    "productInfo": " ".join(filter(None, [sr["brand"], sr["model"], sr["color"], sr["memory"]])) or "-",
-                    "customerRequest": sr["customer_complaint"] or "",
-                    "customerDiagnosis": sr["preliminary_diagnosis"] or "",
-                    "serviceStatus": current_statu_code,
-                    # work_orders.status sayısal koda geçmediyse (ör. "Beklemede",
-                    # "Devam Ediyor" gibi eski metin statüler) ham değer burada kalır.
-                    "statusText": wo["status"] or "",
-                },
+                "work_order_id": work_order_id_out,
+                "service_record_id": service_record_id_out,
+                "current_statu_code": current_statu_code_out,
+                "device": device_info,
                 "parts": parts,
                 "repairs": repairs,
             })
@@ -7917,45 +8096,173 @@ class WebBridge(QObject):
         return (statu["mission"] or None) if statu else None
 
     def _get_required_mission_for_repair(self, db, repair_id):
-        """Bir repair_records.id için gerekli mission'ı çözer (üzerindeki work_order_id'ye bakarak)."""
+        """Bir repair_records.id için gerekli mission'ı çözer (üzerindeki device_ref'e bakarak)."""
         from models.repair_record import RepairRecord
         rec = db.query(RepairRecord).filter(RepairRecord.id == repair_id).first()
         if not rec:
             return None
-        return self._get_required_mission_for_work_order(db, rec.service_record_id)
+        return self._get_required_mission_for_ref(db, rec.service_record_id)
 
-    @Slot(str, str, str, str, str, result=str)
-    def add_repair_record(self, work_order_id, mission_group_code, warranty_code, notes, username):
-        """Bir iş emrine yeni bir alt onarım kaydı (warehouse.repair_records) ekler.
-        Servis Onarımları ekranındaki 'Onarım Ekle' aksiyonunun kalıcı karşılığıdır."""
+    def _get_required_mission_for_ref(self, db, device_ref):
+        """work_order_id (sayısal, warehouse.work_orders.id) veya bağlı bir iş emri yoksa
+        doğrudan IMEI referansından statü-mission zincirini çözer. add_repair_record vb.
+        'Onarım Ekle' cihaza bağlı bir servis iş emri olmadan da çalışabildiği için
+        (repair_records.service_record_id o durumda IMEI'yi tutar) iki yolu da destekler."""
+        from sqlalchemy import text
+        if not device_ref:
+            return None
+        device_ref = str(device_ref).strip()
+
+        try:
+            wo_id = int(device_ref)
+        except (TypeError, ValueError):
+            wo_id = None
+
+        if wo_id is not None:
+            wo_exists = db.execute(text("SELECT id FROM warehouse.work_orders WHERE id = :id"), {"id": wo_id}).first()
+            if wo_exists:
+                return self._get_required_mission_for_work_order(db, wo_id)
+
+        # work_order olarak çözülemedi -> device_ref'i doğrudan IMEI olarak dene.
+        batch = db.execute(text("""
+            SELECT statu_code FROM warehouse.batch_entries
+            WHERE LOWER(TRIM(imei_number)) = LOWER(:imei)
+            ORDER BY id DESC LIMIT 1
+        """), {"imei": device_ref}).mappings().first()
+        if not batch or batch["statu_code"] is None:
+            return None
+
+        statu = db.execute(text("""
+            SELECT mission FROM warehouse.service_statu WHERE code = :code
+        """), {"code": batch["statu_code"]}).mappings().first()
+        return (statu["mission"] or None) if statu else None
+
+    @Slot(str, str, str, result=str)
+    def update_customer_diagnosis(self, work_order_id, diagnosis_text, username):
+        """warehouse.service_records.preliminary_diagnosis'i (Müşteri Arıza Tespiti) günceller.
+        Sadece test teknisyenleri (QAC ailesi: QAC, QAC_TL, QAC_DISPLAY, QAC_CASE, QAC_L3,
+        QAC_CAMERA) ve cihazın mevcut statüsüne göre zaten yetkili olan kullanıcılar düzenleyebilir."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            wo = db.execute(text("SELECT service_record_id FROM warehouse.work_orders WHERE id = :id"), {"id": int(work_order_id)}).mappings().first()
+            if not wo or not wo["service_record_id"]:
+                return json.dumps({"success": False, "message": "İş emri veya bağlı servis kaydı bulunamadı."})
+
+            user_missions, is_admin = self._get_user_missions(db, username)
+            if not is_admin:
+                is_test_technician = any(m == "QAC" or m.startswith("QAC_") for m in user_missions)
+                if not is_test_technician:
+                    return json.dumps({"success": False, "message": "Bu alanı sadece test teknisyenleri düzenleyebilir."})
+                required = self._get_required_mission_for_work_order(db, work_order_id)
+                if required and required not in user_missions:
+                    return json.dumps({"success": False, "message": f"Bu işlem için '{required}' yetkisi gerekiyor."})
+
+            db.execute(text("""
+                UPDATE warehouse.service_records SET preliminary_diagnosis = :diag WHERE id = :id
+            """), {"diag": diagnosis_text.strip() if diagnosis_text else None, "id": wo["service_record_id"]})
+            db.commit()
+            return json.dumps({"success": True})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, str, str, str, str, str, str, result=str)
+    def add_repair_record(self, device_ref, mission_group_code, warranty_code, notes, username, part_item_code="", item_fault_code="", operation_type_code=""):
+        """Bir cihaza yeni bir alt onarım kaydı (warehouse.repair_records) ekler.
+        Servis Onarımları ekranındaki 'Onarım Ekle' aksiyonunun kalıcı karşılığıdır.
+        device_ref, bağlı bir servis iş emri varsa work_order_id'dir; yoksa (üretim
+        verisinde sık görülen durum) doğrudan cihazın IMEI'sidir — bu durumda onarım
+        kaydı sonradan aynı IMEI'yle tekrar bulunabilir (bkz. get_repair_operations_by_imei).
+        part_item_code/item_fault_code/operation_type_code opsiyoneldir (Demontaj ekranının
+        'Parça'/'Arıza Tespiti'/'İşlem' seçimleri)."""
         import uuid
         from models.repair_record import RepairRecord
         db = SessionLocal()
         try:
-            if not work_order_id or not str(work_order_id).strip():
-                return json.dumps({"success": False, "message": "İş emri bulunamadı."})
+            if not device_ref or not str(device_ref).strip():
+                return json.dumps({"success": False, "message": "Cihaz bulunamadı."})
             if not mission_group_code or not mission_group_code.strip():
                 return json.dumps({"success": False, "message": "Görev grubu zorunludur."})
 
             user_missions, is_admin = self._get_user_missions(db, username)
             if not is_admin:
-                required = self._get_required_mission_for_work_order(db, work_order_id)
+                required = self._get_required_mission_for_ref(db, device_ref)
                 if required and required not in user_missions:
                     return json.dumps({"success": False, "message": f"Bu işlem için '{required}' yetkisi gerekiyor."})
 
             rec = RepairRecord(
                 id=uuid.uuid4(),
-                service_record_id=str(work_order_id).strip(),
+                service_record_id=str(device_ref).strip(),
                 department_mission=mission_group_code.strip(),
                 repair_result_type_code=1000,
                 warranty_code=warranty_code.strip() if warranty_code else "OOW",
                 notes=notes.strip() if notes else None,
+                part_item_code=part_item_code.strip() if part_item_code else None,
+                item_fault_code=item_fault_code.strip() if item_fault_code else None,
+                operation_type_code=operation_type_code.strip() if operation_type_code else None,
             )
             db.add(rec)
             db.commit()
             return json.dumps({"success": True, "id": str(rec.id)})
         except Exception as e:
             db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, result=str)
+    def submit_dismantle_decision(self, imei, username):
+        """Demontaj Teknisyeni'nin bir cihaza eklediği onarım kayıtlarını, test aşamasında
+        tespit edilen (planlı) parçalarla karşılaştırır. Tüm onarımlar planlıysa cihazı
+        109'a (Üretime Aktar), plan dışı bir şey varsa 106'ya (Müşteri Onayına Gönder) taşır.
+        Gerçek statü geçişi mevcut, doğrulanmış execute_batch_entry_statu_transition üzerinden yapılır."""
+        from sqlalchemy import text
+        from models.repair_record import RepairRecord
+        from models.test_detected_part import TestDetectedPart
+        db = SessionLocal()
+        try:
+            imei = (imei or "").strip()
+            if not imei:
+                return json.dumps({"success": False, "message": "IMEI boş olamaz."})
+
+            entry = db.execute(text("""
+                SELECT id, statu_code FROM warehouse.batch_entries
+                WHERE LOWER(TRIM(imei_number)) = LOWER(:imei)
+                ORDER BY id DESC LIMIT 1
+            """), {"imei": imei}).mappings().first()
+            if not entry:
+                return json.dumps({"success": False, "message": "Bu IMEI için Batch Girişi kaydı bulunamadı."})
+
+            user_missions, is_admin = self._get_user_missions(db, username)
+            if not is_admin:
+                is_dismantle_technician = "TEC_DISMANTLE" in user_missions
+                if not is_dismantle_technician:
+                    return json.dumps({"success": False, "message": "Bu işlemi sadece Demontaj Teknisyeni yapabilir."})
+                required = self._get_required_mission_for_ref(db, imei)
+                if required and required not in user_missions:
+                    return json.dumps({"success": False, "message": f"Bu işlem için '{required}' yetkisi gerekiyor."})
+
+            repairs = db.query(RepairRecord).filter(RepairRecord.service_record_id == imei).all()
+            if not repairs:
+                return json.dumps({"success": False, "message": "Önce en az bir onarım eklemelisiniz."})
+
+            planned = db.query(TestDetectedPart).filter(TestDetectedPart.device_ref == imei).all()
+            planned_part_codes = {p.part_item_code for p in planned if p.part_item_code}
+
+            all_planned = all(
+                (r.part_item_code in planned_part_codes) if r.part_item_code else False
+                for r in repairs
+            )
+            target_statu_code = 109 if all_planned else 106
+
+            result_json = self.execute_batch_entry_statu_transition(str(entry["id"]), int(entry["statu_code"]), int(target_statu_code))
+            result = json.loads(result_json)
+            result["decision"] = "URETIME_AKTAR" if all_planned else "MUSTERI_ONAYI"
+            return json.dumps(result, ensure_ascii=False)
+        except Exception as e:
             return json.dumps({"success": False, "message": str(e)})
         finally:
             db.close()
@@ -7974,7 +8281,7 @@ class WebBridge(QObject):
 
             user_missions, is_admin = self._get_user_missions(db, username)
             if not is_admin:
-                required = self._get_required_mission_for_work_order(db, rec.service_record_id)
+                required = self._get_required_mission_for_ref(db, rec.service_record_id)
                 if required and required not in user_missions:
                     return json.dumps({"success": False, "message": f"Bu işlem için '{required}' yetkisi gerekiyor."})
 
@@ -7999,7 +8306,7 @@ class WebBridge(QObject):
 
             user_missions, is_admin = self._get_user_missions(db, username)
             if not is_admin:
-                required = self._get_required_mission_for_work_order(db, rec.service_record_id)
+                required = self._get_required_mission_for_ref(db, rec.service_record_id)
                 if required and required not in user_missions:
                     return json.dumps({"success": False, "message": f"Bu işlem için '{required}' yetkisi gerekiyor."})
 
