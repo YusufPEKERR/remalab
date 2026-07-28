@@ -5,6 +5,7 @@ import {
   CheckCircle, Clock, Package, ArrowRightLeft, Info
 } from "lucide-react";
 import { api } from "../services/api";
+import DemontajRepairPanel from "../components/DemontajRepairPanel";
 
 function getCurrentUser() {
   try {
@@ -47,7 +48,7 @@ const StatusBadge = ({ code }) => {
 };
 
 // ─── ADD REPAIR MODAL ───────────────────────────────────────────────
-const AddRepairModal = ({ onClose, onAdd, missionGroups, workOrderId }) => {
+const AddRepairModal = ({ onClose, onAdd, missionGroups }) => {
   const [group, setGroup] = useState("");
   const [chargeType, setChargeType] = useState("PAID");
   const [submitting, setSubmitting] = useState(false);
@@ -59,7 +60,7 @@ const AddRepairModal = ({ onClose, onAdd, missionGroups, workOrderId }) => {
   }));
 
   const handleSubmit = async () => {
-    if (!group || !workOrderId || submitting) return;
+    if (!group || submitting) return;
     setSubmitting(true);
     const ok = await onAdd(group, chargeType);
     setSubmitting(false);
@@ -96,11 +97,6 @@ const AddRepairModal = ({ onClose, onAdd, missionGroups, workOrderId }) => {
             <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Teknisyen</label>
             <input type="text" value={technician || "Oturum açılmamış"} disabled readOnly className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-[#0f1219] text-slate-600 dark:text-slate-400 text-sm cursor-not-allowed" />
           </div>
-          {!workOrderId && (
-            <p className="text-xs text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-xl px-3 py-2">
-              Bu cihaza bağlı bir servis iş emri olmadığı için onarım eklenemiyor.
-            </p>
-          )}
           <div>
             <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Ücret Tipi</label>
             <div className="flex gap-3">
@@ -114,7 +110,7 @@ const AddRepairModal = ({ onClose, onAdd, missionGroups, workOrderId }) => {
         </div>
         <div className="px-6 pb-5 flex gap-3">
           <button onClick={onClose} className="flex-1 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 text-sm font-semibold transition-colors border border-slate-200 dark:border-slate-700">İptal</button>
-          <button onClick={handleSubmit} disabled={!group || !workOrderId || submitting} className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-colors shadow-lg shadow-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed">
+          <button onClick={handleSubmit} disabled={!group || submitting} className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-colors shadow-lg shadow-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed">
             {submitting ? "Ekleniyor..." : "Onarım Ekle"}
           </button>
         </div>
@@ -339,6 +335,8 @@ const TechnicianRepairOperations = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [missionGroups, setMissionGroups] = useState([]);
   const [serviceStatuList, setServiceStatuList] = useState([]);
+  const [diagnosisDraft, setDiagnosisDraft] = useState("");
+  const [savingDiagnosis, setSavingDiagnosis] = useState(false);
   const searchRef = useRef(null);
 
   // Görev grupları MioCreate.xlsx MissionGroup sayfasından seed edilen
@@ -419,6 +417,7 @@ const TechnicianRepairOperations = () => {
       setDevice(realDevice);
       setTechNotes("");
       setChipCode("");
+      setDiagnosisDraft(realDevice.customerDiagnosis || "");
       setDeviceParts(repairLink?.parts || []);
       setSelectedRepairIdx(0);
 
@@ -444,31 +443,54 @@ const TechnicianRepairOperations = () => {
     }
   }, [searchTerm, isSearching, showNotif]);
 
-  // ── Repair Actions ──────────────────────────────────────────
-  // Backend'e kalıcı olarak yazar (warehouse.repair_records) ve ardından
-  // güncel listeyi tekrar çeker — sayfa yenilense/cihaz tekrar aransa da kaybolmaz.
-  const handleAddRepair = useCallback(async (missionGroupCode, newChargeType) => {
-    if (!device?.workOrderId) {
-      showNotif("error", "Onarım Eklenemedi", "Bu cihaza bağlı bir servis iş emri yok.");
-      return false;
+  // warehouse.service_records.preliminary_diagnosis'e kalıcı yazar. Sadece test
+  // teknisyenleri (QAC ailesi) ve o statüde zaten yetkili olanlar çağırabilir —
+  // gerçek yetki kontrolü backend'de de tekrar yapılır.
+  const handleSaveDiagnosis = useCallback(async () => {
+    if (!device?.workOrderId) return;
+    setSavingDiagnosis(true);
+    const res = await api.updateCustomerDiagnosis(device.workOrderId, diagnosisDraft, getCurrentUser()?.username);
+    setSavingDiagnosis(false);
+    if (res && res.success) {
+      setDevice(prev => (prev ? { ...prev, customerDiagnosis: diagnosisDraft } : prev));
+      showNotif("success", "Arıza Tespiti Kaydedildi", "Müşteri arıza tespiti güncellendi.");
+    } else {
+      showNotif("error", "Kaydedilemedi", res?.message || "İşlem başarısız oldu.");
     }
-    const warrantyCode = newChargeType === "FREE" ? "IW" : "OOW";
-    const res = await api.addRepairRecord(device.workOrderId, missionGroupCode, warrantyCode, "", getCurrentUser()?.username);
-    if (!res || !res.success) {
-      showNotif("error", "Onarım Eklenemedi", res?.message || "Kayıt başarısız oldu.");
-      return false;
-    }
+  }, [device, diagnosisDraft, showNotif]);
 
+  // ── Repair Actions ──────────────────────────────────────────
+  // Güncel onarım/parça listesini backend'den tekrar çeker (ekleme/karar sonrası ortak kullanılır).
+  const refreshRepairs = useCallback(async () => {
+    if (!device?.imei) return null;
     const refreshed = await api.getRepairOperationsByImei(device.imei).catch(() => null);
     if (refreshed && refreshed.success) {
       setDeviceParts(refreshed.parts || []);
       setRepairs((refreshed.repairs || []).map(r => ({ ...r, technician: "", parts: [] })));
     }
+    return refreshed;
+  }, [device]);
+
+  // Backend'e kalıcı olarak yazar (warehouse.repair_records) ve ardından
+  // güncel listeyi tekrar çeker — sayfa yenilense/cihaz tekrar aransa da kaybolmaz.
+  const handleAddRepair = useCallback(async (missionGroupCode, newChargeType) => {
+    if (!device) return false;
+    // Bağlı bir servis iş emri varsa onun id'si, yoksa doğrudan cihazın IMEI'si kullanılır
+    // (get_repair_operations_by_imei bu durumda onarımı yine aynı IMEI ile bulup gösterir).
+    const deviceRef = device.workOrderId || device.imei;
+    const warrantyCode = newChargeType === "FREE" ? "IW" : "OOW";
+    const res = await api.addRepairRecord(deviceRef, missionGroupCode, warrantyCode, "", getCurrentUser()?.username);
+    if (!res || !res.success) {
+      showNotif("error", "Onarım Eklenemedi", res?.message || "Kayıt başarısız oldu.");
+      return false;
+    }
+
+    await refreshRepairs();
 
     const groupLabel = missionGroups.find(mg => mg.code === missionGroupCode)?.short_name || missionGroupCode;
     showNotif("success", "Onarım Eklendi", `${groupLabel} — ${CHARGE_TYPES[newChargeType]?.label}`);
     return true;
-  }, [device, missionGroups, showNotif]);
+  }, [device, missionGroups, showNotif, refreshRepairs]);
 
   // warehouse.repair_records.repair_result_type_code'a kalıcı olarak yazar.
   const handleAdvanceStatus = useCallback(async (repairId, newStatus) => {
@@ -556,6 +578,16 @@ const TechnicianRepairOperations = () => {
   const requiredMission = currentStatuInfo?.mission || "";
   const hasAccess = isAdminUser || !requiredMission || userMissions.includes(requiredMission);
 
+  // Demontaj Teknisyeni (TEC_DISMANTLE) Servis Onarımları'na girdiğinde, herkesin gördüğü
+  // genel ekran yerine parça/arıza/işlem seçimli özel bir panel görür (admin dahil değil —
+  // sadece gerçekten bu mission'a sahip kullanıcılar).
+  const isDismantleTechnician = userMissions.includes("TEC_DISMANTLE");
+
+  // Müşteri Arıza Tespiti sadece test teknisyenleri (QAC ailesi) tarafından ve
+  // mevcut statü kilidi açıkken düzenlenebilir.
+  const isTestTechnician = userMissions.some(m => m === "QAC" || m.startsWith("QAC_"));
+  const canEditDiagnosis = isAdminUser || (hasAccess && isTestTechnician);
+
   // ── Statü rozeti: sayısal kod, eski metin statü veya bağlı iş emri yok ──
   const statusBadge = (() => {
     if (!device) return null;
@@ -578,7 +610,7 @@ const TechnicianRepairOperations = () => {
       <NotificationToast notification={notification} onClose={() => setNotification(null)} />
 
       {/* Add Repair Modal */}
-      {showAddModal && <AddRepairModal onClose={() => setShowAddModal(false)} onAdd={handleAddRepair} missionGroups={missionGroups} workOrderId={device?.workOrderId} />}
+      {showAddModal && <AddRepairModal onClose={() => setShowAddModal(false)} onAdd={handleAddRepair} missionGroups={missionGroups} />}
 
       {/* Status Advance Modal */}
       {showAdvanceModal && <StatusAdvanceModal repair={selectedRepair} onClose={() => setShowAdvanceModal(false)} onAdvance={handleAdvanceStatus} />}
@@ -644,9 +676,28 @@ const TechnicianRepairOperations = () => {
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">Müşteri Arıza Tespiti</label>
-                  <div className="px-3 py-2.5 bg-slate-50 dark:bg-[#0f1219] rounded-xl border border-slate-100 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300 leading-relaxed min-h-[56px]">
-                    {device.customerDiagnosis}
-                  </div>
+                  {canEditDiagnosis ? (
+                    <div className="space-y-1.5">
+                      <textarea
+                        value={diagnosisDraft}
+                        onChange={e => setDiagnosisDraft(e.target.value)}
+                        rows={2}
+                        placeholder="Arıza tespitini giriniz..."
+                        className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#161B22] text-xs text-slate-700 dark:text-slate-300 leading-relaxed min-h-[56px] resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                      />
+                      <button
+                        onClick={handleSaveDiagnosis}
+                        disabled={savingDiagnosis || diagnosisDraft === (device.customerDiagnosis || "")}
+                        className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[10px] font-bold transition-colors"
+                      >
+                        {savingDiagnosis ? "Kaydediliyor..." : "Kaydet"}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="px-3 py-2.5 bg-slate-50 dark:bg-[#0f1219] rounded-xl border border-slate-100 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300 leading-relaxed min-h-[56px]">
+                      {device.customerDiagnosis || <span className="italic text-slate-400">Belirtilmemiş</span>}
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">Ürün Bilgisi</label>
@@ -698,6 +749,17 @@ const TechnicianRepairOperations = () => {
         )}
       </div>
 
+      {isDismantleTechnician ? (
+        <DemontajRepairPanel
+          device={device}
+          repairs={repairs}
+          hasAccess={hasAccess}
+          missionGroups={missionGroups}
+          onRefresh={refreshRepairs}
+          showNotif={showNotif}
+        />
+      ) : (
+      <>
       {/* ═══════════════════════════════════════════════════════════
            SECTION 2: ORTA PANEL — Onarım Detay Grid
          ═══════════════════════════════════════════════════════════ */}
@@ -852,6 +914,8 @@ const TechnicianRepairOperations = () => {
             )}
           </div>
         </div>
+      )}
+      </>
       )}
 
       {/* ═══════════════════════════════════════════════════════════

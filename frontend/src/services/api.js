@@ -445,10 +445,61 @@ export const api = {
         });
     },
 
-    addRepairRecord: async (workOrderId, missionGroupCode, warrantyCode, notes, username) => {
+    updateCustomerDiagnosis: async (workOrderId, diagnosisText, username) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
-            backend.add_repair_record(String(workOrderId), String(missionGroupCode), String(warrantyCode || ''), String(notes || ''), String(username || ''), (res) => resolve(JSON.parse(res)));
+            backend.update_customer_diagnosis(String(workOrderId), String(diagnosisText || ''), String(username || ''), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    addRepairRecord: async (workOrderId, missionGroupCode, warrantyCode, notes, username, partItemCode, itemFaultCode, operationTypeCode) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.add_repair_record(
+                String(workOrderId), String(missionGroupCode), String(warrantyCode || ''), String(notes || ''), String(username || ''),
+                String(partItemCode || ''), String(itemFaultCode || ''), String(operationTypeCode || ''),
+                (res) => resolve(JSON.parse(res))
+            );
+        });
+    },
+
+    getItemFaults: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_item_faults) {
+                backend.get_item_faults((res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true, item_faults: [] });
+            }
+        });
+    },
+
+    getRepairItemOperationTypes: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_repair_item_operation_types) {
+                backend.get_repair_item_operation_types((res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true, operation_types: [] });
+            }
+        });
+    },
+
+    getTestDetectedParts: async (deviceRef) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_test_detected_parts) {
+                backend.get_test_detected_parts(String(deviceRef || ''), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true, parts: [] });
+            }
+        });
+    },
+
+    submitDismantleDecision: async (imei, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.submit_dismantle_decision(String(imei), String(username || ''), (res) => resolve(JSON.parse(res)));
         });
     },
 
