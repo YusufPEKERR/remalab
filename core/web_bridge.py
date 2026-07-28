@@ -7843,20 +7843,23 @@ class WebBridge(QObject):
                 entry.defects = (entry.defects + "\n\n" + note) if entry.defects else note
 
                 device_ref = entry.imei_number or entry.batch_no or str(entry.id)
-                for fault_line in fault_lines:
+                fault_row_kwargs = {}
+                for idx, fault_line in enumerate(fault_lines, start=1):
                     if ": " in fault_line:
                         part_category, fault_text = fault_line.split(": ", 1)
                     else:
                         part_category, fault_text = None, fault_line
-                    db.add(TestResultFault(
-                        service_id=entry.id,
-                        imei_number=entry.imei_number,
-                        internal_id=entry.internal_id,
-                        part_category=part_category,
-                        fault_text=fault_text,
-                        description=description.strip(),
-                        created_by=getattr(entry, "created_by", None)
-                    ))
+                    fault_row_kwargs[f"hatali_parca{idx}"] = part_category
+                    fault_row_kwargs[f"hata{idx}"] = fault_text
+
+                db.add(TestResultFault(
+                    service_id=entry.id,
+                    imei_number=entry.imei_number,
+                    internal_id=entry.internal_id,
+                    description=description.strip(),
+                    created_by=getattr(entry, "created_by", None),
+                    **fault_row_kwargs
+                ))
 
                 db.query(RepairRecord).filter(
                     RepairRecord.service_record_id == device_ref,
