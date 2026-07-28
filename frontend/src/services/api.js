@@ -552,6 +552,13 @@ export const api = {
         });
     },
 
+    getImeiCustomerTracking: async (imei) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_imei_customer_tracking(imei, (res) => resolve(JSON.parse(res)));
+        });
+    },
+
     saveServiceRepair: async (data) => {
         const backend = await getBackend();
         return new Promise((resolve) => {

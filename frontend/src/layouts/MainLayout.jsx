@@ -4,7 +4,7 @@ import {
   LogOut, LayoutDashboard, Users, Package, Settings, Bell,
   Warehouse, FileText, BarChart2, Box, Truck, MapPin,
   CheckCircle, Search, AlertTriangle, Zap, RefreshCw, Sun, Moon, Database, Building2, Wrench, ClipboardList, PackageSearch, PackagePlus, Tags, ChevronDown, ChevronRight, Menu, X, Layers, FileSpreadsheet,
-  Boxes, ClipboardCheck, Cog, Repeat
+  Boxes, ClipboardCheck, Cog, Repeat, Smartphone
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useTheme } from '../context/ThemeContext';
@@ -124,6 +124,7 @@ export default function MainLayout() {
         { name: 'İrsaliye', icon: FileText, path: '/irsaliye' },
         { name: 'İş Emirleri', icon: ClipboardList, path: '/work-orders' },
         { name: 'Servis Onarımları', icon: Wrench, path: '/technician-repair' },
+        { name: 'IMEI Müşteri Takip', icon: Smartphone, path: '/imei-musteri-takip' },
 
         { name: 'Raporlar', icon: BarChart2, path: '/raporlar' }
       ]
