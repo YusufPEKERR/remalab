@@ -85,9 +85,9 @@ export default function Parts() {
 
   const fetchDepartments = async () => {
     try {
-      const res = await api.getDepartments();
+      const res = await api.getMissions('Üretim');
       if (res.success) {
-        setDepartmentList((res.departments || []).map(d => d.name));
+        setDepartmentList((res.missions || []).map(m => m.code));
       }
     } catch (err) {
       console.error(err);

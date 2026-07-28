@@ -10,16 +10,6 @@ const PART_TYPES = [
   'Test Cihazı', 'Kalibrasyon Malzemesi', 'Ölçüm Aleti', 'Numune'
 ];
 
-const DEPARTMENTS = [
-  'TEC_BATTERY',
-  'TEC_CAMERA',
-  'TEC_CASE',
-  'TEC_DISPLAY',
-  'TEC_L1REPAIR',
-  'TEC_L2REPAIR',
-  'TEC_L3REPAIR'
-];
-
 // Backend'deki CUSTOMER_FLOW_VALUES (core/web_bridge.py) ile birebir aynı olmalı.
 const FLOW_VALUES = ['Refurbish', 'Repair', 'RMA', 'Battery Replacement'];
 
@@ -33,7 +23,7 @@ export default function PartCategories() {
   const [dynamicPartTypes, setDynamicPartTypes] = useState(PART_TYPES);
   const [locations, setLocations] = useState([]);
   const [systemLocations, setSystemLocations] = useState([]);
-  const [departmentList, setDepartmentList] = useState(DEPARTMENTS);
+  const [departmentList, setDepartmentList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -52,9 +42,9 @@ export default function PartCategories() {
     fetchCategories();
     api.getLocations().then(res => { if (res.success) setLocations(res.locations || []); });
     api.getSystemLocations().then(res => { if (res.success) setSystemLocations(res.locations || []); });
-    api.getDepartments().then(res => {
-      if (res.success && (res.departments || []).length > 0) {
-        setDepartmentList(res.departments.map(d => d.name));
+    api.getMissions('Üretim').then(res => {
+      if (res.success && (res.missions || []).length > 0) {
+        setDepartmentList(res.missions.map(m => m.code));
       }
     });
     const interval = setInterval(() => fetchCategories(true), 60000);

@@ -1297,6 +1297,8 @@ export default function WorkOrders() {
   const paginatedProductionRuns = productionRuns.slice((productionReportPage - 1) * REPORT_ITEMS_PER_PAGE, productionReportPage * REPORT_ITEMS_PER_PAGE);
 
   const TABS = [
+    { key: 'list', label: 'Servis İş Emirleri', icon: ClipboardList },
+    { key: 'new', label: 'Yeni İş Emri', icon: Plus },
     { key: 'production', label: 'Yarı Mamul Üretimi', icon: Factory },
     ...(isDeveloper ? [{ key: 'recent_productions', label: 'Hızlı Tekrar Üretim', icon: Repeat }] : []),
     { key: 'consumption', label: 'Malzeme Tüketimi', icon: Package },

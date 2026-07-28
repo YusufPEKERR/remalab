@@ -139,7 +139,6 @@ class WebBridge(QObject):
         super().__init__(parent)
         self._ensure_department_column()
         self._ensure_status_column()
-        self._ensure_departments_table()
         self._ensure_stock_movement_columns()
         self._ensure_service_records_table()
         self._ensure_work_orders_table()
@@ -923,28 +922,6 @@ class WebBridge(QObject):
         except Exception as e:
             db.rollback()
             print(f"[WebBridge] status kolonu eklenemedi: {e}")
-        finally:
-            db.close()
-
-    def _ensure_departments_table(self):
-        """warehouse.departments tablosu yoksa oluşturur."""
-        from sqlalchemy import text
-        db = SessionLocal()
-        try:
-            db.execute(text("""
-                CREATE TABLE IF NOT EXISTS warehouse.departments (
-                    id SERIAL PRIMARY KEY,
-                    name VARCHAR(100) NOT NULL,
-                    code VARCHAR(20),
-                    responsible VARCHAR(150),
-                    default_location_id INTEGER REFERENCES warehouse.locations(id),
-                    status VARCHAR(20) DEFAULT 'Aktif'
-                );
-            """))
-            db.commit()
-        except Exception as e:
-            db.rollback()
-            print(f"[WebBridge] departments tablosu oluşturulamadı: {e}")
         finally:
             db.close()
 
@@ -1819,38 +1796,6 @@ class WebBridge(QObject):
             db.close()
 
 
-    # ===================    # DEPARTMANLAR MODÜLÜ
-    # ==========================
-
-    @Slot(result=str)
-    def get_departments(self):
-        """Tüm departmanları varsayılan lokasyon adıyla birlikte getirir."""
-        from sqlalchemy import text
-        db = SessionLocal()
-        try:
-            rows = db.execute(text("""
-                SELECT d.id, d.name, d.code, d.responsible, d.default_location_id, d.status, l.name AS location_name
-                FROM warehouse.departments d
-                LEFT JOIN warehouse.locations l ON l.id = d.default_location_id
-                ORDER BY d.id
-            """)).mappings().all()
-            departments = []
-            for row in rows:
-                departments.append({
-                    "id": str(row["id"]),
-                    "name": row["name"] or "",
-                    "code": row["code"] or "",
-                    "responsible": row["responsible"] or "",
-                    "default_location_id": str(row["default_location_id"]) if row["default_location_id"] else "",
-                    "default_location_name": row["location_name"] or "",
-                    "status": row["status"] or "Aktif"
-                })
-            return json.dumps({"success": True, "departments": departments})
-        except Exception as e:
-            return json.dumps({"success": False, "message": str(e)})
-        finally:
-            db.close()
-
     @Slot(result=str)
     def get_product_families(self):
         """Aktif ürün ailesi (cihaz modeli) adlarını getirir. MioCreate.xlsx -> ProductFamily'den seed edilmiştir."""
@@ -1886,6 +1831,217 @@ class WebBridge(QObject):
             groups = [{"code": r["code"], "short_name": r["short_name"], "order_number": r["order_number"]} for r in rows]
             return json.dumps({"success": True, "mission_groups": groups}, ensure_ascii=False)
         except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
+    def get_missions(self, department_filter=""):
+        """Görevleri/rolleri getirir. MioCreate.xlsx -> Mission'dan seed edilmiştir (organization.missions).
+        department_filter doluysa (ör. 'Üretim') sadece o departmandaki görevler döner, boşsa hepsi döner."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            sql = """
+                SELECT m.id, m.code, m.short_name, m.full_name, m.description, m.cost_center,
+                       m.department, m.order_number,
+                       mg.code AS mission_group_code, mg.short_name AS mission_group_name,
+                       mw.code AS mission_workgroup_code, mw.short_name AS mission_workgroup_name,
+                       m.team_leader_mission_code, tl.short_name AS team_leader_name,
+                       m.operation_manager_mission_code, om.short_name AS operation_manager_name,
+                       m.administrative_manager_mission_code, am.short_name AS administrative_manager_name
+                FROM organization.missions m
+                LEFT JOIN organization.mission_groups mg ON mg.id = m.mission_group_id
+                LEFT JOIN organization.mission_workgroups mw ON mw.id = m.mission_workgroup_id
+                LEFT JOIN organization.missions tl ON tl.code = m.team_leader_mission_code
+                LEFT JOIN organization.missions om ON om.code = m.operation_manager_mission_code
+                LEFT JOIN organization.missions am ON am.code = m.administrative_manager_mission_code
+            """
+            params = {}
+            if department_filter and department_filter.strip():
+                sql += " WHERE m.department = :dept"
+                params["dept"] = department_filter.strip()
+            sql += " ORDER BY m.order_number NULLS LAST, m.short_name ASC"
+
+            rows = db.execute(text(sql), params).mappings().all()
+            missions = [{
+                "id": str(r["id"]),
+                "code": r["code"],
+                "short_name": r["short_name"],
+                "full_name": r["full_name"] or "",
+                "description": r["description"] or "",
+                "cost_center": r["cost_center"] or "",
+                "department": r["department"] or "",
+                "order_number": r["order_number"],
+                "mission_group_code": r["mission_group_code"] or "",
+                "mission_group_name": r["mission_group_name"] or "",
+                "mission_workgroup_code": r["mission_workgroup_code"] or "",
+                "mission_workgroup_name": r["mission_workgroup_name"] or "",
+                "team_leader_mission_code": r["team_leader_mission_code"] or "",
+                "team_leader_name": r["team_leader_name"] or "",
+                "operation_manager_mission_code": r["operation_manager_mission_code"] or "",
+                "operation_manager_name": r["operation_manager_name"] or "",
+                "administrative_manager_mission_code": r["administrative_manager_mission_code"] or "",
+                "administrative_manager_name": r["administrative_manager_name"] or "",
+            } for r in rows]
+            return json.dumps({"success": True, "missions": missions}, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(result=str)
+    def get_mission_workgroups(self):
+        """Atölye/masa (mission workgroup) listesini getirir. MioCreate.xlsx -> MissionWorkgroup'tan seed edilmiştir."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            rows = db.execute(text("""
+                SELECT id, code, short_name
+                FROM organization.mission_workgroups
+                ORDER BY short_name ASC
+            """)).mappings().all()
+            workgroups = [{"id": str(r["id"]), "code": r["code"], "short_name": r["short_name"]} for r in rows]
+            return json.dumps({"success": True, "mission_workgroups": workgroups}, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    def _resolve_mission_fk_fields(self, db, mission_group_code, mission_workgroup_code):
+        """mission_group_code/mission_workgroup_code metinlerini ilgili tabloların UUID id'lerine çevirir.
+        Kod verilmiş ama bulunamamışsa (None, None, hata_mesaji) döner."""
+        from models.mission_group import MissionGroup
+        from models.mission_workgroup import MissionWorkgroup
+
+        mission_group_id = None
+        if mission_group_code and mission_group_code.strip():
+            mg = db.query(MissionGroup).filter(MissionGroup.code == mission_group_code.strip()).first()
+            if not mg:
+                return None, None, f"Görev grubu kodu bulunamadı: {mission_group_code}"
+            mission_group_id = mg.id
+
+        mission_workgroup_id = None
+        if mission_workgroup_code and mission_workgroup_code.strip():
+            mw = db.query(MissionWorkgroup).filter(MissionWorkgroup.code == mission_workgroup_code.strip()).first()
+            if not mw:
+                return None, None, f"Atölye/masa kodu bulunamadı: {mission_workgroup_code}"
+            mission_workgroup_id = mw.id
+
+        return mission_group_id, mission_workgroup_id, None
+
+    @Slot(str, str, str, str, str, str, str, str, str, str, str, str, result=str)
+    def create_mission(self, code, short_name, full_name, description, cost_center, department,
+                        order_number, mission_group_code, mission_workgroup_code,
+                        team_leader_mission_code, operation_manager_mission_code, administrative_manager_mission_code):
+        """Yeni bir görev/rol (organization.missions) ekler."""
+        import uuid
+        from models.mission import Mission
+        db = SessionLocal()
+        try:
+            code = (code or "").strip()
+            short_name = (short_name or "").strip()
+            if not code or not short_name:
+                return json.dumps({"success": False, "message": "Kod ve kısa ad zorunludur."})
+
+            mission_group_id, mission_workgroup_id, err = self._resolve_mission_fk_fields(db, mission_group_code, mission_workgroup_code)
+            if err:
+                return json.dumps({"success": False, "message": err})
+
+            rec = Mission(
+                id=uuid.uuid4(),
+                code=code,
+                short_name=short_name,
+                full_name=full_name.strip() if full_name else None,
+                description=description.strip() if description else None,
+                cost_center=cost_center.strip() if cost_center else None,
+                department=department.strip() if department else None,
+                order_number=float(order_number) if order_number and order_number.strip() else None,
+                mission_group_id=mission_group_id,
+                mission_workgroup_id=mission_workgroup_id,
+                team_leader_mission_code=team_leader_mission_code.strip() if team_leader_mission_code else None,
+                operation_manager_mission_code=operation_manager_mission_code.strip() if operation_manager_mission_code else None,
+                administrative_manager_mission_code=administrative_manager_mission_code.strip() if administrative_manager_mission_code else None,
+            )
+            db.add(rec)
+            db.commit()
+            return json.dumps({"success": True, "id": str(rec.id)})
+        except Exception as e:
+            db.rollback()
+            if "unique" in str(e).lower() or "duplicate" in str(e).lower():
+                return json.dumps({"success": False, "message": f"Bu kod zaten kullanılıyor: {code}"})
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, str, str, str, str, str, str, str, str, str, str, str, result=str)
+    def update_mission(self, mission_id, code, short_name, full_name, description, cost_center, department,
+                        order_number, mission_group_code, mission_workgroup_code,
+                        team_leader_mission_code, operation_manager_mission_code, administrative_manager_mission_code):
+        """Var olan bir görevi/rolü (organization.missions) günceller."""
+        from models.mission import Mission
+        db = SessionLocal()
+        try:
+            rec = db.query(Mission).filter(Mission.id == mission_id).first()
+            if not rec:
+                return json.dumps({"success": False, "message": "Görev bulunamadı."})
+
+            code = (code or "").strip()
+            short_name = (short_name or "").strip()
+            if not code or not short_name:
+                return json.dumps({"success": False, "message": "Kod ve kısa ad zorunludur."})
+
+            mission_group_id, mission_workgroup_id, err = self._resolve_mission_fk_fields(db, mission_group_code, mission_workgroup_code)
+            if err:
+                return json.dumps({"success": False, "message": err})
+
+            rec.code = code
+            rec.short_name = short_name
+            rec.full_name = full_name.strip() if full_name else None
+            rec.description = description.strip() if description else None
+            rec.cost_center = cost_center.strip() if cost_center else None
+            rec.department = department.strip() if department else None
+            rec.order_number = float(order_number) if order_number and order_number.strip() else None
+            rec.mission_group_id = mission_group_id
+            rec.mission_workgroup_id = mission_workgroup_id
+            rec.team_leader_mission_code = team_leader_mission_code.strip() if team_leader_mission_code else None
+            rec.operation_manager_mission_code = operation_manager_mission_code.strip() if operation_manager_mission_code else None
+            rec.administrative_manager_mission_code = administrative_manager_mission_code.strip() if administrative_manager_mission_code else None
+            db.commit()
+            return json.dumps({"success": True})
+        except Exception as e:
+            db.rollback()
+            if "unique" in str(e).lower() or "duplicate" in str(e).lower():
+                return json.dumps({"success": False, "message": f"Bu kod zaten kullanılıyor: {code}"})
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
+    def delete_mission(self, mission_id):
+        """Bir görevi/rolü (organization.missions) siler. Başka görevlerin amir zincirinde
+        bu görevin koduna referans varsa engellemez, sadece bilgi notu döner."""
+        from sqlalchemy import text
+        from models.mission import Mission
+        db = SessionLocal()
+        try:
+            rec = db.query(Mission).filter(Mission.id == mission_id).first()
+            if not rec:
+                return json.dumps({"success": False, "message": "Görev bulunamadı."})
+
+            ref_count = db.execute(text("""
+                SELECT COUNT(*) FROM organization.missions
+                WHERE team_leader_mission_code = :code
+                   OR operation_manager_mission_code = :code
+                   OR administrative_manager_mission_code = :code
+            """), {"code": rec.code}).scalar()
+
+            db.delete(rec)
+            db.commit()
+            note = f"{ref_count} görevin amir zincirinde bu koda referans vardı, otomatik güncellenmedi." if ref_count else ""
+            return json.dumps({"success": True, "note": note})
+        except Exception as e:
+            db.rollback()
             return json.dumps({"success": False, "message": str(e)})
         finally:
             db.close()
@@ -1938,61 +2094,6 @@ class WebBridge(QObject):
         except Exception as e:
             print(f"[WebBridge] get_part_categories error: {e}")
             return json.dumps({"success": False, "message": str(e)})
-        finally:
-            db.close()
-
-    @Slot(str, str, str, str, str, result=str)
-    def create_department(self, name, code, responsible, default_location_id, status):
-        """Yeni departman ekler."""
-        from sqlalchemy import text
-        db = SessionLocal()
-        try:
-            dept_name = name.strip()
-            if not dept_name:
-                return json.dumps({"success": False, "message": "Departman adı zorunludur"})
-
-            loc_id = int(default_location_id) if default_location_id.strip() else None
-            db.execute(text("""
-                INSERT INTO warehouse.departments (name, code, responsible, default_location_id, status)
-                VALUES (:name, :code, :resp, :loc, :status)
-            """), {
-                "name": dept_name, "code": code or None, "resp": responsible or None,
-                "loc": loc_id, "status": status or "Aktif"
-            })
-            db.commit()
-            return json.dumps({"success": True, "message": "Departman eklendi"})
-        except Exception as e:
-            db.rollback()
-            return json.dumps({"success": False, "message": f"Kayıt hatası: {str(e)}"})
-        finally:
-            db.close()
-
-    @Slot(str, str, str, str, str, str, result=str)
-    def update_department(self, dept_id_str, name, code, responsible, default_location_id, status):
-        """Var olan bir departmanı günceller."""
-        from sqlalchemy import text
-        db = SessionLocal()
-        try:
-            dept_id = int(dept_id_str)
-            dept_name = name.strip()
-            if not dept_name:
-                return json.dumps({"success": False, "message": "Departman adı zorunludur"})
-
-            loc_id = int(default_location_id) if default_location_id.strip() else None
-            db.execute(text("""
-                UPDATE warehouse.departments
-                SET name = :name, code = :code, responsible = :resp,
-                    default_location_id = :loc, status = :status
-                WHERE id = :id
-            """), {
-                "name": dept_name, "code": code or None, "resp": responsible or None,
-                "loc": loc_id, "status": status or "Aktif", "id": dept_id
-            })
-            db.commit()
-            return json.dumps({"success": True, "message": "Departman güncellendi"})
-        except Exception as e:
-            db.rollback()
-            return json.dumps({"success": False, "message": f"Güncelleme hatası: {str(e)}"})
         finally:
             db.close()
 
@@ -2052,22 +2153,6 @@ class WebBridge(QObject):
         except Exception as e:
             db.rollback()
             return json.dumps({"success": False, "message": str(e)})
-        finally:
-            db.close()
-
-    @Slot(str, result=str)
-    def delete_department(self, dept_id_str):
-        """Belirtilen id'ye sahip departmanı siler."""
-        from sqlalchemy import text
-        db = SessionLocal()
-        try:
-            dept_id = int(dept_id_str)
-            db.execute(text("DELETE FROM warehouse.departments WHERE id = :id"), {"id": dept_id})
-            db.commit()
-            return json.dumps({"success": True, "message": "Departman silindi"})
-        except Exception as e:
-            db.rollback()
-            return json.dumps({"success": False, "message": f"Silme hatası: {str(e)}"})
         finally:
             db.close()
 
@@ -7088,7 +7173,8 @@ class WebBridge(QObject):
                     "defects": entry.defects or '',
                     "screen_test": entry.screen_test or '',
                     "power_test": entry.power_test or '',
-                    "flow": entry.flow or 'Refurbish'
+                    "flow": entry.flow or 'Refurbish',
+                    "statu_code": entry.statu_code
                 }
                 return json.dumps({"success": True, "found": True, "data": data}, ensure_ascii=False)
 
@@ -7127,7 +7213,8 @@ class WebBridge(QObject):
                     "defects": c_row["customer_reported_complaint"] or '',
                     "screen_test": '',
                     "power_test": '',
-                    "flow": c_row["flow"] if c_row["flow"] in ['Refurbish', 'Repair', 'RMA', 'Battery Replacement'] else 'Refurbish'
+                    "flow": c_row["flow"] if c_row["flow"] in ['Refurbish', 'Repair', 'RMA', 'Battery Replacement'] else 'Refurbish',
+                    "statu_code": None
                 }
                 return json.dumps({"success": True, "found": True, "data": data}, ensure_ascii=False)
 
@@ -7651,20 +7738,24 @@ class WebBridge(QObject):
             } for r in part_rows]
 
             repair_rows = db.execute(text("""
-                SELECT rr.id, rr.department_mission, rr.notes, rr.repair_result_type_code,
-                       rrt.short_name AS result_name, rrt.is_cancelled, rrt.is_success
+                SELECT rr.id, rr.department_mission, rr.notes, rr.repair_result_type_code, rr.warranty_code,
+                       rrt.short_name AS result_name, rrt.is_cancelled, rrt.is_success,
+                       mg.short_name AS mission_group_name
                 FROM warehouse.repair_records rr
                 LEFT JOIN warehouse.repair_result_type rrt ON rrt.code = rr.repair_result_type_code
+                LEFT JOIN organization.mission_groups mg ON mg.code = rr.department_mission
                 WHERE rr.service_record_id = :wo_id_str
                 ORDER BY rr.created_at DESC
             """), {"wo_id_str": str(wo["id"])}).mappings().all()
 
             repairs = [{
                 "id": str(r["id"]),
-                "missionGroup": r["department_mission"] or "-",
+                "missionGroupCode": r["department_mission"] or "",
+                "missionGroup": r["mission_group_name"] or r["department_mission"] or "-",
                 "statusCode": r["repair_result_type_code"],
                 "statusName": r["result_name"] or str(r["repair_result_type_code"]),
                 "isCancelled": bool(r["is_cancelled"]),
+                "chargeType": "FREE" if r["warranty_code"] == "IW" else "PAID",
             } for r in repair_rows]
 
             return json.dumps({
@@ -7678,6 +7769,9 @@ class WebBridge(QObject):
                     "customerRequest": sr["customer_complaint"] or "",
                     "customerDiagnosis": sr["preliminary_diagnosis"] or "",
                     "serviceStatus": current_statu_code,
+                    # work_orders.status sayısal koda geçmediyse (ör. "Beklemede",
+                    # "Devam Ediyor" gibi eski metin statüler) ham değer burada kalır.
+                    "statusText": wo["status"] or "",
                 },
                 "parts": parts,
                 "repairs": repairs,
@@ -7687,8 +7781,171 @@ class WebBridge(QObject):
         finally:
             db.close()
 
+    @Slot(result=str)
+    def get_service_statu_list(self):
+        """warehouse.service_statu'daki tüm statü kodlarını (kısa ad + gerekli mission) getirir.
+        Servis Onarımları ekranındaki statü-bazlı rol/yetki kontrolünün kaynağıdır."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            rows = db.execute(text("""
+                SELECT code, short_name, mission, is_closed
+                FROM warehouse.service_statu
+                ORDER BY code ASC
+            """)).mappings().all()
+            items = [{"code": r["code"], "short_name": r["short_name"] or "", "mission": r["mission"] or "", "is_closed": bool(r["is_closed"])} for r in rows]
+            return json.dumps({"success": True, "service_statu": items}, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    def _get_user_missions(self, db, username):
+        """(mission_kod_listesi, is_admin) döner. warehouse.users.gorev (virgülle ayrılmış
+        organization.missions.code değerleri) ve role='admin'/'developer' muafiyetine bakar."""
+        from sqlalchemy import text
+        if not username:
+            return [], False
+        row = db.execute(text("SELECT role, gorev FROM warehouse.users WHERE username = :u"), {"u": username}).mappings().first()
+        if not row:
+            return [], False
+        is_admin = (row["role"] or "").strip().lower() in ("admin", "developer")
+        missions = [m.strip() for m in (row["gorev"] or "").split(",") if m.strip()]
+        return missions, is_admin
+
+    def _get_required_mission_for_work_order(self, db, work_order_id):
+        """work_order -> service_record -> IMEI -> en son batch_entries.statu_code -> service_statu.mission
+        zincirini çözer. Herhangi bir halka eksikse (kural uygulanamıyorsa) None döner."""
+        from sqlalchemy import text
+        try:
+            wo_id = int(work_order_id)
+        except (TypeError, ValueError):
+            return None
+
+        sr = db.execute(text("""
+            SELECT sr.imei_number, sr.imei_serial
+            FROM warehouse.work_orders wo
+            JOIN warehouse.service_records sr ON sr.id = wo.service_record_id
+            WHERE wo.id = :id
+        """), {"id": wo_id}).mappings().first()
+        if not sr:
+            return None
+
+        imei = (sr["imei_number"] or sr["imei_serial"] or "").strip()
+        if not imei:
+            return None
+
+        batch = db.execute(text("""
+            SELECT statu_code FROM warehouse.batch_entries
+            WHERE LOWER(TRIM(imei_number)) = LOWER(:imei)
+            ORDER BY id DESC LIMIT 1
+        """), {"imei": imei}).mappings().first()
+        if not batch or batch["statu_code"] is None:
+            return None
+
+        statu = db.execute(text("""
+            SELECT mission FROM warehouse.service_statu WHERE code = :code
+        """), {"code": batch["statu_code"]}).mappings().first()
+        return (statu["mission"] or None) if statu else None
+
+    def _get_required_mission_for_repair(self, db, repair_id):
+        """Bir repair_records.id için gerekli mission'ı çözer (üzerindeki work_order_id'ye bakarak)."""
+        from models.repair_record import RepairRecord
+        rec = db.query(RepairRecord).filter(RepairRecord.id == repair_id).first()
+        if not rec:
+            return None
+        return self._get_required_mission_for_work_order(db, rec.service_record_id)
+
+    @Slot(str, str, str, str, str, result=str)
+    def add_repair_record(self, work_order_id, mission_group_code, warranty_code, notes, username):
+        """Bir iş emrine yeni bir alt onarım kaydı (warehouse.repair_records) ekler.
+        Servis Onarımları ekranındaki 'Onarım Ekle' aksiyonunun kalıcı karşılığıdır."""
+        import uuid
+        from models.repair_record import RepairRecord
+        db = SessionLocal()
+        try:
+            if not work_order_id or not str(work_order_id).strip():
+                return json.dumps({"success": False, "message": "İş emri bulunamadı."})
+            if not mission_group_code or not mission_group_code.strip():
+                return json.dumps({"success": False, "message": "Görev grubu zorunludur."})
+
+            user_missions, is_admin = self._get_user_missions(db, username)
+            if not is_admin:
+                required = self._get_required_mission_for_work_order(db, work_order_id)
+                if required and required not in user_missions:
+                    return json.dumps({"success": False, "message": f"Bu işlem için '{required}' yetkisi gerekiyor."})
+
+            rec = RepairRecord(
+                id=uuid.uuid4(),
+                service_record_id=str(work_order_id).strip(),
+                department_mission=mission_group_code.strip(),
+                repair_result_type_code=1000,
+                warranty_code=warranty_code.strip() if warranty_code else "OOW",
+                notes=notes.strip() if notes else None,
+            )
+            db.add(rec)
+            db.commit()
+            return json.dumps({"success": True, "id": str(rec.id)})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
     @Slot(str, str, str, result=str)
-    def execute_device_return(self, work_order_id, return_reason, dispositions_json):
+    def update_repair_status(self, repair_id, new_status_code, username):
+        """Bir alt onarım kaydının statüsünü (repair_result_type_code) günceller.
+        Kodlar warehouse.repair_result_type tablosundaki gerçek anlamlarıyla kullanılır
+        (1000 Teknisyene Atanacak ... 1003 Onarım İptal Edildi ... 1002 Onarım Tamamlandı vb.)."""
+        from models.repair_record import RepairRecord
+        db = SessionLocal()
+        try:
+            rec = db.query(RepairRecord).filter(RepairRecord.id == repair_id).first()
+            if not rec:
+                return json.dumps({"success": False, "message": "Onarım kaydı bulunamadı."})
+
+            user_missions, is_admin = self._get_user_missions(db, username)
+            if not is_admin:
+                required = self._get_required_mission_for_work_order(db, rec.service_record_id)
+                if required and required not in user_missions:
+                    return json.dumps({"success": False, "message": f"Bu işlem için '{required}' yetkisi gerekiyor."})
+
+            rec.repair_result_type_code = int(new_status_code)
+            db.commit()
+            return json.dumps({"success": True})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, str, result=str)
+    def update_repair_warranty(self, repair_id, warranty_code, username):
+        """Bir alt onarım kaydının ücret tipini (warranty_code: IW=ücretsiz, OOW=ücretli) günceller."""
+        from models.repair_record import RepairRecord
+        db = SessionLocal()
+        try:
+            rec = db.query(RepairRecord).filter(RepairRecord.id == repair_id).first()
+            if not rec:
+                return json.dumps({"success": False, "message": "Onarım kaydı bulunamadı."})
+
+            user_missions, is_admin = self._get_user_missions(db, username)
+            if not is_admin:
+                required = self._get_required_mission_for_work_order(db, rec.service_record_id)
+                if required and required not in user_missions:
+                    return json.dumps({"success": False, "message": f"Bu işlem için '{required}' yetkisi gerekiyor."})
+
+            rec.warranty_code = warranty_code
+            db.commit()
+            return json.dumps({"success": True})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, str, str, result=str)
+    def execute_device_return(self, work_order_id, return_reason, dispositions_json, username):
         """Cihazı 'İade Edilecek' akışıyla 124 statüsüne alır.
         Ön koşullar: (1) tüm onarımlar iptal edilmiş olmalı, (2) depodan çıkmış
         her parça için GOOD/DOA yönlendirmesi yapılmalı, (3) iade nedeni girilmeli."""
@@ -7702,6 +7959,12 @@ class WebBridge(QObject):
             wo = db.execute(text("SELECT id FROM warehouse.work_orders WHERE id = :id"), {"id": wo_id}).first()
             if not wo:
                 return json.dumps({"success": False, "message": "İş emri bulunamadı."})
+
+            user_missions, is_admin = self._get_user_missions(db, username)
+            if not is_admin:
+                required = self._get_required_mission_for_work_order(db, wo_id)
+                if required and required not in user_missions:
+                    return json.dumps({"success": False, "message": f"Bu işlem için '{required}' yetkisi gerekiyor."})
 
             # 1. Tüm onarımlar iptal edilmiş mi?
             active_repairs = db.execute(text("""
@@ -7737,7 +8000,7 @@ class WebBridge(QObject):
                 })
 
             # 3. Parçaları gerçekten geri al (mevcut, çalışan fonksiyonları kullan)
-            username = "system"
+            username = username or "system"
             for p in issued_parts:
                 wop_id_str = str(p["id"])
                 disposition = dispositions.get(wop_id_str)
