@@ -7802,6 +7802,7 @@ class WebBridge(QObject):
         from models.batch_entry import BatchEntry
         from models.service_statu import ServiceStatu
         from models.test_detected_part import TestDetectedPart
+        from models.repair_record import RepairRecord
         from services.state_machine_service import StateMachineService
         db = SessionLocal()
         try:
@@ -7851,6 +7852,11 @@ class WebBridge(QObject):
                         part_category=part_category,
                         created_by=getattr(entry, "created_by", None)
                     ))
+
+                db.query(RepairRecord).filter(
+                    RepairRecord.service_record_id == device_ref,
+                    RepairRecord.repair_result_type_code == 1002
+                ).update({"repair_result_type_code": 1001}, synchronize_session=False)
 
                 target_statu_code = fail_statu_code
             else:
