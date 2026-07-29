@@ -281,7 +281,6 @@ export default function ItemBOM() {
               <tr>
                 <th className="px-6 py-4">Cihaz Modeli</th>
                 <th className="px-6 py-4">Alt Parça Kodu (Bileşen)</th>
-                <th className="px-6 py-4">Bileşen Adı</th>
                 <th className="px-6 py-4">Miktar</th>
                 <th className="px-6 py-4">Durum</th>
                 <th className="px-6 py-4 text-xs">Eklenme / Düzenlenme</th>
@@ -290,15 +289,14 @@ export default function ItemBOM() {
             </thead>
             <tbody className="divide-y divide-slate-700/50">
               {loading ? (
-                <tr><td colSpan="7" className="px-6 py-8 text-center"><RefreshCw className="animate-spin mx-auto text-blue-400" /></td></tr>
+                <tr><td colSpan="6" className="px-6 py-8 text-center"><RefreshCw className="animate-spin mx-auto text-blue-400" /></td></tr>
               ) : boms.length === 0 ? (
-                <tr><td colSpan="7" className="px-6 py-8 text-center text-slate-500">Kayıt bulunamadı.</td></tr>
+                <tr><td colSpan="6" className="px-6 py-8 text-center text-slate-500">Kayıt bulunamadı.</td></tr>
               ) : (
                 boms.map(bom => (
                   <tr key={bom.id} className="hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 transition-colors">
                     <td className="px-6 py-4 font-bold text-blue-400">{bom.product_model}</td>
                     <td className="px-6 py-4 font-mono">{bom.child_item_code}</td>
-                    <td className="px-6 py-4 font-medium">{bom.child_name}</td>
                     <td className="px-6 py-4">{bom.quantity}</td>
                     <td className="px-6 py-4">
                       <span className={`px-2 py-1 text-xs font-semibold rounded-full border ${

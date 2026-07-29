@@ -1,104 +1,213 @@
-"""
-Phonecheck entegrasyonu: tek IMEI icin cihaz/test bilgisini ceker ve
-Statumap akis semasindaki (Pass1/Fail1) test sonucu koduna cevirir.
-"""
 import os
-import requests
+from typing import Dict, Any, Optional
+from datetime import datetime
 
-DEVICE_INFO_ENDPOINTS = {
-    "us": "https://clientapiv2.phonecheck.com/cloud/cloudDB/GetDeviceInfo",
-    "eu": "https://eu-clientapiv2.phonecheck.com/cloudDB/GetDeviceInfo",
+import requests
+from sqlalchemy.orm import Session
+from sqlalchemy import func
+
+from models.phonecheck_test_result import PhonecheckTestResult
+
+PHONECHECK_URL = "https://clientapiv2.phonecheck.com/cloud/CloudDB/v2/GetAllDevices"
+PHONECHECK_USERNAME = "out1"
+
+# Statu gecisleri -> test asamasi eslemesi
+STAGE_BY_TRANSITION = {
+    (103, 104): "ILK_TEST",
+    (125, 109): "SON_TEST",
 }
+
+# Excel sutunu -> tablo kolonu eslemesi (Phonecheck API alan adlariyla)
+FIELD_MAP = {
+    "test_type": "Type",
+    "test_start_time": "StartTime",
+    "test_end_time": "EndTime",
+    "invoice_no": "InvoiceNo",
+    "station_id": "StationID",
+    "working": "Working",
+    "passed": "Passed",
+    "failed": "Failed",
+    "pending": "Pending",
+    "model": "Model",
+    "memory": "Memory",
+    "serial": "Serial",
+    "color": "Color",
+    "grade": "Grade",
+    "version": "Version",
+    "notes": "Notes",
+    "battery_cycle": "BatteryCycle",
+    "battery_health_percentage": "BatteryHealthPercentage",
+    "grading_results": "GradingResults",
+}
+
+# Manuel doldurmada kullaniciya sunulacak temel alanlar
+MANUAL_FIELDS = ["working", "grade", "model", "memory", "serial", "color", "notes"]
 
 
 class PhonecheckService:
-    def __init__(self):
-        self.apikey = os.getenv("PHONECHECK_APIKEY")
-        self.username = os.getenv("PHONECHECK_USERNAME")
-        self.region = (os.getenv("PHONECHECK_REGION") or "us").lower()
+    def __init__(self, db: Session):
+        self.db = db
 
-    def get_device_info(self, imei: str) -> dict:
-        if not self.apikey or not self.username:
-            raise RuntimeError("PHONECHECK_APIKEY / PHONECHECK_USERNAME .env icinde tanimli degil.")
-
-        url = DEVICE_INFO_ENDPOINTS.get(self.region, DEVICE_INFO_ENDPOINTS["us"])
-        payload = {"apiKey": self.apikey, "username": self.username, "imei": imei}
-        resp = requests.post(url, json=payload, timeout=30)
-        resp.raise_for_status()
-        data = resp.json()
-        if isinstance(data, list):
-            return data[0] if data else {}
-        return data
+    # --- Yardimcilar ---------------------------------------------------------
 
     @staticmethod
-    def _has_items(value) -> bool:
-        if value is None:
-            return False
-        if isinstance(value, (list, tuple)):
-            return len(value) > 0
-        if isinstance(value, str):
-            return value.strip() not in ("", "0", "[]")
-        return bool(value)
-
-    @classmethod
-    def to_test_result_code(cls, device: dict):
-        """Phonecheck cihaz kaydini Statumap'teki test_result_code degerine cevirir.
-        Donen deger None ise test henuz tamamlanmamis demektir (gecis yapilmamali)."""
-        working = str(device.get("Working", "")).strip().lower()
-        cosmetics_working = str(device.get("CosmeticsWorking", "")).strip().lower()
-
-        if cls._has_items(device.get("Failed")) or working == "no" or cosmetics_working == "no":
-            return "Fail1"
-
-        if cls._has_items(device.get("Pending")) or working == "pending" or cosmetics_working == "pending":
-            return None
-
-        return "Pass1"
+    def get_stage(current_statu_code: int, target_statu_code: int) -> Optional[str]:
+        """Statu gecisinden test asamasini belirler. Test asamasi degilse None."""
+        return STAGE_BY_TRANSITION.get((current_statu_code, target_statu_code))
 
     @staticmethod
     def _to_int(value):
         try:
-            if value is None or str(value).strip() == "":
-                return None
-            return int(float(value))
+            return int(str(value).strip())
         except (TypeError, ValueError):
             return None
 
-    @staticmethod
-    def _split_tests(value, status):
-        if not value or not str(value).strip():
-            return []
-        return [f"{name.strip()}: {status}" for name in str(value).split(",") if name.strip()]
+    def _next_attempt_no(self, imei: str) -> int:
+        """Bu IMEI'nin kacinci son test denemesi oldugunu bulur (cihaz bazli sayac)."""
+        last = self.db.query(func.max(PhonecheckTestResult.attempt_no)).filter(
+            PhonecheckTestResult.imei == imei,
+            PhonecheckTestResult.test_stage == "SON_TEST",
+        ).scalar()
+        return (last or 0) + 1
 
-    @classmethod
-    def to_db_row(cls, device: dict) -> dict:
-        """Phonecheck GetDeviceInfo ham yanitini warehouse.phonecheck_test_results
-        tablosunun sutunlarina esler (imei/test_stage/attempt_no cagiran tarafta eklenir)."""
-        tests = (
-            cls._split_tests(device.get("Passed"), "Pass")
-            + cls._split_tests(device.get("Failed"), "Fail")
-            + cls._split_tests(device.get("Pending"), "Pending")
+    # --- Phonecheck API ------------------------------------------------------
+
+    def fetch_device(self, term: str) -> Dict[str, Any]:
+        """Phonecheck'ten IMEI veya seri numarasina gore cihazi getirir.
+
+        Bulunamazsa success=False ve manuel doldurma icin gerekli bilgiyi doner.
+        """
+        api_key = os.getenv("PHONECHECK_API_KEY")
+        if not api_key:
+            return {
+                "success": False,
+                "needs_manual": True,
+                "message": "Phonecheck API anahtari tanimli degil (.env icindeki PHONECHECK_API_KEY).",
+                "manual_fields": MANUAL_FIELDS,
+            }
+
+        term = (term or "").strip()
+        if not term:
+            return {
+                "success": False,
+                "needs_manual": False,
+                "message": "IMEI veya seri numarasi bos olamaz.",
+            }
+
+        try:
+            resp = requests.post(
+                PHONECHECK_URL,
+                json={"Apikey": api_key, "Username": PHONECHECK_USERNAME, "limit": 500},
+                timeout=30,
+            )
+        except requests.RequestException as e:
+            return {
+                "success": False,
+                "needs_manual": True,
+                "message": f"Phonecheck'e baglanilamadi: {e}",
+                "manual_fields": MANUAL_FIELDS,
+            }
+
+        if resp.status_code != 200:
+            return {
+                "success": False,
+                "needs_manual": True,
+                "message": f"Phonecheck hatasi ({resp.status_code}): {resp.text[:200]}",
+                "manual_fields": MANUAL_FIELDS,
+            }
+
+        try:
+            data = resp.json()
+        except ValueError:
+            return {
+                "success": False,
+                "needs_manual": True,
+                "message": "Phonecheck beklenmeyen bir yanit dondu.",
+                "manual_fields": MANUAL_FIELDS,
+            }
+
+        devices = [d for d in data if isinstance(d, dict) and "IMEI" in d]
+        match = next(
+            (d for d in devices
+             if str(d.get("IMEI", "")).strip() == term
+             or str(d.get("IMEI2", "")).strip() == term
+             or str(d.get("Serial", "")).strip().lower() == term.lower()),
+            None,
         )
-        test_result_cols = {f"test_result_{i}": (tests[i - 1] if i <= len(tests) else None) for i in range(1, 11)}
 
-        return {
-            "test_type": device.get("TestPlanName"),
-            "test_start_time": device.get("StartTime"),
-            "test_end_time": device.get("EndTime"),
-            "station_id": device.get("StationID"),
-            "working": device.get("Working"),
-            "passed": device.get("Passed"),
-            "failed": device.get("Failed"),
-            "pending": device.get("Pending"),
-            **test_result_cols,
-            "model": device.get("Model"),
-            "memory": device.get("Memory"),
-            "serial": device.get("Serial"),
-            "color": device.get("Color"),
-            "grade": device.get("Grade"),
-            "version": device.get("Version"),
-            "notes": device.get("Notes"),
-            "battery_cycle": cls._to_int(device.get("BatteryCycle")),
-            "battery_health_percentage": cls._to_int(device.get("BatteryHealthPercentage")),
-            "grading_results": device.get("Cosmetics"),
-        }
+        if not match:
+            return {
+                "success": False,
+                "needs_manual": True,
+                "message": f"'{term}' Phonecheck'te bulunamadi. Test verisi elle doldurulmali.",
+                "manual_fields": MANUAL_FIELDS,
+            }
+
+        return {"success": True, "device": match}
+
+    # --- Kayit ---------------------------------------------------------------
+
+    def save_from_phonecheck(self, device: Dict[str, Any], test_stage: str) -> PhonecheckTestResult:
+        """Phonecheck'ten gelen cihaz verisini tabloya yazar."""
+        record = PhonecheckTestResult(
+            imei=str(device.get("IMEI", "")).strip(),
+            test_stage=test_stage,
+            is_manual=False,
+        )
+
+        for column, api_field in FIELD_MAP.items():
+            value = device.get(api_field)
+            if column in ("battery_cycle", "battery_health_percentage"):
+                value = self._to_int(value)
+            elif value is not None:
+                value = str(value)
+            setattr(record, column, value)
+
+        if test_stage == "SON_TEST":
+            record.attempt_no = self._next_attempt_no(record.imei)
+
+        self.db.add(record)
+        self.db.commit()
+        return record
+
+    def save_manual(
+        self,
+        imei: str,
+        test_stage: str,
+        manual_reason: str,
+        entered_by: Optional[str] = None,
+        fields: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Phonecheck'te bulunamayan cihaz icin elle girilen test kaydini yazar.
+
+        manual_reason zorunludur; bos gonderilirse kayit olusturulmaz.
+        """
+        if not (manual_reason or "").strip():
+            return {"success": False, "message": "Aciklama alani zorunludur."}
+
+        if not (imei or "").strip():
+            return {"success": False, "message": "IMEI bos olamaz."}
+
+        record = PhonecheckTestResult(
+            imei=imei.strip(),
+            test_stage=test_stage,
+            is_manual=True,
+            manual_reason=manual_reason.strip(),
+            manual_entered_by=entered_by,
+        )
+
+        for column, value in (fields or {}).items():
+            if column not in MANUAL_FIELDS:
+                continue
+            if column in ("battery_cycle", "battery_health_percentage"):
+                value = self._to_int(value)
+            elif value is not None:
+                value = str(value)
+            setattr(record, column, value)
+
+        if test_stage == "SON_TEST":
+            record.attempt_no = self._next_attempt_no(record.imei)
+
+        self.db.add(record)
+        self.db.commit()
+        return {"success": True, "id": record.id, "attempt_no": record.attempt_no}

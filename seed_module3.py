@@ -21,6 +21,7 @@ from models.service_request_type import ServiceRequestType
 from models.service_test_type import ServiceTestType
 from models.service_test_result_type import ServiceTestResultType
 from models.service_result_type import ServiceResultType
+from models.service_request_item_category import ServiceRequestItemCategory
 
 EXCEL_FILE = os.path.join(os.path.dirname(__file__), "MioCreate.xlsx")
 
@@ -106,6 +107,10 @@ def seed_service_result_type(s, df):
     recs = [{"id": to_uuid(r.get("id")), "code": to_str(r.get("code")), "order_number": to_int(r.get("orderNumber")), "short_name": to_str(r.get("shortName")), "full_name": to_str(r.get("fullName")), "description": to_str(r.get("description")), "cost_center": to_str(r.get("costCenter")), "language": to_str(r.get("language")), "is_success": to_bool(r.get("isSuccess")), "is_enabled": to_float(r.get("isEnabled")), "update": to_bool(r.get("update"))} for _, r in df.iterrows()]
     return upsert(s, ServiceResultType, recs)
 
+def seed_service_request_item_category(s, df):
+    recs = [{"id": to_uuid(r.get("id")), "code": to_str(r.get("code")), "service_request_type": to_str(r.get("serviceRequestType")), "item_category": to_str(r.get("itemCategory")), "is_customer_approved": to_bool(r.get("isCustomerApproved")), "update": to_bool(r.get("update"))} for _, r in df.iterrows()]
+    return upsert(s, ServiceRequestItemCategory, recs)
+
 def main():
     print("Modül 3 Seed Başlıyor...", flush=True)
     Base.metadata.create_all(bind=get_engine())
@@ -117,7 +122,8 @@ def main():
         ("ServiceRequestType", seed_service_request_type),
         ("ServiceTestType", seed_service_test_type),
         ("ServiceTestResultType", seed_service_test_result_type),
-        ("ServiceResultType", seed_service_result_type)
+        ("ServiceResultType", seed_service_result_type),
+        ("ServiceRequestItemCategory", seed_service_request_item_category)
     ]
     
     try:

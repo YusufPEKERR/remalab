@@ -455,22 +455,22 @@ export default function Parts() {
                     <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'item_code' ? 'text-blue-500' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
                   </div>
                 </th>
-                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('name')}>
+                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('brand')}>
                   <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
-                    PARÇA ADI
-                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'name' ? 'text-blue-500' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
+                    MARKA
+                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'brand' ? 'text-blue-500' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
+                  </div>
+                </th>
+                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('model')}>
+                  <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                    MODEL
+                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'model' ? 'text-blue-500' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
                   </div>
                 </th>
                 <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('item_category')}>
                   <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
-                    ITEM CATEGORY
-                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'item_category' ? 'text-blue-500' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
-                  </div>
-                </th>
-                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('part_category')}>
-                  <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
                     PARÇA KATEGORİSİ
-                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'part_category' ? 'text-blue-500' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
+                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'item_category' ? 'text-blue-500' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
                   </div>
                 </th>
                 <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('part_type')}>
@@ -517,8 +517,8 @@ export default function Parts() {
                     </td>
                     <td className="px-6 py-4 font-mono text-slate-400">{part.id}</td>
                     <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200">{part.item_code}</td>
-                    <td className="px-6 py-4">{part.name}</td>
-
+                    <td className="px-6 py-4">{part.brand || '-'}</td>
+                    <td className="px-6 py-4">{part.model || '-'}</td>
                     <td className="px-6 py-4">
                       {part.item_category && (
                         <span className="px-2.5 py-1 rounded-full text-xs font-medium border bg-blue-500/10 text-blue-400 border-blue-500/20">
@@ -526,7 +526,6 @@ export default function Parts() {
                         </span>
                       )}
                     </td>
-                    <td className="px-6 py-4">{part.part_category || '-'}</td>
                     <td className="px-6 py-4">{part.part_type || '-'}</td>
                     <td className="px-6 py-4">
                       <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${

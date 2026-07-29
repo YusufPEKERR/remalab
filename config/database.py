@@ -119,6 +119,7 @@ def init_database_schema():
     from models.service_statu import ServiceStatu
     from models.service_statu_map import ServiceStatuMap
     from models.service_request_type import ServiceRequestType
+    from models.service_request_item_category import ServiceRequestItemCategory
     from models.service_test_type import ServiceTestType
     from models.service_test_result_type import ServiceTestResultType
     from models.service_result_type import ServiceResultType
@@ -129,7 +130,10 @@ def init_database_schema():
     from models.repair_item_warranty import RepairItemWarranty
     from models.product_family_mission import ProductFamilyMission
     from models.repair_record import RepairRecord
+    from models.test_detected_part import TestDetectedPart
+    from models.test_result_fault import TestResultFault
     from models.service_repair import ServiceRepair
+    from models.phonecheck_test_result import PhonecheckTestResult
 
     from models.cost_center import CostCenter
     from models.branch import Branch

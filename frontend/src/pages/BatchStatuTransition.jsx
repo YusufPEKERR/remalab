@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { ScanLine, CheckCircle, AlertTriangle, Info, X, ArrowRight, History } from "lucide-react";
+import { ScanLine, CheckCircle, AlertTriangle, Info, X, ArrowRight, History, ClipboardEdit } from "lucide-react";
 import { api } from "../services/api";
 
 // ─── NOTIFICATION TOAST (TechnicianRepairOperations.jsx ile aynı desen) ───
@@ -43,9 +43,104 @@ const LOG_ICONS = {
   warning: <AlertTriangle size={15} />,
 };
 
-// Bu geçiş kodlarında IMEI okutulduğunda hedef statü elle değil,
-// Phonecheck'ten gelen gerçek test sonucuna göre (Pass1/Fail1) otomatik belirlenir.
-const PHONECHECK_DRIVEN_CODES = ["103_104", "124_125"];
+const STAGE_LABELS = { ILK_TEST: "İlk Test", SON_TEST: "Son Test" };
+
+const MANUAL_FIELD_LABELS = {
+  working: "Çalışıyor mu (Working)",
+  grade: "Grade",
+  model: "Model",
+  memory: "Hafıza (Memory)",
+  serial: "Seri Numarası",
+  color: "Renk",
+  notes: "Cihaz Notu",
+};
+
+// ─── PHONECHECK MANUEL DOLDURMA MODALI ───
+const ManualTestModal = ({ open, imei, testStage, fields, onClose, onSubmit, saving }) => {
+  const [reason, setReason] = useState("");
+  const [values, setValues] = useState({});
+
+  useEffect(() => {
+    if (open) {
+      setReason("");
+      setValues({});
+    }
+  }, [open, imei]);
+
+  if (!open) return null;
+
+  const reasonEmpty = !reason.trim();
+
+  return (
+    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-4">
+      <div className="bg-white dark:bg-[#1e2330] w-full max-w-lg rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-2xl max-h-[90vh] flex flex-col">
+        <div className="p-5 border-b border-slate-200 dark:border-slate-700/50 flex items-start gap-3">
+          <ClipboardEdit size={20} className="text-amber-500 mt-0.5 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <h3 className="font-bold text-slate-900 dark:text-slate-100">Test Verisini Elle Doldur</h3>
+            <p className="text-sm text-slate-400 mt-0.5">
+              {imei} · {STAGE_LABELS[testStage] || testStage} — Phonecheck'te bulunamadı
+            </p>
+          </div>
+          <button onClick={onClose} className="p-1 rounded-md hover:bg-black/5 dark:hover:bg-white/5">
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="p-5 overflow-y-auto flex flex-col gap-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+              Açıklama <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              rows={3}
+              autoFocus
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Cihazın neden Phonecheck'te bulunmadığını açıklayın (zorunlu)"
+              className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 resize-none"
+            />
+            {reasonEmpty && (
+              <p className="text-xs text-red-500 mt-1">Bu alan zorunludur, boş bırakılamaz.</p>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            {(fields || []).map((f) => (
+              <div key={f} className={f === "notes" ? "col-span-2" : ""}>
+                <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
+                  {MANUAL_FIELD_LABELS[f] || f}
+                </label>
+                <input
+                  type="text"
+                  value={values[f] || ""}
+                  onChange={(e) => setValues((p) => ({ ...p, [f]: e.target.value }))}
+                  className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="p-5 border-t border-slate-200 dark:border-slate-700/50 flex justify-end gap-3">
+          <button
+            onClick={onClose}
+            className="px-5 py-2.5 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/40 transition-colors"
+          >
+            Vazgeç
+          </button>
+          <button
+            onClick={() => onSubmit(reason, values)}
+            disabled={reasonEmpty || saving}
+            className="bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-xl text-sm font-medium transition-all shadow-lg shadow-blue-900/20"
+          >
+            {saving ? "Kaydediliyor..." : "Kaydet ve Devam Et"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const BatchStatuTransition = () => {
   const { groupKey, code } = useParams();
@@ -57,6 +152,8 @@ const BatchStatuTransition = () => {
   const [notification, setNotification] = useState(null);
   const [log, setLog] = useState([]);
   const [deviceInfo, setDeviceInfo] = useState(null);
+  const [manualModal, setManualModal] = useState(null); // { imei, testStage, fields, entryId }
+  const [savingManual, setSavingManual] = useState(false);
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -98,6 +195,60 @@ const BatchStatuTransition = () => {
     ]);
   };
 
+  const attemptLabel = (pc) =>
+    pc.test_stage === "SON_TEST" && pc.attempt_no > 1 ? `${pc.attempt_no}. deneme` : "1. deneme";
+
+  // Kaynak→hedef statü geçişini uygular ve sonucu loglar.
+  const applyTransition = async (entryId) => {
+    const data = await api.executeBatchEntryStatuTransition(
+      entryId,
+      transition.parent_statu,
+      transition.child_statu
+    );
+
+    if (data.success) {
+      showNotification("success", data.message);
+      appendLog("success", data.message);
+      setDeviceInfo((prev) => (prev ? { ...prev, statuCode: transition.child_statu, statuName: null } : prev));
+    } else {
+      showNotification("error", data.message);
+      appendLog("error", data.message);
+    }
+    return data.success;
+  };
+
+  // Manuel doldurma formu gönderildiğinde: kaydı yaz, sonra geçişi uygula.
+  const handleManualSubmit = async (reason, values) => {
+    if (!manualModal) return;
+    setSavingManual(true);
+    try {
+      const res = await api.savePhonecheckManual(
+        manualModal.imei,
+        manualModal.testStage,
+        reason,
+        localStorage.getItem("username") || "",
+        values
+      );
+
+      if (!res.success) {
+        showNotification("error", res.message);
+        appendLog("error", res.message);
+        return;
+      }
+
+      const stageLabel = STAGE_LABELS[manualModal.testStage] || manualModal.testStage;
+      appendLog("warning", `${stageLabel} verisi elle dolduruldu: ${reason}`);
+      setManualModal(null);
+      await applyTransition(manualModal.entryId);
+    } catch (err) {
+      console.error(err);
+      showNotification("error", "Manuel kayıt sırasında beklenmeyen bir hata oluştu.");
+    } finally {
+      setSavingManual(false);
+      inputRef.current?.focus();
+    }
+  };
+
   const handleScan = async (e) => {
     e.preventDefault();
     if (!term.trim() || !transition) return;
@@ -121,28 +272,41 @@ const BatchStatuTransition = () => {
         statuName: scanData.current_statu_name,
       });
 
-      const isPhonecheckDriven = PHONECHECK_DRIVEN_CODES.includes(transition.code);
+      // 2. Adım: test adımı olan geçişlerde (103>104 ilk test, 125>109 son test)
+      // Phonecheck'ten test verisini çek. Cihaz bulunamazsa manuel doldurma formunu aç.
+      const pcData = await api.fetchPhonecheckTest(
+        term,
+        transition.parent_statu,
+        transition.child_statu
+      );
 
-      // 2. Adım: Phonecheck'e bağlı geçişlerde hedef statü otomatik (Pass1/Fail1) belirlenir;
-      // diğerlerinde bu ekranın sabit kaynak→hedef geçişi elle uygulanır.
-      // Parti şu an bu geçişin kaynak statüsünde değilse backend "uygun statü değil" hatası döner.
-      const data = isPhonecheckDriven
-        ? await api.fetchPhonecheckAndTransition(scanData.imei)
-        : await api.executeBatchEntryStatuTransition(scanData.entry_id, transition.parent_statu, transition.child_statu);
-
-      if (data.success && isPhonecheckDriven && data.pending) {
-        showNotification("warning", data.message);
-        appendLog("warning", `Phonecheck: ${data.message}`);
-      } else if (data.success) {
-        showNotification("success", data.message);
-        appendLog("success", isPhonecheckDriven ? `Phonecheck (${data.test_result_code}): ${data.message}` : data.message);
-        setDeviceInfo((prev) =>
-          prev ? { ...prev, statuCode: isPhonecheckDriven ? data.new_statu_code : transition.child_statu, statuName: null } : prev
-        );
-      } else {
-        showNotification("error", data.message);
-        appendLog("error", data.message);
+      if (!pcData.success && pcData.needs_manual) {
+        setManualModal({
+          imei: scanData.imei,
+          testStage: pcData.test_stage,
+          fields: pcData.manual_fields || [],
+          entryId: scanData.entry_id,
+        });
+        showNotification("warning", pcData.message);
+        appendLog("warning", pcData.message);
+        return;
       }
+
+      if (!pcData.success) {
+        showNotification("error", pcData.message);
+        appendLog("error", pcData.message);
+        return;
+      }
+
+      if (pcData.test_stage) {
+        const stageLabel = STAGE_LABELS[pcData.test_stage] || pcData.test_stage;
+        const attempt = pcData.attempt_no ? ` (${attemptLabel(pcData)})` : "";
+        appendLog("success", `${stageLabel} verisi Phonecheck'ten alındı${attempt}.`);
+      }
+
+      // 3. Adım: bu ekranın sabit kaynak→hedef geçişini uygula.
+      // Parti şu an bu geçişin kaynak statüsünde değilse backend "uygun statü değil" hatası döner.
+      await applyTransition(scanData.entry_id);
     } catch (err) {
       console.error(err);
       showNotification("error", "Sistem Hatası: sorgu sırasında beklenmeyen bir hata oluştu.");
@@ -171,6 +335,16 @@ const BatchStatuTransition = () => {
     <div className="h-full flex flex-col space-y-6 overflow-hidden relative">
       <NotificationToast notification={notification} onClose={() => setNotification(null)} />
 
+      <ManualTestModal
+        open={!!manualModal}
+        imei={manualModal?.imei}
+        testStage={manualModal?.testStage}
+        fields={manualModal?.fields}
+        saving={savingManual}
+        onClose={() => { setManualModal(null); inputRef.current?.focus(); }}
+        onSubmit={handleManualSubmit}
+      />
+
       <div className="bg-white dark:bg-[#1e2330] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm shrink-0">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-2">
@@ -182,11 +356,6 @@ const BatchStatuTransition = () => {
         </div>
         <p className="text-slate-400 mt-1">
           IMEI, seri numarası, internal ID veya batch numarasını okutun. Parti statü {transition.parent_statu} değilse işlem reddedilir.
-          {PHONECHECK_DRIVEN_CODES.includes(transition.code) && (
-            <span className="block mt-1 text-blue-400">
-              Bu ekranda hedef statü elle seçilmez — Phonecheck'ten gelen gerçek test sonucuna göre otomatik belirlenir (başarısızsa 109'a yönlendirilir).
-            </span>
-          )}
         </p>
       </div>
 

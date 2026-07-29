@@ -29,6 +29,8 @@ import TechnicianPanel from './pages/TechnicianPanel';
 import TechnicianRepairOperations from './pages/TechnicianRepairOperations';
 import SchemaMapper from './pages/SchemaMapper';
 import CustomerApprovalDecision from './pages/CustomerApprovalDecision';
+import AraTestSonuc from './pages/AraTestSonuc';
+import SonTestSonuc from './pages/SonTestSonuc';
 function App() {
   return (
     <BrowserRouter>
@@ -70,6 +72,8 @@ function App() {
             <Route path="/item-bom" element={<ItemBOM />} />
             {/* MODÜL 5 */}
             <Route path="/service-transition" element={<ServiceTransition />} />
+            <Route path="/statu-gecis/MNG1_AS/138_124" element={<AraTestSonuc />} />
+            <Route path="/statu-gecis/QAC/125_126" element={<SonTestSonuc />} />
             <Route path="/statu-gecis/:groupKey/:code" element={<BatchStatuTransition />} />
             <Route path="/musteri-onayi" element={<CustomerApprovalDecision />} />
             <Route path="/technician-panel" element={<TechnicianPanel />} />

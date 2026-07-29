@@ -154,7 +154,7 @@ export default function MainLayout() {
         { name: 'İlk teste kabul (102>103)', icon: ClipboardCheck, path: '/statu-gecis/QAC/102_103' },
         { name: 'Üretime teslim edilecek (103>104)', icon: ClipboardCheck, path: '/statu-gecis/QAC/103_104' },
         { name: 'Son teste kabul (124>125)', icon: ClipboardCheck, path: '/statu-gecis/QAC/124_125' },
-        { name: 'Depoya sevket (125>126)', icon: ClipboardCheck, path: '/statu-gecis/QAC/125_126' }
+        { name: 'Son Test Sonuç (125>126/109)', icon: ClipboardCheck, path: '/statu-gecis/QAC/125_126' }
       ]
     },
     {
@@ -352,10 +352,7 @@ export default function MainLayout() {
             </div>
 
             <button
-              onClick={() => {
-                setCurrentTime(new Date());
-                window.dispatchEvent(new CustomEvent('app:refresh'));
-              }}
+              onClick={() => window.location.reload()}
               className="p-2 text-slate-500 dark:text-slate-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors bg-slate-100 dark:bg-[#1e2330] rounded-xl border border-slate-200 dark:border-slate-700/50 hover:border-blue-300 dark:hover:border-blue-500/50"
               title="Sayfayı Yenile"
             >
