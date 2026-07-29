@@ -140,11 +140,26 @@ class PhonecheckService:
         ).count()
 
     def failed_attempt_count(self, imei: str, test_stage: str) -> int:
-        """Bu cihazin bu test adimindaki basarisiz deneme sayisi."""
+        """Bu cihazin bu test adimindaki basarisiz deneme sayisi.
+
+        Phonecheck kayitlarinda working alani her zaman dolu gelir (Yes/No/Pending),
+        bu yuzden yalnizca "No" sayilir. Manuel kayitlarda ise operator alani bos
+        birakabilir; bu durumda deneme SAYILIR - aksi halde bos birakilarak
+        MAX_FAILED_ATTEMPTS siniri sonsuza kadar asilabilirdi.
+        """
+        from sqlalchemy import or_, and_
+
         return self.db.query(PhonecheckTestResult).filter(
             PhonecheckTestResult.imei == imei,
             PhonecheckTestResult.test_stage == test_stage,
-            PhonecheckTestResult.working == "No",
+            or_(
+                PhonecheckTestResult.working == "No",
+                and_(
+                    PhonecheckTestResult.is_manual.is_(True),
+                    or_(PhonecheckTestResult.working.is_(None),
+                        PhonecheckTestResult.working == ""),
+                ),
+            ),
         ).count()
 
     def failed_limit_reached(self, imei: str, test_stage: str) -> bool:
