@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import {
-  Eye, EyeOff, User, Lock, ArrowRight, AlertCircle, RefreshCw,
-  PackageCheck, ClipboardCheck, Wrench, ScanLine, Truck,
-  Sun, Moon, ShieldAlert, Wifi, WifiOff
+  Eye, EyeOff, Lock, ArrowRight, AlertCircle, RefreshCw,
+  Sun, Moon, ShieldAlert, Wifi, WifiOff, CheckCircle2, Mail,
+  BarChart2, Package, Users, Shield
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { api, getBackend } from '../services/api';
@@ -10,21 +10,24 @@ import { useTheme } from '../context/ThemeContext';
 import amblem from '../assets/Uygulama-Amblemi.png';
 import amblemLacivert from '../assets/remalab-logo.png';
 
-// Cihazin sistemdeki gercek yolculugu - service_statu akisindan
-const FLOW = [
-  { icon: PackageCheck, label: 'Kabul', desc: 'Depo girişi ve parti kaydı', tone: 'blue' },
-  { icon: ClipboardCheck, label: 'İlk Test', desc: 'Cihaz durumu tespiti', tone: 'emerald' },
-  { icon: Wrench, label: 'Üretim', desc: 'Onarım ve parça değişimi', tone: 'orange' },
-  { icon: ScanLine, label: 'Son Test', desc: 'Çıkış kontrolü', tone: 'purple' },
-  { icon: Truck, label: 'Sevkiyat', desc: 'Müşteriye teslim', tone: 'blue' },
+const FLOAT_ICONS = [
+  { Icon: BarChart2, color: '#3b82f6', delay: '0s' },
+  { Icon: Package, color: '#8b5cf6', delay: '0.5s' },
+  { Icon: Users, color: '#10b981', delay: '1s' },
+  { Icon: Shield, color: '#f59e0b', delay: '1.5s' },
 ];
 
-const TONE = {
-  blue: 'text-blue-500 dark:text-blue-400 bg-blue-500/10 border-blue-500/20',
-  emerald: 'text-emerald-500 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
-  orange: 'text-orange-500 dark:text-orange-400 bg-orange-500/10 border-orange-500/20',
-  purple: 'text-purple-500 dark:text-purple-400 bg-purple-500/10 border-purple-500/20',
-};
+const SIDEBAR_ITEMS = ['Dashboard', 'Siparişler', 'Stok Yönetimi', 'Finans', 'Raporlar', 'Kullanıcılar', 'Ayarlar'];
+
+const STATS = [
+  { label: 'Toplam Sipariş', val: '1.250', delta: '+12.5', up: true },
+  { label: 'Toplam Gelir', val: '₺8.6M', delta: '+8.2', up: true },
+  { label: 'Aktif Müşteri', val: '320', delta: '+5.3', up: true },
+  { label: 'Stok Uyarısı', val: '12', delta: '-3.4', up: false },
+];
+
+const BARS = [30, 50, 35, 65, 45, 80, 60, 75, 55, 90, 70, 85];
+const MONTHS = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
 
 export default function Login() {
   const [username, setUsername] = useState('');
@@ -35,65 +38,47 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [capsLock, setCapsLock] = useState(false);
-  const [conn, setConn] = useState('checking'); // checking | ok | offline
+  const [conn, setConn] = useState('checking');
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
+  const isDark = theme === 'dark';
 
-  // Backend baglantisini kontrol et - kopukse kullanici bunu bilmeli
   useEffect(() => {
     let alive = true;
     getBackend()
-      .then((b) => { if (alive) setConn(b && b.login ? 'ok' : 'offline'); })
+      .then(b => { if (alive) setConn(b && b.login ? 'ok' : 'offline'); })
       .catch(() => { if (alive) setConn('offline'); });
     return () => { alive = false; };
   }, []);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('user') || sessionStorage.getItem('user');
-    if (storedUser) {
+    const stored = localStorage.getItem('user') || sessionStorage.getItem('user');
+    if (stored) {
       try {
-        const u = JSON.parse(storedUser);
-        const userRole = u?.role?.toLowerCase() || 'admin';
-        setTimeout(() => {
-          navigate(userRole === 'depo' ? '/depo' : '/dashboard');
-        }, 500);
-      } catch {
-        navigate('/dashboard');
-      }
+        const u = JSON.parse(stored);
+        const role = u?.role?.toLowerCase() || 'admin';
+        setTimeout(() => navigate(role === 'depo' ? '/depo' : '/dashboard'), 500);
+      } catch { navigate('/dashboard'); }
     } else {
       setIsCheckingAuth(false);
-      const savedUsername = localStorage.getItem('saved_username');
-      const savedPassword = localStorage.getItem('saved_password');
-      if (savedUsername) {
-        setUsername(savedUsername);
-        if (savedPassword) {
-          try {
-            setPassword(decodeURIComponent(escape(atob(savedPassword))));
-          } catch (e) { }
-        }
+      const sUser = localStorage.getItem('saved_username');
+      const sPass = localStorage.getItem('saved_password');
+      if (sUser) {
+        setUsername(sUser);
+        if (sPass) { try { setPassword(decodeURIComponent(escape(atob(sPass)))); } catch { } }
         setRememberMe(true);
       }
-      setTimeout(() => {
-        const el = document.getElementById('username-input');
-        if (el) el.focus();
-      }, 0);
+      setTimeout(() => { const el = document.getElementById('username-input'); if (el) el.focus(); }, 0);
     }
   }, [navigate]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    if (!username || !password) {
-      setError('Lütfen tüm alanları doldurun.');
-      return;
-    }
-
-    setError('');
-    setLoading(true);
-
+    if (!username || !password) { setError('Lütfen tüm alanları doldurun.'); return; }
+    setError(''); setLoading(true);
     try {
       const response = await api.login(username, password);
       setLoading(false);
-
       if (response.success) {
         if (rememberMe) {
           localStorage.setItem('user', JSON.stringify(response.user));
@@ -111,239 +96,335 @@ export default function Login() {
       } else {
         setError(response.message || 'Kullanıcı adı veya şifre hatalı.');
       }
-    } catch (err) {
+    } catch {
       setLoading(false);
       setError('Sunucuya ulaşılamadı. Bağlantınızı kontrol edip tekrar deneyin.');
     }
   };
 
-  const onKey = (e) => {
-    if (e.getModifierState) setCapsLock(e.getModifierState('CapsLock'));
-  };
+  const onKey = (e) => { if (e.getModifierState) setCapsLock(e.getModifierState('CapsLock')); };
 
+  /* ── Splash ── */
   if (isCheckingAuth) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-[#111827] flex flex-col items-center justify-center gap-5">
-        <img src={theme === 'dark' ? amblem : amblemLacivert} alt="" className="w-14 h-14 object-contain animate-pulse" />
-        <div className="flex items-center gap-2.5 text-slate-500 dark:text-slate-400">
-          <RefreshCw size={16} className="animate-spin" />
-          <p className="text-sm font-medium">Oturum açılıyor…</p>
+      <div style={{ minHeight: '100vh', background: isDark ? '#0e0e14' : '#eef2ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24 }}>
+          <img src={amblem} alt="" style={{ width: 48, height: 48, objectFit: 'contain' }} />
+          <div style={{ display: 'flex', gap: 8 }}>
+            {[0, 1, 2].map(i => (
+              <span key={i} style={{ width: 8, height: 8, borderRadius: '50%', background: '#3b82f6', display: 'inline-block', animationName: 'dotb', animationDuration: '1.2s', animationTimingFunction: 'ease-in-out', animationDelay: `${i * 0.2}s`, animationIterationCount: 'infinite' }} />
+            ))}
+          </div>
         </div>
+        <style>{`@keyframes dotb{0%,80%,100%{transform:scale(.6);opacity:.4}40%{transform:scale(1);opacity:1}}`}</style>
       </div>
     );
   }
 
+  /* ── Main ── */
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-slate-100 dark:bg-[#0d121c] relative overflow-hidden">
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: isDark ? '#080c14' : '#eef2ff', position: 'relative', overflow: 'hidden', padding: '40px 24px', fontFamily: "'Inter','Outfit',system-ui,sans-serif" }}>
 
-      {/* Arka plan */}
-      <div className="absolute top-[-15%] left-[-5%] w-[45%] h-[45%] rounded-full bg-blue-600/10 dark:bg-blue-600/[0.07] blur-[130px] pointer-events-none"></div>
-      <div className="absolute bottom-[-15%] right-[-5%] w-[40%] h-[40%] bg-emerald-500/10 dark:bg-emerald-500/[0.05] blur-[130px] rounded-full pointer-events-none"></div>
+      {/* ── Enhanced Background Ambient Glows (Işıklı Arka Plan) ── */}
+      <div style={{ position: 'absolute', top: '10%', left: '8%', width: 600, height: 600, borderRadius: '50%', background: isDark ? 'radial-gradient(circle,rgba(59,130,246,.25) 0%,rgba(37,99,235,.08) 50%,transparent 70%)' : 'radial-gradient(circle,rgba(59,130,246,.2) 0%,transparent 70%)', filter: 'blur(90px)', pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', top: '40%', right: '10%', width: 550, height: 550, borderRadius: '50%', background: isDark ? 'radial-gradient(circle,rgba(59,130,246,.32) 0%,rgba(99,102,241,.18) 50%,transparent 70%)' : 'radial-gradient(circle,rgba(99,102,241,.15) 0%,transparent 70%)', filter: 'blur(80px)', pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', bottom: '-10%', left: '35%', width: 450, height: 450, borderRadius: '50%', background: 'radial-gradient(circle,rgba(16,185,129,.12) 0%,transparent 70%)', filter: 'blur(85px)', pointerEvents: 'none' }} />
 
-      {/* Tema butonu */}
-      <button
-        onClick={toggleTheme}
-        title={theme === 'dark' ? 'Açık temaya geç' : 'Koyu temaya geç'}
-        className="absolute top-5 right-5 z-20 p-2.5 rounded-xl bg-white/80 dark:bg-[#1e2330]/80 backdrop-blur border border-slate-200 dark:border-slate-700/50 text-slate-500 dark:text-slate-400 hover:text-amber-500 dark:hover:text-amber-400 transition-colors"
-      >
-        {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
+      {/* Theme btn */}
+      <button onClick={toggleTheme} title={isDark ? 'Açık temaya geç' : 'Koyu temaya geç'}
+        style={{ position: 'absolute', top: 20, right: 20, zIndex: 50, width: 38, height: 38, borderRadius: 10, background: isDark ? 'rgba(255,255,255,.06)' : 'rgba(0,0,0,.07)', border: isDark ? '1px solid rgba(255,255,255,.1)' : '1px solid rgba(0,0,0,.1)', color: isDark ? '#94a3b8' : '#475569', cursor: 'pointer', outline: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all .2s' }}>
+        {isDark ? <Sun size={16} /> : <Moon size={16} />}
       </button>
 
-      <div className="flex w-full max-w-[1040px] rounded-[26px] overflow-hidden relative z-10 border border-slate-200 dark:border-slate-800/60 shadow-2xl bg-white dark:bg-[#161b26] animate-in fade-in zoom-in-95 duration-500 flex-col lg:flex-row">
+      {/* ══════════ CENTERED MAIN CONTAINER (Yakınlaştırılmış & Ortalı) ══════════ */}
+      <div style={{ width: '100%', maxWidth: 1180, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 36, position: 'relative', zIndex: 10 }}>
 
-        {/* ── SOL: Sistemin gerçek akışı ── */}
-        <div className="lg:w-[46%] hidden lg:flex flex-col justify-between px-11 py-12 bg-gradient-to-b from-slate-50 to-slate-100 dark:from-[#141924] dark:to-[#0f131c] border-r border-slate-200 dark:border-slate-800/60 relative">
+        {/* ══════════ LEFT PANEL ══════════ */}
+        <div style={{ flex: '1 1 560px', maxWidth: 640, display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', zIndex: 2 }}>
 
-          <div className="relative z-10">
-            <div className="flex items-center gap-3">
-              <img src={amblemLacivert} alt="Remalab" className="w-12 h-12 object-contain dark:hidden" />
-              <img src={amblem} alt="Remalab" className="w-12 h-12 object-contain hidden dark:block" />
-              <div className="leading-tight">
-                <div className="text-[17px] font-black tracking-tight text-slate-900 dark:text-white">REMALAB</div>
-                <div className="text-[11px] font-semibold tracking-[0.18em] text-blue-500">TEKNOLOJİ</div>
+          {/* Logo */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <img src={amblem} alt="Remalab" style={{ width: 34, height: 34, objectFit: 'contain' }} />
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 900, color: '#fff', letterSpacing: '-0.3px', lineHeight: 1.1 }}>REMALAB</div>
+              <div style={{ fontSize: 8.5, fontWeight: 700, color: '#60a5fa', letterSpacing: '0.22em' }}>TEKNOLOJİ</div>
+            </div>
+          </div>
+
+          {/* Headline */}
+          <div style={{ marginTop: 36, maxWidth: 580 }}>
+            <h1 style={{ fontSize: 40, fontWeight: 800, lineHeight: 1.15, color: '#ffffff', letterSpacing: '-1px', margin: 0 }}>
+              İşinizi dijitalleştirin,<br />
+              yönetimi{' '}
+              <span style={{ color: '#60a5fa', textShadow: '0 0 24px rgba(96,165,250,.4)' }}>kolaylaştırın.</span>
+            </h1>
+            <p style={{ marginTop: 14, fontSize: 14, color: 'rgba(255,255,255,.55)', lineHeight: 1.7, maxWidth: 420 }}>
+              Remalab WMS sistemiyle tüm süreçlerinizi tek platformdan yönetin, verimliliğinizi artırın.
+            </p>
+          </div>
+
+          {/* Dashboard mockup */}
+          <div style={{ marginTop: 32, position: 'relative', maxWidth: 580 }}>
+
+            {/* Floating 3D icons */}
+            <div style={{ position: 'absolute', right: -14, top: -10, display: 'flex', flexDirection: 'column', gap: 12, zIndex: 5 }}>
+              {FLOAT_ICONS.map(({ Icon, color, delay }, i) => (
+                <div key={i} style={{ width: 50, height: 50, borderRadius: 14, background: `${color}18`, border: `1px solid ${color}40`, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(12px)', boxShadow: `0 8px 24px ${color}35`, animationName: 'iconFloat', animationDuration: `${3 + i * 0.6}s`, animationTimingFunction: 'ease-in-out', animationDelay: delay, animationIterationCount: 'infinite' }}>
+                  <Icon size={20} color={color} />
+                </div>
+              ))}
+            </div>
+
+            {/* Main laptop / tablet frame */}
+            <div style={{ background: 'linear-gradient(145deg,#1c1c2e 0%,#16213e 60%,#0f3460 100%)', borderRadius: 20, border: '1px solid rgba(255,255,255,.09)', padding: '20px 24px', boxShadow: '0 30px 80px rgba(0,0,0,.8), 0 0 30px rgba(59,130,246,.15)', transform: 'perspective(1400px) rotateY(-5deg) rotateX(3deg)', transformOrigin: 'left center', marginRight: 60 }}>
+
+              {/* App topbar */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, paddingBottom: 8, borderBottom: '1px solid rgba(255,255,255,.05)' }}>
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#3b82f6', boxShadow: '0 0 8px #3b82f6' }} />
+                <img src={amblem} alt="" style={{ width: 16, height: 16, objectFit: 'contain' }} />
+                <span style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,.85)', letterSpacing: '0.1em' }}>REMALAB ERP</span>
+                <div style={{ marginLeft: 'auto', display: 'flex', gap: 5 }}>
+                  {['#3b82f6', '#f59e0b', '#10b981'].map((c, i) => (
+                    <div key={i} style={{ width: 8, height: 8, borderRadius: '50%', background: c, opacity: .8 }} />
+                  ))}
+                </div>
+              </div>
+
+              {/* Sidebar + Content */}
+              <div style={{ display: 'flex', gap: 12 }}>
+                {/* Sidebar */}
+                <div style={{ width: 110, flexShrink: 0 }}>
+                  <div style={{ background: 'rgba(59,130,246,.18)', borderRadius: 8, padding: '6px 10px', marginBottom: 3, display: 'flex', alignItems: 'center', gap: 6, border: '1px solid rgba(59,130,246,.3)' }}>
+                    <div style={{ width: 10, height: 10, borderRadius: 3, background: '#3b82f6' }} />
+                    <span style={{ fontSize: 9.5, color: '#60a5fa', fontWeight: 700 }}>Ana Sayfa</span>
+                  </div>
+                  {SIDEBAR_ITEMS.map((item, i) => (
+                    <div key={i} style={{ padding: '4px 8px', marginBottom: 2, display: 'flex', alignItems: 'center', gap: 6, borderRadius: 6 }}>
+                      <div style={{ width: 7, height: 7, borderRadius: 2, background: 'rgba(255,255,255,.12)' }} />
+                      <span style={{ fontSize: 8.5, color: 'rgba(255,255,255,.38)' }}>{item}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Content */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,.65)', marginBottom: 8 }}>Genel Bakış</div>
+
+                  {/* Stats grid */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 5, marginBottom: 8 }}>
+                    {STATS.map((s, i) => (
+                      <div key={i} style={{ background: 'rgba(255,255,255,.04)', borderRadius: 7, padding: '6px 7px', border: '1px solid rgba(255,255,255,.05)' }}>
+                        <div style={{ fontSize: 7, color: 'rgba(255,255,255,.35)', marginBottom: 2, lineHeight: 1.2 }}>{s.label}</div>
+                        <div style={{ fontSize: 11, fontWeight: 800, color: '#fff' }}>{s.val}</div>
+                        <div style={{ fontSize: 7, color: s.up ? '#10b981' : '#3b82f6', marginTop: 2 }}>
+                          {s.up ? '▲' : '▼'} {s.delta}%
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Chart */}
+                  <div style={{ background: 'rgba(255,255,255,.03)', borderRadius: 8, padding: '8px 10px', border: '1px solid rgba(255,255,255,.05)', display: 'flex', gap: 12, alignItems: 'flex-end' }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 7.5, color: 'rgba(255,255,255,.4)', marginBottom: 6, fontWeight: 600 }}>Aylık Performans</div>
+                      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 38 }}>
+                        {BARS.map((h, i) => (
+                          <div key={i} style={{ flex: 1, height: `${h}%`, borderRadius: 2, background: i === 11 ? 'linear-gradient(to top,#3b82f6,#60a5fa)' : `rgba(59,130,246,${0.25 + i * 0.045})`, transition: 'height .3s' }} />
+                        ))}
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+                        {MONTHS.map((m, i) => (
+                          <div key={i} style={{ fontSize: 6, color: 'rgba(255,255,255,.2)' }}>{m}</div>
+                        ))}
+                      </div>
+                    </div>
+                    {/* Donut */}
+                    <div style={{ flexShrink: 0, textAlign: 'center' }}>
+                      <div style={{ width: 46, height: 46, borderRadius: '50%', background: 'conic-gradient(#3b82f6 0deg 190deg,#60a5fa 190deg 280deg,#10b981 280deg 360deg)', position: 'relative', margin: '0 auto' }}>
+                        <div style={{ position: 'absolute', inset: 6, borderRadius: '50%', background: '#16213e', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: 7, fontWeight: 800, color: '#fff', lineHeight: 1 }}>1.250</div>
+                            <div style={{ fontSize: 5.5, color: 'rgba(255,255,255,.4)', lineHeight: 1.3 }}>Toplam</div>
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ marginTop: 5, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        {[['#3b82f6', 'Tamamlandı'], ['#60a5fa', 'Devam Ediyor'], ['#10b981', 'İptal Edildi']].map(([c, l], i) => (
+                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                            <div style={{ width: 5, height: 5, borderRadius: '50%', background: c, flexShrink: 0 }} />
+                            <span style={{ fontSize: 6, color: 'rgba(255,255,255,.35)' }}>{l}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <h2 className="text-[26px] font-bold text-slate-900 dark:text-white mt-10 leading-tight">
-              Cihaz Yönetim Sistemi
-            </h2>
-            <p className="mt-3 text-[13.5px] text-slate-500 dark:text-slate-400 leading-relaxed max-w-[300px]">
-              Kabulden sevkiyata kadar her cihazın konumunu, test sonucunu ve
-              onarım geçmişini tek yerden takip edin.
-            </p>
+            {/* Glowing aura under the laptop card */}
+            <div style={{ position: 'absolute', bottom: -15, left: 20, right: 80, height: 28, background: 'rgba(59,130,246,.35)', borderRadius: '50%', filter: 'blur(22px)', pointerEvents: 'none' }} />
           </div>
 
-          {/* Cihazın yolculuğu */}
-          <div className="relative z-10 mt-10">
-            <p className="text-[10.5px] font-semibold tracking-[0.14em] text-slate-400 dark:text-slate-500 uppercase mb-4">
-              Cihazın Yolculuğu
-            </p>
-            <div className="flex flex-col gap-0">
-              {FLOW.map((s, i) => {
-                const Icon = s.icon;
-                return (
-                  <div key={s.label} className="flex gap-3.5 group">
-                    <div className="flex flex-col items-center">
-                      <div className={`w-9 h-9 rounded-xl border flex items-center justify-center shrink-0 ${TONE[s.tone]}`}>
-                        <Icon size={16} />
-                      </div>
-                      {i < FLOW.length - 1 && (
-                        <div className="w-px flex-1 min-h-[16px] bg-slate-200 dark:bg-slate-700/60 my-1"></div>
-                      )}
-                    </div>
-                    <div className={i < FLOW.length - 1 ? 'pb-3.5' : ''}>
-                      <div className="text-[13.5px] font-semibold text-slate-800 dark:text-slate-200 leading-tight">{s.label}</div>
-                      <div className="text-[11.5px] text-slate-400 dark:text-slate-500 mt-0.5">{s.desc}</div>
-                    </div>
-                  </div>
-                );
-              })}
+          {/* Bottom trust badge & footer */}
+          <div style={{ marginTop: 28, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(59,130,246,.15)', border: '1px solid rgba(59,130,246,.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Shield size={16} color="#60a5fa" />
+              </div>
+              <div>
+                <div style={{ fontSize: 12.5, fontWeight: 700, color: 'rgba(255,255,255,.9)' }}>Güvenli. Hızlı. Güçlü.</div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,.4)' }}>Verileriniz bizimle güvende.</div>
+              </div>
+            </div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,.25)' }}>
+              © 2026 <span style={{ color: '#60a5fa' }}>Remalab Teknoloji</span>
             </div>
           </div>
-
-          {/* Nokta deseni */}
-          <div className="absolute inset-0 z-0 opacity-[0.035] pointer-events-none"
-            style={{ backgroundImage: `radial-gradient(${theme === 'dark' ? '#fff' : '#000'} 1px, transparent 1px)`, backgroundSize: '22px 22px' }}></div>
         </div>
 
-        {/* ── SAĞ: Form ── */}
-        <div className="lg:w-[54%] flex flex-col justify-center px-8 sm:px-14 py-12 bg-white dark:bg-[#161b26]">
-          <div className="w-full max-w-[370px] mx-auto">
+        {/* ══════════ RIGHT: FLOATING ILLUMINATED CARD (Işıklı Giriş Kartı) ══════════ */}
+        <div style={{ width: 440, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', zIndex: 10 }}>
+          
+          {/* Card Neon Glow Aura Effect */}
+          <div style={{ position: 'absolute', inset: -15, borderRadius: 36, background: isDark ? 'radial-gradient(circle,rgba(59,130,246,.35) 0%,rgba(99,102,241,.15) 60%,transparent 100%)' : 'radial-gradient(circle,rgba(59,130,246,.2) 0%,transparent 70%)', filter: 'blur(20px)', pointerEvents: 'none' }} />
 
-            {/* Mobil logo */}
-            <div className="flex lg:hidden items-center gap-2.5 mb-8">
-              <img src={amblemLacivert} alt="" className="w-10 h-10 object-contain dark:hidden" />
-              <img src={amblem} alt="" className="w-10 h-10 object-contain hidden dark:block" />
-              <div className="text-[15px] font-black tracking-tight text-slate-900 dark:text-white">
-                REMALAB <span className="text-blue-500 font-semibold">TEKNOLOJİ</span>
+          <div style={{ width: '100%', background: isDark ? 'rgba(15,23,42,.88)' : '#ffffff', backdropFilter: 'blur(20px)', borderRadius: 26, border: isDark ? '1px solid rgba(59,130,246,.3)' : '1px solid rgba(59,130,246,.18)', boxShadow: isDark ? '0 0 50px rgba(59,130,246,.25), 0 25px 80px rgba(0,0,0,.75)' : '0 20px 60px rgba(59,130,246,.2), 0 0 30px rgba(59,130,246,.1)', padding: '38px 34px', position: 'relative', zIndex: 2 }}>
+
+
+          {/* Card logo */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 22 }}>
+            <div style={{ width: 60, height: 60, borderRadius: 18, background: 'linear-gradient(135deg,#3b82f6,#1d4ed8)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 10, boxShadow: '0 10px 28px rgba(59,130,246,.4)' }}>
+              <img src={amblem} alt="" style={{ width: 34, height: 34, objectFit: 'contain', filter: 'brightness(0) invert(1)' }} />
+            </div>
+            <div style={{ fontSize: 15, fontWeight: 900, color: isDark ? '#f1f5f9' : '#0f172a', letterSpacing: '-0.3px' }}>REMALAB</div>
+            <div style={{ fontSize: 9, fontWeight: 700, color: '#3b82f6', letterSpacing: '0.22em', marginTop: 1 }}>TEKNOLOJİ</div>
+          </div>
+
+          <h2 style={{ fontSize: 21, fontWeight: 800, color: isDark ? '#f1f5f9' : '#0f172a', textAlign: 'center', margin: '0 0 6px' }}>ERP Yönetim Sistemi</h2>
+          <p style={{ fontSize: 13, color: isDark ? '#94a3b8' : '#64748b', textAlign: 'center', margin: '0 0 26px', lineHeight: 1.6 }}>Hesabınıza giriş yaparak devam edin.</p>
+
+          {/* Connection / Error banners */}
+          {conn === 'offline' && (
+            <div style={{ display: 'flex', gap: 8, padding: '10px 14px', borderRadius: 10, marginBottom: 14, background: 'rgba(245,158,11,.08)', border: '1px solid rgba(245,158,11,.25)', color: '#b45309', fontSize: 12.5, lineHeight: 1.5 }}>
+              <WifiOff size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+              <span>Sunucu bağlantısı kurulamadı. Yöneticinize bildirin.</span>
+            </div>
+          )}
+          {error && (
+            <div style={{ display: 'flex', gap: 8, padding: '10px 14px', borderRadius: 10, marginBottom: 14, background: 'rgba(239,68,68,.07)', border: '1px solid rgba(239,68,68,.2)', color: '#dc2626', fontSize: 12.5, lineHeight: 1.5 }}>
+              <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+              <span>{error}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+            {/* Username */}
+            <div>
+              <label style={{ fontSize: 12.5, fontWeight: 600, color: isDark ? '#94a3b8' : '#475569', display: 'block', marginBottom: 6 }}>Kullanıcı Adı</label>
+              <div style={{ position: 'relative' }}>
+                <Mail size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }} />
+                <input
+                  id="username-input"
+                  type="text"
+                  autoComplete="username"
+                  placeholder="örn: admin"
+                  value={username}
+                  onChange={e => setUsername(e.target.value)}
+                  style={{ width: '100%', height: 50, boxSizing: 'border-box', paddingLeft: 44, paddingRight: 16, background: isDark ? '#0f1929' : '#fff', border: isDark ? '1.5px solid #1e3a5f' : '1.5px solid #e2e8f0', borderRadius: 12, outline: 'none', fontSize: 14, color: isDark ? '#f1f5f9' : '#0f172a', transition: 'all .2s', fontFamily: 'inherit' }}
+                  onFocus={e => { e.target.style.borderColor = '#3b82f6'; e.target.style.boxShadow = '0 0 0 3px rgba(59,130,246,.15)'; }}
+                  onBlur={e => { e.target.style.borderColor = isDark ? '#1e3a5f' : '#e2e8f0'; e.target.style.boxShadow = 'none'; }}
+                />
               </div>
             </div>
 
-            <h2 className="text-[26px] font-bold text-slate-900 dark:text-white">Hoş geldiniz</h2>
-            <p className="text-slate-500 dark:text-slate-400 text-[13.5px] mt-1.5 mb-7">
-              Devam etmek için hesabınıza giriş yapın.
-            </p>
-
-            {/* Bağlantı uyarısı */}
-            {conn === 'offline' && (
-              <div className="mb-5 px-4 py-3 bg-amber-500/10 border border-amber-500/25 text-amber-700 dark:text-amber-400 rounded-xl text-[13px] flex items-start gap-2.5">
-                <WifiOff size={16} className="shrink-0 mt-0.5" />
-                <span>Sunucu bağlantısı kurulamadı. Giriş yapılamayabilir — yöneticinize bildirin.</span>
+            {/* Password */}
+            <div>
+              <label style={{ fontSize: 12.5, fontWeight: 600, color: isDark ? '#94a3b8' : '#475569', display: 'block', marginBottom: 6 }}>Şifre</label>
+              <div style={{ position: 'relative' }}>
+                <Lock size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }} />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  placeholder="••••••••••••"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  onKeyUp={onKey} onKeyDown={onKey}
+                  style={{ width: '100%', height: 50, boxSizing: 'border-box', paddingLeft: 44, paddingRight: 44, background: isDark ? '#0f1929' : '#fff', border: isDark ? '1.5px solid #1e3a5f' : '1.5px solid #e2e8f0', borderRadius: 12, outline: 'none', fontSize: 14, color: isDark ? '#f1f5f9' : '#0f172a', transition: 'all .2s', fontFamily: 'inherit', letterSpacing: '0.06em' }}
+                  onFocus={e => { e.target.style.borderColor = '#3b82f6'; e.target.style.boxShadow = '0 0 0 3px rgba(59,130,246,.15)'; }}
+                  onBlur={e => { e.target.style.borderColor = isDark ? '#1e3a5f' : '#e2e8f0'; e.target.style.boxShadow = 'none'; }}
+                />
+                <button type="button" onClick={() => setShowPassword(!showPassword)} tabIndex={-1}
+                  style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center' }}>
+                  {showPassword ? <Eye size={16} /> : <EyeOff size={16} />}
+                </button>
               </div>
-            )}
+              {capsLock && (
+                <p style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#f59e0b', marginTop: 5, marginBottom: 0 }}>
+                  <ShieldAlert size={12} /> Caps Lock açık
+                </p>
+              )}
+            </div>
 
-            {error && (
-              <div className="mb-5 px-4 py-3 bg-red-500/10 border border-red-500/25 text-red-600 dark:text-red-400 rounded-xl text-[13px] flex items-start gap-2.5 animate-in fade-in slide-in-from-top-1 duration-200">
-                <AlertCircle size={16} className="shrink-0 mt-0.5" />
-                <span>{error}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleLogin} className="space-y-4">
-
-              <div className="space-y-1.5">
-                <label htmlFor="username-input" className="text-[12.5px] font-medium text-slate-600 dark:text-slate-400">
-                  Kullanıcı Adı
-                </label>
-                <div className="relative group">
-                  <User size={17} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 group-focus-within:text-blue-500 transition-colors pointer-events-none" />
-                  <input
-                    id="username-input"
-                    type="text"
-                    autoComplete="username"
-                    placeholder="Kullanıcı adınız"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    className="w-full h-[50px] pl-11 pr-4 bg-slate-50 dark:bg-[#1e2431] border border-slate-200 dark:border-slate-700/60 rounded-xl outline-none text-[14px] text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-all focus:border-blue-500/60 focus:ring-4 focus:ring-blue-500/10"
-                  />
+            {/* Row: remember + connection */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', userSelect: 'none' }}>
+                <div onClick={() => setRememberMe(v => !v)}
+                  style={{ width: 20, height: 20, borderRadius: 6, border: `2px solid ${rememberMe ? '#3b82f6' : isDark ? '#334155' : '#cbd5e1'}`, background: rememberMe ? '#3b82f6' : isDark ? '#0f1929' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all .15s', cursor: 'pointer' }}>
+                  {rememberMe && <CheckCircle2 size={12} color="#fff" />}
                 </div>
-              </div>
+                <span style={{ fontSize: 13, color: isDark ? '#94a3b8' : '#64748b', fontWeight: 500 }}>Beni Hatırla</span>
+              </label>
+              {conn === 'ok' && (
+                <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: '#10b981', fontWeight: 600 }}>
+                  <Wifi size={11} /> Bağlı
+                </span>
+              )}
+              {conn === 'checking' && (
+                <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: '#f59e0b', fontWeight: 500 }}>
+                  <RefreshCw size={11} style={{ animationName: 'spin', animationDuration: '1s', animationTimingFunction: 'linear', animationIterationCount: 'infinite' }} /> Kontrol...
+                </span>
+              )}
+            </div>
 
-              <div className="space-y-1.5">
-                <label className="text-[12.5px] font-medium text-slate-600 dark:text-slate-400">Şifre</label>
-                <div className="relative group">
-                  <Lock size={17} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 group-focus-within:text-blue-500 transition-colors pointer-events-none" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    autoComplete="current-password"
-                    placeholder="Şifreniz"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    onKeyUp={onKey}
-                    onKeyDown={onKey}
-                    className="w-full h-[50px] pl-11 pr-12 bg-slate-50 dark:bg-[#1e2431] border border-slate-200 dark:border-slate-700/60 rounded-xl outline-none text-[14px] text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-all focus:border-blue-500/60 focus:ring-4 focus:ring-blue-500/10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    tabIndex={-1}
-                    title={showPassword ? 'Şifreyi gizle' : 'Şifreyi göster'}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
-                  >
-                    {showPassword ? <Eye size={17} /> : <EyeOff size={17} />}
-                  </button>
-                </div>
-                {capsLock && (
-                  <p className="flex items-center gap-1.5 text-[12px] text-amber-600 dark:text-amber-400 pt-0.5">
-                    <ShieldAlert size={13} /> Caps Lock açık
-                  </p>
-                )}
-              </div>
+            {/* Submit */}
+            <button type="submit" disabled={loading}
+              style={{ width: '100%', height: 52, marginTop: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, background: loading ? '#1d4ed8' : 'linear-gradient(135deg,#3b82f6 0%,#1d4ed8 100%)', color: '#fff', fontWeight: 700, fontSize: 15, border: 'none', borderRadius: 12, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? .85 : 1, boxShadow: '0 8px 28px rgba(59,130,246,.38)', transition: 'all .2s', fontFamily: 'inherit', letterSpacing: '-0.1px' }}
+              onMouseEnter={e => { if (!loading) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 14px 36px rgba(59,130,246,.52)'; } }}
+              onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 8px 28px rgba(59,130,246,.38)'; }}>
+              {loading
+                ? <><RefreshCw size={17} style={{ animationName: 'spin', animationDuration: '1s', animationTimingFunction: 'linear', animationIterationCount: 'infinite' }} /> Giriş yapılıyor…</>
+                : <><ArrowRight size={17} /> Giriş Yap</>
+              }
+            </button>
+          </form>
 
-              <div className="flex items-center justify-between pt-0.5">
-                <label className="flex items-center cursor-pointer group select-none">
-                  <div className="relative flex items-center justify-center">
-                    <input
-                      type="checkbox"
-                      checked={rememberMe}
-                      onChange={(e) => setRememberMe(e.target.checked)}
-                      className="peer sr-only"
-                    />
-                    <div className="w-[18px] h-[18px] rounded-[5px] border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-[#1e2431] peer-checked:bg-blue-600 peer-checked:border-blue-600 peer-focus-visible:ring-4 peer-focus-visible:ring-blue-500/20 transition-all"></div>
-                    <svg className="absolute w-3 h-3 text-white opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3.5">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
-                  </div>
-                  <span className="ml-2.5 text-[13px] text-slate-500 dark:text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-300 transition-colors">
-                    Beni hatırla
-                  </span>
-                </label>
-
-                {conn === 'ok' && (
-                  <span className="flex items-center gap-1.5 text-[11.5px] text-emerald-600 dark:text-emerald-400">
-                    <Wifi size={12} /> Bağlı
-                  </span>
-                )}
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full h-[50px] mt-2 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-semibold text-[14.5px] rounded-xl transition-all shadow-lg shadow-blue-600/20 disabled:opacity-60 disabled:cursor-not-allowed focus-visible:ring-4 focus-visible:ring-blue-500/25 outline-none group"
-              >
-                {loading ? (
-                  <><RefreshCw size={18} className="animate-spin" /> Giriş yapılıyor…</>
-                ) : (
-                  <>Giriş Yap <ArrowRight size={17} className="group-hover:translate-x-0.5 transition-transform" /></>
-                )}
-              </button>
-            </form>
-
-            <p className="mt-8 text-center text-[11.5px] text-slate-400 dark:text-slate-600">
-              RemaLab Teknoloji Hizmetleri A.Ş. · Depo Yönetim Sistemi
-            </p>
-          </div>
+          {/* Version */}
+          <div style={{ textAlign: 'center', marginTop: 24, fontSize: 11.5, color: isDark ? '#334155' : '#cbd5e1' }}>v1.0.0</div>
         </div>
       </div>
+      </div>
 
+      {/* Loading overlay */}
       {loading && (
-        <div className="fixed inset-0 bg-slate-900/50 dark:bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center z-[100] animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-[#1e2330] px-8 py-6 rounded-2xl shadow-2xl flex flex-col items-center gap-3.5 border border-slate-200 dark:border-slate-700/50">
-            <RefreshCw size={28} className="text-blue-500 animate-spin" />
-            <p className="text-slate-700 dark:text-slate-200 text-[14px] font-medium">Giriş yapılıyor, lütfen bekleyin…</p>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.65)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+          <div style={{ background: isDark ? '#0f1929' : '#ffffff', border: `1px solid ${isDark ? 'rgba(255,255,255,.08)' : 'rgba(59,130,246,.12)'}`, borderRadius: 20, padding: '32px 44px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, boxShadow: '0 32px 80px rgba(0,0,0,.35)' }}>
+            <div style={{ width: 56, height: 56, borderRadius: 16, background: 'rgba(59,130,246,.12)', border: '1px solid rgba(59,130,246,.25)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <RefreshCw size={26} color="#3b82f6" style={{ animationName: 'spin', animationDuration: '1s', animationTimingFunction: 'linear', animationIterationCount: 'infinite' }} />
+            </div>
+            <p style={{ color: isDark ? '#f1f5f9' : '#0f172a', fontWeight: 600, fontSize: 14, margin: 0 }}>Giriş yapılıyor…</p>
+            <p style={{ color: '#64748b', fontSize: 12, margin: 0 }}>Lütfen bekleyin</p>
           </div>
         </div>
       )}
+
+      <style>{`
+        @keyframes spin     { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+        @keyframes dotb     { 0%,80%,100%{transform:scale(.6);opacity:.4} 40%{transform:scale(1);opacity:1} }
+        @keyframes iconFloat{ 0%,100%{transform:translateY(0px)} 50%{transform:translateY(-10px)} }
+        input::placeholder  { color:#b0bec5; letter-spacing:normal; }
+      `}</style>
     </div>
   );
 }
