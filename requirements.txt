@@ -15,4 +15,5 @@ mkdocstrings[python]
 email-validator
 pandas
 openpyxl
+markdown
 requests

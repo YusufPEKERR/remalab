@@ -1885,21 +1885,32 @@ export const api = {
         });
     },
 
-    submitTestResult: async (entryId, currentStatuCode, successStatuCode, failStatuCode, result, description, faultLines, logExitTest = false) => {
+    openProjectGuide: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.open_project_guide) {
+                backend.open_project_guide((res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false, message: "Backend eksik (open_project_guide)" });
+            }
+        });
+    },
+
+    submitTestResult: async (entryId, currentStatuCode, successStatuCode, failStatuCode, result, description, faultLines) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
             backend.submit_test_result(
-                String(entryId), currentStatuCode, successStatuCode, failStatuCode, result, description || '', JSON.stringify(faultLines || []), !!logExitTest,
+                String(entryId), currentStatuCode, successStatuCode, failStatuCode, result, description || '', JSON.stringify(faultLines || []),
                 (res) => resolve(JSON.parse(res))
             );
         });
     },
 
-    fetchPhonecheckTest: async (term, currentStatuCode, targetStatuCode) => {
+    fetchPhonecheckTest: async (term, currentStatuCode, targetStatuCode, note) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
             backend.fetch_phonecheck_test(
-                String(term), currentStatuCode, targetStatuCode,
+                String(term), currentStatuCode, targetStatuCode, String(note || ''),
                 (res) => resolve(JSON.parse(res))
             );
         });

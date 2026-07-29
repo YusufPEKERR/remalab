@@ -28,5 +28,7 @@ plugins:
           paths: [.]
 nav:
   - Ana Sayfa: index.md
+  - Proje Rehberi: PROJE_REHBERI.md
   - Sistem Dökümantasyonu: SISTEM_DOKUMANTASYONU.md
   - API Referansı: api_reference.md
+  - Phonecheck Entegrasyonu: phonecheck_integration.md

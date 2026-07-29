@@ -40,20 +40,29 @@ export default function useCanvasPanZoom({ minScale = 0.15, maxScale = 3 } = {})
 
   // ── Pan Start ─────────────────────────────────────────────
   const onPanStart = useCallback((e) => {
-    if (e.button === 0 || e.button === 1 || e.button === 2) {
-      e.preventDefault();
+    // Mouse middle/right click veya touch start ise
+    if (e.type === 'touchstart' || e.button === 0 || e.button === 1 || e.button === 2) {
+      if (e.type !== 'touchstart') e.preventDefault();
       isPanning.current = true;
-      lastPos.current = { x: e.clientX, y: e.clientY };
+      const isTouch = e.touches && e.touches.length > 0;
+      const clientX = isTouch ? e.touches[0].clientX : e.clientX;
+      const clientY = isTouch ? e.touches[0].clientY : e.clientY;
+      lastPos.current = { x: clientX, y: clientY };
     }
   }, []);
 
   // ── Pan Move ──────────────────────────────────────────────
   const onPanMove = useCallback((e) => {
     if (!isPanning.current) return;
-    e.preventDefault(); // QtWebEngine fix
-    const dx = typeof e.clientX === 'number' && typeof lastPos.current.x === 'number' ? e.clientX - lastPos.current.x : 0;
-    const dy = typeof e.clientY === 'number' && typeof lastPos.current.y === 'number' ? e.clientY - lastPos.current.y : 0;
-    lastPos.current = { x: e.clientX, y: e.clientY };
+    if (e.cancelable) e.preventDefault();
+    
+    const isTouch = e.touches && e.touches.length > 0;
+    const clientX = isTouch ? e.touches[0].clientX : e.clientX;
+    const clientY = isTouch ? e.touches[0].clientY : e.clientY;
+
+    const dx = typeof clientX === 'number' && typeof lastPos.current.x === 'number' ? clientX - lastPos.current.x : 0;
+    const dy = typeof clientY === 'number' && typeof lastPos.current.y === 'number' ? clientY - lastPos.current.y : 0;
+    lastPos.current = { x: clientX, y: clientY };
     setTransform(prev => {
       const newX = prev.x + dx;
       const newY = prev.y + dy;
@@ -97,10 +106,12 @@ export default function useCanvasPanZoom({ minScale = 0.15, maxScale = 3 } = {})
     let maxX = -Infinity, maxY = -Infinity;
 
     nodes.forEach(node => {
-      if (node.x < minX) minX = node.x;
-      if (node.y < minY) minY = node.y;
-      if (node.x > maxX) maxX = node.x;
-      if (node.y > maxY) maxY = node.y;
+      const nx = Number(node.x);
+      const ny = Number(node.y);
+      if (nx < minX) minX = nx;
+      if (ny < minY) minY = ny;
+      if (nx > maxX) maxX = nx;
+      if (ny > maxY) maxY = ny;
     });
 
     // Add assumed table width/height if not provided in nodes

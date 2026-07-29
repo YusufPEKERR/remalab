@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   Plus, Link2, Save, Search, X, Maximize2, ZoomIn, ZoomOut, AlertTriangle, ArrowUpDown, Filter,
-  Database, Code, ArrowRight, Trash2, Info, CheckCircle, Table2, Map, List, ChevronRight
+  Database, Code, ArrowRight, Trash2, Info, CheckCircle, Table2, Map, List, ChevronRight, FileText
 } from 'lucide-react';
 import useCanvasPanZoom from '../hooks/useCanvasPanZoom';
 import { api } from '../services/api';
@@ -237,13 +237,16 @@ export default function SchemaMapper() {
   const handleDragStart = useCallback((tableId, e) => {
     const t = tables.find(t => t.id === tableId);
     if (!t) return;
+    const isTouch = e.touches && e.touches.length > 0;
+    const clientX = isTouch ? e.touches[0].clientX : e.clientX;
+    const clientY = isTouch ? e.touches[0].clientY : e.clientY;
     dragRef.current = {
       isDragging: true,
       tableId,
-      startX: e.clientX,
-      startY: e.clientY,
-      origX: t.x,
-      origY: t.y,
+      startX: clientX,
+      startY: clientY,
+      origX: Number(t.x),
+      origY: Number(t.y),
     };
   }, [tables]);
 
@@ -252,17 +255,20 @@ export default function SchemaMapper() {
     if (!dragRef.current.isDragging) return;
     const { tableId, startX, startY, origX, origY } = dragRef.current;
     const scale = transform.scale;
-    const dx = typeof e.clientX === 'number' ? (e.clientX - startX) / scale : 0;
-    const dy = typeof e.clientY === 'number' ? (e.clientY - startY) / scale : 0;
+    const isTouch = e.touches && e.touches.length > 0;
+    const clientX = isTouch ? e.touches[0].clientX : e.clientX;
+    const clientY = isTouch ? e.touches[0].clientY : e.clientY;
+    const dx = typeof clientX === 'number' ? (clientX - startX) / scale : 0;
+    const dy = typeof clientY === 'number' ? (clientY - startY) / scale : 0;
     
     setTables(prev => {
       if (!Array.isArray(prev)) return prev;
-      const newX = origX + dx;
-      const newY = origY + dy;
+      const newX = Number(origX) + dx;
+      const newY = Number(origY) + dy;
       return prev.map(t => t.id === tableId ? { 
         ...t, 
-        x: isNaN(newX) ? origX : newX, 
-        y: isNaN(newY) ? origY : newY 
+        x: isNaN(newX) ? Number(origX) : newX, 
+        y: isNaN(newY) ? Number(origY) : newY 
       } : t);
     });
   }, [onPanMove, transform.scale]);
@@ -286,8 +292,8 @@ export default function SchemaMapper() {
   }, []);
 
   const handleCanvasClick = useCallback(() => {
-    setSelectedTableId(null);
-    setSelectedEdgeId(null);
+    // Ekrana/tuvale tıklandığında seçimi temizlemeyi (paneli kapatmayı) devre dışı bıraktık.
+    // Kullanıcı hem ekranı kaydırıp hem de özellikleri okumaya devam edebilsin.
     if (connectMode && connectSource) {
       setConnectSource(null); // Cancel partial connection
     }
@@ -471,15 +477,34 @@ export default function SchemaMapper() {
     showNotif('Eşleşme kaydedildi! (Konsola basıldı)');
   }, [tables, edges, showNotif]);
 
+  // ── Proje Rehberi (PDF) ────────────────────────────────────
+  const handleOpenProjectGuide = useCallback(async () => {
+    try {
+      const res = await api.openProjectGuide();
+      if (!res.success) {
+        showNotif(res.message || 'Proje rehberi açılamadı.', 'warning');
+      }
+    } catch (e) {
+      showNotif('Proje rehberi açılırken hata oluştu.', 'warning');
+    }
+  }, [showNotif]);
+
   // ── Search / Filter ───────────────────────────────────────
   const handleSearchFocus = useCallback((tableId) => {
     const t = tables.find(t => t.id === tableId);
     if (!t || !canvasRef.current) return;
     const rect = canvasRef.current.getBoundingClientRect();
+    const scale = 1.5; // Tablonun ekrana tam oturması için büyüteç oranı
+    
+    // Tablonun merkez noktasını hesapla (yaklaşık genişlik 280px)
+    const tableCenterX = Number(t.x) + 140; 
+    // Yüksekliği alan sayısına göre tahmini hesapla
+    const tableCenterY = Number(t.y) + 100 + (t.fields ? t.fields.length * 16 : 0);
+
     setTransform({
-      x: rect.width / 2 - t.x * 1.2,
-      y: rect.height / 2 - t.y * 1.2,
-      scale: 1.2,
+      x: rect.width / 2 - tableCenterX * scale,
+      y: rect.height / 2 - tableCenterY * scale,
+      scale: scale,
     });
     setSelectedTableId(tableId);
     setInspectorOpen(true);
@@ -545,7 +570,7 @@ export default function SchemaMapper() {
   }, [selectedTable]);
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-[calc(100vh-112px)]">
       <Toast notif={notif} onClose={() => setNotif(null)} />
       {showAddModal && <AddTableModal onClose={() => setShowAddModal(false)} onAdd={handleAddTable} />}
 
@@ -567,6 +592,9 @@ export default function SchemaMapper() {
           </button>
           <button onClick={handleSaveMapping} className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-colors">
             <Save size={14} /> Kaydet
+          </button>
+          <button onClick={handleOpenProjectGuide} title="Proje rehberini PDF olarak aç" className="px-3 py-1.5 rounded-lg bg-white dark:bg-[#1e2330] text-slate-600 dark:text-slate-400 text-xs font-bold flex items-center gap-1.5 shadow-sm border border-slate-200 dark:border-slate-700 hover:border-blue-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+            <FileText size={14} /> Proje Rehberi
           </button>
         </div>
 
@@ -650,13 +678,17 @@ export default function SchemaMapper() {
           <div
             ref={canvasRef}
             className={`flex-1 relative overflow-hidden select-none min-w-0 ${connectMode ? 'cursor-crosshair' : 'cursor-default'}`}
-            style={{ backgroundColor: 'transparent' }}
+            style={{ backgroundColor: 'transparent', touchAction: 'none' }}
             onWheel={onWheel}
             onContextMenu={(e) => e.preventDefault()}
             onMouseDown={(e) => { onPanStart(e); handleCanvasClick(); }}
             onMouseMove={handleCanvasMouseMove}
             onMouseUp={handleCanvasMouseUp}
             onMouseLeave={handleCanvasMouseUp}
+            onTouchStart={(e) => { onPanStart(e); handleCanvasClick(); }}
+            onTouchMove={handleCanvasMouseMove}
+            onTouchEnd={handleCanvasMouseUp}
+            onTouchCancel={handleCanvasMouseUp}
           >
             {/* Connect Mode Indicator */}
             {connectMode && (
