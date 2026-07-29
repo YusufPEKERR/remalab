@@ -85,6 +85,9 @@ const ManualTestModal = ({ open, imei, stageName, fields, onClose, onSubmit, sav
   if (!open) return null;
 
   const reasonEmpty = !reason.trim();
+  // "Çalışıyor mu" boş bırakılırsa deneme başarısız sayılır ve 10 hak sınırı
+  // doğru işlemez; bu yüzden zorunlu.
+  const workingEmpty = (fields || []).includes("working") && !values.working;
 
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-4">
@@ -125,8 +128,19 @@ const ManualTestModal = ({ open, imei, stageName, fields, onClose, onSubmit, sav
               <div key={f} className={f === "notes" ? "col-span-2" : ""}>
                 <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
                   {MANUAL_FIELD_LABELS[f] || f}
+                  {f === "working" && <span className="text-red-500"> *</span>}
                 </label>
-                {f === "model" ? (
+                {f === "working" ? (
+                  <select
+                    value={values[f] || ""}
+                    onChange={(e) => setValues((p) => ({ ...p, [f]: e.target.value }))}
+                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="">Seçiniz...</option>
+                    <option value="Yes">Evet — test başarılı</option>
+                    <option value="No">Hayır — test başarısız</option>
+                  </select>
+                ) : f === "model" ? (
                   <select
                     value={values[f] || ""}
                     onChange={(e) => setValues((p) => ({ ...p, [f]: e.target.value }))}
@@ -170,7 +184,7 @@ const ManualTestModal = ({ open, imei, stageName, fields, onClose, onSubmit, sav
           </button>
           <button
             onClick={() => onSubmit(reason, values)}
-            disabled={reasonEmpty || saving}
+            disabled={reasonEmpty || workingEmpty || saving}
             className="bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-xl text-sm font-medium transition-all shadow-lg shadow-blue-900/20"
           >
             {saving ? "Kaydediliyor..." : "Kaydet ve Devam Et"}
