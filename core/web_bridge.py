@@ -8007,31 +8007,34 @@ class WebBridge(QObject):
             if not pc_term:
                 return json.dumps({"success": False, "message": "Bu cihaz için IMEI veya Seri Numarası tanımlı değil, Phonecheck sorgusu yapılamıyor."})
 
-            pc = PhonecheckService()
-            try:
-                device = pc.get_device_info(pc_term)
-            except Exception as e:
-                return json.dumps({"success": False, "message": f"Phonecheck API hatası: {e}"})
-
-            test_result_code = pc.to_test_result_code(device)
-
+            pc = PhonecheckService(db)
             svc = StateMachineService(db)
             allowed = svc.get_allowed_transitions(entry.statu_code)
             positive = next((t for t in allowed if t["is_positive"]), None)
 
-            # Her Phonecheck sorgusu (sonuc ne olursa olsun) warehouse.phonecheck_test_results'a kaydedilir.
-            test_stage = f"{entry.statu_code}_{positive['target_statu_code']}" if positive else str(entry.statu_code)
-            attempt_no = (db.query(PhonecheckTestResult)
-                          .filter(PhonecheckTestResult.imei == pc_term, PhonecheckTestResult.test_stage == test_stage)
-                          .count()) + 1
-            db.add(PhonecheckTestResult(
-                imei=pc_term,
-                test_stage=test_stage,
-                attempt_no=attempt_no,
-                is_manual=False,
-                **pc.to_db_row(device),
-            ))
-            db.commit()
+            # Test asamasi kodu service_statu_map.code formatindadir: "103_104"
+            test_stage = (pc.build_stage(entry.statu_code, positive["target_statu_code"])
+                          if positive else str(entry.statu_code))
+
+            # Bu adimda basarisiz deneme hakki dolmus mu?
+            if pc.failed_limit_reached(pc_term, test_stage):
+                from services.phonecheck_service import MAX_FAILED_ATTEMPTS
+                return json.dumps({
+                    "success": False,
+                    "message": f"Bu cihaz için bu test adımında en fazla {MAX_FAILED_ATTEMPTS} başarısız deneme hakkı var, hak doldu.",
+                })
+
+            fetched = pc.fetch_device(pc_term)
+            if not fetched.get("success"):
+                # Cihaz Phonecheck'te yok -> arayuz manuel doldurma formunu acmali
+                fetched["test_stage"] = test_stage
+                return json.dumps(fetched)
+
+            device = fetched["device"]
+            test_result_code = pc.to_test_result_code(device)
+
+            # Her sorgu (sonuc ne olursa olsun) phonecheck_test_results'a kaydedilir.
+            pc.save_from_phonecheck(device, test_stage, imei=pc_term)
 
             if test_result_code is None:
                 return json.dumps({
@@ -8073,29 +8076,36 @@ class WebBridge(QObject):
 
     @Slot(str, int, int, str, result=str)
     def fetch_phonecheck_test(self, term, current_statu_code, target_statu_code, note=""):
-        """Test adımı olan statü geçişlerinde (103>104 ilk test, 125>109 son test)
-        Phonecheck'ten cihaz test verisini çeker ve kaydeder.
+        """Belirtilen statü geçişi için Phonecheck'ten test verisini çeker ve kaydeder.
+        Statüyü DEĞİŞTİRMEZ - sadece test kaydı düşer. Geçişi de birlikte yapmak için
+        fetch_phonecheck_and_transition kullanılır.
 
-        note doluysa kaydedilen phonecheck_test_results satırının notes alanına yazılır
-        (Phonecheck'in kendisi bu alanı doldurmadığından ekrandan girilen not burada tutulur).
+        test_stage her zaman service_statu_map.code formatındadır: "103_104", "125_109".
+
+        note doluysa kaydedilen satırın notes alanına yazılır (ekrandan girilen not).
 
         Cihaz Phonecheck'te bulunamazsa needs_manual=True döner; bu durumda
         arayüz manuel doldurma formunu açmalı ve save_phonecheck_manual çağırmalıdır."""
-        from services.phonecheck_service import PhonecheckService
+        from services.phonecheck_service import PhonecheckService, MAX_FAILED_ATTEMPTS
         db = SessionLocal()
         try:
             svc = PhonecheckService(db)
-            stage = svc.get_stage(current_statu_code, target_statu_code)
-            if not stage:
-                # Test adımı değil, Phonecheck sorgusu gerekmiyor
-                return json.dumps({"success": True, "skipped": True, "test_stage": None})
+            stage = svc.build_stage(current_statu_code, target_statu_code)
+
+            if svc.failed_limit_reached(term, stage):
+                return json.dumps({
+                    "success": False,
+                    "message": f"Bu cihaz için bu test adımında en fazla {MAX_FAILED_ATTEMPTS} başarısız deneme hakkı var, hak doldu.",
+                    "test_stage": stage,
+                })
 
             result = svc.fetch_device(term)
             if not result.get("success"):
                 result["test_stage"] = stage
                 return json.dumps(result)
 
-            record = svc.save_from_phonecheck(result["device"], stage)
+            device = result["device"]
+            record = svc.save_from_phonecheck(device, stage, imei=term)
             note = (note or "").strip()
             if note:
                 record.notes = note
@@ -8103,6 +8113,7 @@ class WebBridge(QObject):
             return json.dumps({
                 "success": True,
                 "test_stage": stage,
+                "test_result_code": svc.to_test_result_code(device),
                 "record_id": record.id,
                 "attempt_no": record.attempt_no,
                 "working": record.working,
@@ -8243,11 +8254,16 @@ class WebBridge(QObject):
 
             if result == "success":
                 if log_exit_test:
+                    from services.phonecheck_service import PhonecheckService
+                    pc = PhonecheckService(db)
+                    stage = pc.build_stage(current_statu_code, success_statu_code)
+                    imei = entry.imei_number or ""
                     timestamp = __import__("datetime").datetime.now().strftime('%d.%m.%Y %H:%M')
-                    auto_note = f"[{timestamp}] Çıkış Testi olumlu — {device_label}"
+                    auto_note = f"[{timestamp}] Test olumlu — {device_label}"
                     db.add(PhonecheckTestResult(
-                        imei=entry.imei_number or "",
-                        test_stage="Çıkış Testi",
+                        imei=imei,
+                        test_stage=stage,
+                        attempt_no=pc.attempt_count(imei, stage) + 1,
                         working="Yes",
                         notes=auto_note,
                         is_manual=True,
@@ -8268,22 +8284,22 @@ class WebBridge(QObject):
                     return json.dumps({"success": False, "message": "En fazla 10 hatalı parça / hata kodu seçebilirsiniz."})
 
                 if log_exit_test:
-                    fail_attempt_count = db.query(PhonecheckTestResult).filter(
-                        PhonecheckTestResult.imei == (entry.imei_number or ""),
-                        PhonecheckTestResult.is_manual == True,
-                        PhonecheckTestResult.working == "No"
-                    ).count()
-                    if fail_attempt_count >= 10:
-                        return json.dumps({"success": False, "message": "Bu cihaz için en fazla 10 kez başarısız Son Test hakkı var, hak doldu."})
+                    from services.phonecheck_service import PhonecheckService, MAX_FAILED_ATTEMPTS
+                    pc = PhonecheckService(db)
+                    stage = pc.build_stage(current_statu_code, fail_statu_code)
+                    imei = entry.imei_number or ""
+
+                    if pc.failed_limit_reached(imei, stage):
+                        return json.dumps({"success": False, "message": f"Bu cihaz için bu test adımında en fazla {MAX_FAILED_ATTEMPTS} başarısız deneme hakkı var, hak doldu."})
 
                     timestamp = __import__("datetime").datetime.now().strftime('%d.%m.%Y %H:%M')
                     fail_note = f"[{timestamp}] Test Başarısız — {description.strip()}\nHatalı Parçalar: " + "; ".join(fault_lines)
                     db.add(PhonecheckTestResult(
-                        imei=entry.imei_number or "",
-                        test_stage=f"{fail_attempt_count + 2}. Test",
+                        imei=imei,
+                        test_stage=stage,
+                        attempt_no=pc.attempt_count(imei, stage) + 1,
                         working="No",
                         notes=fail_note,
-                        attempt_no=fail_attempt_count + 2,
                         is_manual=True,
                         manual_reason=fail_note,
                         manual_entered_by=getattr(entry, "created_by", None)

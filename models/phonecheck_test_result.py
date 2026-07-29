@@ -16,7 +16,8 @@ class PhonecheckTestResult(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     imei = Column(String(100), nullable=False)
-    test_stage = Column(String(100), nullable=False)  # Giriş Testi / Çıkış Testi / 2. Test ...
+    # service_statu_map.code formatinda test adimi: "103_104", "125_109" ...
+    test_stage = Column(String(100), nullable=False)
     test_type = Column(String(255), nullable=True)
     test_start_time = Column(String(50), nullable=True)
     test_end_time = Column(String(50), nullable=True)

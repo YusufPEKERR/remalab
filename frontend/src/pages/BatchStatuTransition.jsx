@@ -43,7 +43,10 @@ const LOG_ICONS = {
   warning: <AlertTriangle size={15} />,
 };
 
-const STAGE_LABELS = { ILK_TEST: "İlk Test", SON_TEST: "Son Test" };
+// test_stage artık "103_104" gibi service_statu_map.code formatında gelir.
+// Ekranda geçişin kendi adını (transition.short_name) göstermek daha anlamlı.
+const stageLabel = (testStage, transition) =>
+  transition?.short_name || testStage || "Test";
 
 const MANUAL_FIELD_LABELS = {
   working: "Çalışıyor mu (Working)",
@@ -56,7 +59,7 @@ const MANUAL_FIELD_LABELS = {
 };
 
 // ─── PHONECHECK MANUEL DOLDURMA MODALI ───
-const ManualTestModal = ({ open, imei, testStage, fields, onClose, onSubmit, saving }) => {
+const ManualTestModal = ({ open, imei, stageName, fields, onClose, onSubmit, saving }) => {
   const [reason, setReason] = useState("");
   const [values, setValues] = useState({});
 
@@ -79,7 +82,7 @@ const ManualTestModal = ({ open, imei, testStage, fields, onClose, onSubmit, sav
           <div className="flex-1 min-w-0">
             <h3 className="font-bold text-slate-900 dark:text-slate-100">Test Verisini Elle Doldur</h3>
             <p className="text-sm text-slate-400 mt-0.5">
-              {imei} · {STAGE_LABELS[testStage] || testStage} — Phonecheck'te bulunamadı
+              {imei} · {stageName} — Phonecheck'te bulunamadı
             </p>
           </div>
           <button onClick={onClose} className="p-1 rounded-md hover:bg-black/5 dark:hover:bg-white/5">
@@ -195,8 +198,7 @@ const BatchStatuTransition = () => {
     ]);
   };
 
-  const attemptLabel = (pc) =>
-    pc.test_stage === "SON_TEST" && pc.attempt_no > 1 ? `${pc.attempt_no}. deneme` : "1. deneme";
+  const attemptLabel = (pc) => `${pc.attempt_no || 1}. deneme`;
 
   // Kaynak→hedef statü geçişini uygular ve sonucu loglar.
   const applyTransition = async (entryId) => {
@@ -236,8 +238,7 @@ const BatchStatuTransition = () => {
         return;
       }
 
-      const stageLabel = STAGE_LABELS[manualModal.testStage] || manualModal.testStage;
-      appendLog("warning", `${stageLabel} verisi elle dolduruldu: ${reason}`);
+      appendLog("warning", `${stageLabel(manualModal.testStage, transition)} verisi elle dolduruldu: ${reason}`);
       setManualModal(null);
       await applyTransition(manualModal.entryId);
     } catch (err) {
@@ -299,9 +300,8 @@ const BatchStatuTransition = () => {
       }
 
       if (pcData.test_stage) {
-        const stageLabel = STAGE_LABELS[pcData.test_stage] || pcData.test_stage;
         const attempt = pcData.attempt_no ? ` (${attemptLabel(pcData)})` : "";
-        appendLog("success", `${stageLabel} verisi Phonecheck'ten alındı${attempt}.`);
+        appendLog("success", `${stageLabel(pcData.test_stage, transition)} verisi Phonecheck'ten alındı${attempt}.`);
       }
 
       // 3. Adım: bu ekranın sabit kaynak→hedef geçişini uygula.
@@ -338,7 +338,7 @@ const BatchStatuTransition = () => {
       <ManualTestModal
         open={!!manualModal}
         imei={manualModal?.imei}
-        testStage={manualModal?.testStage}
+        stageName={stageLabel(manualModal?.testStage, transition)}
         fields={manualModal?.fields}
         saving={savingManual}
         onClose={() => { setManualModal(null); inputRef.current?.focus(); }}
