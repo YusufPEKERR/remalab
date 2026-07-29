@@ -28,10 +28,12 @@ import ServiceTransition from './pages/ServiceTransition';
 import BatchStatuTransition from './pages/BatchStatuTransition';
 import TechnicianPanel from './pages/TechnicianPanel';
 import TechnicianRepairOperations from './pages/TechnicianRepairOperations';
+import DemontajServisOnarimlari from './pages/DemontajServisOnarimlari';
 import SchemaMapper from './pages/SchemaMapper';
 import CustomerApprovalDecision from './pages/CustomerApprovalDecision';
 import AraTestSonuc from './pages/AraTestSonuc';
 import SonTestSonuc from './pages/SonTestSonuc';
+import StatuKontrol from './pages/StatuKontrol';
 function App() {
   return (
     <BrowserRouter>
@@ -46,6 +48,7 @@ function App() {
           {/* Protected Routes (Wrapped in MainLayout) */}
           <Route element={<MainLayout />}>
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/statu-kontrol" element={<StatuKontrol />} />
 
             {/* DEPO */}
             <Route path="/depo" element={<Depo />} />
@@ -80,6 +83,7 @@ function App() {
             <Route path="/musteri-onayi" element={<CustomerApprovalDecision />} />
             <Route path="/technician-panel" element={<TechnicianPanel />} />
             <Route path="/technician-repair" element={<TechnicianRepairOperations />} />
+            <Route path="/servis-onarimlari-demontaj" element={<DemontajServisOnarimlari />} />
             <Route path="/schema-mapper" element={<SchemaMapper />} />
           </Route>
         </Routes>

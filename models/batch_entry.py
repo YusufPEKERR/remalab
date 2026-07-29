@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, Numeric, DateTime, Text, Boolean, func
+from sqlalchemy.dialects.postgresql import UUID
 from config.database import Base
 
 class BatchEntry(Base):
@@ -30,6 +31,7 @@ class BatchEntry(Base):
     power_test = Column(String(100), nullable=True)
     flow = Column(String(100), default='Refurbish')
     statu_code = Column(Integer, default=100)
+    service_id = Column(UUID(as_uuid=True), nullable=True)  # bkz. WebBridge._ensure_service_id_columns
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

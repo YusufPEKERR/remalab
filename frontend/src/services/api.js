@@ -402,6 +402,13 @@ export const api = {
         });
     },
 
+    getApprovedCategoriesForFlow: async (flow) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_approved_categories_for_flow(String(flow || ''), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
     // ==========================
     // GÖREV YÖNETİMİ (Mission — Departman Yönetimi'nin gerçek kaynağı)
     // ==========================
@@ -435,6 +442,39 @@ export const api = {
                 backend.get_service_statu_list((res) => resolve(JSON.parse(res)));
             } else {
                 resolve({ success: true, service_statu: [] });
+            }
+        });
+    },
+
+    getItemSupplyStatuses: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_item_supply_statuses) {
+                backend.get_item_supply_statuses((res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true, supply_statuses: [] });
+            }
+        });
+    },
+
+    updateRepairSupplyStatus: async (repairId, supplyStatusCode, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.update_repair_supply_status) {
+                backend.update_repair_supply_status(String(repairId), supplyStatusCode || '', username || '', (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false, message: "Backend eksik" });
+            }
+        });
+    },
+
+    adminSetBatchEntryStatu: async (imei, targetStatuCode) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.admin_set_batch_entry_statu) {
+                backend.admin_set_batch_entry_statu(String(imei), Number(targetStatuCode), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false, message: "Backend eksik" });
             }
         });
     },
@@ -488,6 +528,24 @@ export const api = {
                 String(partItemCode || ''), String(itemFaultCode || ''), String(operationTypeCode || ''),
                 (res) => resolve(JSON.parse(res))
             );
+        });
+    },
+
+    updateRepairRecord: async (repairId, missionGroupCode, warrantyCode, notes, username, partItemCode, itemFaultCode, operationTypeCode) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.update_repair_record(
+                String(repairId), String(missionGroupCode), String(warrantyCode || ''), String(notes || ''), String(username || ''),
+                String(partItemCode || ''), String(itemFaultCode || ''), String(operationTypeCode || ''),
+                (res) => resolve(JSON.parse(res))
+            );
+        });
+    },
+
+    deleteRepairRecord: async (repairId, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.delete_repair_record(String(repairId), String(username || ''), (res) => resolve(JSON.parse(res)));
         });
     },
 
