@@ -26,8 +26,6 @@ const INFO_FIELDS = [
   { key: 'createDate', label: 'Create Date' },
   { key: 'statuUpdateDate', label: 'Statu Update Date' },
   { key: 'updateDate', label: 'Update Date' },
-  { key: 'repairStart', label: 'Repair Start' },
-  { key: 'repairFinish', label: 'Repair Finish' },
 ];
 
 const HISTORY_COLUMNS = ['Date', 'StaffName', 'Type', 'Text'];
