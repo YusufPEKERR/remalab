@@ -4,7 +4,6 @@ import { Plus, Trash2, Edit2, X, FileSpreadsheet, Search, RefreshCw, RotateCcw, 
 import { api } from '../services/api';
 import ExcelMappingModal from '../components/ExcelMappingModal';
 
-const FLOW_OPTIONS = ['Hepsi', 'Refurbish', 'Repair', 'RMA', 'Battery Replacement'];
 const GB_OPTIONS = ['16GB', '32GB', '64GB', '128GB', '256GB', '512GB', '1TB', '2TB'];
 
 const FLOW_STYLES = {
@@ -36,7 +35,7 @@ const EMPTY_FORM = {
   defects: '',
   screen_test: '',
   power_test: '',
-  flow: 'Refurbish'
+  flow: 'To refurbish'
 };
 
 export default function BatchEntry() {
@@ -132,7 +131,7 @@ export default function BatchEntry() {
         screen_test: item.screen_test || '',
         power_test: item.power_test || '',
         defects: item.defects || '',
-        flow: item.flow || 'Refurbish'
+        flow: item.flow || 'To refurbish'
       }));
     } else {
       const custName = selectedCustomer?.name || 'Örnek Müşteri Ltd.';
@@ -152,7 +151,7 @@ export default function BatchEntry() {
           defects: 'Dokunmatik yanıt vermiyor',
           screen_test: 'BAŞARISIZ',
           power_test: 'BAŞARILI',
-          flow: 'Refurbish'
+          flow: 'To refurbish'
         }
       ];
     }
@@ -207,7 +206,7 @@ export default function BatchEntry() {
             defects: getVal(['defects', 'Defects', 'Kusur', 'Arıza']),
             screen_test: getVal(['screen_test', 'Screen Test', 'ScreenTest', 'Ekran Testi']),
             power_test: getVal(['power_test', 'Power Test', 'PowerTest', 'Güç Testi']),
-            flow: getVal(['flow', 'Flow', 'Akış', 'Durum']) || 'Refurbish'
+            flow: getVal(['flow', 'Flow', 'Akış', 'Durum']) || 'To refurbish'
           };
         });
 
@@ -320,6 +319,7 @@ export default function BatchEntry() {
   const [totalCount, setTotalCount] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFlow, setSelectedFlow] = useState('Tümü');
+  const [flowValues, setFlowValues] = useState([]);
   const [selectedCustomerFilter, setSelectedCustomerFilter] = useState('');
   const [selectedBatchFilter, setSelectedBatchFilter] = useState('');
   const availableCustomers = Array.from(
@@ -417,6 +417,7 @@ export default function BatchEntry() {
       }
     };
     loadCustomers();
+    api.getFlowValues().then(res => { if (res && res.success) setFlowValues(res.flows || []); });
   }, []);
 
   const handleSelectAll = (e) => {
@@ -579,7 +580,7 @@ export default function BatchEntry() {
           defects: record.defects || '',
           screen_test: record.screen_test || '',
           power_test: record.power_test || '',
-          flow: record.flow || 'Refurbish'
+          flow: record.flow || 'To refurbish'
         };
         itemsToEdit = [recData];
       }
@@ -718,7 +719,7 @@ export default function BatchEntry() {
         defects: getVal(item, ["defects", "Defects", "Arıza", "Kusur"]),
         screen_test: getVal(item, ["screen_test", "Screen Test", "Ekran Testi"]),
         power_test: getVal(item, ["power_test", "Power Test", "Güç Testi"]),
-        flow: getVal(item, ["flow", "Flow", "Akış", "Durum"], "Refurbish"),
+        flow: getVal(item, ["flow", "Flow", "Akış", "Durum"], "To refurbish"),
         unit_price: parseFloat(getVal(item, ["unit_price", "Unit Price", "Birim Fiyat", "Fiyat"], "0")) || 0
       });
       if (!res.success) {
@@ -1292,11 +1293,11 @@ export default function BatchEntry() {
                             Flow (Akış / Durum Takibi)
                           </label>
                           <select
-                            value={formData.flow || 'Refurbish'}
+                            value={formData.flow || 'To refurbish'}
                             onChange={e => setFormData({ ...formData, flow: e.target.value })}
                             className="w-full bg-white dark:bg-[#12151e] border border-slate-300 dark:border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-500 cursor-pointer"
                           >
-                            {FLOW_OPTIONS.map(f => <option key={f} value={f}>{f}</option>)}
+                            {flowValues.map(f => <option key={f} value={f}>{f}</option>)}
                           </select>
                         </div>
                       </div>
@@ -1421,7 +1422,7 @@ export default function BatchEntry() {
                                 <td className="px-3.5 py-2.5 text-slate-700 dark:text-slate-300">{row.power_test || '-'}</td>
                                 <td className="px-3.5 py-2.5 max-w-xs truncate text-slate-700 dark:text-slate-300">{row.defects || '-'}</td>
                                 <td className="px-3.5 py-2.5 text-slate-700 dark:text-slate-200 font-semibold">
-                                  {row.flow || 'Refurbish'}
+                                  {row.flow || 'To refurbish'}
                                 </td>
                               </tr>
                             );

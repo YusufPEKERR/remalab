@@ -10,9 +10,6 @@ const PART_TYPES = [
   'Test Cihazı', 'Kalibrasyon Malzemesi', 'Ölçüm Aleti', 'Numune'
 ];
 
-// Backend'deki CUSTOMER_FLOW_VALUES (core/web_bridge.py) ile birebir aynı olmalı.
-const FLOW_VALUES = ['Refurbish', 'Repair', 'RMA', 'Battery Replacement'];
-
 const EMPTY_FORM = {
   name: '', part_type: '', flow: [], departments: [], stock_tracking_type: 'Stok Takipli',
   is_active: true, description: ''
@@ -24,6 +21,7 @@ export default function PartCategories() {
   const [locations, setLocations] = useState([]);
   const [systemLocations, setSystemLocations] = useState([]);
   const [departmentList, setDepartmentList] = useState([]);
+  const [flowValues, setFlowValues] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -47,6 +45,7 @@ export default function PartCategories() {
         setDepartmentList(res.missions.map(m => m.code));
       }
     });
+    api.getFlowValues().then(res => { if (res.success) setFlowValues(res.flows || []); });
     const interval = setInterval(() => fetchCategories(true), 60000);
     return () => clearInterval(interval);
   }, []);
@@ -179,6 +178,8 @@ export default function PartCategories() {
                       <th className="px-6 py-4">Parça Tipi</th>
                       <th className="px-6 py-4">Flow</th>
                       <th className="px-6 py-4">Departmanlar</th>
+                      <th className="px-6 py-4">İşçilik Seviyesi</th>
+                      <th className="px-6 py-4">Ön Fiyat Verebilir</th>
                       <th className="px-6 py-4">Stok Takibi</th>
                       <th className="px-6 py-4">Durum</th>
                       <th className="px-6 py-4 text-center">İşlemler</th>
@@ -187,11 +188,11 @@ export default function PartCategories() {
                   <tbody className="divide-y divide-slate-700/50">
                     {loading ? (
                       <tr>
-                        <td colSpan="7" className="px-6 py-8 text-center text-slate-400">Yükleniyor...</td>
+                        <td colSpan="9" className="px-6 py-8 text-center text-slate-400">Yükleniyor...</td>
                       </tr>
                     ) : filteredCategories.length === 0 ? (
                       <tr>
-                        <td colSpan="7" className="px-6 py-8 text-center text-slate-500">Kayıt bulunamadı.</td>
+                        <td colSpan="9" className="px-6 py-8 text-center text-slate-500">Kayıt bulunamadı.</td>
                       </tr>
                     ) : (
                       filteredCategories.map(cat => (
@@ -213,6 +214,20 @@ export default function PartCategories() {
                                 <span key={i} className="px-2.5 py-1 rounded-full text-xs font-medium border bg-purple-500/10 text-purple-400 border-purple-500/20">{d}</span>
                               )) : <span className="text-slate-500">-</span>}
                             </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            {cat.labour_level ? (
+                              <span className="px-2.5 py-1 rounded-full text-xs font-medium border bg-cyan-500/10 text-cyan-400 border-cyan-500/20">{cat.labour_level}</span>
+                            ) : <span className="text-slate-500">-</span>}
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${
+                              cat.can_pre_price
+                                ? 'bg-green-500/10 text-green-400 border-green-500/20'
+                                : 'bg-slate-500/10 text-slate-400 border-slate-500/20'
+                            }`}>
+                              {cat.can_pre_price ? 'Evet' : 'Hayır'}
+                            </span>
                           </td>
                           <td className="px-6 py-4">
                             <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${
@@ -283,7 +298,7 @@ export default function PartCategories() {
               <div>
                 <label className="block text-sm font-medium text-slate-400 mb-2">Flow Seçimleri <span className="text-red-400">*</span></label>
                 <div className="grid grid-cols-2 gap-2">
-                  {FLOW_VALUES.map(f => (
+                  {flowValues.map(f => (
                     <label key={f} className="flex items-center gap-2 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 cursor-pointer hover:border-slate-500 transition-colors">
                       <input
                         type="checkbox"

@@ -46,9 +46,6 @@ function Dropdown({ value, onChange, options, placeholder }) {
   );
 }
 
-// Backend'deki CUSTOMER_FLOW_VALUES (core/web_bridge.py) ile birebir aynı olmalı.
-const FLOW_VALUES = ['Refurbish', 'Repair', 'RMA', 'Battery Replacement'];
-
 const CURRENCY_VALUES = ['TRY', 'EUR', 'USD', 'CHF', 'GBP'];
 
 const LANGUAGE_VALUES = [

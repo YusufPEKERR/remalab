@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { Search, ChevronDown, Check, X } from 'lucide-react';
 
-export default function PartSelectCombobox({ parts = [], value, onChange, placeholder = "Parça seçiniz veya arayın..." }) {
+export default function PartSelectCombobox({ parts = [], value, onChange, placeholder = "Parça seçiniz veya arayın...", labelMode = "full" }) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const containerRef = useRef(null);
@@ -19,7 +19,7 @@ export default function PartSelectCombobox({ parts = [], value, onChange, placeh
     const matches = [];
     for (let i = 0; i < parts.length; i++) {
       const p = parts[i];
-      const str = `${p.item_code || ''} ${p.brand || ''} ${p.model || ''} ${p.color || ''} ${p.part_category || ''} ${p.name || ''}`.toLowerCase();
+      const str = `${p.item_code || ''} ${p.brand || ''} ${p.model || ''} ${p.color || ''} ${p.item_category || ''} ${p.part_category || ''} ${p.name || ''}`.toLowerCase();
       if (str.includes(term)) {
         matches.push(p);
         if (matches.length >= 60) break;
@@ -45,6 +45,9 @@ export default function PartSelectCombobox({ parts = [], value, onChange, placeh
   };
 
   const formatPartLabel = (p) => {
+    if (labelMode === "category") {
+      return p.item_category || p.part_category || '-';
+    }
     const code = p.item_code ? `[${p.item_code}] ` : '';
     const details = [p.brand, p.model, p.color, p.part_category].filter(Boolean).join(' ');
     const name = p.name ? `- ${p.name}` : '';

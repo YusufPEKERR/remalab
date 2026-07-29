@@ -401,6 +401,7 @@ const TechnicianRepairOperations = () => {
         imei,
         internalId: d.internal_id || "",
         serialNo: d.serial_number || "",
+        model: d.model || "",
         productInfo: productInfo || "-",
         productCode: d.batch_no || "",
         customerRequest: d.flow || "Belirtilmemiş",
@@ -447,9 +448,10 @@ const TechnicianRepairOperations = () => {
   // teknisyenleri (QAC ailesi) ve o statüde zaten yetkili olanlar çağırabilir —
   // gerçek yetki kontrolü backend'de de tekrar yapılır.
   const handleSaveDiagnosis = useCallback(async () => {
-    if (!device?.workOrderId) return;
+    if (!device?.imei) return;
     setSavingDiagnosis(true);
-    const res = await api.updateCustomerDiagnosis(device.workOrderId, diagnosisDraft, getCurrentUser()?.username);
+    const deviceRef = device.workOrderId || device.imei;
+    const res = await api.updateCustomerDiagnosis(deviceRef, diagnosisDraft, getCurrentUser()?.username);
     setSavingDiagnosis(false);
     if (res && res.success) {
       setDevice(prev => (prev ? { ...prev, customerDiagnosis: diagnosisDraft } : prev));

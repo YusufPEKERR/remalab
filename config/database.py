@@ -119,6 +119,7 @@ def init_database_schema():
     from models.service_statu import ServiceStatu
     from models.service_statu_map import ServiceStatuMap
     from models.service_request_type import ServiceRequestType
+    from models.service_request_item_category import ServiceRequestItemCategory
     from models.service_test_type import ServiceTestType
     from models.service_test_result_type import ServiceTestResultType
     from models.service_result_type import ServiceResultType
