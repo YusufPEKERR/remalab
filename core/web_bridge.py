@@ -7794,15 +7794,17 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    @Slot(str, int, int, int, str, str, str, result=str)
-    def submit_test_result(self, entry_id, current_statu_code, success_statu_code, fail_statu_code, result, description, faults_json):
+    @Slot(str, int, int, int, str, str, str, bool, result=str)
+    def submit_test_result(self, entry_id, current_statu_code, success_statu_code, fail_statu_code, result, description, faults_json, log_exit_test=False):
         """Ara Test / Son Test sonucunu işler.
-        result='success' ise cihazı success_statu_code'a aktarır.
+        result='success' ise cihazı success_statu_code'a aktarır. log_exit_test=True ise (Son Test ekranı)
+        açıklama zorunludur ve phonecheck_test_results'a "Çıkış Testi" olarak manuel kayıt düşülür.
         result='fail' ise açıklama ve en az bir hatalı parça/hata kodu zorunludur, cihaz fail_statu_code'a geri döner."""
         from models.batch_entry import BatchEntry
         from models.service_statu import ServiceStatu
         from models.test_result_fault import TestResultFault
         from models.repair_record import RepairRecord
+        from models.phonecheck_test_result import PhonecheckTestResult
         from services.state_machine_service import StateMachineService
         db = SessionLocal()
         try:
@@ -7825,6 +7827,18 @@ class WebBridge(QObject):
                 })
 
             if result == "success":
+                if log_exit_test:
+                    timestamp = __import__("datetime").datetime.now().strftime('%d.%m.%Y %H:%M')
+                    auto_note = f"[{timestamp}] Çıkış Testi olumlu — {device_label}"
+                    db.add(PhonecheckTestResult(
+                        imei=entry.imei_number or "",
+                        test_stage="Çıkış Testi",
+                        working="Yes",
+                        notes=auto_note,
+                        is_manual=True,
+                        manual_reason=auto_note,
+                        manual_entered_by=getattr(entry, "created_by", None)
+                    ))
                 target_statu_code = success_statu_code
             elif result == "fail":
                 if not description or not description.strip():
@@ -7837,6 +7851,28 @@ class WebBridge(QObject):
                     return json.dumps({"success": False, "message": "En az bir hatalı parça / hata kodu seçmelisiniz."})
                 if len(fault_lines) > 10:
                     return json.dumps({"success": False, "message": "En fazla 10 hatalı parça / hata kodu seçebilirsiniz."})
+
+                if log_exit_test:
+                    fail_attempt_count = db.query(PhonecheckTestResult).filter(
+                        PhonecheckTestResult.imei == (entry.imei_number or ""),
+                        PhonecheckTestResult.is_manual == True,
+                        PhonecheckTestResult.working == "No"
+                    ).count()
+                    if fail_attempt_count >= 10:
+                        return json.dumps({"success": False, "message": "Bu cihaz için en fazla 10 kez başarısız Son Test hakkı var, hak doldu."})
+
+                    timestamp = __import__("datetime").datetime.now().strftime('%d.%m.%Y %H:%M')
+                    fail_note = f"[{timestamp}] Test Başarısız — {description.strip()}\nHatalı Parçalar: " + "; ".join(fault_lines)
+                    db.add(PhonecheckTestResult(
+                        imei=entry.imei_number or "",
+                        test_stage=f"{fail_attempt_count + 2}. Test",
+                        working="No",
+                        notes=fail_note,
+                        attempt_no=fail_attempt_count + 2,
+                        is_manual=True,
+                        manual_reason=fail_note,
+                        manual_entered_by=getattr(entry, "created_by", None)
+                    ))
 
                 timestamp = __import__("datetime").datetime.now().strftime('%d.%m.%Y %H:%M')
                 note = f"[{timestamp}] Test Başarısız — {description.strip()}\nHatalı Parçalar: " + "; ".join(fault_lines)

@@ -1832,11 +1832,11 @@ export const api = {
         });
     },
 
-    submitTestResult: async (entryId, currentStatuCode, successStatuCode, failStatuCode, result, description, faultLines) => {
+    submitTestResult: async (entryId, currentStatuCode, successStatuCode, failStatuCode, result, description, faultLines, logExitTest = false) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
             backend.submit_test_result(
-                String(entryId), currentStatuCode, successStatuCode, failStatuCode, result, description || '', JSON.stringify(faultLines || []),
+                String(entryId), currentStatuCode, successStatuCode, failStatuCode, result, description || '', JSON.stringify(faultLines || []), !!logExitTest,
                 (res) => resolve(JSON.parse(res))
             );
         });
