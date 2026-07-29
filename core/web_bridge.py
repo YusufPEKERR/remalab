@@ -6506,6 +6506,29 @@ class WebBridge(QObject):
         self._write_settings(settings)
         return json.dumps({"success": True})
 
+    @Slot(result=str)
+    def open_project_guide(self):
+        """Proje rehberi PDF'ini (docs/RemaLab_WMS_Birlesik_Dokuman.pdf) sistemin
+        varsayilan PDF goruntuleyicisiyle acar. Bu dosya elle hazirlanmis/aciklamali
+        bir surum oldugu icin generate_project_guide_pdf.py tarafindan UZERINE YAZILMAZ
+        (otomatik uretim ayri dosyayi - RemaLab_WMS_Proje_Rehberi.pdf - hedefler)."""
+        import json, os, sys
+        import subprocess
+        try:
+            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            pdf_path = os.path.join(base_dir, "docs", "RemaLab_WMS_Birlesik_Dokuman.pdf")
+            if not os.path.exists(pdf_path):
+                return json.dumps({"success": False, "message": "Proje rehberi PDF'i bulunamadı."})
+            if os.name == 'nt':
+                os.startfile(pdf_path)
+            elif sys.platform == 'darwin':
+                subprocess.Popen(['open', pdf_path])
+            else:
+                subprocess.Popen(['xdg-open', pdf_path])
+            return json.dumps({"success": True})
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+
     @Slot(str, result=str)
     def open_local_folder(self, file_path):
         import json, os, sys
@@ -7513,31 +7536,57 @@ class WebBridge(QObject):
 
     @Slot(str, result=str)
     def fetch_phonecheck_and_transition(self, imei):
-        """IMEI icin Phonecheck'ten cihaz/test bilgisini ceker, sonucu Pass1/Fail1'e
-        cevirir ve batch_entries.statu_code'u Statumap akis semasina gore gunceller."""
+        """IMEI/Seri/Internal ID okutulduğunda partiyi bulur, Phonecheck'ten cihaz/test
+        bilgisini ceker (IMEI varsa IMEI, yoksa Seri Numarasi ile sorgular), sonucu
+        Pass1/Fail1'e cevirir ve batch_entries.statu_code'u Statumap akis semasina gore gunceller."""
         from models.batch_entry import BatchEntry
+        from models.phonecheck_test_result import PhonecheckTestResult
         from services.phonecheck_service import PhonecheckService
         from services.state_machine_service import StateMachineService
 
         term = (imei or "").strip()
         if not term:
-            return json.dumps({"success": False, "message": "IMEI boş olamaz."})
+            return json.dumps({"success": False, "message": "IMEI/Seri/Internal ID boş olamaz."})
 
         db = SessionLocal()
         try:
-            entry = db.query(BatchEntry).filter(
-                BatchEntry.imei_number == term
-            ).order_by(BatchEntry.id.desc()).first()
+            # IMEI, Seri Numarasi, Internal ID veya Batch No ile okutulmus olabilir.
+            entry = self._find_batch_entry_by_term(db, term)
             if not entry:
                 return json.dumps({"success": False, "message": f"'{term}' için kayıtlı bir batch_entries kaydı bulunamadı."})
 
+            # Phonecheck'e her zaman gercek IMEI ile, o yoksa Seri Numarasi ile sorulur
+            # (Internal ID Phonecheck'te taninmadigindan sorguda kullanilmaz).
+            pc_term = (entry.imei_number or entry.serial_number or "").strip()
+            if not pc_term:
+                return json.dumps({"success": False, "message": "Bu cihaz için IMEI veya Seri Numarası tanımlı değil, Phonecheck sorgusu yapılamıyor."})
+
             pc = PhonecheckService()
             try:
-                device = pc.get_device_info(term)
+                device = pc.get_device_info(pc_term)
             except Exception as e:
                 return json.dumps({"success": False, "message": f"Phonecheck API hatası: {e}"})
 
             test_result_code = pc.to_test_result_code(device)
+
+            svc = StateMachineService(db)
+            allowed = svc.get_allowed_transitions(entry.statu_code)
+            positive = next((t for t in allowed if t["is_positive"]), None)
+
+            # Her Phonecheck sorgusu (sonuc ne olursa olsun) warehouse.phonecheck_test_results'a kaydedilir.
+            test_stage = f"{entry.statu_code}_{positive['target_statu_code']}" if positive else str(entry.statu_code)
+            attempt_no = (db.query(PhonecheckTestResult)
+                          .filter(PhonecheckTestResult.imei == pc_term, PhonecheckTestResult.test_stage == test_stage)
+                          .count()) + 1
+            db.add(PhonecheckTestResult(
+                imei=pc_term,
+                test_stage=test_stage,
+                attempt_no=attempt_no,
+                is_manual=False,
+                **pc.to_db_row(device),
+            ))
+            db.commit()
+
             if test_result_code is None:
                 return json.dumps({
                     "success": True,
@@ -7546,9 +7595,6 @@ class WebBridge(QObject):
                     "raw": device,
                 })
 
-            svc = StateMachineService(db)
-            allowed = svc.get_allowed_transitions(entry.statu_code)
-            positive = next((t for t in allowed if t["is_positive"]), None)
             if not positive:
                 return json.dumps({
                     "success": False,
@@ -7567,7 +7613,7 @@ class WebBridge(QObject):
 
             return json.dumps({
                 "success": True,
-                "imei": term,
+                "imei": pc_term,
                 "old_statu_code": old_statu_code,
                 "new_statu_code": entry.statu_code,
                 "test_result_code": test_result_code,

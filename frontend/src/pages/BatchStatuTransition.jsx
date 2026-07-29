@@ -43,6 +43,10 @@ const LOG_ICONS = {
   warning: <AlertTriangle size={15} />,
 };
 
+// Bu geçiş kodlarında IMEI okutulduğunda hedef statü elle değil,
+// Phonecheck'ten gelen gerçek test sonucuna göre (Pass1/Fail1) otomatik belirlenir.
+const PHONECHECK_DRIVEN_CODES = ["103_104", "124_125"];
+
 const BatchStatuTransition = () => {
   const { groupKey, code } = useParams();
   const [transition, setTransition] = useState(null);
@@ -117,18 +121,24 @@ const BatchStatuTransition = () => {
         statuName: scanData.current_statu_name,
       });
 
-      // 2. Adım: bu ekranın sabit kaynak→hedef geçişini uygula.
-      // Parti şu an bu geçişin kaynak statüsünde değilse backend "uygun statü değil" hatası döner.
-      const data = await api.executeBatchEntryStatuTransition(
-        scanData.entry_id,
-        transition.parent_statu,
-        transition.child_statu
-      );
+      const isPhonecheckDriven = PHONECHECK_DRIVEN_CODES.includes(transition.code);
 
-      if (data.success) {
+      // 2. Adım: Phonecheck'e bağlı geçişlerde hedef statü otomatik (Pass1/Fail1) belirlenir;
+      // diğerlerinde bu ekranın sabit kaynak→hedef geçişi elle uygulanır.
+      // Parti şu an bu geçişin kaynak statüsünde değilse backend "uygun statü değil" hatası döner.
+      const data = isPhonecheckDriven
+        ? await api.fetchPhonecheckAndTransition(scanData.imei)
+        : await api.executeBatchEntryStatuTransition(scanData.entry_id, transition.parent_statu, transition.child_statu);
+
+      if (data.success && isPhonecheckDriven && data.pending) {
+        showNotification("warning", data.message);
+        appendLog("warning", `Phonecheck: ${data.message}`);
+      } else if (data.success) {
         showNotification("success", data.message);
-        appendLog("success", data.message);
-        setDeviceInfo((prev) => (prev ? { ...prev, statuCode: transition.child_statu, statuName: null } : prev));
+        appendLog("success", isPhonecheckDriven ? `Phonecheck (${data.test_result_code}): ${data.message}` : data.message);
+        setDeviceInfo((prev) =>
+          prev ? { ...prev, statuCode: isPhonecheckDriven ? data.new_statu_code : transition.child_statu, statuName: null } : prev
+        );
       } else {
         showNotification("error", data.message);
         appendLog("error", data.message);
@@ -172,6 +182,11 @@ const BatchStatuTransition = () => {
         </div>
         <p className="text-slate-400 mt-1">
           IMEI, seri numarası, internal ID veya batch numarasını okutun. Parti statü {transition.parent_statu} değilse işlem reddedilir.
+          {PHONECHECK_DRIVEN_CODES.includes(transition.code) && (
+            <span className="block mt-1 text-blue-400">
+              Bu ekranda hedef statü elle seçilmez — Phonecheck'ten gelen gerçek test sonucuna göre otomatik belirlenir (başarısızsa 109'a yönlendirilir).
+            </span>
+          )}
         </p>
       </div>
 

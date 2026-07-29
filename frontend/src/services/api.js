@@ -1781,6 +1781,17 @@ export const api = {
         });
     },
 
+    openProjectGuide: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.open_project_guide) {
+                backend.open_project_guide((res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false, message: "Backend eksik (open_project_guide)" });
+            }
+        });
+    },
+
     fetchPhonecheckAndTransition: async (imei) => {
         const backend = await getBackend();
         return new Promise((resolve) => {

@@ -21,3 +21,9 @@ This section auto-generates documentation from the Python source code using `mkd
 
 ### Stock Service
 ::: services.stock_service.StockService
+
+### Phonecheck Service
+::: services.phonecheck_service.PhonecheckService
+
+### State Machine Service
+::: services.state_machine_service.StateMachineService

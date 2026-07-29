@@ -127,6 +127,8 @@ const TableNode = memo(function TableNode({
         opacity,
       }}
       onClick={handleTableClick}
+      onMouseDown={handleMouseDown}
+      onTouchStart={handleMouseDown}
     >
       <div className={`rounded-xl overflow-hidden shadow-lg border-2 ${
         isSelected
