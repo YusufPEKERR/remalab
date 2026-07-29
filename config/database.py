@@ -132,8 +132,8 @@ def init_database_schema():
     from models.repair_record import RepairRecord
     from models.test_detected_part import TestDetectedPart
     from models.test_result_fault import TestResultFault
-    from models.service_repair import ServiceRepair
     from models.phonecheck_test_result import PhonecheckTestResult
+    from models.service_repair import ServiceRepair
 
     from models.cost_center import CostCenter
     from models.branch import Branch

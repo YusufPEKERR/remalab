@@ -211,3 +211,31 @@ class PhonecheckService:
         self.db.add(record)
         self.db.commit()
         return {"success": True, "id": record.id, "attempt_no": record.attempt_no}
+
+
+def get_all_devices(startdate=None, enddate=None, station=None, date=None, limit=500, offset=0):
+    """Phonecheck 'Get All Devices V2' API'sini toplu (raporlama/export) amaçlı çağırır.
+    https://phonecheck.atlassian.net/wiki/spaces/KB/pages/2271772692/"""
+    apikey = os.getenv("PHONECHECK_API_KEY")
+    username = os.getenv("PHONECHECK_USERNAME") or PHONECHECK_USERNAME
+
+    if not apikey:
+        raise ValueError("PHONECHECK_API_KEY .env içinde tanımlı değil.")
+
+    payload = {"Apikey": apikey, "Username": username, "limit": limit}
+    if offset:
+        payload["offset"] = offset
+    if date:
+        payload["Date"] = date
+    if startdate:
+        payload["startdate"] = startdate
+    if enddate:
+        payload["enddate"] = enddate
+    if station:
+        payload["Station"] = station
+
+    resp = requests.post(PHONECHECK_URL, json=payload, timeout=30)
+    if resp.status_code == 404:
+        return []
+    resp.raise_for_status()
+    return resp.json()

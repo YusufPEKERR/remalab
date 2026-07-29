@@ -31,7 +31,8 @@ export default function TestResultScreen({
   subtitle,
   sourceStatuCode,
   successStatuCode,
-  failStatuCode
+  failStatuCode,
+  logExitTest = false
 }) {
   const [successImei, setSuccessImei] = useState('');
   const [failImei, setFailImei] = useState('');
@@ -85,7 +86,7 @@ export default function TestResultScreen({
     try {
       const scanData = await resolveEntry(successImei);
       const res = await api.submitTestResult(
-        scanData.entry_id, sourceStatuCode, successStatuCode, failStatuCode, 'success', '', []
+        scanData.entry_id, sourceStatuCode, successStatuCode, failStatuCode, 'success', '', [], logExitTest
       );
       if (res.success) {
         showNotification('success', res.message);
