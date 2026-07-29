@@ -1,4 +1,6 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, func
+import uuid
+import datetime
+from sqlalchemy import Column, String, Integer, Text, DateTime, Boolean, func
 from config.database import Base
 
 
@@ -7,7 +9,7 @@ class PhonecheckTestResult(Base):
     Phonecheck cihaz test sonuçlarının yerel yansıması.
     Normalde Phonecheck cloud API'sinden (GetAllDevices) çekilerek doldurulur;
     is_manual=True olan satırlar ise doğrudan uygulama içinden (örn. Son Test
-    ekranında "Test Başarılı") elle işlenmiş "Çıkış Testi" kayıtlarıdır.
+    ekranında "Test Başarılı"/"Test Başarısız") elle işlenmiş kayıtlardır.
     """
     __tablename__ = "phonecheck_test_results"
     __table_args__ = {"schema": "warehouse"}
@@ -18,7 +20,6 @@ class PhonecheckTestResult(Base):
     test_type = Column(String(255), nullable=True)
     test_start_time = Column(String(50), nullable=True)
     test_end_time = Column(String(50), nullable=True)
-    invoice_no = Column(String(100), nullable=True)
     station_id = Column(String(100), nullable=True)
     working = Column(String(20), nullable=True)
     passed = Column(Text, nullable=True)

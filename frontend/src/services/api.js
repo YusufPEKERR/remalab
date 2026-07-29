@@ -184,6 +184,13 @@ export const api = {
         });
     },
 
+    getPartsForDevice: async (deviceModelText) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_parts_for_device(String(deviceModelText || ''), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
     getItemModel: async (itemCode) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
@@ -374,6 +381,27 @@ export const api = {
         });
     },
 
+    getMissionForItemCategory: async (itemCategory) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_mission_for_item_category(String(itemCategory || ''), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    getMissionsForItemCategory: async (itemCategory) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_missions_for_item_category(String(itemCategory || ''), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    getFlowValues: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_flow_values((res) => resolve(JSON.parse(res)));
+        });
+    },
+
     // ==========================
     // GÖREV YÖNETİMİ (Mission — Departman Yönetimi'nin gerçek kaynağı)
     // ==========================
@@ -474,6 +502,20 @@ export const api = {
         });
     },
 
+    getServiceRequestTypesByCategory: async (itemCategory) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_service_request_types_by_category(String(itemCategory || ''), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    getItemFaultsByCategory: async (itemCategory) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_item_faults_by_category(String(itemCategory || ''), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
     getRepairItemOperationTypes: async () => {
         const backend = await getBackend();
         return new Promise((resolve) => {
@@ -481,6 +523,17 @@ export const api = {
                 backend.get_repair_item_operation_types((res) => resolve(JSON.parse(res)));
             } else {
                 resolve({ success: true, operation_types: [] });
+            }
+        });
+    },
+
+    getRepairItemWarranties: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_repair_item_warranties) {
+                backend.get_repair_item_warranties((res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true, warranties: [] });
             }
         });
     },
@@ -1842,6 +1895,16 @@ export const api = {
         });
     },
 
+    fetchPhonecheckTest: async (term, currentStatuCode, targetStatuCode) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.fetch_phonecheck_test(
+                String(term), currentStatuCode, targetStatuCode,
+                (res) => resolve(JSON.parse(res))
+            );
+        });
+    },
+
     fetchPhonecheckAndTransition: async (imei) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
@@ -1850,6 +1913,17 @@ export const api = {
             } else {
                 resolve({ success: false, message: "Backend eksik (fetch_phonecheck_and_transition)" });
             }
+        });
+    },
+
+    savePhonecheckManual: async (imei, testStage, manualReason, enteredBy, fields) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.save_phonecheck_manual(
+                String(imei), String(testStage), String(manualReason),
+                String(enteredBy || ''), JSON.stringify(fields || {}),
+                (res) => resolve(JSON.parse(res))
+            );
         });
     },
 

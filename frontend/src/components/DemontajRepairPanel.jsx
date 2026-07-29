@@ -16,25 +16,88 @@ function getCurrentUser() {
 // (bkz. proje geçmişi) benzer, TEC_DISMANTLE rolüne özel Servis Onarımları görünümü.
 export default function DemontajRepairPanel({ device, repairs, hasAccess, missionGroups, onRefresh, showNotif }) {
   const [parts, setParts] = useState([]);
+  const [partsWarning, setPartsWarning] = useState(null);
   const [itemFaults, setItemFaults] = useState([]);
-  const [operationTypes, setOperationTypes] = useState([]);
+  const [warranties, setWarranties] = useState([]);
   const [testDetectedParts, setTestDetectedParts] = useState([]);
   const [loadingTestParts, setLoadingTestParts] = useState(false);
 
   const [selectedPartId, setSelectedPartId] = useState("");
   const [faultCode, setFaultCode] = useState("");
   const [missionGroupCode, setMissionGroupCode] = useState("");
-  const [operationCode, setOperationCode] = useState("");
+  const [availableMissionCodes, setAvailableMissionCodes] = useState([]);
+  const [warrantyCode, setWarrantyCode] = useState("");
   const [description, setDescription] = useState("");
   const [adding, setAdding] = useState(false);
   const [deciding, setDeciding] = useState(false);
 
-  // Statik referans listeleri (parça/arıza/işlem) mount'ta bir kez çekilir.
+  // Ücret tipi (Ücretli/Ücretsiz Onarım) referans listesi (cihazdan bağımsız) mount'ta bir kez çekilir.
   useEffect(() => {
-    api.getParts().then(res => { if (res && res.success) setParts(res.parts || []); });
-    api.getItemFaults().then(res => { if (res && res.success) setItemFaults(res.item_faults || []); });
-    api.getRepairItemOperationTypes().then(res => { if (res && res.success) setOperationTypes(res.operation_types || []); });
+    api.getRepairItemWarranties().then(res => { if (res && res.success) setWarranties(res.warranties || []); });
   }, []);
+
+  // Akış Durumu (Flow) RMA olan cihazlarda Ücretli/Ücretsiz seçimi kullanıcıya bırakılır;
+  // diğer tüm akışlarda otomatik "Ücretli" seçilir ve değiştirilemez.
+  const isRmaFlow = device?.customerRequest === "To RMA";
+  useEffect(() => {
+    if (isRmaFlow) return;
+    const paidWarranty = warranties.find(w => w.is_paid_for);
+    setWarrantyCode(paidWarranty ? paidWarranty.code : "OOW");
+  }, [isRmaFlow, warranties]);
+
+  // Parça listesi cihaza özel: hangi marka/model telefon arandıysa sadece o cihazın
+  // reçetesindeki (warehouse.product_bom_node - Product Bom sayfasıyla aynı kaynak)
+  // parçalar getirilir - bkz. WebBridge.get_parts_for_device. Aynı kategoriden birden fazla
+  // parça varsa sadece bir tanesi gösterilir (liste item_category, item_code sıralı geldiğinden
+  // her kategorinin ilk kodu seçilir). Reçete hiç girilmemişse backend bir "warning" döner.
+  useEffect(() => {
+    if (!device?.model) { setParts([]); setPartsWarning(null); return; }
+    api.getPartsForDevice(device.model).then(res => {
+      if (!res || !res.success) { setParts([]); setPartsWarning(null); return; }
+      setPartsWarning(res.warning || null);
+      const seenCategories = new Set();
+      const deduped = [];
+      for (const p of (res.parts || [])) {
+        const cat = p.item_category || p.part_category || '';
+        if (seenCategories.has(cat)) continue;
+        seenCategories.add(cat);
+        deduped.push(p);
+      }
+      setParts(deduped);
+    });
+  }, [device?.model]);
+
+  const selectedPart = parts.find(p => String(p.id) === String(selectedPartId));
+  const selectedItemCategory = selectedPart?.item_category || "";
+
+  // Arıza Tespiti seçenekleri, seçilen parçanın kategorisine göre filtrelenir
+  // (warehouse.item_fault.item_category - bkz. WebBridge.get_item_faults_by_category).
+  useEffect(() => {
+    setFaultCode("");
+    if (!selectedItemCategory) { setItemFaults([]); return; }
+    api.getItemFaultsByCategory(selectedItemCategory).then(res => {
+      setItemFaults(res && res.success ? (res.item_faults || []) : []);
+    });
+  }, [selectedItemCategory]);
+
+  // Onarım Takımı dropdown'u, seçilen parçanın kategorisine göre item_category_mission'da
+  // tanımlı departmanlarla sınırlanır (kategori için hiç tanım yoksa tüm departmanlara geri
+  // düşülür). Kategoriye özel uzman ekip (varsa) ilk değer olarak otomatik seçilir, kullanıcı
+  // isterse bu daraltılmış listeden başka birini seçebilir.
+  useEffect(() => {
+    setMissionGroupCode("");
+    if (!selectedItemCategory) { setAvailableMissionCodes([]); return; }
+    api.getMissionsForItemCategory(selectedItemCategory).then(res => {
+      setAvailableMissionCodes(res && res.success ? (res.mission_codes || []) : []);
+    });
+    api.getMissionForItemCategory(selectedItemCategory).then(res => {
+      if (res && res.success && res.mission_code) setMissionGroupCode(res.mission_code);
+    });
+  }, [selectedItemCategory]);
+
+  const filteredMissionGroups = availableMissionCodes.length > 0
+    ? missionGroups.filter(mg => availableMissionCodes.includes(mg.code))
+    : missionGroups;
 
   // Test aşamasında (QAC) tespit edilen, planlı parçalar — cihaz değiştikçe yeniden çekilir.
   // QAC test ekranı henüz olmadığından bu liste şu an her zaman boş döner.
@@ -53,8 +116,8 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, missio
     const selectedPart = parts.find(p => String(p.id) === String(selectedPartId));
     const deviceRef = device.workOrderId || device.imei;
     const res = await api.addRepairRecord(
-      deviceRef, missionGroupCode, "OOW", description, getCurrentUser()?.username,
-      selectedPart?.item_code || "", faultCode, operationCode
+      deviceRef, missionGroupCode, warrantyCode, description, getCurrentUser()?.username,
+      selectedPart?.item_code || "", faultCode, ""
     );
     setAdding(false);
     if (!res || !res.success) {
@@ -62,9 +125,10 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, missio
       return;
     }
     await onRefresh();
-    setSelectedPartId(""); setFaultCode(""); setMissionGroupCode(""); setOperationCode(""); setDescription("");
+    setSelectedPartId(""); setFaultCode(""); setMissionGroupCode(""); setDescription("");
+    if (isRmaFlow) setWarrantyCode("");
     showNotif("success", "Parça Eklendi", selectedPart ? (selectedPart.name || selectedPart.item_code) : "Onarım kaydı eklendi.");
-  }, [device, missionGroupCode, faultCode, operationCode, description, selectedPartId, parts, adding, onRefresh, showNotif]);
+  }, [device, missionGroupCode, faultCode, warrantyCode, description, selectedPartId, parts, adding, onRefresh, showNotif, isRmaFlow]);
 
   // Onarım Takımları — repairs içindeki benzersiz görev gruplarından türetilir.
   const activeMissionGroupCodes = new Set(repairs.map(r => r.missionGroupCode).filter(Boolean));
@@ -119,9 +183,9 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, missio
                 <tbody className="divide-y divide-slate-100 dark:divide-[#30363D]">
                   {testDetectedParts.map(p => (
                     <tr key={p.id}>
-                      <td className="px-4 py-2 text-xs text-slate-700 dark:text-slate-300">{p.symptomCode || "-"}</td>
-                      <td className="px-3 py-2 text-xs text-slate-700 dark:text-slate-300">{p.partCategory || "-"}</td>
-                      <td className="px-3 py-2 text-xs font-mono text-slate-700 dark:text-slate-300">{p.partItemCode || "-"}</td>
+                      <td className="px-4 py-2 text-xs text-slate-700 dark:text-slate-300">{p.symptomCode || "N/A"}</td>
+                      <td className="px-3 py-2 text-xs text-slate-700 dark:text-slate-300">{p.partCategory || "N/A"}</td>
+                      <td className="px-3 py-2 text-xs font-mono text-slate-700 dark:text-slate-300">{p.partItemCode || "N/A"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -138,19 +202,42 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, missio
             </h3>
           </div>
           <div className="px-4 py-3 border-b border-slate-100 dark:border-[#30363D] space-y-2">
+            {partsWarning && (
+              <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 text-amber-700 dark:text-amber-400 text-xs">
+                <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+                <span>{partsWarning}</span>
+              </div>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <PartSelectCombobox parts={parts} value={selectedPartId} onChange={setSelectedPartId} placeholder="Parça seçiniz..." />
-              <select value={faultCode} onChange={e => setFaultCode(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#0f1219] text-slate-800 dark:text-slate-200 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                <option value="">Arıza Tespiti seçiniz...</option>
-                {itemFaults.map(f => <option key={f.code} value={f.code}>{f.short_name}</option>)}
+              <PartSelectCombobox parts={parts} value={selectedPartId} onChange={setSelectedPartId} placeholder="Parça seçiniz..." labelMode="category" />
+              <select
+                value={faultCode}
+                onChange={e => setFaultCode(e.target.value)}
+                disabled={!selectedItemCategory}
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#0f1219] text-slate-800 dark:text-slate-200 text-sm focus:ring-2 focus:ring-blue-500 outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <option value="">{selectedItemCategory ? "Arıza Tespiti seçiniz..." : "Önce parça seçiniz..."}</option>
+                {itemFaults.length > 0
+                  ? itemFaults.map(f => <option key={f.code} value={f.code}>{f.short_name}</option>)
+                  : selectedItemCategory && <option value="N/A">N/A</option>}
               </select>
-              <select value={missionGroupCode} onChange={e => setMissionGroupCode(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#0f1219] text-slate-800 dark:text-slate-200 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                <option value="">Onarım Takımı seçiniz...</option>
-                {missionGroups.map(mg => <option key={mg.code} value={mg.code}>{mg.short_name} ({mg.code})</option>)}
+              <select
+                value={missionGroupCode}
+                onChange={e => setMissionGroupCode(e.target.value)}
+                disabled={!selectedItemCategory}
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#0f1219] text-slate-800 dark:text-slate-200 text-sm focus:ring-2 focus:ring-blue-500 outline-none disabled:opacity-70 disabled:cursor-not-allowed"
+              >
+                <option value="">{selectedItemCategory ? "Onarım Takımı seçiniz..." : "Önce parça seçiniz..."}</option>
+                {filteredMissionGroups.map(mg => <option key={mg.code} value={mg.code}>{mg.short_name} ({mg.code})</option>)}
               </select>
-              <select value={operationCode} onChange={e => setOperationCode(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#0f1219] text-slate-800 dark:text-slate-200 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-                <option value="">İşlem seçiniz...</option>
-                {operationTypes.map(o => <option key={o.code} value={o.code}>{o.short_name}</option>)}
+              <select
+                value={warrantyCode}
+                onChange={e => setWarrantyCode(e.target.value)}
+                disabled={!isRmaFlow}
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#0f1219] text-slate-800 dark:text-slate-200 text-sm focus:ring-2 focus:ring-blue-500 outline-none disabled:opacity-70 disabled:cursor-not-allowed"
+              >
+                <option value="">Ücretli/Ücretsiz Onarım seçiniz...</option>
+                {warranties.map(w => <option key={w.code} value={w.code}>{w.short_name}</option>)}
               </select>
             </div>
             <div className="flex gap-2">
@@ -161,7 +248,7 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, missio
               />
               <button
                 onClick={handleAddRow}
-                disabled={!hasAccess || !missionGroupCode || adding}
+                disabled={!hasAccess || !missionGroupCode || !warrantyCode || adding}
                 className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold transition-colors flex items-center gap-1.5 shrink-0"
               >
                 <Plus size={14} /> {adding ? "Ekleniyor..." : "EKLE"}
@@ -179,7 +266,7 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, missio
                   <tr className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                     <th className="text-left px-4 py-2.5">Parça kodu</th>
                     <th className="text-left px-3 py-2.5">Onarım Takımı</th>
-                    <th className="text-left px-3 py-2.5">İşlem</th>
+                    <th className="text-left px-3 py-2.5">Ücret Tipi</th>
                     <th className="text-left px-3 py-2.5">Arıza Tespiti</th>
                     <th className="text-left px-3 py-2.5">Açıklama</th>
                   </tr>
@@ -187,11 +274,15 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, missio
                 <tbody className="divide-y divide-slate-100 dark:divide-[#30363D]">
                   {repairs.map(r => (
                     <tr key={r.id}>
-                      <td className="px-4 py-2 text-xs font-mono text-slate-700 dark:text-slate-300">{r.partItemCode || "-"}</td>
+                      <td className="px-4 py-2 text-xs font-mono text-slate-700 dark:text-slate-300">{r.partItemCode || "N/A"}</td>
                       <td className="px-3 py-2 text-xs text-slate-700 dark:text-slate-300">{r.missionGroup}</td>
-                      <td className="px-3 py-2 text-xs text-slate-700 dark:text-slate-300">{r.operationTypeName || "-"}</td>
-                      <td className="px-3 py-2 text-xs text-slate-700 dark:text-slate-300">{r.faultName || "-"}</td>
-                      <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">{r.notes || "-"}</td>
+                      <td className="px-3 py-2 text-xs">
+                        <span className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold border ${r.chargeType === "FREE" ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30" : "bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-500/30"}`}>
+                          {r.chargeType === "FREE" ? "Ücretsiz" : "Ücretli"}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 text-xs text-slate-700 dark:text-slate-300">{r.faultName || "N/A"}</td>
+                      <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">{r.notes || "N/A"}</td>
                     </tr>
                   ))}
                 </tbody>

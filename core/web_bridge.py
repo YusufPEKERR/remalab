@@ -98,9 +98,9 @@ PRODUCTION_WO_STATUS_IN_PRODUCTION = "URETIMDE"
 PRODUCTION_WO_STATUS_COMPLETED = "TAMAMLANDI"
 
 # Müşteriler sayfası toplu (Excel) yükleme modülü için "Flow (İş Akışı)" alanının
-# kabul ettiği sabit değer kümesi. Hem şablon oluşturma (dropdown listesi) hem
-# de içe aktarma doğrulaması bu listeyi kullanır.
-CUSTOMER_FLOW_VALUES = ["Refurbish", "Repair", "RMA", "Battery Replacement"]
+# kabul ettiği değer kümesi warehouse.service_request_type.code'dan (bkz.
+# WebBridge._get_flow_values / get_flow_values) canlı olarak okunur - burada
+# statik bir liste tutulmaz, tek doğruluk kaynağı DB'dir.
 
 # Toplu yüklemede zorunlu olan sütunlar (şablon başlığı -> customers alanı).
 CUSTOMER_BULK_REQUIRED_COLUMNS = [
@@ -140,6 +140,7 @@ class WebBridge(QObject):
         self._ensure_department_column()
         self._ensure_status_column()
         self._ensure_repair_records_extra_columns()
+        self._ensure_batch_entries_diagnosis_column()
         self._ensure_stock_movement_columns()
         self._ensure_service_records_table()
         self._ensure_work_orders_table()
@@ -941,6 +942,21 @@ class WebBridge(QObject):
         finally:
             db.close()
 
+    def _ensure_batch_entries_diagnosis_column(self):
+        """warehouse.batch_entries tablosuna customer_diagnosis sütunu yoksa ekler.
+        Bağlı bir service_records/work_order zinciri olmayan cihazlarda (device_ref=IMEI
+        durumu) 'Müşteri Arıza Tespiti' bunun yerine buraya, IMEI'ye bağlı olarak yazılır."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            db.execute(text("ALTER TABLE warehouse.batch_entries ADD COLUMN IF NOT EXISTS customer_diagnosis TEXT;"))
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            print(f"[WebBridge] batch_entries customer_diagnosis kolonu eklenemedi: {e}")
+        finally:
+            db.close()
+
     @Slot(str, str, result=str)
     def login(self, username, password):
         """React üzerinden gelen giriş isteğini işler."""
@@ -1308,11 +1324,14 @@ class WebBridge(QObject):
 
     @Slot(str, str, str, result=str)
     def create_product_bom(self, product_model, child_item_code, quantity):
-        from models.product_bom import ProductBOM
+        """warehouse.product_bom_node'a yeni bir reçete satırı ekler - Demontaj ekranındaki
+        'Parça Seçiniz' (bkz. get_parts_for_device) bu tabloyu okur, bu yüzden burada
+        eklenen her satır o ekranda da görünür."""
+        from models.product_bom_node import ProductBomNode
         db = SessionLocal()
         try:
-            new_bom = ProductBOM(
-                product_model=product_model,
+            new_bom = ProductBomNode(
+                parent_product_code=product_model,
                 child_item_code=child_item_code,
                 quantity=int(quantity) if quantity else 1
             )
@@ -1327,18 +1346,16 @@ class WebBridge(QObject):
 
     @Slot(str, str, str, str, result=str)
     def update_product_bom(self, bom_id, product_model, child_item_code, quantity):
-        from models.product_bom import ProductBOM
-        from datetime import datetime
+        from models.product_bom_node import ProductBomNode
         db = SessionLocal()
         try:
-            bom = db.query(ProductBOM).filter(ProductBOM.id == int(bom_id)).first()
+            bom = db.query(ProductBomNode).filter(ProductBomNode.id == bom_id).first()
             if not bom:
                 return json.dumps({"success": False, "message": "BOM bulunamadı."})
-            
-            bom.product_model = product_model
+
+            bom.parent_product_code = product_model
             bom.child_item_code = child_item_code
             bom.quantity = int(quantity) if quantity else 1
-            bom.updated_at = datetime.now()
             db.commit()
             return json.dumps({"success": True})
         except Exception as e:
@@ -1349,10 +1366,10 @@ class WebBridge(QObject):
 
     @Slot(str, result=str)
     def delete_product_bom(self, bom_id):
-        from models.product_bom import ProductBOM
+        from models.product_bom_node import ProductBomNode
         db = SessionLocal()
         try:
-            bom = db.query(ProductBOM).filter(ProductBOM.id == int(bom_id)).first()
+            bom = db.query(ProductBomNode).filter(ProductBomNode.id == bom_id).first()
             if bom:
                 db.delete(bom)
                 db.commit()
@@ -1366,19 +1383,17 @@ class WebBridge(QObject):
 
     @Slot(str, result=str)
     def toggle_product_bom_status(self, bom_id):
-        from models.product_bom import ProductBOM
+        from models.product_bom_node import ProductBomNode
         db = SessionLocal()
         try:
-            bom = db.query(ProductBOM).filter(ProductBOM.id == int(bom_id)).first()
+            bom = db.query(ProductBomNode).filter(ProductBomNode.id == bom_id).first()
             if not bom:
                 return json.dumps({"success": False, "message": "BOM kaydı bulunamadı."})
-            
-            # Toggle between Aktif and Pasif
-            from datetime import datetime
-            bom.status = "Pasif" if bom.status == "Aktif" else "Aktif"
-            bom.updated_at = datetime.now()
+
+            bom.enabled = not bom.enabled
             db.commit()
-            return json.dumps({"success": True, "message": f"Durum '{bom.status}' olarak güncellendi."})
+            new_status = "Aktif" if bom.enabled else "Pasif"
+            return json.dumps({"success": True, "message": f"Durum '{new_status}' olarak güncellendi."})
         except Exception as e:
             db.rollback()
             print(f"[WebBridge] toggle_product_bom_status hatası: {e}")
@@ -1857,6 +1872,87 @@ class WebBridge(QObject):
             db.close()
 
     @Slot(str, result=str)
+    def get_mission_for_item_category(self, item_category):
+        """warehouse.item_category_mission'dan, verilen parça kategorisi için önerilen
+        Onarım Takımı'nı (organization.mission_groups.code) döner. item_category_mission.mission
+        'TEC_' önekli (TEC_CASE, TEC_BATTERY...) iken mission_groups.code önek taşımaz (CASE,
+        BATTERY...) - TEC_ öneki kırpılarak eşleştirilir. Birden fazla etkin (enabled) aday
+        varsa, TEC_L1REPAIR/L2REPAIR/L3REPAIR gibi genel montaj kodları yerine o kategoriye
+        özel uzman ekip (ör. TEC_CAMERA, TEC_BATTERY) tercih edilir. Demontaj ekranında parça
+        seçilince 'Onarım Takımı' alanının otomatik önerilmesi için kullanılır."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            category = (item_category or "").strip()
+            if not category:
+                return json.dumps({"success": True, "mission_code": None})
+
+            rows = db.execute(text("""
+                SELECT mission FROM warehouse.item_category_mission
+                WHERE LOWER(TRIM(item_category)) = LOWER(:cat) AND enabled = TRUE
+            """), {"cat": category}).fetchall()
+
+            candidates = [r[0].strip() for r in rows if r[0]]
+            if not candidates:
+                return json.dumps({"success": True, "mission_code": None})
+
+            generic = {"TEC_L1REPAIR", "TEC_L2REPAIR", "TEC_L3REPAIR"}
+            specialist = [c for c in candidates if c.upper() not in generic]
+            chosen = specialist[0] if specialist else candidates[0]
+
+            bare_code = chosen[4:] if chosen.upper().startswith("TEC_") else chosen
+
+            exists = db.execute(text(
+                "SELECT code FROM organization.mission_groups WHERE code = :c"
+            ), {"c": bare_code}).first()
+
+            return json.dumps({"success": True, "mission_code": bare_code if exists else None})
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
+    def get_missions_for_item_category(self, item_category):
+        """warehouse.item_category_mission'da verilen parça kategorisi için tanımlı TÜM etkin
+        (enabled) departmanları (organization.mission_groups.code) döner - TEC_ öneki kırpılarak
+        eşleştirilir (bkz. get_mission_for_item_category). Demontaj ekranındaki 'Onarım Takımı'
+        dropdown'unu, sadece o kategori için gerçekten tanımlı departmanlarla sınırlamak için
+        kullanılır. Eşleşme yoksa boş liste döner (çağıran taraf tüm departmanlara geri düşebilir)."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            category = (item_category or "").strip()
+            if not category:
+                return json.dumps({"success": True, "mission_codes": []})
+
+            rows = db.execute(text("""
+                SELECT DISTINCT mission FROM warehouse.item_category_mission
+                WHERE LOWER(TRIM(item_category)) = LOWER(:cat) AND enabled = TRUE
+            """), {"cat": category}).fetchall()
+
+            bare_codes = set()
+            for (mission,) in rows:
+                if not mission:
+                    continue
+                m = mission.strip()
+                bare_codes.add(m[4:] if m.upper().startswith("TEC_") else m)
+
+            if not bare_codes:
+                return json.dumps({"success": True, "mission_codes": []})
+
+            existing = db.execute(text(
+                "SELECT code FROM organization.mission_groups WHERE code = ANY(:codes)"
+            ), {"codes": list(bare_codes)}).fetchall()
+            valid_codes = [r[0] for r in existing]
+
+            return json.dumps({"success": True, "mission_codes": valid_codes}, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
     def get_missions(self, department_filter=""):
         """Görevleri/rolleri getirir. MioCreate.xlsx -> Mission'dan seed edilmiştir (organization.missions).
         department_filter doluysa (ör. 'Üretim') sadece o departmandaki görevler döner, boşsa hepsi döner."""
@@ -1948,6 +2044,168 @@ class WebBridge(QObject):
         finally:
             db.close()
 
+    @Slot(str, result=str)
+    def get_item_faults_by_category(self, item_category):
+        """warehouse.item_fault'tan, verilen item_category'ye (Parça Seçiniz'de seçilen
+        parçanın kategorisi) uygun arıza tespiti seçeneklerini getirir. Demontaj ekranındaki
+        'Arıza Tespiti' dropdown'unun kaynağıdır - seçilen parçanın kategorisine göre filtrelenir."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            category = (item_category or "").strip()
+            if not category:
+                return json.dumps({"success": True, "item_faults": []})
+
+            rows = db.execute(text("""
+                SELECT code, short_name FROM warehouse.item_fault
+                WHERE LOWER(TRIM(item_category)) = LOWER(:cat)
+                ORDER BY short_name ASC
+            """), {"cat": category}).mappings().all()
+            faults = [{"code": r["code"], "short_name": r["short_name"] or "N/A"} for r in rows]
+            return json.dumps({"success": True, "item_faults": faults}, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    def _get_flow_values(self, db):
+        """warehouse.service_request_type.code'dan geçerli Flow (Akış Durumu) değerlerini
+        döner - veritabanında sadece bu değerler kullanılabilir olmalıdır (boş/NULL kod
+        satırları hariç tutulur). get_flow_values Slot'u ve dahili doğrulama/şablon
+        kodu (generate_customer_bulk_template, bulk_import_customers) bunu paylaşır."""
+        from sqlalchemy import text
+        rows = db.execute(text("""
+            SELECT DISTINCT TRIM(code) AS code FROM warehouse.service_request_type
+            WHERE code IS NOT NULL AND TRIM(code) <> ''
+            ORDER BY 1
+        """)).fetchall()
+        return [r[0] for r in rows]
+
+    @Slot(result=str)
+    def get_flow_values(self):
+        """Batch Girişi, Parça Kategorileri ve Tedarikçiler sayfalarındaki Flow seçim
+        listelerinin tek kaynağıdır (bkz. _get_flow_values)."""
+        db = SessionLocal()
+        try:
+            flows = self._get_flow_values(db)
+            return json.dumps({"success": True, "flows": flows}, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
+    def get_service_request_types_by_category(self, item_category):
+        """warehouse.service_request_item_category'den, verilen item_category'ye (Parça
+        Seçiniz'de seçilen parçanın kategorisi) uygun serviceRequestType değerlerini getirir.
+        Demontaj ekranındaki 'Arıza Tespiti' dropdown'unun kaynağıdır - seçilen parçanın
+        kategorisine göre filtrelenir."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            category = (item_category or "").strip()
+            if not category:
+                return json.dumps({"success": True, "service_request_types": []})
+
+            rows = db.execute(text("""
+                SELECT DISTINCT service_request_type, is_customer_approved
+                FROM warehouse.service_request_item_category
+                WHERE LOWER(TRIM(item_category)) = LOWER(:cat)
+                ORDER BY service_request_type ASC
+            """), {"cat": category}).mappings().all()
+            types = [{
+                "code": (r["service_request_type"] or "").strip(),
+                "short_name": (r["service_request_type"] or "").strip(),
+                "is_customer_approved": bool(r["is_customer_approved"]),
+            } for r in rows]
+            return json.dumps({"success": True, "service_request_types": types}, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
+    def get_parts_for_device(self, device_model_text):
+        """Verilen cihazın modelini (ör. batch_entries.model - serbest metin) önce
+        product_family'ye eşleştirip, o cihazın reçetesini (BOM) warehouse.product_bom_node'dan
+        okur (parent_product_code = product_family.code) ve reçetedeki her child_item_code'u
+        warehouse.parts'tan çözerek döner. Demontaj ekranındaki 'Parça Seçiniz' kutusunun
+        kaynağıdır - Product Bom sayfasında (create/update/delete/toggle_product_bom_status,
+        aynı product_bom_node tablosu) tanımlanan reçeteyle birebir aynıdır. Model çözülemezse
+        veya o modele ait reçete hiç girilmemişse boş liste + açıklayıcı bir 'warning' döner."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            model_text = (device_model_text or "").strip()
+            if not model_text:
+                return json.dumps({"success": True, "parts": [], "resolved_model": None, "warning": None})
+
+            fam = db.execute(text("""
+                SELECT code, short_name FROM warehouse.product_family
+                WHERE LOWER(code) = LOWER(:m) OR LOWER(short_name) = LOWER(:m)
+                ORDER BY (LOWER(code) = LOWER(:m)) DESC
+                LIMIT 1
+            """), {"m": model_text}).mappings().first()
+
+            if not fam or not fam["code"]:
+                return json.dumps({
+                    "success": True, "parts": [], "resolved_model": None,
+                    "warning": f"\"{model_text}\" bir ürün ailesiyle eşleştirilemedi."
+                }, ensure_ascii=False)
+
+            # Product Bom sayfasındaki 'Cihaz Modeli' seçici ayrı, eski bir referans tablosundan
+            # (warehouse.product_families - sadece okunabilir isim, code yok) besleniyor, bu yüzden
+            # kullanıcılar parent_product_code'a code (iP12PR) yerine okunabilir isim (iPhone 12 Pro)
+            # girmiş olabilir - her iki ihtimal de büyük/küçük harf duyarsız kontrol edilir.
+            # Ayrıca sadece Parça Kategorileri'nde "Ön Fiyat Verebilir" (item_category.is_pre_approved)
+            # işaretli kategorilerdeki parçalar gösterilir.
+            rows = db.execute(text("""
+                SELECT p.id, p.item_code, p.name, p.brand, p.model, p.color,
+                       p.item_category, p.part_category, p.part_type, b.quantity
+                FROM warehouse.product_bom_node b
+                JOIN warehouse.parts p ON p.item_code = b.child_item_code
+                WHERE LOWER(TRIM(b.parent_product_code)) IN (LOWER(:code), LOWER(:short_name))
+                  AND b.enabled = TRUE
+                  AND EXISTS (
+                      SELECT 1 FROM warehouse.item_category ic
+                      WHERE LOWER(TRIM(ic.short_name)) = LOWER(TRIM(p.item_category))
+                        AND ic.is_pre_approved = TRUE
+                  )
+                ORDER BY p.item_category, p.item_code
+            """), {"code": fam["code"], "short_name": fam["short_name"]}).mappings().all()
+
+            parts = [{
+                "id": str(r["id"]),
+                "item_code": r["item_code"] or "",
+                "name": r["name"] or "",
+                "brand": r["brand"] or "",
+                "model": r["model"] or "",
+                "color": r["color"] or "",
+                "item_category": r["item_category"] or "",
+                "part_category": r["part_category"] or "",
+                "part_type": r["part_type"] or "",
+                "quantity": r["quantity"] or 1,
+            } for r in rows]
+
+            warning = None
+            if not parts:
+                bom_exists = db.execute(text("""
+                    SELECT 1 FROM warehouse.product_bom_node b
+                    WHERE LOWER(TRIM(b.parent_product_code)) IN (LOWER(:code), LOWER(:short_name))
+                      AND b.enabled = TRUE
+                    LIMIT 1
+                """), {"code": fam["code"], "short_name": fam["short_name"]}).first()
+                if bom_exists:
+                    warning = f"{fam['short_name']} için reçete (BOM) tanımlı ama hiçbir parça kategorisi 'Ön Fiyat Verebilir' olarak işaretli değil. Parça Kategorileri sayfasından güncelleyebilirsiniz."
+                else:
+                    warning = f"{fam['short_name']} için henüz reçete (BOM) tanımlanmamış. Product Bom sayfasından ekleyebilirsiniz."
+
+            return json.dumps({"success": True, "parts": parts, "resolved_model": fam["short_name"], "warning": warning}, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
     @Slot(result=str)
     def get_repair_item_operation_types(self):
         """İşlem tipi referans listesini getirir (Onar / Parça Değişim).
@@ -1962,6 +2220,25 @@ class WebBridge(QObject):
             """)).mappings().all()
             types = [{"code": r["code"], "short_name": r["short_name"] or ""} for r in rows]
             return json.dumps({"success": True, "operation_types": types}, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(result=str)
+    def get_repair_item_warranties(self):
+        """Ücret tipi (Ücretli/Ücretsiz Onarım) referans listesini getirir.
+        MioCreate.xlsx -> RepairItemWarranty'den seed edilmiştir (IW=Ücretsiz, OOW=Ücretli)."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            rows = db.execute(text("""
+                SELECT code, short_name, is_paid_for
+                FROM warehouse.repair_item_warranty
+                ORDER BY order_number ASC NULLS LAST
+            """)).mappings().all()
+            warranties = [{"code": r["code"], "short_name": r["short_name"] or "", "is_paid_for": bool(r["is_paid_for"])} for r in rows]
+            return json.dumps({"success": True, "warranties": warranties}, ensure_ascii=False)
         except Exception as e:
             return json.dumps({"success": False, "message": str(e)})
         finally:
@@ -2151,12 +2428,14 @@ class WebBridge(QObject):
                     'Stok Takipli' AS stock_tracking_type,
                     NULL AS default_location_id, 
                     '' AS default_location_name,
-                    ic.enabled AS is_active, 
-                    '' AS description
+                    ic.enabled AS is_active,
+                    '' AS description,
+                    ic.item_labour AS item_labour,
+                    ic.is_pre_approved AS is_pre_approved
                 FROM warehouse.item_category ic
                 ORDER BY ic.short_name ASC
             """)).mappings().all()
-            
+
             categories = []
             for r in rows:
                 categories.append({
@@ -2169,7 +2448,9 @@ class WebBridge(QObject):
                     "default_location_id": str(r["default_location_id"]) if r["default_location_id"] else "",
                     "default_location_name": r["default_location_name"] or "",
                     "is_active": r["is_active"] if r["is_active"] is not None else True,
-                    "description": r["description"] or ""
+                    "description": r["description"] or "",
+                    "labour_level": r["item_labour"] or "",
+                    "can_pre_price": bool(r["is_pre_approved"])
                 })
             
             return json.dumps({"success": True, "categories": categories})
@@ -2520,10 +2801,12 @@ class WebBridge(QObject):
             required_col_count = len(CUSTOMER_BULK_REQUIRED_COLUMNS)
             sheet.append(headers)
 
+            flow_values = self._get_flow_values(db) or ["To refurbish"]
+
             # Örnek satır, kullanıcıya beklenen formatı gösterir.
             sheet.append([
                 "353XXXXXXXXXXXX", "SN-000123", "INT-000123",
-                device_models[0], CUSTOMER_FLOW_VALUES[0],
+                device_models[0], flow_values[0],
                 "Ekran kırık, dokunmatik çalışmıyor", "2026-01-15",
                 "Ahmet Yılmaz", "05XXXXXXXXX", "", ""
             ])
@@ -2544,7 +2827,7 @@ class WebBridge(QObject):
             model_dv.errorTitle = "Geçersiz Cihaz Modeli"
             sheet.add_data_validation(model_dv)
 
-            flow_list = ",".join(CUSTOMER_FLOW_VALUES)
+            flow_list = ",".join(flow_values)
             flow_dv = DataValidation(type="list", formula1=f'"{flow_list}"', allow_blank=True, showErrorMessage=True)
             flow_dv.error = "Lütfen listeden geçerli bir Flow (İş Akışı) değeri seçin."
             flow_dv.errorTitle = "Geçersiz Flow"
@@ -2629,6 +2912,8 @@ class WebBridge(QObject):
                 "SELECT serial_number FROM warehouse.customers WHERE serial_number IS NOT NULL"
             )).all()}
 
+            valid_flow_values = self._get_flow_values(db)
+
             errors = []
             seen_imeis_in_file = {}
             seen_serials_in_file = {}
@@ -2658,8 +2943,8 @@ class WebBridge(QObject):
                     if not value:
                         errors.append({"row": row_num, "field": label, "message": f"{label} boş olamaz."})
 
-                if flow and flow not in CUSTOMER_FLOW_VALUES:
-                    errors.append({"row": row_num, "field": "Flow (İş Akışı)", "message": f"Geçersiz değer: \"{flow}\". Geçerli değerler: {', '.join(CUSTOMER_FLOW_VALUES)}"})
+                if flow and flow not in valid_flow_values:
+                    errors.append({"row": row_num, "field": "Flow (İş Akışı)", "message": f"Geçersiz değer: \"{flow}\". Geçerli değerler: {', '.join(valid_flow_values)}"})
 
                 product = None
                 if cihaz_modeli:
@@ -6852,7 +7137,7 @@ class WebBridge(QObject):
                     defects TEXT,
                     screen_test VARCHAR(100),
                     power_test VARCHAR(100),
-                    flow VARCHAR(100) DEFAULT 'Refurbish',
+                    flow VARCHAR(100) DEFAULT 'To refurbish',
                     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
                 );
@@ -6988,7 +7273,7 @@ class WebBridge(QObject):
                 "defects": r["defects"] or "",
                 "screen_test": r["screen_test"] or "",
                 "power_test": r["power_test"] or "",
-                "flow": r["flow"] or "Refurbish",
+                "flow": r["flow"] or "To refurbish",
                 "created_at": r["created_at"].strftime("%d.%m.%Y %H:%M") if r["created_at"] else "-",
                 "updated_at": r["updated_at"].strftime("%d.%m.%Y %H:%M") if r["updated_at"] else "-"
             } for r in rows]
@@ -7021,9 +7306,15 @@ class WebBridge(QObject):
                 existing_batch = db.query(BatchEntry).filter(BatchEntry.batch_no == batch_no).first()
                 if existing_batch and existing_batch.customer_name and existing_batch.customer_name.strip().lower() != customer_name.lower():
                     return json.dumps({
-                        "success": False, 
+                        "success": False,
                         "message": f"Bu batch numarası ({batch_no}) başka bir müşteriye ({existing_batch.customer_name}) aittir. Aynı batch numarasıyla farklı müşteri kaydı oluşturulamaz."
                     })
+
+            valid_flow_values = self._get_flow_values(db)
+            default_flow = "To refurbish" if "To refurbish" in valid_flow_values else (valid_flow_values[0] if valid_flow_values else "To refurbish")
+            flow_value = (d.get("flow", "") or "").strip() or default_flow
+            if flow_value not in valid_flow_values:
+                return json.dumps({"success": False, "message": f"Geçersiz Flow değeri: \"{flow_value}\". Geçerli değerler: {', '.join(valid_flow_values)}"})
 
             new_entry = BatchEntry(
                 customer_no=d.get("customer_no", "").strip(),
@@ -7040,7 +7331,7 @@ class WebBridge(QObject):
                 defects=d.get("defects", "").strip(),
                 screen_test=d.get("screen_test", "").strip(),
                 power_test=d.get("power_test", "").strip(),
-                flow=d.get("flow", "Refurbish").strip() or "Refurbish"
+                flow=flow_value
             )
             db.add(new_entry)
             db.commit()
@@ -7097,7 +7388,11 @@ class WebBridge(QObject):
             entry.screen_test = d.get("screen_test", entry.screen_test).strip()
             entry.power_test = d.get("power_test", entry.power_test).strip()
             if "flow" in d:
-                entry.flow = d.get("flow", entry.flow).strip()
+                new_flow = d.get("flow", entry.flow).strip()
+                valid_flow_values = self._get_flow_values(db)
+                if new_flow not in valid_flow_values:
+                    return json.dumps({"success": False, "message": f"Geçersiz Flow değeri: \"{new_flow}\". Geçerli değerler: {', '.join(valid_flow_values)}"})
+                entry.flow = new_flow
             entry.updated_at = datetime.now()
 
             db.commit()
@@ -7156,7 +7451,7 @@ class WebBridge(QObject):
                     SUM(COALESCE(b.unit_price, 0)) AS total_price,
                     COALESCE(MAX(NULLIF(c.currency, '')), MAX(NULLIF(b.currency, '')), 'EUR') AS currency,
                     COALESCE(BOOL_AND(COALESCE(b.is_success, false)), false) AS is_success,
-                    COALESCE(MAX(NULLIF(b.flow, '')), 'Refurbish') AS flow,
+                    COALESCE(MAX(NULLIF(b.flow, '')), 'To refurbish') AS flow,
                     COALESCE(MAX(NULLIF(b.created_by, '')), 'io') AS create_by,
                     MAX(b.created_at) AS last_created
                 FROM warehouse.batch_entries b
@@ -7176,7 +7471,7 @@ class WebBridge(QObject):
                 "is_success": bool(r["is_success"]),
                 "item_quantity": int(r["item_quantity"]),
                 "currency": r["currency"] or "EUR",
-                "flow": r["flow"] or "Refurbish",
+                "flow": r["flow"] or "To refurbish",
                 "create_by": r["create_by"] or "io",
 
                 # Legacy/compatibility fields
@@ -7246,8 +7541,14 @@ class WebBridge(QObject):
             ids = json.loads(ids_json or "[]")
             if not ids or not new_flow:
                 return json.dumps({"success": False, "message": "Kayıt veya durum seçilmedi."})
+
+            new_flow = str(new_flow).strip()
+            valid_flow_values = self._get_flow_values(db)
+            if new_flow not in valid_flow_values:
+                return json.dumps({"success": False, "message": f"Geçersiz Flow değeri: \"{new_flow}\". Geçerli değerler: {', '.join(valid_flow_values)}"})
+
             int_ids = [int(i) for i in ids]
-            
+
             # Find the batch numbers for the selected IDs to update the entire batch
             target_batches = db.query(BatchEntry.batch_no).filter(BatchEntry.id.in_(int_ids)).all()
             batch_nos = [t[0] for t in target_batches if t[0]]
@@ -7315,7 +7616,7 @@ class WebBridge(QObject):
                     "defects": entry.defects or '',
                     "screen_test": entry.screen_test or '',
                     "power_test": entry.power_test or '',
-                    "flow": entry.flow or 'Refurbish',
+                    "flow": entry.flow or 'To refurbish',
                     "statu_code": entry.statu_code,
                     "id": entry.id
                 }
@@ -7356,7 +7657,7 @@ class WebBridge(QObject):
                     "defects": c_row["customer_reported_complaint"] or '',
                     "screen_test": '',
                     "power_test": '',
-                    "flow": c_row["flow"] if c_row["flow"] in ['Refurbish', 'Repair', 'RMA', 'Battery Replacement'] else 'Refurbish',
+                    "flow": c_row["flow"] if c_row["flow"] in self._get_flow_values(db) else 'To refurbish',
                     "statu_code": None,
                     "id": None
                 }
@@ -7383,6 +7684,7 @@ class WebBridge(QObject):
                 FROM warehouse.customers
             """)).mappings().all()
 
+            valid_flow_values = self._get_flow_values(db)
             added_count = 0
             for r in rows:
                 imei = (r["imei_number"] or "").strip()
@@ -7415,8 +7717,8 @@ class WebBridge(QObject):
                 else:
                     full_model = " ".join(filter(None, [r["brand"], r["model"]])).strip()
                     flow_val = (r["flow"] or "").strip()
-                    if flow_val not in ['Refurbish', 'Repair', 'RMA', 'Battery Replacement']:
-                        flow_val = 'Refurbish'
+                    if flow_val not in valid_flow_values:
+                        flow_val = 'To refurbish' if 'To refurbish' in valid_flow_values else (valid_flow_values[0] if valid_flow_values else 'To refurbish')
 
                     new_entry = BatchEntry(
                         customer_no=c_no or 'MIO-001',
@@ -7717,6 +8019,66 @@ class WebBridge(QObject):
                 "test_result_code": test_result_code,
                 "message": result.get("message"),
             })
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, int, int, result=str)
+    def fetch_phonecheck_test(self, term, current_statu_code, target_statu_code):
+        """Test adımı olan statü geçişlerinde (103>104 ilk test, 125>109 son test)
+        Phonecheck'ten cihaz test verisini çeker ve kaydeder.
+
+        Cihaz Phonecheck'te bulunamazsa needs_manual=True döner; bu durumda
+        arayüz manuel doldurma formunu açmalı ve save_phonecheck_manual çağırmalıdır."""
+        from services.phonecheck_service import PhonecheckService
+        db = SessionLocal()
+        try:
+            svc = PhonecheckService(db)
+            stage = svc.get_stage(current_statu_code, target_statu_code)
+            if not stage:
+                # Test adımı değil, Phonecheck sorgusu gerekmiyor
+                return json.dumps({"success": True, "skipped": True, "test_stage": None})
+
+            result = svc.fetch_device(term)
+            if not result.get("success"):
+                result["test_stage"] = stage
+                return json.dumps(result)
+
+            record = svc.save_from_phonecheck(result["device"], stage)
+            return json.dumps({
+                "success": True,
+                "test_stage": stage,
+                "record_id": record.id,
+                "attempt_no": record.attempt_no,
+                "working": record.working,
+                "grade": record.grade,
+                "failed": record.failed,
+            })
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, str, str, str, result=str)
+    def save_phonecheck_manual(self, imei, test_stage, manual_reason, entered_by, fields_json):
+        """Phonecheck'te bulunamayan cihaz için elle girilen test verisini kaydeder.
+        manual_reason (açıklama) zorunludur."""
+        from services.phonecheck_service import PhonecheckService
+        db = SessionLocal()
+        try:
+            fields = json.loads(fields_json or "{}")
+            svc = PhonecheckService(db)
+            result = svc.save_manual(
+                imei=imei,
+                test_stage=test_stage,
+                manual_reason=manual_reason,
+                entered_by=entered_by or None,
+                fields=fields,
+            )
+            return json.dumps(result)
         except Exception as e:
             db.rollback()
             return json.dumps({"success": False, "message": str(e)})
@@ -8100,14 +8462,22 @@ class WebBridge(QObject):
                 work_order_id_out = wo["id"]
                 service_record_id_out = sr["id"]
                 current_statu_code_out = current_statu_code
+                found_batch_entry = True
             # ── Bağlı Servis Kaydı/İş Emri yok: onarım kayıtları doğrudan IMEI'ye bağlı aranır ──
             else:
                 parts = []
                 repair_ref = term
+                be_row = db.execute(text("""
+                    SELECT customer_diagnosis FROM warehouse.batch_entries
+                    WHERE LOWER(TRIM(imei_number)) = LOWER(:term)
+                    ORDER BY id DESC LIMIT 1
+                """), {"term": term}).mappings().first()
                 device_info = {
                     "imei": term, "productInfo": "", "customerRequest": "",
-                    "customerDiagnosis": "", "serviceStatus": None, "statusText": "",
+                    "customerDiagnosis": (be_row["customer_diagnosis"] if be_row else "") or "",
+                    "serviceStatus": None, "statusText": "",
                 }
+                found_batch_entry = be_row is not None
                 work_order_id_out = None
                 service_record_id_out = None
                 current_statu_code_out = None
@@ -8141,13 +8511,13 @@ class WebBridge(QObject):
                 "partItemCode": r["part_item_code"] or "",
                 "partName": r["part_name"] or "",
                 "faultCode": r["item_fault_code"] or "",
-                "faultName": r["fault_name"] or "",
+                "faultName": r["fault_name"] or r["item_fault_code"] or "",
                 "operationTypeCode": r["operation_type_code"] or "",
                 "operationTypeName": r["operation_type_name"] or "",
                 "notes": r["notes"] or "",
             } for r in repair_rows]
 
-            if not (sr and wo) and not repairs:
+            if not (sr and wo) and not repairs and not found_batch_entry:
                 return json.dumps({"success": False, "message": "Bu cihaza ait bir iş emri veya onarım kaydı bulunamadı."})
 
             return json.dumps({
@@ -8274,29 +8644,49 @@ class WebBridge(QObject):
         return (statu["mission"] or None) if statu else None
 
     @Slot(str, str, str, result=str)
-    def update_customer_diagnosis(self, work_order_id, diagnosis_text, username):
-        """warehouse.service_records.preliminary_diagnosis'i (Müşteri Arıza Tespiti) günceller.
-        Sadece test teknisyenleri (QAC ailesi: QAC, QAC_TL, QAC_DISPLAY, QAC_CASE, QAC_L3,
-        QAC_CAMERA) ve cihazın mevcut statüsüne göre zaten yetkili olan kullanıcılar düzenleyebilir."""
+    def update_customer_diagnosis(self, device_ref, diagnosis_text, username):
+        """'Müşteri Arıza Tespiti'ni günceller. Sadece test teknisyenleri (QAC ailesi: QAC,
+        QAC_TL, QAC_DISPLAY, QAC_CASE, QAC_L3, QAC_CAMERA) ve cihazın mevcut statüsüne göre
+        zaten yetkili olan kullanıcılar düzenleyebilir.
+        device_ref, bağlı bir servis iş emri varsa work_order_id'dir (bu durumda
+        warehouse.service_records.preliminary_diagnosis'e yazılır); yoksa (üretim verisinde
+        sık görülen durum) doğrudan cihazın IMEI'sidir (bu durumda warehouse.batch_entries.
+        customer_diagnosis'e yazılır) - bkz. add_repair_record/get_repair_operations_by_imei'deki
+        aynı device_ref deseni."""
         from sqlalchemy import text
         db = SessionLocal()
         try:
-            wo = db.execute(text("SELECT service_record_id FROM warehouse.work_orders WHERE id = :id"), {"id": int(work_order_id)}).mappings().first()
-            if not wo or not wo["service_record_id"]:
-                return json.dumps({"success": False, "message": "İş emri veya bağlı servis kaydı bulunamadı."})
+            diag = diagnosis_text.strip() if diagnosis_text else None
+            ref = (device_ref or "").strip()
+            if not ref:
+                return json.dumps({"success": False, "message": "Cihaz referansı boş olamaz."})
+
+            wo = None
+            try:
+                wo = db.execute(text("SELECT service_record_id FROM warehouse.work_orders WHERE id = :id"), {"id": int(ref)}).mappings().first()
+            except ValueError:
+                wo = None
 
             user_missions, is_admin = self._get_user_missions(db, username)
             if not is_admin:
                 is_test_technician = any(m == "QAC" or m.startswith("QAC_") for m in user_missions)
                 if not is_test_technician:
                     return json.dumps({"success": False, "message": "Bu alanı sadece test teknisyenleri düzenleyebilir."})
-                required = self._get_required_mission_for_work_order(db, work_order_id)
+                required = self._get_required_mission_for_ref(db, ref)
                 if required and required not in user_missions:
                     return json.dumps({"success": False, "message": f"Bu işlem için '{required}' yetkisi gerekiyor."})
 
-            db.execute(text("""
-                UPDATE warehouse.service_records SET preliminary_diagnosis = :diag WHERE id = :id
-            """), {"diag": diagnosis_text.strip() if diagnosis_text else None, "id": wo["service_record_id"]})
+            if wo and wo["service_record_id"]:
+                db.execute(text("""
+                    UPDATE warehouse.service_records SET preliminary_diagnosis = :diag WHERE id = :id
+                """), {"diag": diag, "id": wo["service_record_id"]})
+            else:
+                result = db.execute(text("""
+                    UPDATE warehouse.batch_entries SET customer_diagnosis = :diag
+                    WHERE LOWER(TRIM(imei_number)) = LOWER(:imei)
+                """), {"diag": diag, "imei": ref})
+                if result.rowcount == 0:
+                    return json.dumps({"success": False, "message": "Cihaz bulunamadı (iş emri veya Batch Girişi kaydı yok)."})
             db.commit()
             return json.dumps({"success": True})
         except Exception as e:

@@ -173,28 +173,18 @@ def seed_item_bom(s, df):
     return added, 0
 
 def seed_product_bom(s, df):
-    # s.query(ProductBomNode).delete()
-    added = 0
-    seen = set()
-    for _, row in df.iterrows():
-        parent_code = to_str(row.get("UretilenUrunKodu"))
-        if not parent_code: continue
-        for i in range(1, 11):
-            child_col = f"Tuketilen Parca_{i}"
-            qty_col = f"Tuketilen Parca_{i}_Miktar"
-            child = to_str(row.get(child_col))
-            qty = to_int(row.get(qty_col))
-            if child:
-                key = (parent_code, child)
-                if key in seen: continue
-                seen.add(key)
-                
-                # Check exist
-                ex = s.query(ProductBomNode).filter_by(parent_product_code=parent_code, child_item_code=child).first()
-                if not ex:
-                    s.add(ProductBomNode(parent_product_code=parent_code, child_item_code=child, quantity=qty or 1))
-                    added += 1
-    return added, 0
+    """MioCreate.xlsx -> ProductBom sekmesi gercek kolonlari: id, code, item, productFamily,
+    enabled, update. item = child_item_code, productFamily = parent_product_code. Miktar
+    sekmede yok, varsayilan 1 kullanilir."""
+    recs = [{
+        "id": to_uuid(r.get("id")),
+        "parent_product_code": to_str(r.get("productFamily")),
+        "child_item_code": to_str(r.get("item")),
+        "quantity": 1,
+        "enabled": to_bool(r.get("enabled")),
+        "update": to_bool(r.get("update")),
+    } for _, r in df.iterrows() if to_str(r.get("item")) and to_str(r.get("productFamily"))]
+    return upsert(s, ProductBomNode, recs)
 
 
 def main():
