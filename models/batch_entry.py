@@ -16,6 +16,7 @@ class BatchEntry(Base):
     service_id = Column(String(100), nullable=True)
     brand = Column(String(100), nullable=True)
     product_family = Column(String(255), nullable=True)
+    product_category = Column(String(50), nullable=True)
     product_full_name = Column(String(255), nullable=True)
     receive_grade = Column(String(20), nullable=True)
     statu_update_time = Column(DateTime(timezone=True), nullable=True)
