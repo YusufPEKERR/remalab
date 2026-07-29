@@ -8149,6 +8149,221 @@ class WebBridge(QObject):
         finally:
             db.close()
 
+    @Slot(str, result=str)
+    def get_detected_parts_by_imei(self, term):
+        """Depo > Servis ekranindaki Tespit Parca tablosu icin: test_result_faults
+        tablosundaki hatali_parcaN/hataN ciftlerini duz satirlara cevirir."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            term = (term or "").strip()
+            if not term:
+                return json.dumps({"success": False, "message": "IMEI boş olamaz."})
+
+            entry = self._find_batch_entry_by_term(db, term)
+            lookup_imei = (entry.imei_number if entry else None) or term
+            lookup_internal = (entry.internal_id if entry else None) or ""
+
+            rows = db.execute(text("""
+                SELECT id, description,
+                       hatali_parca1, hata1, hatali_parca2, hata2, hatali_parca3, hata3,
+                       hatali_parca4, hata4, hatali_parca5, hata5, hatali_parca6, hata6,
+                       hatali_parca7, hata7, hatali_parca8, hata8, hatali_parca9, hata9,
+                       hatali_parca10, hata10
+                FROM warehouse.test_result_faults
+                WHERE imei_number = :imei OR (internal_id IS NOT NULL AND internal_id = :internal_id)
+                ORDER BY created_at DESC
+            """), {"imei": lookup_imei, "internal_id": lookup_internal}).fetchall()
+
+            items = []
+            for row in rows:
+                record_id, description = row[0], row[1]
+                pairs = [(row[2 + i * 2], row[3 + i * 2]) for i in range(10)]
+                for idx, (part, fault) in enumerate(pairs, start=1):
+                    if not part and not fault:
+                        continue
+                    items.append({
+                        "id": f"{record_id}-{idx}",
+                        "name": part or "",
+                        "status": "",
+                        "factorySerial": "",
+                        "notice": description or "",
+                        "currentSerial": "",
+                        "test": fault or "",
+                    })
+
+            return json.dumps({"success": True, "items": items})
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
+    def get_repair_records_by_imei(self, term):
+        """Depo > Servis ekranindaki Alt Onarimlar / Onarim Parca ve Iscilikleri
+        tablolari icin: repair_records'tan bu cihaza ait kayitlari doner."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            term = (term or "").strip()
+            if not term:
+                return json.dumps({"success": False, "message": "IMEI boş olamaz."})
+
+            entry = self._find_batch_entry_by_term(db, term)
+            lookup_imei = (entry.imei_number if entry else None) or term
+
+            rows = db.execute(text("""
+                SELECT rr.department_mission, rrt.short_name, rr.operation_type_code,
+                       rr.item_category, rr.part_item_code, rr.item_fault_code, rr.notes,
+                       rr.created_at, rr.updated_at
+                FROM warehouse.repair_records rr
+                LEFT JOIN warehouse.repair_result_type rrt ON rrt.code = rr.repair_result_type_code
+                WHERE rr.service_record_id = :imei
+                ORDER BY rr.created_at DESC
+            """), {"imei": lookup_imei}).fetchall()
+
+            def fmt(dt):
+                return dt.strftime("%Y-%m-%d %H:%M") if dt else ""
+
+            items = [{
+                "missionGroup": r[0] or "",
+                "repairStatu": r[1] or "",
+                "tec": "",
+                "repairStartTime": fmt(r[7]),
+                "repairFinishTime": fmt(r[8]) if r[8] and r[8] != r[7] else "",
+                "qac": "",
+                "testResult": r[5] or r[6] or "",
+                "item": r[4] or "",
+                "type": r[3] or r[2] or "",
+                "supplyStatu": "",
+                "labour": "",
+                "fault": r[5] or "",
+            } for r in rows]
+
+            return json.dumps({"success": True, "items": items})
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
+    def get_phonecheck_history_by_imei(self, term):
+        """Depo > Servis ekranindaki Test sekmesi icin: bu cihaza ait tum
+        phonecheck_test_results kayitlarini (en yeni once) doner."""
+        from models.phonecheck_test_result import PhonecheckTestResult
+        db = SessionLocal()
+        try:
+            term = (term or "").strip()
+            if not term:
+                return json.dumps({"success": False, "message": "IMEI boş olamaz."})
+
+            entry = self._find_batch_entry_by_term(db, term)
+            lookup_imei = (entry.imei_number or entry.serial_number) if entry else None
+            lookup_imei = (lookup_imei or term).strip()
+
+            rows = (db.query(PhonecheckTestResult)
+                    .filter(PhonecheckTestResult.imei == lookup_imei)
+                    .order_by(PhonecheckTestResult.fetched_at.desc())
+                    .all())
+
+            def fmt(dt):
+                return dt.strftime("%Y-%m-%d %H:%M") if dt else ""
+
+            items = [{
+                "deviceUpdatedD": fmt(r.fetched_at),
+                "grade": r.grade or "",
+                "partInfoRemark": r.notes or "",
+                "parts": r.failed or "",
+                "stationID": r.station_id or "",
+                "version": r.version or "",
+                "batteryCycle": r.battery_cycle if r.battery_cycle is not None else "",
+            } for r in rows]
+
+            return json.dumps({"success": True, "items": items})
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
+    def get_service_info_by_imei(self, term):
+        """Depo > Servis ekranindaki IMEI aramasi icin: batch_entries'teki tum
+        bilinen bilgileri INFO_FIELDS ile ayni anahtarlarla doner."""
+        from models.service_statu import ServiceStatu
+        db = SessionLocal()
+        try:
+            term = (term or "").strip()
+            if not term:
+                return json.dumps({"success": False, "message": "IMEI boş olamaz."})
+
+            entry = self._find_batch_entry_by_term(db, term)
+            if not entry:
+                return json.dumps({"success": False, "message": f"'{term}' için kayıtlı bir cihaz bulunamadı."})
+
+            statu = db.query(ServiceStatu).filter_by(code=entry.statu_code).first()
+
+            def fmt(dt):
+                return dt.strftime("%Y-%m-%d %H:%M") if dt else ""
+
+            return json.dumps({
+                "success": True,
+                "fields": {
+                    "serviceNumber": str(entry.service_id) if entry.service_id else str(entry.id),
+                    "productBrand": entry.brand or "",
+                    "productFamily": entry.product_family or "",
+                    "productCategory": "",
+                    "productModel": entry.model or "",
+                    "product": entry.product_full_name or "",
+                    "itemColor": entry.color or "",
+                    "itemInternalId": entry.internal_id or "",
+                    "itemSerialNo": entry.serial_number or "",
+                    "itemImei": entry.imei_number or "",
+                    "itemImei2": "",
+                    "customer": entry.customer_name or "",
+                    "requestType": entry.flow or "",
+                    "rmaReason": "",
+                    "receiveGrade": entry.receive_grade or "",
+                    "createDate": fmt(entry.created_at),
+                    "statuUpdateDate": fmt(entry.statu_update_time or entry.updated_at),
+                    "updateDate": fmt(entry.updated_at),
+                },
+                "statu_code": entry.statu_code,
+                "statu_name": statu.short_name if statu else "",
+            })
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
+    def find_device_by_term(self, term):
+        """IMEI/Seri/Internal ID okutularak cihaz bilgisini (marka/model/hafıza/renk)
+        batch_entries'ten getirir. Servis Kaydı ekranındaki IMEI okutma alanı için kullanılır."""
+        db = SessionLocal()
+        try:
+            term = (term or "").strip()
+            if not term:
+                return json.dumps({"success": False, "message": "IMEI/Seri/Internal ID boş olamaz."})
+
+            entry = self._find_batch_entry_by_term(db, term)
+            if not entry:
+                return json.dumps({"success": False, "message": f"'{term}' için kayıtlı bir cihaz bulunamadı."})
+
+            return json.dumps({
+                "success": True,
+                "imei_number": entry.imei_number or "",
+                "serial_number": entry.serial_number or "",
+                "internal_id": entry.internal_id or "",
+                "brand": entry.brand or "",
+                "model": entry.model or "",
+                "memory": entry.gb or "",
+                "color": entry.color or "",
+            })
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
     @Slot(int, result=str)
     def get_batch_entries_by_statu(self, statu_code):
         """Belirtilen statüdeki (örn. 106 - Müşteri onayına sunulacak) tüm parti/cihazları

@@ -50,6 +50,29 @@ export default function ServiceRecords() {
   const [isSearching, setIsSearching] = useState(false);
   const [imeiError, setImeiError] = useState('');
 
+  // Yeni kayit formundaki IMEI alani icin otomatik cihaz doldurma
+  const [deviceLookupStatus, setDeviceLookupStatus] = useState(null); // null | 'loading' | 'found' | 'notfound'
+
+  const handleDeviceLookup = async () => {
+    const term = (formData.imei_number || '').trim();
+    if (!term) return;
+    setDeviceLookupStatus('loading');
+    const res = await api.findDeviceByTerm(term);
+    if (res.success) {
+      setFormData(prev => ({
+        ...prev,
+        imei_number: res.imei_number || prev.imei_number,
+        brand: res.brand || prev.brand,
+        model: res.model || prev.model,
+        memory: res.memory || prev.memory,
+        color: res.color || prev.color,
+      }));
+      setDeviceLookupStatus('found');
+    } else {
+      setDeviceLookupStatus('notfound');
+    }
+  };
+
   const handleImeiSearch = async (e) => {
     e.preventDefault();
     if (!searchImei.trim()) return;
@@ -136,6 +159,7 @@ export default function ServiceRecords() {
       setEditingRecord(null);
       setFormData(EMPTY_FORM);
     }
+    setDeviceLookupStatus(null);
     setShowForm(true);
   };
 
@@ -448,7 +472,24 @@ export default function ServiceRecords() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-400 mb-1.5">IMEI Numarası</label>
-                    <input type="text" placeholder="IMEI veya Seri No..." className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={formData.imei_number || ''} onChange={e => setFormData({...formData, imei_number: e.target.value})} />
+                    <input
+                      type="text"
+                      placeholder="IMEI veya Seri No okutun..."
+                      className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                      value={formData.imei_number || ''}
+                      onChange={e => { setFormData({...formData, imei_number: e.target.value}); setDeviceLookupStatus(null); }}
+                      onBlur={handleDeviceLookup}
+                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleDeviceLookup(); } }}
+                    />
+                    {deviceLookupStatus === 'loading' && (
+                      <p className="text-xs text-slate-400 mt-1">Cihaz aranıyor...</p>
+                    )}
+                    {deviceLookupStatus === 'found' && (
+                      <p className="text-xs text-emerald-500 mt-1">Cihaz bulundu, bilgiler dolduruldu.</p>
+                    )}
+                    {deviceLookupStatus === 'notfound' && (
+                      <p className="text-xs text-amber-500 mt-1">Cihaz bulunamadı, bilgileri elle girin.</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-400 mb-1.5">Renk</label>

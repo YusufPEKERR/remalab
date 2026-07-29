@@ -48,6 +48,11 @@ const LOG_ICONS = {
 const stageLabel = (testStage, transition) =>
   transition?.short_name || testStage || "Test";
 
+// Sadece bu iki geçişte IMEI okutulduğunda Phonecheck'e gidilir (Pass/Fail testi).
+// Diğer tüm statü geçiş ekranlarında eski davranış geçerlidir: PhoneCheck sorgusu
+// yapılmaz, kayıt doğrudan sabit kaynak→hedef statüsüne taşınır.
+const PHONECHECK_DRIVEN_CODES = ["103_104", "124_125"];
+
 const MANUAL_FIELD_LABELS = {
   working: "Çalışıyor mu (Working)",
   grade: "Grade",
@@ -273,35 +278,47 @@ const BatchStatuTransition = () => {
         statuName: scanData.current_statu_name,
       });
 
-      // 2. Adım: test adımı olan geçişlerde (103>104 ilk test, 125>109 son test)
-      // Phonecheck'ten test verisini çek. Cihaz bulunamazsa manuel doldurma formunu aç.
-      const pcData = await api.fetchPhonecheckTest(
-        term,
-        transition.parent_statu,
-        transition.child_statu
-      );
-
-      if (!pcData.success && pcData.needs_manual) {
-        setManualModal({
-          imei: scanData.imei,
-          testStage: pcData.test_stage,
-          fields: pcData.manual_fields || [],
-          entryId: scanData.entry_id,
-        });
-        showNotification("warning", pcData.message);
-        appendLog("warning", pcData.message);
+      // Cihaz bu ekranın beklediği kaynak statüde değilse Phonecheck'e hiç gitme,
+      // manuel doldurma formunu da açma — direkt reddet.
+      if (scanData.current_statu_code !== transition.parent_statu) {
+        const msg = `Bu cihaz şu an "${scanData.current_statu_name}" (${scanData.current_statu_code}) statüsünde — bu ekran sadece ${transition.parent_statu} statüsündeki cihazlar için geçerli.`;
+        showNotification("error", msg);
+        appendLog("error", msg);
         return;
       }
 
-      if (!pcData.success) {
-        showNotification("error", pcData.message);
-        appendLog("error", pcData.message);
-        return;
-      }
+      // 2. Adım: sadece 103_104 ve 124_125 ekranlarında Phonecheck'ten test verisi
+      // çekilir. Diğer tüm ekranlarda bu adım tamamen atlanır (eski davranış).
+      if (PHONECHECK_DRIVEN_CODES.includes(transition.code)) {
+        // Ham okutulan terim yerine kaydın gerçek IMEI'si (yoksa Seri Numarası) gönderilir.
+        const pcData = await api.fetchPhonecheckTest(
+          scanData.imei,
+          transition.parent_statu,
+          transition.child_statu
+        );
 
-      if (pcData.test_stage) {
-        const attempt = pcData.attempt_no ? ` (${attemptLabel(pcData)})` : "";
-        appendLog("success", `${stageLabel(pcData.test_stage, transition)} verisi Phonecheck'ten alındı${attempt}.`);
+        if (!pcData.success && pcData.needs_manual) {
+          setManualModal({
+            imei: scanData.imei,
+            testStage: pcData.test_stage,
+            fields: pcData.manual_fields || [],
+            entryId: scanData.entry_id,
+          });
+          showNotification("warning", pcData.message);
+          appendLog("warning", pcData.message);
+          return;
+        }
+
+        if (!pcData.success) {
+          showNotification("error", pcData.message);
+          appendLog("error", pcData.message);
+          return;
+        }
+
+        if (pcData.test_stage) {
+          const attempt = pcData.attempt_no ? ` (${attemptLabel(pcData)})` : "";
+          appendLog("success", `${stageLabel(pcData.test_stage, transition)} verisi Phonecheck'ten alındı${attempt}.`);
+        }
       }
 
       // 3. Adım: bu ekranın sabit kaynak→hedef geçişini uygula.

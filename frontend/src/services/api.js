@@ -656,6 +656,41 @@ export const api = {
         });
     },
 
+    findDeviceByTerm: async (term) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.find_device_by_term(String(term), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    getServiceInfoByImei: async (term) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_service_info_by_imei(String(term), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    getPhonecheckHistoryByImei: async (term) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_phonecheck_history_by_imei(String(term), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    getDetectedPartsByImei: async (term) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_detected_parts_by_imei(String(term), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    getRepairRecordsByImei: async (term) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_repair_records_by_imei(String(term), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
     saveServiceRepair: async (data) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
