@@ -8284,8 +8284,11 @@ class WebBridge(QObject):
     @Slot(str, result=str)
     def get_repair_records_by_imei(self, term):
         """Depo > Servis ekranindaki Alt Onarimlar / Onarim Parca ve Iscilikleri
-        tablolari icin: repair_records'tan bu cihaza ait kayitlari doner."""
+        tablolari icin: repair_records'tan bu cihaza ait kayitlari doner.
+        QAC alani, o cihaza ait en guncel Phonecheck test sonucundan (grade/working) doldurulur —
+        TEC/SupplyStatu/Labour Phonecheck'te karsiligi olmayan ic surec bilgileri oldugu icin bos kalir."""
         from sqlalchemy import text
+        from models.phonecheck_test_result import PhonecheckTestResult
         db = SessionLocal()
         try:
             term = (term or "").strip()
@@ -8305,6 +8308,14 @@ class WebBridge(QObject):
                 ORDER BY rr.created_at DESC
             """), {"imei": lookup_imei}).fetchall()
 
+            latest_pc = db.query(PhonecheckTestResult).filter(
+                PhonecheckTestResult.imei == lookup_imei
+            ).order_by(PhonecheckTestResult.fetched_at.desc()).first()
+
+            qac_value = ""
+            if latest_pc:
+                qac_value = latest_pc.grade or latest_pc.working or ""
+
             def fmt(dt):
                 return dt.strftime("%Y-%m-%d %H:%M") if dt else ""
 
@@ -8314,7 +8325,7 @@ class WebBridge(QObject):
                 "tec": "",
                 "repairStartTime": fmt(r[7]),
                 "repairFinishTime": fmt(r[8]) if r[8] and r[8] != r[7] else "",
-                "qac": "",
+                "qac": qac_value,
                 "testResult": r[5] or r[6] or "",
                 "item": r[4] or "",
                 "type": r[3] or r[2] or "",
