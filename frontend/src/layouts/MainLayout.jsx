@@ -121,6 +121,7 @@ export default function MainLayout() {
       colorTheme: 'orange',
       items: [
         { name: 'Depo', icon: Warehouse, path: '/depo' },
+        { name: 'Servis', icon: Search, path: '/servis' },
         { name: 'İrsaliye', icon: FileText, path: '/irsaliye' },
         { name: 'İş Emirleri', icon: ClipboardList, path: '/work-orders' },
         { name: 'Servis Onarımları', icon: Wrench, path: '/technician-repair' },

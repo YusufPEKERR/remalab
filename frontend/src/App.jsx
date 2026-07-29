@@ -9,6 +9,7 @@ import Products from './pages/Products';
 import Suppliers from './pages/Suppliers';
 import Locations from './pages/Locations';
 import Depo from './pages/Depo';
+import Servis from './pages/Servis';
 import Irsaliye from './pages/Irsaliye';
 import WorkOrders from './pages/WorkOrders';
 
@@ -48,6 +49,7 @@ function App() {
 
             {/* DEPO */}
             <Route path="/depo" element={<Depo />} />
+            <Route path="/servis" element={<Servis />} />
             <Route path="/irsaliye" element={<Irsaliye />} />
             <Route path="/work-orders" element={<WorkOrders />} />
 
