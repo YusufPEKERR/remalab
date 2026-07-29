@@ -30,6 +30,7 @@ const INFO_FIELDS = [
 ];
 
 const HISTORY_COLUMNS = ['Date', 'StaffName', 'Type', 'Text'];
+const HISTORY_ROW_KEYS = ['date', 'staffName', 'type', 'text'];
 const PHONECHECK_COLUMNS = ['DeviceUpdatedD', 'Grade', 'PartInfoRemark', 'Parts', 'StationID', 'Version', 'BatteryCycle'];
 const PHONECHECK_ROW_KEYS = ['deviceUpdatedD', 'grade', 'partInfoRemark', 'parts', 'stationID', 'version', 'batteryCycle'];
 const DETECTED_PART_COLUMNS = ['Id', 'name', 'Status', 'FactorySerial', 'notice', 'CurrentSerial', 'Test'];
@@ -106,6 +107,7 @@ export default function Servis() {
   const [phonecheckRows, setPhonecheckRows] = useState([]);
   const [detectedParts, setDetectedParts] = useState([]);
   const [repairRecords, setRepairRecords] = useState([]);
+  const [statusHistory, setStatusHistory] = useState([]);
 
   const handleSearch = async (e) => {
     e.preventDefault();
@@ -116,19 +118,22 @@ export default function Servis() {
     setPhonecheckRows([]);
     setDetectedParts([]);
     setRepairRecords([]);
+    setStatusHistory([]);
     const res = await api.getServiceInfoByImei(imei.trim());
     if (res.success) {
       setSearchedImei(imei.trim());
       setFields(res.fields);
       setStatuName(res.statu_name || '');
-      const [pcRes, partsRes, repairRes] = await Promise.all([
+      const [pcRes, partsRes, repairRes, historyRes] = await Promise.all([
         api.getPhonecheckHistoryByImei(imei.trim()),
         api.getDetectedPartsByImei(imei.trim()),
         api.getRepairRecordsByImei(imei.trim()),
+        api.getStatusHistoryByImei(imei.trim()),
       ]);
       if (pcRes.success) setPhonecheckRows(pcRes.items || []);
       if (partsRes.success) setDetectedParts(partsRes.items || []);
       if (repairRes.success) setRepairRecords(repairRes.items || []);
+      if (historyRes.success) setStatusHistory(historyRes.items || []);
     } else {
       setSearchedImei('');
       setSearchError(res.message || 'Cihaz bulunamadı.');
@@ -202,7 +207,7 @@ export default function Servis() {
 
               {/* Sağ: Durum Geçmişi Tablosu */}
               <div className="flex-1 overflow-auto p-4">
-                <DataTable columns={HISTORY_COLUMNS} />
+                <DataTable columns={HISTORY_COLUMNS} rowKeys={HISTORY_ROW_KEYS} rows={statusHistory} />
               </div>
             </div>
           ) : activeTab === 'test' ? (

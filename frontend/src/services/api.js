@@ -735,6 +735,13 @@ export const api = {
         });
     },
 
+    getStatusHistoryByImei: async (term) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_status_history_by_imei(String(term), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
     getDetectedPartsByImei: async (term) => {
         const backend = await getBackend();
         return new Promise((resolve) => {

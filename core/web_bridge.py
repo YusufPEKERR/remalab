@@ -8330,6 +8330,52 @@ class WebBridge(QObject):
             db.close()
 
     @Slot(str, result=str)
+    def get_status_history_by_imei(self, term):
+        """Depo > Servis ekranindaki Durum sekmesi icin: batch_entries'te gercekten
+        tutulan iki zaman noktasindan (kayit olusturulma + son durum guncellemesi)
+        bir gecmis listesi uretir. Ayri bir durum-degisiklik log tablosu olmadigi
+        icin ara adimlar (araya giren statuler) burada YOK, sadece bu iki gercek nokta var."""
+        from models.service_statu import ServiceStatu
+        db = SessionLocal()
+        try:
+            term = (term or "").strip()
+            if not term:
+                return json.dumps({"success": False, "message": "IMEI boş olamaz."})
+
+            entry = self._find_batch_entry_by_term(db, term)
+            if not entry:
+                return json.dumps({"success": False, "message": f"'{term}' için kayıtlı bir cihaz bulunamadı."})
+
+            statu = db.query(ServiceStatu).filter_by(code=entry.statu_code).first()
+            statu_name = statu.short_name if statu else str(entry.statu_code)
+
+            def fmt(dt):
+                return dt.strftime("%Y-%m-%d %H:%M") if dt else ""
+
+            items = []
+            last_update = entry.statu_update_time or entry.updated_at
+            if last_update:
+                items.append({
+                    "date": fmt(last_update),
+                    "staffName": "",
+                    "type": "Durum Güncellendi",
+                    "text": f"Güncel durum: {statu_name} ({entry.statu_code})",
+                })
+            if entry.created_at:
+                items.append({
+                    "date": fmt(entry.created_at),
+                    "staffName": entry.created_by or "",
+                    "type": "Kayıt Oluşturuldu",
+                    "text": "Parti/cihaz sisteme kaydedildi.",
+                })
+
+            return json.dumps({"success": True, "items": items})
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
     def get_phonecheck_history_by_imei(self, term):
         """Depo > Servis ekranindaki Test sekmesi icin: bu cihaza ait tum
         phonecheck_test_results kayitlarini (en yeni once) doner."""
@@ -8394,7 +8440,7 @@ class WebBridge(QObject):
                     "serviceNumber": str(entry.service_id) if entry.service_id else str(entry.id),
                     "productBrand": entry.brand or "",
                     "productFamily": entry.product_family or "",
-                    "productCategory": "",
+                    "productCategory": entry.product_category or "",
                     "productModel": entry.model or "",
                     "product": entry.product_full_name or "",
                     "itemColor": entry.color or "",
