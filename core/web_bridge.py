@@ -8071,10 +8071,13 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    @Slot(str, int, int, result=str)
-    def fetch_phonecheck_test(self, term, current_statu_code, target_statu_code):
+    @Slot(str, int, int, str, result=str)
+    def fetch_phonecheck_test(self, term, current_statu_code, target_statu_code, note=""):
         """Test adımı olan statü geçişlerinde (103>104 ilk test, 125>109 son test)
         Phonecheck'ten cihaz test verisini çeker ve kaydeder.
+
+        note doluysa kaydedilen phonecheck_test_results satırının notes alanına yazılır
+        (Phonecheck'in kendisi bu alanı doldurmadığından ekrandan girilen not burada tutulur).
 
         Cihaz Phonecheck'te bulunamazsa needs_manual=True döner; bu durumda
         arayüz manuel doldurma formunu açmalı ve save_phonecheck_manual çağırmalıdır."""
@@ -8093,6 +8096,10 @@ class WebBridge(QObject):
                 return json.dumps(result)
 
             record = svc.save_from_phonecheck(result["device"], stage)
+            note = (note or "").strip()
+            if note:
+                record.notes = note
+                db.commit()
             return json.dumps({
                 "success": True,
                 "test_stage": stage,

@@ -1906,11 +1906,11 @@ export const api = {
         });
     },
 
-    fetchPhonecheckTest: async (term, currentStatuCode, targetStatuCode) => {
+    fetchPhonecheckTest: async (term, currentStatuCode, targetStatuCode, note) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
             backend.fetch_phonecheck_test(
-                String(term), currentStatuCode, targetStatuCode,
+                String(term), currentStatuCode, targetStatuCode, String(note || ''),
                 (res) => resolve(JSON.parse(res))
             );
         });
