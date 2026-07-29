@@ -113,7 +113,8 @@ export default function MainLayout() {
       title: 'GENEL BAKIŞ',
       colorTheme: 'blue',
       items: [
-        { name: 'Kontrol Paneli', icon: LayoutDashboard, path: '/dashboard' }
+        { name: 'Kontrol Paneli', icon: LayoutDashboard, path: '/dashboard' },
+        { name: 'Statü Kontrol', icon: Zap, path: '/statu-kontrol' }
       ]
     },
     {
@@ -162,6 +163,7 @@ export default function MainLayout() {
       title: 'DEMONTAJ TEKNİSYENİ',
       colorTheme: 'emerald',
       items: [
+        { name: 'Servis Onarımları (Demontaj)', icon: Wrench, path: '/servis-onarimlari-demontaj' },
         { name: 'Teknik departmana kabul et (104>105)', icon: Cog, path: '/statu-gecis/TEC_DISMANTLE/104_105' },
         { name: 'Müşteri onayına gönder (105>106)', icon: Cog, path: '/statu-gecis/TEC_DISMANTLE/105_106' },
         { name: 'Üretime Aktar (105>109)', icon: Cog, path: '/statu-gecis/TEC_DISMANTLE/105_109' }

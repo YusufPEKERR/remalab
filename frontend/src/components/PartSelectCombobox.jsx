@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { Search, ChevronDown, Check, X } from 'lucide-react';
 
-export default function PartSelectCombobox({ parts = [], value, onChange, placeholder = "Parça seçiniz veya arayın...", labelMode = "full" }) {
+export default function PartSelectCombobox({ parts = [], value, onChange, placeholder = "Parça seçiniz veya arayın...", labelMode = "full", disabled = false }) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const containerRef = useRef(null);
@@ -12,9 +12,11 @@ export default function PartSelectCombobox({ parts = [], value, onChange, placeh
     return parts.find(p => String(p.id) === String(value)) || null;
   }, [parts, value]);
 
-  // Fast Memoized Filtered List (max 60 results for instant rendering)
+  // Fast Memoized Filtered List (max 300 results for instant rendering - yüksek tutuldu
+  // ki Demontaj gibi Product Bom'dan gelen, 60'tan fazla kategorisi olabilen listeler
+  // kaydırırken eksik görünmesin; büyük tüm-envanter listelerinde arama terimiyle daralır).
   const filteredParts = useMemo(() => {
-    if (!searchTerm.trim()) return parts.slice(0, 60);
+    if (!searchTerm.trim()) return parts.slice(0, 300);
     const term = searchTerm.toLowerCase();
     const matches = [];
     for (let i = 0; i < parts.length; i++) {
@@ -22,7 +24,7 @@ export default function PartSelectCombobox({ parts = [], value, onChange, placeh
       const str = `${p.item_code || ''} ${p.brand || ''} ${p.model || ''} ${p.color || ''} ${p.item_category || ''} ${p.part_category || ''} ${p.name || ''}`.toLowerCase();
       if (str.includes(term)) {
         matches.push(p);
-        if (matches.length >= 60) break;
+        if (matches.length >= 300) break;
       }
     }
     return matches;
@@ -58,14 +60,14 @@ export default function PartSelectCombobox({ parts = [], value, onChange, placeh
     <div ref={containerRef} className="relative w-full">
       {/* Selected Box / Combobox Trigger */}
       <div
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full px-3 py-2 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm flex items-center justify-between cursor-pointer hover:border-blue-500 transition-colors shadow-sm select-none"
+        onClick={() => !disabled && setIsOpen(!isOpen)}
+        className={`w-full px-3 py-2 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm flex items-center justify-between transition-colors shadow-sm select-none ${disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer hover:border-blue-500'}`}
       >
         <span className="truncate font-medium">
           {selectedPart ? formatPartLabel(selectedPart) : <span className="text-slate-400">{placeholder}</span>}
         </span>
         <div className="flex items-center gap-1 shrink-0 ml-2">
-          {value && (
+          {value && !disabled && (
             <button
               type="button"
               onClick={(e) => {
@@ -83,7 +85,7 @@ export default function PartSelectCombobox({ parts = [], value, onChange, placeh
       </div>
 
       {/* Dropdown Menu */}
-      {isOpen && (
+      {isOpen && !disabled && (
         <div className="absolute left-0 right-0 mt-1 bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl z-[150] overflow-hidden animate-menu-in">
           {/* Search Box inside dropdown */}
           <div className="p-2 border-b border-slate-100 dark:border-slate-700/50 bg-slate-50 dark:bg-[#242a38]">

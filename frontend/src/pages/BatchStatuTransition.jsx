@@ -58,15 +58,22 @@ const MANUAL_FIELD_LABELS = {
   notes: "Cihaz Notu",
 };
 
+// Batch Girişi'ndeki GB_OPTIONS ile aynı - kalıcı bir referans tablosu yok.
+const MEMORY_OPTIONS = ['16GB', '32GB', '64GB', '128GB', '256GB', '512GB', '1TB', '2TB'];
+
 // ─── PHONECHECK MANUEL DOLDURMA MODALI ───
 const ManualTestModal = ({ open, imei, stageName, fields, onClose, onSubmit, saving }) => {
   const [reason, setReason] = useState("");
   const [values, setValues] = useState({});
+  const [modelOptions, setModelOptions] = useState([]);
 
   useEffect(() => {
     if (open) {
       setReason("");
       setValues({});
+      api.getProductFamilies().then((res) => {
+        if (res && res.success) setModelOptions(res.product_families || []);
+      });
     }
   }, [open, imei]);
 
@@ -114,12 +121,36 @@ const ManualTestModal = ({ open, imei, stageName, fields, onClose, onSubmit, sav
                 <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
                   {MANUAL_FIELD_LABELS[f] || f}
                 </label>
-                <input
-                  type="text"
-                  value={values[f] || ""}
-                  onChange={(e) => setValues((p) => ({ ...p, [f]: e.target.value }))}
-                  className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
-                />
+                {f === "model" ? (
+                  <select
+                    value={values[f] || ""}
+                    onChange={(e) => setValues((p) => ({ ...p, [f]: e.target.value }))}
+                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="">Model seçiniz...</option>
+                    {modelOptions.map((m) => (
+                      <option key={m.id} value={m.name}>{m.name}</option>
+                    ))}
+                  </select>
+                ) : f === "memory" ? (
+                  <select
+                    value={values[f] || ""}
+                    onChange={(e) => setValues((p) => ({ ...p, [f]: e.target.value }))}
+                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="">Hafıza seçiniz...</option>
+                    {MEMORY_OPTIONS.map((g) => (
+                      <option key={g} value={g}>{g}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    value={values[f] || ""}
+                    onChange={(e) => setValues((p) => ({ ...p, [f]: e.target.value }))}
+                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                  />
+                )}
               </div>
             ))}
           </div>
