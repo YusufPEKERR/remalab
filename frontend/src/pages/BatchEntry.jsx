@@ -295,18 +295,11 @@ export default function BatchEntry() {
         continue;
       }
 
-      // 2) Backend dry-run (üretimdeki batch / farklı müşteri / aktif cihaz) — mevcut kayıt güncellemesi hariç
-      const isUpdate = !!item.id || records.some(r =>
-        (item.imei_number && r.imei_number === item.imei_number) ||
-        (item.serial_number && r.serial_number === item.serial_number) ||
-        (item.internal_id && r.internal_id === item.internal_id)
-      );
-      if (!isUpdate) {
-        const chk = await api.validateBatchEntry(item);
-        if (chk && chk.success && chk.ok === false) {
-          invalidRows.push({ row: rowNum, identifier, message: chk.message || 'Kurallara uymuyor.', data: item });
-          continue;
-        }
+      // 2) Backend kural ve model doğrulaması (tüm satırlar için model kontrolü çalışır)
+      const chk = await api.validateBatchEntry(item);
+      if (chk && chk.success && chk.ok === false) {
+        invalidRows.push({ row: rowNum, identifier, message: chk.message || 'Kurallara uymuyor.', data: item });
+        continue;
       }
       validRows.push(item);
     }
