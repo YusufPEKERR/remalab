@@ -46,7 +46,13 @@ export default function Login() {
       const sPass = localStorage.getItem('saved_password');
       if (sUser) {
         setUsername(sUser);
-        if (sPass) { try { setPassword(decodeURIComponent(escape(atob(sPass)))); } catch { } }
+        if (sPass) {
+          try {
+            setPassword(decodeURIComponent(escape(atob(sPass))));
+          } catch {
+            try { setPassword(atob(sPass)); } catch { }
+          }
+        }
         setRememberMe(true);
       }
       setTimeout(() => { const el = document.getElementById('username-input'); if (el) el.focus(); }, 0);
@@ -64,7 +70,11 @@ export default function Login() {
         if (rememberMe) {
           localStorage.setItem('user', JSON.stringify(response.user));
           localStorage.setItem('saved_username', username);
-          localStorage.setItem('saved_password', btoa(unescape(encodeURIComponent(password))));
+          try {
+            localStorage.setItem('saved_password', btoa(unescape(encodeURIComponent(password))));
+          } catch {
+            localStorage.setItem('saved_password', btoa(password));
+          }
           sessionStorage.removeItem('user');
         } else {
           sessionStorage.setItem('user', JSON.stringify(response.user));
@@ -362,8 +372,11 @@ export default function Login() {
 
             {/* Remember Me & Forgot Password Row */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', userSelect: 'none' }}>
-                <div onClick={() => setRememberMe(v => !v)}
+              <label 
+                onClick={() => setRememberMe(prev => !prev)}
+                style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', userSelect: 'none' }}
+              >
+                <div
                   style={{ width: 18, height: 18, borderRadius: 5, border: `2px solid ${rememberMe ? '#2563EB' : '#CBD5E1'}`, background: rememberMe ? '#2563EB' : '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all .15s', cursor: 'pointer' }}>
                   {rememberMe && <CheckCircle2 size={12} color="#FFFFFF" />}
                 </div>
