@@ -7576,6 +7576,114 @@ class WebBridge(QObject):
 
         return False, f"Sistemde tanımlı olmayan geçersiz cihaz modeli: '{m_clean}'. Lütfen sistemde tanımlı bir model giriniz."
 
+    def _validate_new_batch_entry(self, db, d):
+        """Yeni batch girişi kurallarını kontrol eder. Hata varsa açıklama metnini,
+        yoksa None döner. Hem create_batch_entry (gerçek kayıt) hem de
+        validate_batch_entry (içe aktarma öncesi dry-run) tarafından kullanılır."""
+        from models.batch_entry import BatchEntry
+        batch_no = (d.get("batch_no") or "").strip()
+        customer_name = (d.get("customer_name") or "").strip()
+
+        if batch_no:
+            # 1) Aynı batch numarası farklı müşteride olamaz
+            existing_batch = db.query(BatchEntry).filter(BatchEntry.batch_no == batch_no).first()
+            if existing_batch and existing_batch.customer_name and existing_batch.customer_name.strip().lower() != customer_name.lower():
+                return (f"Bu batch numarası ({batch_no}) başka bir müşteriye ({existing_batch.customer_name}) aittir. "
+                        f"Aynı batch numarasıyla farklı müşteri kaydı oluşturulamaz.")
+
+            # 2) Üretimde olan (çıkışı yapılmamış) batch numarasıyla yeni cihaz girilemez.
+            #    Statü 100/101 = hâlâ giriş aşaması (izin), 102+ ve 128 değil = üretimde (kilit).
+            in_production = db.query(BatchEntry).filter(
+                BatchEntry.batch_no == batch_no,
+                BatchEntry.statu_code.notin_([100, 101, 128])
+            ).first()
+            if in_production:
+                return (f"'{batch_no}' numaralı batch üretim aşamasında (statü {in_production.statu_code}) ve henüz "
+                        f"çıkışı yapılmadı. Çıkış (statü 128) tamamlanmadan bu batch numarasıyla yeni cihaz kaydı oluşturulamaz.")
+
+        # 3) Aynı cihazın zaten aktif (statü 128 olmayan) bir servisi varsa yeni giriş engellenir.
+        imei_val = (d.get("imei_number") or "").strip()
+        serial_val = (d.get("serial_number") or "").strip()
+        internal_val = (d.get("internal_id") or "").strip()
+        active = self._find_active_service_for_device(db, imei_val, serial_val, internal_val)
+        if active:
+            return (f"Bu cihaz için zaten aktif bir servis kaydı var (Service ID: {active['service_id']}, "
+                    f"Batch No: {active['batch_no']}, Statü kodu: {active['statu_code']}). Süreç tamamlanmadan "
+                    f"(statü 128) aynı cihaz farklı bir batch numarasıyla tekrar girilemez.")
+
+        return None
+
+    @Slot(str, result=str)
+    def validate_batch_entry(self, data_json):
+        """İçe aktarma öncesi dry-run: satırın kurallara uyup uymadığını KAYIT YAPMADAN
+        döner. ok=True ise aktarılabilir; ok=False ise 'message' hata nedenidir."""
+        db = SessionLocal()
+        try:
+            d = json.loads(data_json or "{}")
+            err = self._validate_new_batch_entry(db, d)
+            return json.dumps({"success": True, "ok": err is None, "message": err or ""}, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "ok": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
+    def import_defined_batch_entry(self, data_json):
+        """Excel içe aktarma için: SADECE sistemde (batch_entries'te) zaten TANIMLI olan
+        cihazları günceller. Cihaz (IMEI/Seri/Internal ID) tanımlı değilse ya da batch
+        numarası sistemde yoksa satır reddedilir (ok=False + neden). Yeni/bilinmeyen
+        cihaz veya batch OLUŞTURMAZ."""
+        from models.batch_entry import BatchEntry
+        from sqlalchemy import func, or_
+        db = SessionLocal()
+        try:
+            d = json.loads(data_json or "{}")
+            imei = (d.get("imei_number") or "").strip()
+            serial = (d.get("serial_number") or "").strip()
+            internal = (d.get("internal_id") or "").strip()
+            batch_no = (d.get("batch_no") or "").strip()
+
+            # 1) Cihaz (IMEI/Seri/Internal ID) batch_entries'te tanımlı mı?
+            conds = []
+            if imei:
+                conds.append(func.lower(func.trim(BatchEntry.imei_number)) == imei.lower())
+            if serial:
+                conds.append(func.lower(func.trim(BatchEntry.serial_number)) == serial.lower())
+            if internal:
+                conds.append(func.lower(func.trim(BatchEntry.internal_id)) == internal.lower())
+
+            target = None
+            if conds:
+                target = db.query(BatchEntry).filter(or_(*conds)).order_by(BatchEntry.id.desc()).first()
+            if not target:
+                ident = imei or serial or internal or "-"
+                return json.dumps({"success": True, "ok": False,
+                                   "message": f"Cihaz ({ident}) sistemde tanımlı değil, içe aktarılmadı."}, ensure_ascii=False)
+
+            # 2) Batch numarası (verildiyse) sistemde tanımlı mı?
+            if batch_no:
+                batch_exists = db.query(BatchEntry).filter(
+                    func.lower(func.trim(BatchEntry.batch_no)) == batch_no.lower()
+                ).first()
+                if not batch_exists:
+                    return json.dumps({"success": True, "ok": False,
+                                       "message": f"Batch numarası ({batch_no}) sistemde tanımlı değil, içe aktarılmadı."}, ensure_ascii=False)
+
+            # 3) Var olan cihazı Excel verisiyle güncelle
+            for field in ["customer_no", "customer_name", "batch_no", "model", "gb", "color",
+                          "defects", "screen_test", "power_test", "flow"]:
+                val = d.get(field)
+                if val not in (None, ""):
+                    setattr(target, field, str(val).strip())
+            db.commit()
+            return json.dumps({"success": True, "ok": True, "id": target.id})
+        except Exception as e:
+            db.rollback()
+            print(f"[WebBridge] import_defined_batch_entry hatası: {e}")
+            return json.dumps({"success": False, "ok": False, "message": str(e)})
+        finally:
+            db.close()
+
     @Slot(str, result=str)
     def create_batch_entry(self, data_json):
         import uuid
@@ -7584,54 +7692,19 @@ class WebBridge(QObject):
         try:
             d = json.loads(data_json or "{}")
 
-            # Model doğrulama (Tanımsız model engelleme)
+            # Model doğrulama (tanımsız model engelleme, örn. iPhone 19)
             model_val = d.get("model", "").strip()
             is_valid_m, m_err_msg = self._validate_product_model(db, model_val)
             if not is_valid_m:
-                return json.dumps({
-                    "success": False,
-                    "message": m_err_msg
-                })
+                return json.dumps({"success": False, "message": m_err_msg})
 
-            # Validation: Aynı batch numarasıyla farklı müşteri olamaz
-            batch_no = d.get("batch_no", "").strip()
-            customer_name = d.get("customer_name", "").strip()
+            # Tüm giriş kuralları (farklı müşteri / üretimdeki batch / aktif cihaz) tek yerde.
+            err = self._validate_new_batch_entry(db, d)
+            if err:
+                return json.dumps({"success": False, "message": err})
 
-            if batch_no:
-                existing_batch = db.query(BatchEntry).filter(BatchEntry.batch_no == batch_no).first()
-                if existing_batch and existing_batch.customer_name and existing_batch.customer_name.strip().lower() != customer_name.lower():
-                    return json.dumps({
-                        "success": False,
-                        "message": f"Bu batch numarası ({batch_no}) başka bir müşteriye ({existing_batch.customer_name}) aittir. Aynı batch numarasıyla farklı müşteri kaydı oluşturulamaz."
-                    })
-
-                # Üretimde olan (çıkışı yapılmamış) bir batch numarasıyla yeni cihaz girilemez.
-                # Statü 100 (Ön bildirim) / 101 (Depo kabul) = hâlâ batch giriş aşaması → cihaz eklemeye izin ver.
-                # Statü 102+ (teste/üretime geçmiş) ve 128'e (Çıkış yapıldı) ulaşmamış → batch üretimde, kilitli.
-                # Tüm cihazlar çıkış yapınca (128) numara tekrar kullanılabilir hâle gelir.
-                in_production = db.query(BatchEntry).filter(
-                    BatchEntry.batch_no == batch_no,
-                    BatchEntry.statu_code.notin_([100, 101, 128])
-                ).first()
-                if in_production:
-                    return json.dumps({
-                        "success": False,
-                        "message": f"'{batch_no}' numaralı batch üretim aşamasında (statü {in_production.statu_code}) ve henüz çıkışı yapılmadı. Çıkış (statü 128) tamamlanmadan bu batch numarasıyla yeni cihaz kaydı oluşturulamaz."
-                    })
-
-            # Aynı cihazın (IMEI/seri no) zaten AKTİF (statü 128 "Çıkışı yapıldı" olmayan) bir
-            # servisi varsa yeni giriş engellenir - bir cihazın aynı anda iki açık servis
-            # döngüsü olamaz. Süreç tamamlanmış (128) cihazlar için yeni bir Service ID
-            # üretilerek girişe izin verilir.
             imei_val = d.get("imei_number", "").strip()
             serial_val = d.get("serial_number", "").strip()
-            internal_val = d.get("internal_id", "").strip()
-            active = self._find_active_service_for_device(db, imei_val, serial_val, internal_val)
-            if active:
-                return json.dumps({
-                    "success": False,
-                    "message": f"Bu cihaz için zaten aktif bir servis kaydı var (Service ID: {active['service_id']}, Batch No: {active['batch_no']}, Statü kodu: {active['statu_code']}). Süreç tamamlanmadan (statü 128) aynı cihaz farklı bir batch numarasıyla tekrar girilemez."
-                })
 
             valid_flow_values = self._get_flow_values(db)
             default_flow = "To refurbish" if "To refurbish" in valid_flow_values else (valid_flow_values[0] if valid_flow_values else "To refurbish")

@@ -52,6 +52,13 @@ export default function BatchEntry() {
   const [excelFileData, setExcelFileData] = useState(null);
   const [excelFileName, setExcelFileName] = useState('');
   const [excelValidationErrors, setExcelValidationErrors] = useState([]);
+  // İçe aktarma öncesi ön-kontrol (dry-run) sonuçları
+  const [importChecking, setImportChecking] = useState(false);
+  const [importPrepared, setImportPrepared] = useState(false);     // onay aşamasında mı?
+  const [importValidRows, setImportValidRows] = useState([]);      // aktarılacak geçerli satırlar
+  const [importInvalidRows, setImportInvalidRows] = useState([]);  // {row, identifier, message, data}
+  // Dropdown "Excel'den İçe Aktar" sonrası sayfada gösterilen sonuç kutusu
+  const [importResult, setImportResult] = useState(null);          // {created, failed:[{row,identifier,message}], dumpPath}
   const [selectedCustomer, setSelectedCustomer] = useState(null);
 
   // Ana tabloda müşteri bazlı gruplu görünüm
@@ -226,6 +233,9 @@ export default function BatchEntry() {
 
         setExcelFileData(mappedRows);
         setExcelValidationErrors(errors);
+        setImportPrepared(false);
+        setImportValidRows([]);
+        setImportInvalidRows([]);
       } catch (err) {
         setExcelValidationErrors([{ row: 0, column: 'Dosya Okuma', message: 'Excel dosyası okunurken hata oluştu: ' + err.message }]);
       }
@@ -254,64 +264,125 @@ export default function BatchEntry() {
 
     setExcelFileData(updated);
     setExcelValidationErrors(errors);
+    // Veri değişti → onay aşamasına geri dönülürse yeniden kontrol gerekir
+    setImportPrepared(false);
+    setImportValidRows([]);
+    setImportInvalidRows([]);
   };
 
-  const handleConfirmExcelImport = async () => {
+  // AŞAMA 1 — İÇE AKTARMADAN ÖNCE SOR: her satırı kayıt yapmadan doğrula (client + backend
+  // dry-run), geçerli/hatalı olarak ayır, hatalıları yandaki kutularda göster ve nedenleriyle
+  // birlikte bir Excel dökümü indir. Kullanıcı onaylayınca AŞAMA 2 (gerçek aktarım) çalışır.
+  const handlePrepareImport = async () => {
     if (!excelFileData || excelFileData.length === 0) {
       alert("İçe aktarılacak veri bulunamadı.");
       return;
     }
+    setImportChecking(true);
 
+    const validRows = [];
+    const invalidRows = [];
+
+    for (let idx = 0; idx < excelFileData.length; idx++) {
+      const item = excelFileData[idx];
+      const rowNum = idx + 1;
+      const identifier = item.imei_number || item.serial_number || item.internal_id || item.batch_no || `Satır ${rowNum}`;
+
+      // 1) Client doğrulama hataları
+      const rowErrs = excelValidationErrors.filter(e => e.row === rowNum);
+      if (rowErrs.length > 0) {
+        invalidRows.push({ row: rowNum, identifier, message: rowErrs.map(e => `[${e.column}] ${e.message}`).join(' | '), data: item });
+        continue;
+      }
+
+      // 2) Backend dry-run (üretimdeki batch / farklı müşteri / aktif cihaz) — mevcut kayıt güncellemesi hariç
+      const isUpdate = !!item.id || records.some(r =>
+        (item.imei_number && r.imei_number === item.imei_number) ||
+        (item.serial_number && r.serial_number === item.serial_number) ||
+        (item.internal_id && r.internal_id === item.internal_id)
+      );
+      if (!isUpdate) {
+        const chk = await api.validateBatchEntry(item);
+        if (chk && chk.success && chk.ok === false) {
+          invalidRows.push({ row: rowNum, identifier, message: chk.message || 'Kurallara uymuyor.', data: item });
+          continue;
+        }
+      }
+      validRows.push(item);
+    }
+
+    // Hatalı satırlar için nedenli Excel dökümü indir
+    if (invalidRows.length > 0) {
+      const dump = invalidRows.map(f => ({
+        satir: f.row,
+        customer_no: f.data.customer_no || '',
+        customer_name: f.data.customer_name || '',
+        batch_no: f.data.batch_no || '',
+        internal_id: f.data.internal_id || '',
+        imei_number: f.data.imei_number || '',
+        serial_number: f.data.serial_number || '',
+        model: f.data.model || '',
+        gb: f.data.gb || '',
+        color: f.data.color || '',
+        hata_nedeni: f.message
+      }));
+      await api.exportTableToExcel(dump, `Batch_Import_Hatalari_${invalidRows.length}.xlsx`);
+    }
+
+    setImportValidRows(validRows);
+    setImportInvalidRows(invalidRows);
+    setImportPrepared(true);
+    setImportChecking(false);
+  };
+
+  // AŞAMA 2 — ONAYDAN SONRA: sadece geçerli satırları içe aktar.
+  const handleConfirmExcelImport = async () => {
     setLoading(true);
     let updatedCount = 0;
     let createdCount = 0;
 
-    let errorMessages = [];
-
-    for (const item of excelFileData) {
+    for (const item of importValidRows) {
       if (item.id) {
-        // If the item has an ID (we are editing an existing fetched record), use it directly
         const res = await api.updateBatchEntry(item.id, item);
         if (res.success) updatedCount++;
-        else errorMessages.push(`Kayıt #${item.id} güncellenemedi: ${res.message}`);
       } else {
         // Fallback for new items imported via Excel that lack IDs
         const clean = (val) => (val || '').toString().trim().toLowerCase();
-        const existing = records.find(r => 
+        const existing = records.find(r =>
           (item.imei_number && clean(item.imei_number) && clean(r.imei_number) === clean(item.imei_number)) ||
           (item.serial_number && clean(item.serial_number) && clean(r.serial_number) === clean(item.serial_number)) ||
           (item.internal_id && clean(item.internal_id) && clean(r.internal_id) === clean(item.internal_id))
         );
-
         if (existing) {
           const res = await api.updateBatchEntry(existing.id, item);
           if (res.success) updatedCount++;
-          else errorMessages.push(`Kayıt #${existing.id} güncellenemedi: ${res.message}`);
         } else {
           const res = await api.createBatchEntry(item);
           if (res.success) createdCount++;
-          else errorMessages.push(`Yeni kayıt oluşturulamadı: ${res.message}`);
         }
       }
     }
 
     setLoading(false);
-    let msg = "İşlem Tamamlandı:\n";
-    if (updatedCount > 0) msg += `• ${updatedCount} adet kayıt Excel verisiyle güncellendi.\n`;
-    if (createdCount > 0) msg += `• ${createdCount} adet yeni kayıt sisteme eklendi.`;
-    if (updatedCount === 0 && createdCount === 0) {
-        msg = "İşlem gerçekleştirilemedi veya değişiklik algılanmadı.\n\nNedenler:\n" + errorMessages.join("\n");
-    } else if (errorMessages.length > 0) {
-        msg += "\n\nBazı hatalar oluştu:\n" + errorMessages.join("\n");
-    }
+    fetchRecords();
+    handleFetchBatchSummary();
 
+    let msg = 'İçe aktarma tamamlandı:\n';
+    msg += `• ${createdCount} yeni kayıt eklendi.\n`;
+    if (updatedCount > 0) msg += `• ${updatedCount} kayıt güncellendi.\n`;
+    if (importInvalidRows.length > 0) {
+      msg += `• ${importInvalidRows.length} hatalı satır aktarılmadı (Excel dökümü indirildi).`;
+    }
     alert(msg);
+
     setIsModalOpen(false);
     setExcelFileData(null);
     setExcelFileName('');
     setExcelValidationErrors([]);
     setEditingRecord(null);
-    fetchRecords();
+    setImportPrepared(false);
+    setImportValidRows([]);
+    setImportInvalidRows([]);
   };
 
   // Pagination & Filters & Bulk Selection
@@ -740,36 +811,73 @@ export default function BatchEntry() {
       return fallback;
     };
 
-    let errors = [];
-    for (const [idx, item] of data.entries()) {
-      const res = await api.createBatchEntry({
-        customer_no: getVal(item, ["customer_no", "Customer no", "Customer No", "Customer NO", "Müşteri No", "Musteri No", "Müşt. No"]),
-        customer_name: getVal(item, ["customer_name", "Customer Name", "Customer name", "Customer NAME", "Müşteri Adı", "Musteri Adi", "Müşteri Unvanı"]),
-        batch_no: getVal(item, ["batch_no", "Batch No", "Batch no", "Batch NO", "Parti No"]),
-        internal_id: getVal(item, ["internal_id", "Internal ID", "Internal Id", "Internal id", "Dahili ID"]),
-        imei_number: getVal(item, ["imei_number", "IMEI Number", "IMEI number", "IMEI", "Imei"]),
-        serial_number: getVal(item, ["serial_number", "Serial Number", "Serial number", "SN", "Seri No"]),
-        model: getVal(item, ["model", "Model", "MODEL", "Cihaz Modeli"]),
-        gb: getVal(item, ["gb", "GB", "Gb", "Kapasite"]),
-        color: getVal(item, ["color", "Color", "Renk"]),
-        defects: getVal(item, ["defects", "Defects", "Arıza", "Kusur"]),
-        screen_test: getVal(item, ["screen_test", "Screen Test", "Ekran Testi"]),
-        power_test: getVal(item, ["power_test", "Power Test", "Güç Testi"]),
-        flow: getVal(item, ["flow", "Flow", "Akış", "Durum"], "To refurbish"),
-        unit_price: parseFloat(getVal(item, ["unit_price", "Unit Price", "Birim Fiyat", "Fiyat"], "0")) || 0
-      });
-      if (!res.success) {
-        errors.push(`Satır ${idx + 1}: ${res.message}`);
-      }
-    }
-    
+    // 1) Excel satırlarını normalize et
+    const rows = data.map(item => ({
+      customer_no: getVal(item, ["customer_no", "Customer no", "Customer No", "Customer NO", "Müşteri No", "Musteri No", "Müşt. No"]),
+      customer_name: getVal(item, ["customer_name", "Customer Name", "Customer name", "Customer NAME", "Müşteri Adı", "Musteri Adi", "Müşteri Unvanı"]),
+      batch_no: getVal(item, ["batch_no", "Batch No", "Batch no", "Batch NO", "Parti No"]),
+      internal_id: getVal(item, ["internal_id", "Internal ID", "Internal Id", "Internal id", "Dahili ID"]),
+      imei_number: getVal(item, ["imei_number", "IMEI Number", "IMEI number", "IMEI", "Imei"]),
+      serial_number: getVal(item, ["serial_number", "Serial Number", "Serial number", "SN", "Seri No"]),
+      model: getVal(item, ["model", "Model", "MODEL", "Cihaz Modeli"]),
+      gb: getVal(item, ["gb", "GB", "Gb", "Kapasite"]),
+      color: getVal(item, ["color", "Color", "Renk"]),
+      defects: getVal(item, ["defects", "Defects", "Arıza", "Kusur"]),
+      screen_test: getVal(item, ["screen_test", "Screen Test", "Ekran Testi"]),
+      power_test: getVal(item, ["power_test", "Power Test", "Güç Testi"]),
+      flow: getVal(item, ["flow", "Flow", "Akış", "Durum"], "To refurbish"),
+      unit_price: parseFloat(getVal(item, ["unit_price", "Unit Price", "Birim Fiyat", "Fiyat"], "0")) || 0
+    }));
+
     setIsExcelModalOpen(false);
+    setLoading(true);
+
+    // 2) Her satırı içe aktar. Import SADECE sistemde tanımlı (batch_entries'te kayıtlı)
+    //    cihazları günceller; tanımlı olmayan IMEI/batch reddedilir.
+    let createdCount = 0;
+    const failed = [];
+    for (let idx = 0; idx < rows.length; idx++) {
+      const item = rows[idx];
+      const rowNum = idx + 1;
+      const identifier = item.imei_number || item.serial_number || item.internal_id || item.batch_no || `Satır ${rowNum}`;
+
+      // Basit zorunlu alan kontrolü
+      if (!item.imei_number && !item.serial_number && !item.internal_id) {
+        failed.push({ row: rowNum, identifier, message: 'IMEI / Seri / Internal ID alanlarından en az biri gerekli.', data: item });
+        continue;
+      }
+
+      const res = await api.importDefinedBatchEntry(item);
+      if (res.success && res.ok) createdCount++;
+      else failed.push({ row: rowNum, identifier, message: res.message || 'İçe aktarılamadı.', data: item });
+    }
+
+    // 3) Hatalılar için nedenli Excel dökümü indir
+    let dumpPath = '';
+    if (failed.length > 0) {
+      const dump = failed.map(f => ({
+        satir: f.row,
+        customer_no: f.data.customer_no || '',
+        customer_name: f.data.customer_name || '',
+        batch_no: f.data.batch_no || '',
+        internal_id: f.data.internal_id || '',
+        imei_number: f.data.imei_number || '',
+        serial_number: f.data.serial_number || '',
+        model: f.data.model || '',
+        gb: f.data.gb || '',
+        color: f.data.color || '',
+        hata_nedeni: f.message
+      }));
+      const exp = await api.exportTableToExcel(dump, `Batch_Import_Hatalari_${failed.length}.xlsx`);
+      if (exp && exp.success) dumpPath = exp.file_path || '';
+    }
+
+    setLoading(false);
     fetchRecords();
     fetchCustomerGroups();
-    
-    if (errors.length > 0) {
-      alert("Bazı kayıtlar içe aktarılamadı:\n" + errors.join("\n"));
-    }
+
+    // 4) Sonucu sayfada göster (hatalar neden(ler)iyle birlikte)
+    setImportResult({ created: createdCount, failed, dumpPath });
   };
 
   return (
@@ -819,6 +927,64 @@ export default function BatchEntry() {
           </div>
         </div>
       </div>
+
+      {/* ════ EXCEL İÇE AKTARMA SONUÇ KUTUSU ════ */}
+      {importResult && (
+        <div className="rounded-2xl border border-[#E2E8F0] dark:border-[#1E293B] bg-white dark:bg-[#111827] shadow-md overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-3 border-b border-[#E2E8F0] dark:border-[#1E293B] bg-[#F8FAFC] dark:bg-[#0F172A]">
+            <div className="flex items-center gap-3 text-sm font-bold">
+              <span className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+                <CheckCircle size={16} /> {importResult.created} tanımlı cihaz güncellendi
+              </span>
+              {importResult.failed.length > 0 && (
+                <span className="inline-flex items-center gap-1.5 text-rose-600 dark:text-rose-400">
+                  <AlertTriangle size={16} /> {importResult.failed.length} satır hatalı
+                </span>
+              )}
+            </div>
+            <button
+              onClick={() => setImportResult(null)}
+              className="p-1.5 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors"
+            >
+              <X size={16} />
+            </button>
+          </div>
+
+          {importResult.failed.length > 0 ? (
+            <div className="p-5 space-y-3">
+              {importResult.dumpPath && (
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Hatalı satırların dökümü indirildi: <span className="font-mono text-slate-700 dark:text-slate-300">{importResult.dumpPath}</span>
+                </p>
+              )}
+              <div className="overflow-x-auto max-h-72 rounded-xl border border-[#E2E8F0] dark:border-[#1E293B]">
+                <table className="w-full text-left text-xs whitespace-nowrap">
+                  <thead className="bg-slate-100 dark:bg-[#1a202c] text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[10px] sticky top-0">
+                    <tr>
+                      <th className="px-4 py-2.5">Satır</th>
+                      <th className="px-4 py-2.5">Tanımlayıcı (IMEI/Seri/Batch)</th>
+                      <th className="px-4 py-2.5 whitespace-normal min-w-[320px]">Hata Nedeni</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#E2E8F0] dark:divide-[#1E293B]">
+                    {importResult.failed.map((f, i) => (
+                      <tr key={i} className="bg-rose-500/5">
+                        <td className="px-4 py-2.5 font-mono font-semibold text-rose-700 dark:text-rose-300">{f.row}</td>
+                        <td className="px-4 py-2.5 font-mono text-slate-700 dark:text-slate-300">{f.identifier}</td>
+                        <td className="px-4 py-2.5 whitespace-normal text-rose-600 dark:text-rose-400">{f.message}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : (
+            <div className="p-5 text-sm text-emerald-600 dark:text-emerald-400 font-medium">
+              Tüm satırlar başarıyla içe aktarıldı.
+            </div>
+          )}
+        </div>
+      )}
 
       {/* MAIN CONTAINER */}
       <div className="glass-card rounded-2xl shadow-md overflow-hidden flex flex-col">
@@ -1448,12 +1614,17 @@ export default function BatchEntry() {
                             <th className="px-3.5 py-2.5">Power Test</th>
                             <th className="px-3.5 py-2.5">Arıza / Kusur</th>
                             <th className="px-3.5 py-2.5">Akış (Flow)</th>
+                            <th className="px-3.5 py-2.5 min-w-[220px]">Durum / Hata Nedeni</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-200 dark:divide-slate-700/50">
                           {(excelFileData || []).map((row, idx) => {
                             const rowErrors = excelValidationErrors.filter(e => e.row === idx + 1);
-                            const hasErr = rowErrors.length > 0;
+                            // Ön-kontrol (dry-run) yapıldıysa backend nedenini de dikkate al
+                            const importInvalid = importPrepared ? importInvalidRows.find(f => f.row === idx + 1) : null;
+                            const clientReason = rowErrors.map(e => `[${e.column}] ${e.message}`).join(' | ');
+                            const reason = importInvalid ? importInvalid.message : clientReason;
+                            const hasErr = rowErrors.length > 0 || !!importInvalid;
                             return (
                               <tr key={idx} className={`hover:bg-slate-100 dark:hover:bg-[#24316A] transition-colors ${hasErr ? 'bg-rose-500/10' : 'bg-white dark:bg-[#1E2B5C]'}`}>
                                 <td className="px-3.5 py-2.5 text-center font-semibold text-slate-400 font-mono">{idx + 1}</td>
@@ -1475,6 +1646,20 @@ export default function BatchEntry() {
                                 <td className="px-3.5 py-2.5 text-slate-700 dark:text-slate-200 font-semibold">
                                   {row.flow || 'To refurbish'}
                                 </td>
+                                <td className="px-3.5 py-2.5 whitespace-normal">
+                                  {hasErr ? (
+                                    <div className="flex items-start gap-1.5 text-rose-700 dark:text-rose-400">
+                                      <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+                                      <span className="text-[11px] leading-snug font-medium">{reason || 'Hatalı'}</span>
+                                    </div>
+                                  ) : importPrepared ? (
+                                    <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 text-[11px] font-semibold">
+                                      <CheckCircle size={14} /> Geçerli
+                                    </span>
+                                  ) : (
+                                    <span className="text-[11px] text-slate-400">Kontrol bekliyor</span>
+                                  )}
+                                </td>
                               </tr>
                             );
                           })}
@@ -1483,24 +1668,70 @@ export default function BatchEntry() {
                     </div>
                   </div>
 
+                  {/* İÇE AKTARMA ONAY AŞAMASI: geçerli/hatalı özeti + yanda hata kutuları */}
+                  {importPrepared && (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 pt-2">
+                      <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-4">
+                        <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold text-sm mb-1">
+                          <CheckCircle size={18} /> Aktarılacak: {importValidRows.length} satır
+                        </div>
+                        <p className="text-xs text-emerald-700/80 dark:text-emerald-300/80">
+                          Bu satırlar kurallara uygun. Onayladığınızda içe aktarılacaklar.
+                        </p>
+                      </div>
+
+                      <div className={`rounded-xl p-4 border ${importInvalidRows.length > 0 ? 'bg-rose-500/10 border-rose-500/30' : 'bg-slate-500/5 border-slate-300 dark:border-slate-700'}`}>
+                        <div className={`flex items-center gap-2 font-bold text-sm mb-2 ${importInvalidRows.length > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-500'}`}>
+                          <AlertTriangle size={18} /> Hatalı: {importInvalidRows.length} satır (aktarılmayacak)
+                        </div>
+                        {importInvalidRows.length > 0 && (
+                          <p className="text-[11px] text-rose-700/80 dark:text-rose-300/80">
+                            Hatalı satırlar ve nedenleri yukarıdaki önizleme tablosunda "Durum / Hata Nedeni" sütununda kırmızıyla gösterilmiştir.
+                            Ayrıca nedenleriyle birlikte Excel dökümü indirildi (Batch_Import_Hatalari_{importInvalidRows.length}.xlsx).
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Edit Mode Footer Buttons */}
                   <div className="pt-3 flex justify-end gap-3 border-t border-slate-200 dark:border-slate-700">
                     <button
                       type="button"
-                      onClick={() => setIsModalOpen(false)}
+                      onClick={() => { setImportPrepared(false); setImportValidRows([]); setImportInvalidRows([]); setIsModalOpen(false); }}
                       className="px-5 py-2.5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl font-medium text-xs hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
                     >
                       İptal
                     </button>
 
-                    <button
-                      type="button"
-                      disabled={loading || !excelFileData || excelFileData.length === 0}
-                      onClick={handleConfirmExcelImport}
-                      className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl font-semibold text-xs shadow-lg shadow-emerald-500/20 flex items-center gap-2 transition-all cursor-pointer"
-                    >
-                      <Check size={16} /> Değişiklikleri Kaydet
-                    </button>
+                    {!importPrepared ? (
+                      <button
+                        type="button"
+                        disabled={importChecking || !excelFileData || excelFileData.length === 0}
+                        onClick={handlePrepareImport}
+                        className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl font-semibold text-xs shadow-lg shadow-blue-500/20 flex items-center gap-2 transition-all cursor-pointer"
+                      >
+                        <Check size={16} /> {importChecking ? 'Kontrol ediliyor...' : 'İçe Aktar (Kontrol Et)'}
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => { setImportPrepared(false); setImportValidRows([]); setImportInvalidRows([]); }}
+                          className="px-5 py-2.5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl font-medium text-xs hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
+                        >
+                          Geri
+                        </button>
+                        <button
+                          type="button"
+                          disabled={loading || importValidRows.length === 0}
+                          onClick={handleConfirmExcelImport}
+                          className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl font-semibold text-xs shadow-lg shadow-emerald-500/20 flex items-center gap-2 transition-all cursor-pointer"
+                        >
+                          <Check size={16} /> {loading ? 'Aktarılıyor...' : `Onayla ve ${importValidRows.length} Satırı Aktar`}
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               )}
