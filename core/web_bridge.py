@@ -7463,7 +7463,7 @@ class WebBridge(QObject):
                 term_raw = str(search_term).strip()
                 term_like = f"%{term_raw}%"
 
-                # Önce tam eşleşen Batch No, Internal ID, Seri No veya IMEI var mı kontrol et
+                # Önce tam eşleşen Batch No, Internal ID, Seri No, IMEI, Müşteri No veya Müşteri Adı var mı kontrol et
                 exact_count = db.execute(text("""
                     SELECT COUNT(*) FROM warehouse.batch_entries
                     WHERE LOWER(TRIM(COALESCE(batch_no, ''))) = LOWER(:t)
@@ -7471,6 +7471,7 @@ class WebBridge(QObject):
                        OR LOWER(TRIM(COALESCE(serial_number, ''))) = LOWER(:t)
                        OR LOWER(TRIM(COALESCE(imei_number, ''))) = LOWER(:t)
                        OR LOWER(TRIM(COALESCE(customer_no, ''))) = LOWER(:t)
+                       OR LOWER(TRIM(COALESCE(customer_name, ''))) = LOWER(:t)
                 """), {"t": term_raw}).scalar()
 
                 if exact_count > 0:
@@ -7479,7 +7480,8 @@ class WebBridge(QObject):
                         LOWER(TRIM(COALESCE(internal_id, ''))) = LOWER(:exact_term) OR 
                         LOWER(TRIM(COALESCE(serial_number, ''))) = LOWER(:exact_term) OR 
                         LOWER(TRIM(COALESCE(imei_number, ''))) = LOWER(:exact_term) OR 
-                        LOWER(TRIM(COALESCE(customer_no, ''))) = LOWER(:exact_term)
+                        LOWER(TRIM(COALESCE(customer_no, ''))) = LOWER(:exact_term) OR
+                        LOWER(TRIM(COALESCE(customer_name, ''))) = LOWER(:exact_term)
                     )""")
                     params["exact_term"] = term_raw
                 else:
@@ -7552,58 +7554,39 @@ class WebBridge(QObject):
 
     def _validate_product_model(self, db, model_name):
         """Girilmiş cihaz modelinin sistemde tanımlı (product_model, parts, product_family vb.)
-        geçerli bir model olup olmadığını denetler. Tanımsız modelleri (örn: 'iPhone 19') engeller."""
+        geçerli bir model olup olmadığını esnek ve akıllı kelime eşleştirmesi ile denetler.
+        (Örn. 'iPad Air 5' -> 'iPad Air (5th Gen)' ile eşleşir, ancak 'iPhone 19' engellenir)."""
+        import re
         from sqlalchemy import text
         m_clean = (model_name or "").strip()
         if not m_clean:
             return False, "Cihaz modeli boş olamaz. Lütfen tanımlı bir model giriniz."
         
-        m_lower = m_clean.lower()
-        m_like = f"{m_lower} %"
+        words = [w for w in re.split(r"[\s\-\(\)\,\.\_\/]+", m_clean.lower()) if len(w) > 0]
+        if not words:
+            return False, "Geçersiz cihaz modeli."
 
+        params = {f"w{i}": f"%{words[i]}%" for i in range(len(words))}
+        
         # 1. warehouse.product_model
-        res_pm = db.execute(text("""
-            SELECT 1 FROM warehouse.product_model 
-            WHERE LOWER(TRIM(short_name)) = :m 
-               OR LOWER(TRIM(code)) = :m
-               OR LOWER(TRIM(short_name)) LIKE :m_like
-               OR LOWER(TRIM(code)) LIKE :m_like
-            LIMIT 1
-        """), {"m": m_lower, "m_like": m_like}).first()
-        if res_pm:
+        conds_pm = " AND ".join([f"LOWER(short_name) LIKE :w{i}" for i in range(len(words))])
+        q_pm = text(f"SELECT 1 FROM warehouse.product_model WHERE {conds_pm} LIMIT 1")
+        if db.execute(q_pm, params).first():
             return True, ""
 
-        # 2. warehouse.parts (model kolonu)
-        res_parts = db.execute(text("""
-            SELECT 1 FROM warehouse.parts 
-            WHERE LOWER(TRIM(model)) = :m 
-               OR LOWER(TRIM(model)) LIKE :m_like
-            LIMIT 1
-        """), {"m": m_lower, "m_like": m_like}).first()
-        if res_parts:
+        # 2. warehouse.parts
+        conds_parts = " AND ".join([f"LOWER(model) LIKE :w{i}" for i in range(len(words))])
+        q_parts = text(f"SELECT 1 FROM warehouse.parts WHERE {conds_parts} LIMIT 1")
+        if db.execute(q_parts, params).first():
             return True, ""
 
-        # 3. warehouse.product_family (short_name veya code)
-        res_fam = db.execute(text("""
-            SELECT 1 FROM warehouse.product_family 
-            WHERE LOWER(TRIM(short_name)) = :m 
-               OR LOWER(TRIM(code)) = :m
-               OR LOWER(TRIM(short_name)) LIKE :m_like
-            LIMIT 1
-        """), {"m": m_lower, "m_like": m_like}).first()
-        if res_fam:
+        # 3. warehouse.product_family
+        conds_fam = " AND ".join([f"LOWER(short_name) LIKE :w{i}" for i in range(len(words))])
+        q_fam = text(f"SELECT 1 FROM warehouse.product_family WHERE {conds_fam} LIMIT 1")
+        if db.execute(q_fam, params).first():
             return True, ""
 
-        # 4. warehouse.product_model içinde parça eşleşmesi (örn. 'Galaxy A50' vs 'Galaxy A50 128GB')
-        res_contains = db.execute(text("""
-            SELECT 1 FROM warehouse.product_model
-            WHERE LOWER(short_name) LIKE :m_contains OR LOWER(code) LIKE :m_contains
-            LIMIT 1
-        """), {"m_contains": f"%{m_lower}%"}).first()
-        if res_contains:
-            return True, ""
-
-        return False, f"Sistemde tanımlı olmayan geçersiz cihaz modeli: '{m_clean}'. Lütfen sistemde tanımlı bir model giriniz."
+        return False, f"Sistemde tanımlı olmayan geçersiz cihaz modeli: '{m_clean}'. Lütfen sistemde tanımlı geçerli bir model giriniz."
 
     def _validate_new_batch_entry(self, db, d):
         """Yeni batch girişi kurallarını kontrol eder. Hata varsa açıklama metnini,
@@ -7637,15 +7620,19 @@ class WebBridge(QObject):
                 return (f"'{batch_no}' numaralı batch üretim aşamasında (statü {in_production.statu_code}) ve henüz "
                         f"çıkışı yapılmadı. Çıkış (statü 128) tamamlanmadan bu batch numarasıyla yeni cihaz kaydı oluşturulamaz.")
 
-        # 3) Aynı cihazın zaten aktif (statü 128 olmayan) bir servisi varsa yeni giriş engellenir.
+        # 3) Aynı cihazın başka bir batch altında açık (statü 128 olmayan) servisi varsa engellenir.
         imei_val = (d.get("imei_number") or "").strip()
         serial_val = (d.get("serial_number") or "").strip()
         internal_val = (d.get("internal_id") or "").strip()
         active = self._find_active_service_for_device(db, imei_val, serial_val, internal_val)
         if active:
-            return (f"Bu cihaz için zaten aktif bir servis kaydı var (Service ID: {active['service_id']}, "
-                    f"Batch No: {active['batch_no']}, Statü kodu: {active['statu_code']}). Süreç tamamlanmadan "
-                    f"(statü 128) aynı cihaz farklı bir batch numarasıyla tekrar girilemez.")
+            # Aynı batch numarasına ait bir güncellemeyse izin ver
+            active_batch = (active.get("batch_no") or "").strip().lower()
+            current_batch = batch_no.strip().lower()
+            if not (current_batch and active_batch and current_batch == active_batch):
+                match_id = imei_val or serial_val or internal_val
+                return (f"Cihaz ({match_id}) için farklı bir batch ({active.get('batch_no') or 'Tanımsız'}) altında zaten aktif servis var (Statü: {active['statu_code']}). "
+                        f"Süreç tamamlanmadan (statü 128) aynı cihaz başka bir batch numarasıyla tekrar girilemez.")
 
         return None
 
