@@ -1,69 +1,131 @@
 @import "tailwindcss";
 
 @custom-variant dark (&:is(.dark, .dark *));
+
+/* ─────────────────────────────────────────────────────────────
+   RENK SISTEMI
+
+   Onemli: bu dosya eskiden yalnizca koyu tema icin yazilmisti.
+   Tailwind'in acik-uc renkleri koyu degerlerle EZILIYORDU
+   (ornegin slate-50 -> #030712, yani neredeyse siyah). Uygulamada
+   288 yerde "bg-slate-50 dark:bg-[...]" deseni var; bunlarin
+   acik temadaki hali de siyah kaliyordu.
+
+   Cozum: @theme artik ACIK tema degerlerini tutuyor (Tailwind'in
+   gercek degerleri). Koyu temaya ozgu tonlar .dark altinda yeniden
+   tanimlaniyor; .dark sinifi <html> uzerinde oldugu icin tum
+   bilesenlere dogru sekilde iniyor.
+
+   Koyu temanin gorunumu DEGISMEDI - .dark bloklarindaki degerler
+   onceki @theme degerleriyle birebir ayni.
+   ───────────────────────────────────────────────────────────── */
+
+@theme {
+  /* Marka */
+  --color-brand-primary: #2563EB;
+  --color-brand-primary-hover: #1D4ED8;
+  --color-brand-soft-accent: rgba(37, 99, 235, 0.10);
+
+  /* Notrler - Tailwind slate'in gercek degerleri */
+  --color-slate-950: #020617;
+  --color-slate-900: #0F172A;
+  --color-slate-800: #1E293B;
+  --color-slate-500: #64748B;
+  --color-slate-200: #E2E8F0;
+  --color-slate-50: #F8FAFC;
+
+  --color-blue-600: #2563EB;
+  --color-blue-700: #1D4ED8;
+  --color-blue-50: #EFF6FF;
+
+  /* Durum renkleri - acik zeminde okunabilir tonlar */
+  --color-emerald-500: #10B981;
+  --color-amber-500: #F59E0B;
+  --color-red-500: #EF4444;
+}
+
+/* ── ACIK TEMA (varsayilan) ── */
+:root {
+  --color-sidebar: #FFFFFF;
+  --color-header: #FFFFFF;
+  --color-primary: #2563EB;
+  --color-primary-hover: #1D4ED8;
+  --color-soft-accent: rgba(37, 99, 235, 0.10);
+
+  --color-bg: #F1F5F9;   /* zemin - kartlarin uzerinde durdugu yuzey */
+  --color-card: #FFFFFF; /* kart / panel */
+  --color-border: #E2E8F0;
+  --color-text: #0F172A;
+  --color-subtext: #64748B;
+
+  --scrollbar-track: #E9EEF4;
+  --scrollbar-thumb: #C3CCD9;
+  --scrollbar-thumb-hover: #A6B2C3;
+}
+
+/* ── KOYU TEMA (mevcut gorunum birebir korundu) ── */
+.dark {
+  /* Tailwind renklerini koyu temaya ozgu tonlara geri al */
+  --color-slate-950: #030712;
+  --color-slate-900: #0B1120;
+  --color-slate-800: #1F2937;
+  --color-slate-500: #6B7280;
+  --color-slate-200: #E5E7EB;
+  --color-slate-50: #030712;
+
+  --color-blue-50: rgba(37, 99, 235, 0.18);
+
+  --color-emerald-500: #34D399;
+  --color-amber-500: #FBBF24;
+  --color-red-500: #F87171;
+
+  /* Uygulama degiskenleri */
+  --color-sidebar: #030712;
+  --color-header: #030712;
+  --color-soft-accent: rgba(37, 99, 235, 0.18);
+
+  --color-bg: #030712;
+  --color-card: #0B1120;
+  --color-border: #1F2937;
+  --color-text: #F9FAFB;
+  --color-subtext: #9CA3AF;
+
+  --scrollbar-track: #030712;
+  --scrollbar-thumb: #1F2937;
+  --scrollbar-thumb-hover: #374151;
+}
+
 body {
   margin: 0;
   padding: 0;
-  background-color: #f8fafc;
+  background-color: var(--color-bg);
+  color: var(--color-text);
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   overflow: hidden; /* Desktop app feel */
 }
 
-/* Custom Scrollbar Styles */
+/* Kaydirma cubugu - iki temada da uyumlu */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: var(--scrollbar-track);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1; /* slate-300 */
+  background: var(--scrollbar-thumb);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8; /* slate-400 */
-}
-@import "tailwindcss";
-
-@custom-variant dark (&:is(.dark, .dark *));
-body {
-  margin: 0;
-  padding: 0;
-  background-color: #f8fafc;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  overflow: hidden; /* Desktop app feel */
+  background: var(--scrollbar-thumb-hover);
 }
 
-/* Custom Scrollbar Styles */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #cbd5e1; /* slate-300 */
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8; /* slate-400 */
-}
-
-/* Dark mode scrollbar */
-.dark ::-webkit-scrollbar-thumb {
-  background: #334155; /* slate-700 */
-}
-
-.dark ::-webkit-scrollbar-thumb:hover {
-  background: #475569; /* slate-600 */
+/* Firefox */
+* {
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
 /* Fast Hardware-Accelerated Dropdown & Menu Animations */
@@ -87,4 +149,24 @@ body {
   transition-property: color, background-color, border-color, transform, opacity;
   transition-duration: 100ms;
   transition-timing-function: cubic-bezier(0, 0, 0.2, 1);
+}
+
+/* ── Uygulama kabugu yardimci siniflari ──
+   MainLayout bunlari kullanir; boylece kenar cubugu / baslik / icerik
+   zemini iki temada da tek yerden yonetilir. */
+.app-shell   { background-color: var(--color-bg); }
+.app-sidebar { background-color: var(--color-sidebar); }
+.app-header  { background-color: var(--color-header); }
+.app-card    { background-color: var(--color-card); }
+.app-border  { border-color: var(--color-border); }
+
+/* Buttons */
+.btn-primary-blue {
+  background-color: var(--color-primary);
+  color: #FFFFFF;
+  font-weight: 600;
+  transition: background-color 0.15s ease-in-out;
+}
+.btn-primary-blue:hover {
+  background-color: var(--color-primary-hover);
 }

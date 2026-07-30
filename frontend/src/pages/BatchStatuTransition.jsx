@@ -394,7 +394,7 @@ const BatchStatuTransition = () => {
   }
 
   return (
-    <div className="h-full flex flex-col space-y-6 overflow-hidden relative">
+    <div className="flex flex-col space-y-6 pb-12 text-[#0F172A] dark:text-[#FAFAFA] max-w-[1600px] mx-auto animate-in fade-in duration-300 relative">
       <NotificationToast notification={notification} onClose={() => setNotification(null)} />
 
       <ManualTestModal
@@ -407,30 +407,44 @@ const BatchStatuTransition = () => {
         onSubmit={handleManualSubmit}
       />
 
-      <div className="bg-white dark:bg-[#1e2330] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm shrink-0">
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-2">
-            <ScanLine className="text-blue-400" size={24} /> {transition.short_name}
-          </h1>
-          <span className="px-3 py-1.5 rounded-full text-sm font-bold border bg-blue-500/10 text-blue-500 border-blue-500/20 flex items-center gap-2">
-            {transition.parent_statu} <ArrowRight size={14} /> {transition.child_statu}
-          </span>
+      {/* ════════════════ HERO BANNER ════════════════ */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#F1F5F9] dark:from-[#050A18] via-[#0F172A] to-[#FFFFFF] dark:to-[#1E293B] p-6 sm:p-8 text-white shadow-xl border border-[#E2E8F0] dark:border-[#1E293B]">
+        {/* Ambient Grid Overlay */}
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(245,158,11,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(245,158,11,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
+        <div className="absolute top-0 right-0 w-96 h-96 bg-amber-600/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-2 max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-400/30 text-amber-300 text-xs font-semibold tracking-wide">
+              <ScanLine size={13} className="text-amber-400" /> TOPLU STATÜ GEÇİŞ İŞLEMİ
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white flex items-center gap-3">
+              {transition.short_name}
+            </h1>
+            <p className="text-sm text-slate-300 leading-relaxed">
+              IMEI, seri numarası, internal ID veya parti numarasını okutun. Parti statü {transition.parent_statu} değilse işlem reddedilir.
+            </p>
+          </div>
+
+          <div className="shrink-0">
+            <span className="px-4 py-2 rounded-xl text-xs font-bold border bg-blue-500/20 text-[#60A5FA] border-blue-500/30 flex items-center gap-2 shadow-md">
+              {transition.parent_statu} <ArrowRight size={14} /> {transition.child_statu}
+            </span>
+          </div>
         </div>
-        <p className="text-slate-400 mt-1">
-          IMEI, seri numarası, internal ID veya batch numarasını okutun. Parti statü {transition.parent_statu} değilse işlem reddedilir.
-        </p>
       </div>
 
-      <div className="bg-white dark:bg-[#1e2330] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm shrink-0">
+      {/* OKUTMA INPUT KARTI */}
+      <div className="bg-[#F8FAFC] dark:bg-[#0F172A] p-6 rounded-2xl border border-[#E2E8F0] dark:border-[#1E293B] shadow-md">
         <form onSubmit={handleScan} className="flex flex-col gap-4">
           <div>
-            <label className="block text-sm font-medium text-slate-400 mb-1.5">IMEI / Seri Numara / Internal ID / Batch No</label>
-            <div className="flex gap-4">
+            <label className="block text-xs font-bold text-[#64748B] dark:text-[#94A3B8] uppercase tracking-wider mb-2">IMEI / Seri Numara / Internal ID / Batch No Okutun</label>
+            <div className="flex flex-col sm:flex-row gap-3">
               <input
                 ref={inputRef}
                 type="text"
-                placeholder="Okutunuz..."
-                className="flex-1 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-blue-500 disabled:opacity-60"
+                placeholder="Barkod / IMEI okutunuz..."
+                className="flex-1 bg-[#FFFFFF] dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155] text-[#0F172A] dark:text-[#FAFAFA] placeholder-[#64748B] rounded-xl px-4 py-3 text-xs sm:text-sm font-mono font-medium focus:outline-none focus:border-[#2563EB] disabled:opacity-50 transition-all shadow-xs"
                 value={term}
                 onChange={(e) => setTerm(e.target.value)}
                 disabled={loading}
@@ -438,9 +452,9 @@ const BatchStatuTransition = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-8 py-2.5 rounded-xl transition-all shadow-lg shadow-blue-900/20 font-medium whitespace-nowrap flex items-center gap-2"
+                className="bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-40 text-white px-8 py-3 rounded-xl transition-all shadow-md font-bold text-xs cursor-pointer whitespace-nowrap flex items-center justify-center gap-2"
               >
-                <ScanLine size={18} /> {loading ? "Sorgulanıyor..." : "Okut"}
+                <ScanLine size={16} /> {loading ? "Sorgulanıyor..." : "Okut"}
               </button>
             </div>
           </div>
@@ -448,38 +462,39 @@ const BatchStatuTransition = () => {
       </div>
 
       {deviceInfo && (
-        <div className="bg-white dark:bg-[#1e2330] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm shrink-0">
+        <div className="bg-[#F8FAFC] dark:bg-[#0F172A] p-6 rounded-2xl border border-[#E2E8F0] dark:border-[#1E293B] shadow-md">
           <div className="flex items-center justify-between flex-wrap gap-3">
-            <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">
-              {deviceInfo.imei} <span className="text-slate-400 font-normal">· {deviceInfo.batchNo} · {deviceInfo.flow}</span>
+            <h3 className="text-base font-bold text-[#0F172A] dark:text-[#FAFAFA]">
+              <span className="font-mono text-[#60A5FA]">{deviceInfo.imei}</span> <span className="text-[#64748B] dark:text-[#94A3B8] font-normal">· {deviceInfo.batchNo} · {deviceInfo.flow}</span>
             </h3>
-            <span className="px-2.5 py-1 rounded-full text-xs font-bold border bg-blue-500/10 text-blue-500 border-blue-500/20">
+            <span className="px-3 py-1 rounded-full text-xs font-bold border bg-blue-500/20 text-blue-400 border-blue-500/30">
               Statü: {deviceInfo.statuCode}{deviceInfo.statuName ? ` — ${deviceInfo.statuName}` : ""}
             </span>
           </div>
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6">
-        <h4 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
-          <History size={16} /> İşlem Durumu
+      {/* İŞLEM GEÇMİŞİ LOG */}
+      <div className="bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#1E293B] rounded-2xl p-6 shadow-md flex-1 min-h-[300px]">
+        <h4 className="text-xs font-bold text-[#64748B] dark:text-[#94A3B8] uppercase tracking-wider mb-4 flex items-center gap-2">
+          <History size={16} /> İşlem Geçmişi (Log)
         </h4>
 
         {log.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-3 py-12 text-slate-500">
-            <ScanLine size={32} className="text-slate-300 dark:text-slate-600" />
-            <p className="text-sm">Henüz bir okutma yapılmadı.</p>
+          <div className="flex flex-col items-center justify-center gap-3 py-16 text-[#64748B]">
+            <ScanLine size={32} className="text-[#334155]" />
+            <p className="text-xs font-semibold">Henüz bir okutma yapılmadı.</p>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-2.5">
             {log.map((entry) => (
               <div
                 key={entry.id}
-                className={`flex items-start gap-2.5 px-4 py-2.5 rounded-xl border text-xs font-medium ${LOG_STYLES[entry.type]}`}
+                className={`flex items-start gap-2.5 px-4 py-3 rounded-xl border text-xs font-medium ${LOG_STYLES[entry.type]}`}
               >
                 <span className="mt-0.5 shrink-0">{LOG_ICONS[entry.type]}</span>
                 <span className="flex-1 leading-relaxed">{entry.message}</span>
-                <span className="shrink-0 opacity-60 font-mono">{entry.time}</span>
+                <span className="shrink-0 opacity-70 font-mono text-[11px]">{entry.time}</span>
               </div>
             ))}
           </div>

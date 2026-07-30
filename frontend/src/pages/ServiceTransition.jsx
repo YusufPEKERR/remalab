@@ -138,34 +138,49 @@ const ServiceTransition = () => {
   };
 
   return (
-    <div className="h-full flex flex-col space-y-6 overflow-hidden relative">
+    <div className="flex flex-col space-y-6 pb-12 text-[#0F172A] dark:text-[#FAFAFA] max-w-[1600px] mx-auto animate-in fade-in duration-300 relative">
       <NotificationToast notification={notification} onClose={() => setNotification(null)} />
 
-      <div className="bg-white dark:bg-[#1e2330] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm shrink-0">
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-2">
-          <ScanLine className="text-blue-400" size={24} /> Hızlı İşlem / Barkod Ekranı
-        </h1>
-        <p className="text-slate-400 mt-1">Barkod veya IMEI okutarak cihazın servis statüsünü güncelleyin.</p>
+      {/* ════════════════ HERO BANNER ════════════════ */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#F1F5F9] dark:from-[#050A18] via-[#0F172A] to-[#FFFFFF] dark:to-[#1E293B] p-6 sm:p-8 text-white shadow-xl border border-[#E2E8F0] dark:border-[#1E293B]">
+        {/* Ambient Grid Overlay */}
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(245,158,11,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(245,158,11,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
+        <div className="absolute top-0 right-0 w-96 h-96 bg-amber-600/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-2 max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-400/30 text-amber-300 text-xs font-semibold tracking-wide">
+              <ScanLine size={13} className="text-amber-400" /> STATÜ GEÇİŞ İŞLEMLERİ
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+              Yedek Parça & Statü Geçiş İşlemleri
+            </h1>
+            <p className="text-sm text-slate-300 leading-relaxed">
+              Barkod veya IMEI okutarak cihazın kayıt kabul, test veya sevkiyat statüsünü güncelleyin.
+            </p>
+          </div>
+        </div>
       </div>
 
-      <div className="bg-white dark:bg-[#1e2330] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm shrink-0">
+      {/* SEARCH CARD */}
+      <div className="bg-[#F8FAFC] dark:bg-[#0F172A] p-6 rounded-2xl border border-[#E2E8F0] dark:border-[#1E293B] shadow-md">
         <form onSubmit={handleSearch} className="flex flex-col gap-4">
           <div>
-            <label className="block text-sm font-medium text-slate-400 mb-1.5">Barkod / IMEI</label>
-            <div className="flex gap-4">
+            <label className="block text-xs font-bold text-[#64748B] dark:text-[#94A3B8] uppercase tracking-wider mb-2">Barkod / IMEI Okutun</label>
+            <div className="flex flex-col sm:flex-row gap-3">
               <input
                 type="text"
                 placeholder="Barkod veya IMEI okutunuz..."
-                className="flex-1 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-blue-500"
+                className="flex-1 bg-[#FFFFFF] dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155] text-[#0F172A] dark:text-[#FAFAFA] placeholder-[#64748B] rounded-xl px-4 py-3 text-xs sm:text-sm font-mono font-medium focus:outline-none focus:border-[#2563EB] transition-all shadow-xs"
                 value={barcode}
                 onChange={(e) => setBarcode(e.target.value)}
               />
               <button
                 type="submit"
                 disabled={loading}
-                className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-8 py-2.5 rounded-xl transition-all shadow-lg shadow-blue-900/20 font-medium whitespace-nowrap flex items-center gap-2"
+                className="bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-40 text-white px-8 py-3 rounded-xl transition-all shadow-md font-bold text-xs cursor-pointer whitespace-nowrap flex items-center justify-center gap-2"
               >
-                <ScanLine size={18} /> {loading ? "Sorgulanıyor..." : "Sorgula"}
+                <ScanLine size={16} /> {loading ? "Sorgulanıyor..." : "Sorgula"}
               </button>
             </div>
           </div>
@@ -173,38 +188,40 @@ const ServiceTransition = () => {
       </div>
 
       {deviceInfo && currentStatu !== 109 && (
-        <div className="bg-white dark:bg-[#1e2330] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">
-              Cihaz: {deviceInfo.imei} ({deviceInfo.model})
-            </h3>
-            <span className="px-2.5 py-1 rounded-full text-xs font-medium border bg-blue-500/10 text-blue-500 border-blue-500/20">
+        <div className="bg-[#F8FAFC] dark:bg-[#0F172A] p-6 rounded-2xl border border-[#E2E8F0] dark:border-[#1E293B] shadow-md space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#E2E8F0] dark:border-[#1E293B] pb-4">
+            <div>
+              <h3 className="text-base font-bold text-[#0F172A] dark:text-[#FAFAFA]">
+                Cihaz: <span className="font-mono text-[#60A5FA]">{deviceInfo.imei}</span> {deviceInfo.model && <span className="text-[#64748B] dark:text-[#94A3B8]">({deviceInfo.model})</span>}
+              </h3>
+            </div>
+            <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30 w-fit">
               Mevcut Statü: {deviceInfo.statu}
             </span>
           </div>
 
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">İzin Verilen Geçişler</p>
+          <p className="text-xs font-bold text-[#64748B] dark:text-[#94A3B8] uppercase tracking-wider">İzin Verilen Statü Geçişleri</p>
 
           {transitions.length === 0 ? (
-            <p className="text-slate-500 text-sm italic">Bu statüden yapılabilecek işlem bulunamadı.</p>
+            <p className="text-[#64748B] dark:text-[#94A3B8] text-xs italic">Bu statüden yapılabilecek işlem bulunamadı.</p>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pt-2">
               {transitions.map((t, idx) => (
                 <button
                   key={idx}
                   onClick={() => executeTransition(t.target_statu_code)}
-                  className={`px-4 py-3 rounded-xl font-medium text-sm text-white transition-all shadow-lg flex flex-col items-center gap-1 ${
+                  className={`px-4 py-3.5 rounded-xl font-bold text-xs text-white transition-all shadow-md flex flex-col items-center gap-1 cursor-pointer border ${
                     t.is_positive
-                      ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-900/20"
-                      : "bg-red-600 hover:bg-red-700 shadow-red-900/20"
+                      ? "bg-emerald-600/90 hover:bg-emerald-600 border-emerald-500/40"
+                      : "bg-red-600/90 hover:bg-red-600 border-red-500/40"
                   }`}
                 >
-                  <span className="flex items-center gap-1.5 font-bold">
-                    {t.target_statu_name} <ArrowRight size={14} />
+                  <span className="flex items-center gap-1.5 font-extrabold text-sm">
+                    {t.target_statu_name} <ArrowRight size={15} />
                   </span>
-                  <span className="text-[11px] opacity-75">Kod: {t.target_statu_code}</span>
+                  <span className="text-[11px] opacity-80 font-mono">Hedef Statü Kodu: {t.target_statu_code}</span>
                   {(t.kontrol_1 || t.kontrol_2) && (
-                    <span className="text-[10px] italic opacity-75">
+                    <span className="text-[10px] italic opacity-80">
                       {t.kontrol_1} → {t.kontrol_2}
                     </span>
                   )}

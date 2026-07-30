@@ -715,7 +715,7 @@ const TechnicianRepairOperations = () => {
   useEffect(() => { searchRef.current?.focus(); }, []);
 
   return (
-    <div className="flex flex-col h-full gap-4">
+    <div className="flex flex-col space-y-6 pb-12 text-[#0F172A] dark:text-[#FAFAFA] max-w-[1600px] mx-auto animate-in fade-in duration-300">
       {/* Notification Toast */}
       <NotificationToast notification={notification} onClose={() => setNotification(null)} />
 
@@ -728,36 +728,53 @@ const TechnicianRepairOperations = () => {
       {/* DOA Return Modal */}
       {showDOAModal && <DOAReturnModal parts={deviceParts} onClose={() => setShowDOAModal(false)} onConfirm={handleDOAConfirm} submitting={returnSubmitting} />}
 
-      {/* ═══════════════════════════════════════════════════════════
-           SECTION 1: ÜST PANEL — Header & Telemetry
-         ═══════════════════════════════════════════════════════════ */}
-      <div className="bg-white dark:bg-[#161B22] rounded-2xl border border-slate-200 dark:border-[#30363D] shadow-sm overflow-hidden">
-        {/* Search Bar */}
-        <div className="px-5 py-4 border-b border-slate-100 dark:border-[#30363D]">
-          <form onSubmit={handleSearch} className="flex items-center gap-3">
-            <div className="relative flex-1 max-w-md">
-              <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                ref={searchRef}
-                type="text"
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                disabled={isSearching}
-                placeholder="IMEI / Internal ID / Seri No okutunuz..."
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#0f1219] text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all disabled:opacity-60"
-              />
+      {/* ════════════════ HERO BANNER ════════════════ */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#F1F5F9] dark:from-[#050A18] via-[#0F172A] to-[#FFFFFF] dark:to-[#1E293B] p-6 sm:p-8 text-white shadow-xl border border-[#E2E8F0] dark:border-[#1E293B]">
+        {/* Ambient Grid Overlay */}
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(244,63,94,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(244,63,94,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
+        <div className="absolute top-0 right-0 w-96 h-96 bg-rose-600/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-2 max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/20 border border-rose-400/30 text-rose-300 text-xs font-semibold tracking-wide">
+              <Wrench size={13} className="text-rose-400" /> TEKNİK SERVİS VE ONARIM OPERASYONLARI
             </div>
-            <button type="submit" disabled={isSearching} className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-semibold transition-colors shadow-lg shadow-blue-500/20 flex items-center gap-2">
-              <Search size={15} /> {isSearching ? "Sorgulanıyor..." : "Sorgula"}
-            </button>
-            {statusBadge && (
-              <div className={`ml-auto flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold ${statusBadge.tone === 'ok' ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30' : statusBadge.tone === 'neutral' ? 'bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/30' : 'bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/30'}`}>
-                <span className={`w-2 h-2 rounded-full ${statusBadge.tone === 'ok' ? 'bg-emerald-500 animate-pulse' : statusBadge.tone === 'neutral' ? 'bg-blue-500' : 'bg-red-500'}`}></span>
-                {statusBadge.text}
-              </div>
-            )}
-          </form>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+              Servis Onarımları & Teknisyen Operasyonları
+            </h1>
+            <p className="text-sm text-slate-300 leading-relaxed">
+              IMEI/Seri no ile cihaz sorgulayın, arıza teşhisi ekleyin, yedek parça taleplerini ve onarım aşamalarını yönetin.
+            </p>
+          </div>
         </div>
+      </div>
+
+      {/* ════════════════ SECTION 1: SEARCH BAR ════════════════ */}
+      <div className="bg-[#F8FAFC] dark:bg-[#0F172A] rounded-2xl border border-[#E2E8F0] dark:border-[#1E293B] p-5 shadow-md">
+        <form onSubmit={handleSearch} className="flex flex-col md:flex-row items-center gap-3">
+          <div className="relative flex-1 w-full">
+            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#64748B] dark:text-[#94A3B8]" />
+            <input
+              ref={searchRef}
+              type="text"
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              disabled={isSearching}
+              placeholder="IMEI / Internal ID / Seri No okutunuz..."
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[#E2E8F0] dark:border-[#334155] bg-[#FFFFFF] dark:bg-[#1E293B] text-xs sm:text-sm text-[#0F172A] dark:text-[#FAFAFA] placeholder-[#64748B] focus:outline-none focus:border-[#2563EB] transition-all disabled:opacity-50 font-mono"
+            />
+          </div>
+          <button type="submit" disabled={isSearching} className="w-full md:w-auto px-6 py-2.5 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-40 text-white text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer">
+            <Search size={15} /> {isSearching ? "Sorgulanıyor..." : "Sorgula"}
+          </button>
+          {statusBadge && (
+            <div className={`md:ml-auto flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold ${statusBadge.tone === 'ok' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : statusBadge.tone === 'neutral' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'}`}>
+              <span className={`w-2 h-2 rounded-full ${statusBadge.tone === 'ok' ? 'bg-emerald-400 animate-pulse' : statusBadge.tone === 'neutral' ? 'bg-blue-400' : 'bg-rose-400'}`}></span>
+              {statusBadge.text}
+            </div>
+          )}
+        </form>
+      </div>
 
         {/* Rol/Yetki Uyarı Şeridi (engellemez, sadece bilgilendirir) */}
         {device && !hasAccess && (
@@ -857,7 +874,6 @@ const TechnicianRepairOperations = () => {
             </div>
           </div>
         )}
-      </div>
 
       {/* ═══════════════════════════════════════════════════════════
            SECTION 2: ORTA PANEL — Onarım Detay Grid

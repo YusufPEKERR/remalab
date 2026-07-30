@@ -68,20 +68,33 @@ export default function SupplyRequests() {
   };
 
   return (
-    <div className="h-full flex flex-col space-y-6 overflow-hidden">
+    <div className="flex flex-col space-y-6 pb-12 text-[#0F172A] dark:text-[#FAFAFA] max-w-[1600px] mx-auto animate-in fade-in duration-300">
 
-      {/* Header */}
-      <div className="bg-white dark:bg-[#1e2330] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm shrink-0">
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-2">
-          <PackageSearch className="text-amber-400" size={24} /> Tedarik İstekleri
-        </h1>
-        <p className="text-slate-400 mt-1">Teknisyenlerin istediği, depodan tedarik/sipariş bekleyen iş emri parçalarını görüntüleyin ve yönetin.</p>
+      {/* ════════════════ HERO BANNER ════════════════ */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#F1F5F9] dark:from-[#050A18] via-[#0F172A] to-[#FFFFFF] dark:to-[#1E293B] p-6 sm:p-8 text-white shadow-xl border border-[#E2E8F0] dark:border-[#1E293B]">
+        {/* Ambient Grid Overlay */}
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(245,158,11,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(245,158,11,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
+        <div className="absolute top-0 right-0 w-96 h-96 bg-amber-600/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-2 max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-400/30 text-amber-300 text-xs font-semibold tracking-wide">
+              <PackageSearch size={13} className="text-amber-400" /> DEPO PARÇA TEDARİK İSTEKLERİ
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+              Tedarik İstekleri Paneli
+            </h1>
+            <p className="text-sm text-slate-300 leading-relaxed">
+              Teknisyenlerin depodan istediği ve tedarik bekleyen parçaları inceleyin ve onaylayın.
+            </p>
+          </div>
+        </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto pr-2 pb-6 space-y-6">
-        <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs">
+      <div className="flex-1 space-y-6">
+        <div className="bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#1E293B] rounded-2xl shadow-md overflow-hidden">
+          <table className="w-full text-left text-xs whitespace-nowrap">
+            <thead className="bg-[#F8FAFC] dark:bg-[#162032] text-[#64748B] dark:text-[#94A3B8] font-bold uppercase tracking-wider border-b border-[#E2E8F0] dark:border-[#1E293B] sticky top-0 z-10 select-none">
               <tr>
                 <th className="px-6 py-4">Müşteri / Cihaz</th>
                 <th className="px-6 py-4">Parça</th>
@@ -93,7 +106,7 @@ export default function SupplyRequests() {
                 <th className="px-6 py-4 text-center">Tedarik İşlemleri</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-700/50">
+            <tbody className="divide-y divide-[#E2E8F0] dark:divide-[#1E293B]">
               {loading ? (
                 <tr>
                   <td colSpan="8" className="px-6 py-8 text-center text-slate-400">Yükleniyor...</td>

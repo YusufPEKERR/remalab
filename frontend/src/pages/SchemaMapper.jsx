@@ -574,26 +574,24 @@ export default function SchemaMapper() {
       <Toast notif={notif} onClose={() => setNotif(null)} />
       {showAddModal && <AddTableModal onClose={() => setShowAddModal(false)} onAdd={handleAddTable} />}
 
-      {/* ═══════════════════════════════════════════════════════
-           TOOLBAR
-         ═══════════════════════════════════════════════════════ */}
-      <div className="bg-white dark:bg-[#161B22] border-b border-slate-200 dark:border-[#30363D] px-4 py-2.5 flex items-center justify-between gap-3 flex-wrap shrink-0 z-20">
-        <div className="flex items-center gap-2">
-          <h2 className="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2 mr-2">
-            <Database size={16} className="text-blue-500" />
-            Schema Mapper
+      {/* ════════════════ TOOLBAR ════════════════ */}
+      <div className="bg-[#F8FAFC] dark:bg-[#0F172A] border-b border-[#E2E8F0] dark:border-[#1E293B] px-5 py-3 flex items-center justify-between gap-3 flex-wrap shrink-0 z-20 shadow-md">
+        <div className="flex items-center gap-2.5">
+          <h2 className="text-sm font-bold text-white flex items-center gap-2 mr-3 font-mono">
+            <Database size={17} className="text-blue-400" />
+            SCHEMA MAPPER
           </h2>
 
-          <button onClick={() => setShowAddModal(true)} className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-colors">
+          <button onClick={() => setShowAddModal(true)} className="px-3.5 py-2 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold flex items-center gap-1.5 shadow-md cursor-pointer transition-all">
             <Plus size={14} /> Yeni Tablo
           </button>
-          <button onClick={() => { setConnectMode(!connectMode); setConnectSource(null); }} className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all border ${connectMode ? 'bg-rose-500 text-white border-rose-500' : 'bg-white dark:bg-[#1e2330] text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-rose-300'}`}>
+          <button onClick={() => { setConnectMode(!connectMode); setConnectSource(null); }} className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md transition-all cursor-pointer border ${connectMode ? 'bg-rose-500 text-white border-rose-500' : 'bg-[#FFFFFF] dark:bg-[#1E293B] text-[#0F172A] dark:text-[#FAFAFA] border-[#E2E8F0] dark:border-[#334155] hover:border-rose-400'}`}>
             <Link2 size={14} /> {connectMode ? 'Bağlama: AÇIK' : 'İlişki Bağla'}
           </button>
-          <button onClick={handleSaveMapping} className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-colors">
+          <button onClick={handleSaveMapping} className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-md cursor-pointer transition-all">
             <Save size={14} /> Kaydet
           </button>
-          <button onClick={handleOpenProjectGuide} title="Proje rehberini PDF olarak aç" className="px-3 py-1.5 rounded-lg bg-white dark:bg-[#1e2330] text-slate-600 dark:text-slate-400 text-xs font-bold flex items-center gap-1.5 shadow-sm border border-slate-200 dark:border-slate-700 hover:border-blue-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+          <button onClick={handleOpenProjectGuide} title="Proje rehberini PDF olarak aç" className="px-3.5 py-2 rounded-xl bg-[#FFFFFF] dark:bg-[#1E293B] text-[#0F172A] dark:text-[#FAFAFA] border border-[#E2E8F0] dark:border-[#334155] text-xs font-bold flex items-center gap-1.5 shadow-md hover:border-blue-400 transition-all cursor-pointer">
             <FileText size={14} /> Proje Rehberi
           </button>
         </div>
@@ -783,8 +781,8 @@ export default function SchemaMapper() {
                         <Code size={12} />
                         Canlı DTO Önizleme (JSON)
                       </h4>
-                      <div className="bg-[#0d1117] rounded-xl border border-slate-700 overflow-hidden">
-                        <div className="px-3 py-1.5 bg-[#161B22] border-b border-slate-700 flex items-center gap-2">
+                      <div className="bg-[#F8FAFC] dark:bg-[#0d1117] rounded-xl border border-slate-700 overflow-hidden">
+                        <div className="px-3 py-1.5 bg-[#F1F5F9] dark:bg-[#161B22] border-b border-slate-700 flex items-center gap-2">
                           <div className="w-2 h-2 rounded-full bg-red-500"></div>
                           <div className="w-2 h-2 rounded-full bg-amber-500"></div>
                           <div className="w-2 h-2 rounded-full bg-emerald-500"></div>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, Search, Trash2, Edit, AlertCircle, RefreshCw, X, Download, Upload, FileSpreadsheet, ArrowUpDown } from 'lucide-react';
+import { Plus, Search, Trash2, Edit, AlertCircle, RefreshCw, X, Download, Upload, FileSpreadsheet, ArrowUpDown, Package } from 'lucide-react';
 import { api } from '../services/api';
 import ExcelMappingModal from '../components/ExcelMappingModal';
 import TextCombobox from '../components/TextCombobox';
@@ -370,58 +370,71 @@ export default function Parts() {
   const categoryOptions = partCategories.filter(c => c.is_active !== false || String(c.id) === String(formData.part_category_id));
 
   return (
-    <div className="h-full flex flex-col space-y-6 overflow-hidden">
+    <div className="flex flex-col space-y-6 pb-12 text-[#0F172A] dark:text-[#FAFAFA] max-w-[1600px] mx-auto animate-in fade-in duration-300">
 
-      {/* Header */}
-      <div className="flex justify-between items-center bg-white dark:bg-[#1e2330] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm shrink-0">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">Stok Kartları (Parçalar)</h1>
-          <p className="text-slate-400 mt-1">Depodaki parçaların tanımlarını yönetin ve listeleyin.</p>
-        </div>
+      {/* ════════════════ HERO BANNER ════════════════ */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#F1F5F9] dark:from-[#050A18] via-[#0F172A] to-[#FFFFFF] dark:to-[#1E293B] p-6 sm:p-8 text-white shadow-xl border border-[#E2E8F0] dark:border-[#1E293B]">
+        {/* Ambient Grid Overlay */}
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(99,102,241,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(99,102,241,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
+        <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="flex gap-3 items-center">
-          <div className="relative">
-            <select
-              onChange={handleExcelAction}
-              className="appearance-none bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-2 pr-8 transition-colors font-medium cursor-pointer focus:outline-none focus:border-blue-500"
-            >
-              <option value="">Excel İşlemi Seç...</option>
-              <option value="download_template">Boş Şablon İndir</option>
-              <option value="export">{selectedRows.length > 0 ? `${selectedRows.length} Seçiliyi Dışa Aktar` : 'Tümünü Dışa Aktar'}</option>
-              <option value="import">Excel'den İçe Aktar</option>
-            </select>
-            <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-slate-400">
-              <FileSpreadsheet size={16} />
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-2 max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 text-xs font-semibold tracking-wide">
+              <Package size={13} className="text-indigo-400" /> ENVANTER VE PARÇA KARTLARI
             </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+              Stok Kartları (Parçalar)
+            </h1>
+            <p className="text-sm text-slate-300 leading-relaxed">
+              Depodaki tüm parça tanımlarını, kategorilerini ve stok takip parametrelerini listeleyin ve yönetin.
+            </p>
           </div>
 
-          {selectedOnCurrentPage.length > 1 && (
-            <button
-              onClick={handleBulkDelete}
-              className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl transition-all shadow-lg shadow-red-900/20 font-medium"
-            >
-              <Trash2 size={18} /> Seçilenleri Sil ({selectedOnCurrentPage.length})
-            </button>
-          )}
+          <div className="flex items-center gap-3 shrink-0 flex-wrap">
+            <div className="relative">
+              <select
+                onChange={handleExcelAction}
+                className="appearance-none bg-[#FFFFFF] dark:bg-[#1E293B] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] text-[#0F172A] dark:text-[#FAFAFA] border border-[#E2E8F0] dark:border-[#334155] rounded-xl px-4 py-2.5 pr-9 text-xs font-bold transition-all cursor-pointer focus:outline-none focus:border-[#2563EB]"
+              >
+                <option value="">Excel İşlemleri...</option>
+                <option value="download_template">Boş Şablon İndir</option>
+                <option value="export">{selectedRows.length > 0 ? `${selectedRows.length} Seçiliyi Dışa Aktar` : 'Tümünü Dışa Aktar'}</option>
+                <option value="import">Excel'den İçe Aktar</option>
+              </select>
+              <div className="absolute inset-y-0 right-0 flex items-center px-2.5 pointer-events-none text-[#64748B] dark:text-[#94A3B8]">
+                <FileSpreadsheet size={15} />
+              </div>
+            </div>
 
-          <button
-            onClick={() => handleOpenModal()}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl transition-all shadow-lg shadow-blue-900/20 font-medium"
-          >
-            <Plus size={18} /> Yeni Parça Ekle
-          </button>
+            {selectedOnCurrentPage.length > 1 && (
+              <button
+                onClick={handleBulkDelete}
+                className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+              >
+                <Trash2 size={16} /> Seçilenleri Sil ({selectedOnCurrentPage.length})
+              </button>
+            )}
+
+            <button
+              onClick={() => handleOpenModal()}
+              className="flex items-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+            >
+              <Plus size={16} /> Yeni Parça Ekle
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Filter Panel */}
-      <div className="flex gap-4 shrink-0">
+      {/* SEARCH BAR */}
+      <div className="bg-[#F8FAFC] dark:bg-[#0F172A] rounded-2xl p-4 border border-[#E2E8F0] dark:border-[#1E293B] shadow-md flex items-center gap-3">
         <div className="flex-1 relative">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search className="text-slate-400" size={18} />
+          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#64748B] dark:text-[#94A3B8]">
+            <Search size={18} />
           </div>
           <input
             type="text"
-            className="w-full bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:border-blue-500 shadow-sm"
+            className="w-full bg-[#FFFFFF] dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155] text-[#0F172A] dark:text-[#FAFAFA] placeholder-[#64748B] rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm font-medium focus:outline-none focus:border-[#2563EB] transition-all shadow-xs"
             placeholder="Parça Ara (Kod, Barkod, Ad, Kategori)..."
             value={searchTerm}
             onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
@@ -429,76 +442,76 @@ export default function Parts() {
         </div>
       </div>
 
-      {/* Table Content */}
-      <div className="bg-white dark:bg-[#1e2330] rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-lg overflow-hidden flex flex-col">
-        <div className="overflow-y-auto max-h-[480px]">
-          <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs sticky top-0 z-10">
+      {/* TABLE CONTAINER */}
+      <div className="bg-[#F8FAFC] dark:bg-[#0F172A] rounded-2xl border border-[#E2E8F0] dark:border-[#1E293B] shadow-md overflow-hidden flex flex-col">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs whitespace-nowrap">
+            <thead className="bg-[#F8FAFC] dark:bg-[#162032] text-[#64748B] dark:text-[#94A3B8] font-bold uppercase tracking-wider border-b border-[#E2E8F0] dark:border-[#1E293B] sticky top-0 z-10">
               <tr>
                 <th className="px-6 py-4 w-12 text-center">
                   <input
                     type="checkbox"
-                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-white dark:bg-slate-800"
+                    className="w-4 h-4 rounded border-[#E2E8F0] dark:border-[#334155] text-[#2563EB] focus:ring-[#2563EB] bg-[#FFFFFF] dark:bg-[#1E293B]"
                     checked={selectedRows.length === (parts?.length || 0) && (parts?.length || 0) > 0}
                     onChange={toggleSelectAll}
                   />
                 </th>
-                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('id')}>
-                  <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-[#FFFFFF]/60 dark:hover:bg-[#1E293B]/60 transition-colors" onClick={() => handleSort('id')}>
+                  <div className="flex items-center gap-1.5 text-[#0F172A] dark:text-[#FAFAFA]">
                     ID
-                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'id' ? 'text-blue-500' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
+                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'id' ? 'text-[#60A5FA]' : 'text-[#64748B] opacity-40 group-hover:opacity-100'}`} />
                   </div>
                 </th>
-                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('item_code')}>
-                  <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-[#FFFFFF]/60 dark:hover:bg-[#1E293B]/60 transition-colors" onClick={() => handleSort('item_code')}>
+                  <div className="flex items-center gap-1.5 text-[#0F172A] dark:text-[#FAFAFA]">
                     PARÇA KODU
-                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'item_code' ? 'text-blue-500' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
+                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'item_code' ? 'text-[#60A5FA]' : 'text-[#64748B] opacity-40 group-hover:opacity-100'}`} />
                   </div>
                 </th>
-                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('brand')}>
-                  <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-[#FFFFFF]/60 dark:hover:bg-[#1E293B]/60 transition-colors" onClick={() => handleSort('brand')}>
+                  <div className="flex items-center gap-1.5 text-[#0F172A] dark:text-[#FAFAFA]">
                     MARKA
-                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'brand' ? 'text-blue-500' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
+                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'brand' ? 'text-[#60A5FA]' : 'text-[#64748B] opacity-40 group-hover:opacity-100'}`} />
                   </div>
                 </th>
-                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('model')}>
-                  <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-[#FFFFFF]/60 dark:hover:bg-[#1E293B]/60 transition-colors" onClick={() => handleSort('model')}>
+                  <div className="flex items-center gap-1.5 text-[#0F172A] dark:text-[#FAFAFA]">
                     MODEL
-                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'model' ? 'text-blue-500' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
+                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'model' ? 'text-[#60A5FA]' : 'text-[#64748B] opacity-40 group-hover:opacity-100'}`} />
                   </div>
                 </th>
-                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('item_category')}>
-                  <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-[#FFFFFF]/60 dark:hover:bg-[#1E293B]/60 transition-colors" onClick={() => handleSort('item_category')}>
+                  <div className="flex items-center gap-1.5 text-[#0F172A] dark:text-[#FAFAFA]">
                     PARÇA KATEGORİSİ
-                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'item_category' ? 'text-blue-500' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
+                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'item_category' ? 'text-[#60A5FA]' : 'text-[#64748B] opacity-40 group-hover:opacity-100'}`} />
                   </div>
                 </th>
-                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('part_type')}>
-                  <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-[#FFFFFF]/60 dark:hover:bg-[#1E293B]/60 transition-colors" onClick={() => handleSort('part_type')}>
+                  <div className="flex items-center gap-1.5 text-[#0F172A] dark:text-[#FAFAFA]">
                     PARÇA TİPİ
-                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'part_type' ? 'text-blue-500' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
+                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'part_type' ? 'text-[#60A5FA]' : 'text-[#64748B] opacity-40 group-hover:opacity-100'}`} />
                   </div>
                 </th>
-                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('status')}>
-                  <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-[#FFFFFF]/60 dark:hover:bg-[#1E293B]/60 transition-colors" onClick={() => handleSort('status')}>
+                  <div className="flex items-center gap-1.5 text-[#0F172A] dark:text-[#FAFAFA]">
                     PARÇA STATÜSÜ
-                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'status' ? 'text-blue-500' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
+                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'status' ? 'text-[#60A5FA]' : 'text-[#64748B] opacity-40 group-hover:opacity-100'}`} />
                   </div>
                 </th>
                 <th className="px-6 py-4 text-center">İşlemler</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-700/50">
+            <tbody className="divide-y divide-[#E2E8F0] dark:divide-[#1E293B]">
               {loading ? (
                 <tr>
-                  <td colSpan="9" className="px-6 py-8 text-center text-slate-400">
-                    <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-400" />
+                  <td colSpan="9" className="px-6 py-8 text-center text-[#64748B] dark:text-[#94A3B8]">
+                    <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-[#60A5FA]" />
                     Yükleniyor...
                   </td>
                 </tr>
               ) : (!parts || parts.length === 0) ? (
                 <tr>
-                  <td colSpan="9" className="px-6 py-8 text-center text-slate-500">
+                  <td colSpan="9" className="px-6 py-8 text-center text-[#64748B] dark:text-[#94A3B8]">
                     Kayıt bulunamadı.
                   </td>
                 </tr>
@@ -506,121 +519,82 @@ export default function Parts() {
                 (parts || []).map((part) => {
                   const isChecked = selectedRows.includes(part.id);
                   return (
-                  <tr key={part.id} className={`hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors group text-slate-800 dark:text-slate-200 ${isChecked ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}>
-                    <td className="px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
+                  <tr key={part.id} className={`hover:bg-[#FFFFFF]/70 dark:hover:bg-[#1E293B]/70 transition-colors text-[#0F172A] dark:text-[#FAFAFA] ${isChecked ? 'bg-blue-900/30 border-l-4 border-[#2563EB]' : ''}`}>
+                    <td className="px-6 py-3.5 text-center" onClick={(e) => e.stopPropagation()}>
                       <input
                         type="checkbox"
-                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-white dark:bg-slate-800"
+                        className="w-4 h-4 rounded border-[#E2E8F0] dark:border-[#334155] text-[#2563EB] focus:ring-[#2563EB] bg-[#FFFFFF] dark:bg-[#1E293B]"
                         checked={isChecked}
                         onChange={(e) => toggleRowSelect(part.id, e)}
                       />
                     </td>
-                    <td className="px-6 py-4 font-mono text-slate-400">{part.id}</td>
-                    <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200">{part.item_code}</td>
-                    <td className="px-6 py-4">{part.brand || '-'}</td>
-                    <td className="px-6 py-4">{part.model || '-'}</td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-3.5 font-mono text-[#64748B] dark:text-[#94A3B8] text-[11px]">{part.id}</td>
+                    <td className="px-6 py-3.5 font-bold text-[#0F172A] dark:text-[#FAFAFA]">
+                      <span className="px-2.5 py-1 rounded-md bg-blue-950/70 text-[#60A5FA] border border-blue-800/60 font-mono font-bold text-[11px]">
+                        {part.item_code}
+                      </span>
+                    </td>
+                    <td className="px-6 py-3.5 font-semibold text-[#0F172A] dark:text-[#FAFAFA]">{part.brand || '-'}</td>
+                    <td className="px-6 py-3.5 text-slate-300">{part.model || '-'}</td>
+                    <td className="px-6 py-3.5">
                       {part.item_category && (
-                        <span className="px-2.5 py-1 rounded-full text-xs font-medium border bg-blue-500/10 text-blue-400 border-blue-500/20">
+                        <span className="px-2.5 py-1 rounded-lg bg-[#FFFFFF] dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155] text-blue-300 font-semibold text-xs">
                           {part.item_category}
                         </span>
                       )}
                     </td>
-                    <td className="px-6 py-4">{part.part_type || '-'}</td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${
-                        part.status === 'Pasif' ? 'bg-slate-500/10 text-slate-400 border-slate-500/20' :
-                        part.status === 'Beklemede' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
-                        part.status === 'Hurda' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
-                        'bg-green-500/10 text-green-400 border-green-500/20'
+                    <td className="px-6 py-3.5 text-[#64748B] dark:text-[#94A3B8]">{part.part_type || '-'}</td>
+                    <td className="px-6 py-3.5">
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${
+                        part.status === 'Pasif' ? 'bg-slate-500/20 text-slate-400 border-slate-500/30' :
+                        part.status === 'Beklemede' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' :
+                        part.status === 'Hurda' ? 'bg-red-500/20 text-red-400 border-red-500/30' :
+                        'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
                       }`}>
                         {part.status || 'Aktif'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-center">
+                    <td className="px-6 py-3.5 text-center">
                       <div className="flex justify-center gap-2">
-                        <button onClick={(e) => { e.stopPropagation(); handleOpenModal(part); }} className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg transition-colors" title="Düzenle">
+                        <button onClick={(e) => { e.stopPropagation(); handleOpenModal(part); }} className="p-1.5 text-[#64748B] dark:text-[#94A3B8] hover:text-[#60A5FA] hover:bg-[#FFFFFF] dark:hover:bg-[#1E293B] rounded-lg transition-colors cursor-pointer" title="Düzenle">
                           <Edit size={16} />
                         </button>
-                        <button onClick={(e) => { e.stopPropagation(); handleDelete(part.id); }} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors" title="Sil">
+                        <button onClick={(e) => { e.stopPropagation(); handleDelete(part.id); }} className="p-1.5 text-[#64748B] dark:text-[#94A3B8] hover:text-red-400 hover:bg-red-500/20 rounded-lg transition-colors cursor-pointer" title="Sil">
                           <Trash2 size={16} />
                         </button>
                       </div>
                     </td>
                   </tr>
-                  );
-                })
+                );
+              })
               )}
             </tbody>
           </table>
         </div>
 
         {/* Pagination Footer */}
-        <div className="bg-slate-50 dark:bg-[#242a38] border-t border-slate-200 dark:border-slate-700/50 px-6 py-4 flex items-center justify-between text-slate-400 text-sm">
+        <div className="flex flex-col sm:flex-row justify-between items-center px-6 py-4 bg-[#F8FAFC] dark:bg-[#162032] border-t border-[#E2E8F0] dark:border-[#1E293B] gap-4 shrink-0 text-xs text-[#64748B] dark:text-[#94A3B8]">
+          <span>
+            Toplam <strong className="text-[#0F172A] dark:text-[#FAFAFA]">{totalCount.toLocaleString('tr-TR')}</strong> kayıttan <strong className="text-[#0F172A] dark:text-[#FAFAFA]">{parts.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, totalCount)}</strong> arası gösteriliyor
+          </span>
+
           <div className="flex items-center gap-2">
-            <span>Sayfa Başına:</span>
-            <select
-              value={itemsPerPage}
-              onChange={(e) => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }}
-              className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-slate-500"
-            >
-              <option value={10}>10</option>
-              <option value={20}>20</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-              <option value={250}>250</option>
-              <option value={500}>500</option>
-              <option value={1000}>1000</option>
-            </select>
-          </div>
-
-          <div className="flex items-center gap-4">
             <button
-              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
-              className="px-3 py-1.5 bg-white dark:bg-[#1e2330] hover:bg-slate-100 dark:hover:bg-[#2a3142] disabled:opacity-50 disabled:cursor-not-allowed border border-slate-200 dark:border-slate-700 rounded-lg transition-colors text-slate-700 dark:text-slate-300"
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1 || parts.length === 0}
+              className="px-3 py-1.5 bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#334155] rounded-xl text-xs font-bold text-[#0F172A] dark:text-[#FAFAFA] hover:bg-[#FFFFFF] dark:hover:bg-[#1E293B] disabled:opacity-40 transition-all cursor-pointer"
             >
-              ← Önceki
+              Önceki
             </button>
-            
-            <div className="flex items-center gap-1.5 font-medium">
-              <span>Sayfa:</span>
-              <input
-                type="number"
-                min="1"
-                max={totalPages}
-                value={pageInput}
-                onChange={(e) => setPageInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    const pageNum = parseInt(pageInput, 10);
-                    if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= totalPages) {
-                      setCurrentPage(pageNum);
-                    } else {
-                      setPageInput(String(currentPage));
-                    }
-                  }
-                }}
-                onBlur={() => {
-                  const pageNum = parseInt(pageInput, 10);
-                  if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= totalPages) {
-                    setCurrentPage(pageNum);
-                  } else {
-                    setPageInput(String(currentPage));
-                  }
-                }}
-                className="w-16 bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-center text-slate-800 dark:text-slate-200 focus:outline-none focus:border-slate-500 font-semibold"
-              />
-              <span>/ {totalPages}</span>
-              <span className="text-xs text-slate-500 ml-1">({parts.length} Kayıt)</span>
-            </div>
-
+            <span className="text-xs font-bold px-3 py-1.5 bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#334155] rounded-xl text-[#60A5FA]">
+              Sayfa {currentPage} / {totalPages}
+            </span>
             <button
-              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-              disabled={currentPage === totalPages}
-              className="px-3 py-1.5 bg-white dark:bg-[#1e2330] hover:bg-slate-100 dark:hover:bg-[#2a3142] disabled:opacity-50 disabled:cursor-not-allowed border border-slate-200 dark:border-slate-700 rounded-lg transition-colors text-slate-700 dark:text-slate-300"
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage >= totalPages || parts.length === 0}
+              className="px-3 py-1.5 bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#334155] rounded-xl text-xs font-bold text-[#0F172A] dark:text-[#FAFAFA] hover:bg-[#FFFFFF] dark:hover:bg-[#1E293B] disabled:opacity-40 transition-all cursor-pointer"
             >
-              Sonraki →
+              Sonraki
             </button>
           </div>
         </div>

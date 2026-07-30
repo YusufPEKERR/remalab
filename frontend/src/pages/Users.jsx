@@ -481,75 +481,88 @@ export default function Users() {
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
 
   return (
-    <div className="h-full flex flex-col space-y-6 overflow-hidden">
+    <div className="flex flex-col space-y-6 pb-12 text-[#0F172A] dark:text-[#FAFAFA] max-w-[1600px] mx-auto animate-in fade-in duration-300">
       
-      {/* Header */}
-      <div className="flex justify-between items-center bg-white dark:bg-[#1e2330] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm shrink-0">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-3">
-            <UsersIcon className="text-blue-400" size={28}/> Kullanıcılar
-          </h1>
-          <p className="text-slate-400 mt-1">Sistem erişimini, kullanıcı rollerini ve şifrelerini yönetin</p>
+      {/* ════════════════ HERO BANNER ════════════════ */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#F1F5F9] dark:from-[#050A18] via-[#0F172A] to-[#FFFFFF] dark:to-[#1E293B] p-6 sm:p-8 text-white shadow-xl border border-[#E2E8F0] dark:border-[#1E293B]">
+        {/* Ambient Grid Overlay */}
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(99,102,241,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(99,102,241,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
+        <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-2 max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 text-xs font-semibold tracking-wide">
+              <UsersIcon size={13} className="text-indigo-400" /> KULLANICI VE PERSONEL YÖNETİMİ
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+              Kullanıcılar & Personel Tanımları
+            </h1>
+            <p className="text-sm text-slate-300 leading-relaxed">
+              Sistem erişim rollerini, teknisyen görevlerini, yöneticileri ve kullanıcı hesap durumlarını yönetin.
+            </p>
+          </div>
         </div>
       </div>
 
       {error && (
-        <div className="bg-red-500/10 text-red-400 p-4 rounded-xl flex items-center gap-3 border border-red-500/20 shrink-0">
-          <AlertCircle size={20} />
-          <p className="font-medium">{error}</p>
+        <div className="bg-red-500/20 text-red-400 p-4 rounded-2xl flex items-center gap-3 border border-red-500/30 text-xs font-bold">
+          <AlertCircle size={18} />
+          <p>{error}</p>
         </div>
       )}
 
-      {/* Toolbar */}
-      <div className="flex flex-col md:flex-row gap-4 items-center justify-between shrink-0">
-        <div className="relative flex-1 w-full max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+      {/* SEARCH & TOOLBAR */}
+      <div className="bg-[#F8FAFC] dark:bg-[#0F172A] rounded-2xl p-4 border border-[#E2E8F0] dark:border-[#1E293B] shadow-md flex flex-col md:flex-row gap-4 items-center justify-between">
+        <div className="relative flex-1 w-full">
+          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#64748B] dark:text-[#94A3B8]">
+            <Search size={18} />
+          </div>
           <input 
             type="text" 
-            placeholder="Kullanıcı Ara..." 
+            placeholder="Kullanıcı Ara (Ad, İsim, TC, Rol)..." 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:border-blue-500 text-slate-800 dark:text-slate-200 text-sm shadow-sm"
+            className="w-full bg-[#FFFFFF] dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155] text-[#0F172A] dark:text-[#FAFAFA] placeholder-[#64748B] rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm font-medium focus:outline-none focus:border-[#2563EB] transition-all shadow-xs"
           />
         </div>
         
-        <div className="flex flex-wrap gap-2">
-          <button onClick={() => setIsExportModalOpen(true)} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl shadow-sm text-sm font-medium transition-colors">
-            <Download size={16} /> {selectedRows.length > 0 ? `${selectedRows.length} Seçiliyi Dışa Aktar` : 'Tümünü Dışa Aktar'}
+        <div className="flex flex-wrap gap-2.5 shrink-0">
+          <button onClick={() => setIsExportModalOpen(true)} className="flex items-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white px-4 py-2.5 rounded-xl shadow-md text-xs font-bold transition-all cursor-pointer">
+            <Download size={15} /> {selectedRows.length > 0 ? `${selectedRows.length} Seçiliyi Aktar` : 'Excel Dışa Aktar'}
           </button>
-          <button onClick={handleAdd} className="flex items-center gap-2 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:hover:bg-[#2a3142] border border-slate-300 dark:border-slate-600 text-slate-800 dark:text-slate-200 px-4 py-2.5 rounded-xl shadow-sm text-sm font-medium transition-colors">
-            <Plus size={16} className="text-green-400" /> Ekle
+          <button onClick={handleAdd} className="flex items-center gap-2 bg-[#FFFFFF] dark:bg-[#1E293B] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] border border-[#E2E8F0] dark:border-[#334155] text-[#0F172A] dark:text-[#FAFAFA] px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer">
+            <Plus size={15} className="text-emerald-400" /> Ekle
           </button>
-          <button onClick={handleEdit} disabled={!selectedUserId} className="flex items-center gap-2 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:hover:bg-[#2a3142] border border-slate-300 dark:border-slate-600 text-slate-800 dark:text-slate-200 px-4 py-2.5 rounded-xl shadow-sm text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-            <Edit size={16} className="text-blue-400" /> Düzenle
+          <button onClick={handleEdit} disabled={!selectedUserId} className="flex items-center gap-2 bg-[#FFFFFF] dark:bg-[#1E293B] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] border border-[#E2E8F0] dark:border-[#334155] text-[#0F172A] dark:text-[#FAFAFA] px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer disabled:opacity-40">
+            <Edit size={15} className="text-blue-400" /> Düzenle
           </button>
-          <button onClick={handleResetPassword} disabled={!selectedUserId} className="flex items-center gap-2 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:hover:bg-[#2a3142] border border-slate-300 dark:border-slate-600 text-slate-800 dark:text-slate-200 px-4 py-2.5 rounded-xl shadow-sm text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-            <Key size={16} className="text-yellow-400" /> Şifre
+          <button onClick={handleResetPassword} disabled={!selectedUserId} className="flex items-center gap-2 bg-[#FFFFFF] dark:bg-[#1E293B] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] border border-[#E2E8F0] dark:border-[#334155] text-[#0F172A] dark:text-[#FAFAFA] px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer disabled:opacity-40">
+            <Key size={15} className="text-amber-400" /> Şifre
           </button>
-          <button onClick={handleDelete} disabled={!selectedUserId} className="flex items-center gap-2 bg-slate-50 dark:bg-[#242a38] hover:bg-red-500/10 border border-slate-300 dark:border-slate-600 hover:border-red-500/30 text-slate-800 dark:text-slate-200 hover:text-red-400 px-4 py-2.5 rounded-xl shadow-sm text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-            <Trash2 size={16} className={selectedUserId ? "text-red-400" : ""} /> Sil
+          <button onClick={handleDelete} disabled={!selectedUserId} className="flex items-center gap-2 bg-[#FFFFFF] dark:bg-[#1E293B] hover:bg-red-500/20 border border-[#E2E8F0] dark:border-[#334155] hover:border-red-500/30 text-[#0F172A] dark:text-[#FAFAFA] hover:text-red-400 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer disabled:opacity-40">
+            <Trash2 size={15} className={selectedUserId ? "text-red-400" : ""} /> Sil
           </button>
         </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl shadow-lg flex-1 overflow-hidden flex flex-col">
-        <div className="overflow-y-auto flex-1">
-          <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-semibold border-b border-slate-200 dark:border-slate-700/50 sticky top-0 uppercase text-xs z-10">
+      {/* TABLE */}
+      <div className="bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#1E293B] rounded-2xl shadow-md overflow-hidden flex flex-col">
+        <div className="overflow-x-auto flex-1">
+          <table className="w-full text-left text-xs whitespace-nowrap">
+            <thead className="bg-[#F8FAFC] dark:bg-[#162032] text-[#64748B] dark:text-[#94A3B8] font-bold border-b border-[#E2E8F0] dark:border-[#1E293B] sticky top-0 uppercase tracking-wider text-xs z-10 select-none">
               <tr>
                 <th className="px-6 py-4 w-12 text-center select-none">
                   <input 
                     type="checkbox" 
-                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-white dark:bg-slate-800"
+                    className="w-4 h-4 rounded border-[#E2E8F0] dark:border-[#334155] text-[#2563EB] focus:ring-[#2563EB] bg-[#FFFFFF] dark:bg-[#1E293B]"
                     checked={selectedRows.length === users.length && users.length > 0}
                     onChange={toggleSelectAll}
                   />
                 </th>
-                <th className="px-6 py-4 w-20 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('id')}>
-                  <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                <th className="px-6 py-4 w-20 cursor-pointer select-none group hover:bg-[#FFFFFF]/60 dark:hover:bg-[#1E293B]/60 transition-colors" onClick={() => handleSort('id')}>
+                  <div className="flex items-center gap-1.5 text-[#0F172A] dark:text-[#FAFAFA]">
                     ID
-                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'id' ? 'text-blue-500 font-bold' : 'text-slate-500 opacity-40 group-hover:opacity-100'}`} />
+                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'id' ? 'text-[#60A5FA] font-bold' : 'text-[#64748B] opacity-40 group-hover:opacity-100'}`} />
                   </div>
                 </th>
                 <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('username')}>

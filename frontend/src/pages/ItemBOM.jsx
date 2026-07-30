@@ -179,40 +179,56 @@ export default function ItemBOM() {
   };
 
   return (
-    <div className="p-6 h-full flex flex-col space-y-6">
-      <div className="flex justify-between items-center bg-white dark:bg-[#1e2330] p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700/50">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Product Bom Yönetimi</h1>
-          <p className="text-slate-400 mt-1">Cihaz modellerine ait Product Bom kayıtlarını buradan yönetin.</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <select
-              onChange={handleExcelAction}
-              className="appearance-none bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-2 pr-8 transition-colors font-medium cursor-pointer focus:outline-none focus:border-blue-500"
-            >
-              <option value="">Excel İşlemi Seç...</option>
-              <option value="download_template">Boş Şablon İndir</option>
-              <option value="export">Tümünü Dışa Aktar</option>
-              <option value="import">Excel'den İçe Aktar</option>
-            </select>
-            <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-slate-400">
-              <FileSpreadsheet size={16} />
+    <div className="flex flex-col space-y-6 pb-12 text-[#0F172A] dark:text-[#FAFAFA] max-w-[1600px] mx-auto animate-in fade-in duration-300">
+      
+      {/* ════════════════ HERO BANNER ════════════════ */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#F1F5F9] dark:from-[#050A18] via-[#0F172A] to-[#FFFFFF] dark:to-[#1E293B] p-6 sm:p-8 text-white shadow-xl border border-[#E2E8F0] dark:border-[#1E293B]">
+        {/* Ambient Grid Overlay */}
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(20,184,166,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(20,184,166,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
+        <div className="absolute top-0 right-0 w-96 h-96 bg-teal-600/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-2 max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-500/20 border border-teal-400/30 text-teal-300 text-xs font-semibold tracking-wide">
+              <FileSpreadsheet size={13} className="text-teal-400" /> ÜRÜN VE REÇETE YÖNETİMİ
             </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+              Product BOM (Ürün Reçeteleri) Yönetimi
+            </h1>
+            <p className="text-sm text-slate-300 leading-relaxed">
+              Cihaz modellerine ait alt parça (BOM) bileşen tanımlarını ve miktar reçetelerini yönetin.
+            </p>
           </div>
-          <button 
-            onClick={() => handleOpenModal(null)} 
-            className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium shadow-lg shadow-blue-500/30"
-          >
-            <Plus size={18} />
-            Yeni Bileşen Ekle
-          </button>
+
+          <div className="flex items-center gap-3 shrink-0 flex-wrap">
+            <div className="relative">
+              <select
+                onChange={handleExcelAction}
+                className="appearance-none bg-[#FFFFFF] dark:bg-[#1E293B] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] text-[#0F172A] dark:text-[#FAFAFA] border border-[#E2E8F0] dark:border-[#334155] rounded-xl px-4 py-2.5 pr-9 text-xs font-bold transition-all cursor-pointer focus:outline-none focus:border-[#2563EB]"
+              >
+                <option value="">Excel İşlemleri...</option>
+                <option value="download_template">Boş Şablon İndir</option>
+                <option value="export">Tümünü Dışa Aktar</option>
+                <option value="import">Excel'den İçe Aktar</option>
+              </select>
+              <div className="absolute inset-y-0 right-0 flex items-center px-2.5 pointer-events-none text-[#64748B] dark:text-[#94A3B8]">
+                <FileSpreadsheet size={15} />
+              </div>
+            </div>
+            <button 
+              onClick={() => handleOpenModal(null)} 
+              className="flex items-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+            >
+              <Plus size={16} /> Yeni Bileşen Ekle
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="bg-white dark:bg-[#1e2330] rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-lg flex-1 overflow-hidden flex flex-col">
+      {/* CONTAINER */}
+      <div className="bg-[#F8FAFC] dark:bg-[#0F172A] rounded-2xl border border-[#E2E8F0] dark:border-[#1E293B] shadow-md overflow-hidden flex flex-col">
         {/* Filter Bar */}
-        <div className="p-4 border-b border-slate-200 dark:border-slate-700/50 bg-slate-50/50 dark:bg-[#1a1f2b] flex flex-wrap items-center gap-3">
+        <div className="p-4 border-b border-[#E2E8F0] dark:border-[#1E293B] bg-[#F8FAFC] dark:bg-[#162032] flex flex-wrap items-center gap-3">
           {/* General Search Input */}
           <div className="relative flex-1 min-w-[240px]">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />

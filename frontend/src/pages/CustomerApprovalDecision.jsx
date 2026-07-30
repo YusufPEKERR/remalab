@@ -95,84 +95,99 @@ const CustomerApprovalDecision = () => {
   };
 
   return (
-    <div className="h-full flex flex-col space-y-6 overflow-hidden relative">
+    <div className="flex flex-col space-y-6 pb-12 text-[#0F172A] dark:text-[#FAFAFA] max-w-[1600px] mx-auto animate-in fade-in duration-300 relative">
       <NotificationToast notification={notification} onClose={() => setNotification(null)} />
 
-      <div className="bg-white dark:bg-[#1e2330] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm shrink-0">
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-2">
-            <ScanLine className="text-blue-400" size={24} /> Müşteri Onayı Bekleyecek
-          </h1>
+      {/* ════════════════ HERO BANNER ════════════════ */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#F1F5F9] dark:from-[#050A18] via-[#0F172A] to-[#FFFFFF] dark:to-[#1E293B] p-6 sm:p-8 text-white shadow-xl border border-[#E2E8F0] dark:border-[#1E293B]">
+        {/* Ambient Grid Overlay */}
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(139,92,246,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(139,92,246,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
+        <div className="absolute top-0 right-0 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-2 max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/20 border border-purple-400/30 text-purple-300 text-xs font-semibold tracking-wide">
+              <ScanLine size={13} className="text-purple-400" /> MÜŞTERİ ONAY KARARLARI
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+              Müşteri Onayı Bekleyen Cihazlar
+            </h1>
+            <p className="text-sm text-slate-300 leading-relaxed">
+              Müşteri onayına sunulmuş ({SOURCE_STATU}) tüm cihazları görüntüleyin, gelen müşteri kararına göre onay (109) veya red (124) işlemini yapın.
+            </p>
+          </div>
+
           <button
             onClick={loadItems}
             disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 text-sm font-semibold transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#FFFFFF] dark:bg-[#1E293B] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] text-[#0F172A] dark:text-[#FAFAFA] border border-[#E2E8F0] dark:border-[#334155] text-xs font-bold transition-all cursor-pointer disabled:opacity-40 shrink-0"
           >
             <RefreshCw size={15} className={loading ? "animate-spin" : ""} /> Yenile
           </button>
         </div>
-        <p className="text-slate-400 mt-1 text-sm">
-          Müşteri onayına sunulmuş ({SOURCE_STATU}) tüm cihazlar aşağıda listelenir. Onay geldiyse tike, red geldiyse çarpıya basın.
-        </p>
       </div>
 
-      <div className="bg-white dark:bg-[#1e2330] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm shrink-0">
-        <label className="block text-sm font-medium text-slate-400 mb-1.5">IMEI / Seri Numara / Internal ID / Batch No ile filtrele</label>
+      {/* SEARCH BAR */}
+      <div className="bg-[#F8FAFC] dark:bg-[#0F172A] p-6 rounded-2xl border border-[#E2E8F0] dark:border-[#1E293B] shadow-md">
+        <label className="block text-xs font-bold text-[#64748B] dark:text-[#94A3B8] uppercase tracking-wider mb-2">Filtrele (IMEI / Seri No / Batch No)</label>
         <input
           ref={inputRef}
           type="text"
           placeholder="Okutunuz veya yazınız..."
-          className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-blue-500"
+          className="w-full bg-[#FFFFFF] dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155] text-[#0F172A] dark:text-[#FAFAFA] placeholder-[#64748B] rounded-xl px-4 py-3 text-xs sm:text-sm font-mono font-medium focus:outline-none focus:border-[#2563EB] transition-all shadow-xs"
           value={term}
           onChange={(e) => setTerm(e.target.value)}
         />
       </div>
 
-      <div className="flex-1 overflow-y-auto bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6">
+      {/* DEVICE LIST */}
+      <div className="bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#1E293B] rounded-2xl p-6 shadow-md flex-1 min-h-[300px]">
         {loading ? (
-          <div className="flex items-center justify-center h-full text-slate-400 text-sm">Yükleniyor...</div>
+          <div className="flex items-center justify-center h-full text-[#64748B] dark:text-[#94A3B8] text-xs font-semibold py-16">
+            <RefreshCw className="animate-spin mr-2" size={18} /> Yükleniyor...
+          </div>
         ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-3 py-16 text-slate-500">
-            <Info size={32} className="text-slate-300 dark:text-slate-600" />
-            <p className="text-sm">{items.length === 0 ? "Müşteri onayı bekleyen cihaz bulunmuyor." : "Aramanızla eşleşen cihaz bulunamadı."}</p>
+          <div className="flex flex-col items-center justify-center gap-3 py-16 text-[#64748B]">
+            <Info size={32} className="text-[#334155]" />
+            <p className="text-xs font-semibold">{items.length === 0 ? "Müşteri onayı bekleyen cihaz bulunmuyor." : "Aramanızla eşleşen cihaz bulunamadı."}</p>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {filtered.map((entry) => (
               <div
                 key={entry.entry_id}
-                className="flex items-center justify-between gap-4 px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700/50 bg-slate-50 dark:bg-[#242a38]"
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border border-[#E2E8F0] dark:border-[#1E293B] bg-[#F8FAFC] dark:bg-[#162032] hover:bg-[#FFFFFF]/70 dark:hover:bg-[#1E293B]/70 transition-all"
               >
                 <div className="min-w-0">
-                  <p className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate">{entry.imei}</p>
-                  <p className="text-xs text-slate-400 truncate">{entry.batch_no} · {entry.flow}</p>
+                  <p className="text-sm font-bold text-[#0F172A] dark:text-[#FAFAFA] font-mono tracking-wide">{entry.imei}</p>
+                  <p className="text-xs text-[#64748B] dark:text-[#94A3B8] mt-0.5">{entry.batch_no} · <span className="text-blue-400 font-semibold">{entry.flow}</span></p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   {entry.decision === "approved" ? (
-                    <span className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-xs font-bold">
-                      <Check size={14} /> Onayladım
+                    <span className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-bold">
+                      <Check size={15} /> Onaylandı
                     </span>
                   ) : entry.decision === "rejected" ? (
-                    <span className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-red-500/10 text-red-500 border border-red-500/20 text-xs font-bold">
-                      <X size={14} /> Red Verdim
+                    <span className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs font-bold">
+                      <X size={15} /> Reddedildi
                     </span>
                   ) : (
                     <>
                       <button
                         onClick={() => handleDecision(entry, REJECT_TARGET)}
                         disabled={processingId === entry.entry_id}
-                        title="Red geldi"
-                        className="w-10 h-10 flex items-center justify-center rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 transition-colors disabled:opacity-40"
+                        title="Red Ver (124 Statüsüne Gönder)"
+                        className="px-4 py-2 flex items-center gap-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 border border-rose-500/30 transition-all text-xs font-bold cursor-pointer disabled:opacity-40"
                       >
-                        <X size={18} />
+                        <X size={16} /> Reddet
                       </button>
                       <button
                         onClick={() => handleDecision(entry, APPROVE_TARGET)}
                         disabled={processingId === entry.entry_id}
-                        title="Onay geldi"
-                        className="w-10 h-10 flex items-center justify-center rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 border border-emerald-500/20 transition-colors disabled:opacity-40"
+                        title="Onayla (109 Statüsüne Gönder)"
+                        className="px-4 py-2 flex items-center gap-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30 transition-all text-xs font-bold cursor-pointer disabled:opacity-40"
                       >
-                        <Check size={18} />
+                        <Check size={16} /> Onayla
                       </button>
                     </>
                   )}

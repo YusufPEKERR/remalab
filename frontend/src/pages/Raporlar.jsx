@@ -245,57 +245,80 @@ export default function Raporlar() {
   }, [activeTab, locations, selectedLocation]);
 
   return (
-    <div className="flex flex-col space-y-6 min-h-full pb-8">
-      
-      {/* Header */}
-      <div className="flex justify-between items-center bg-white dark:bg-[#1e2330] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm shrink-0">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">Raporlar</h1>
-          <p className="text-slate-400 mt-1">Tüm hareketleri ve kritik stok durumlarını raporlayın.</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <label className="text-sm font-medium text-slate-500">Depo Filtresi:</label>
-          <select
-            value={selectedLocation}
-            onChange={(e) => setSelectedLocation(e.target.value)}
-            className="bg-slate-50 dark:bg-[#242a38] text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-blue-500"
-          >
-            {activeTab !== 'critical' && <option value="">Tüm Depolar</option>}
-            {locations.filter(loc => activeTab === 'critical' ? loc.kind === 'good_stock' : true).map(loc => (
-              <option key={loc.id} value={loc.name}>{loc.name}</option>
-            ))}
-          </select>
+    <div className="flex flex-col space-y-6 pb-12 text-[#0F172A] dark:text-[#FAFAFA] max-w-[1600px] mx-auto animate-in fade-in duration-300">
+
+      {/* ════════════════ HERO BANNER ════════════════ */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#F1F5F9] dark:from-[#050A18] via-[#0F172A] to-[#FFFFFF] dark:to-[#1E293B] p-6 sm:p-8 text-white shadow-xl border border-[#E2E8F0] dark:border-[#1E293B]">
+        {/* Ambient Grid Overlay */}
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(236,72,153,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(236,72,153,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
+        <div className="absolute top-0 right-0 w-96 h-96 bg-pink-600/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-2 max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-pink-500/20 border border-pink-400/30 text-pink-300 text-xs font-semibold tracking-wide">
+              <Download size={13} className="text-pink-400" /> RAPORLAMA VE ANALİZ MODÜLÜ
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+              Sistem Raporları
+            </h1>
+            <p className="text-sm text-slate-300 leading-relaxed">
+              Stok seviyelerini, kritik stok durumlarını ve transfer hareketlerini tarih aralığına ve depoya göre raporlayın.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0 flex-wrap">
+            <div className="flex items-center gap-2 px-3.5 py-2 bg-[#FFFFFF] dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155] rounded-xl text-xs font-bold text-[#64748B] dark:text-[#94A3B8]">
+              <span>Depo:</span>
+              <select
+                value={selectedLocation}
+                onChange={(e) => setSelectedLocation(e.target.value)}
+                className="bg-transparent text-[#0F172A] dark:text-[#FAFAFA] font-bold focus:outline-none cursor-pointer"
+              >
+                {activeTab !== 'critical' && <option value="" className="bg-[#F8FAFC] dark:bg-[#0F172A]">Tüm Depolar</option>}
+                {locations.filter(loc => activeTab === 'critical' ? loc.kind === 'good_stock' : true).map(loc => (
+                  <option key={loc.id} value={loc.name} className="bg-[#F8FAFC] dark:bg-[#0F172A]">{loc.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <button 
+              onClick={() => setIsExportModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+            >
+              <Download size={16} /> {selectedRows.length > 0 ? `${selectedRows.length} Seçiliyi Dışa Aktar` : "Excel Dışa Aktar"}
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex space-x-1 bg-white dark:bg-[#1e2330] p-1 rounded-xl border border-slate-200 dark:border-slate-700/50 shrink-0 self-start overflow-x-auto">
+      {/* ════════════════ TAB BUTTONS ════════════════ */}
+      <div className="flex space-x-2 bg-[#F8FAFC] dark:bg-[#0F172A] p-1.5 rounded-2xl border border-[#E2E8F0] dark:border-[#1E293B] shadow-md shrink-0 self-start overflow-x-auto">
         <button
           onClick={() => setActiveTab('stok')}
-          className={`whitespace-nowrap px-6 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 ${
+          className={`whitespace-nowrap px-6 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
             activeTab === 'stok' 
-              ? 'bg-blue-600 text-slate-900 dark:text-white shadow-lg shadow-blue-900/20' 
-              : 'text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#2a3142]'
+              ? 'bg-[#2563EB] text-white shadow-md' 
+              : 'text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-[#FAFAFA] hover:bg-[#FFFFFF] dark:hover:bg-[#1E293B]'
           }`}
         >
           Stok Raporu
         </button>
         <button
           onClick={() => setActiveTab('critical')}
-          className={`whitespace-nowrap px-6 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 ${
+          className={`whitespace-nowrap px-6 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
             activeTab === 'critical' 
-              ? 'bg-red-600 text-slate-900 dark:text-white shadow-lg shadow-red-900/20' 
-              : 'text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#2a3142]'
+              ? 'bg-red-600 text-white shadow-md' 
+              : 'text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-[#FAFAFA] hover:bg-[#FFFFFF] dark:hover:bg-[#1E293B]'
           }`}
         >
           Kritik Stok Raporu
         </button>
         <button
           onClick={() => setActiveTab('transfers')}
-          className={`whitespace-nowrap px-6 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 ${
+          className={`whitespace-nowrap px-6 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
             activeTab === 'transfers' 
-              ? 'bg-orange-600 text-slate-900 dark:text-white shadow-lg shadow-orange-900/20' 
-              : 'text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#2a3142]'
+              ? 'bg-amber-600 text-white shadow-md' 
+              : 'text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-[#FAFAFA] hover:bg-[#FFFFFF] dark:hover:bg-[#1E293B]'
           }`}
         >
           Transfer Hareketleri
@@ -303,50 +326,39 @@ export default function Raporlar() {
       </div>
 
       {activeTab === 'stok' && (
-        <>
-          {/* Toolbar Stok */}
-          <div className="bg-white dark:bg-[#1e2330] p-4 rounded-xl border border-slate-200 dark:border-slate-700/50 shadow-sm flex items-center shrink-0">
-            <button 
-              onClick={() => setIsExportModalOpen(true)}
-              className="flex items-center gap-2 px-5 py-2 bg-slate-100 dark:bg-[#2a3142] hover:bg-[#323a4d] border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors ml-auto"
-            >
-              <Download size={16} /> {selectedRows.length > 0 ? `${selectedRows.length} Seçiliyi Dışa Aktar` : "Tümünü Dışa Aktar"}
-            </button>
-          </div>
-
-          {/* Table Stok */}
-          <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl shadow-lg flex-1 flex flex-col">
-            <div className="overflow-auto max-h-[480px] w-full">
-              <table className="w-full text-left text-base whitespace-nowrap">
-                <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-sm sticky top-0 z-10">
+        /* Table Stok */
+        <div className="bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#1E293B] rounded-2xl shadow-md flex-1 flex flex-col overflow-hidden">
+            <div className="overflow-x-auto w-full">
+              <table className="w-full text-left text-xs whitespace-nowrap">
+                <thead className="bg-[#F8FAFC] dark:bg-[#162032] text-[#64748B] dark:text-[#94A3B8] font-bold uppercase tracking-wider border-b border-[#E2E8F0] dark:border-[#1E293B] sticky top-0 z-10">
                   <tr>
-                    <th className="px-6 py-5 w-12 text-center">
+                    <th className="px-6 py-4 w-12 text-center">
                       <input 
                         type="checkbox" 
-                        className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-white dark:bg-slate-800"
+                        className="w-4 h-4 rounded border-[#E2E8F0] dark:border-[#334155] text-[#2563EB] focus:ring-[#2563EB] bg-[#FFFFFF] dark:bg-[#1E293B]"
                         checked={selectedRows.length === filteredStockReports.length && filteredStockReports.length > 0}
                         onChange={toggleSelectAll}
                       />
                     </th>
-                    <th className="px-6 py-4 min-w-[150px]">SON HAREKET TARİHİ</th>
-                    <th className="px-6 py-4 min-w-[150px]">İTEM KODU</th>
-                    <th className="px-6 py-4 min-w-[300px]">PARÇA ADI</th>
+                    <th className="px-6 py-4">SON HAREKET TARİHİ</th>
+                    <th className="px-6 py-4">İTEM KODU</th>
+                    <th className="px-6 py-4">PARÇA ADI</th>
                     <th className="px-6 py-4">LOKASYON</th>
                     <th className="px-6 py-4">STOK MİKTARI</th>
                     <th className="px-6 py-4">KRİTİK DURUMU</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-700/50">
+                <tbody className="divide-y divide-[#E2E8F0] dark:divide-[#1E293B]">
                   {loading ? (
                     <tr>
-                      <td colSpan="7" className="px-6 py-8 text-center text-slate-400">
-                        <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-400" />
+                      <td colSpan="7" className="px-6 py-8 text-center text-[#64748B] dark:text-[#94A3B8]">
+                        <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-[#60A5FA]" />
                         Yükleniyor...
                       </td>
                     </tr>
                   ) : filteredStockReports.length === 0 ? (
                     <tr>
-                      <td colSpan="7" className="px-6 py-8 text-center text-slate-500">
+                      <td colSpan="7" className="px-6 py-8 text-center text-[#64748B] dark:text-[#94A3B8]">
                         Kayıt bulunamadı.
                       </td>
                     </tr>
@@ -355,319 +367,326 @@ export default function Raporlar() {
                       const isChecked = selectedRows.includes(r.id);
                       const isCritical = r.location_kind === 'good_stock' && r.quantity <= r.critical_limit;
                       return (
-                      <tr key={r.id} className={`hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors group text-slate-700 dark:text-slate-300 ${isChecked ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}>
-                        <td className="px-6 py-5 text-center" onClick={(e) => e.stopPropagation()}>
+                      <tr key={r.id} className={`hover:bg-[#FFFFFF]/70 dark:hover:bg-[#1E293B]/70 transition-colors text-[#0F172A] dark:text-[#FAFAFA] ${isChecked ? 'bg-blue-900/30 border-l-4 border-[#2563EB]' : ''}`}>
+                        <td className="px-6 py-3.5 text-center" onClick={(e) => e.stopPropagation()}>
                           <input 
                             type="checkbox" 
-                            className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-white dark:bg-slate-800"
+                            className="w-4 h-4 rounded border-[#E2E8F0] dark:border-[#334155] text-[#2563EB] focus:ring-[#2563EB] bg-[#FFFFFF] dark:bg-[#1E293B]"
                             checked={isChecked}
                             onChange={(e) => toggleRowSelect(r.id, e)}
                           />
                         </td>
-                        <td className="px-6 py-5 font-mono text-slate-400 text-sm">{r.updated_at || r.date || '-'}</td>
-                        <td className="px-6 py-5 font-mono text-slate-500 dark:text-slate-400">{r.item_code}</td>
-                        <td className="px-6 py-5 font-medium text-slate-800 dark:text-slate-200">{r.part_name}</td>
-                        <td className="px-6 py-5 text-slate-400">{r.location_name}</td>
-                        <td className={`px-6 py-5 font-mono font-semibold ${
-                          (r.type || '').includes('Çıkış') || (r.type || '').includes('Satış') || (r.type || '').includes('Servis Kullanımı') || (r.type || '').includes('Outbound') || (r.type || '').includes('Fire') || (r.type || '').includes('Teknik Servis')
-                            ? 'text-red-500'
-                            : (r.type || '').includes('Giriş') || (r.type || '').includes('Yeni Alım') || (r.type || '').includes('İade') || (r.type || '').includes('Return') || (r.type || '').includes('İptal') || (r.type || '').includes('Inbound')
-                              ? 'text-emerald-500'
-                              : 'text-blue-500'
-                        }`}>
-                          {(r.type || '').includes('Çıkış') || (r.type || '').includes('Satış') || (r.type || '').includes('Servis Kullanımı') || (r.type || '').includes('Outbound') || (r.type || '').includes('Fire') || (r.type || '').includes('Teknik Servis') ? '-' : (
-                            (r.type || '').includes('Giriş') || (r.type || '').includes('Yeni Alım') || (r.type || '').includes('İade') || (r.type || '').includes('Return') || (r.type || '').includes('İptal') || (r.type || '').includes('Inbound') ? '+' : ''
-                          )}{r.quantity}
+                        <td className="px-6 py-3.5 font-mono text-[#64748B] dark:text-[#94A3B8] text-[11px]">{r.updated_at || r.date || '-'}</td>
+                        <td className="px-6 py-3.5">
+                          <span className="px-2.5 py-1 rounded-md bg-blue-950/70 text-[#60A5FA] border border-blue-800/60 font-mono font-bold text-[11px]">
+                            {r.item_code}
+                          </span>
                         </td>
-                        <td className="px-6 py-5">
-                          {isCritical ? (
-                            <span className="text-red-500 font-bold flex items-center gap-1.5"><AlertTriangle size={16} /> Kritik</span>
-                          ) : (
-                            <span className="text-emerald-500 font-medium">Normal</span>
-                          )}
+                        <td className="px-6 py-3.5 font-bold text-[#0F172A] dark:text-[#FAFAFA]">{r.part_name}</td>
+                        <td className="px-6 py-3.5">{r.location_name}</td>
+                        <td className="px-6 py-3.5 font-mono font-bold text-sm">{r.quantity}</td>
+                        <td className="px-6 py-3.5">
+                          <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${
+                            isCritical ? 'bg-red-500/20 text-red-400 border-red-500/30' : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                          }`}>
+                            {isCritical ? '⚠️ KRİTİK' : 'NORMAL'}
+                          </span>
                         </td>
                       </tr>
-                      );
-                    })
+                    );
+                  })
                   )}
                 </tbody>
               </table>
             </div>
+
+            {/* Pagination Footer */}
+            <div className="flex justify-between items-center px-6 py-4 bg-[#F8FAFC] dark:bg-[#162032] border-t border-[#E2E8F0] dark:border-[#1E293B] shrink-0 text-xs text-[#64748B] dark:text-[#94A3B8]">
+              <span>
+                Toplam <strong className="text-[#0F172A] dark:text-[#FAFAFA]">{activeDataList.length}</strong> kayıttan <strong className="text-[#0F172A] dark:text-[#FAFAFA]">{activeDataList.length === 0 ? 0 : indexOfFirstItem + 1}-{Math.min(indexOfLastItem, activeDataList.length)}</strong> arası gösteriliyor
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1 || activeDataList.length === 0}
+                  className="px-3 py-1.5 bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#334155] rounded-xl text-xs font-bold text-[#0F172A] dark:text-[#FAFAFA] hover:bg-[#FFFFFF] dark:hover:bg-[#1E293B] disabled:opacity-40 transition-all cursor-pointer"
+                >
+                  Önceki
+                </button>
+                <span className="text-xs font-bold px-3 py-1.5 bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#334155] rounded-xl text-[#60A5FA]">
+                  Sayfa {currentPage} / {totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage >= totalPages || activeDataList.length === 0}
+                  className="px-3 py-1.5 bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#334155] rounded-xl text-xs font-bold text-[#0F172A] dark:text-[#FAFAFA] hover:bg-[#FFFFFF] dark:hover:bg-[#1E293B] disabled:opacity-40 transition-all cursor-pointer"
+                >
+                  Sonraki
+                </button>
+              </div>
+            </div>
           </div>
-        </>
+        )}
+      {activeTab === 'critical' && (
+        <div className="bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#1E293B] rounded-2xl shadow-md flex-1 flex flex-col overflow-hidden">
+          <div className="overflow-x-auto w-full">
+            <table className="w-full text-left text-xs whitespace-nowrap">
+              <thead className="bg-[#F8FAFC] dark:bg-[#162032] text-[#64748B] dark:text-[#94A3B8] font-bold uppercase tracking-wider border-b border-[#E2E8F0] dark:border-[#1E293B] sticky top-0 z-10">
+                <tr>
+                  <th className="px-6 py-4 w-12 text-center">
+                    <input 
+                      type="checkbox" 
+                      className="w-4 h-4 rounded border-[#E2E8F0] dark:border-[#334155] text-[#2563EB] focus:ring-[#2563EB] bg-[#FFFFFF] dark:bg-[#1E293B]"
+                      checked={selectedRows.length === filteredCriticalReports.length && filteredCriticalReports.length > 0}
+                      onChange={toggleSelectAll}
+                    />
+                  </th>
+                  <th className="px-6 py-4">İTEM KODU</th>
+                  <th className="px-6 py-4">PARÇA ADI</th>
+                  <th className="px-6 py-4">LOKASYON</th>
+                  <th className="px-6 py-4">MEVCUT STOK</th>
+                  <th className="px-6 py-4">KRİTİK LİMİT</th>
+                  <th className="px-6 py-4">DURUM</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#E2E8F0] dark:divide-[#1E293B]">
+                {loading ? (
+                  <tr>
+                    <td colSpan="7" className="px-6 py-8 text-center text-[#64748B] dark:text-[#94A3B8]">
+                      <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-[#60A5FA]" />
+                      Yükleniyor...
+                    </td>
+                  </tr>
+                ) : filteredCriticalReports.length === 0 ? (
+                  <tr>
+                    <td colSpan="7" className="px-6 py-8 text-center text-[#64748B] dark:text-[#94A3B8]">
+                      Kritik stok seviyesinde parça bulunamadı.
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedReports.map((r) => {
+                    const isChecked = selectedRows.includes(r.id);
+                    return (
+                    <tr key={r.id} className={`hover:bg-[#FFFFFF]/70 dark:hover:bg-[#1E293B]/70 transition-colors text-[#0F172A] dark:text-[#FAFAFA] ${isChecked ? 'bg-blue-900/30 border-l-4 border-[#2563EB]' : ''}`}>
+                      <td className="px-6 py-3.5 text-center" onClick={(e) => e.stopPropagation()}>
+                        <input 
+                          type="checkbox" 
+                          className="w-4 h-4 rounded border-[#E2E8F0] dark:border-[#334155] text-[#2563EB] focus:ring-[#2563EB] bg-[#FFFFFF] dark:bg-[#1E293B]"
+                          checked={isChecked}
+                          onChange={(e) => toggleRowSelect(r.id, e)}
+                        />
+                      </td>
+                      <td className="px-6 py-3.5">
+                        <span className="px-2.5 py-1 rounded-md bg-blue-950/70 text-[#60A5FA] border border-blue-800/60 font-mono font-bold text-[11px]">
+                          {r.item_code}
+                        </span>
+                      </td>
+                      <td className="px-6 py-3.5 font-bold text-[#0F172A] dark:text-[#FAFAFA]">{r.part_name}</td>
+                      <td className="px-6 py-3.5">{r.location_name}</td>
+                      <td className="px-6 py-3.5 font-mono font-bold text-sm text-red-400">{r.quantity}</td>
+                      <td className="px-6 py-3.5 font-mono text-[#64748B] dark:text-[#94A3B8]">{r.critical_limit}</td>
+                      <td className="px-6 py-3.5">
+                        <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-red-500/20 text-red-400 border border-red-500/30 flex items-center gap-1.5 w-fit">
+                          <AlertTriangle size={12} /> KRİTİK SEVİYE
+                        </span>
+                      </td>
+                    </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex justify-between items-center px-6 py-4 bg-[#F8FAFC] dark:bg-[#162032] border-t border-[#E2E8F0] dark:border-[#1E293B] shrink-0 text-xs text-[#64748B] dark:text-[#94A3B8]">
+            <span>
+              Toplam <strong className="text-[#0F172A] dark:text-[#FAFAFA]">{activeDataList.length}</strong> kayıttan <strong className="text-[#0F172A] dark:text-[#FAFAFA]">{activeDataList.length === 0 ? 0 : indexOfFirstItem + 1}-{Math.min(indexOfLastItem, activeDataList.length)}</strong> arası gösteriliyor
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1 || activeDataList.length === 0}
+                className="px-3 py-1.5 bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#334155] rounded-xl text-xs font-bold text-[#0F172A] dark:text-[#FAFAFA] hover:bg-[#FFFFFF] dark:hover:bg-[#1E293B] disabled:opacity-40 transition-all cursor-pointer"
+              >
+                Önceki
+              </button>
+              <span className="text-xs font-bold px-3 py-1.5 bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#334155] rounded-xl text-[#60A5FA]">
+                Sayfa {currentPage} / {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage >= totalPages || activeDataList.length === 0}
+                className="px-3 py-1.5 bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#334155] rounded-xl text-xs font-bold text-[#0F172A] dark:text-[#FAFAFA] hover:bg-[#FFFFFF] dark:hover:bg-[#1E293B] disabled:opacity-40 transition-all cursor-pointer"
+              >
+                Sonraki
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {activeTab === 'transfers' && (
-        <>
+        <div className="space-y-4">
           {/* Toolbar Transfers */}
-          <div className="bg-white dark:bg-[#1e2330] p-4 rounded-xl border border-slate-200 dark:border-slate-700/50 shadow-sm flex flex-col gap-4 shrink-0">
-            {/* Quick Filters */}
-            <div className="flex gap-2 border-b border-slate-200 dark:border-slate-700/50 pb-3">
-               <span className="text-sm font-medium text-slate-400 self-center mr-2">Hızlı Filtre:</span>
-               <button onClick={() => setQuickFilter('today')} className="text-xs px-3 py-1.5 bg-slate-100 dark:bg-[#2a3142] hover:bg-[#323a4d] text-slate-700 dark:text-slate-300 rounded-lg border border-slate-300 dark:border-slate-600 transition-colors">Bugün</button>
-               <button onClick={() => setQuickFilter('yesterday')} className="text-xs px-3 py-1.5 bg-slate-100 dark:bg-[#2a3142] hover:bg-[#323a4d] text-slate-700 dark:text-slate-300 rounded-lg border border-slate-300 dark:border-slate-600 transition-colors">Dün</button>
-               <button onClick={() => setQuickFilter('week')} className="text-xs px-3 py-1.5 bg-slate-100 dark:bg-[#2a3142] hover:bg-[#323a4d] text-slate-700 dark:text-slate-300 rounded-lg border border-slate-300 dark:border-slate-600 transition-colors">Son 1 Hafta</button>
-               <button onClick={() => setQuickFilter('month')} className="text-xs px-3 py-1.5 bg-slate-100 dark:bg-[#2a3142] hover:bg-[#323a4d] text-slate-700 dark:text-slate-300 rounded-lg border border-slate-300 dark:border-slate-600 transition-colors">Son 1 Ay</button>
+          <div className="bg-[#F8FAFC] dark:bg-[#0F172A] p-4 rounded-2xl border border-[#E2E8F0] dark:border-[#1E293B] shadow-md flex flex-col gap-4">
+            <div className="flex gap-2 border-b border-[#E2E8F0] dark:border-[#1E293B] pb-3">
+               <span className="text-xs font-bold text-[#64748B] dark:text-[#94A3B8] self-center mr-2">Hızlı Filtre:</span>
+               <button onClick={() => setQuickFilter('today')} className="text-xs px-3 py-1.5 bg-[#FFFFFF] dark:bg-[#1E293B] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] text-[#0F172A] dark:text-[#FAFAFA] rounded-xl border border-[#E2E8F0] dark:border-[#334155] transition-colors font-semibold cursor-pointer">Bugün</button>
+               <button onClick={() => setQuickFilter('yesterday')} className="text-xs px-3 py-1.5 bg-[#FFFFFF] dark:bg-[#1E293B] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] text-[#0F172A] dark:text-[#FAFAFA] rounded-xl border border-[#E2E8F0] dark:border-[#334155] transition-colors font-semibold cursor-pointer">Dün</button>
+               <button onClick={() => setQuickFilter('week')} className="text-xs px-3 py-1.5 bg-[#FFFFFF] dark:bg-[#1E293B] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] text-[#0F172A] dark:text-[#FAFAFA] rounded-xl border border-[#E2E8F0] dark:border-[#334155] transition-colors font-semibold cursor-pointer">Son 1 Hafta</button>
+               <button onClick={() => setQuickFilter('month')} className="text-xs px-3 py-1.5 bg-[#FFFFFF] dark:bg-[#1E293B] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] text-[#0F172A] dark:text-[#FAFAFA] rounded-xl border border-[#E2E8F0] dark:border-[#334155] transition-colors font-semibold cursor-pointer">Son 1 Ay</button>
             </div>
             
-            <div className="flex flex-col md:flex-row gap-4 items-center">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-slate-400">Başlangıç:</span>
-                <input 
-                  type="date" 
-                  style={{ colorScheme: 'dark' }}
-                  className="bg-slate-50 dark:bg-[#242a38] text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-l-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
-                  value={startDate.split('T')[0] || ''}
-                  onChange={(e) => setStartDate(`${e.target.value}T${startDate.split('T')[1] || '00:00'}`)}
-                />
-                <input 
-                  type="time" 
-                  style={{ colorScheme: 'dark' }}
-                  className="bg-slate-50 dark:bg-[#242a38] text-slate-800 dark:text-slate-200 border-y border-r border-slate-200 dark:border-slate-700 rounded-r-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 -ml-2"
-                  value={startDate.split('T')[1] || '00:00'}
-                  onChange={(e) => setStartDate(`${startDate.split('T')[0] || ''}T${e.target.value}`)}
-                />
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-slate-400">Bitiş:</span>
-                <input 
-                  type="date" 
-                  style={{ colorScheme: 'dark' }}
-                  className="bg-slate-50 dark:bg-[#242a38] text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-l-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
-                  value={endDate.split('T')[0] || ''}
-                  onChange={(e) => setEndDate(`${e.target.value}T${endDate.split('T')[1] || '23:59'}`)}
-                />
-                <input 
-                  type="time" 
-                  style={{ colorScheme: 'dark' }}
-                  className="bg-slate-50 dark:bg-[#242a38] text-slate-800 dark:text-slate-200 border-y border-r border-slate-200 dark:border-slate-700 rounded-r-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 -ml-2"
-                  value={endDate.split('T')[1] || '23:59'}
-                  onChange={(e) => setEndDate(`${endDate.split('T')[0] || ''}T${e.target.value}`)}
-                />
-              </div>
+            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+              <div className="flex items-center gap-3 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-[#64748B] dark:text-[#94A3B8]">Başlangıç:</span>
+                  <input 
+                    type="date" 
+                    style={{ colorScheme: 'dark' }}
+                    className="bg-[#FFFFFF] dark:bg-[#1E293B] text-[#0F172A] dark:text-[#FAFAFA] border border-[#E2E8F0] dark:border-[#334155] rounded-xl px-3 py-2 text-xs font-mono focus:outline-none focus:border-[#2563EB]"
+                    value={startDate.split('T')[0] || ''}
+                    onChange={(e) => setStartDate(`${e.target.value}T${startDate.split('T')[1] || '00:00'}`)}
+                  />
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-[#64748B] dark:text-[#94A3B8]">Bitiş:</span>
+                  <input 
+                    type="date" 
+                    style={{ colorScheme: 'dark' }}
+                    className="bg-[#FFFFFF] dark:bg-[#1E293B] text-[#0F172A] dark:text-[#FAFAFA] border border-[#E2E8F0] dark:border-[#334155] rounded-xl px-3 py-2 text-xs font-mono focus:outline-none focus:border-[#2563EB]"
+                    value={endDate.split('T')[0] || ''}
+                    onChange={(e) => setEndDate(`${e.target.value}T${endDate.split('T')[1] || '23:59'}`)}
+                  />
+                </div>
 
-              <button 
-                onClick={() => fetchReports(false)}
-                className="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
-              >
-                <Filter size={16} /> Filtrele
-              </button>
-
-              <button 
-                onClick={() => setIsExportModalOpen(true)}
-                className="flex items-center gap-2 px-5 py-2 bg-slate-100 dark:bg-[#2a3142] hover:bg-[#323a4d] border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors ml-auto"
-              >
-                <Download size={16} /> {selectedRows.length > 0 ? `${selectedRows.length} Seçiliyi Dışa Aktar` : "Tümünü Dışa Aktar"}
-              </button>
+                <button 
+                  onClick={() => fetchReports(false)}
+                  className="flex items-center gap-2 px-4 py-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+                >
+                  <Filter size={15} /> Filtrele
+                </button>
+              </div>
             </div>
           </div>
 
           {/* Table Transfers */}
-          <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl shadow-lg flex-1 flex flex-col">
-            <div className="overflow-auto max-h-[480px] w-full">
-              <table className="w-full text-left text-base whitespace-nowrap">
-                <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-sm sticky top-0 z-10">
+          <div className="bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#1E293B] rounded-2xl shadow-md flex-1 flex flex-col overflow-hidden">
+            <div className="overflow-x-auto w-full">
+              <table className="w-full text-left text-xs whitespace-nowrap">
+                <thead className="bg-[#F8FAFC] dark:bg-[#162032] text-[#64748B] dark:text-[#94A3B8] font-bold uppercase tracking-wider border-b border-[#E2E8F0] dark:border-[#1E293B] sticky top-0 z-10">
                   <tr>
-                    <th className="px-6 py-5 w-12 text-center">
+                    <th className="px-6 py-4 w-12 text-center">
                       <input 
                         type="checkbox" 
-                        className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-white dark:bg-slate-800"
+                        className="w-4 h-4 rounded border-[#E2E8F0] dark:border-[#334155] text-[#2563EB] focus:ring-[#2563EB] bg-[#FFFFFF] dark:bg-[#1E293B]"
                         checked={selectedRows.length === filteredTransferReports.length && filteredTransferReports.length > 0}
                         onChange={toggleSelectAll}
                       />
                     </th>
                     <th className="px-6 py-4">TARİH</th>
-                    <th className="px-6 py-4 min-w-[150px]">İTEM KODU</th>
-                    <th className="px-6 py-4 min-w-[200px]">PARÇA ADI</th>
+                    <th className="px-6 py-4">İTEM KODU</th>
+                    <th className="px-6 py-4">PARÇA ADI</th>
+                    <th className="px-6 py-4">MİKTAR</th>
                     <th className="px-6 py-4">KAYNAK DEPO</th>
                     <th className="px-6 py-4">HEDEF DEPO</th>
-                    <th className="px-6 py-4">MİKTAR</th>
                     <th className="px-6 py-4">İŞLEMİ YAPAN</th>
-                    <th className="px-6 py-4">AÇIKLAMA</th>
+                    <th className="px-6 py-4">TÜR</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-700/50">
+                <tbody className="divide-y divide-[#E2E8F0] dark:divide-[#1E293B]">
                   {loading ? (
                     <tr>
-                      <td colSpan="9" className="px-6 py-8 text-center text-slate-400">
-                        <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-400" />
+                      <td colSpan="9" className="px-6 py-8 text-center text-[#64748B] dark:text-[#94A3B8]">
+                        <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-[#60A5FA]" />
                         Yükleniyor...
                       </td>
                     </tr>
                   ) : filteredTransferReports.length === 0 ? (
                     <tr>
-                      <td colSpan="9" className="px-6 py-8 text-center text-slate-500">
-                        Kayıt bulunamadı.
+                      <td colSpan="9" className="px-6 py-8 text-center text-[#64748B] dark:text-[#94A3B8]">
+                        Transfer hareketi bulunamadı.
                       </td>
                     </tr>
                   ) : (
                     paginatedReports.map((r) => {
                       const isChecked = selectedRows.includes(r.id);
+                      const isOut = (r.type || '').includes('Çıkış') || (r.type || '').includes('Satış') || (r.type || '').includes('Servis Kullanımı') || (r.type || '').includes('Outbound') || (r.type || '').includes('Fire') || (r.type || '').includes('Teknik Servis');
+                      const isIn = (r.type || '').includes('Giriş') || (r.type || '').includes('Yeni Alım') || (r.type || '').includes('İade') || (r.type || '').includes('Return') || (r.type || '').includes('İptal') || (r.type || '').includes('Inbound');
                       return (
-                      <tr key={r.id} className={`hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors group text-slate-700 dark:text-slate-300 ${isChecked ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}>
-                        <td className="px-6 py-5 text-center" onClick={(e) => e.stopPropagation()}>
+                      <tr key={r.id} className={`hover:bg-[#FFFFFF]/70 dark:hover:bg-[#1E293B]/70 transition-colors text-[#0F172A] dark:text-[#FAFAFA] ${isChecked ? 'bg-blue-900/30 border-l-4 border-[#2563EB]' : ''}`}>
+                        <td className="px-6 py-3.5 text-center" onClick={(e) => e.stopPropagation()}>
                           <input 
                             type="checkbox" 
-                            className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-white dark:bg-slate-800"
+                            className="w-4 h-4 rounded border-[#E2E8F0] dark:border-[#334155] text-[#2563EB] focus:ring-[#2563EB] bg-[#FFFFFF] dark:bg-[#1E293B]"
                             checked={isChecked}
                             onChange={(e) => toggleRowSelect(r.id, e)}
                           />
                         </td>
-                        <td className="px-6 py-5 font-mono text-slate-400">{r.date}</td>
-                        <td className="px-6 py-5 font-mono text-slate-500 dark:text-slate-400">{r.item_code}</td>
-                        <td className="px-6 py-5 font-medium text-slate-800 dark:text-slate-200">{r.part_name}</td>
-                        <td className="px-6 py-5 text-slate-400">{r.source_location}</td>
-                        <td className="px-6 py-5 text-slate-400">{r.target_location}</td>
-                        <td className={`px-6 py-5 font-mono font-semibold ${
-                          (r.type || '').includes('Çıkış') || (r.type || '').includes('Satış') || (r.type || '').includes('Servis Kullanımı') || (r.type || '').includes('Outbound') || (r.type || '').includes('Fire') || (r.type || '').includes('Teknik Servis')
-                            ? 'text-red-500'
-                            : (r.type || '').includes('Giriş') || (r.type || '').includes('Yeni Alım') || (r.type || '').includes('İade') || (r.type || '').includes('Return') || (r.type || '').includes('İptal') || (r.type || '').includes('Inbound')
-                              ? 'text-emerald-500'
-                              : 'text-blue-500'
-                        }`}>
-                          {(r.type || '').includes('Çıkış') || (r.type || '').includes('Satış') || (r.type || '').includes('Servis Kullanımı') || (r.type || '').includes('Outbound') || (r.type || '').includes('Fire') || (r.type || '').includes('Teknik Servis') ? '-' : (
-                            (r.type || '').includes('Giriş') || (r.type || '').includes('Yeni Alım') || (r.type || '').includes('İade') || (r.type || '').includes('Return') || (r.type || '').includes('İptal') || (r.type || '').includes('Inbound') ? '+' : ''
-                          )}{r.quantity}
-                        </td>
-                        <td className="px-6 py-5">{r.user}</td>
-                        <td className="px-6 py-5">
-                          <span className={`px-3 py-1.5 rounded-full text-sm font-medium border ${
-                            (r.type || '').includes('Giriş') 
-                              ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20' 
-                              : (r.type || '').includes('Çıkış') 
-                                ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20'
-                                : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-600'
-                          }`}>
-                            {r.type}
+                        <td className="px-6 py-3.5 font-mono text-[#64748B] dark:text-[#94A3B8] text-[11px]">{r.date || '-'}</td>
+                        <td className="px-6 py-3.5">
+                          <span className="px-2.5 py-1 rounded-md bg-blue-950/70 text-[#60A5FA] border border-blue-800/60 font-mono font-bold text-[11px]">
+                            {r.item_code}
                           </span>
                         </td>
+                        <td className="px-6 py-3.5 font-bold text-[#0F172A] dark:text-[#FAFAFA]">{r.part_name}</td>
+                        <td className={`px-6 py-3.5 font-mono font-bold text-sm ${isOut ? 'text-red-400' : (isIn ? 'text-emerald-400' : 'text-blue-400')}`}>
+                          {isOut ? '-' : (isIn ? '+' : '')}{r.quantity}
+                        </td>
+                        <td className="px-6 py-3.5">{r.source_location || '-'}</td>
+                        <td className="px-6 py-3.5">{r.target_location || '-'}</td>
+                        <td className="px-6 py-3.5">{r.user || '-'}</td>
+                        <td className="px-6 py-3.5 text-[#64748B] dark:text-[#94A3B8]">{r.type || '-'}</td>
                       </tr>
-                      );
-                    })
+                    );
+                  })
                   )}
                 </tbody>
               </table>
             </div>
-          </div>
-        </>
-      )}
 
-      {activeTab === 'critical' && (
-        <>
-          {/* Toolbar Critical */}
-          <div className="bg-white dark:bg-[#1e2330] p-4 rounded-xl border border-slate-200 dark:border-slate-700/50 shadow-sm flex items-center shrink-0">
-            <button 
-              onClick={() => setIsExportModalOpen(true)}
-              className="flex items-center gap-2 px-5 py-2 bg-slate-100 dark:bg-[#2a3142] hover:bg-[#323a4d] border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors ml-auto"
-            >
-              <Download size={16} /> {selectedRows.length > 0 ? `${selectedRows.length} Seçiliyi Dışa Aktar` : "Tümünü Dışa Aktar"}
-            </button>
-          </div>
-
-          {/* Table Critical */}
-          <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl shadow-lg flex-1 flex flex-col">
-            <div className="overflow-auto max-h-[480px] w-full">
-              <table className="w-full text-left text-base whitespace-nowrap">
-                <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-sm sticky top-0 z-10">
-                  <tr>
-                    <th className="px-6 py-5 w-12 text-center">
-                      <input 
-                        type="checkbox" 
-                        className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-white dark:bg-slate-800"
-                        checked={selectedRows.length === activeDataList.length && activeDataList.length > 0}
-                        onChange={toggleSelectAll}
-                      />
-                    </th>
-                    <th className="px-6 py-4 min-w-[150px]">İTEM KODU</th>
-                    <th className="px-6 py-4 min-w-[300px]">PARÇA ADI</th>
-                    <th className="px-6 py-4">LOKASYON</th>
-                    <th className="px-6 py-4">MEVCUT STOK</th>
-                    <th className="px-6 py-4">KRİTİK LİMİT</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-700/50">
-                  {loading ? (
-                    <tr>
-                      <td colSpan="5" className="px-6 py-8 text-center text-slate-400">
-                        <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-red-400" />
-                        Yükleniyor...
-                      </td>
-                    </tr>
-                  ) : filteredCriticalReports.length === 0 ? (
-                    <tr>
-                      <td colSpan="5" className="px-6 py-8 text-center text-slate-500">
-                        Kritik stok uyarısı bulunmamaktadır.
-                      </td>
-                    </tr>
-                  ) : (
-                    paginatedReports.map((r) => {
-                      const isChecked = selectedRows.includes(r.id);
-                      return (
-                      <tr key={r.id} className={`hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors group text-slate-700 dark:text-slate-300 ${isChecked ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}>
-                        <td className="px-6 py-5 text-center" onClick={(e) => e.stopPropagation()}>
-                          <input 
-                            type="checkbox" 
-                            className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-white dark:bg-slate-800"
-                            checked={isChecked}
-                            onChange={(e) => toggleRowSelect(r.id, e)}
-                          />
-                        </td>
-                        <td className="px-6 py-5 font-mono text-slate-500 dark:text-slate-400">{r.item_code}</td>
-                        <td className="px-6 py-5 font-medium text-slate-800 dark:text-slate-200">{r.part_name}</td>
-                        <td className="px-6 py-5 text-slate-400">{r.location_name}</td>
-                        <td className="px-6 py-5 font-mono">
-                          <span className="text-red-500 font-bold flex items-center gap-1.5">
-                            <AlertTriangle size={18} /> {r.quantity}
-                          </span>
-                        </td>
-                        <td className="px-6 py-5 font-mono text-slate-400">{r.critical_limit}</td>
-                      </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
+            <div className="flex justify-between items-center px-6 py-4 bg-[#F8FAFC] dark:bg-[#162032] border-t border-[#E2E8F0] dark:border-[#1E293B] shrink-0 text-xs text-[#64748B] dark:text-[#94A3B8]">
+              <span>
+                Toplam <strong className="text-[#0F172A] dark:text-[#FAFAFA]">{activeDataList.length}</strong> kayıttan <strong className="text-[#0F172A] dark:text-[#FAFAFA]">{activeDataList.length === 0 ? 0 : indexOfFirstItem + 1}-{Math.min(indexOfLastItem, activeDataList.length)}</strong> arası gösteriliyor
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1 || activeDataList.length === 0}
+                  className="px-3 py-1.5 bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#334155] rounded-xl text-xs font-bold text-[#0F172A] dark:text-[#FAFAFA] hover:bg-[#FFFFFF] dark:hover:bg-[#1E293B] disabled:opacity-40 transition-all cursor-pointer"
+                >
+                  Önceki
+                </button>
+                <span className="text-xs font-bold px-3 py-1.5 bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#334155] rounded-xl text-[#60A5FA]">
+                  Sayfa {currentPage} / {totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage >= totalPages || activeDataList.length === 0}
+                  className="px-3 py-1.5 bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#334155] rounded-xl text-xs font-bold text-[#0F172A] dark:text-[#FAFAFA] hover:bg-[#FFFFFF] dark:hover:bg-[#1E293B] disabled:opacity-40 transition-all cursor-pointer"
+                >
+                  Sonraki
+                </button>
+              </div>
             </div>
           </div>
-        </>
-      )}
-
-      <div className="flex justify-between items-center px-6 py-4 bg-slate-50 dark:bg-[#242a38] border-t border-slate-200 dark:border-slate-700/50 shrink-0">
-        <span className="text-sm text-slate-500">
-          Toplam {activeDataList.length} kayıttan {activeDataList.length === 0 ? 0 : indexOfFirstItem + 1}-{Math.min(indexOfLastItem, activeDataList.length)} arası gösteriliyor
-        </span>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-            disabled={currentPage === 1 || activeDataList.length === 0}
-            className="px-3 py-1 bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 disabled:opacity-50"
-          >
-            Önceki
-          </button>
-          <button
-            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-            disabled={currentPage >= totalPages || activeDataList.length === 0}
-            className="px-3 py-1 bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 disabled:opacity-50"
-          >
-            Sonraki
-          </button>
         </div>
-      </div>
+      )}
 
       {/* Dışa Aktar Sütun Seçimi Modalı */}
       {isExportModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/80 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-sm p-6">
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4">Sütun Seçimi</h2>
-            <p className="text-sm text-slate-500 mb-4">Dışa aktarılacak Excel dosyasında hangi sütunların bulunmasını istediğinizi seçin.</p>
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#1E293B] shadow-2xl rounded-2xl w-full max-w-sm p-6 text-[#0F172A] dark:text-[#FAFAFA]">
+            <h2 className="text-lg font-bold text-[#0F172A] dark:text-[#FAFAFA] mb-2">Excel Sütun Seçimi</h2>
+            <p className="text-xs text-[#64748B] dark:text-[#94A3B8] mb-4">Dışa aktarılacak raporda yer almasını istediğiniz sütunları işaretleyin.</p>
             
             <div className="space-y-3 mb-6 max-h-60 overflow-y-auto pr-2">
               {Object.keys(activeTab === 'stok' ? selectedStockCols : (activeTab === 'transfers' ? selectedTransferCols : selectedCriticalCols)).map((col) => (
-                <label key={col} className="flex items-center gap-3 cursor-pointer">
+                <label key={col} className="flex items-center gap-3 cursor-pointer text-xs font-medium text-[#0F172A] dark:text-[#FAFAFA]">
                   <input 
                     type="checkbox" 
-                    checked={activeTab === 'general' ? selectedGeneralCols[col] : selectedCriticalCols[col]}
+                    checked={activeTab === 'stok' ? selectedStockCols[col] : (activeTab === 'transfers' ? selectedTransferCols[col] : selectedCriticalCols[col])}
                     onChange={(e) => {
                       if (activeTab === 'stok') {
                         setSelectedStockCols(prev => ({...prev, [col]: e.target.checked}));
@@ -677,9 +696,9 @@ export default function Raporlar() {
                         setSelectedCriticalCols(prev => ({...prev, [col]: e.target.checked}));
                       }
                     }}
-                    className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-slate-50 dark:bg-slate-800"
+                    className="w-4 h-4 rounded border-[#E2E8F0] dark:border-[#334155] text-[#2563EB] focus:ring-[#2563EB] bg-[#FFFFFF] dark:bg-[#1E293B]"
                   />
-                  <span className="text-slate-700 dark:text-slate-300 font-medium">{col}</span>
+                  <span>{col}</span>
                 </label>
               ))}
             </div>
@@ -687,14 +706,14 @@ export default function Raporlar() {
             <div className="flex justify-end gap-3 mt-6">
               <button 
                 onClick={() => setIsExportModalOpen(false)}
-                className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg transition-colors font-medium"
+                className="px-4 py-2 bg-[#FFFFFF] dark:bg-[#1E293B] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] text-[#0F172A] dark:text-[#FAFAFA] rounded-xl text-xs font-bold transition-all cursor-pointer"
               >
                 İptal
               </button>
               <button 
                 onClick={executeExport}
                 disabled={!Object.values(activeTab === 'stok' ? selectedStockCols : (activeTab === 'transfers' ? selectedTransferCols : selectedCriticalCols)).some(Boolean)}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors font-medium shadow-md shadow-emerald-500/20 disabled:opacity-50"
+                className="px-4 py-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer disabled:opacity-50"
               >
                 Dışa Aktar
               </button>

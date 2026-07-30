@@ -132,30 +132,41 @@ export default function PartCategories() {
   }, [categories, searchTerm]);
 
   return (
-    <div className="h-full flex flex-col space-y-6 overflow-hidden">
+    <div className="flex flex-col space-y-6 pb-12 text-[#0F172A] dark:text-[#FAFAFA] max-w-[1600px] mx-auto animate-in fade-in duration-300">
 
-      {/* Header */}
-      <div className="bg-white dark:bg-[#1e2330] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm shrink-0">
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-2">
-          <Tags className="text-blue-400" size={24} /> Parça Kategorileri
-        </h1>
-        <p className="text-slate-400 mt-1">
-          Kullanabilecek departmanlar ve stok takibi kurallarını tek bir yerden yönetin —
-          parça kaydederken sadece kategori seçilir, bu bilgiler otomatik gelir.
-        </p>
+      {/* ════════════════ HERO BANNER ════════════════ */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#F1F5F9] dark:from-[#050A18] via-[#0F172A] to-[#FFFFFF] dark:to-[#1E293B] p-6 sm:p-8 text-white shadow-xl border border-[#E2E8F0] dark:border-[#1E293B]">
+        {/* Ambient Grid Overlay */}
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(99,102,241,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(99,102,241,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
+        <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-2 max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 text-xs font-semibold tracking-wide">
+              <Tags size={13} className="text-indigo-400" /> ENVANTER VE PARÇA KATEGORİLERİ
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+              Parça Kategorileri
+            </h1>
+            <p className="text-sm text-slate-300 leading-relaxed">
+              Departman yetkileri, stok takip kuralları ve varsayılan parça parametrelerini yapılandırın.
+            </p>
+          </div>
+        </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto pr-2 pb-6 space-y-6">
+      <div className="flex-1 space-y-6">
         {!showForm ? (
           <>
-            <div className="flex justify-between items-center gap-4">
+            {/* SEARCH & NEW BTN */}
+            <div className="bg-[#F8FAFC] dark:bg-[#0F172A] rounded-2xl p-4 border border-[#E2E8F0] dark:border-[#1E293B] shadow-md flex items-center justify-between gap-4">
               <div className="flex-1 relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Search className="text-slate-400" size={18} />
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#64748B] dark:text-[#94A3B8]">
+                  <Search size={18} />
                 </div>
                 <input
                   type="text"
-                  className="w-full bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:border-blue-500 shadow-sm"
+                  className="w-full bg-[#FFFFFF] dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155] text-[#0F172A] dark:text-[#FAFAFA] placeholder-[#64748B] rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm font-medium focus:outline-none focus:border-[#2563EB] transition-all shadow-xs"
                   placeholder="Kategori Ara..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -163,16 +174,17 @@ export default function PartCategories() {
               </div>
               <button
                 onClick={() => handleOpenForm()}
-                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-blue-900/20 font-medium text-sm shrink-0"
+                className="flex items-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer shrink-0"
               >
                 <Plus size={16} /> Yeni Kategori
               </button>
             </div>
 
-            <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden">
-              <div className="overflow-auto">
-                <table className="w-full text-left text-sm whitespace-nowrap">
-                  <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs sticky top-0 z-10">
+            {/* TABLE */}
+            <div className="bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#1E293B] rounded-2xl shadow-md overflow-hidden flex flex-col">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs whitespace-nowrap">
+                  <thead className="bg-[#F8FAFC] dark:bg-[#162032] text-[#64748B] dark:text-[#94A3B8] font-bold uppercase tracking-wider border-b border-[#E2E8F0] dark:border-[#1E293B] sticky top-0 z-10 select-none">
                     <tr>
                       <th className="px-6 py-4">Kategori Adı</th>
                       <th className="px-6 py-4">Parça Tipi</th>
@@ -185,7 +197,7 @@ export default function PartCategories() {
                       <th className="px-6 py-4 text-center">İşlemler</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-700/50">
+                  <tbody className="divide-y divide-[#E2E8F0] dark:divide-[#1E293B]">
                     {loading ? (
                       <tr>
                         <td colSpan="9" className="px-6 py-8 text-center text-slate-400">Yükleniyor...</td>

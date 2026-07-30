@@ -223,17 +223,30 @@ export default function DataManagement() {
   };
 
   return (
-    <div className="h-full flex flex-col space-y-6 overflow-hidden">
-      <div className="flex justify-between items-center bg-white dark:bg-[#1e2330] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm shrink-0">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight flex items-center gap-3">
-            <Database size={28} className="text-blue-400" /> Veri Yönetimi
-          </h1>
-          <p className="text-slate-400 mt-1">Sistemdeki tüm tabloları yönetin, dışa aktarın ve excel'den içeri veri yükleyin.</p>
+    <div className="flex flex-col space-y-6 pb-12 text-[#0F172A] dark:text-[#FAFAFA] max-w-[1600px] mx-auto animate-in fade-in duration-300">
+      
+      {/* ════════════════ HERO BANNER ════════════════ */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#F1F5F9] dark:from-[#050A18] via-[#0F172A] to-[#FFFFFF] dark:to-[#1E293B] p-6 sm:p-8 text-white shadow-xl border border-[#E2E8F0] dark:border-[#1E293B]">
+        {/* Ambient Grid Overlay */}
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(37,99,235,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(37,99,235,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
+        <div className="absolute top-0 right-0 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-2 max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-300 text-xs font-semibold tracking-wide">
+              <Database size={13} className="text-blue-400" /> VERİ TABANI VE EXCEL YÖNETİMİ
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+              Veri Yönetimi & İçe / Dışa Aktarım
+            </h1>
+            <p className="text-sm text-slate-300 leading-relaxed">
+              Sistemdeki tüm veritabanı tablolarını yönetin, Excel formatında dışa aktarın ve toplu veri yükleyin.
+            </p>
+          </div>
         </div>
       </div>
 
-      <div className="flex-1 bg-white dark:bg-[#1e2330] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-lg overflow-y-auto">
+      <div className="flex-1 bg-[#F8FAFC] dark:bg-[#0F172A] p-6 rounded-2xl border border-[#E2E8F0] dark:border-[#1E293B] shadow-md overflow-y-auto">
         <div className="max-w-3xl space-y-8">
           
           <div className="flex items-start gap-3 bg-amber-500/10 border border-amber-500/20 text-amber-400 p-4 rounded-xl">
@@ -285,7 +298,7 @@ export default function DataManagement() {
                     <label key={col} className="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-[#242a38] border border-slate-700 rounded-lg text-sm cursor-pointer hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors">
                       <input 
                         type="checkbox" 
-                        className="rounded border-slate-300 dark:border-slate-600 bg-[#0f1219] text-blue-500 focus:ring-blue-500/50"
+                        className="rounded border-slate-300 dark:border-slate-600 bg-[#FFFFFF] dark:bg-[#0f1219] text-blue-500 focus:ring-blue-500/50"
                         checked={selectedColumns.includes(col)}
                         onChange={() => toggleColumn(col)}
                       />
@@ -393,7 +406,7 @@ export default function DataManagement() {
                                         onChange={(e) => setEditingValue(e.target.value)}
                                         onBlur={handleInputSubmit}
                                         onKeyDown={handleKeyDown}
-                                        className="bg-[#0f1219] text-blue-400 border border-blue-500/50 rounded px-2 py-1 w-full focus:outline-none"
+                                        className="bg-[#F1F5F9] dark:bg-[#0f1219] text-blue-400 border border-blue-500/50 rounded px-2 py-1 w-full focus:outline-none"
                                       />
                                     ) : (
                                       row[col] || '-'

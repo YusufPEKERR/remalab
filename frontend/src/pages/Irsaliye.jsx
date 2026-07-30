@@ -365,98 +365,107 @@ export default function Irsaliye() {
   };
 
   return (
-    <div className="h-full flex flex-col space-y-6">
+    <div className="flex flex-col space-y-6 pb-12 text-[#0F172A] dark:text-[#FAFAFA] max-w-[1600px] mx-auto animate-in fade-in duration-300">
       
-      {/* Header */}
-      <div className="flex justify-between items-start">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800 tracking-tight">İrsaliye</h1>
-          <p className="text-slate-500 mt-1">Stok giriş ve çıkış hareketlerini tek ekrandan yönetin</p>
+      {/* ════════════════ HERO BANNER ════════════════ */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#F1F5F9] dark:from-[#050A18] via-[#0F172A] to-[#FFFFFF] dark:to-[#1E293B] p-6 sm:p-8 text-white shadow-xl border border-[#E2E8F0] dark:border-[#1E293B]">
+        {/* Ambient Grid Overlay */}
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(16,185,129,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(16,185,129,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
+        <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-600/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-2 max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-xs font-semibold tracking-wide">
+              <FileSpreadsheet size={13} className="text-emerald-400" /> İRSALİYE & STOK HAREKETLERİ
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+              İrsaliye İşlemleri
+            </h1>
+            <p className="text-sm text-slate-300 leading-relaxed">
+              Stok giriş, çıkış ve transfer irsaliye hareketlerini canlı takip edin ve Excel ile veri aktarımı gerçekleştirin.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0 flex-wrap">
+            <button
+              onClick={() => setIsTransferModalOpen(true)}
+              className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-xl transition-all shadow-md flex items-center gap-2 text-xs cursor-pointer"
+            >
+              <ArrowRightLeft size={16} /> Stok Transferi
+            </button>
+
+            <button
+              onClick={resetInboundForm}
+              className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+            >
+              <Plus size={16} /> Stok Girişi Yap
+            </button>
+
+            <button
+              onClick={async () => {
+                await fetchDependencies();
+                
+                if (selectedRows.length === 1) {
+                  const mov = movements.find(m => String(m.id) === String(selectedRows[0]));
+                  if (mov) {
+                    const p = parts.find(x => String(x.id) === String(mov.part_id)) || { item_code: '' };
+                    setOutboundBarcode(String(p.item_code || ''));
+
+                    const dir = getDirection(mov);
+                    let locId = '';
+                    if (dir === 'in' || dir === 'transfer') {
+                      locId = mov.target_location_id || '';
+                    } else if (dir === 'out') {
+                      locId = mov.source_location_id || '';
+                    }
+
+                    setFormData({ part_id: String(mov.part_id || ''), loc_id: String(locId), qty: mov.quantity || 1, price: 0, type: 'Teknik Servis', technician: '', description: '' });
+                    setShowOutboundModal(true);
+                    return;
+                  }
+                }
+                
+                setOutboundBarcode(''); setFormData({ part_id: '', loc_id: getSystemLocationId('good_stock'), qty: 1, price: 0, type: 'Teknik Servis', who: '', description: '' }); setShowOutboundModal(true); 
+              }}
+              className="flex items-center gap-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+            >
+              <Plus size={16} /> Stok Çıkışı Yap
+            </button>
+
+            <div className="relative">
+              <select
+                onChange={handleExcelAction}
+                className="appearance-none bg-[#FFFFFF] dark:bg-[#1E293B] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] text-[#0F172A] dark:text-[#FAFAFA] border border-[#E2E8F0] dark:border-[#334155] rounded-xl px-4 py-2.5 pr-9 text-xs font-bold transition-all cursor-pointer focus:outline-none focus:border-[#2563EB]"
+              >
+                <option value="">Excel İşlemleri...</option>
+                <option value="template">Şablon İndir</option>
+                <option value="export">{selectedRows.length > 0 ? `${selectedRows.length} Seçiliyi Dışa Aktar` : 'Tümünü Dışa Aktar'}</option>
+                <option value="import_in">Giriş İçe Aktar</option>
+              </select>
+              <div className="absolute inset-y-0 right-0 flex items-center px-2.5 pointer-events-none text-[#64748B] dark:text-[#94A3B8]">
+                <FileSpreadsheet size={15} />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
       {error && (
-        <div className="bg-red-500/10 border border-red-500/50 text-red-400 px-4 py-2 rounded-xl text-sm font-medium">
+        <div className="bg-red-500/20 border border-red-500/30 text-red-400 px-4 py-3 rounded-2xl text-xs font-bold flex items-center gap-2">
           {error}
         </div>
       )}
-      {/* Actions */}
-      <div className="flex justify-between items-center bg-white dark:bg-[#1e2330] p-4 rounded-xl border border-slate-200 dark:border-slate-700/50 shadow-sm">
-        <div className="text-slate-700 dark:text-slate-300 text-sm">
-          Stok Giriş / Çıkış Modülü
-        </div>
-        <div className="flex gap-3 items-center">
-          <button
-            onClick={() => setIsTransferModalOpen(true)}
-            className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-slate-900 rounded-lg transition-colors font-bold flex items-center gap-2 shadow-sm"
-          >
-            <ArrowRightLeft size={16} /> Stok Transferi
-          </button>
-          <div className="relative">
-            <select
-              onChange={handleExcelAction}
-              className="appearance-none bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-2 pr-8 transition-colors font-medium cursor-pointer focus:outline-none focus:border-blue-500"
-            >
-              <option value="">Excel İşlemi Seç...</option>
-              <option value="template">Şablon İndir</option>
-              <option value="export">{selectedRows.length > 0 ? `${selectedRows.length} Seçiliyi Dışa Aktar` : 'Tümünü Dışa Aktar'}</option>
-              <option value="import_in">Giriş İçe Aktar</option>
-            </select>
-            <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-slate-400">
-              <FileSpreadsheet size={16} />
-            </div>
-          </div>
-          <button
-            onClick={resetInboundForm}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors"
-          >
-            <Plus size={16} /> Giriş Yap
-          </button>
-          <button
-            onClick={async () => {
-              await fetchDependencies();
-              
-              if (selectedRows.length === 1) {
-                const mov = movements.find(m => String(m.id) === String(selectedRows[0]));
-                console.log("Selected Movement:", mov);
-                if (mov) {
-                  const p = parts.find(x => String(x.id) === String(mov.part_id)) || { item_code: '' };
-                  console.log("Found Part:", p);
-                  setOutboundBarcode(String(p.item_code || ''));
-
-                  const dir = getDirection(mov);
-                  let locId = '';
-                  if (dir === 'in' || dir === 'transfer') {
-                    locId = mov.target_location_id || '';
-                  } else if (dir === 'out') {
-                    locId = mov.source_location_id || '';
-                  }
-
-                  setFormData({ part_id: String(mov.part_id || ''), loc_id: String(locId), qty: mov.quantity || 1, price: 0, type: 'Teknik Servis', technician: '', description: '' });
-                  setShowOutboundModal(true);
-                  return;
-                }
-              }
-              
-              setOutboundBarcode(''); setFormData({ part_id: '', loc_id: getSystemLocationId('good_stock'), qty: 1, price: 0, type: 'Teknik Servis', who: '', description: '' }); setShowOutboundModal(true); 
-            }}
-            className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-colors"
-          >
-            <Plus size={16} /> Stok Çıkışı Yap
-          </button>
-        </div>
-      </div>
 
       {/* Table */}
-      <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-xl shadow-lg flex-1 overflow-hidden flex flex-col">
+      <div className="bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#1E293B] rounded-2xl shadow-md flex-1 overflow-hidden flex flex-col">
         <div className="overflow-auto flex-1">
-          <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-700 dark:text-slate-300 font-semibold border-b border-slate-200 dark:border-slate-700/50 sticky top-0 uppercase tracking-wider text-xs z-10">
+          <table className="w-full text-left text-xs whitespace-nowrap">
+            <thead className="bg-[#F8FAFC] dark:bg-[#162032] text-[#64748B] dark:text-[#94A3B8] font-bold uppercase tracking-wider border-b border-[#E2E8F0] dark:border-[#1E293B] sticky top-0 z-10">
               <tr>
                 <th className="px-6 py-4 w-12 text-center">
                   <input 
                     type="checkbox" 
-                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-white dark:bg-slate-800"
+                    className="w-4 h-4 rounded border-[#E2E8F0] dark:border-[#334155] text-[#2563EB] focus:ring-[#2563EB] bg-[#FFFFFF] dark:bg-[#1E293B]"
                     checked={selectedRows.length === movements.length && movements.length > 0}
                     onChange={toggleSelectAll}
                   />
@@ -473,17 +482,17 @@ export default function Irsaliye() {
                 <th className="px-6 py-4">AÇIKLAMA</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-700/50">
+            <tbody className="divide-y divide-[#E2E8F0] dark:divide-[#1E293B]">
               {loading ? (
                 <tr>
-                  <td colSpan={10} className="px-6 py-8 text-center text-slate-400">
-                    <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-indigo-400" />
+                  <td colSpan={11} className="px-6 py-8 text-center text-[#64748B] dark:text-[#94A3B8]">
+                    <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-[#60A5FA]" />
                     Yükleniyor...
                   </td>
                 </tr>
               ) : movements.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-6 py-8 text-center text-slate-400">
+                  <td colSpan={11} className="px-6 py-8 text-center text-[#64748B] dark:text-[#94A3B8]">
                     Kayıt bulunamadı.
                   </td>
                 </tr>
@@ -492,27 +501,27 @@ export default function Irsaliye() {
                   const dir = getDirection(mov);
                   const isChecked = selectedRows.includes(mov.id);
                   return (
-                    <tr key={`${mov.id}-${index}`} className={`hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors group text-slate-800 dark:text-slate-200 ${isChecked ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}>
+                    <tr key={`${mov.id}-${index}`} className={`hover:bg-[#FFFFFF]/70 dark:hover:bg-[#1E293B]/70 transition-colors text-[#0F172A] dark:text-[#FAFAFA] ${isChecked ? 'bg-blue-900/30 border-l-4 border-[#2563EB]' : ''}`}>
                       <td className="px-6 py-3 text-center" onClick={(e) => e.stopPropagation()}>
                         <input 
                           type="checkbox" 
-                          className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-white dark:bg-slate-800"
+                          className="w-4 h-4 rounded border-[#E2E8F0] dark:border-[#334155] text-[#2563EB] focus:ring-[#2563EB] bg-[#FFFFFF] dark:bg-[#1E293B]"
                           checked={isChecked}
                           onChange={(e) => toggleRowSelect(mov.id, e)}
                         />
                       </td>
-                      <td className="px-6 py-3">{mov.part_name}</td>
+                      <td className="px-6 py-3 font-bold text-[#0F172A] dark:text-[#FAFAFA]">{mov.part_name}</td>
                       <td className="px-6 py-3">{directionBadge(dir)}</td>
-                      <td className={`px-6 py-3 font-mono font-semibold ${dir === 'out' ? 'text-red-500' : (dir === 'transfer' ? 'text-blue-500' : 'text-emerald-500')}`}>
+                      <td className={`px-6 py-3 font-mono font-bold ${dir === 'out' ? 'text-red-400' : (dir === 'transfer' ? 'text-blue-400' : 'text-emerald-400')}`}>
                         {dir === 'out' ? '-' : '+'}{mov.quantity}
                       </td>
                       <td className="px-6 py-3 font-mono">{mov.unit_price ? `${mov.unit_price.toFixed(2)} TL` : '-'}</td>
                       <td className="px-6 py-3">{dir === 'in' ? 'Dışarı (Tedarikçi)' : mov.source_location}</td>
                       <td className="px-6 py-3">{dir === 'out' ? 'Dışarı' : mov.target_location}</td>
-                      <td className="px-6 py-3 text-slate-400">{mov.created_at}</td>
+                      <td className="px-6 py-3 text-[#64748B] dark:text-[#94A3B8] font-mono text-[11px]">{mov.created_at}</td>
                       <td className="px-6 py-3">{mov.created_by}</td>
                       <td className="px-6 py-3">{mov.type}</td>
-                      <td className="px-6 py-3 text-slate-400">{mov.description || '-'}</td>
+                      <td className="px-6 py-3 text-[#64748B] dark:text-[#94A3B8]">{mov.description || '-'}</td>
                     </tr>
                   );
                 })
@@ -521,22 +530,22 @@ export default function Irsaliye() {
           </table>
         </div>
         
-        <div className="flex justify-between items-center px-6 py-4 bg-slate-50 dark:bg-[#242a38] border-t border-slate-200 dark:border-slate-700/50 shrink-0">
-          <span className="text-sm text-slate-500">
-            Toplam {movements.length} kayıttan {movements.length === 0 ? 0 : indexOfFirstItem + 1}-{Math.min(indexOfLastItem, movements.length)} arası gösteriliyor
+        <div className="flex justify-between items-center px-6 py-4 bg-[#F8FAFC] dark:bg-[#162032] border-t border-[#E2E8F0] dark:border-[#1E293B] shrink-0 text-xs text-[#64748B] dark:text-[#94A3B8]">
+          <span>
+            Toplam <strong className="text-[#0F172A] dark:text-[#FAFAFA]">{movements.length}</strong> kayıttan <strong className="text-[#0F172A] dark:text-[#FAFAFA]">{movements.length === 0 ? 0 : indexOfFirstItem + 1}-{Math.min(indexOfLastItem, movements.length)}</strong> arası gösteriliyor
           </span>
           <div className="flex gap-2">
             <button
               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
               disabled={currentPage === 1 || movements.length === 0}
-              className="px-3 py-1 bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 disabled:opacity-50"
+              className="px-3 py-1.5 bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#334155] rounded-xl text-xs font-bold text-[#0F172A] dark:text-[#FAFAFA] hover:bg-[#FFFFFF] dark:hover:bg-[#1E293B] disabled:opacity-40 transition-all cursor-pointer"
             >
               Önceki
             </button>
             <button
               onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
               disabled={currentPage >= totalPages || movements.length === 0}
-              className="px-3 py-1 bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 disabled:opacity-50"
+              className="px-3 py-1.5 bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#334155] rounded-xl text-xs font-bold text-[#0F172A] dark:text-[#FAFAFA] hover:bg-[#FFFFFF] dark:hover:bg-[#1E293B] disabled:opacity-40 transition-all cursor-pointer"
             >
               Sonraki
             </button>

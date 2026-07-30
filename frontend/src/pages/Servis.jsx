@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, ClipboardCheck, Wrench, FlaskConical, Download, AlertTriangle } from 'lucide-react';
+import { Search, ClipboardCheck, Wrench, FlaskConical, Download, AlertTriangle, RefreshCw, Cpu } from 'lucide-react';
 import { api } from '../services/api';
 
 const TABS = [
@@ -42,12 +42,12 @@ const REPAIR_PARTS_ROW_KEYS = ['missionGroup', 'tec', 'item', 'type', 'supplySta
 
 function InfoPanel({ fields = {} }) {
   return (
-    <div className="w-72 shrink-0 border-r border-slate-200 dark:border-slate-700/50 overflow-y-auto p-4 space-y-3">
+    <div className="w-72 shrink-0 border-r border-[#E2E8F0] dark:border-[#1E293B] overflow-y-auto p-4 space-y-3 bg-[#F8FAFC] dark:bg-[#0F172A]">
       {INFO_FIELDS.map(({ key, label, gapAfter }) => (
-        <div key={key} className={gapAfter ? 'pb-3 mb-1 border-b border-slate-100 dark:border-slate-800' : ''}>
-          <label className="block text-[11px] font-medium text-slate-400 mb-1">{label}</label>
-          <div className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-700 dark:text-slate-300 min-h-[30px]">
-            {fields[key] || ''}
+        <div key={key} className={gapAfter ? 'pb-3 mb-1 border-b border-[#E2E8F0] dark:border-[#1E293B]' : ''}>
+          <label className="block text-[11px] font-semibold text-[#64748B] dark:text-[#94A3B8] mb-1 uppercase tracking-wider">{label}</label>
+          <div className="w-full px-3 py-2 bg-[#F8FAFC] dark:bg-[#162032] border border-[#E2E8F0] dark:border-[#334155] rounded-xl text-xs font-mono font-medium text-[#0F172A] dark:text-[#FAFAFA] min-h-[34px] flex items-center">
+            {fields[key] || '-'}
           </div>
         </div>
       ))}
@@ -55,36 +55,33 @@ function InfoPanel({ fields = {} }) {
   );
 }
 
-function DataTable({ columns, rows = [], rowKeys, emptyLabel = 'Kayıt yok' }) {
+function DataTable({ columns, rows = [], rowKeys, emptyLabel = 'Kayıt bulunamadı' }) {
   const keys = rowKeys || columns;
   return (
-    <div className="overflow-auto border border-slate-200 dark:border-slate-700 rounded-lg">
-      <table className="w-full text-sm border-collapse">
-        <thead>
-          <tr className="bg-slate-50 dark:bg-[#242a38]">
+    <div className="overflow-hidden border border-[#E2E8F0] dark:border-[#1E293B] rounded-xl bg-[#F8FAFC] dark:bg-[#0F172A]">
+      <table className="w-full text-xs text-left whitespace-nowrap">
+        <thead className="bg-[#F8FAFC] dark:bg-[#162032] text-[#64748B] dark:text-[#94A3B8] font-bold uppercase tracking-wider border-b border-[#E2E8F0] dark:border-[#1E293B]">
+          <tr>
             {columns.map((col) => (
-              <th
-                key={col}
-                className="text-left px-3 py-2 font-semibold text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700 whitespace-nowrap"
-              >
+              <th key={col} className="px-4 py-3 border-b border-[#E2E8F0] dark:border-[#1E293B]">
                 {col}
               </th>
             ))}
           </tr>
         </thead>
-        <tbody>
+        <tbody className="divide-y divide-[#E2E8F0] dark:divide-[#1E293B]">
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={columns.length} className="px-3 py-6 text-center text-slate-400">
+              <td colSpan={columns.length} className="px-4 py-8 text-center text-[#64748B] dark:text-[#94A3B8]">
                 {emptyLabel}
               </td>
             </tr>
           ) : (
             rows.map((row, i) => (
-              <tr key={i} className="border-b border-slate-100 dark:border-slate-800 last:border-0">
+              <tr key={i} className="hover:bg-[#FFFFFF]/60 dark:hover:bg-[#1E293B]/60 text-[#0F172A] dark:text-[#FAFAFA] transition-colors">
                 {keys.map((k) => (
-                  <td key={k} className="px-3 py-2 text-slate-700 dark:text-slate-300 whitespace-nowrap">
-                    {row[k] ?? ''}
+                  <td key={k} className="px-4 py-2.5">
+                    {row[k] ?? '-'}
                   </td>
                 ))}
               </tr>
@@ -142,53 +139,78 @@ export default function Servis() {
   };
 
   return (
-    <div className="h-full flex flex-col space-y-6 overflow-hidden">
-      <div className="bg-white dark:bg-[#1e2330] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm shrink-0">
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">Servis</h1>
-        <p className="text-slate-400 mt-1">IMEI numarasına göre cihazın durum ve onarım bilgilerini görüntüleyin.</p>
+    <div className="flex flex-col space-y-6 pb-12 text-[#0F172A] dark:text-[#FAFAFA] max-w-[1600px] mx-auto animate-in fade-in duration-300">
 
-        <form onSubmit={handleSearch} className="mt-4 flex gap-2 max-w-md">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-            <input
-              type="text"
-              placeholder="IMEI numarasını girin..."
-              className="w-full pl-9 pr-4 py-2.5 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-orange-500"
-              value={imei}
-              onChange={(e) => setImei(e.target.value)}
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={!imei.trim() || loading}
-            className="px-5 py-2.5 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white rounded-xl text-sm font-medium transition-colors"
-          >
-            {loading ? 'Aranıyor...' : 'Ara'}
-          </button>
-        </form>
+      {/* ════════════════ HERO BANNER ════════════════ */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#F1F5F9] dark:from-[#050A18] via-[#0F172A] to-[#FFFFFF] dark:to-[#1E293B] p-6 sm:p-8 text-white shadow-xl border border-[#E2E8F0] dark:border-[#1E293B]">
+        {/* Ambient Grid Overlay */}
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(244,63,94,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(244,63,94,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
+        <div className="absolute top-0 right-0 w-96 h-96 bg-rose-600/10 rounded-full blur-3xl pointer-events-none" />
 
-        {searchError && (
-          <div className="mt-3 flex items-center gap-2 text-sm text-red-500">
-            <AlertTriangle size={15} /> {searchError}
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-2 max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/20 border border-rose-400/30 text-rose-300 text-xs font-semibold tracking-wide">
+              <Cpu size={13} className="text-rose-400" /> SERVİS VE CİHAZ YÖNETİMİ
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+              Servis Cihaz Sorgulama
+            </h1>
+            <p className="text-sm text-slate-300 leading-relaxed">
+              IMEI numarasına göre cihazın statü geçmişini, PhoneCheck verilerini ve teknik servis onarım detaylarını sorgulayın.
+            </p>
           </div>
-        )}
-        {statuName && searchedImei && (
-          <div className="mt-3 inline-flex px-3 py-1.5 rounded-full text-xs font-bold border bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20">
-            Statü: {statuName}
-          </div>
-        )}
+        </div>
+
+        {/* Search Bar inside Hero Header */}
+        <div className="relative z-10 mt-6 pt-6 border-t border-[#E2E8F0]/80 dark:border-[#1E293B]/80 max-w-2xl">
+          <form onSubmit={handleSearch} className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#64748B] dark:text-[#94A3B8]" size={18} />
+              <input
+                type="text"
+                placeholder="IMEI veya Seri Numarası girin..."
+                className="w-full pl-10 pr-4 py-3 bg-[#FFFFFF] dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155] rounded-xl text-sm font-medium text-[#0F172A] dark:text-[#FAFAFA] placeholder-[#64748B] focus:outline-none focus:border-[#2563EB] shadow-xs"
+                value={imei}
+                onChange={(e) => setImei(e.target.value)}
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={!imei.trim() || loading}
+              className="px-6 py-3 bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-50 text-white rounded-xl text-sm font-bold shadow-md transition-all cursor-pointer inline-flex items-center gap-2"
+            >
+              {loading ? <RefreshCw size={16} className="animate-spin" /> : <Search size={16} />}
+              {loading ? 'Aranıyor...' : 'Cihazı Sorgula'}
+            </button>
+          </form>
+
+          {searchError && (
+            <div className="mt-3 flex items-center gap-2 text-xs font-bold text-red-400 bg-red-500/20 border border-red-500/30 px-3 py-2 rounded-xl">
+              <AlertTriangle size={15} /> {searchError}
+            </div>
+          )}
+
+          {statuName && searchedImei && (
+            <div className="mt-3 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              Aktif Cihaz Statüsü: {statuName}
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="bg-white dark:bg-[#1e2330] rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm flex-1 overflow-hidden flex flex-col">
-        <div className="flex border-b border-slate-200 dark:border-slate-700/50 shrink-0">
+      {/* ════════════════ MAIN CONTENT CONTAINER ════════════════ */}
+      <div className="bg-[#F8FAFC] dark:bg-[#0F172A] rounded-2xl border border-[#E2E8F0] dark:border-[#1E293B] shadow-md overflow-hidden flex flex-col min-h-[600px]">
+        {/* TAB HEADER */}
+        <div className="flex border-b border-[#E2E8F0] dark:border-[#1E293B] bg-[#F8FAFC] dark:bg-[#162032] shrink-0">
           {TABS.map(({ key, label, icon: Icon }) => (
             <button
               key={key}
               onClick={() => setActiveTab(key)}
-              className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
+              className={`flex items-center gap-2.5 px-6 py-3.5 text-xs font-bold border-b-2 transition-all cursor-pointer ${
                 activeTab === key
-                  ? 'border-orange-500 text-orange-600 dark:text-orange-400'
-                  : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+                  ? 'border-[#2563EB] text-[#60A5FA] bg-[#F8FAFC] dark:bg-[#0F172A]'
+                  : 'border-transparent text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-[#FAFAFA] hover:bg-[#FFFFFF]/40 dark:hover:bg-[#1E293B]/40'
               }`}
             >
               <Icon size={16} /> {label}
@@ -196,63 +218,73 @@ export default function Servis() {
           ))}
         </div>
 
+        {/* TAB BODY */}
         <div className="flex-1 overflow-hidden">
           {!searchedImei ? (
-            <div className="h-full flex items-center justify-center text-slate-400 text-sm">
-              Sonuçları görmek için bir IMEI numarası aratın.
+            <div className="h-full min-h-[400px] flex flex-col items-center justify-center text-[#64748B] dark:text-[#94A3B8] space-y-3 p-8">
+              <div className="w-12 h-12 rounded-2xl bg-[#FFFFFF] dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155] flex items-center justify-center text-[#60A5FA]">
+                <Search size={24} />
+              </div>
+              <p className="text-sm font-medium">Cihaz detaylarını ve onarım kayıtlarını görmek için bir IMEI numarası aratın.</p>
             </div>
           ) : activeTab === 'durum' ? (
             <div className="h-full flex overflow-hidden">
               <InfoPanel fields={fields} />
-
-              {/* Sağ: Durum Geçmişi Tablosu */}
-              <div className="flex-1 overflow-auto p-4">
+              <div className="flex-1 overflow-auto p-6 space-y-4">
+                <h3 className="text-sm font-bold text-[#0F172A] dark:text-[#FAFAFA] flex items-center gap-2">
+                  <ClipboardCheck size={16} className="text-[#60A5FA]" /> Statü Geçmişi Kayıtları
+                </h3>
                 <DataTable columns={HISTORY_COLUMNS} rowKeys={HISTORY_ROW_KEYS} rows={statusHistory} />
               </div>
             </div>
           ) : activeTab === 'test' ? (
             <div className="h-full flex overflow-hidden">
               <InfoPanel fields={fields} />
-
-              {/* Sağ: Phonecheck Cihaz Verisi + Tespit Parça */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-5">
+              <div className="flex-1 overflow-y-auto p-6 space-y-6">
                 <div>
-                  <div className="flex items-center gap-2 mb-2 text-sm font-medium text-slate-600 dark:text-slate-300">
-                    <Download size={15} /> Download Phone Check Device Data
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-bold text-[#0F172A] dark:text-[#FAFAFA] flex items-center gap-2">
+                      <Download size={16} className="text-[#60A5FA]" /> PhoneCheck Cihaz Test Verisi
+                    </h3>
+                    <span className="text-xs font-semibold text-[#64748B] dark:text-[#94A3B8]">Toplam: {phonecheckRows.length} Kayıt</span>
                   </div>
                   <DataTable columns={PHONECHECK_COLUMNS} rowKeys={PHONECHECK_ROW_KEYS} rows={phonecheckRows} />
-                  <p className="text-xs text-slate-400 mt-1.5">Toplam : {phonecheckRows.length} Kayıt Listelendi</p>
                 </div>
 
                 <div>
-                  <div className="text-sm font-medium text-slate-600 dark:text-slate-300 mb-2">Tespit Parça</div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-bold text-[#0F172A] dark:text-[#FAFAFA]">Tespit Edilen Parçalar</h3>
+                    <span className="text-xs font-semibold text-[#64748B] dark:text-[#94A3B8]">Toplam: {detectedParts.length} Kayıt</span>
+                  </div>
                   <DataTable columns={DETECTED_PART_COLUMNS} rowKeys={DETECTED_PART_ROW_KEYS} rows={detectedParts} />
-                  <p className="text-xs text-slate-400 mt-1.5">Toplam : {detectedParts.length} Kayıt Listelendi</p>
                 </div>
               </div>
             </div>
           ) : (
             <div className="h-full flex overflow-hidden">
               <InfoPanel fields={fields} />
-
-              {/* Sağ: Alt Onarımlar + Onarım Parça ve İşçilikleri */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-5">
+              <div className="flex-1 overflow-y-auto p-6 space-y-6">
                 <div>
-                  <div className="text-sm font-medium text-slate-600 dark:text-slate-300 mb-2">Alt Onarımlar</div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-bold text-[#0F172A] dark:text-[#FAFAFA]">Alt Onarımlar</h3>
+                    <span className="text-xs font-semibold text-[#64748B] dark:text-[#94A3B8]">Toplam: {repairRecords.length} Kayıt</span>
+                  </div>
                   <DataTable columns={SUB_REPAIR_COLUMNS} rowKeys={SUB_REPAIR_ROW_KEYS} rows={repairRecords} />
-                  <p className="text-xs text-slate-400 mt-1.5">Toplam : {repairRecords.length} Kayıt Listelendi</p>
                 </div>
 
                 <div>
-                  <div className="text-sm font-medium text-slate-600 dark:text-slate-300 mb-2">Onarım Parça ve İşçilikleri</div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-bold text-[#0F172A] dark:text-[#FAFAFA]">Onarım Parça ve İşçilikleri</h3>
+                    <span className="text-xs font-semibold text-[#64748B] dark:text-[#94A3B8]">Toplam: {repairRecords.length} Kayıt</span>
+                  </div>
                   <DataTable columns={REPAIR_PARTS_COLUMNS} rowKeys={REPAIR_PARTS_ROW_KEYS} rows={repairRecords} />
-                  <p className="text-xs text-slate-400 mt-1.5">Toplam : {repairRecords.length} Kayıt Listelendi</p>
                 </div>
               </div>
             </div>
           )}
         </div>
       </div>
+
     </div>
   );
 }

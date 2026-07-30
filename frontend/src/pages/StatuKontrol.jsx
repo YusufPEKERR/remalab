@@ -108,62 +108,83 @@ export default function StatuKontrol() {
   };
 
   return (
-    <div className="h-full flex flex-col space-y-6 overflow-hidden relative">
+    <div className="flex flex-col space-y-6 pb-12 text-[#0F172A] dark:text-[#FAFAFA] max-w-[1600px] mx-auto animate-in fade-in duration-300 relative">
       <NotificationToast notification={notification} onClose={() => setNotification(null)} />
 
-      <div className="bg-white dark:bg-[#1e2330] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm shrink-0">
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-2">
-          <Zap className="text-blue-400" size={24} /> Statü Kontrol
-        </h1>
-        <p className="text-slate-400 mt-1">
-          IMEI, seri numarası, internal ID veya batch numarası ile bir cihazı bulup statüsünü doğrudan değiştirin. Bu ekran normal iş akışı kurallarını uygulamaz — manuel/idari düzeltme amaçlıdır.
-        </p>
+      {/* ════════════════ HERO BANNER ════════════════ */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#F1F5F9] dark:from-[#050A18] via-[#0F172A] to-[#FFFFFF] dark:to-[#1E293B] p-6 sm:p-8 text-white shadow-xl border border-[#E2E8F0] dark:border-[#1E293B]">
+        {/* Ambient Grid Overlay */}
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(245,158,11,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(245,158,11,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
+        <div className="absolute top-0 right-0 w-96 h-96 bg-amber-600/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-2 max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-400/30 text-amber-300 text-xs font-semibold tracking-wide">
+              <Zap size={13} className="text-amber-400" /> MANUEL İDARİ STATÜ MÜDAHALESİ
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+              Statü Kontrol & Doğrudan Statü Değişimi
+            </h1>
+            <p className="text-sm text-slate-300 leading-relaxed">
+              IMEI, Seri No, Dahili ID veya Batch No ile sorgulayarak bir cihazın statüsünü doğrudan değiştirin. Bu ekran idari düzeltme amaçlıdır.
+            </p>
+          </div>
+        </div>
       </div>
 
-      <div className="bg-white dark:bg-[#1e2330] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm shrink-0">
-        <form onSubmit={handleSearch} className="flex flex-col gap-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-400 mb-1.5">IMEI / Seri Numara / Internal ID / Batch No</label>
-            <div className="flex gap-4">
+      {/* SEARCH BAR */}
+      <div className="bg-[#F8FAFC] dark:bg-[#0F172A] p-6 rounded-2xl border border-[#E2E8F0] dark:border-[#1E293B] shadow-md">
+        <form onSubmit={handleSearch} className="flex flex-col gap-3">
+          <label className="block text-xs font-bold text-[#64748B] dark:text-[#94A3B8] uppercase tracking-wider">Cihaz Sorgulama (IMEI / Seri No / Dahili ID / Batch No)</label>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#64748B] dark:text-[#94A3B8]" />
               <input
                 ref={inputRef}
                 type="text"
-                placeholder="Sorgulanacak cihazı girin..."
-                className="flex-1 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-blue-500 disabled:opacity-60"
+                placeholder="Sorgulanacak cihazı okutunuz veya yazınız..."
+                className="w-full bg-[#FFFFFF] dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155] text-[#0F172A] dark:text-[#FAFAFA] placeholder-[#64748B] rounded-xl pl-10 pr-4 py-3 text-xs sm:text-sm font-mono focus:outline-none focus:border-[#2563EB] transition-all disabled:opacity-50"
                 value={term}
                 onChange={(e) => setTerm(e.target.value)}
                 disabled={loading}
               />
-              <button
-                type="submit"
-                disabled={loading || !term.trim()}
-                className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-8 py-2.5 rounded-xl transition-all shadow-lg shadow-blue-900/20 font-medium whitespace-nowrap flex items-center gap-2"
-              >
-                <Search size={18} /> {loading ? "Sorgulanıyor..." : "Sorgula"}
-              </button>
             </div>
+            <button
+              type="submit"
+              disabled={loading || !term.trim()}
+              className="bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-40 text-white px-8 py-3 rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer shrink-0"
+            >
+              <Search size={15} /> {loading ? "Sorgulanıyor..." : "Sorgula"}
+            </button>
           </div>
         </form>
       </div>
 
+      {/* DEVICE DETAILS & TARGET STATUS SELECTION */}
       {device && (
-        <div className="bg-white dark:bg-[#1e2330] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm shrink-0 space-y-5">
-          <div className="flex items-center justify-between flex-wrap gap-3">
-            <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">
-              {device.imei_number} <span className="text-slate-400 font-normal">· {device.batch_no} · {device.model} · {device.flow}</span>
-            </h3>
-            <span className="px-2.5 py-1 rounded-full text-xs font-bold border bg-blue-500/10 text-blue-500 border-blue-500/20">
+        <div className="bg-[#F8FAFC] dark:bg-[#0F172A] p-6 rounded-2xl border border-[#E2E8F0] dark:border-[#1E293B] shadow-md space-y-6">
+          <div className="flex items-center justify-between flex-wrap gap-4 p-4 rounded-xl bg-[#F8FAFC] dark:bg-[#162032] border border-[#E2E8F0] dark:border-[#1E293B]">
+            <div>
+              <h3 className="text-base font-extrabold text-[#0F172A] dark:text-[#FAFAFA] font-mono tracking-wide">
+                {device.imei_number}
+              </h3>
+              <p className="text-xs text-[#64748B] dark:text-[#94A3B8] mt-1 font-medium">
+                Parti: <span className="text-white font-semibold">{device.batch_no}</span> · Model: <span className="text-white font-semibold">{device.model}</span> · Akış: <span className="text-blue-400 font-semibold">{device.flow}</span>
+              </p>
+            </div>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold">
+              <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
               Mevcut Statü: {device.statu_code} — {currentStatuName(device.statu_code)}
-            </span>
+            </div>
           </div>
 
-          <div className="flex items-end gap-4 flex-wrap">
-            <div className="flex-1 min-w-[240px]">
-              <label className="block text-sm font-medium text-slate-400 mb-1.5">Yeni Statü</label>
+          <div className="flex flex-col md:flex-row items-end gap-4">
+            <div className="flex-1 w-full">
+              <label className="block text-xs font-bold text-[#64748B] dark:text-[#94A3B8] uppercase tracking-wider mb-2">Hedef Yeni Statü Seçiniz</label>
               <select
                 value={targetCode}
                 onChange={(e) => setTargetCode(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-blue-500"
+                className="w-full bg-[#FFFFFF] dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155] text-[#0F172A] dark:text-[#FAFAFA] rounded-xl px-4 py-3 text-xs sm:text-sm font-semibold focus:outline-none focus:border-[#2563EB] cursor-pointer"
               >
                 {statuList.map((s) => (
                   <option key={s.code} value={s.code}>
@@ -175,9 +196,9 @@ export default function StatuKontrol() {
             <button
               onClick={handleApply}
               disabled={applying || !targetCode || Number(targetCode) === device.statu_code}
-              className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-3 rounded-xl transition-all shadow-lg shadow-emerald-900/20 font-medium whitespace-nowrap flex items-center gap-2"
+              className="w-full md:w-auto bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed text-white px-8 py-3 rounded-xl transition-all shadow-md text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shrink-0"
             >
-              {device.statu_code} <ArrowRight size={16} /> {targetCode || "?"} {applying ? "Uygulanıyor..." : ""}
+              {device.statu_code} <ArrowRight size={15} /> {targetCode || "?"} {applying ? "Uygulanıyor..." : "Statüyü Uygula"}
             </button>
           </div>
         </div>

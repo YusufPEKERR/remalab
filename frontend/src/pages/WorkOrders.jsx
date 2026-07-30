@@ -1486,32 +1486,47 @@ export default function WorkOrders() {
   };
 
   return (
-    <div className="h-full flex flex-col space-y-6 overflow-hidden">
+    <div className="flex flex-col space-y-6 pb-12 text-[#0F172A] dark:text-[#FAFAFA] max-w-[1600px] mx-auto animate-in fade-in duration-300">
 
-      {/* Header */}
-      <div className="bg-white dark:bg-[#1e2330] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm shrink-0">
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-2">
-          <ClipboardList className="text-blue-400" size={24} /> İş Emirleri
-        </h1>
-        <p className="text-slate-400 mt-1">Servis kayıtlarına bağlı teknisyen iş emirlerini ve üretim/malzeme takibini yönetin.</p>
+      {/* ════════════════ HERO BANNER ════════════════ */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#F1F5F9] dark:from-[#050A18] via-[#0F172A] to-[#FFFFFF] dark:to-[#1E293B] p-6 sm:p-8 text-white shadow-xl border border-[#E2E8F0] dark:border-[#1E293B]">
+        {/* Ambient Grid Overlay */}
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(20,184,166,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(20,184,166,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
+        <div className="absolute top-0 right-0 w-96 h-96 bg-teal-600/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-2 max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-500/20 border border-teal-400/30 text-teal-300 text-xs font-semibold tracking-wide">
+              <ClipboardList size={13} className="text-teal-400" /> İŞ EMİRLERİ VE ÜRETİM
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+              İş Emirleri & Üretim Yönetimi
+            </h1>
+            <p className="text-sm text-slate-300 leading-relaxed">
+              Servis kayıtlarına bağlı iş emirlerini, yarı mamul üretimlerini ve malzeme tüketimlerini anlık takip edin.
+            </p>
+          </div>
+        </div>
       </div>
 
-      {/* Tabs Menu */}
-      <div className="flex gap-2 shrink-0 flex-wrap">
+      {/* ════════════════ TAB BUTTONS ════════════════ */}
+      <div className="flex gap-2 shrink-0 flex-wrap bg-[#F8FAFC] dark:bg-[#0F172A] p-2 rounded-2xl border border-[#E2E8F0] dark:border-[#1E293B] shadow-md">
         {TABS.map(tab => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-medium transition-all duration-200
-              ${activeTab === tab.key ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'bg-white dark:bg-[#1e2330] text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#2a3142] border border-slate-200 dark:border-slate-700/50'}
-            `}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              activeTab === tab.key 
+                ? 'bg-[#2563EB] text-white shadow-md' 
+                : 'text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-[#FAFAFA] hover:bg-[#FFFFFF] dark:hover:bg-[#1E293B]'
+            }`}
           >
-            <tab.icon size={18} /> {tab.label}
+            <tab.icon size={15} /> {tab.label}
           </button>
         ))}
       </div>
 
-      <div className="flex-1 overflow-y-auto pr-2 pb-6 space-y-6">
+      <div className="flex-1 space-y-6">
 
         {/* --- YENİ İŞ EMRİ --- */}
         {activeTab === 'new' && (

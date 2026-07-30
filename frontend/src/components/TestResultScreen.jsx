@@ -136,138 +136,150 @@ export default function TestResultScreen({
   };
 
   return (
-    <div className="h-full flex flex-col space-y-6 overflow-hidden relative">
+    <div className="flex flex-col space-y-6 pb-12 text-[#0F172A] dark:text-[#FAFAFA] max-w-[1600px] mx-auto animate-in fade-in duration-300 relative">
       <NotificationToast notification={notification} onClose={() => setNotification(null)} />
 
-      <div className="bg-white dark:bg-[#1e2330] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm shrink-0">
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-2">
-          <ClipboardCheck className="text-blue-400" size={24} /> {title}
-        </h1>
-        <p className="text-slate-400 mt-1">{subtitle}</p>
+      {/* ════════════════ HERO BANNER ════════════════ */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#F1F5F9] dark:from-[#050A18] via-[#0F172A] to-[#FFFFFF] dark:to-[#1E293B] p-6 sm:p-8 text-white shadow-xl border border-[#E2E8F0] dark:border-[#1E293B]">
+        {/* Ambient Grid Overlay */}
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(59,130,246,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(59,130,246,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
+        <div className="absolute top-0 right-0 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-2 max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-300 text-xs font-semibold tracking-wide">
+              <ClipboardCheck size={13} className="text-blue-400" /> KALİTE KONTROL VE TEST DEPARTMANI
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+              {title}
+            </h1>
+            <p className="text-sm text-slate-300 leading-relaxed">
+              {subtitle}
+            </p>
+          </div>
+        </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto pr-1 pb-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Test Başarılı */}
-          <div className="lg:col-span-1 bg-white dark:bg-[#1e2330] border border-emerald-500/30 rounded-2xl overflow-hidden flex flex-col shrink-0 h-fit">
-            <div className="bg-emerald-600 px-5 py-3 flex items-center gap-2">
-              <CheckCircle size={18} className="text-white" />
-              <h3 className="text-sm font-bold text-white uppercase tracking-wider">Test Başarılı</h3>
-            </div>
-            <form onSubmit={handleSuccess} className="p-5 space-y-4">
-              <p className="text-sm text-slate-500 dark:text-slate-400">
-                Test başarılı sonuçlanmış ise, IMEI girip "Test Başarılı" ile devam ediniz.
-              </p>
-              <div>
-                <label className="block text-sm font-medium text-slate-400 mb-1.5">IMEI</label>
-                <input
-                  ref={successInputRef}
-                  type="text"
-                  placeholder="IMEI okutun veya yazın..."
-                  className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-emerald-500"
-                  value={successImei}
-                  onChange={e => setSuccessImei(e.target.value)}
-                  disabled={successLoading}
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={successLoading || !successImei.trim()}
-                className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white px-6 py-2.5 rounded-xl transition-all font-medium flex items-center justify-center gap-2"
-              >
-                <CheckCircle size={16} /> {successLoading ? 'İşleniyor...' : 'Test Başarılı'}
-              </button>
-            </form>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Test Başarılı */}
+        <div className="lg:col-span-1 bg-[#F8FAFC] dark:bg-[#0F172A] border border-emerald-500/40 rounded-2xl overflow-hidden flex flex-col shadow-md">
+          <div className="bg-emerald-600/90 px-5 py-3.5 flex items-center gap-2 border-b border-emerald-500/40">
+            <CheckCircle size={18} className="text-white" />
+            <h3 className="text-xs font-bold text-white uppercase tracking-wider">Test Başarılı (Onay)</h3>
           </div>
-
-          {/* Test Başarısız */}
-          <div className="lg:col-span-2 bg-white dark:bg-[#1e2330] border border-[#7f1d3a]/40 rounded-2xl overflow-hidden flex flex-col shadow-lg shadow-[#7f1d3a]/5">
-            <div className="bg-gradient-to-r from-[#5c1329] to-[#7f1d3a] px-5 py-3.5 flex items-center gap-2.5">
-              <div className="p-1.5 bg-white/10 rounded-lg">
-                <Undo2 size={16} className="text-white" />
-              </div>
-              <h3 className="text-sm font-bold text-white uppercase tracking-wider">Test Başarısız</h3>
-              <span className="ml-auto text-[10px] font-semibold text-white/70 bg-white/10 px-2 py-1 rounded-full">Geri Çevrim</span>
+          <form onSubmit={handleSuccess} className="p-6 space-y-4">
+            <p className="text-xs text-[#64748B] dark:text-[#94A3B8] leading-relaxed">
+              Test başarılı sonuçlanmış ise, IMEI girip "Test Başarılı" butonu ile bir sonraki aşamaya aktarın.
+            </p>
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-[#64748B] dark:text-[#94A3B8]">IMEI Okutun <span className="text-emerald-400">*</span></label>
+              <input
+                ref={successInputRef}
+                type="text"
+                placeholder="IMEI okutun veya yazın..."
+                className="w-full bg-[#FFFFFF] dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155] text-[#0F172A] dark:text-[#FAFAFA] placeholder-[#64748B] rounded-xl px-4 py-2.5 text-xs sm:text-sm font-mono font-medium focus:outline-none focus:border-emerald-500 transition-all"
+                value={successImei}
+                onChange={e => setSuccessImei(e.target.value)}
+                disabled={successLoading}
+              />
             </div>
-            <form onSubmit={handleFail} className="p-5 space-y-4">
-              <p className="text-sm text-slate-500 dark:text-slate-400 border-l-2 border-[#7f1d3a]/40 pl-3">
-                Test başarısız ve tekniğe geri çevirmek için IMEI girip, hatalı parça(lar)ı ve hata kodunu seçip açıklama giriniz.
-              </p>
+            <button
+              type="submit"
+              disabled={successLoading || !successImei.trim()}
+              className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white px-6 py-3 rounded-xl transition-all font-bold text-xs cursor-pointer flex items-center justify-center gap-2 shadow-md"
+            >
+              <CheckCircle size={16} /> {successLoading ? 'İşleniyor...' : 'Test Başarılı'}
+            </button>
+          </form>
+        </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-400 mb-1.5">IMEI</label>
-                <input
-                  type="text"
-                  placeholder="IMEI okutun veya yazın..."
-                  className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-[#7f1d3a] focus:ring-1 focus:ring-[#7f1d3a]"
-                  value={failImei}
-                  onChange={e => setFailImei(e.target.value)}
-                  disabled={failLoading}
-                />
-              </div>
+        {/* Test Başarısız */}
+        <div className="lg:col-span-2 bg-[#F8FAFC] dark:bg-[#0F172A] border border-rose-500/40 rounded-2xl overflow-hidden flex flex-col shadow-md">
+          <div className="bg-rose-600/90 px-5 py-3.5 flex items-center gap-2.5 border-b border-rose-500/40">
+            <div className="p-1 bg-white/10 rounded-lg">
+              <Undo2 size={16} className="text-white" />
+            </div>
+            <h3 className="text-xs font-bold text-white uppercase tracking-wider">Test Başarısız (Geri Çevrim)</h3>
+            <span className="ml-auto text-[10px] font-extrabold text-rose-200 bg-white/10 px-2.5 py-0.5 rounded-full uppercase tracking-wider">Tekniğe Geri Gönder</span>
+          </div>
+          <form onSubmit={handleFail} className="p-6 space-y-4">
+            <p className="text-xs text-[#64748B] dark:text-[#94A3B8] border-l-2 border-rose-500/40 pl-3 leading-relaxed">
+              Test başarısız ise IMEI girip, en az 1 arızalı parça/hata kodu seçin ve açıklama ekleyerek tekniğe iade edin.
+            </p>
 
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="block text-sm font-medium text-slate-400">
-                    Hatalı Parça ve Hata Kodu <span className="text-[#a3213f]">*</span>
-                  </label>
-                  {selectedFaultIds.length > 0 && (
-                    <span className="text-xs font-semibold text-[#a3213f] bg-[#7f1d3a]/10 px-2 py-0.5 rounded-full">
-                      {selectedFaultIds.length} seçili
-                    </span>
-                  )}
-                </div>
-                <div className="w-full bg-slate-50 dark:bg-[#161a23] border border-slate-200 dark:border-slate-800 rounded-xl p-4 max-h-72 overflow-y-auto space-y-4">
-                  {FAULT_CATALOG.map(({ category, items }) => (
-                    <div key={category}>
-                      <h4 className="text-sm font-bold text-[#7f1d3a] dark:text-[#e17b96] mb-1.5 flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#7f1d3a] dark:bg-[#e17b96]"></span>
-                        {category}
-                      </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1">
-                        {items.map((text) => {
-                          const id = `${category}::${text}`;
-                          return (
-                            <label key={id} className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 cursor-pointer py-0.5">
-                              <input
-                                type="checkbox"
-                                checked={selectedFaultIds.includes(id)}
-                                onChange={() => toggleFault(id)}
-                                className="w-4 h-4 rounded border-slate-300 dark:border-slate-700 accent-[#7f1d3a] focus:ring-[#7f1d3a]"
-                              />
-                              {text}
-                            </label>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-[#64748B] dark:text-[#94A3B8]">IMEI Okutun <span className="text-rose-400">*</span></label>
+              <input
+                type="text"
+                placeholder="IMEI okutun veya yazın..."
+                className="w-full bg-[#FFFFFF] dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155] text-[#0F172A] dark:text-[#FAFAFA] placeholder-[#64748B] rounded-xl px-4 py-2.5 text-xs sm:text-sm font-mono font-medium focus:outline-none focus:border-rose-500 transition-all"
+                value={failImei}
+                onChange={e => setFailImei(e.target.value)}
+                disabled={failLoading}
+              />
+            </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-400 mb-1.5">
-                  Açıklama <span className="text-[#a3213f]">*</span>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-bold text-[#64748B] dark:text-[#94A3B8]">
+                  Hatalı Parça ve Hata Kodu <span className="text-rose-400">*</span>
                 </label>
-                <textarea
-                  rows="3"
-                  placeholder="Arıza açıklamasını yazınız..."
-                  className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-[#7f1d3a] focus:ring-1 focus:ring-[#7f1d3a] resize-none"
-                  value={description}
-                  onChange={e => setDescription(e.target.value)}
-                  disabled={failLoading}
-                />
+                {selectedFaultIds.length > 0 && (
+                  <span className="text-xs font-bold text-rose-400 bg-rose-500/20 px-2.5 py-0.5 rounded-full border border-rose-500/30">
+                    {selectedFaultIds.length} Seçili
+                  </span>
+                )}
               </div>
+              <div className="w-full bg-[#F8FAFC] dark:bg-[#162032] border border-[#E2E8F0] dark:border-[#1E293B] rounded-xl p-4 max-h-72 overflow-y-auto space-y-4">
+                {FAULT_CATALOG.map(({ category, items }) => (
+                  <div key={category}>
+                    <h4 className="text-xs font-bold text-rose-400 mb-1.5 flex items-center gap-1.5 uppercase tracking-wider">
+                      <span className="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
+                      {category}
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1">
+                      {items.map((text) => {
+                        const id = `${category}::${text}`;
+                        return (
+                          <label key={id} className="flex items-center gap-2 text-xs text-[#0F172A] dark:text-[#FAFAFA] hover:text-white cursor-pointer py-1 select-none">
+                            <input
+                              type="checkbox"
+                              checked={selectedFaultIds.includes(id)}
+                              onChange={() => toggleFault(id)}
+                              className="w-4 h-4 rounded border-[#E2E8F0] dark:border-[#334155] accent-rose-600 focus:ring-rose-500 bg-[#FFFFFF] dark:bg-[#1E293B]"
+                            />
+                            {text}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
 
-              <button
-                type="submit"
-                disabled={failLoading || !failImei.trim() || !description.trim() || selectedFaultIds.length === 0}
-                className="w-full bg-gradient-to-r from-[#5c1329] to-[#7f1d3a] hover:from-[#4a0f21] hover:to-[#6b1830] disabled:opacity-50 disabled:hover:from-[#5c1329] disabled:hover:to-[#7f1d3a] text-white px-6 py-2.5 rounded-xl transition-all font-medium flex items-center justify-center gap-2 shadow-md shadow-[#7f1d3a]/20"
-              >
-                <Undo2 size={16} /> {failLoading ? 'İşleniyor...' : 'Geri Çevir'}
-              </button>
-            </form>
-          </div>
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-[#64748B] dark:text-[#94A3B8]">
+                Arıza Açıklaması <span className="text-rose-400">*</span>
+              </label>
+              <textarea
+                rows="3"
+                placeholder="Arıza açıklamasını detaylı şekilde yazınız..."
+                className="w-full bg-[#FFFFFF] dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155] text-[#0F172A] dark:text-[#FAFAFA] placeholder-[#64748B] rounded-xl px-4 py-2.5 text-xs sm:text-sm font-medium focus:outline-none focus:border-rose-500 transition-all resize-none"
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+                disabled={failLoading}
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={failLoading || !failImei.trim() || !description.trim() || selectedFaultIds.length === 0}
+              className="w-full bg-rose-600 hover:bg-rose-700 disabled:opacity-40 text-white px-6 py-3 rounded-xl transition-all font-bold text-xs cursor-pointer flex items-center justify-center gap-2 shadow-md"
+            >
+              <Undo2 size={16} /> {failLoading ? 'İşleniyor...' : 'Geri Çevir'}
+            </button>
+          </form>
         </div>
       </div>
     </div>

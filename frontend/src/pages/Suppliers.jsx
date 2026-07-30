@@ -356,70 +356,82 @@ export default function Suppliers() {
   };
 
   return (
-    <div className="h-full flex flex-col space-y-6 overflow-hidden">
+    <div className="flex flex-col space-y-6 pb-12 text-[#0F172A] dark:text-[#FAFAFA] max-w-[1600px] mx-auto animate-in fade-in duration-300">
 
-      {/* Header */}
-      <div className="flex justify-between items-center bg-white dark:bg-[#1e2330] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm shrink-0">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-3">
-            <Users className="text-indigo-400" size={28}/> Müşteriler
-          </h1>
-          <p className="text-slate-400 mt-1">Müşteri iletişim ve cihaz kabul (IMEI/Seri No/Flow) bilgilerini yönetin</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <select
-            className="bg-white dark:bg-[#1e2330] border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 px-4 py-2.5 rounded-xl transition-all font-medium text-sm focus:outline-none focus:border-indigo-500"
-            onChange={(e) => {
-              const val = e.target.value;
-              if (val === 'download_template') handleDownloadTemplate();
-              if (val === 'import_excel') handleOpenBulkModal();
-              if (val === 'export_all') handleExportAll();
-              e.target.value = '';
-            }}
-          >
-            <option value="">Excel İşlemleri</option>
-            <option value="download_template">Boş Şablon İndir</option>
-            <option value="import_excel">Excel'den İçe Aktar</option>
-            <option value="export_all">Tümünü Dışa Aktar</option>
-          </select>
-          <button
-            onClick={() => handleOpenModal()}
-            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl transition-all shadow-lg shadow-indigo-900/20 font-medium text-sm"
-          >
-            <Plus size={18} />
-            <span>Yeni Ekle</span>
-          </button>
+      {/* ════════════════ HERO BANNER ════════════════ */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#F1F5F9] dark:from-[#050A18] via-[#0F172A] to-[#FFFFFF] dark:to-[#1E293B] p-6 sm:p-8 text-white shadow-xl border border-[#E2E8F0] dark:border-[#1E293B]">
+        {/* Ambient Grid Overlay */}
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(99,102,241,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(99,102,241,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
+        <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-2 max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 text-xs font-semibold tracking-wide">
+              <Users size={13} className="text-indigo-400" /> MÜŞTERİ VE FİRMA YÖNETİMİ
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+              Müşteriler & Müşteri Kayıtları
+            </h1>
+            <p className="text-sm text-slate-300 leading-relaxed">
+              Müşteri iletişim ve cihaz kabul (IMEI, Seri No, Flow, MIO Entegrasyonu) kayıtlarını yönetin ve raporlayın.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0 flex-wrap">
+            <select
+              className="bg-[#FFFFFF] dark:bg-[#1E293B] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] text-[#0F172A] dark:text-[#FAFAFA] border border-[#E2E8F0] dark:border-[#334155] px-4 py-2.5 rounded-xl text-xs font-bold transition-all focus:outline-none cursor-pointer"
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === 'download_template') handleDownloadTemplate();
+                if (val === 'import_excel') handleOpenBulkModal();
+                if (val === 'export_all') handleExportAll();
+                e.target.value = '';
+              }}
+            >
+              <option value="">Excel İşlemleri...</option>
+              <option value="download_template">Boş Şablon İndir</option>
+              <option value="import_excel">Excel'den İçe Aktar</option>
+              <option value="export_all">Tümünü Dışa Aktar</option>
+            </select>
+
+            <button
+              onClick={() => handleOpenModal()}
+              className="flex items-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+            >
+              <Plus size={16} /> Yeni Müşteri Ekle
+            </button>
+          </div>
         </div>
       </div>
 
       {error && (
-        <div className="bg-red-500/10 text-red-400 p-4 rounded-xl flex items-center gap-3 border border-red-500/20 shrink-0">
-          <AlertCircle size={20} />
-          <p className="font-medium">{error}</p>
+        <div className="bg-red-500/20 text-red-400 p-4 rounded-2xl flex items-center gap-3 border border-red-500/30 text-xs font-bold">
+          <AlertCircle size={18} />
+          <p>{error}</p>
         </div>
       )}
 
-      {/* Toolbar */}
-      <div className="flex gap-4 shrink-0">
+      {/* SEARCH BAR */}
+      <div className="bg-[#F8FAFC] dark:bg-[#0F172A] rounded-2xl p-4 border border-[#E2E8F0] dark:border-[#1E293B] shadow-md flex items-center gap-3">
         <div className="flex-1 relative">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search className="text-slate-400" size={18} />
+          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#64748B] dark:text-[#94A3B8]">
+            <Search size={18} />
           </div>
           <input
             type="text"
-            placeholder="Ara (Müşteri Adı, Posta Kodu, E-posta, Firma)..."
+            placeholder="Müşteri Ara (Müşteri Adı, Kod, E-posta, Firma)..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:border-indigo-500 shadow-sm"
+            className="w-full bg-[#FFFFFF] dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155] text-[#0F172A] dark:text-[#FAFAFA] placeholder-[#64748B] rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm font-medium focus:outline-none focus:border-[#2563EB] transition-all shadow-xs"
           />
         </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl shadow-lg flex-1 overflow-hidden flex flex-col">
-        <div className="overflow-auto flex-1">
-          <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase text-xs sticky top-0 z-10 select-none">
+      {/* TABLE */}
+      <div className="bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#1E293B] rounded-2xl shadow-md overflow-hidden flex flex-col">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs whitespace-nowrap">
+            <thead className="bg-[#F8FAFC] dark:bg-[#162032] text-[#64748B] dark:text-[#94A3B8] font-bold uppercase tracking-wider border-b border-[#E2E8F0] dark:border-[#1E293B] sticky top-0 z-10 select-none">
               <tr>
                 <th
                   className={`px-6 py-4 cursor-pointer transition-colors select-none ${sortField === 'customer_name' ? 'text-indigo-400 font-semibold' : 'hover:text-slate-200'}`}

@@ -185,7 +185,7 @@ export default function StockTransferModal({ isOpen, onClose, onTransfer, locati
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-[#0f1219]/80 backdrop-blur-sm flex items-center justify-center z-[99] p-4 overflow-y-auto">
+    <div className="fixed inset-0 bg-[#F1F5F9]/80 dark:bg-[#0f1219]/80 backdrop-blur-sm flex items-center justify-center z-[99] p-4 overflow-y-auto">
       <div className="bg-white dark:bg-[#1e2330] border border-slate-700 shadow-2xl rounded-2xl w-full max-w-lg animate-in fade-in zoom-in duration-200 my-8">
         
         {/* Header */}

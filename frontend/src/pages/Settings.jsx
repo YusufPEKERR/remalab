@@ -114,41 +114,55 @@ export default function Settings() {
   };
 
   return (
-    <div className="h-full flex flex-col space-y-6 overflow-hidden">
+    <div className="flex flex-col space-y-6 pb-12 text-[#0F172A] dark:text-[#FAFAFA] max-w-[1600px] mx-auto animate-in fade-in duration-300">
       
-      {/* Header */}
-      <div className="bg-white dark:bg-[#1e2330] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm shrink-0">
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">Ayarlar</h1>
-        <p className="text-slate-400 mt-1">Uygulama dilini, veritabanı bağlantılarını ve lokal dosyaları yönetin.</p>
+      {/* ════════════════ HERO BANNER ════════════════ */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#F1F5F9] dark:from-[#050A18] via-[#0F172A] to-[#FFFFFF] dark:to-[#1E293B] p-6 sm:p-8 text-white shadow-xl border border-[#E2E8F0] dark:border-[#1E293B]">
+        {/* Ambient Grid Overlay */}
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(59,130,246,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(59,130,246,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
+        <div className="absolute top-0 right-0 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-2 max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-300 text-xs font-semibold tracking-wide">
+              <SettingsIcon size={13} className="text-blue-400" /> SİSTEM YAPILANDIRMASI
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+              Sistem Ayarları
+            </h1>
+            <p className="text-sm text-slate-300 leading-relaxed">
+              Uygulama dilini, veritabanı bağlantılarını ve lokal depolama klasörlerini yönetin.
+            </p>
+          </div>
+        </div>
       </div>
 
-      {/* Tabs Menu */}
-      <div className="flex gap-2 shrink-0">
+      {/* TABS CONTAINER */}
+      <div className="bg-[#F8FAFC] dark:bg-[#0F172A] p-2 rounded-2xl border border-[#E2E8F0] dark:border-[#1E293B] shadow-md flex items-center gap-2 overflow-x-auto">
         <button
           onClick={() => setActiveTab('general')}
-          className={`flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-medium transition-all duration-200
-            ${activeTab === 'general' ? 'bg-blue-600 text-slate-900 dark:text-white shadow-lg shadow-blue-900/20' : 'bg-white dark:bg-[#1e2330] text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#2a3142] border border-slate-200 dark:border-slate-700/50'}
-          `}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            activeTab === 'general' ? 'bg-[#2563EB] text-white shadow-md' : 'text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-[#FAFAFA] hover:bg-[#FFFFFF] dark:hover:bg-[#1E293B]'
+          }`}
         >
-          <SettingsIcon size={18} /> Genel Ayarlar
+          <SettingsIcon size={16} /> Genel Ayarlar
         </button>
         <button
           onClick={() => setActiveTab('database')}
-          className={`flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-medium transition-all duration-200
-            ${activeTab === 'database' ? 'bg-blue-600 text-slate-900 dark:text-white shadow-lg shadow-blue-900/20' : 'bg-white dark:bg-[#1e2330] text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#2a3142] border border-slate-200 dark:border-slate-700/50'}
-          `}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            activeTab === 'database' ? 'bg-[#2563EB] text-white shadow-md' : 'text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-[#FAFAFA] hover:bg-[#FFFFFF] dark:hover:bg-[#1E293B]'
+          }`}
         >
-          <Server size={18} /> Veritabanı Bağlantıları
+          <Server size={16} /> Veritabanı Bağlantıları
         </button>
         <button
           onClick={() => setActiveTab('local')}
-          className={`flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-medium transition-all duration-200
-            ${activeTab === 'local' ? 'bg-blue-600 text-slate-900 dark:text-white shadow-lg shadow-blue-900/20' : 'bg-white dark:bg-[#1e2330] text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#2a3142] border border-slate-200 dark:border-slate-700/50'}
-          `}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            activeTab === 'local' ? 'bg-[#2563EB] text-white shadow-md' : 'text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-[#FAFAFA] hover:bg-[#FFFFFF] dark:hover:bg-[#1E293B]'
+          }`}
         >
-          <HardDrive size={18} /> Lokal DB / Klasörler
+          <HardDrive size={16} /> Lokal DB / Klasörler
         </button>
-
       </div>
 
       {/* Tab Content Area */}
