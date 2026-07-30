@@ -7521,6 +7521,61 @@ class WebBridge(QObject):
         finally:
             db.close()
 
+    def _validate_product_model(self, db, model_name):
+        """Girilmiş cihaz modelinin sistemde tanımlı (product_model, parts, product_family vb.)
+        geçerli bir model olup olmadığını denetler. Tanımsız modelleri (örn: 'iPhone 19') engeller."""
+        from sqlalchemy import text
+        m_clean = (model_name or "").strip()
+        if not m_clean:
+            return False, "Cihaz modeli boş olamaz. Lütfen tanımlı bir model giriniz."
+        
+        m_lower = m_clean.lower()
+        m_like = f"{m_lower} %"
+
+        # 1. warehouse.product_model
+        res_pm = db.execute(text("""
+            SELECT 1 FROM warehouse.product_model 
+            WHERE LOWER(TRIM(short_name)) = :m 
+               OR LOWER(TRIM(code)) = :m
+               OR LOWER(TRIM(short_name)) LIKE :m_like
+               OR LOWER(TRIM(code)) LIKE :m_like
+            LIMIT 1
+        """), {"m": m_lower, "m_like": m_like}).first()
+        if res_pm:
+            return True, ""
+
+        # 2. warehouse.parts (model kolonu)
+        res_parts = db.execute(text("""
+            SELECT 1 FROM warehouse.parts 
+            WHERE LOWER(TRIM(model)) = :m 
+               OR LOWER(TRIM(model)) LIKE :m_like
+            LIMIT 1
+        """), {"m": m_lower, "m_like": m_like}).first()
+        if res_parts:
+            return True, ""
+
+        # 3. warehouse.product_family (short_name veya code)
+        res_fam = db.execute(text("""
+            SELECT 1 FROM warehouse.product_family 
+            WHERE LOWER(TRIM(short_name)) = :m 
+               OR LOWER(TRIM(code)) = :m
+               OR LOWER(TRIM(short_name)) LIKE :m_like
+            LIMIT 1
+        """), {"m": m_lower, "m_like": m_like}).first()
+        if res_fam:
+            return True, ""
+
+        # 4. warehouse.product_model içinde parça eşleşmesi (örn. 'Galaxy A50' vs 'Galaxy A50 128GB')
+        res_contains = db.execute(text("""
+            SELECT 1 FROM warehouse.product_model
+            WHERE LOWER(short_name) LIKE :m_contains OR LOWER(code) LIKE :m_contains
+            LIMIT 1
+        """), {"m_contains": f"%{m_lower}%"}).first()
+        if res_contains:
+            return True, ""
+
+        return False, f"Sistemde tanımlı olmayan geçersiz cihaz modeli: '{m_clean}'. Lütfen sistemde tanımlı bir model giriniz."
+
     @Slot(str, result=str)
     def create_batch_entry(self, data_json):
         import uuid
@@ -7528,6 +7583,15 @@ class WebBridge(QObject):
         db = SessionLocal()
         try:
             d = json.loads(data_json or "{}")
+
+            # Model doğrulama (Tanımsız model engelleme)
+            model_val = d.get("model", "").strip()
+            is_valid_m, m_err_msg = self._validate_product_model(db, model_val)
+            if not is_valid_m:
+                return json.dumps({
+                    "success": False,
+                    "message": m_err_msg
+                })
 
             # Validation: Aynı batch numarasıyla farklı müşteri olamaz
             batch_no = d.get("batch_no", "").strip()
@@ -7622,8 +7686,12 @@ class WebBridge(QObject):
             entry.imei_number = d.get("imei_number", entry.imei_number).strip()
             entry.serial_number = d.get("serial_number", entry.serial_number).strip()
             entry.internal_id = d.get("internal_id", entry.internal_id).strip()
-            entry.batch_no = d.get("batch_no", entry.batch_no).strip()
-            entry.model = d.get("model", entry.model).strip()
+            if "model" in d:
+                new_model = d.get("model", entry.model).strip()
+                is_valid_m, m_err_msg = self._validate_product_model(db, new_model)
+                if not is_valid_m:
+                    return json.dumps({"success": False, "message": m_err_msg})
+                entry.model = new_model
             entry.gb = d.get("gb", entry.gb).strip()
             entry.color = d.get("color", entry.color).strip()
             if "unit_price" in d:
