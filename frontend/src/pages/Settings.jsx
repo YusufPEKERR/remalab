@@ -117,20 +117,20 @@ export default function Settings() {
     <div className="flex flex-col space-y-6 pb-12 text-[#0F172A] dark:text-[#FAFAFA] max-w-[1600px] mx-auto animate-in fade-in duration-300">
       
       {/* ════════════════ HERO BANNER ════════════════ */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#F1F5F9] dark:from-[#050A18] via-[#0F172A] to-[#FFFFFF] dark:to-[#1E293B] p-6 sm:p-8 text-white shadow-xl border border-[#E2E8F0] dark:border-[#1E293B]">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#F1F5F9] dark:from-[#050A18] via-[#E2E9F5] dark:via-[#0F172A] to-[#FFFFFF] dark:to-[#1E293B] p-6 sm:p-8 text-[#0D1B3E] dark:text-white shadow-xl border border-[#E2E8F0] dark:border-[#1E293B]">
         {/* Ambient Grid Overlay */}
         <div className="absolute inset-0 bg-[linear-gradient(rgba(59,130,246,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(59,130,246,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-300 text-xs font-semibold tracking-wide">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 dark:bg-blue-500/20 border border-blue-500/25 dark:border-blue-400/30 text-[#1D4ED8] dark:text-blue-300 text-xs font-semibold tracking-wide">
               <SettingsIcon size={13} className="text-blue-400" /> SİSTEM YAPILANDIRMASI
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0D1B3E] dark:text-white">
               Sistem Ayarları
             </h1>
-            <p className="text-sm text-slate-300 leading-relaxed">
+            <p className="text-sm text-[#475569] dark:text-slate-300 leading-relaxed">
               Uygulama dilini, veritabanı bağlantılarını ve lokal depolama klasörlerini yönetin.
             </p>
           </div>
@@ -231,7 +231,7 @@ export default function Settings() {
                   </div>
                   <button 
                     onClick={() => handleOpenDbForm()}
-                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl transition-all shadow-lg shadow-blue-900/20 font-medium text-sm"
+                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-[#0D1B3E] dark:text-white px-4 py-2 rounded-xl transition-all shadow-lg shadow-blue-900/20 font-medium text-sm"
                   >
                     <Plus size={16} /> Yeni Bağlantı
                   </button>
@@ -243,7 +243,7 @@ export default function Settings() {
                     return (
                       <div key={conn.id} className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-5 flex gap-5 hover:border-slate-500 transition-colors group relative overflow-hidden">
                         {conn.active && (
-                          <div className="absolute top-0 right-0 bg-blue-600 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl uppercase tracking-wider">
+                          <div className="absolute top-0 right-0 bg-blue-600 text-[#0D1B3E] dark:text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl uppercase tracking-wider">
                             Aktif
                           </div>
                         )}
@@ -341,8 +341,8 @@ export default function Settings() {
 
                   <div className="flex justify-end gap-3 pt-6 border-t border-slate-200 dark:border-slate-700/50 mt-6">
                     <button type="button" onClick={() => setShowDbForm(false)} className="px-5 py-2.5 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors border border-slate-300 dark:border-slate-600">─░ptal</button>
-                    <button type="button" onClick={() => alert("Test Ediliyor...")} className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors shadow-lg shadow-indigo-900/20 flex items-center gap-2"><PlugZap size={18}/> Test Et</button>
-                    <button type="submit" className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors shadow-lg shadow-blue-900/20 flex items-center gap-2"><Save size={18}/> Kaydet</button>
+                    <button type="button" onClick={() => alert("Test Ediliyor...")} className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-[#0D1B3E] dark:text-white rounded-xl font-medium transition-colors shadow-lg shadow-indigo-900/20 flex items-center gap-2"><PlugZap size={18}/> Test Et</button>
+                    <button type="submit" className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-[#0D1B3E] dark:text-white rounded-xl font-medium transition-colors shadow-lg shadow-blue-900/20 flex items-center gap-2"><Save size={18}/> Kaydet</button>
                   </div>
                 </form>
               </div>
@@ -365,7 +365,7 @@ export default function Settings() {
                   <button onClick={async () => { const res = await api.addLocalFile(); if(res.success) fetchLocalData(); else if(res.message !== "Seçim iptal edildi") alert(res.message); }} className="flex items-center gap-2 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-600 px-4 py-2 rounded-xl transition-all font-medium text-sm">
                     Var Olanı Ekle
                   </button>
-                  <button onClick={async () => { const res = await api.createLocalFile(); if(res.success) fetchLocalData(); else if(res.message !== "─░şlem iptal edildi") alert(res.message); }} className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl transition-all shadow-lg shadow-purple-900/20 font-medium text-sm">
+                  <button onClick={async () => { const res = await api.createLocalFile(); if(res.success) fetchLocalData(); else if(res.message !== "─░şlem iptal edildi") alert(res.message); }} className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-[#0D1B3E] dark:text-white px-4 py-2 rounded-xl transition-all shadow-lg shadow-purple-900/20 font-medium text-sm">
                     <Plus size={16} /> Yeni Oluştur
                   </button>
                 </div>

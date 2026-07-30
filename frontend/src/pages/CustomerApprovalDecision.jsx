@@ -99,7 +99,7 @@ const CustomerApprovalDecision = () => {
       <NotificationToast notification={notification} onClose={() => setNotification(null)} />
 
       {/* ════════════════ HERO BANNER ════════════════ */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#F1F5F9] dark:from-[#050A18] via-[#0F172A] to-[#FFFFFF] dark:to-[#1E293B] p-6 sm:p-8 text-white shadow-xl border border-[#E2E8F0] dark:border-[#1E293B]">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#F1F5F9] dark:from-[#050A18] via-[#E2E9F5] dark:via-[#0F172A] to-[#FFFFFF] dark:to-[#1E293B] p-6 sm:p-8 text-[#0D1B3E] dark:text-white shadow-xl border border-[#E2E8F0] dark:border-[#1E293B]">
         {/* Ambient Grid Overlay */}
         <div className="absolute inset-0 bg-[linear-gradient(rgba(139,92,246,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(139,92,246,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl pointer-events-none" />
@@ -109,10 +109,10 @@ const CustomerApprovalDecision = () => {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/20 border border-purple-400/30 text-purple-300 text-xs font-semibold tracking-wide">
               <ScanLine size={13} className="text-purple-400" /> MÜŞTERİ ONAY KARARLARI
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0D1B3E] dark:text-white">
               Müşteri Onayı Bekleyen Cihazlar
             </h1>
-            <p className="text-sm text-slate-300 leading-relaxed">
+            <p className="text-sm text-[#475569] dark:text-slate-300 leading-relaxed">
               Müşteri onayına sunulmuş ({SOURCE_STATU}) tüm cihazları görüntüleyin, gelen müşteri kararına göre onay (109) veya red (124) işlemini yapın.
             </p>
           </div>

@@ -196,7 +196,7 @@ export default function Products() {
     <div className="flex flex-col space-y-6 pb-12 text-[#0F172A] dark:text-[#FAFAFA] max-w-[1600px] mx-auto animate-in fade-in duration-300">
       
       {/* ════════════════ HERO BANNER ════════════════ */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#F1F5F9] dark:from-[#050A18] via-[#0F172A] to-[#FFFFFF] dark:to-[#1E293B] p-6 sm:p-8 text-white shadow-xl border border-[#E2E8F0] dark:border-[#1E293B]">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#F1F5F9] dark:from-[#050A18] via-[#E2E9F5] dark:via-[#0F172A] to-[#FFFFFF] dark:to-[#1E293B] p-6 sm:p-8 text-[#0D1B3E] dark:text-white shadow-xl border border-[#E2E8F0] dark:border-[#1E293B]">
         {/* Ambient Grid Overlay */}
         <div className="absolute inset-0 bg-[linear-gradient(rgba(6,182,212,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(6,182,212,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-600/10 rounded-full blur-3xl pointer-events-none" />
@@ -206,10 +206,10 @@ export default function Products() {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/20 border border-cyan-400/30 text-cyan-300 text-xs font-semibold tracking-wide">
               <FileSpreadsheet size={13} className="text-cyan-400" /> ÜRÜN VE MODEL YÖNETİMİ
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0D1B3E] dark:text-white">
               Telefon Modelleri (Ürünler)
             </h1>
-            <p className="text-sm text-slate-300 leading-relaxed">
+            <p className="text-sm text-[#475569] dark:text-slate-300 leading-relaxed">
               Sistemdeki tüm cihaz markaları, modelleri, renk ve hafıza parametrelerini yönetin.
             </p>
           </div>
@@ -232,7 +232,7 @@ export default function Products() {
             
             <button 
               onClick={() => handleOpenModal()}
-              className="flex items-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+              className="flex items-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-[#0D1B3E] dark:text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
             >
               <Plus size={16} /> Yeni Model Ekle
             </button>
@@ -330,7 +330,7 @@ export default function Products() {
                       </span>
                     </td>
                     <td className="px-6 py-3.5 font-semibold text-[#0F172A] dark:text-[#FAFAFA]">{product.brand || '-'}</td>
-                    <td className="px-6 py-3.5 text-slate-300">{product.model || '-'}</td>
+                    <td className="px-6 py-3.5 text-[#475569] dark:text-slate-300">{product.model || '-'}</td>
                     <td className="px-6 py-3.5 font-mono text-[#64748B] dark:text-[#94A3B8]">{product.memory || '-'}</td>
                     <td className="px-6 py-3.5 text-center">
                       <div className="flex justify-center gap-2">
@@ -465,7 +465,7 @@ export default function Products() {
 
               <div className="pt-2 flex justify-end gap-3 mt-6 border-t border-slate-200 dark:border-slate-700/50">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="mt-4 px-5 py-2.5 text-slate-700 dark:text-slate-300 hover:bg-slate-800 rounded-lg transition-colors font-medium">İptal</button>
-                <button type="submit" className="mt-4 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors shadow-lg shadow-blue-900/20">Kaydet</button>
+                <button type="submit" className="mt-4 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-[#0D1B3E] dark:text-white rounded-lg font-medium transition-colors shadow-lg shadow-blue-900/20">Kaydet</button>
               </div>
             </form>
           </div>
@@ -512,7 +512,7 @@ export default function Products() {
               <button 
                 onClick={executeExport}
                 disabled={!Object.values(selectedExportColumns).some(Boolean)}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors font-medium shadow-md shadow-emerald-500/20 disabled:opacity-50"
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-[#0D1B3E] dark:text-white rounded-lg transition-colors font-medium shadow-md shadow-emerald-500/20 disabled:opacity-50"
               >
                 Dışa Aktar
               </button>

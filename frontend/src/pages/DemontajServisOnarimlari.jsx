@@ -192,7 +192,7 @@ const DemontajServisOnarimlari = () => {
       <NotificationToast notification={notification} onClose={() => setNotification(null)} />
 
       {/* ════════════════ HERO BANNER ════════════════ */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#F1F5F9] dark:from-[#050A18] via-[#0F172A] to-[#FFFFFF] dark:to-[#1E293B] p-6 sm:p-8 text-white shadow-xl border border-[#E2E8F0] dark:border-[#1E293B]">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#F1F5F9] dark:from-[#050A18] via-[#E2E9F5] dark:via-[#0F172A] to-[#FFFFFF] dark:to-[#1E293B] p-6 sm:p-8 text-[#0D1B3E] dark:text-white shadow-xl border border-[#E2E8F0] dark:border-[#1E293B]">
         {/* Ambient Grid Overlay */}
         <div className="absolute inset-0 bg-[linear-gradient(rgba(16,185,129,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(16,185,129,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-600/10 rounded-full blur-3xl pointer-events-none" />
@@ -202,10 +202,10 @@ const DemontajServisOnarimlari = () => {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-xs font-semibold tracking-wide">
               <Wrench size={13} className="text-emerald-400" /> DEMONTAJ SERVİS ONARIMLARI
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0D1B3E] dark:text-white">
               Demontaj Servis Onarımları & Parça Demontajı
             </h1>
-            <p className="text-sm text-slate-300 leading-relaxed">
+            <p className="text-sm text-[#475569] dark:text-slate-300 leading-relaxed">
               Cihaz demontaj işlemlerini yapın, sökülen ve sağlam parçaları depolara ve DOA lokasyonlarına yönlendirin.
             </p>
           </div>
@@ -227,11 +227,11 @@ const DemontajServisOnarimlari = () => {
               className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[#E2E8F0] dark:border-[#334155] bg-[#FFFFFF] dark:bg-[#1E293B] text-xs sm:text-sm text-[#0F172A] dark:text-[#FAFAFA] placeholder-[#64748B] focus:outline-none focus:border-[#2563EB] transition-all disabled:opacity-50 font-mono"
             />
           </div>
-          <button type="submit" disabled={isSearching} className="w-full md:w-auto px-6 py-2.5 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-40 text-white text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer">
+          <button type="submit" disabled={isSearching} className="w-full md:w-auto px-6 py-2.5 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-40 text-[#0D1B3E] dark:text-white text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer">
             <Search size={15} /> {isSearching ? "Sorgulanıyor..." : "Sorgula"}
           </button>
           {statusBadge && (
-            <div className={`md:ml-auto flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold ${statusBadge.tone === 'ok' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : statusBadge.tone === 'neutral' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'}`}>
+            <div className={`md:ml-auto flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold ${statusBadge.tone === 'ok' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : statusBadge.tone === 'neutral' ? 'bg-blue-500/10 dark:bg-blue-500/20 text-blue-400 border border-blue-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'}`}>
               <span className={`w-2 h-2 rounded-full ${statusBadge.tone === 'ok' ? 'bg-emerald-400 animate-pulse' : statusBadge.tone === 'neutral' ? 'bg-blue-400' : 'bg-rose-400'}`}></span>
               {statusBadge.text}
             </div>
@@ -274,7 +274,7 @@ const DemontajServisOnarimlari = () => {
                       <button
                         onClick={handleSaveDiagnosis}
                         disabled={savingDiagnosis || diagnosisDraft === (device.customerDiagnosis || "")}
-                        className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[10px] font-bold transition-colors"
+                        className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-[#0D1B3E] dark:text-white text-[10px] font-bold transition-colors"
                       >
                         {savingDiagnosis ? "Kaydediliyor..." : "Kaydet"}
                       </button>

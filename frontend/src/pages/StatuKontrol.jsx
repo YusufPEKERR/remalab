@@ -112,7 +112,7 @@ export default function StatuKontrol() {
       <NotificationToast notification={notification} onClose={() => setNotification(null)} />
 
       {/* ════════════════ HERO BANNER ════════════════ */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#F1F5F9] dark:from-[#050A18] via-[#0F172A] to-[#FFFFFF] dark:to-[#1E293B] p-6 sm:p-8 text-white shadow-xl border border-[#E2E8F0] dark:border-[#1E293B]">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#F1F5F9] dark:from-[#050A18] via-[#E2E9F5] dark:via-[#0F172A] to-[#FFFFFF] dark:to-[#1E293B] p-6 sm:p-8 text-[#0D1B3E] dark:text-white shadow-xl border border-[#E2E8F0] dark:border-[#1E293B]">
         {/* Ambient Grid Overlay */}
         <div className="absolute inset-0 bg-[linear-gradient(rgba(245,158,11,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(245,158,11,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-amber-600/10 rounded-full blur-3xl pointer-events-none" />
@@ -122,10 +122,10 @@ export default function StatuKontrol() {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-400/30 text-amber-300 text-xs font-semibold tracking-wide">
               <Zap size={13} className="text-amber-400" /> MANUEL İDARİ STATÜ MÜDAHALESİ
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0D1B3E] dark:text-white">
               Statü Kontrol & Doğrudan Statü Değişimi
             </h1>
-            <p className="text-sm text-slate-300 leading-relaxed">
+            <p className="text-sm text-[#475569] dark:text-slate-300 leading-relaxed">
               IMEI, Seri No, Dahili ID veya Batch No ile sorgulayarak bir cihazın statüsünü doğrudan değiştirin. Bu ekran idari düzeltme amaçlıdır.
             </p>
           </div>
@@ -152,7 +152,7 @@ export default function StatuKontrol() {
             <button
               type="submit"
               disabled={loading || !term.trim()}
-              className="bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-40 text-white px-8 py-3 rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer shrink-0"
+              className="bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-40 text-[#0D1B3E] dark:text-white px-8 py-3 rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer shrink-0"
             >
               <Search size={15} /> {loading ? "Sorgulanıyor..." : "Sorgula"}
             </button>
@@ -169,7 +169,7 @@ export default function StatuKontrol() {
                 {device.imei_number}
               </h3>
               <p className="text-xs text-[#64748B] dark:text-[#94A3B8] mt-1 font-medium">
-                Parti: <span className="text-white font-semibold">{device.batch_no}</span> · Model: <span className="text-white font-semibold">{device.model}</span> · Akış: <span className="text-blue-400 font-semibold">{device.flow}</span>
+                Parti: <span className="text-[#0D1B3E] dark:text-white font-semibold">{device.batch_no}</span> · Model: <span className="text-[#0D1B3E] dark:text-white font-semibold">{device.model}</span> · Akış: <span className="text-blue-400 font-semibold">{device.flow}</span>
               </p>
             </div>
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold">
@@ -196,7 +196,7 @@ export default function StatuKontrol() {
             <button
               onClick={handleApply}
               disabled={applying || !targetCode || Number(targetCode) === device.statu_code}
-              className="w-full md:w-auto bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed text-white px-8 py-3 rounded-xl transition-all shadow-md text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shrink-0"
+              className="w-full md:w-auto bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed text-[#0D1B3E] dark:text-white px-8 py-3 rounded-xl transition-all shadow-md text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shrink-0"
             >
               {device.statu_code} <ArrowRight size={15} /> {targetCode || "?"} {applying ? "Uygulanıyor..." : "Statüyü Uygula"}
             </button>

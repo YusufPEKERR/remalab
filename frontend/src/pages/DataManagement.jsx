@@ -226,20 +226,20 @@ export default function DataManagement() {
     <div className="flex flex-col space-y-6 pb-12 text-[#0F172A] dark:text-[#FAFAFA] max-w-[1600px] mx-auto animate-in fade-in duration-300">
       
       {/* ════════════════ HERO BANNER ════════════════ */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#F1F5F9] dark:from-[#050A18] via-[#0F172A] to-[#FFFFFF] dark:to-[#1E293B] p-6 sm:p-8 text-white shadow-xl border border-[#E2E8F0] dark:border-[#1E293B]">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#F1F5F9] dark:from-[#050A18] via-[#E2E9F5] dark:via-[#0F172A] to-[#FFFFFF] dark:to-[#1E293B] p-6 sm:p-8 text-[#0D1B3E] dark:text-white shadow-xl border border-[#E2E8F0] dark:border-[#1E293B]">
         {/* Ambient Grid Overlay */}
         <div className="absolute inset-0 bg-[linear-gradient(rgba(37,99,235,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(37,99,235,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-300 text-xs font-semibold tracking-wide">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 dark:bg-blue-500/20 border border-blue-500/25 dark:border-blue-400/30 text-[#1D4ED8] dark:text-blue-300 text-xs font-semibold tracking-wide">
               <Database size={13} className="text-blue-400" /> VERİ TABANI VE EXCEL YÖNETİMİ
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0D1B3E] dark:text-white">
               Veri Yönetimi & İçe / Dışa Aktarım
             </h1>
-            <p className="text-sm text-slate-300 leading-relaxed">
+            <p className="text-sm text-[#475569] dark:text-slate-300 leading-relaxed">
               Sistemdeki tüm veritabanı tablolarını yönetin, Excel formatında dışa aktarın ve toplu veri yükleyin.
             </p>
           </div>
@@ -282,7 +282,7 @@ export default function DataManagement() {
                   <button 
                     onClick={handleExportData}
                     disabled={loading}
-                    className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-medium inline-flex items-center gap-2 transition-all shadow-lg shadow-indigo-600/20 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
+                    className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-[#0D1B3E] dark:text-white rounded-xl text-sm font-medium inline-flex items-center gap-2 transition-all shadow-lg shadow-indigo-600/20 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
                   >
                     <Download size={18} /> {loading ? "Dışa Aktarılıyor..." : "Tüm Tabloları Dışa Aktar"}
                   </button>
@@ -317,14 +317,14 @@ export default function DataManagement() {
                   <div className="flex items-center gap-2.5">
                     <button 
                       onClick={handleGlobalSave}
-                      className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-sm font-semibold flex items-center gap-2 transition-all shadow-lg shadow-emerald-500/20 hover:scale-[1.02] active:scale-[0.98]"
+                      className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-[#0D1B3E] dark:text-white rounded-xl text-sm font-semibold flex items-center gap-2 transition-all shadow-lg shadow-emerald-500/20 hover:scale-[1.02] active:scale-[0.98]"
                       title="Değişiklikleri Kaydet"
                     >
                       <Save size={16} /> Kaydet
                     </button>
                     <button 
                       onClick={handleGlobalCancel}
-                      className="px-4 py-2 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-sm font-semibold flex items-center gap-2 transition-all shadow-lg shadow-rose-500/20 hover:scale-[1.02] active:scale-[0.98]"
+                      className="px-4 py-2 bg-rose-500 hover:bg-rose-600 text-[#0D1B3E] dark:text-white rounded-xl text-sm font-semibold flex items-center gap-2 transition-all shadow-lg shadow-rose-500/20 hover:scale-[1.02] active:scale-[0.98]"
                       title="Seçimi İptal Et"
                     >
                       <XCircle size={16} /> İptal Et
@@ -343,7 +343,7 @@ export default function DataManagement() {
                     <button 
                       onClick={handleExportData}
                       disabled={loading || selectedColumns.length === 0}
-                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-medium flex items-center gap-2 transition-all shadow-lg shadow-indigo-600/20 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
+                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-[#0D1B3E] dark:text-white rounded-xl text-sm font-medium flex items-center gap-2 transition-all shadow-lg shadow-indigo-600/20 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
                       title="Seçili sütunlarla mevcut tabloyu yedekle"
                     >
                       <Download size={16} /> Dışa Aktar
@@ -351,7 +351,7 @@ export default function DataManagement() {
                     <button 
                       onClick={() => setIsExcelModalOpen(true)}
                       disabled={loading}
-                      className="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-sm font-medium flex items-center gap-2 transition-all shadow-lg shadow-violet-600/20 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
+                      className="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-[#0D1B3E] dark:text-white rounded-xl text-sm font-medium flex items-center gap-2 transition-all shadow-lg shadow-violet-600/20 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
                       title="Tüm sütunlarla kayıt ekle"
                     >
                       <Upload size={16} /> İçe Aktar

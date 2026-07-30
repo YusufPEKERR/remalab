@@ -484,7 +484,7 @@ export default function Users() {
     <div className="flex flex-col space-y-6 pb-12 text-[#0F172A] dark:text-[#FAFAFA] max-w-[1600px] mx-auto animate-in fade-in duration-300">
       
       {/* ════════════════ HERO BANNER ════════════════ */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#F1F5F9] dark:from-[#050A18] via-[#0F172A] to-[#FFFFFF] dark:to-[#1E293B] p-6 sm:p-8 text-white shadow-xl border border-[#E2E8F0] dark:border-[#1E293B]">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#F1F5F9] dark:from-[#050A18] via-[#E2E9F5] dark:via-[#0F172A] to-[#FFFFFF] dark:to-[#1E293B] p-6 sm:p-8 text-[#0D1B3E] dark:text-white shadow-xl border border-[#E2E8F0] dark:border-[#1E293B]">
         {/* Ambient Grid Overlay */}
         <div className="absolute inset-0 bg-[linear-gradient(rgba(99,102,241,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(99,102,241,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none" />
@@ -494,10 +494,10 @@ export default function Users() {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 text-xs font-semibold tracking-wide">
               <UsersIcon size={13} className="text-indigo-400" /> KULLANICI VE PERSONEL YÖNETİMİ
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0D1B3E] dark:text-white">
               Kullanıcılar & Personel Tanımları
             </h1>
-            <p className="text-sm text-slate-300 leading-relaxed">
+            <p className="text-sm text-[#475569] dark:text-slate-300 leading-relaxed">
               Sistem erişim rollerini, teknisyen görevlerini, yöneticileri ve kullanıcı hesap durumlarını yönetin.
             </p>
           </div>
@@ -527,7 +527,7 @@ export default function Users() {
         </div>
         
         <div className="flex flex-wrap gap-2.5 shrink-0">
-          <button onClick={() => setIsExportModalOpen(true)} className="flex items-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white px-4 py-2.5 rounded-xl shadow-md text-xs font-bold transition-all cursor-pointer">
+          <button onClick={() => setIsExportModalOpen(true)} className="flex items-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-[#0D1B3E] dark:text-white px-4 py-2.5 rounded-xl shadow-md text-xs font-bold transition-all cursor-pointer">
             <Download size={15} /> {selectedRows.length > 0 ? `${selectedRows.length} Seçiliyi Aktar` : 'Excel Dışa Aktar'}
           </button>
           <button onClick={handleAdd} className="flex items-center gap-2 bg-[#FFFFFF] dark:bg-[#1E293B] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] border border-[#E2E8F0] dark:border-[#334155] text-[#0F172A] dark:text-[#FAFAFA] px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer">
@@ -786,7 +786,7 @@ export default function Users() {
                     <td className="px-6 py-4">
                       <span className={`px-2.5 py-1 rounded-md text-xs font-bold
                         ${user.role === 'Admin' ? 'bg-purple-500/20 text-purple-400 border border-purple-500/20' : 
-                          user.role === 'Depo Müdürü' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/20' :
+                          user.role === 'Depo Müdürü' ? 'bg-blue-500/10 dark:bg-blue-500/20 text-blue-400 border border-blue-500/20' :
                           'bg-emerald-500/20 text-emerald-400 border border-emerald-500/20'}
                       `}>
                         {user.role}
@@ -919,7 +919,7 @@ export default function Users() {
                             <button
                               type="button"
                               onClick={handleDeleteRole}
-                              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs transition-colors font-semibold"
+                              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-[#0D1B3E] dark:text-white rounded-xl text-xs transition-colors font-semibold"
                             >
                               Sil
                             </button>
@@ -994,7 +994,7 @@ export default function Users() {
                             <button
                               type="button"
                               onClick={handleDeleteGorev}
-                              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs transition-colors font-semibold"
+                              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-[#0D1B3E] dark:text-white rounded-xl text-xs transition-colors font-semibold"
                             >
                               Sil
                             </button>
@@ -1025,7 +1025,7 @@ export default function Users() {
                                 setIsCustomGorev(false);
                               }
                             }}
-                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs transition-colors font-semibold"
+                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-[#0D1B3E] dark:text-white rounded-xl text-xs transition-colors font-semibold"
                           >
                             Ekle
                           </button>
@@ -1064,7 +1064,7 @@ export default function Users() {
                             <button
                               type="button"
                               onClick={() => handleRemoveMission(m)}
-                              className="w-3.5 h-3.5 rounded-full flex items-center justify-center bg-blue-500/20 hover:bg-red-500/20 hover:text-red-400 text-blue-400 font-bold text-[10px] transition-colors ml-1"
+                              className="w-3.5 h-3.5 rounded-full flex items-center justify-center bg-blue-500/10 dark:bg-blue-500/20 hover:bg-red-500/20 hover:text-red-400 text-blue-400 font-bold text-[10px] transition-colors ml-1"
                             >
                               ×
                             </button>
@@ -1156,7 +1156,7 @@ export default function Users() {
 
               <div className="p-6 bg-slate-50 dark:bg-[#242a38] border-t border-slate-200 dark:border-slate-700/50 flex justify-end gap-3 shrink-0">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-5 py-2.5 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors border border-slate-300 dark:border-slate-600">İptal</button>
-                <button type="submit" className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors shadow-lg shadow-blue-900/20">Kaydet</button>
+                <button type="submit" className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-[#0D1B3E] dark:text-white rounded-xl font-medium transition-colors shadow-lg shadow-blue-900/20">Kaydet</button>
               </div>
             </form>
           </div>
@@ -1194,7 +1194,7 @@ export default function Users() {
               <button 
                 onClick={executeExport}
                 disabled={!Object.values(selectedExportColumns).some(Boolean)}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors font-medium shadow-md shadow-emerald-500/20 disabled:opacity-50"
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-[#0D1B3E] dark:text-white rounded-lg transition-colors font-medium shadow-md shadow-emerald-500/20 disabled:opacity-50"
               >
                 Dışa Aktar
               </button>

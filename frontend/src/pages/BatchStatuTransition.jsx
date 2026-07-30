@@ -408,7 +408,7 @@ const BatchStatuTransition = () => {
       />
 
       {/* ════════════════ HERO BANNER ════════════════ */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#F1F5F9] dark:from-[#050A18] via-[#0F172A] to-[#FFFFFF] dark:to-[#1E293B] p-6 sm:p-8 text-white shadow-xl border border-[#E2E8F0] dark:border-[#1E293B]">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#F1F5F9] dark:from-[#050A18] via-[#E2E9F5] dark:via-[#0F172A] to-[#FFFFFF] dark:to-[#1E293B] p-6 sm:p-8 text-[#0D1B3E] dark:text-white shadow-xl border border-[#E2E8F0] dark:border-[#1E293B]">
         {/* Ambient Grid Overlay */}
         <div className="absolute inset-0 bg-[linear-gradient(rgba(245,158,11,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(245,158,11,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-amber-600/10 rounded-full blur-3xl pointer-events-none" />
@@ -418,16 +418,16 @@ const BatchStatuTransition = () => {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-400/30 text-amber-300 text-xs font-semibold tracking-wide">
               <ScanLine size={13} className="text-amber-400" /> TOPLU STATÜ GEÇİŞ İŞLEMİ
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white flex items-center gap-3">
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0D1B3E] dark:text-white flex items-center gap-3">
               {transition.short_name}
             </h1>
-            <p className="text-sm text-slate-300 leading-relaxed">
+            <p className="text-sm text-[#475569] dark:text-slate-300 leading-relaxed">
               IMEI, seri numarası, internal ID veya parti numarasını okutun. Parti statü {transition.parent_statu} değilse işlem reddedilir.
             </p>
           </div>
 
           <div className="shrink-0">
-            <span className="px-4 py-2 rounded-xl text-xs font-bold border bg-blue-500/20 text-[#60A5FA] border-blue-500/30 flex items-center gap-2 shadow-md">
+            <span className="px-4 py-2 rounded-xl text-xs font-bold border bg-blue-500/10 dark:bg-blue-500/20 text-[#60A5FA] border-blue-500/30 flex items-center gap-2 shadow-md">
               {transition.parent_statu} <ArrowRight size={14} /> {transition.child_statu}
             </span>
           </div>
@@ -452,7 +452,7 @@ const BatchStatuTransition = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-40 text-white px-8 py-3 rounded-xl transition-all shadow-md font-bold text-xs cursor-pointer whitespace-nowrap flex items-center justify-center gap-2"
+                className="bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-40 text-[#0D1B3E] dark:text-white px-8 py-3 rounded-xl transition-all shadow-md font-bold text-xs cursor-pointer whitespace-nowrap flex items-center justify-center gap-2"
               >
                 <ScanLine size={16} /> {loading ? "Sorgulanıyor..." : "Okut"}
               </button>
@@ -467,7 +467,7 @@ const BatchStatuTransition = () => {
             <h3 className="text-base font-bold text-[#0F172A] dark:text-[#FAFAFA]">
               <span className="font-mono text-[#60A5FA]">{deviceInfo.imei}</span> <span className="text-[#64748B] dark:text-[#94A3B8] font-normal">· {deviceInfo.batchNo} · {deviceInfo.flow}</span>
             </h3>
-            <span className="px-3 py-1 rounded-full text-xs font-bold border bg-blue-500/20 text-blue-400 border-blue-500/30">
+            <span className="px-3 py-1 rounded-full text-xs font-bold border bg-blue-500/10 dark:bg-blue-500/20 text-blue-400 border-blue-500/30">
               Statü: {deviceInfo.statuCode}{deviceInfo.statuName ? ` — ${deviceInfo.statuName}` : ""}
             </span>
           </div>

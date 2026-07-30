@@ -368,7 +368,7 @@ export default function Irsaliye() {
     <div className="flex flex-col space-y-6 pb-12 text-[#0F172A] dark:text-[#FAFAFA] max-w-[1600px] mx-auto animate-in fade-in duration-300">
       
       {/* ════════════════ HERO BANNER ════════════════ */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#F1F5F9] dark:from-[#050A18] via-[#0F172A] to-[#FFFFFF] dark:to-[#1E293B] p-6 sm:p-8 text-white shadow-xl border border-[#E2E8F0] dark:border-[#1E293B]">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#F1F5F9] dark:from-[#050A18] via-[#E2E9F5] dark:via-[#0F172A] to-[#FFFFFF] dark:to-[#1E293B] p-6 sm:p-8 text-[#0D1B3E] dark:text-white shadow-xl border border-[#E2E8F0] dark:border-[#1E293B]">
         {/* Ambient Grid Overlay */}
         <div className="absolute inset-0 bg-[linear-gradient(rgba(16,185,129,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(16,185,129,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-600/10 rounded-full blur-3xl pointer-events-none" />
@@ -378,10 +378,10 @@ export default function Irsaliye() {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-xs font-semibold tracking-wide">
               <FileSpreadsheet size={13} className="text-emerald-400" /> İRSALİYE & STOK HAREKETLERİ
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0D1B3E] dark:text-white">
               İrsaliye İşlemleri
             </h1>
-            <p className="text-sm text-slate-300 leading-relaxed">
+            <p className="text-sm text-[#475569] dark:text-slate-300 leading-relaxed">
               Stok giriş, çıkış ve transfer irsaliye hareketlerini canlı takip edin ve Excel ile veri aktarımı gerçekleştirin.
             </p>
           </div>
@@ -396,7 +396,7 @@ export default function Irsaliye() {
 
             <button
               onClick={resetInboundForm}
-              className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+              className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-[#0D1B3E] dark:text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
             >
               <Plus size={16} /> Stok Girişi Yap
             </button>
@@ -427,7 +427,7 @@ export default function Irsaliye() {
                 
                 setOutboundBarcode(''); setFormData({ part_id: '', loc_id: getSystemLocationId('good_stock'), qty: 1, price: 0, type: 'Teknik Servis', who: '', description: '' }); setShowOutboundModal(true); 
               }}
-              className="flex items-center gap-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+              className="flex items-center gap-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-[#0D1B3E] dark:text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
             >
               <Plus size={16} /> Stok Çıkışı Yap
             </button>
@@ -640,7 +640,7 @@ export default function Irsaliye() {
 
               <div className="flex justify-end gap-3 mt-6 border-t border-slate-200 dark:border-slate-700 pt-4">
                 <button type="button" onClick={() => setShowInboundModal(false)} className="px-5 py-2.5 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors font-medium">İptal</button>
-                <button type="submit" disabled={isSubmitting} className={`px-5 py-2.5 text-white rounded-xl transition-colors font-medium shadow-lg ${isSubmitting ? 'bg-emerald-400 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/30'}`}>
+                <button type="submit" disabled={isSubmitting} className={`px-5 py-2.5 text-[#0D1B3E] dark:text-white rounded-xl transition-colors font-medium shadow-lg ${isSubmitting ? 'bg-emerald-400 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/30'}`}>
                   {isSubmitting ? 'Kaydediliyor...' : 'Kaydet'}
                 </button>
               </div>
@@ -719,7 +719,7 @@ export default function Irsaliye() {
 
               <div className="flex justify-end gap-3 mt-6 border-t border-slate-200 dark:border-slate-700 pt-4">
                   <button type="button" onClick={() => setShowOutboundModal(false)} className="px-5 py-2.5 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors font-medium">İptal</button>
-                  <button type="submit" disabled={isSubmitting} className={`px-5 py-2.5 text-white rounded-xl transition-colors font-medium shadow-lg ${isSubmitting ? 'bg-red-400 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 shadow-red-500/30'}`}>
+                  <button type="submit" disabled={isSubmitting} className={`px-5 py-2.5 text-[#0D1B3E] dark:text-white rounded-xl transition-colors font-medium shadow-lg ${isSubmitting ? 'bg-red-400 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 shadow-red-500/30'}`}>
                     {isSubmitting ? 'Kaydediliyor...' : 'Çıkış Yap'}
                   </button>
                 </div>
@@ -766,7 +766,7 @@ export default function Irsaliye() {
               <button 
                 onClick={executeExport}
                 disabled={!Object.values(selectedExportColumns).some(Boolean)}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors font-medium shadow-md shadow-emerald-500/20 disabled:opacity-50"
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-[#0D1B3E] dark:text-white rounded-lg transition-colors font-medium shadow-md shadow-emerald-500/20 disabled:opacity-50"
               >
                 Dışa Aktar
               </button>

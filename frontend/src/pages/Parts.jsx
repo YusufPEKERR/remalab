@@ -373,7 +373,7 @@ export default function Parts() {
     <div className="flex flex-col space-y-6 pb-12 text-[#0F172A] dark:text-[#FAFAFA] max-w-[1600px] mx-auto animate-in fade-in duration-300">
 
       {/* ════════════════ HERO BANNER ════════════════ */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#F1F5F9] dark:from-[#050A18] via-[#0F172A] to-[#FFFFFF] dark:to-[#1E293B] p-6 sm:p-8 text-white shadow-xl border border-[#E2E8F0] dark:border-[#1E293B]">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#F1F5F9] dark:from-[#050A18] via-[#E2E9F5] dark:via-[#0F172A] to-[#FFFFFF] dark:to-[#1E293B] p-6 sm:p-8 text-[#0D1B3E] dark:text-white shadow-xl border border-[#E2E8F0] dark:border-[#1E293B]">
         {/* Ambient Grid Overlay */}
         <div className="absolute inset-0 bg-[linear-gradient(rgba(99,102,241,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(99,102,241,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none" />
@@ -383,10 +383,10 @@ export default function Parts() {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 text-xs font-semibold tracking-wide">
               <Package size={13} className="text-indigo-400" /> ENVANTER VE PARÇA KARTLARI
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0D1B3E] dark:text-white">
               Stok Kartları (Parçalar)
             </h1>
-            <p className="text-sm text-slate-300 leading-relaxed">
+            <p className="text-sm text-[#475569] dark:text-slate-300 leading-relaxed">
               Depodaki tüm parça tanımlarını, kategorilerini ve stok takip parametrelerini listeleyin ve yönetin.
             </p>
           </div>
@@ -410,7 +410,7 @@ export default function Parts() {
             {selectedOnCurrentPage.length > 1 && (
               <button
                 onClick={handleBulkDelete}
-                className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+                className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-[#0D1B3E] dark:text-white px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
               >
                 <Trash2 size={16} /> Seçilenleri Sil ({selectedOnCurrentPage.length})
               </button>
@@ -418,7 +418,7 @@ export default function Parts() {
 
             <button
               onClick={() => handleOpenModal()}
-              className="flex items-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+              className="flex items-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-[#0D1B3E] dark:text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
             >
               <Plus size={16} /> Yeni Parça Ekle
             </button>
@@ -535,7 +535,7 @@ export default function Parts() {
                       </span>
                     </td>
                     <td className="px-6 py-3.5 font-semibold text-[#0F172A] dark:text-[#FAFAFA]">{part.brand || '-'}</td>
-                    <td className="px-6 py-3.5 text-slate-300">{part.model || '-'}</td>
+                    <td className="px-6 py-3.5 text-[#475569] dark:text-slate-300">{part.model || '-'}</td>
                     <td className="px-6 py-3.5">
                       {part.item_category && (
                         <span className="px-2.5 py-1 rounded-lg bg-[#FFFFFF] dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155] text-blue-300 font-semibold text-xs">
@@ -721,7 +721,7 @@ export default function Parts() {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className={`mt-4 px-5 py-2.5 text-white rounded-lg transition-colors font-medium shadow-lg ${
+                  className={`mt-4 px-5 py-2.5 text-[#0D1B3E] dark:text-white rounded-lg transition-colors font-medium shadow-lg ${
                     isSubmitting ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/30'
                   }`}
                 >

@@ -142,7 +142,7 @@ const ServiceTransition = () => {
       <NotificationToast notification={notification} onClose={() => setNotification(null)} />
 
       {/* ════════════════ HERO BANNER ════════════════ */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#F1F5F9] dark:from-[#050A18] via-[#0F172A] to-[#FFFFFF] dark:to-[#1E293B] p-6 sm:p-8 text-white shadow-xl border border-[#E2E8F0] dark:border-[#1E293B]">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#F1F5F9] dark:from-[#050A18] via-[#E2E9F5] dark:via-[#0F172A] to-[#FFFFFF] dark:to-[#1E293B] p-6 sm:p-8 text-[#0D1B3E] dark:text-white shadow-xl border border-[#E2E8F0] dark:border-[#1E293B]">
         {/* Ambient Grid Overlay */}
         <div className="absolute inset-0 bg-[linear-gradient(rgba(245,158,11,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(245,158,11,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-amber-600/10 rounded-full blur-3xl pointer-events-none" />
@@ -152,10 +152,10 @@ const ServiceTransition = () => {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-400/30 text-amber-300 text-xs font-semibold tracking-wide">
               <ScanLine size={13} className="text-amber-400" /> STATÜ GEÇİŞ İŞLEMLERİ
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0D1B3E] dark:text-white">
               Yedek Parça & Statü Geçiş İşlemleri
             </h1>
-            <p className="text-sm text-slate-300 leading-relaxed">
+            <p className="text-sm text-[#475569] dark:text-slate-300 leading-relaxed">
               Barkod veya IMEI okutarak cihazın kayıt kabul, test veya sevkiyat statüsünü güncelleyin.
             </p>
           </div>
@@ -178,7 +178,7 @@ const ServiceTransition = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-40 text-white px-8 py-3 rounded-xl transition-all shadow-md font-bold text-xs cursor-pointer whitespace-nowrap flex items-center justify-center gap-2"
+                className="bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-40 text-[#0D1B3E] dark:text-white px-8 py-3 rounded-xl transition-all shadow-md font-bold text-xs cursor-pointer whitespace-nowrap flex items-center justify-center gap-2"
               >
                 <ScanLine size={16} /> {loading ? "Sorgulanıyor..." : "Sorgula"}
               </button>
@@ -195,7 +195,7 @@ const ServiceTransition = () => {
                 Cihaz: <span className="font-mono text-[#60A5FA]">{deviceInfo.imei}</span> {deviceInfo.model && <span className="text-[#64748B] dark:text-[#94A3B8]">({deviceInfo.model})</span>}
               </h3>
             </div>
-            <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30 w-fit">
+            <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-500/10 dark:bg-blue-500/20 text-blue-400 border border-blue-500/30 w-fit">
               Mevcut Statü: {deviceInfo.statu}
             </span>
           </div>
@@ -210,7 +210,7 @@ const ServiceTransition = () => {
                 <button
                   key={idx}
                   onClick={() => executeTransition(t.target_statu_code)}
-                  className={`px-4 py-3.5 rounded-xl font-bold text-xs text-white transition-all shadow-md flex flex-col items-center gap-1 cursor-pointer border ${
+                  className={`px-4 py-3.5 rounded-xl font-bold text-xs text-[#0D1B3E] dark:text-white transition-all shadow-md flex flex-col items-center gap-1 cursor-pointer border ${
                     t.is_positive
                       ? "bg-emerald-600/90 hover:bg-emerald-600 border-emerald-500/40"
                       : "bg-red-600/90 hover:bg-red-600 border-red-500/40"
