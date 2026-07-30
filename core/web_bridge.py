@@ -7706,9 +7706,24 @@ class WebBridge(QObject):
                     return json.dumps({"success": True, "ok": False,
                                        "message": f"Batch numarası ({batch_no}) sistemde tanımlı değil, içe aktarılmadı."}, ensure_ascii=False)
 
-            # 3) Var olan cihazı Excel verisiyle güncelle
-            for field in ["customer_no", "customer_name", "batch_no", "model", "gb", "color",
-                          "defects", "screen_test", "power_test", "flow"]:
+            # 3) Var olan cihazı Excel verisiyle güncelle. Ama gelen tüm alanlar zaten
+            #    mevcut kayıtla AYNIYSA (hiçbir değişiklik yok) mükerrer sayılıp reddedilir.
+            update_fields = ["customer_no", "customer_name", "batch_no", "model", "gb", "color",
+                             "defects", "screen_test", "power_test", "flow"]
+            changed = False
+            for field in update_fields:
+                val = d.get(field)
+                if val in (None, ""):
+                    continue
+                if (getattr(target, field) or "") != str(val).strip():
+                    changed = True
+                    break
+            if not changed:
+                ident = imei or serial or internal or "-"
+                return json.dumps({"success": True, "ok": False,
+                                   "message": f"Cihaz ({ident}) zaten aynı bilgilerle kayıtlı, değişiklik yok (mükerrer)."}, ensure_ascii=False)
+
+            for field in update_fields:
                 val = d.get(field)
                 if val not in (None, ""):
                     setattr(target, field, str(val).strip())
