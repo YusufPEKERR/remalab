@@ -5,50 +5,48 @@ let backendPromise = null;
 const getMockBackend = () => ({
     login: (username, password, cb) => {
         setTimeout(() => {
-            if (username === 'admin' && password === 'admin') {
-                cb(JSON.stringify({ success: true, user: { username: 'admin', role: 'admin' } }));
-            } else {
-                cb(JSON.stringify({ success: false, message: 'Invalid credentials (Mock)' }));
-            }
-        }, 500);
+            cb(JSON.stringify({ 
+                success: false, 
+                message: 'Veritabanı / Sunucu bağlantısı kurulamadı. Lütfen sunucuyu ve veritabanı bağlantısını kontrol edin.' 
+            }));
+        }, 300);
     },
     get_users: (cb) => {
         setTimeout(() => {
             cb(JSON.stringify({
-                success: true, users: [
-                    { id: 1, username: 'admin', email: 'admin@test.com', role: 'Admin' }
-                ]
+                success: false, 
+                message: 'Veritabanı bağlantısı yok.'
             }));
-        }, 500);
+        }, 300);
     },
     create_user: (username, email, password, role, cb) => {
-        setTimeout(() => cb(JSON.stringify({ success: true })), 500);
+        setTimeout(() => cb(JSON.stringify({ success: false, message: 'Veritabanı bağlantısı yok.' })), 300);
     },
     update_user: (id, username, email, password, role, cb) => {
-        setTimeout(() => cb(JSON.stringify({ success: true })), 500);
+        setTimeout(() => cb(JSON.stringify({ success: false, message: 'Veritabanı bağlantısı yok.' })), 300);
     },
     delete_user: (id, cb) => {
-        setTimeout(() => cb(JSON.stringify({ success: true })), 500);
+        setTimeout(() => cb(JSON.stringify({ success: false, message: 'Veritabanı bağlantısı yok.' })), 300);
     },
     get_parts: (cb) => {
-        setTimeout(() => cb(JSON.stringify({ success: true, parts: [] })), 500);
+        setTimeout(() => cb(JSON.stringify({ success: false, parts: [], message: 'Veritabanı bağlantısı yok.' })), 300);
     },
     create_part: (...args) => {
         const cb = args[args.length - 1];
-        setTimeout(() => cb(JSON.stringify({ success: true })), 500);
+        setTimeout(() => cb(JSON.stringify({ success: false, message: 'Veritabanı bağlantısı yok.' })), 300);
     },
     update_part: (...args) => {
         const cb = args[args.length - 1];
-        setTimeout(() => cb(JSON.stringify({ success: true })), 500);
+        setTimeout(() => cb(JSON.stringify({ success: false, message: 'Veritabanı bağlantısı yok.' })), 300);
     },
     delete_part: (id, cb) => {
-        setTimeout(() => cb(JSON.stringify({ success: true })), 500);
+        setTimeout(() => cb(JSON.stringify({ success: false, message: 'Veritabanı bağlantısı yok.' })), 300);
     },
     get_dev_mode: (cb) => {
-        setTimeout(() => cb(JSON.stringify({ success: true, dev_mode: true })), 200);
+        setTimeout(() => cb(JSON.stringify({ success: true, dev_mode: false })), 200);
     },
     set_dev_mode: (enabled, cb) => {
-        setTimeout(() => cb(JSON.stringify({ success: true })), 200);
+        setTimeout(() => cb(JSON.stringify({ success: false, message: 'Veritabanı bağlantısı yok.' })), 200);
     }
 });
 
@@ -56,25 +54,25 @@ export const getBackend = () => {
     if (!backendPromise) {
         backendPromise = new Promise((resolve, reject) => {
             if (typeof window.qt === 'undefined' || !window.qt.webChannelTransport) {
-                console.warn('Qt WebChannel not detected. Connecting over WebSocket...');
+                console.warn('Qt WebChannel not detected in browser. Connecting over WebSocket (port 5174)...');
                 const wsProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
-                const wsUri = wsProtocol + window.location.host + '/ws';
+                const hostName = window.location.hostname || '127.0.0.1';
+                const wsUri = `${wsProtocol}${hostName}:5174`;
                 const socket = new WebSocket(wsUri);
 
                 socket.onopen = () => {
                     console.log('WebSocket connected. Initializing QWebChannel...');
                     new QWebChannel(socket, (channel) => {
-                        console.log('QWebChannel initialized over WebSocket!');
                         if (channel.objects.backend) {
                             resolve(channel.objects.backend);
                         } else {
-                            reject(new Error('Backend object not registered on WebSocket QWebChannel'));
+                            resolve(getMockBackend());
                         }
                     });
                 };
 
                 socket.onerror = (err) => {
-                    console.error('WebSocket connection error, using mock:', err);
+                    console.error('WebSocket connection failed:', err);
                     resolve(getMockBackend());
                 };
                 return;
@@ -466,6 +464,17 @@ export const api = {
                 backend.update_repair_supply_status(String(repairId), supplyStatusCode || '', username || '', (res) => resolve(JSON.parse(res)));
             } else {
                 resolve({ success: false, message: "Backend eksik" });
+            }
+        });
+    },
+
+    getRepairSupplyRequests: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_repair_supply_requests) {
+                backend.get_repair_supply_requests((res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true, requests: [] });
             }
         });
     },
@@ -1412,6 +1421,17 @@ export const api = {
                 backend.get_stock_for_part(String(partId), (res) => resolve(JSON.parse(res)));
             } else {
                 resolve({ success: true, stock: [] });
+            }
+        });
+    },
+
+    getStockByItemCode: async (itemCode) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_stock_by_item_code) {
+                backend.get_stock_by_item_code(String(itemCode || ''), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true, quantity: 0 });
             }
         });
     },

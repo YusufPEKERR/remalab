@@ -37,6 +37,7 @@ const CustomerApprovalDecision = lazy(() => import('./pages/CustomerApprovalDeci
 const AraTestSonuc = lazy(() => import('./pages/AraTestSonuc'));
 const SonTestSonuc = lazy(() => import('./pages/SonTestSonuc'));
 const StatuKontrol = lazy(() => import('./pages/StatuKontrol'));
+const ParcaTeslim = lazy(() => import('./pages/ParcaTeslim'));
 
 function RouteLoading() {
   return (
@@ -65,6 +66,7 @@ function App() {
 
               {/* DEPO */}
               <Route path="/depo" element={<Depo />} />
+              <Route path="/parca-teslim" element={<ParcaTeslim />} />
               <Route path="/servis" element={<Servis />} />
               <Route path="/irsaliye" element={<Irsaliye />} />
               <Route path="/work-orders" element={<WorkOrders />} />

@@ -3,7 +3,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
   LogOut, LayoutDashboard, Users, Package, Settings, Bell,
   Warehouse, FileText, BarChart2, Box, Truck, MapPin,
-  CheckCircle, Search, AlertTriangle, Zap, RefreshCw, Sun, Moon, Database, Building2, Wrench, ClipboardList, PackageSearch, PackagePlus, Tags, ChevronDown, ChevronRight, Menu, X, Layers, FileSpreadsheet,
+  CheckCircle, Search, AlertTriangle, Zap, RefreshCw, Sun, Moon, Database, Building2, Wrench, ClipboardList, PackagePlus, Tags, ChevronDown, ChevronRight, Menu, X, Layers, FileSpreadsheet,
   Boxes, ClipboardCheck, Cog, Repeat
 } from 'lucide-react';
 import { api } from '../services/api';
@@ -27,6 +27,7 @@ export default function MainLayout() {
     'YEDEK PARÇA PERSONELİ': true,
     'TEST PERSONELİ': true,
     'DEMONTAJ TEKNİSYENİ': true,
+    'ÜRETİM TEKNİSYENİ': true,
     'ARA TEST': true,
     'KULLANICI & AYARLAR': true
   };
@@ -114,6 +115,7 @@ export default function MainLayout() {
       colorTheme: 'blue',
       items: [
         { name: 'Kontrol Paneli', icon: LayoutDashboard, path: '/dashboard' },
+        { name: 'Servis', icon: Search, path: '/servis' },
         { name: 'Statü Kontrol', icon: Zap, path: '/statu-kontrol' }
       ]
     },
@@ -122,11 +124,9 @@ export default function MainLayout() {
       colorTheme: 'orange',
       items: [
         { name: 'Depo', icon: Warehouse, path: '/depo' },
-        { name: 'Servis', icon: Search, path: '/servis' },
+        { name: 'Parça Teslim', icon: PackagePlus, path: '/parca-teslim' },
         { name: 'İrsaliye', icon: FileText, path: '/irsaliye' },
         { name: 'İş Emirleri', icon: ClipboardList, path: '/work-orders' },
-        { name: 'Servis Onarımları', icon: Wrench, path: '/technician-repair' },
-
         { name: 'Raporlar', icon: BarChart2, path: '/raporlar' }
       ]
     },
@@ -170,6 +170,13 @@ export default function MainLayout() {
       ]
     },
     {
+      title: 'ÜRETİM TEKNİSYENİ',
+      colorTheme: 'red',
+      items: [
+        { name: 'Servis Onarımları', icon: Wrench, path: '/technician-repair' }
+      ]
+    },
+    {
       title: 'ARA TEST',
       colorTheme: 'purple',
       items: [
@@ -206,6 +213,7 @@ export default function MainLayout() {
       case 'YEDEK PARÇA PERSONELİ': return '#CE6320';
       case 'TEST PERSONELİ': return '#3A76B8';
       case 'DEMONTAJ TEKNİSYENİ': return '#3B8B76';
+      case 'ÜRETİM TEKNİSYENİ': return '#C0392F';
       case 'ARA TEST': return '#A83EAE';
       case 'KULLANICI & AYARLAR': return '#C2445F';
       default: return '#5B6EC4';
@@ -223,6 +231,10 @@ export default function MainLayout() {
       // DEPO - Unique Rich Dark Amber/Yellow for Depo!
       case '/depo':
         return { color: '#C1801C' }; // Rich Amber Yellow
+      case '/depo-talepler':
+        return { color: '#D97706' };
+      case '/parca-teslim':
+        return { color: '#E67E22' };
       case '/servis':
         return { color: '#C2445F' }; // Darker Rose
       case '/irsaliye':

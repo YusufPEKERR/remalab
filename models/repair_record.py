@@ -27,6 +27,8 @@ class RepairRecord(Base):
     part_item_code = Column(String(100), nullable=True) # warehouse.item/parts kodu (Demontaj ekranı "Parça" seçimi)
     item_fault_code = Column(String(255), nullable=True) # warehouse.item_fault kodu (Demontaj ekranı "Arıza Tespiti")
     supply_status_code = Column(String(255), ForeignKey("warehouse.item_supply_status.code"), nullable=True) # Depo Durum (Onarım Parçaları ekranı)
+    supply_requested_by = Column(String(100), nullable=True) # Depo Durum'u en son değiştiren teknisyen (Depo > Parça Teslim ekranı)
+    supply_requested_at = Column(DateTime, nullable=True) # Depo Durum'un en son değiştirildiği an
     notes = Column(Text, nullable=True)
     
     created_at = Column(DateTime, default=datetime.datetime.utcnow)

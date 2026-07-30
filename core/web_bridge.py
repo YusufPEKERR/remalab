@@ -971,14 +971,17 @@ class WebBridge(QObject):
 
     def _ensure_repair_records_extra_columns(self):
         """warehouse.repair_records tablosuna Demontaj ekranı için part_item_code/item_fault_code,
-        ve Onarım Parçaları ekranı için supply_status_code (warehouse.item_supply_status.code -
-        Depo Durum) sütunları yoksa ekler."""
+        Onarım Parçaları ekranı için supply_status_code (warehouse.item_supply_status.code -
+        Depo Durum), ve Depo > Parça Teslim ekranı için supply_requested_by/supply_requested_at
+        (Depo Durum'u en son kim/ne zaman değiştirdi) sütunları yoksa ekler."""
         from sqlalchemy import text
         db = SessionLocal()
         try:
             db.execute(text("ALTER TABLE warehouse.repair_records ADD COLUMN IF NOT EXISTS part_item_code VARCHAR(100);"))
             db.execute(text("ALTER TABLE warehouse.repair_records ADD COLUMN IF NOT EXISTS item_fault_code VARCHAR(255);"))
             db.execute(text("ALTER TABLE warehouse.repair_records ADD COLUMN IF NOT EXISTS supply_status_code VARCHAR(255);"))
+            db.execute(text("ALTER TABLE warehouse.repair_records ADD COLUMN IF NOT EXISTS supply_requested_by VARCHAR(100);"))
+            db.execute(text("ALTER TABLE warehouse.repair_records ADD COLUMN IF NOT EXISTS supply_requested_at TIMESTAMP;"))
             db.commit()
         except Exception as e:
             db.rollback()
@@ -6321,6 +6324,32 @@ class WebBridge(QObject):
         finally:
             db.close()
 
+    @Slot(str, result=str)
+    def get_stock_by_item_code(self, item_code):
+        """Bir warehouse.item/parts kodunun (repair_records.part_item_code) Good Stock
+        depodaki toplam miktarını döner. Onarım Parçaları ekranındaki Depo Durum/Depo
+        Parça sütunlarının 'depoda stok var mı' kontrolünün kaynağıdır - idx_stock_part_location
+        ve idx_batch_entries benzeri, tek parçaya odaklı, tüm stok tablosunu indirmeyen bir sorgu."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            item_code = (item_code or "").strip()
+            if not item_code:
+                return json.dumps({"success": True, "item_code": item_code, "quantity": 0})
+            row = db.execute(text("""
+                SELECT COALESCE(SUM(s.quantity), 0) AS qty
+                FROM warehouse.parts p
+                JOIN warehouse.stock s ON s.part_id = p.id
+                JOIN warehouse.locations l ON l.id = s.location_id
+                WHERE p.item_code = :item_code AND l.kind = 'good_stock'
+            """), {"item_code": item_code}).mappings().first()
+            qty = int(row["qty"]) if row else 0
+            return json.dumps({"success": True, "item_code": item_code, "quantity": qty}, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
     @Slot(str, str, str, result=str)
     def get_stock_status_paged(self, search, page, page_size):
         """Depo sayfası için sunucu taraflı arama + sayfalama. Sadece Good Stock
@@ -9712,9 +9741,12 @@ class WebBridge(QObject):
     @Slot(str, str, str, result=str)
     def update_repair_supply_status(self, repair_id, supply_status_code, username):
         """Bir alt onarım kaydının Depo Durum'unu (supply_status_code, warehouse.item_supply_status.code)
-        günceller - onarım için gereken parçanın depo/tedarik sürecindeki aşamasını izler."""
+        günceller - onarım için gereken parçanın depo/tedarik sürecindeki aşamasını izler.
+        Kim ve ne zaman değiştirdiği supply_requested_by/supply_requested_at'e yazılır -
+        Depo > Parça Teslim ekranının (get_repair_supply_requests) kaynağıdır."""
         from models.repair_record import RepairRecord
         from sqlalchemy import text
+        import datetime
         db = SessionLocal()
         try:
             rec = db.query(RepairRecord).filter(RepairRecord.id == repair_id).first()
@@ -9733,11 +9765,149 @@ class WebBridge(QObject):
                 if not exists:
                     return json.dumps({"success": False, "message": f"Geçersiz depo durum kodu: {supply_status_code}"})
 
+            # Aynı onarım kaydı için parça talebi (Sipariş Edildi) yalnızca hiç Depo Durum
+            # atanmamışken yapılabilir - Üretim Teknisyeni'nin "Talep Et" butonuna arka arkaya
+            # basıp aynı parça için yeni talepler açması (ve dolayısıyla Parça Teslim'in Good
+            # Stock'tan tekrar tekrar düşmesi) engellenir. Aynı parça için yeniden talep,
+            # sadece Onarım Ekle'den açılan (supply_status_code'u boş başlayan) YENİ bir
+            # onarım kaydıyla mümkündür.
+            if supply_status_code == "Sipariş Edildi" and rec.supply_status_code:
+                return json.dumps({"success": False, "message": "Bu parça için zaten bir depo talebi var. Aynı parça için yeniden talep, ancak Onarım Ekle'den yeni bir kayıt açılırsa yapılabilir."})
+
+            previous_status = rec.supply_status_code
             rec.supply_status_code = supply_status_code
+            rec.supply_requested_by = (username or "").strip() or None
+            rec.supply_requested_at = datetime.datetime.utcnow()
+
+            # Eger durum "Stoktan Çıktı" / "TESLIMEDILDI" yapıldıysa ve daha önce çıkarılmamışsa Good Stock'tan Repair Stock'a aktar
+            if supply_status_code in ["Stoktan Çıktı", "TESLIMEDILDI"] and previous_status not in ["Stoktan Çıktı", "TESLIMEDILDI"]:
+                if rec.part_item_code:
+                    # 1. Good Stock miktarını 1 düş
+                    db.execute(text("""
+                        UPDATE warehouse.stock s
+                        SET quantity = GREATEST(0, s.quantity - 1)
+                        FROM warehouse.parts p, warehouse.locations l
+                        WHERE s.part_id = p.id
+                          AND s.location_id = l.id
+                          AND p.item_code = :code
+                          AND l.kind = 'good_stock'
+                    """), {"code": rec.part_item_code})
+
+                    # 2. Repair Stock miktarını 1 artır (yoksa satır oluştur)
+                    good_loc_id = _get_system_location_id(db, "good_stock")
+                    repair_loc_id = _get_system_location_id(db, "repair_stock")
+                    part_row = db.execute(text("SELECT id FROM warehouse.parts WHERE item_code = :c"), {"c": rec.part_item_code}).first()
+                    part_id = part_row[0] if part_row else None
+
+                    if part_id and repair_loc_id:
+                        from models.stock import Stock
+                        r_stock = db.query(Stock).filter(Stock.part_id == part_id, Stock.location_id == repair_loc_id).first()
+                        if r_stock:
+                            r_stock.quantity += 1
+                        else:
+                            db.add(Stock(part_id=part_id, location_id=repair_loc_id, quantity=1))
+
+                    # 3. Stok Hareketi (audit log) kaydet
+                    try:
+                        if part_id and good_loc_id and repair_loc_id:
+                            from models.stock_movement import StockMovement
+                            mov = StockMovement(
+                                part_id=part_id,
+                                part_code=rec.part_item_code,
+                                source_location_id=good_loc_id,
+                                target_location_id=repair_loc_id,
+                                quantity=1,
+                                type="İç Transfer",
+                                movement_kind="Transfer",
+                                created_by=username or "system",
+                                description=f"Good Stock'tan Repair Stock'a Parça Teslimi - RepairRecord ID: {repair_id}"
+                            )
+                            db.add(mov)
+                    except Exception as mov_err:
+                        logging.warning(f"Stock movement log eklenirken hata: {mov_err}")
+
             db.commit()
             return json.dumps({"success": True})
         except Exception as e:
             db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(result=str)
+    def get_repair_supply_requests(self):
+        """Depo > Parça Teslim ekranının kaynağı: Servis Onarımları / Onarım Parçaları
+        ekranında Depo Durum'u (supply_status_code) set edilmiş TÜM alt onarım kayıtlarını
+        (repair_records) - hangi teknisyenin ne zaman talep ettiği, hangi parça/kategori,
+        cihaz bilgisi ve o parçanın Good Stock'taki GÜNCEL miktarıyla birlikte getirir.
+        Parça Teslim, bu global listeyi sorgulanan IMEI'ye göre kendi tarafında filtreler.
+        NOT: bu, work_order_parts tabanlı eski 'Tedarik İstekleri' (get_supply_requests)
+        Slot'undan tamamen ayrı bir akıştır - repair_records.supply_status_code'a dayanır."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            rows = db.execute(text("""
+                SELECT
+                    rr.id, rr.department_mission, rr.notes, rr.part_item_code, rr.item_fault_code,
+                    rr.supply_status_code, rr.supply_requested_by, rr.supply_requested_at,
+                    rr.repair_result_type_code, rr.created_at, rr.item_category,
+                    mg.short_name AS mission_group_name,
+                    it.short_name AS part_name,
+                    fault.short_name AS fault_name,
+                    sup.short_name AS supply_status_name, sup.is_success AS supply_is_success, sup.is_cancelled AS supply_is_cancelled,
+                    rrt.is_cancelled AS repair_is_cancelled,
+                    be.imei_number, be.model AS device_model, be.batch_no, be.customer_name,
+                    p.id AS part_id,
+                    (
+                        SELECT COALESCE(SUM(s.quantity), 0)
+                        FROM warehouse.stock s
+                        JOIN warehouse.locations l ON l.id = s.location_id
+                        WHERE s.part_id = p.id AND l.kind = 'good_stock'
+                    ) AS stock_qty
+                FROM warehouse.repair_records rr
+                LEFT JOIN organization.mission_groups mg ON mg.code = rr.department_mission
+                LEFT JOIN warehouse.item it ON it.code = rr.part_item_code
+                LEFT JOIN warehouse.parts p ON p.item_code = rr.part_item_code
+                LEFT JOIN warehouse.item_fault fault ON fault.code = rr.item_fault_code
+                LEFT JOIN warehouse.item_supply_status sup ON sup.code = rr.supply_status_code
+                LEFT JOIN warehouse.repair_result_type rrt ON rrt.code = rr.repair_result_type_code
+                LEFT JOIN LATERAL (
+                    SELECT imei_number, model, batch_no, customer_name
+                    FROM warehouse.batch_entries b
+                    WHERE b.service_id::text = rr.service_record_id
+                       OR LOWER(TRIM(b.imei_number)) = LOWER(TRIM(rr.service_record_id))
+                    ORDER BY b.id DESC LIMIT 1
+                ) be ON true
+                WHERE rr.supply_status_code IS NOT NULL
+                ORDER BY rr.supply_requested_at DESC NULLS LAST, rr.created_at DESC
+                LIMIT 500
+            """)).mappings().all()
+
+            requests = [{
+                "id": str(r["id"]),
+                "missionGroupCode": r["department_mission"] or "",
+                "missionGroup": r["mission_group_name"] or r["department_mission"] or "-",
+                "partId": r["part_id"] or "",
+                "partItemCode": r["part_item_code"] or "",
+                "partName": r["part_name"] or "",
+                "itemCategory": r["item_category"] or "",
+                "faultName": r["fault_name"] or r["item_fault_code"] or "",
+                "supplyStatusCode": r["supply_status_code"] or "",
+                "supplyStatusName": r["supply_status_name"] or r["supply_status_code"] or "",
+                "supplyIsSuccess": bool(r["supply_is_success"]),
+                "supplyIsCancelled": bool(r["supply_is_cancelled"]),
+                "requestedBy": r["supply_requested_by"] or "-",
+                "requestedAt": r["supply_requested_at"].strftime("%d.%m.%Y %H:%M") if r["supply_requested_at"] else "-",
+                "isCancelled": bool(r["repair_is_cancelled"]),
+                "imei": r["imei_number"] or "",
+                "deviceModel": r["device_model"] or "",
+                "batchNo": r["batch_no"] or "",
+                "customerName": r["customer_name"] or "",
+                "stockQty": int(r["stock_qty"] or 0),
+                "notes": r["notes"] or "",
+            } for r in rows]
+            return json.dumps({"success": True, "requests": requests}, ensure_ascii=False)
+        except Exception as e:
             return json.dumps({"success": False, "message": str(e)})
         finally:
             db.close()

@@ -414,6 +414,7 @@ const TechnicianRepairOperations = () => {
   const [diagnosisDraft, setDiagnosisDraft] = useState("");
   const [savingDiagnosis, setSavingDiagnosis] = useState(false);
   const [supplyStatuses, setSupplyStatuses] = useState([]);
+  const [partStock, setPartStock] = useState({}); // { [item_code]: quantity }
   const searchRef = useRef(null);
 
   // Görev grupları MioCreate.xlsx MissionGroup sayfasından seed edilen
@@ -678,6 +679,24 @@ const TechnicianRepairOperations = () => {
   // ── Selected repair group ────────────────────────────────────
   const selectedGroup = groupedRepairs[selectedRepairIdx] || null;
   const selectedRepair = selectedGroup?.active || null;
+
+  // Seçili gruptaki her parça kodu için Good Stock'ta kaç adet olduğunu çeker - Onarım
+  // Parçaları'ndaki 'Depo Parça' sütunu ve 'Depodan parça talep edilebilir' otomatik
+  // durumu bunu kullanır. warehouse.stock ~30 bin satır olduğundan sadece görünen
+  // parça kodları için tek tek sorgulanır (get_stock_by_item_code), tüm tablo değil.
+  useEffect(() => {
+    const codes = Array.from(new Set((selectedGroup?.items || []).map(r => r.partItemCode).filter(Boolean)));
+    const missing = codes.filter(c => !(c in partStock));
+    if (missing.length === 0) return;
+    missing.forEach(code => {
+      api.getStockByItemCode(code).then(res => {
+        if (res && res.success) {
+          setPartStock(prev => ({ ...prev, [code]: res.quantity }));
+        }
+      });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedGroup]);
 
   // ── Statü-bazlı rol/yetki kontrolü ──────────────────────────
   // warehouse.service_statu.mission: her statü kodunun hangi rol (mission) tarafından
@@ -998,6 +1017,7 @@ const TechnicianRepairOperations = () => {
                     <th className="text-left px-3 py-2.5">Arıza Tespiti</th>
                     <th className="text-center px-3 py-2.5">Ücret</th>
                     <th className="text-left px-3 py-2.5">Depo Durum</th>
+                    <th className="text-left px-3 py-2.5">Depo Parça</th>
                     <th className="text-left px-3 py-2.5">Açıklama</th>
                     {selectedGroup.items.length > 1 && <th className="text-left px-3 py-2.5">Durum</th>}
                   </tr>
@@ -1014,17 +1034,38 @@ const TechnicianRepairOperations = () => {
                         </button>
                       </td>
                       <td className="px-3 py-2.5">
-                        <select
-                          value={r.supplyStatusCode || ""}
-                          onChange={(e) => hasAccess && !r.isCancelled && handleUpdateSupplyStatus(r.id, e.target.value)}
-                          disabled={!hasAccess || r.isCancelled}
-                          className="bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          <option value="">— Seçilmedi —</option>
-                          {supplyStatuses.map((s) => (
-                            <option key={s.code} value={s.code}>{s.short_name}</option>
-                          ))}
-                        </select>
+                        {r.supplyStatusCode ? (
+                          <span className="inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold border bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-500/30">
+                            {supplyStatuses.find(s => s.code === r.supplyStatusCode)?.short_name || r.supplyStatusCode}
+                          </span>
+                        ) : !r.supplyStatusCode && r.partItemCode && (partStock[r.partItemCode] || 0) > 0 ? (
+                          <div className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                            Depodan parça talep edilebilir
+                          </div>
+                        ) : (
+                          <span className="text-xs text-slate-400">-</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2.5">
+                        {!r.partItemCode ? (
+                          <span className="text-xs text-slate-400">-</span>
+                        ) : partStock[r.partItemCode] === undefined ? (
+                          <span className="text-xs text-slate-400">…</span>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <span className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold border ${partStock[r.partItemCode] > 0 ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30" : "bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border-red-200 dark:border-red-500/30"}`}>
+                              {partStock[r.partItemCode] > 0 ? `${partStock[r.partItemCode]} adet stokta` : "Stokta yok"}
+                            </span>
+                            <button
+                              onClick={() => hasAccess && !r.isCancelled && !r.supplyStatusCode && handleUpdateSupplyStatus(r.id, "Sipariş Edildi")}
+                              disabled={!hasAccess || r.isCancelled || !!r.supplyStatusCode}
+                              className="px-2 py-1 rounded-md text-[10px] font-bold bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                              title={r.supplyStatusCode ? "Bu parça için zaten talep oluşturuldu - yeniden talep etmek için Onarım Ekle'den yeni kayıt açın" : "Bu parçayı sipariş et"}
+                            >
+                              {r.supplyStatusCode ? (supplyStatuses.find(s => s.code === r.supplyStatusCode)?.short_name || r.supplyStatusCode) : "Talep Et"}
+                            </button>
+                          </div>
+                        )}
                       </td>
                       <td className="px-3 py-2.5 text-xs text-slate-500 dark:text-slate-400">{r.notes || "N/A"}</td>
                       {selectedGroup.items.length > 1 && (
