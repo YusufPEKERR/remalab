@@ -775,7 +775,7 @@ export default function BatchEntry() {
             </div>
             <button
               onClick={() => handleOpenModal(null)}
-              className="flex items-center gap-2 px-5 py-2.5 bg-[#2563EB] hover:bg-[#1D4ED8] text-[#0D1B3E] dark:text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+              className="flex items-center gap-2 px-5 py-2.5 bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
             >
               <Plus size={16} />
               Yeni Batch Girişi
@@ -903,7 +903,7 @@ export default function BatchEntry() {
               <div className="h-4 w-px bg-blue-500/30 mx-1" />
               <button
                 onClick={handleBulkDelete}
-                className="flex items-center gap-1 bg-red-600 hover:bg-red-700 text-[#0D1B3E] dark:text-white px-3 py-1 rounded-lg text-xs font-semibold transition-colors shadow-sm"
+                className="flex items-center gap-1 bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-lg text-xs font-semibold transition-colors shadow-sm"
               >
                 <Trash2 size={13} /> Seçilenleri Sil
               </button>
@@ -1060,7 +1060,7 @@ export default function BatchEntry() {
                   <button
                     type="button"
                     onClick={handleDownloadTemplate}
-                    className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-[#0D1B3E] dark:text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-md shadow-emerald-500/20 cursor-pointer"
+                    className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-md shadow-emerald-500/20 cursor-pointer"
                   >
                     <Download size={14} /> Excel Şablonu İndir
                   </button>
@@ -1332,7 +1332,7 @@ export default function BatchEntry() {
                     <button
                       type="submit"
                       disabled={loading}
-                      className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-[#0D1B3E] dark:text-white rounded-xl font-semibold text-xs shadow-lg shadow-blue-500/20 flex items-center gap-2 transition-all cursor-pointer"
+                      className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl font-semibold text-xs shadow-lg shadow-blue-500/20 flex items-center gap-2 transition-all cursor-pointer"
                     >
                       <Check size={16} /> Kaydet
                     </button>
@@ -1461,7 +1461,7 @@ export default function BatchEntry() {
                       type="button"
                       disabled={loading || !excelFileData || excelFileData.length === 0}
                       onClick={handleConfirmExcelImport}
-                      className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-[#0D1B3E] dark:text-white rounded-xl font-semibold text-xs shadow-lg shadow-emerald-500/20 flex items-center gap-2 transition-all cursor-pointer"
+                      className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl font-semibold text-xs shadow-lg shadow-emerald-500/20 flex items-center gap-2 transition-all cursor-pointer"
                     >
                       <Check size={16} /> Değişiklikleri Kaydet
                     </button>

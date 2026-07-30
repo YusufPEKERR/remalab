@@ -781,8 +781,8 @@ export default function SchemaMapper() {
                         <Code size={12} />
                         Canlı DTO Önizleme (JSON)
                       </h4>
-                      <div className="bg-[#F8FAFC] dark:bg-[#0d1117] rounded-xl border border-slate-700 overflow-hidden">
-                        <div className="px-3 py-1.5 bg-[#F1F5F9] dark:bg-[#161B22] border-b border-slate-700 flex items-center gap-2">
+                      <div className="bg-[#F8FAFC] dark:bg-[#0d1117] rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                        <div className="px-3 py-1.5 bg-[#F1F5F9] dark:bg-[#161B22] border-b border-slate-200 dark:border-slate-700 flex items-center gap-2">
                           <div className="w-2 h-2 rounded-full bg-red-500"></div>
                           <div className="w-2 h-2 rounded-full bg-amber-500"></div>
                           <div className="w-2 h-2 rounded-full bg-emerald-500"></div>

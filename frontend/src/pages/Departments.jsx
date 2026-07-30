@@ -112,7 +112,7 @@ export default function Departments() {
             <div className="flex justify-end items-center">
               <button
                 onClick={() => handleOpenForm()}
-                className="flex items-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-[#0D1B3E] dark:text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+                className="flex items-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
               >
                 <Plus size={16} /> Yeni Görev Ekle
               </button>
@@ -183,7 +183,7 @@ export default function Departments() {
                   <label className="block text-sm font-medium text-slate-400 mb-1.5">Kod <span className="text-red-400">*</span></label>
                   <input
                     type="text" required
-                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
                     value={formData.code}
                     onChange={e => setFormData({ ...formData, code: e.target.value })}
                     placeholder="Örn: TEC_BATTERY"
@@ -193,7 +193,7 @@ export default function Departments() {
                   <label className="block text-sm font-medium text-slate-400 mb-1.5">Kısa Ad <span className="text-red-400">*</span></label>
                   <input
                     type="text" required
-                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
                     value={formData.short_name}
                     onChange={e => setFormData({ ...formData, short_name: e.target.value })}
                     placeholder="Örn: Batarya Teknisyeni"
@@ -206,7 +206,7 @@ export default function Departments() {
                   <label className="block text-sm font-medium text-slate-400 mb-1.5">Tam Ad</label>
                   <input
                     type="text"
-                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
                     value={formData.full_name}
                     onChange={e => setFormData({ ...formData, full_name: e.target.value })}
                   />
@@ -215,7 +215,7 @@ export default function Departments() {
                   <label className="block text-sm font-medium text-slate-400 mb-1.5">Maliyet Merkezi</label>
                   <input
                     type="text"
-                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
                     value={formData.cost_center}
                     onChange={e => setFormData({ ...formData, cost_center: e.target.value })}
                   />
@@ -226,7 +226,7 @@ export default function Departments() {
                 <label className="block text-sm font-medium text-slate-400 mb-1.5">Açıklama</label>
                 <textarea
                   rows="2"
-                  className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 resize-none"
+                  className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 resize-none"
                   value={formData.description}
                   onChange={e => setFormData({ ...formData, description: e.target.value })}
                 />
@@ -238,7 +238,7 @@ export default function Departments() {
                   <input
                     type="text"
                     list="department-values-list"
-                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
                     value={formData.department}
                     onChange={e => setFormData({ ...formData, department: e.target.value })}
                     placeholder="Örn: Üretim"
@@ -251,7 +251,7 @@ export default function Departments() {
                   <label className="block text-sm font-medium text-slate-400 mb-1.5">Sıra No</label>
                   <input
                     type="number" step="any"
-                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
                     value={formData.order_number}
                     onChange={e => setFormData({ ...formData, order_number: e.target.value })}
                   />
@@ -262,7 +262,7 @@ export default function Departments() {
                 <div>
                   <label className="block text-sm font-medium text-slate-400 mb-1.5">Görev Grubu</label>
                   <select
-                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
                     value={formData.mission_group_code}
                     onChange={e => setFormData({ ...formData, mission_group_code: e.target.value })}
                   >
@@ -273,7 +273,7 @@ export default function Departments() {
                 <div>
                   <label className="block text-sm font-medium text-slate-400 mb-1.5">Atölye/Masa</label>
                   <select
-                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
                     value={formData.mission_workgroup_code}
                     onChange={e => setFormData({ ...formData, mission_workgroup_code: e.target.value })}
                   >
@@ -287,7 +287,7 @@ export default function Departments() {
                 <div>
                   <label className="block text-sm font-medium text-slate-400 mb-1.5">Takım Lideri</label>
                   <select
-                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
                     value={formData.team_leader_mission_code}
                     onChange={e => setFormData({ ...formData, team_leader_mission_code: e.target.value })}
                   >
@@ -298,7 +298,7 @@ export default function Departments() {
                 <div>
                   <label className="block text-sm font-medium text-slate-400 mb-1.5">Operasyon Yöneticisi</label>
                   <select
-                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
                     value={formData.operation_manager_mission_code}
                     onChange={e => setFormData({ ...formData, operation_manager_mission_code: e.target.value })}
                   >
@@ -309,7 +309,7 @@ export default function Departments() {
                 <div>
                   <label className="block text-sm font-medium text-slate-400 mb-1.5">İdari Yönetici</label>
                   <select
-                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
                     value={formData.administrative_manager_mission_code}
                     onChange={e => setFormData({ ...formData, administrative_manager_mission_code: e.target.value })}
                   >
@@ -321,7 +321,7 @@ export default function Departments() {
 
               <div className="flex justify-end gap-3 pt-6 border-t border-slate-200 dark:border-slate-700/50 mt-6">
                 <button type="button" onClick={() => setShowForm(false)} className="px-5 py-2.5 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:bg-[#2a3142] text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors border border-slate-300 dark:border-slate-600">İptal</button>
-                <button type="submit" className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-[#0D1B3E] dark:text-white rounded-xl font-medium transition-colors shadow-lg shadow-blue-900/20 flex items-center gap-2"><Save size={18}/> Kaydet</button>
+                <button type="submit" className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors shadow-lg shadow-blue-900/20 flex items-center gap-2"><Save size={18}/> Kaydet</button>
               </div>
             </form>
           </div>

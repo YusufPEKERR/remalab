@@ -186,7 +186,7 @@ export default function TestResultScreen({
             <button
               type="submit"
               disabled={successLoading || !successImei.trim()}
-              className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-[#0D1B3E] dark:text-white px-6 py-3 rounded-xl transition-all font-bold text-xs cursor-pointer flex items-center justify-center gap-2 shadow-md"
+              className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white px-6 py-3 rounded-xl transition-all font-bold text-xs cursor-pointer flex items-center justify-center gap-2 shadow-md"
             >
               <CheckCircle size={16} /> {successLoading ? 'İşleniyor...' : 'Test Başarılı'}
             </button>
@@ -275,7 +275,7 @@ export default function TestResultScreen({
             <button
               type="submit"
               disabled={failLoading || !failImei.trim() || !description.trim() || selectedFaultIds.length === 0}
-              className="w-full bg-rose-600 hover:bg-rose-700 disabled:opacity-40 text-[#0D1B3E] dark:text-white px-6 py-3 rounded-xl transition-all font-bold text-xs cursor-pointer flex items-center justify-center gap-2 shadow-md"
+              className="w-full bg-rose-600 hover:bg-rose-700 disabled:opacity-40 text-white px-6 py-3 rounded-xl transition-all font-bold text-xs cursor-pointer flex items-center justify-center gap-2 shadow-md"
             >
               <Undo2 size={16} /> {failLoading ? 'İşleniyor...' : 'Geri Çevir'}
             </button>

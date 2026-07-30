@@ -396,7 +396,7 @@ export default function Irsaliye() {
 
             <button
               onClick={resetInboundForm}
-              className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-[#0D1B3E] dark:text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+              className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
             >
               <Plus size={16} /> Stok Girişi Yap
             </button>
@@ -427,7 +427,7 @@ export default function Irsaliye() {
                 
                 setOutboundBarcode(''); setFormData({ part_id: '', loc_id: getSystemLocationId('good_stock'), qty: 1, price: 0, type: 'Teknik Servis', who: '', description: '' }); setShowOutboundModal(true); 
               }}
-              className="flex items-center gap-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-[#0D1B3E] dark:text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+              className="flex items-center gap-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
             >
               <Plus size={16} /> Stok Çıkışı Yap
             </button>
@@ -640,7 +640,7 @@ export default function Irsaliye() {
 
               <div className="flex justify-end gap-3 mt-6 border-t border-slate-200 dark:border-slate-700 pt-4">
                 <button type="button" onClick={() => setShowInboundModal(false)} className="px-5 py-2.5 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors font-medium">İptal</button>
-                <button type="submit" disabled={isSubmitting} className={`px-5 py-2.5 text-[#0D1B3E] dark:text-white rounded-xl transition-colors font-medium shadow-lg ${isSubmitting ? 'bg-emerald-400 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/30'}`}>
+                <button type="submit" disabled={isSubmitting} className={`px-5 py-2.5 text-white rounded-xl transition-colors font-medium shadow-lg ${isSubmitting ? 'bg-emerald-400 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/30'}`}>
                   {isSubmitting ? 'Kaydediliyor...' : 'Kaydet'}
                 </button>
               </div>
@@ -665,7 +665,7 @@ export default function Irsaliye() {
                 </label>
                 <div className="flex gap-2">
                   <input type="text" placeholder="Barkodu okutun veya manuel girin..." className="flex-1 px-4 py-2 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={outboundBarcode} onChange={(e) => setOutboundBarcode(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleOutboundBarcodeSearch())} />
-                  <button type="button" onClick={handleOutboundBarcodeSearch} className="px-4 bg-slate-100 dark:bg-[#2a3142] hover:bg-blue-600 border border-slate-600 rounded-lg text-white transition-colors"><Search size={18} /></button>
+                  <button type="button" onClick={handleOutboundBarcodeSearch} className="px-4 bg-slate-100 dark:bg-[#2a3142] hover:bg-blue-600 border border-slate-200 dark:border-slate-600 rounded-lg text-white transition-colors"><Search size={18} /></button>
                 </div>
               </div>
 
@@ -719,7 +719,7 @@ export default function Irsaliye() {
 
               <div className="flex justify-end gap-3 mt-6 border-t border-slate-200 dark:border-slate-700 pt-4">
                   <button type="button" onClick={() => setShowOutboundModal(false)} className="px-5 py-2.5 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors font-medium">İptal</button>
-                  <button type="submit" disabled={isSubmitting} className={`px-5 py-2.5 text-[#0D1B3E] dark:text-white rounded-xl transition-colors font-medium shadow-lg ${isSubmitting ? 'bg-red-400 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 shadow-red-500/30'}`}>
+                  <button type="submit" disabled={isSubmitting} className={`px-5 py-2.5 text-white rounded-xl transition-colors font-medium shadow-lg ${isSubmitting ? 'bg-red-400 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 shadow-red-500/30'}`}>
                     {isSubmitting ? 'Kaydediliyor...' : 'Çıkış Yap'}
                   </button>
                 </div>
@@ -766,7 +766,7 @@ export default function Irsaliye() {
               <button 
                 onClick={executeExport}
                 disabled={!Object.values(selectedExportColumns).some(Boolean)}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-[#0D1B3E] dark:text-white rounded-lg transition-colors font-medium shadow-md shadow-emerald-500/20 disabled:opacity-50"
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors font-medium shadow-md shadow-emerald-500/20 disabled:opacity-50"
               >
                 Dışa Aktar
               </button>

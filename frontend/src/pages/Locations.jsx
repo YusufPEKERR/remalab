@@ -96,7 +96,7 @@ export default function Locations() {
 
           <button 
             onClick={() => setIsModalOpen(true)}
-            className="flex items-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-[#0D1B3E] dark:text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer shrink-0"
+            className="flex items-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer shrink-0"
           >
             <Plus size={16} /> Yeni Lokasyon Ekle
           </button>
@@ -221,7 +221,7 @@ export default function Locations() {
 
               <div className="pt-4 flex justify-end gap-3 border-t border-[#E2E8F0] dark:border-[#1E293B] mt-6">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 bg-[#FFFFFF] dark:bg-[#1E293B] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] text-[#0F172A] dark:text-[#FAFAFA] rounded-xl text-xs font-bold transition-all cursor-pointer">İptal</button>
-                <button type="submit" className="px-4 py-2 text-[#0D1B3E] dark:text-white bg-[#2563EB] hover:bg-[#1D4ED8] rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer">Kaydet</button>
+                <button type="submit" className="px-4 py-2 text-white bg-[#2563EB] hover:bg-[#1D4ED8] rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer">Kaydet</button>
               </div>
             </form>
           </div>

@@ -1517,7 +1517,7 @@ export default function WorkOrders() {
             onClick={() => setActiveTab(tab.key)}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === tab.key 
-                ? 'bg-[#2563EB] text-[#0D1B3E] dark:text-white shadow-md' 
+                ? 'bg-[#2563EB] text-white shadow-md' 
                 : 'text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-[#FAFAFA] hover:bg-[#FFFFFF] dark:hover:bg-[#1E293B]'
             }`}
           >
@@ -1683,7 +1683,7 @@ export default function WorkOrders() {
                 {editingOrder && (
                   <button type="button" onClick={() => { setEditingOrder(null); setFormData({ ...EMPTY_FORM, source_location_id: getSystemLocationId('good_stock') }); setPartsUsed([]); }} className="px-5 py-2.5 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:bg-[#2a3142] text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors border border-slate-300 dark:border-slate-600">İptal</button>
                 )}
-                <button type="submit" className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-[#0D1B3E] dark:text-white rounded-xl font-medium transition-colors shadow-lg shadow-blue-900/20 flex items-center gap-2"><Save size={18} /> Kaydet</button>
+                <button type="submit" className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors shadow-lg shadow-blue-900/20 flex items-center gap-2"><Save size={18} /> Kaydet</button>
               </div>
             </form>
           </div>
@@ -1792,7 +1792,7 @@ export default function WorkOrders() {
                       <button
                         type="button"
                         onClick={handleSearchTargetPart}
-                        className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-[#0D1B3E] dark:text-white rounded-xl font-medium transition-colors flex items-center gap-1.5 text-sm shrink-0"
+                        className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors flex items-center gap-1.5 text-sm shrink-0"
                       >
                         <Search size={16} /> Ara
                       </button>
@@ -1914,7 +1914,7 @@ export default function WorkOrders() {
                 <button
                   type="submit"
                   disabled={productionMaterials.filter(r => r.part_id && Number(r.quantity_consumed) > 0).length === 0}
-                  className="px-5 py-2.5 bg-orange-600 hover:bg-orange-700 disabled:bg-slate-600 disabled:cursor-not-allowed text-[#0D1B3E] dark:text-white rounded-xl font-medium transition-colors shadow-lg shadow-orange-900/20 flex items-center gap-2"
+                  className="px-5 py-2.5 bg-orange-600 hover:bg-orange-700 disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors shadow-lg shadow-orange-900/20 flex items-center gap-2"
                 >
                   <Save size={18} /> Üretimi Kaydet
                 </button>
@@ -2284,7 +2284,7 @@ export default function WorkOrders() {
               </div>
               <button
                 onClick={handleOpenProductionWOForm}
-                className="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-[#0D1B3E] dark:text-white rounded-xl font-medium transition-colors shadow-lg shadow-teal-900/20 flex items-center gap-2"
+                className="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-medium transition-colors shadow-lg shadow-teal-900/20 flex items-center gap-2"
               >
                 <Plus size={18} /> Yeni Üretim İş Emri
               </button>
@@ -2347,7 +2347,7 @@ export default function WorkOrders() {
 
                   <div className="flex justify-end gap-3 pt-6 border-t border-slate-200 dark:border-slate-700/50 mt-6">
                     <button type="button" onClick={() => setShowProductionWOForm(false)} className="px-5 py-2.5 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors border border-slate-300 dark:border-slate-600">İptal</button>
-                    <button type="submit" disabled={productionWOSaving} className="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 disabled:opacity-60 text-[#0D1B3E] dark:text-white rounded-xl font-medium transition-colors shadow-lg shadow-teal-900/20 flex items-center gap-2">
+                    <button type="submit" disabled={productionWOSaving} className="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 disabled:opacity-60 text-white rounded-xl font-medium transition-colors shadow-lg shadow-teal-900/20 flex items-center gap-2">
                       <Save size={18} /> Kaydet
                     </button>
                   </div>
@@ -2609,7 +2609,7 @@ export default function WorkOrders() {
 
               <div className="flex justify-end gap-3 pt-2">
                 <button type="button" onClick={() => setIssueDialog(null)} className="px-4 py-2.5 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors border border-slate-300 dark:border-slate-600">İptal</button>
-                <button type="submit" disabled={issueSaving} className="px-4 py-2.5 bg-teal-600 hover:bg-teal-700 disabled:opacity-60 text-[#0D1B3E] dark:text-white rounded-xl font-medium transition-colors shadow-lg shadow-teal-900/20 flex items-center gap-2">
+                <button type="submit" disabled={issueSaving} className="px-4 py-2.5 bg-teal-600 hover:bg-teal-700 disabled:opacity-60 text-white rounded-xl font-medium transition-colors shadow-lg shadow-teal-900/20 flex items-center gap-2">
                   <Save size={16} /> Teslim Et
                 </button>
               </div>
@@ -2665,7 +2665,7 @@ export default function WorkOrders() {
 
               <div className="flex justify-end gap-3 pt-2">
                 <button type="button" onClick={() => setCompleteDialog(null)} className="px-4 py-2.5 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors border border-slate-300 dark:border-slate-600">İptal</button>
-                <button type="submit" disabled={completeSaving} className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-[#0D1B3E] dark:text-white rounded-xl font-medium transition-colors shadow-lg shadow-emerald-900/20 flex items-center gap-2">
+                <button type="submit" disabled={completeSaving} className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white rounded-xl font-medium transition-colors shadow-lg shadow-emerald-900/20 flex items-center gap-2">
                   <Save size={16} /> Tamamla
                 </button>
               </div>
@@ -2807,7 +2807,7 @@ export default function WorkOrders() {
                 type="button"
                 onClick={executeReturn}
                 disabled={returnSaving || !returnLocationId || !returnReason.trim()}
-                className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 disabled:opacity-60 text-[#0D1B3E] dark:text-white rounded-xl font-medium transition-colors shadow-lg shadow-amber-500/20 flex items-center gap-2 text-sm"
+                className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 disabled:opacity-60 text-white rounded-xl font-medium transition-colors shadow-lg shadow-amber-500/20 flex items-center gap-2 text-sm"
               >
                 {returnSaving ? 'Aktarılıyor...' : 'Hammaddeleri İade Et'}
               </button>
@@ -3048,7 +3048,7 @@ export default function WorkOrders() {
                 <button
                   type="button"
                   onClick={handleCloseQuickProduceDialog}
-                  className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-[#0D1B3E] dark:text-white rounded-xl font-medium transition-colors shadow-lg shadow-emerald-900/20 flex items-center gap-2"
+                  className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-medium transition-colors shadow-lg shadow-emerald-900/20 flex items-center gap-2"
                 >
                   <Check size={16} /> Kapat
                 </button>
@@ -3066,7 +3066,7 @@ export default function WorkOrders() {
                     type="button"
                     onClick={handleConfirmQuickProduce}
                     disabled={quickProduceSaving}
-                    className="px-5 py-2.5 bg-orange-600 hover:bg-orange-700 disabled:opacity-60 text-[#0D1B3E] dark:text-white rounded-xl font-medium transition-colors shadow-lg shadow-orange-900/20 flex items-center gap-2"
+                    className="px-5 py-2.5 bg-orange-600 hover:bg-orange-700 disabled:opacity-60 text-white rounded-xl font-medium transition-colors shadow-lg shadow-orange-900/20 flex items-center gap-2"
                   >
                     <Zap size={16} /> {quickProduceSaving ? 'Üretiliyor...' : 'Üretimi Onayla'}
                   </button>
@@ -3164,7 +3164,7 @@ export default function WorkOrders() {
                 type="button"
                 onClick={handleConfirmIssueExtraPart}
                 disabled={extraPartSaving}
-                className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-[#0D1B3E] dark:text-white rounded-xl font-medium transition-colors shadow-lg shadow-indigo-900/20 flex items-center gap-2"
+                className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white rounded-xl font-medium transition-colors shadow-lg shadow-indigo-900/20 flex items-center gap-2"
               >
                 <PlusCircle size={16} /> {extraPartSaving ? 'Kaydediliyor...' : 'Çıkışı Yap'}
               </button>
@@ -3255,7 +3255,7 @@ export default function WorkOrders() {
                 type="button"
                 onClick={handleConfirmReceiveExtraPart}
                 disabled={extraPartInSaving}
-                className="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 disabled:opacity-60 text-[#0D1B3E] dark:text-white rounded-xl font-medium transition-colors shadow-lg shadow-teal-900/20 flex items-center gap-2"
+                className="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 disabled:opacity-60 text-white rounded-xl font-medium transition-colors shadow-lg shadow-teal-900/20 flex items-center gap-2"
               >
                 <ArrowDownToLine size={16} /> {extraPartInSaving ? 'Kaydediliyor...' : 'Girişi Yap'}
               </button>
@@ -3352,7 +3352,7 @@ export default function WorkOrders() {
                 type="button"
                 onClick={handleConfirmReturnDoa}
                 disabled={returnDoaSaving}
-                className="px-5 py-2.5 bg-orange-600 hover:bg-orange-700 disabled:opacity-60 text-[#0D1B3E] dark:text-white rounded-xl font-medium transition-colors shadow-lg shadow-orange-900/20 flex items-center gap-2"
+                className="px-5 py-2.5 bg-orange-600 hover:bg-orange-700 disabled:opacity-60 text-white rounded-xl font-medium transition-colors shadow-lg shadow-orange-900/20 flex items-center gap-2"
               >
                 <RotateCcw size={16} /> {returnDoaSaving ? 'İşleniyor...' : 'Onayla ve İade Et'}
               </button>
@@ -3412,7 +3412,7 @@ export default function WorkOrders() {
               <button
                 type="button"
                 onClick={() => window.print()}
-                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-[#0D1B3E] dark:text-white rounded-xl font-medium transition-colors shadow-lg shadow-blue-900/20 flex items-center gap-2"
+                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors shadow-lg shadow-blue-900/20 flex items-center gap-2"
               >
                 <Printer size={16} /> Yazdır
               </button>

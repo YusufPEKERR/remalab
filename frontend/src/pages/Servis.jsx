@@ -177,7 +177,7 @@ export default function Servis() {
             <button
               type="submit"
               disabled={!imei.trim() || loading}
-              className="px-6 py-3 bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-50 text-[#0D1B3E] dark:text-white rounded-xl text-sm font-bold shadow-md transition-all cursor-pointer inline-flex items-center gap-2"
+              className="px-6 py-3 bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-50 text-white rounded-xl text-sm font-bold shadow-md transition-all cursor-pointer inline-flex items-center gap-2"
             >
               {loading ? <RefreshCw size={16} className="animate-spin" /> : <Search size={16} />}
               {loading ? 'Aranıyor...' : 'Cihazı Sorgula'}

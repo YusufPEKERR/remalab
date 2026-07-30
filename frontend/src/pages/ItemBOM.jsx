@@ -217,7 +217,7 @@ export default function ItemBOM() {
             </div>
             <button 
               onClick={() => handleOpenModal(null)} 
-              className="flex items-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-[#0D1B3E] dark:text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+              className="flex items-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
             >
               <Plus size={16} /> Yeni Bileşen Ekle
             </button>
@@ -446,12 +446,12 @@ export default function ItemBOM() {
                   required 
                   type="number" 
                   min="1" 
-                  className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white" 
+                  className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white" 
                   value={formData.quantity} 
                   onChange={e => setFormData({...formData, quantity: parseInt(e.target.value)})} 
                 />
               </div>
-              <button type="submit" className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-[#0D1B3E] dark:text-white rounded-lg mt-4">Kaydet</button>
+              <button type="submit" className="w-full flex items-center justify-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white py-2.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer mt-4">Kaydet</button>
             </form>
           </div>
         </div>

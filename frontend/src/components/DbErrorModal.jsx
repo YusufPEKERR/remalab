@@ -35,7 +35,7 @@ export default function DbErrorModal({ isOpen, errorMessage, onClose, onReconnec
 
   return (
     <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
-      <div className="bg-white dark:bg-[#1e2330] border border-slate-700 shadow-2xl rounded-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+      <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
         
         {view === 'error' ? (
           /* --- ERROR VIEW --- */
@@ -84,7 +84,7 @@ export default function DbErrorModal({ isOpen, errorMessage, onClose, onReconnec
                 <div className="relative">
                   <Server className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
                   <input type="text" value={host} onChange={e => setHost(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2.5 bg-slate-50 dark:bg-[#242a38] border border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" />
+                    className="w-full pl-9 pr-3 py-2.5 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" />
                 </div>
               </div>
 
@@ -93,7 +93,7 @@ export default function DbErrorModal({ isOpen, errorMessage, onClose, onReconnec
                 <div className="relative">
                   <Server className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
                   <input type="text" value={port} onChange={e => setPort(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2.5 bg-slate-50 dark:bg-[#242a38] border border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" />
+                    className="w-full pl-9 pr-3 py-2.5 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" />
                 </div>
               </div>
 
@@ -102,7 +102,7 @@ export default function DbErrorModal({ isOpen, errorMessage, onClose, onReconnec
                 <div className="relative">
                   <Database className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
                   <input type="text" value={dbName} onChange={e => setDbName(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2.5 bg-slate-50 dark:bg-[#242a38] border border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" />
+                    className="w-full pl-9 pr-3 py-2.5 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" />
                 </div>
               </div>
 
@@ -111,7 +111,7 @@ export default function DbErrorModal({ isOpen, errorMessage, onClose, onReconnec
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
                   <input type="text" value={user} onChange={e => setUser(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2.5 bg-slate-50 dark:bg-[#242a38] border border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" />
+                    className="w-full pl-9 pr-3 py-2.5 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" />
                 </div>
               </div>
 
@@ -120,7 +120,7 @@ export default function DbErrorModal({ isOpen, errorMessage, onClose, onReconnec
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
                   <input type="password" value={password} onChange={e => setPassword(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2.5 bg-slate-50 dark:bg-[#242a38] border border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" />
+                    className="w-full pl-9 pr-3 py-2.5 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" />
                 </div>
               </div>
             </div>

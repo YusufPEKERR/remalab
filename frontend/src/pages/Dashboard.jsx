@@ -155,7 +155,7 @@ export default function Dashboard() {
           <div className="flex items-center gap-3 shrink-0">
             <button
               onClick={() => navigate('/depo')}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-[#0D1B3E] dark:text-white text-xs font-bold shadow-lg shadow-blue-600/30 transition-all transform hover:-translate-y-0.5 cursor-pointer"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold shadow-lg shadow-blue-600/30 transition-all transform hover:-translate-y-0.5 cursor-pointer"
             >
               <Package size={15} /> Depo Yönetimi
             </button>

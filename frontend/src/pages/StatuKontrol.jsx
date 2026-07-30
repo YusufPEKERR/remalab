@@ -152,7 +152,7 @@ export default function StatuKontrol() {
             <button
               type="submit"
               disabled={loading || !term.trim()}
-              className="bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-40 text-[#0D1B3E] dark:text-white px-8 py-3 rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer shrink-0"
+              className="bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-40 text-white px-8 py-3 rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer shrink-0"
             >
               <Search size={15} /> {loading ? "Sorgulanıyor..." : "Sorgula"}
             </button>
@@ -196,7 +196,7 @@ export default function StatuKontrol() {
             <button
               onClick={handleApply}
               disabled={applying || !targetCode || Number(targetCode) === device.statu_code}
-              className="w-full md:w-auto bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed text-[#0D1B3E] dark:text-white px-8 py-3 rounded-xl transition-all shadow-md text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shrink-0"
+              className="w-full md:w-auto bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed text-white px-8 py-3 rounded-xl transition-all shadow-md text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shrink-0"
             >
               {device.statu_code} <ArrowRight size={15} /> {targetCode || "?"} {applying ? "Uygulanıyor..." : "Statüyü Uygula"}
             </button>

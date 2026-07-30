@@ -216,7 +216,7 @@ export default function Depo() {
                         {item.updated_at || '-'}
                       </td>
                       <td className="px-6 py-3.5">
-                        <span className="px-2.5 py-1 rounded-md bg-blue-950/70 text-[#60A5FA] border border-blue-800/60 font-mono font-bold text-[11px]">
+                        <span className="px-2.5 py-1 rounded-md bg-blue-50 dark:bg-blue-950/70 text-[#1D4ED8] dark:text-[#60A5FA] border border-blue-200 dark:border-blue-800/60 font-mono font-bold text-[11px]">
                           {item.item_code}
                         </span>
                       </td>
@@ -224,8 +224,8 @@ export default function Depo() {
                         {item.part_name}
                       </td>
                       <td className="px-6 py-3.5">
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#FFFFFF] dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155] text-slate-200 font-semibold text-xs">
-                          <MapPin size={13} className="text-[#60A5FA]" />
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#FFFFFF] dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155] text-[#334155] dark:text-slate-200 font-semibold text-xs">
+                          <MapPin size={13} className="text-[#2563EB] dark:text-[#60A5FA]" />
                           {item.location_name}
                         </span>
                       </td>

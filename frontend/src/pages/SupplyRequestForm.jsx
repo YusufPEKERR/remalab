@@ -138,7 +138,7 @@ export default function SupplyRequestForm() {
             </div>
 
             <div className="flex justify-end pt-2">
-              <button type="submit" disabled={submitting} className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-[#0D1B3E] dark:text-white rounded-xl font-medium transition-colors shadow-lg shadow-blue-900/20 flex items-center gap-2">
+              <button type="submit" disabled={submitting} className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl font-medium transition-colors shadow-lg shadow-blue-900/20 flex items-center gap-2">
                 <Send size={18} /> Talep Gönder
               </button>
             </div>

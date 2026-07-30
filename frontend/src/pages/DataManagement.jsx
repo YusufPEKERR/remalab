@@ -282,7 +282,7 @@ export default function DataManagement() {
                   <button 
                     onClick={handleExportData}
                     disabled={loading}
-                    className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-[#0D1B3E] dark:text-white rounded-xl text-sm font-medium inline-flex items-center gap-2 transition-all shadow-lg shadow-indigo-600/20 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
+                    className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-medium inline-flex items-center gap-2 transition-all shadow-lg shadow-indigo-600/20 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
                   >
                     <Download size={18} /> {loading ? "Dışa Aktarılıyor..." : "Tüm Tabloları Dışa Aktar"}
                   </button>
@@ -295,7 +295,7 @@ export default function DataManagement() {
                 <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200">2. Tablo Sütunları</h3>
                 <div className="flex flex-wrap gap-3">
                   {selectedTable.columns.map(col => (
-                    <label key={col} className="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-[#242a38] border border-slate-700 rounded-lg text-sm cursor-pointer hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors">
+                    <label key={col} className="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg text-sm cursor-pointer hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors">
                       <input 
                         type="checkbox" 
                         className="rounded border-slate-300 dark:border-slate-600 bg-[#FFFFFF] dark:bg-[#0f1219] text-blue-500 focus:ring-blue-500/50"
@@ -317,14 +317,14 @@ export default function DataManagement() {
                   <div className="flex items-center gap-2.5">
                     <button 
                       onClick={handleGlobalSave}
-                      className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-[#0D1B3E] dark:text-white rounded-xl text-sm font-semibold flex items-center gap-2 transition-all shadow-lg shadow-emerald-500/20 hover:scale-[1.02] active:scale-[0.98]"
+                      className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-sm font-semibold flex items-center gap-2 transition-all shadow-lg shadow-emerald-500/20 hover:scale-[1.02] active:scale-[0.98]"
                       title="Değişiklikleri Kaydet"
                     >
                       <Save size={16} /> Kaydet
                     </button>
                     <button 
                       onClick={handleGlobalCancel}
-                      className="px-4 py-2 bg-rose-500 hover:bg-rose-600 text-[#0D1B3E] dark:text-white rounded-xl text-sm font-semibold flex items-center gap-2 transition-all shadow-lg shadow-rose-500/20 hover:scale-[1.02] active:scale-[0.98]"
+                      className="px-4 py-2 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-sm font-semibold flex items-center gap-2 transition-all shadow-lg shadow-rose-500/20 hover:scale-[1.02] active:scale-[0.98]"
                       title="Seçimi İptal Et"
                     >
                       <XCircle size={16} /> İptal Et
@@ -343,7 +343,7 @@ export default function DataManagement() {
                     <button 
                       onClick={handleExportData}
                       disabled={loading || selectedColumns.length === 0}
-                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-[#0D1B3E] dark:text-white rounded-xl text-sm font-medium flex items-center gap-2 transition-all shadow-lg shadow-indigo-600/20 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
+                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-medium flex items-center gap-2 transition-all shadow-lg shadow-indigo-600/20 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
                       title="Seçili sütunlarla mevcut tabloyu yedekle"
                     >
                       <Download size={16} /> Dışa Aktar
@@ -351,14 +351,14 @@ export default function DataManagement() {
                     <button 
                       onClick={() => setIsExcelModalOpen(true)}
                       disabled={loading}
-                      className="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-[#0D1B3E] dark:text-white rounded-xl text-sm font-medium flex items-center gap-2 transition-all shadow-lg shadow-violet-600/20 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
+                      className="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-sm font-medium flex items-center gap-2 transition-all shadow-lg shadow-violet-600/20 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
                       title="Tüm sütunlarla kayıt ekle"
                     >
                       <Upload size={16} /> İçe Aktar
                     </button>
                   </div>
                 </div>
-                <div className="bg-slate-50 dark:bg-[#242a38] border border-slate-700 rounded-xl overflow-hidden shadow-sm">
+                <div className="bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden shadow-sm">
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm whitespace-nowrap">
                       <thead className="bg-white dark:bg-[#1e2330] text-slate-400 font-medium uppercase tracking-wider text-[11px]">

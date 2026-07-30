@@ -527,7 +527,7 @@ export default function Users() {
         </div>
         
         <div className="flex flex-wrap gap-2.5 shrink-0">
-          <button onClick={() => setIsExportModalOpen(true)} className="flex items-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-[#0D1B3E] dark:text-white px-4 py-2.5 rounded-xl shadow-md text-xs font-bold transition-all cursor-pointer">
+          <button onClick={() => setIsExportModalOpen(true)} className="flex items-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white px-4 py-2.5 rounded-xl shadow-md text-xs font-bold transition-all cursor-pointer">
             <Download size={15} /> {selectedRows.length > 0 ? `${selectedRows.length} Seçiliyi Aktar` : 'Excel Dışa Aktar'}
           </button>
           <button onClick={handleAdd} className="flex items-center gap-2 bg-[#FFFFFF] dark:bg-[#1E293B] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] border border-[#E2E8F0] dark:border-[#334155] text-[#0F172A] dark:text-[#FAFAFA] px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer">
@@ -919,7 +919,7 @@ export default function Users() {
                             <button
                               type="button"
                               onClick={handleDeleteRole}
-                              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-[#0D1B3E] dark:text-white rounded-xl text-xs transition-colors font-semibold"
+                              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs transition-colors font-semibold"
                             >
                               Sil
                             </button>
@@ -994,7 +994,7 @@ export default function Users() {
                             <button
                               type="button"
                               onClick={handleDeleteGorev}
-                              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-[#0D1B3E] dark:text-white rounded-xl text-xs transition-colors font-semibold"
+                              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs transition-colors font-semibold"
                             >
                               Sil
                             </button>
@@ -1025,7 +1025,7 @@ export default function Users() {
                                 setIsCustomGorev(false);
                               }
                             }}
-                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-[#0D1B3E] dark:text-white rounded-xl text-xs transition-colors font-semibold"
+                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs transition-colors font-semibold"
                           >
                             Ekle
                           </button>
@@ -1156,7 +1156,7 @@ export default function Users() {
 
               <div className="p-6 bg-slate-50 dark:bg-[#242a38] border-t border-slate-200 dark:border-slate-700/50 flex justify-end gap-3 shrink-0">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-5 py-2.5 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors border border-slate-300 dark:border-slate-600">İptal</button>
-                <button type="submit" className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-[#0D1B3E] dark:text-white rounded-xl font-medium transition-colors shadow-lg shadow-blue-900/20">Kaydet</button>
+                <button type="submit" className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors shadow-lg shadow-blue-900/20">Kaydet</button>
               </div>
             </form>
           </div>
@@ -1194,7 +1194,7 @@ export default function Users() {
               <button 
                 onClick={executeExport}
                 disabled={!Object.values(selectedExportColumns).some(Boolean)}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-[#0D1B3E] dark:text-white rounded-lg transition-colors font-medium shadow-md shadow-emerald-500/20 disabled:opacity-50"
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors font-medium shadow-md shadow-emerald-500/20 disabled:opacity-50"
               >
                 Dışa Aktar
               </button>

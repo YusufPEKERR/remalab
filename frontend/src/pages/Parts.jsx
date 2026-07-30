@@ -410,7 +410,7 @@ export default function Parts() {
             {selectedOnCurrentPage.length > 1 && (
               <button
                 onClick={handleBulkDelete}
-                className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-[#0D1B3E] dark:text-white px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+                className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
               >
                 <Trash2 size={16} /> Seçilenleri Sil ({selectedOnCurrentPage.length})
               </button>
@@ -418,7 +418,7 @@ export default function Parts() {
 
             <button
               onClick={() => handleOpenModal()}
-              className="flex items-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-[#0D1B3E] dark:text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+              className="flex items-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
             >
               <Plus size={16} /> Yeni Parça Ekle
             </button>
@@ -530,7 +530,7 @@ export default function Parts() {
                     </td>
                     <td className="px-6 py-3.5 font-mono text-[#64748B] dark:text-[#94A3B8] text-[11px]">{part.id}</td>
                     <td className="px-6 py-3.5 font-bold text-[#0F172A] dark:text-[#FAFAFA]">
-                      <span className="px-2.5 py-1 rounded-md bg-blue-950/70 text-[#60A5FA] border border-blue-800/60 font-mono font-bold text-[11px]">
+                      <span className="px-2.5 py-1 rounded-md bg-blue-50 dark:bg-blue-950/70 text-[#1D4ED8] dark:text-[#60A5FA] border border-blue-200 dark:border-blue-800/60 font-mono font-bold text-[11px]">
                         {part.item_code}
                       </span>
                     </td>

@@ -283,7 +283,7 @@ export default function Raporlar() {
 
             <button 
               onClick={() => setIsExportModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-[#2563EB] hover:bg-[#1D4ED8] text-[#0D1B3E] dark:text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+              className="flex items-center gap-2 px-4 py-2.5 bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
             >
               <Download size={16} /> {selectedRows.length > 0 ? `${selectedRows.length} Seçiliyi Dışa Aktar` : "Excel Dışa Aktar"}
             </button>
@@ -297,7 +297,7 @@ export default function Raporlar() {
           onClick={() => setActiveTab('stok')}
           className={`whitespace-nowrap px-6 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
             activeTab === 'stok' 
-              ? 'bg-[#2563EB] text-[#0D1B3E] dark:text-white shadow-md' 
+              ? 'bg-[#2563EB] text-white shadow-md' 
               : 'text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-[#FAFAFA] hover:bg-[#FFFFFF] dark:hover:bg-[#1E293B]'
           }`}
         >
@@ -307,7 +307,7 @@ export default function Raporlar() {
           onClick={() => setActiveTab('critical')}
           className={`whitespace-nowrap px-6 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
             activeTab === 'critical' 
-              ? 'bg-red-600 text-[#0D1B3E] dark:text-white shadow-md' 
+              ? 'bg-red-600 text-white shadow-md' 
               : 'text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-[#FAFAFA] hover:bg-[#FFFFFF] dark:hover:bg-[#1E293B]'
           }`}
         >
@@ -317,7 +317,7 @@ export default function Raporlar() {
           onClick={() => setActiveTab('transfers')}
           className={`whitespace-nowrap px-6 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
             activeTab === 'transfers' 
-              ? 'bg-amber-600 text-[#0D1B3E] dark:text-white shadow-md' 
+              ? 'bg-amber-600 text-white shadow-md' 
               : 'text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-[#FAFAFA] hover:bg-[#FFFFFF] dark:hover:bg-[#1E293B]'
           }`}
         >
@@ -378,7 +378,7 @@ export default function Raporlar() {
                         </td>
                         <td className="px-6 py-3.5 font-mono text-[#64748B] dark:text-[#94A3B8] text-[11px]">{r.updated_at || r.date || '-'}</td>
                         <td className="px-6 py-3.5">
-                          <span className="px-2.5 py-1 rounded-md bg-blue-950/70 text-[#60A5FA] border border-blue-800/60 font-mono font-bold text-[11px]">
+                          <span className="px-2.5 py-1 rounded-md bg-blue-50 dark:bg-blue-950/70 text-[#1D4ED8] dark:text-[#60A5FA] border border-blue-200 dark:border-blue-800/60 font-mono font-bold text-[11px]">
                             {r.item_code}
                           </span>
                         </td>
@@ -477,7 +477,7 @@ export default function Raporlar() {
                         />
                       </td>
                       <td className="px-6 py-3.5">
-                        <span className="px-2.5 py-1 rounded-md bg-blue-950/70 text-[#60A5FA] border border-blue-800/60 font-mono font-bold text-[11px]">
+                        <span className="px-2.5 py-1 rounded-md bg-blue-50 dark:bg-blue-950/70 text-[#1D4ED8] dark:text-[#60A5FA] border border-blue-200 dark:border-blue-800/60 font-mono font-bold text-[11px]">
                           {r.item_code}
                         </span>
                       </td>
@@ -563,7 +563,7 @@ export default function Raporlar() {
 
                 <button 
                   onClick={() => fetchReports(false)}
-                  className="flex items-center gap-2 px-4 py-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-[#0D1B3E] dark:text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+                  className="flex items-center gap-2 px-4 py-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
                 >
                   <Filter size={15} /> Filtrele
                 </button>
@@ -626,7 +626,7 @@ export default function Raporlar() {
                         </td>
                         <td className="px-6 py-3.5 font-mono text-[#64748B] dark:text-[#94A3B8] text-[11px]">{r.date || '-'}</td>
                         <td className="px-6 py-3.5">
-                          <span className="px-2.5 py-1 rounded-md bg-blue-950/70 text-[#60A5FA] border border-blue-800/60 font-mono font-bold text-[11px]">
+                          <span className="px-2.5 py-1 rounded-md bg-blue-50 dark:bg-blue-950/70 text-[#1D4ED8] dark:text-[#60A5FA] border border-blue-200 dark:border-blue-800/60 font-mono font-bold text-[11px]">
                             {r.item_code}
                           </span>
                         </td>
@@ -713,7 +713,7 @@ export default function Raporlar() {
               <button 
                 onClick={executeExport}
                 disabled={!Object.values(activeTab === 'stok' ? selectedStockCols : (activeTab === 'transfers' ? selectedTransferCols : selectedCriticalCols)).some(Boolean)}
-                className="px-4 py-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-[#0D1B3E] dark:text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer disabled:opacity-50"
+                className="px-4 py-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer disabled:opacity-50"
               >
                 Dışa Aktar
               </button>
