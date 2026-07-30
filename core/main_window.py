@@ -47,6 +47,13 @@ class CustomRequestHandler(http.server.SimpleHTTPRequestHandler):
             cache_dir = os.path.join(base_dir, 'api_cache')
             rel_path = path[len('/api_cache/'):]
             return os.path.join(cache_dir, rel_path)
+        # QtWebEngine, React Router ile client-side (pushState) gezinilen SPA
+        # rotalarında (ör. /statu-gecis/MNG1_AS/...) sekme ikonunu <link> etiketini
+        # dikkate almadan geçerli URL'ye göre yeniden arar (ör. /statu-gecis/MNG1_AS/
+        # favicon.svg) - bu, gerçek bir dosya olmadığından 404'e düşer. Kök favicon'a
+        # yönlendirilir.
+        if path.endswith('/favicon.svg') and path != '/favicon.svg':
+            path = '/favicon.svg'
         return super().translate_path(path)
 
     def end_headers(self):

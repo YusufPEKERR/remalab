@@ -137,6 +137,12 @@ class WebBridge(QObject):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        # Uzak DB'ye her Slot çağrısında yeniden gidilmesin diye, neredeyse hiç değişmeyen
+        # referans/liste tabloları (statü listesi, depo durum listesi, flow değerleri, görev
+        # grupları, garanti türleri, parça kategorileri) için basit bir TTL bellek önbelleği.
+        # bkz. _cached_json / _invalidate_cache.
+        self._ref_cache = {}
+        self._ensure_performance_indexes()
         self._ensure_department_column()
         self._ensure_status_column()
         self._ensure_repair_records_extra_columns()
@@ -928,6 +934,35 @@ class WebBridge(QObject):
         finally:
             db.close()
 
+    def _ensure_performance_indexes(self):
+        """Bu oturumdaki performans taramasında saptanan, indekssiz oldukları için yavaş
+        çalışan sorgulara ait indeksleri ekler: item_models.item_code (get_item_codes'un
+        ORDER BY'ı ~30 bin satırı indeksiz sıralıyordu), stock(part_id, location_id)
+        (get_stock_for_part gibi parça bazlı stok sorguları için), ve batch_entries -
+        warehouse.batch_entries id dışında HİÇ indeksi yoktu (7600+ satıra büyüdü ve
+        büyümeye devam ediyor), oysa bu tablo IMEI/seri no/internal id/batch no ile
+        LOWER(TRIM(...)) karşılaştırmasıyla bu oturumda eklenen HEMEN HEMEN HER Slot'ta
+        (lookup_batch_entry, create_batch_entry'nin aktif-servis kontrolü,
+        get_repair_operations_by_imei, sync_customers_to_batch_entries vb.) sorgulanıyor -
+        LOWER(TRIM(...)) ifadesi kullanıldığından düz kolon indeksi değil, ifade (expression)
+        indeksi gerekiyor."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            db.execute(text("CREATE INDEX IF NOT EXISTS idx_item_models_item_code ON warehouse.item_models (item_code);"))
+            db.execute(text("CREATE INDEX IF NOT EXISTS idx_stock_part_location ON warehouse.stock (part_id, location_id);"))
+            db.execute(text("CREATE INDEX IF NOT EXISTS idx_batch_entries_imei_lower ON warehouse.batch_entries (LOWER(TRIM(imei_number)));"))
+            db.execute(text("CREATE INDEX IF NOT EXISTS idx_batch_entries_serial_lower ON warehouse.batch_entries (LOWER(TRIM(serial_number)));"))
+            db.execute(text("CREATE INDEX IF NOT EXISTS idx_batch_entries_internal_lower ON warehouse.batch_entries (LOWER(TRIM(internal_id)));"))
+            db.execute(text("CREATE INDEX IF NOT EXISTS idx_batch_entries_batch_no_lower ON warehouse.batch_entries (LOWER(TRIM(batch_no)));"))
+            db.execute(text("CREATE INDEX IF NOT EXISTS idx_batch_entries_customer_no_lower ON warehouse.batch_entries (LOWER(TRIM(customer_no)));"))
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            print(f"[WebBridge] performans indeksleri eklenemedi: {e}")
+        finally:
+            db.close()
+
     def _ensure_repair_records_extra_columns(self):
         """warehouse.repair_records tablosuna Demontaj ekranı için part_item_code/item_fault_code,
         ve Onarım Parçaları ekranı için supply_status_code (warehouse.item_supply_status.code -
@@ -1025,29 +1060,33 @@ class WebBridge(QObject):
 
     @Slot(result=str)
     def get_users(self):
-        """Tüm kullanıcıları getirir."""
-        db = SessionLocal()
-        try:
-            users = db.query(User).all()
-            users_list = []
-            for u in users:
-                users_list.append({
-                    "id": u.id,
-                    "username": u.username,
-                    "tc_no": u.tc_no or "",
-                    "fullname": u.fullname or "",
-                    "role": u.role,
-                    "gorev": u.gorev or "",
-                    "account_enabled": u.account_enabled if u.account_enabled is not None else True,
-                    "team_leader": u.team_leader or "",
-                    "operation_manager": u.operation_manager or "",
-                    "administrative_manager": u.administrative_manager or ""
-                })
-            return json.dumps({"success": True, "users": users_list})
-        except Exception as e:
-            return json.dumps({"success": False, "message": f"Kullanıcılar getirilemedi: {str(e)}"})
-        finally:
-            db.close()
+        """Tüm kullanıcıları getirir. Diğer birçok ekranda (İrsaliye, Servis Onarımları vb.)
+        teknisyen/kullanıcı seçimi için de çağrıldığından, 60 saniye önbelleklenir; kullanıcı
+        create/update/delete edildiğinde önbellek anında geçersiz kılınır."""
+        def _compute():
+            db = SessionLocal()
+            try:
+                users = db.query(User).all()
+                users_list = []
+                for u in users:
+                    users_list.append({
+                        "id": u.id,
+                        "username": u.username,
+                        "tc_no": u.tc_no or "",
+                        "fullname": u.fullname or "",
+                        "role": u.role,
+                        "gorev": u.gorev or "",
+                        "account_enabled": u.account_enabled if u.account_enabled is not None else True,
+                        "team_leader": u.team_leader or "",
+                        "operation_manager": u.operation_manager or "",
+                        "administrative_manager": u.administrative_manager or ""
+                    })
+                return json.dumps({"success": True, "users": users_list})
+            except Exception as e:
+                return json.dumps({"success": False, "message": f"Kullanıcılar getirilemedi: {str(e)}"})
+            finally:
+                db.close()
+        return self._cached_json("users", 60, _compute)
 
     @Slot(str, str, str, str, str, str, bool, str, str, str, result=str)
     def create_user(self, username, tc_no, password, role, gorev, fullname, account_enabled, team_leader, operation_manager, administrative_manager):
@@ -1076,6 +1115,7 @@ class WebBridge(QObject):
             )
             db.add(new_user)
             db.commit()
+            self._invalidate_cache("users")
             return json.dumps({"success": True, "message": "Kullanıcı başarıyla oluşturuldu"})
         except Exception as e:
             db.rollback()
@@ -1127,6 +1167,7 @@ class WebBridge(QObject):
                 user.password_hash = get_password_hash(password)
                 
             db.commit()
+            self._invalidate_cache("users")
             print("[WebBridge] User updated successfully. Role is now:", user.role)
             sys.stdout.flush()
             return json.dumps({"success": True, "message": "Kullanıcı başarıyla güncellendi"})
@@ -1184,6 +1225,12 @@ class WebBridge(QObject):
             # warehouse.parts, item ile ayni satirlari item_code=code eslemesiyle tasiyan
             # ayri bir tablo; brand/model buradan geliyor (product_model.brand her zaman
             # NULL oldugundan eski pm join'i hicbir zaman gercek deger uretmiyordu).
+            # department icin correlated subquery kasitli olarak korunuyor: WHERE+ORDER BY+
+            # LIMIT once uygulandigindan (get_part_categories'in aksine burada LIMIT var),
+            # subquery sadece o sayfadaki (ör. 100) satir icin calisiyor - bunu JOIN+GROUP BY'a
+            # cevirmek denendi ama GROUP BY, LIMIT'ten once TUM eslenen item tablosunun
+            # gruplanmasini zorunlu kildigindan (317ms -> 2400ms+) performansi ciddi
+            # kotulestirdi, bu yuzden orijinal haline geri donuldu.
             query = text(f"""
                 SELECT
                     i.id, i.code, i.short_name, i.color, i.item_type, i.item_category, i.enabled,
@@ -1784,6 +1831,7 @@ class WebBridge(QObject):
             
             db.delete(user)
             db.commit()
+            self._invalidate_cache("users")
             return json.dumps({"success": True, "message": "Kullanıcı silindi"})
         except Exception as e:
             db.rollback()
@@ -1794,28 +1842,34 @@ class WebBridge(QObject):
     # --- YENİ EKLENEN LOKASYON FONKSİYONLARI ---
     @Slot(result=str)
     def get_locations(self):
-        from models.location import Location
-        db = SessionLocal()
-        try:
-            locs = db.query(Location).all()
-            return json.dumps({"success": True, "locations": [{"id": l.id, "name": l.name, "kind": l.kind, "description": l.description} for l in locs]})
-        except Exception as e:
-            return json.dumps({"success": False, "message": str(e)})
-        finally:
-            db.close()
+        """Çalışma zamanında nadiren değiştiğinden 5 dakika önbelleklenir (bkz. _cached_json)."""
+        def _compute():
+            from models.location import Location
+            db = SessionLocal()
+            try:
+                locs = db.query(Location).all()
+                return json.dumps({"success": True, "locations": [{"id": l.id, "name": l.name, "kind": l.kind, "description": l.description} for l in locs]})
+            except Exception as e:
+                return json.dumps({"success": False, "message": str(e)})
+            finally:
+                db.close()
+        return self._cached_json("locations", 300, _compute)
 
     @Slot(result=str)
     def get_system_locations(self):
-        """Good/DOA/Repair/Scrap/Out Stock sistem depolarını döner."""
-        from models.location import Location
-        db = SessionLocal()
-        try:
-            locs = db.query(Location).filter(Location.kind.isnot(None)).all()
-            return json.dumps({"success": True, "locations": [{"id": l.id, "name": l.name, "kind": l.kind} for l in locs]})
-        except Exception as e:
-            return json.dumps({"success": False, "message": str(e)})
-        finally:
-            db.close()
+        """Good/DOA/Repair/Scrap/Out Stock sistem depolarını döner. Çalışma zamanında
+        nadiren değiştiğinden 5 dakika önbelleklenir."""
+        def _compute():
+            from models.location import Location
+            db = SessionLocal()
+            try:
+                locs = db.query(Location).filter(Location.kind.isnot(None)).all()
+                return json.dumps({"success": True, "locations": [{"id": l.id, "name": l.name, "kind": l.kind} for l in locs]})
+            except Exception as e:
+                return json.dumps({"success": False, "message": str(e)})
+            finally:
+                db.close()
+        return self._cached_json("system_locations", 300, _compute)
 
     @Slot(str, str, result=str)
     def create_location(self, name, description):
@@ -1827,6 +1881,7 @@ class WebBridge(QObject):
             loc = Location(name=name, description=description)
             db.add(loc)
             db.commit()
+            self._invalidate_cache("locations", "system_locations")
             return json.dumps({"success": True, "message": "Lokasyon eklendi", "id": loc.id})
         except Exception as e:
             db.rollback()
@@ -1858,6 +1913,7 @@ class WebBridge(QObject):
 
                 db.delete(loc)
                 db.commit()
+                self._invalidate_cache("locations", "system_locations")
                 return json.dumps({"success": True})
             return json.dumps({"success": False, "message": "Bulunamadı"})
         except Exception as e:
@@ -1888,22 +1944,25 @@ class WebBridge(QObject):
     @Slot(result=str)
     def get_mission_groups(self):
         """Görev gruplarını getirir. MioCreate.xlsx -> MissionGroup'tan seed edilmiştir (organization.mission_groups).
-        Sadece üretim/onarım ile ilgili gruplar döner (department='Üretim')."""
-        from sqlalchemy import text
-        db = SessionLocal()
-        try:
-            rows = db.execute(text("""
-                SELECT code, short_name, order_number
-                FROM organization.mission_groups
-                WHERE department = 'Üretim'
-                ORDER BY order_number NULLS LAST, short_name ASC
-            """)).mappings().all()
-            groups = [{"code": r["code"], "short_name": r["short_name"], "order_number": r["order_number"]} for r in rows]
-            return json.dumps({"success": True, "mission_groups": groups}, ensure_ascii=False)
-        except Exception as e:
-            return json.dumps({"success": False, "message": str(e)})
-        finally:
-            db.close()
+        Sadece üretim/onarım ile ilgili gruplar döner (department='Üretim'). Çalışma
+        zamanında pratikte hiç değişmediğinden 5 dakika önbelleklenir."""
+        def _compute():
+            from sqlalchemy import text
+            db = SessionLocal()
+            try:
+                rows = db.execute(text("""
+                    SELECT code, short_name, order_number
+                    FROM organization.mission_groups
+                    WHERE department = 'Üretim'
+                    ORDER BY order_number NULLS LAST, short_name ASC
+                """)).mappings().all()
+                groups = [{"code": r["code"], "short_name": r["short_name"], "order_number": r["order_number"]} for r in rows]
+                return json.dumps({"success": True, "mission_groups": groups}, ensure_ascii=False)
+            except Exception as e:
+                return json.dumps({"success": False, "message": str(e)})
+            finally:
+                db.close()
+        return self._cached_json("mission_groups", 300, _compute)
 
     @Slot(str, result=str)
     def get_mission_for_item_category(self, item_category):
@@ -2102,6 +2161,36 @@ class WebBridge(QObject):
         finally:
             db.close()
 
+    def _cached_json(self, key, ttl_seconds, compute_fn):
+        """Uzak DB'ye her seferinde gitmek yerine, nadiren değişen referans/liste
+        Slot'larının (statü listesi, depo durum, flow değerleri, görev grupları, garanti
+        türleri, parça kategorileri vb.) sonucunu ttl_seconds boyunca bellekte tutar.
+        compute_fn, JSON string döner (Slot'un normal dönüş değeriyle aynı format).
+        Yalnızca success=true sonuçlar önbelleklenir - geçici bir DB/ağ hatası
+        (ör. bu oturumda gözlemlenen uzak DB gecikme/kopma sorunları) dakikalarca
+        önbelleklenip tekrar tekrar aynı hatayı döndürmesin."""
+        import time, json as _json
+        now = time.time()
+        entry = self._ref_cache.get(key)
+        if entry and (now - entry[0]) < ttl_seconds:
+            return entry[1]
+        value = compute_fn()
+        try:
+            ok = bool(_json.loads(value).get("success"))
+        except Exception:
+            ok = False
+        if ok:
+            self._ref_cache[key] = (now, value)
+        else:
+            self._ref_cache.pop(key, None)
+        return value
+
+    def _invalidate_cache(self, *keys):
+        """Bir referans tablosu yazıldığında (create/update/delete) ilgili _cached_json
+        anahtarını önbellekten düşürür ki bir sonraki okuma güncel veriyi görsün."""
+        for k in keys:
+            self._ref_cache.pop(k, None)
+
     def _get_flow_values(self, db):
         """warehouse.service_request_type.code'dan geçerli Flow (Akış Durumu) değerlerini
         döner - veritabanında sadece bu değerler kullanılabilir olmalıdır (boş/NULL kod
@@ -2118,15 +2207,18 @@ class WebBridge(QObject):
     @Slot(result=str)
     def get_flow_values(self):
         """Batch Girişi, Parça Kategorileri ve Tedarikçiler sayfalarındaki Flow seçim
-        listelerinin tek kaynağıdır (bkz. _get_flow_values)."""
-        db = SessionLocal()
-        try:
-            flows = self._get_flow_values(db)
-            return json.dumps({"success": True, "flows": flows}, ensure_ascii=False)
-        except Exception as e:
-            return json.dumps({"success": False, "message": str(e)})
-        finally:
-            db.close()
+        listelerinin tek kaynağıdır (bkz. _get_flow_values). warehouse.service_request_type
+        çalışma zamanında pratikte hiç değişmediğinden 5 dakika önbelleklenir."""
+        def _compute():
+            db = SessionLocal()
+            try:
+                flows = self._get_flow_values(db)
+                return json.dumps({"success": True, "flows": flows}, ensure_ascii=False)
+            except Exception as e:
+                return json.dumps({"success": False, "message": str(e)})
+            finally:
+                db.close()
+        return self._cached_json("flow_values", 300, _compute)
 
     @Slot(str, result=str)
     def get_approved_categories_for_flow(self, flow):
@@ -2285,21 +2377,24 @@ class WebBridge(QObject):
     @Slot(result=str)
     def get_repair_item_warranties(self):
         """Ücret tipi (Ücretli/Ücretsiz Onarım) referans listesini getirir.
-        MioCreate.xlsx -> RepairItemWarranty'den seed edilmiştir (IW=Ücretsiz, OOW=Ücretli)."""
-        from sqlalchemy import text
-        db = SessionLocal()
-        try:
-            rows = db.execute(text("""
-                SELECT code, short_name, is_paid_for
-                FROM warehouse.repair_item_warranty
-                ORDER BY order_number ASC NULLS LAST
-            """)).mappings().all()
-            warranties = [{"code": r["code"], "short_name": r["short_name"] or "", "is_paid_for": bool(r["is_paid_for"])} for r in rows]
-            return json.dumps({"success": True, "warranties": warranties}, ensure_ascii=False)
-        except Exception as e:
-            return json.dumps({"success": False, "message": str(e)})
-        finally:
-            db.close()
+        MioCreate.xlsx -> RepairItemWarranty'den seed edilmiştir (IW=Ücretsiz, OOW=Ücretli).
+        Çalışma zamanında pratikte hiç değişmediğinden 5 dakika önbelleklenir."""
+        def _compute():
+            from sqlalchemy import text
+            db = SessionLocal()
+            try:
+                rows = db.execute(text("""
+                    SELECT code, short_name, is_paid_for
+                    FROM warehouse.repair_item_warranty
+                    ORDER BY order_number ASC NULLS LAST
+                """)).mappings().all()
+                warranties = [{"code": r["code"], "short_name": r["short_name"] or "", "is_paid_for": bool(r["is_paid_for"])} for r in rows]
+                return json.dumps({"success": True, "warranties": warranties}, ensure_ascii=False)
+            except Exception as e:
+                return json.dumps({"success": False, "message": str(e)})
+            finally:
+                db.close()
+        return self._cached_json("repair_item_warranties", 300, _compute)
 
     @Slot(str, result=str)
     def get_test_detected_parts(self, device_ref):
@@ -2465,57 +2560,62 @@ class WebBridge(QObject):
     # --- PARÇA KATEGORİSİ MODÜLÜ ---
     @Slot(result=str)
     def get_part_categories(self):
-        """Tüm Parça Kategorilerini getirir. (Modül 2: ItemCategory ve ItemCategoryMission üzerinden beslenir)"""
-        from sqlalchemy import text
-        import json
-        db = SessionLocal()
-        try:
-            # item_category ve item_category_mission tablolarindan veriyi harmanliyoruz
-            rows = db.execute(text("""
-                SELECT 
-                    ic.id, 
-                    ic.short_name AS name, 
-                    '' AS part_type, 
-                    '' AS flow,
-                    (
-                        SELECT string_agg(icm.mission, ', ') 
-                        FROM warehouse.item_category_mission icm 
-                        WHERE icm.item_category = ic.short_name OR icm.item_category = ic.code
-                    ) AS departments, 
-                    'Stok Takipli' AS stock_tracking_type,
-                    NULL AS default_location_id, 
-                    '' AS default_location_name,
-                    ic.enabled AS is_active,
-                    '' AS description,
-                    ic.item_labour AS item_labour,
-                    ic.is_pre_approved AS is_pre_approved
-                FROM warehouse.item_category ic
-                ORDER BY ic.short_name ASC
-            """)).mappings().all()
+        """Tüm Parça Kategorilerini getirir. (Modül 2: ItemCategory ve ItemCategoryMission üzerinden beslenir)
+        Departman listesi eskiden her satır için ayrı bir correlated subquery ile
+        hesaplanıyordu (196 kategori x 301 mission satırı taranıyordu, tek bir LEFT
+        JOIN + GROUP BY yerine) - uzak DB'de saniyeler süren en yavaş Slot'tu, tek geçişli
+        JOIN'e çevrildi. Kategori listesi create/update/delete ile değişebildiğinden kısa
+        (60sn) bir TTL ile önbelleklenir; yazma Slot'ları önbelleği geçersiz kılar."""
+        def _compute():
+            from sqlalchemy import text
+            import json
+            db = SessionLocal()
+            try:
+                rows = db.execute(text("""
+                    SELECT
+                        ic.id,
+                        ic.short_name AS name,
+                        '' AS part_type,
+                        '' AS flow,
+                        string_agg(DISTINCT icm.mission, ', ') AS departments,
+                        'Stok Takipli' AS stock_tracking_type,
+                        NULL AS default_location_id,
+                        '' AS default_location_name,
+                        ic.enabled AS is_active,
+                        '' AS description,
+                        ic.item_labour AS item_labour,
+                        ic.is_pre_approved AS is_pre_approved
+                    FROM warehouse.item_category ic
+                    LEFT JOIN warehouse.item_category_mission icm
+                        ON icm.item_category = ic.short_name OR icm.item_category = ic.code
+                    GROUP BY ic.id, ic.short_name, ic.enabled, ic.item_labour, ic.is_pre_approved
+                    ORDER BY ic.short_name ASC
+                """)).mappings().all()
 
-            categories = []
-            for r in rows:
-                categories.append({
-                    "id": str(r["id"]),
-                    "name": r["name"] or "",
-                    "part_type": r["part_type"] or "",
-                    "flow": r["flow"] or "",
-                    "departments": r["departments"] or "",
-                    "stock_tracking_type": r["stock_tracking_type"] or "Stok Takipli",
-                    "default_location_id": str(r["default_location_id"]) if r["default_location_id"] else "",
-                    "default_location_name": r["default_location_name"] or "",
-                    "is_active": r["is_active"] if r["is_active"] is not None else True,
-                    "description": r["description"] or "",
-                    "labour_level": r["item_labour"] or "",
-                    "can_pre_price": bool(r["is_pre_approved"])
-                })
-            
-            return json.dumps({"success": True, "categories": categories})
-        except Exception as e:
-            print(f"[WebBridge] get_part_categories error: {e}")
-            return json.dumps({"success": False, "message": str(e)})
-        finally:
-            db.close()
+                categories = []
+                for r in rows:
+                    categories.append({
+                        "id": str(r["id"]),
+                        "name": r["name"] or "",
+                        "part_type": r["part_type"] or "",
+                        "flow": r["flow"] or "",
+                        "departments": r["departments"] or "",
+                        "stock_tracking_type": r["stock_tracking_type"] or "Stok Takipli",
+                        "default_location_id": str(r["default_location_id"]) if r["default_location_id"] else "",
+                        "default_location_name": r["default_location_name"] or "",
+                        "is_active": r["is_active"] if r["is_active"] is not None else True,
+                        "description": r["description"] or "",
+                        "labour_level": r["item_labour"] or "",
+                        "can_pre_price": bool(r["is_pre_approved"])
+                    })
+
+                return json.dumps({"success": True, "categories": categories})
+            except Exception as e:
+                print(f"[WebBridge] get_part_categories error: {e}")
+                return json.dumps({"success": False, "message": str(e)})
+            finally:
+                db.close()
+        return self._cached_json("part_categories", 60, _compute)
 
     @Slot(str, str, str, str, str, str, str, result=str)
     def create_part_category(self, name, part_type, flow, departments, stock_tracking_type, default_location_id, description):
@@ -2539,6 +2639,7 @@ class WebBridge(QObject):
             )
             db.add(cat)
             db.commit()
+            self._invalidate_cache("part_categories")
             return json.dumps({"success": True, "message": "Kategori eklendi", "id": cat.id})
         except Exception as e:
             db.rollback()
@@ -2569,6 +2670,7 @@ class WebBridge(QObject):
             cat.is_active = (is_active == "true" or is_active == "1" or is_active == "True")
             cat.description = description or None
             db.commit()
+            self._invalidate_cache("part_categories")
             return json.dumps({"success": True, "message": "Kategori güncellendi"})
         except Exception as e:
             db.rollback()
@@ -2591,6 +2693,7 @@ class WebBridge(QObject):
                 return json.dumps({"success": False, "message": f"Bu kategoriye bağlı {linked} parça var, önce onları başka kategoriye taşıyın."})
             db.delete(cat)
             db.commit()
+            self._invalidate_cache("part_categories")
             return json.dumps({"success": True})
         except Exception as e:
             db.rollback()
@@ -6128,18 +6231,32 @@ class WebBridge(QObject):
         from sqlalchemy import text
         db = SessionLocal()
         try:
+            # warehouse.stock ~30 bin satır olabildiğinden, her satır için ayrı ayrı
+            # warehouse.stock_movements'a bakan correlated subquery yerine, movements
+            # tek seferde (part_id, location_id) bazında önceden MAX(created_at)'e
+            # indirgenip tek bir LEFT JOIN ile eşleştirilir - stock_movements büyüdükçe
+            # correlated subquery'nin aksine ölçeklenir.
             stocks = db.execute(text("""
+                WITH movement_touch AS (
+                    SELECT part_id, source_location_id AS location_id, created_at
+                    FROM warehouse.stock_movements WHERE source_location_id IS NOT NULL
+                    UNION ALL
+                    SELECT part_id, target_location_id AS location_id, created_at
+                    FROM warehouse.stock_movements WHERE target_location_id IS NOT NULL
+                ),
+                last_movement AS (
+                    SELECT part_id, location_id, MAX(created_at) AS last_movement_at
+                    FROM movement_touch
+                    GROUP BY part_id, location_id
+                )
                 SELECT s.id, p.id as part_id, p.brand, p.model, p.color, p.part_category, p.name as pname, p.item_code,
-                       l.id as location_id, l.name as location_name, l.kind as location_kind, 
+                       l.id as location_id, l.name as location_name, l.kind as location_kind,
                        s.quantity, p.critical_limit,
-                       (
-                         SELECT MAX(sm.created_at)
-                         FROM warehouse.stock_movements sm
-                         WHERE sm.part_id = s.part_id AND (sm.source_location_id = s.location_id OR sm.target_location_id = s.location_id)
-                       ) as last_movement_at
-                FROM warehouse.stock s 
-                JOIN warehouse.parts p ON s.part_id = p.id 
+                       lm.last_movement_at
+                FROM warehouse.stock s
+                JOIN warehouse.parts p ON s.part_id = p.id
                 JOIN warehouse.locations l ON s.location_id = l.id
+                LEFT JOIN last_movement lm ON lm.part_id = s.part_id AND lm.location_id = s.location_id
                 ORDER BY s.id DESC
             """)).mappings().all()
             res = []
@@ -6170,6 +6287,29 @@ class WebBridge(QObject):
             json_data = json.dumps({"success": True, "stock": res})
             write_to_cache("stock.json", json_data)
             return json.dumps({"success": True, "fetch_url": fetch_url})
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
+    def get_stock_for_part(self, part_id):
+        """Tek bir parçanın tüm lokasyonlardaki stok miktarlarını döner - warehouse.stock
+        ~30 bin satır olduğundan, İrsaliye ekranı gibi sadece TEK bir parçanın stok
+        durumuna ihtiyaç duyan yerlerin get_stock_status() ile TÜM tabloyu indirmesi
+        gerekmesin diye eklendi (bkz. idx_stock_part_location)."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            pid = int(part_id)
+            rows = db.execute(text("""
+                SELECT s.location_id, l.name AS location_name, l.kind AS location_kind, s.quantity
+                FROM warehouse.stock s
+                JOIN warehouse.locations l ON l.id = s.location_id
+                WHERE s.part_id = :pid
+            """), {"pid": pid}).mappings().all()
+            stock = [{"part_id": pid, "location_id": r["location_id"], "location_name": r["location_name"], "location_kind": r["location_kind"], "quantity": r["quantity"]} for r in rows]
+            return json.dumps({"success": True, "stock": stock}, ensure_ascii=False)
         except Exception as e:
             return json.dumps({"success": False, "message": str(e)})
         finally:
@@ -7768,10 +7908,15 @@ class WebBridge(QObject):
 
     @Slot(result=str)
     def sync_customers_to_batch_entries(self):
-        """Müşteriler/MIO tablosundaki cihaz ve müşteri kayıtlarını Batch Girişi tablosuna aktarır."""
+        """Müşteriler/MIO tablosundaki cihaz ve müşteri kayıtlarını Batch Girişi tablosuna aktarır.
+        Her get_batch_summary çağrısında (Batch Girişi ekranı her açılışında) tetiklendiğinden,
+        müşteri sayısı kadar ayrı 'var mı?'/'aktif servis mi?' sorgusu (N+1) çalıştırmak yerine,
+        SADECE bu müşterilerin IMEI/seri/internal id/batch no'suyla eşleşen satırlar tek bir
+        WHERE ... = ANY(:liste) sorgusuyla çekilir - warehouse.batch_entries'in TAMAMINI (7600+
+        satır ve büyümeye devam ediyor) her senkronizasyonda indirmek yerine, sadece ilgili
+        birkaç satır ağdan taşınır. Bu, get_batch_summary'nin en yavaş kısmıydı."""
         import uuid
-        from models.batch_entry import BatchEntry
-        from sqlalchemy import text, or_
+        from sqlalchemy import text
         from datetime import datetime
         db = SessionLocal()
         try:
@@ -7782,8 +7927,42 @@ class WebBridge(QObject):
             """)).mappings().all()
 
             valid_flow_values = self._get_flow_values(db)
+
+            batch_nos = [f"BATCH-MIO-{r['id']}" for r in rows]
+            imeis = list({(r["imei_number"] or "").strip() for r in rows if (r["imei_number"] or "").strip()})
+            serials = list({(r["serial_number"] or "").strip() for r in rows if (r["serial_number"] or "").strip()})
+            internals = list({(r["internal_id"] or "").strip() for r in rows if (r["internal_id"] or "").strip()})
+            imeis_lower = [v.lower() for v in imeis]
+            serials_lower = [v.lower() for v in serials]
+
+            existing_rows = db.execute(text("""
+                SELECT id, batch_no, imei_number, serial_number, internal_id, customer_name, customer_no, currency
+                FROM warehouse.batch_entries
+                WHERE batch_no = ANY(:batch_nos) OR imei_number = ANY(:imeis)
+                   OR serial_number = ANY(:serials) OR internal_id = ANY(:internals)
+            """), {"batch_nos": batch_nos, "imeis": imeis, "serials": serials, "internals": internals}).mappings().all()
+            by_batch_no, by_imei, by_serial, by_internal = {}, {}, {}, {}
+            for er in existing_rows:
+                if er["batch_no"]: by_batch_no.setdefault(er["batch_no"], er)
+                if er["imei_number"]: by_imei.setdefault(er["imei_number"], er)
+                if er["serial_number"]: by_serial.setdefault(er["serial_number"], er)
+                if er["internal_id"]: by_internal.setdefault(er["internal_id"], er)
+
+            # _find_active_service_for_device ile aynı eşleşme mantığı (LOWER/TRIM, statü != 128),
+            # ama tüm cihazlar için tek sorguda - idx_batch_entries_imei_lower/serial_lower
+            # ifade indekslerini kullanır.
+            active_rows = db.execute(text("""
+                SELECT LOWER(TRIM(imei_number)) AS imei, LOWER(TRIM(serial_number)) AS serial
+                FROM warehouse.batch_entries
+                WHERE (LOWER(TRIM(imei_number)) = ANY(:imeis) OR LOWER(TRIM(serial_number)) = ANY(:serials))
+                  AND COALESCE(statu_code, 100) != 128
+            """), {"imeis": imeis_lower, "serials": serials_lower}).mappings().all()
+            active_imeis = {r["imei"] for r in active_rows if r["imei"]}
+            active_serials = {r["serial"] for r in active_rows if r["serial"]}
+
             added_count = 0
             skipped_active_count = 0
+            insert_rows = []
             for r in rows:
                 imei = (r["imei_number"] or "").strip()
                 serial = (r["serial_number"] or "").strip()
@@ -7792,31 +7971,25 @@ class WebBridge(QObject):
                 c_name = (r["short_name"] or r["customer_name"] or "").strip()
                 mio_batch_no = f"BATCH-MIO-{r['id']}"
 
-                filters = [BatchEntry.batch_no == mio_batch_no]
-                if imei: filters.append(BatchEntry.imei_number == imei)
-                if serial: filters.append(BatchEntry.serial_number == serial)
-                if internal: filters.append(BatchEntry.internal_id == internal)
-                
-                existing = db.query(BatchEntry).filter(or_(*filters)).first()
+                existing = by_batch_no.get(mio_batch_no) or (imei and by_imei.get(imei)) or (serial and by_serial.get(serial)) or (internal and by_internal.get(internal))
 
                 if existing:
-                    changed = False
-                    if c_name and existing.customer_name != c_name:
-                        existing.customer_name = c_name
-                        changed = True
-                    if c_no and existing.customer_no != c_no:
-                        existing.customer_no = c_no
-                        changed = True
-                    if r["currency"] and existing.currency != r["currency"].upper():
-                        existing.currency = r["currency"].upper()
-                        changed = True
-                    if changed:
-                        existing.updated_at = datetime.now()
+                    changed_fields = {}
+                    if c_name and existing["customer_name"] != c_name:
+                        changed_fields["customer_name"] = c_name
+                    if c_no and existing["customer_no"] != c_no:
+                        changed_fields["customer_no"] = c_no
+                    if r["currency"] and existing["currency"] != r["currency"].upper():
+                        changed_fields["currency"] = r["currency"].upper()
+                    if changed_fields:
+                        changed_fields["updated_at"] = datetime.now()
+                        set_clause = ", ".join(f"{k} = :{k}" for k in changed_fields)
+                        db.execute(text(f"UPDATE warehouse.batch_entries SET {set_clause} WHERE id = :id"), {**changed_fields, "id": existing["id"]})
                 else:
                     # Bu cihaz (IMEI/seri no) başka bir kaynaktan zaten aktif bir servis
                     # döngüsündeyse (statü 128 değilse) senkronizasyon bu satırı atlar -
                     # aynı cihaz için iki açık servis oluşturulamaz.
-                    if self._find_active_service_for_device(db, imei, serial):
+                    if (imei and imei.lower() in active_imeis) or (serial and serial.lower() in active_serials):
                         skipped_active_count += 1
                         continue
 
@@ -7825,28 +7998,39 @@ class WebBridge(QObject):
                     if flow_val not in valid_flow_values:
                         flow_val = 'To refurbish' if 'To refurbish' in valid_flow_values else (valid_flow_values[0] if valid_flow_values else 'To refurbish')
 
-                    new_entry = BatchEntry(
-                        customer_no=c_no or 'MIO-001',
-                        customer_name=c_name or 'MIO Müşterisi',
-                        imei_number=imei,
-                        serial_number=serial,
-                        internal_id=internal,
-                        batch_no=mio_batch_no,
-                        model=full_model,
-                        gb='',
-                        color='',
-                        unit_price=0.0,
-                        currency=(r["currency"] or 'TRY').upper(),
-                        defects=r["customer_reported_complaint"] or '',
-                        screen_test='',
-                        power_test='',
-                        flow=flow_val,
-                        service_id=uuid.uuid4(),
-                        created_at=r["created_at"] or datetime.now(),
-                        updated_at=datetime.now()
-                    )
-                    db.add(new_entry)
+                    insert_rows.append({
+                        "customer_no": c_no or 'MIO-001',
+                        "customer_name": c_name or 'MIO Müşterisi',
+                        "imei_number": imei,
+                        "serial_number": serial,
+                        "internal_id": internal,
+                        "batch_no": mio_batch_no,
+                        "model": full_model,
+                        "gb": '',
+                        "color": '',
+                        "unit_price": 0.0,
+                        "currency": (r["currency"] or 'TRY').upper(),
+                        "defects": r["customer_reported_complaint"] or '',
+                        "screen_test": '',
+                        "power_test": '',
+                        "flow": flow_val,
+                        "service_id": uuid.uuid4(),
+                        "created_at": r["created_at"] or datetime.now(),
+                        "updated_at": datetime.now(),
+                    })
                     added_count += 1
+
+            if insert_rows:
+                db.execute(text("""
+                    INSERT INTO warehouse.batch_entries
+                        (customer_no, customer_name, imei_number, serial_number, internal_id, batch_no,
+                         model, gb, color, unit_price, currency, defects, screen_test, power_test,
+                         flow, service_id, created_at, updated_at)
+                    VALUES
+                        (:customer_no, :customer_name, :imei_number, :serial_number, :internal_id, :batch_no,
+                         :model, :gb, :color, :unit_price, :currency, :defects, :screen_test, :power_test,
+                         :flow, :service_id, :created_at, :updated_at)
+                """), insert_rows)
 
             db.commit()
             return json.dumps({"success": True, "added_count": added_count, "skipped_active_count": skipped_active_count})
@@ -8982,21 +9166,24 @@ class WebBridge(QObject):
     @Slot(result=str)
     def get_service_statu_list(self):
         """warehouse.service_statu'daki tüm statü kodlarını (kısa ad + gerekli mission) getirir.
-        Servis Onarımları ekranındaki statü-bazlı rol/yetki kontrolünün kaynağıdır."""
-        from sqlalchemy import text
-        db = SessionLocal()
-        try:
-            rows = db.execute(text("""
-                SELECT code, short_name, mission, is_closed
-                FROM warehouse.service_statu
-                ORDER BY code ASC
-            """)).mappings().all()
-            items = [{"code": r["code"], "short_name": r["short_name"] or "", "mission": r["mission"] or "", "is_closed": bool(r["is_closed"])} for r in rows]
-            return json.dumps({"success": True, "service_statu": items}, ensure_ascii=False)
-        except Exception as e:
-            return json.dumps({"success": False, "message": str(e)})
-        finally:
-            db.close()
+        Servis Onarımları ekranındaki statü-bazlı rol/yetki kontrolünün kaynağıdır.
+        Çalışma zamanında pratikte hiç değişmediğinden 5 dakika önbelleklenir."""
+        def _compute():
+            from sqlalchemy import text
+            db = SessionLocal()
+            try:
+                rows = db.execute(text("""
+                    SELECT code, short_name, mission, is_closed
+                    FROM warehouse.service_statu
+                    ORDER BY code ASC
+                """)).mappings().all()
+                items = [{"code": r["code"], "short_name": r["short_name"] or "", "mission": r["mission"] or "", "is_closed": bool(r["is_closed"])} for r in rows]
+                return json.dumps({"success": True, "service_statu": items}, ensure_ascii=False)
+            except Exception as e:
+                return json.dumps({"success": False, "message": str(e)})
+            finally:
+                db.close()
+        return self._cached_json("service_statu_list", 300, _compute)
 
     @Slot(str, int, result=str)
     def admin_set_batch_entry_statu(self, imei, target_statu_code):
@@ -9488,21 +9675,24 @@ class WebBridge(QObject):
     @Slot(result=str)
     def get_item_supply_statuses(self):
         """warehouse.item_supply_status'daki tüm depo durumu kodlarını getirir. Onarım
-        Parçaları ekranındaki 'Depo Durum' sütununun seçim kaynağıdır."""
-        from sqlalchemy import text
-        db = SessionLocal()
-        try:
-            rows = db.execute(text("""
-                SELECT code, short_name, is_success, is_cancelled
-                FROM warehouse.item_supply_status
-                ORDER BY order_number ASC NULLS LAST, short_name ASC
-            """)).mappings().all()
-            items = [{"code": r["code"], "short_name": r["short_name"] or r["code"], "is_success": bool(r["is_success"]), "is_cancelled": bool(r["is_cancelled"])} for r in rows]
-            return json.dumps({"success": True, "supply_statuses": items}, ensure_ascii=False)
-        except Exception as e:
-            return json.dumps({"success": False, "message": str(e)})
-        finally:
-            db.close()
+        Parçaları ekranındaki 'Depo Durum' sütununun seçim kaynağıdır. Çalışma zamanında
+        pratikte hiç değişmediğinden 5 dakika önbelleklenir."""
+        def _compute():
+            from sqlalchemy import text
+            db = SessionLocal()
+            try:
+                rows = db.execute(text("""
+                    SELECT code, short_name, is_success, is_cancelled
+                    FROM warehouse.item_supply_status
+                    ORDER BY order_number ASC NULLS LAST, short_name ASC
+                """)).mappings().all()
+                items = [{"code": r["code"], "short_name": r["short_name"] or r["code"], "is_success": bool(r["is_success"]), "is_cancelled": bool(r["is_cancelled"])} for r in rows]
+                return json.dumps({"success": True, "supply_statuses": items}, ensure_ascii=False)
+            except Exception as e:
+                return json.dumps({"success": False, "message": str(e)})
+            finally:
+                db.close()
+        return self._cached_json("item_supply_statuses", 300, _compute)
 
     @Slot(str, str, str, result=str)
     def update_repair_supply_status(self, repair_id, supply_status_code, username):

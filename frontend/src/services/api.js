@@ -1403,6 +1403,17 @@ export const api = {
         });
     },
 
+    getStockForPart: async (partId) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_stock_for_part) {
+                backend.get_stock_for_part(String(partId), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true, stock: [] });
+            }
+        });
+    },
+
     getStockStatusPaged: async (search, page, pageSize) => {
         const backend = await getBackend();
         return new Promise((resolve) => {

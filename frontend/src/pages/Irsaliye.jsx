@@ -133,6 +133,7 @@ export default function Irsaliye() {
         setIsExportModalOpen(true);
     } else if (action === 'import_in') {
         setExcelDirection('inbound');
+        await fetchDependencies();
         setIsExcelModalOpen(true);
     }
   };
@@ -171,17 +172,12 @@ export default function Irsaliye() {
   const fetchData = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      const [res, resS] = await Promise.all([
-        api.getStockMovements('all'),
-        api.getStockStatus()
-      ]);
+      const res = await api.getStockMovements('all');
       if (res && res.success) {
         setMovements(res.movements || []);
       } else {
         setError(res ? res.message : 'Hata');
       }
-      if (resS && resS.success) setStockStatus(resS.stock || []);
-
     } catch (_err) {
       setError('Bağlantı hatası.');
     } finally {
@@ -316,9 +312,11 @@ export default function Irsaliye() {
     return () => clearInterval(interval);
   }, [fetchData]);
 
-  useEffect(() => {
-    fetchDependencies();
-  }, []);
+  // fetchDependencies (parts/locations/stockStatus/users/systemLocations - warehouse.stock
+  // tek başına ~30 bin satır) artık sayfa açılışında değil, sadece Giriş/Çıkış/Excel İçe
+  // Aktar gibi bu veriye gerçekten ihtiyaç duyan aksiyonlar tetiklendiğinde çekiliyor
+  // (bkz. resetInboundForm, "Stok Çıkışı Yap" butonu, handleExcelAction) - sayfa artık
+  // sadece hareket listesini (get_stock_movements) bekliyor, çok daha hızlı açılıyor.
 
   const handleInbound = async (e) => {
     e.preventDefault();
