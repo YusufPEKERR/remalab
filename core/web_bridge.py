@@ -7605,6 +7605,20 @@ class WebBridge(QObject):
                         "message": f"Bu batch numarası ({batch_no}) başka bir müşteriye ({existing_batch.customer_name}) aittir. Aynı batch numarasıyla farklı müşteri kaydı oluşturulamaz."
                     })
 
+                # Üretimde olan (çıkışı yapılmamış) bir batch numarasıyla yeni cihaz girilemez.
+                # Statü 100 (Ön bildirim) / 101 (Depo kabul) = hâlâ batch giriş aşaması → cihaz eklemeye izin ver.
+                # Statü 102+ (teste/üretime geçmiş) ve 128'e (Çıkış yapıldı) ulaşmamış → batch üretimde, kilitli.
+                # Tüm cihazlar çıkış yapınca (128) numara tekrar kullanılabilir hâle gelir.
+                in_production = db.query(BatchEntry).filter(
+                    BatchEntry.batch_no == batch_no,
+                    BatchEntry.statu_code.notin_([100, 101, 128])
+                ).first()
+                if in_production:
+                    return json.dumps({
+                        "success": False,
+                        "message": f"'{batch_no}' numaralı batch üretim aşamasında (statü {in_production.statu_code}) ve henüz çıkışı yapılmadı. Çıkış (statü 128) tamamlanmadan bu batch numarasıyla yeni cihaz kaydı oluşturulamaz."
+                    })
+
             # Aynı cihazın (IMEI/seri no) zaten AKTİF (statü 128 "Çıkışı yapıldı" olmayan) bir
             # servisi varsa yeni giriş engellenir - bir cihazın aynı anda iki açık servis
             # döngüsü olamaz. Süreç tamamlanmış (128) cihazlar için yeni bir Service ID
@@ -8326,6 +8340,62 @@ class WebBridge(QObject):
                 "current_statu_name": current_name,
                 "transitions": transitions,
             })
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
+    def get_phonecheck_device_by_imei(self, term):
+        """Batch girisi ekraninda IMEI/Seri okutuldugunda cihaz bilgilerini (model,
+        hafiza, renk, seri, grade, test sonuclari) dogrudan Phonecheck'ten ceker.
+        YAN ETKISIZDIR: hicbir statu gecisi yapmaz, kayit olusturmaz. Phonecheck'te
+        batch numarasi ve musteri bilgisi bulunmadigindan bunlar donmez."""
+        from services.phonecheck_service import PhonecheckService
+
+        t = (term or "").strip()
+        if not t:
+            return json.dumps({"success": False, "message": "IMEI/Seri boş olamaz."})
+
+        db = SessionLocal()
+        try:
+            pc = PhonecheckService(db)
+            fetched = pc.fetch_device(t)
+            if not fetched.get("success"):
+                return json.dumps({
+                    "success": False,
+                    "needs_manual": fetched.get("needs_manual", False),
+                    "message": fetched.get("message", "Phonecheck'te cihaz bulunamadı."),
+                })
+
+            d = fetched["device"]
+
+            def _pick(*keys):
+                for k in keys:
+                    v = d.get(k)
+                    if v not in (None, ""):
+                        return str(v)
+                return ""
+
+            # Working/Failed alanindan basit ekran/guc testi cikarimi
+            failed = _pick("Failed").lower()
+            working = _pick("Working").lower()
+            fail_all = (working == "no")
+            screen_test = "BAŞARISIZ" if (fail_all or "lcd" in failed or "screen" in failed or "touch" in failed) else "BAŞARILI"
+            power_test = "BAŞARISIZ" if (fail_all or "power" in failed or "boot" in failed) else "BAŞARILI"
+
+            data = {
+                "imei_number": _pick("IMEI"),
+                "serial_number": _pick("Serial"),
+                "model": _pick("Model"),
+                "gb": _pick("Memory"),
+                "color": _pick("Color"),
+                "grade": _pick("Grade"),
+                "defects": _pick("Failed"),
+                "screen_test": screen_test,
+                "power_test": power_test,
+            }
+            return json.dumps({"success": True, "found": True, "data": data}, ensure_ascii=False)
         except Exception as e:
             return json.dumps({"success": False, "message": str(e)})
         finally:

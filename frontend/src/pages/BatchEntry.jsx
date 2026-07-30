@@ -536,14 +536,37 @@ export default function BatchEntry() {
     setFormData(updated);
 
     const term = String(value || '').trim();
-    if (term.length >= 2) {
-      const res = await api.lookupBatchEntry(term);
-      if (res.success && res.found && res.data) {
+    if (term.length < 2) return;
+
+    // 1) Sistemdeki mevcut kayıtlardan otomatik doldurma (batch_no + müşteri dahil)
+    const res = await api.lookupBatchEntry(term);
+    if (res.success && res.found && res.data) {
+      setFormData(prev => ({
+        ...res.data,
+        [fieldKey]: value
+      }));
+      setAutoFilledMessage(`Kayıtlı cihaz bulundu! "${term}" eşleşmesine göre tüm bilgiler otomatik dolduruldu.`);
+      setTimeout(() => setAutoFilledMessage(''), 6000);
+    }
+
+    // 2) IMEI/Seri okutulduysa cihaz teknik bilgilerini PhoneCheck'ten çek.
+    //    PhoneCheck'te batch_no/müşteri bulunmadığından bu alanlara DOKUNULMAZ.
+    if (fieldKey === 'imei_number' || fieldKey === 'serial_number') {
+      const pc = await api.getPhonecheckDeviceByImei(term);
+      if (pc.success && pc.data) {
+        const dev = pc.data;
         setFormData(prev => ({
-          ...res.data,
+          ...prev,
+          model: dev.model || prev.model,
+          gb: dev.gb || prev.gb,
+          color: dev.color || prev.color,
+          serial_number: dev.serial_number || prev.serial_number,
+          defects: dev.defects || prev.defects,
+          screen_test: dev.screen_test || prev.screen_test,
+          power_test: dev.power_test || prev.power_test,
           [fieldKey]: value
         }));
-        setAutoFilledMessage(`Kayıtlı cihaz bulundu! "${term}" eşleşmesine göre tüm bilgiler otomatik dolduruldu.`);
+        setAutoFilledMessage(`PhoneCheck'ten cihaz bilgileri çekildi (model, hafıza, renk, test sonuçları). Batch No ve müşteri bilgisini elle girin.`);
         setTimeout(() => setAutoFilledMessage(''), 6000);
       }
     }
@@ -560,9 +583,21 @@ export default function BatchEntry() {
       const res = await api.getBatchEntries(1, 10000, batchNo, 'Tümü');
       setLoading(false);
 
+      // Aynı batch_no farklı müşterilerde bulunabileceği için, düzenleme ekranında
+      // yalnızca tıklanan müşteriye ait cihazları göster. Müşteri eşleşmesi customer_no
+      // (varsa) ya da customer_name üzerinden yapılır.
+      const targetCustNo = (record.customer_no || '').trim();
+      const targetCustName = (record.customer_name || record.account_name || '').trim().toLowerCase();
+      const sameCustomer = (r) => {
+        const rNo = (r.customer_no || '').trim();
+        const rName = (r.customer_name || '').trim().toLowerCase();
+        if (targetCustNo && rNo) return rNo === targetCustNo;
+        return rName === targetCustName;
+      };
+
       let itemsToEdit = [];
       if (res.success && res.records && res.records.length > 0) {
-        itemsToEdit = res.records.filter(r => r.batch_no === batchNo);
+        itemsToEdit = res.records.filter(r => r.batch_no === batchNo && sameCustomer(r));
       }
 
       if (itemsToEdit.length === 0) {
