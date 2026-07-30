@@ -199,7 +199,7 @@ const DemontajServisOnarimlari = () => {
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-xs font-semibold tracking-wide">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-500/20 border border-emerald-200 dark:border-emerald-400/30 text-emerald-700 dark:text-emerald-300 text-xs font-semibold tracking-wide">
               <Wrench size={13} className="text-emerald-400" /> DEMONTAJ SERVİS ONARIMLARI
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0D1B3E] dark:text-white">
@@ -231,7 +231,7 @@ const DemontajServisOnarimlari = () => {
             <Search size={15} /> {isSearching ? "Sorgulanıyor..." : "Sorgula"}
           </button>
           {statusBadge && (
-            <div className={`md:ml-auto flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold ${statusBadge.tone === 'ok' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : statusBadge.tone === 'neutral' ? 'bg-blue-500/10 dark:bg-blue-500/20 text-blue-400 border border-blue-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'}`}>
+            <div className={`md:ml-auto flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold ${statusBadge.tone === 'ok' ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30' : statusBadge.tone === 'neutral' ? 'bg-blue-500/10 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-500/30' : 'bg-rose-100 dark:bg-rose-500/20 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-500/30'}`}>
               <span className={`w-2 h-2 rounded-full ${statusBadge.tone === 'ok' ? 'bg-emerald-400 animate-pulse' : statusBadge.tone === 'neutral' ? 'bg-blue-400' : 'bg-rose-400'}`}></span>
               {statusBadge.text}
             </div>
@@ -240,7 +240,7 @@ const DemontajServisOnarimlari = () => {
       </div>
 
       {device && !hasAccess && (
-        <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-start gap-3 text-xs text-amber-300">
+        <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-start gap-3 text-xs text-amber-700 dark:text-amber-300">
           <Info size={18} className="text-amber-400 mt-0.5 shrink-0" />
           <p className="leading-relaxed">
             Bu cihaz şu an <strong>"{currentStatuInfo ? `${currentStatuInfo.short_name} (${device.serviceStatus})` : device.serviceStatus}"</strong> aşamasında

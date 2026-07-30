@@ -747,7 +747,7 @@ export default function BatchEntry() {
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-400/30 text-amber-300 text-xs font-semibold tracking-wide">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-100 dark:bg-amber-500/20 border border-amber-200 dark:border-amber-400/30 text-amber-700 dark:text-amber-300 text-xs font-semibold tracking-wide">
               <Layers size={13} className="text-amber-400" /> TOPLU CİHAZ VE GİRİŞ KONTROL
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0D1B3E] dark:text-white">
@@ -1361,14 +1361,14 @@ export default function BatchEntry() {
                           <AlertTriangle size={18} className="text-rose-500" />
                           <span>Hata Gösteren Kutucuk ({excelValidationErrors.length} Sütun / Satır Sorunu Tespit Edildi)</span>
                         </div>
-                        <span className="text-[11px] bg-rose-500/20 px-2.5 py-0.5 rounded-full font-medium text-rose-300">
+                        <span className="text-[11px] bg-rose-100 dark:bg-rose-500/20 px-2.5 py-0.5 rounded-full font-medium text-rose-700 dark:text-rose-300">
                           Sorunlu Sütun ve Satırlar Aşağıda Listelenmiştir
                         </span>
                       </div>
                       <div className="max-h-40 overflow-y-auto space-y-1.5 pr-2 text-xs divide-y divide-rose-500/20 font-mono">
                         {excelValidationErrors.map((err, i) => (
                           <div key={i} className="pt-1.5 flex items-start gap-2">
-                            <span className="font-bold text-rose-300 bg-rose-500/20 px-1.5 py-0.5 rounded shrink-0">
+                            <span className="font-bold text-rose-700 dark:text-rose-300 bg-rose-100 dark:bg-rose-500/20 px-1.5 py-0.5 rounded shrink-0">
                               Satır {err.row}
                             </span>
                             <span>
@@ -1421,10 +1421,10 @@ export default function BatchEntry() {
                             return (
                               <tr key={idx} className={`hover:bg-slate-100 dark:hover:bg-[#202636] transition-colors ${hasErr ? 'bg-rose-500/10' : 'bg-white dark:bg-[#1e2330]'}`}>
                                 <td className="px-3.5 py-2.5 text-center font-bold text-slate-400 font-mono">{idx + 1}</td>
-                                <td className={`px-3.5 py-2.5 font-bold ${!row.customer_name ? 'text-rose-400 font-bold bg-rose-500/20 px-2 py-1 rounded' : 'text-slate-800 dark:text-slate-100'}`}>
+                                <td className={`px-3.5 py-2.5 font-bold ${!row.customer_name ? 'text-rose-700 dark:text-rose-400 font-bold bg-rose-100 dark:bg-rose-500/20 px-2 py-1 rounded' : 'text-slate-800 dark:text-slate-100'}`}>
                                   {row.customer_name || '<BOŞ>'}
                                 </td>
-                                <td className={`px-3.5 py-2.5 font-mono font-medium ${row.imei_number && (row.imei_number.length !== 15 || !/^\d+$/.test(row.imei_number)) ? 'text-rose-400 font-bold bg-rose-500/20 px-2 py-1 rounded' : 'text-slate-700 dark:text-slate-200'}`}>
+                                <td className={`px-3.5 py-2.5 font-mono font-medium ${row.imei_number && (row.imei_number.length !== 15 || !/^\d+$/.test(row.imei_number)) ? 'text-rose-700 dark:text-rose-400 font-bold bg-rose-100 dark:bg-rose-500/20 px-2 py-1 rounded' : 'text-slate-700 dark:text-slate-200'}`}>
                                   {row.imei_number || '-'}
                                 </td>
                                 <td className="px-3.5 py-2.5 font-mono text-slate-700 dark:text-slate-300">{row.serial_number || '-'}</td>

@@ -662,7 +662,7 @@ export default function SchemaMapper() {
           {!isLoading && tables.length === 0 && (
             <div className="absolute inset-0 z-40 flex items-center justify-center pointer-events-none">
               <div className="bg-white dark:bg-[#1e2330] p-8 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 max-w-md text-center pointer-events-auto">
-                <Database size={48} className="text-slate-300 dark:text-slate-600 mx-auto mb-4" />
+                <Database size={48} className="text-slate-700 dark:text-slate-300 dark:text-slate-600 mx-auto mb-4" />
                 <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 mb-2">Veritabanı Şeması Bulunamadı</h3>
                 <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">Herhangi bir tablo veya ilişki verisi okunamadı. Yeni bir tablo ekleyerek başlayabilirsiniz.</p>
                 <button onClick={() => setShowAddModal(true)} className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-lg shadow-blue-500/20">
@@ -767,7 +767,7 @@ export default function SchemaMapper() {
                           <div key={f.id} className="flex items-center justify-between px-2 py-1 rounded-lg bg-slate-50 dark:bg-[#0f1219]">
                             <span className="text-[11px] font-mono text-slate-600 dark:text-slate-400">{f.dbName}</span>
                             <div className="flex items-center gap-1.5">
-                              <ArrowRight size={10} className="text-slate-300" />
+                              <ArrowRight size={10} className="text-slate-700 dark:text-slate-300" />
                               <span className="text-[11px] font-semibold text-blue-600 dark:text-blue-400">{f.feName}</span>
                             </div>
                           </div>

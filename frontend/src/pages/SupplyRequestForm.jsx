@@ -197,7 +197,7 @@ export default function SupplyRequestForm() {
                           <Trash2 size={16} />
                         </button>
                       ) : (
-                        <span className="text-slate-300 dark:text-slate-600">-</span>
+                        <span className="text-slate-700 dark:text-slate-300 dark:text-slate-600">-</span>
                       )}
                     </td>
                   </tr>

@@ -421,7 +421,7 @@ export default function Settings() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <h3 className="text-slate-800 dark:text-slate-200 font-semibold truncate text-sm">{folder.name}</h3>
-                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${isBackup ? 'bg-green-500/20 text-green-400' : 'bg-orange-500/20 text-orange-400'}`}>
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${isBackup ? 'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400' : 'bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-400'}`}>
                             {isBackup ? 'YEDEK' : 'VER─░'}
                           </span>
                         </div>

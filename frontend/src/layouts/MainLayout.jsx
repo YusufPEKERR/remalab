@@ -468,7 +468,7 @@ export default function MainLayout() {
                       <h3 className="font-bold text-[#0F172A] dark:text-[#FAFAFA]">Kritik Stok Bildirimleri</h3>
                       {notifications.length > 0 && (
                         <div className="flex items-center gap-2">
-                          <span className="bg-red-500/20 text-red-400 text-xs font-bold px-2 py-0.5 rounded-md">{notifications.length} Uyarı</span>
+                          <span className="bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400 text-xs font-bold px-2 py-0.5 rounded-md">{notifications.length} Uyarı</span>
                           <button 
                             onClick={(e) => { 
                               e.stopPropagation(); 

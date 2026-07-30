@@ -225,7 +225,7 @@ export default function TestResultScreen({
                   Hatalı Parça ve Hata Kodu <span className="text-rose-400">*</span>
                 </label>
                 {selectedFaultIds.length > 0 && (
-                  <span className="text-xs font-bold text-rose-400 bg-rose-500/20 px-2.5 py-0.5 rounded-full border border-rose-500/30">
+                  <span className="text-xs font-bold text-rose-700 dark:text-rose-400 bg-rose-100 dark:bg-rose-500/20 px-2.5 py-0.5 rounded-full border border-rose-200 dark:border-rose-500/30">
                     {selectedFaultIds.length} Seçili
                   </span>
                 )}

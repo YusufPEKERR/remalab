@@ -375,7 +375,7 @@ export default function Irsaliye() {
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-xs font-semibold tracking-wide">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-500/20 border border-emerald-200 dark:border-emerald-400/30 text-emerald-700 dark:text-emerald-300 text-xs font-semibold tracking-wide">
               <FileSpreadsheet size={13} className="text-emerald-400" /> İRSALİYE & STOK HAREKETLERİ
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0D1B3E] dark:text-white">
@@ -451,7 +451,7 @@ export default function Irsaliye() {
       </div>
 
       {error && (
-        <div className="bg-red-500/20 border border-red-500/30 text-red-400 px-4 py-3 rounded-2xl text-xs font-bold flex items-center gap-2">
+        <div className="bg-red-100 dark:bg-red-500/20 border border-red-200 dark:border-red-500/30 text-red-700 dark:text-red-400 px-4 py-3 rounded-2xl text-xs font-bold flex items-center gap-2">
           {error}
         </div>
       )}

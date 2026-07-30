@@ -119,7 +119,7 @@ export default function StatuKontrol() {
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-400/30 text-amber-300 text-xs font-semibold tracking-wide">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-100 dark:bg-amber-500/20 border border-amber-200 dark:border-amber-400/30 text-amber-700 dark:text-amber-300 text-xs font-semibold tracking-wide">
               <Zap size={13} className="text-amber-400" /> MANUEL İDARİ STATÜ MÜDAHALESİ
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0D1B3E] dark:text-white">
@@ -172,7 +172,7 @@ export default function StatuKontrol() {
                 Parti: <span className="text-[#0D1B3E] dark:text-white font-semibold">{device.batch_no}</span> · Model: <span className="text-[#0D1B3E] dark:text-white font-semibold">{device.model}</span> · Akış: <span className="text-blue-400 font-semibold">{device.flow}</span>
               </p>
             </div>
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-500/30 text-xs font-bold">
               <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
               Mevcut Statü: {device.statu_code} — {currentStatuName(device.statu_code)}
             </div>

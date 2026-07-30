@@ -106,7 +106,7 @@ const CustomerApprovalDecision = () => {
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/20 border border-purple-400/30 text-purple-300 text-xs font-semibold tracking-wide">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-100 dark:bg-purple-500/20 border border-purple-200 dark:border-purple-400/30 text-purple-700 dark:text-purple-300 text-xs font-semibold tracking-wide">
               <ScanLine size={13} className="text-purple-400" /> MÜŞTERİ ONAY KARARLARI
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0D1B3E] dark:text-white">
@@ -164,11 +164,11 @@ const CustomerApprovalDecision = () => {
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   {entry.decision === "approved" ? (
-                    <span className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-bold">
+                    <span className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30 text-xs font-bold">
                       <Check size={15} /> Onaylandı
                     </span>
                   ) : entry.decision === "rejected" ? (
-                    <span className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs font-bold">
+                    <span className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-rose-100 dark:bg-rose-500/20 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-500/30 text-xs font-bold">
                       <X size={15} /> Reddedildi
                     </span>
                   ) : (
@@ -177,7 +177,7 @@ const CustomerApprovalDecision = () => {
                         onClick={() => handleDecision(entry, REJECT_TARGET)}
                         disabled={processingId === entry.entry_id}
                         title="Red Ver (124 Statüsüne Gönder)"
-                        className="px-4 py-2 flex items-center gap-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 border border-rose-500/30 transition-all text-xs font-bold cursor-pointer disabled:opacity-40"
+                        className="px-4 py-2 flex items-center gap-1.5 rounded-xl bg-rose-100 dark:bg-rose-500/20 hover:bg-rose-500/30 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-500/30 transition-all text-xs font-bold cursor-pointer disabled:opacity-40"
                       >
                         <X size={16} /> Reddet
                       </button>
@@ -185,7 +185,7 @@ const CustomerApprovalDecision = () => {
                         onClick={() => handleDecision(entry, APPROVE_TARGET)}
                         disabled={processingId === entry.entry_id}
                         title="Onayla (109 Statüsüne Gönder)"
-                        className="px-4 py-2 flex items-center gap-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30 transition-all text-xs font-bold cursor-pointer disabled:opacity-40"
+                        className="px-4 py-2 flex items-center gap-1.5 rounded-xl bg-emerald-100 dark:bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30 transition-all text-xs font-bold cursor-pointer disabled:opacity-40"
                       >
                         <Check size={16} /> Onayla
                       </button>

@@ -104,7 +104,7 @@ export default function Locations() {
       </div>
 
       {error && (
-        <div className="bg-red-500/20 text-red-400 p-4 rounded-2xl flex items-center gap-3 border border-red-500/30 text-xs font-bold">
+        <div className="bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400 p-4 rounded-2xl flex items-center gap-3 border border-red-200 dark:border-red-500/30 text-xs font-bold">
           <AlertCircle size={18} />
           <p>{error}</p>
         </div>
@@ -160,12 +160,12 @@ export default function Locations() {
                         {loc.name}
                         {loc.kind && (
                           <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full border uppercase tracking-wider ${
-                            loc.kind === 'good_stock' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
-                            loc.kind === 'doa_stock' ? 'bg-purple-500/20 text-purple-400 border-purple-500/30' :
-                            loc.kind === 'repair_stock' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' :
-                            loc.kind === 'scrap_stock' ? 'bg-rose-500/20 text-rose-400 border-rose-500/30' :
-                            loc.kind === 'out_stock' ? 'bg-teal-500/20 text-teal-400 border-teal-500/30' :
-                            'bg-slate-500/20 text-slate-400 border-slate-500/30'
+                            loc.kind === 'good_stock' ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30' :
+                            loc.kind === 'doa_stock' ? 'bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-500/30' :
+                            loc.kind === 'repair_stock' ? 'bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-500/30' :
+                            loc.kind === 'scrap_stock' ? 'bg-rose-100 dark:bg-rose-500/20 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-500/30' :
+                            loc.kind === 'out_stock' ? 'bg-teal-100 dark:bg-teal-500/20 text-teal-700 dark:text-teal-400 border-teal-200 dark:border-teal-500/30' :
+                            'bg-slate-100 dark:bg-slate-500/20 text-slate-400 border-slate-500/30'
                           }`}>
                             {loc.kind === 'good_stock' ? 'İyi Stok' : 
                              loc.kind === 'doa_stock' ? 'DOA' : 

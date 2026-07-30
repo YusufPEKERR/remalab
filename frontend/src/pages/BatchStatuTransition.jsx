@@ -387,7 +387,7 @@ const BatchStatuTransition = () => {
   if (!transition) {
     return (
       <div className="bg-white dark:bg-[#1e2330] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm flex flex-col items-center justify-center gap-3 py-16 text-slate-500">
-        <AlertTriangle size={32} className="text-slate-300 dark:text-slate-600" />
+        <AlertTriangle size={32} className="text-slate-700 dark:text-slate-300 dark:text-slate-600" />
         <p className="text-sm">Bu statü geçişi bulunamadı veya artık aktif değil.</p>
       </div>
     );
@@ -415,7 +415,7 @@ const BatchStatuTransition = () => {
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-400/30 text-amber-300 text-xs font-semibold tracking-wide">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-100 dark:bg-amber-500/20 border border-amber-200 dark:border-amber-400/30 text-amber-700 dark:text-amber-300 text-xs font-semibold tracking-wide">
               <ScanLine size={13} className="text-amber-400" /> TOPLU STATÜ GEÇİŞ İŞLEMİ
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0D1B3E] dark:text-white flex items-center gap-3">

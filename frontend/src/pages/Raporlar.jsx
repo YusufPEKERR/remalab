@@ -387,7 +387,7 @@ export default function Raporlar() {
                         <td className="px-6 py-3.5 font-mono font-bold text-sm">{r.quantity}</td>
                         <td className="px-6 py-3.5">
                           <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${
-                            isCritical ? 'bg-red-500/20 text-red-400 border-red-500/30' : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                            isCritical ? 'bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400 border-red-200 dark:border-red-500/30' : 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30'
                           }`}>
                             {isCritical ? '⚠️ KRİTİK' : 'NORMAL'}
                           </span>
@@ -486,7 +486,7 @@ export default function Raporlar() {
                       <td className="px-6 py-3.5 font-mono font-bold text-sm text-red-400">{r.quantity}</td>
                       <td className="px-6 py-3.5 font-mono text-[#64748B] dark:text-[#94A3B8]">{r.critical_limit}</td>
                       <td className="px-6 py-3.5">
-                        <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-red-500/20 text-red-400 border border-red-500/30 flex items-center gap-1.5 w-fit">
+                        <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-500/30 flex items-center gap-1.5 w-fit">
                           <AlertTriangle size={12} /> KRİTİK SEVİYE
                         </span>
                       </td>

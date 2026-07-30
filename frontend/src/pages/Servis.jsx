@@ -149,7 +149,7 @@ export default function Servis() {
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/20 border border-rose-400/30 text-rose-300 text-xs font-semibold tracking-wide">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-100 dark:bg-rose-500/20 border border-rose-200 dark:border-rose-400/30 text-rose-700 dark:text-rose-300 text-xs font-semibold tracking-wide">
               <Cpu size={13} className="text-rose-400" /> SERVİS VE CİHAZ YÖNETİMİ
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0D1B3E] dark:text-white">
@@ -185,13 +185,13 @@ export default function Servis() {
           </form>
 
           {searchError && (
-            <div className="mt-3 flex items-center gap-2 text-xs font-bold text-red-400 bg-red-500/20 border border-red-500/30 px-3 py-2 rounded-xl">
+            <div className="mt-3 flex items-center gap-2 text-xs font-bold text-red-700 dark:text-red-400 bg-red-100 dark:bg-red-500/20 border border-red-200 dark:border-red-500/30 px-3 py-2 rounded-xl">
               <AlertTriangle size={15} /> {searchError}
             </div>
           )}
 
           {statuName && searchedImei && (
-            <div className="mt-3 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+            <div className="mt-3 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               Aktif Cihaz Statüsü: {statuName}
             </div>

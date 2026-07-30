@@ -491,7 +491,7 @@ export default function Users() {
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 text-xs font-semibold tracking-wide">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-100 dark:bg-indigo-500/20 border border-indigo-200 dark:border-indigo-400/30 text-indigo-700 dark:text-indigo-300 text-xs font-semibold tracking-wide">
               <UsersIcon size={13} className="text-indigo-400" /> KULLANICI VE PERSONEL YÖNETİMİ
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0D1B3E] dark:text-white">
@@ -505,7 +505,7 @@ export default function Users() {
       </div>
 
       {error && (
-        <div className="bg-red-500/20 text-red-400 p-4 rounded-2xl flex items-center gap-3 border border-red-500/30 text-xs font-bold">
+        <div className="bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400 p-4 rounded-2xl flex items-center gap-3 border border-red-200 dark:border-red-500/30 text-xs font-bold">
           <AlertCircle size={18} />
           <p>{error}</p>
         </div>
@@ -785,9 +785,9 @@ export default function Users() {
                     <td className="px-6 py-4 font-mono text-slate-400">{user.tc_no || '-'}</td>
                     <td className="px-6 py-4">
                       <span className={`px-2.5 py-1 rounded-md text-xs font-bold
-                        ${user.role === 'Admin' ? 'bg-purple-500/20 text-purple-400 border border-purple-500/20' : 
+                        ${user.role === 'Admin' ? 'bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-400 border border-purple-500/20' : 
                           user.role === 'Depo Müdürü' ? 'bg-blue-500/10 dark:bg-blue-500/20 text-blue-400 border border-blue-500/20' :
-                          'bg-emerald-500/20 text-emerald-400 border border-emerald-500/20'}
+                          'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20'}
                       `}>
                         {user.role}
                       </span>
@@ -803,7 +803,7 @@ export default function Users() {
                     </td>
                     <td className="px-6 py-4">
                       <span className={`px-2.5 py-1 rounded-md text-xs font-bold ${
-                        user.account_enabled ? 'bg-green-500/20 text-green-400 border border-green-500/20' : 'bg-red-500/20 text-red-400 border border-red-500/20'
+                        user.account_enabled ? 'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400 border border-green-500/20' : 'bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400 border border-red-500/20'
                       }`}>
                         {user.account_enabled ? "Aktif" : "Pasif"}
                       </span>

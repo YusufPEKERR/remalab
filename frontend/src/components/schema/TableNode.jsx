@@ -70,7 +70,7 @@ const FieldRow = memo(function FieldRow({ field, tableId, tableDbName, index, co
       </div>
 
       {/* Arrow */}
-      <span className="text-[9px] text-slate-300 dark:text-slate-600 shrink-0">→</span>
+      <span className="text-[9px] text-slate-700 dark:text-slate-300 dark:text-slate-600 shrink-0">→</span>
 
       {/* FE Alias Input */}
       <input
