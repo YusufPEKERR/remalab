@@ -7521,6 +7521,61 @@ class WebBridge(QObject):
         finally:
             db.close()
 
+    def _validate_product_model(self, db, model_name):
+        """Girilmiş cihaz modelinin sistemde tanımlı (product_model, parts, product_family vb.)
+        geçerli bir model olup olmadığını denetler. Tanımsız modelleri (örn: 'iPhone 19') engeller."""
+        from sqlalchemy import text
+        m_clean = (model_name or "").strip()
+        if not m_clean:
+            return False, "Cihaz modeli boş olamaz. Lütfen tanımlı bir model giriniz."
+        
+        m_lower = m_clean.lower()
+        m_like = f"{m_lower} %"
+
+        # 1. warehouse.product_model
+        res_pm = db.execute(text("""
+            SELECT 1 FROM warehouse.product_model 
+            WHERE LOWER(TRIM(short_name)) = :m 
+               OR LOWER(TRIM(code)) = :m
+               OR LOWER(TRIM(short_name)) LIKE :m_like
+               OR LOWER(TRIM(code)) LIKE :m_like
+            LIMIT 1
+        """), {"m": m_lower, "m_like": m_like}).first()
+        if res_pm:
+            return True, ""
+
+        # 2. warehouse.parts (model kolonu)
+        res_parts = db.execute(text("""
+            SELECT 1 FROM warehouse.parts 
+            WHERE LOWER(TRIM(model)) = :m 
+               OR LOWER(TRIM(model)) LIKE :m_like
+            LIMIT 1
+        """), {"m": m_lower, "m_like": m_like}).first()
+        if res_parts:
+            return True, ""
+
+        # 3. warehouse.product_family (short_name veya code)
+        res_fam = db.execute(text("""
+            SELECT 1 FROM warehouse.product_family 
+            WHERE LOWER(TRIM(short_name)) = :m 
+               OR LOWER(TRIM(code)) = :m
+               OR LOWER(TRIM(short_name)) LIKE :m_like
+            LIMIT 1
+        """), {"m": m_lower, "m_like": m_like}).first()
+        if res_fam:
+            return True, ""
+
+        # 4. warehouse.product_model içinde parça eşleşmesi (örn. 'Galaxy A50' vs 'Galaxy A50 128GB')
+        res_contains = db.execute(text("""
+            SELECT 1 FROM warehouse.product_model
+            WHERE LOWER(short_name) LIKE :m_contains OR LOWER(code) LIKE :m_contains
+            LIMIT 1
+        """), {"m_contains": f"%{m_lower}%"}).first()
+        if res_contains:
+            return True, ""
+
+        return False, f"Sistemde tanımlı olmayan geçersiz cihaz modeli: '{m_clean}'. Lütfen sistemde tanımlı bir model giriniz."
+
     @Slot(str, result=str)
     def create_batch_entry(self, data_json):
         import uuid
@@ -7528,6 +7583,15 @@ class WebBridge(QObject):
         db = SessionLocal()
         try:
             d = json.loads(data_json or "{}")
+
+            # Model doğrulama (Tanımsız model engelleme)
+            model_val = d.get("model", "").strip()
+            is_valid_m, m_err_msg = self._validate_product_model(db, model_val)
+            if not is_valid_m:
+                return json.dumps({
+                    "success": False,
+                    "message": m_err_msg
+                })
 
             # Validation: Aynı batch numarasıyla farklı müşteri olamaz
             batch_no = d.get("batch_no", "").strip()
@@ -7547,7 +7611,8 @@ class WebBridge(QObject):
             # üretilerek girişe izin verilir.
             imei_val = d.get("imei_number", "").strip()
             serial_val = d.get("serial_number", "").strip()
-            active = self._find_active_service_for_device(db, imei_val, serial_val)
+            internal_val = d.get("internal_id", "").strip()
+            active = self._find_active_service_for_device(db, imei_val, serial_val, internal_val)
             if active:
                 return json.dumps({
                     "success": False,
@@ -7621,8 +7686,12 @@ class WebBridge(QObject):
             entry.imei_number = d.get("imei_number", entry.imei_number).strip()
             entry.serial_number = d.get("serial_number", entry.serial_number).strip()
             entry.internal_id = d.get("internal_id", entry.internal_id).strip()
-            entry.batch_no = d.get("batch_no", entry.batch_no).strip()
-            entry.model = d.get("model", entry.model).strip()
+            if "model" in d:
+                new_model = d.get("model", entry.model).strip()
+                is_valid_m, m_err_msg = self._validate_product_model(db, new_model)
+                if not is_valid_m:
+                    return json.dumps({"success": False, "message": m_err_msg})
+                entry.model = new_model
             entry.gb = d.get("gb", entry.gb).strip()
             entry.color = d.get("color", entry.color).strip()
             if "unit_price" in d:
@@ -9300,16 +9369,18 @@ class WebBridge(QObject):
         return self._get_required_mission_for_ref(db, rec.service_record_id)
 
     def _resolve_batch_entry_by_ref(self, db, ref):
-        """Verilen ref bir service_id (UUID, yeni-nesil onarım kayıtlarının
-        service_record_id'si) veya ham bir IMEI (eski-nesil kayıtlar, hâlâ IMEI kullanır)
-        olabilir - ikisini de dener, en güncel eşleşen batch_entries satırını döner."""
+        """Verilen ref bir service_id (UUID), IMEI, Seri No veya Dahili ID
+        olabilir - hepsini dener, en güncel eşleşen batch_entries satırını döner."""
         from sqlalchemy import text
         ref = (ref or "").strip()
         if not ref:
             return None
         return db.execute(text("""
             SELECT id, statu_code, service_id, imei_number FROM warehouse.batch_entries
-            WHERE service_id::text = :ref OR LOWER(TRIM(imei_number)) = LOWER(:ref)
+            WHERE service_id::text = :ref 
+               OR LOWER(TRIM(imei_number)) = LOWER(:ref)
+               OR LOWER(TRIM(serial_number)) = LOWER(:ref)
+               OR LOWER(TRIM(internal_id)) = LOWER(:ref)
             ORDER BY id DESC LIMIT 1
         """), {"ref": ref}).mappings().first()
 
@@ -9338,15 +9409,14 @@ class WebBridge(QObject):
             return str(batch["service_id"])
         return device_ref
 
-    def _find_active_service_for_device(self, db, imei, serial_number=None):
-        """Verilen IMEI/seri no ile eşleşen, HENÜZ KAPANMAMIŞ (statü 128 'Çıkışı yapıldı'
-        değil) en güncel batch_entries satırını döner - yoksa None. Yeni bir cihaz girişi
-        (create_batch_entry, sync_customers_to_batch_entries) bu satır varsa engellenmeli;
-        service_id de bu satırdan miras alınır/yeniden kullanılmaz, sadece varlığı kontrol edilir."""
+    def _find_active_service_for_device(self, db, imei, serial_number=None, internal_id=None):
+        """Verilen IMEI, seri no veya dahili ID ile eşleşen (herhangi biri bile eşleşse), HENÜZ KAPANMAMIŞ
+        (statü 128 'Çıkışı yapıldı' değil) en güncel batch_entries satırını döner - yoksa None."""
         from sqlalchemy import text
         imei = (imei or "").strip()
         serial_number = (serial_number or "").strip()
-        if not imei and not serial_number:
+        internal_id = (internal_id or "").strip()
+        if not imei and not serial_number and not internal_id:
             return None
         clauses = []
         params = {}
@@ -9356,6 +9426,9 @@ class WebBridge(QObject):
         if serial_number:
             clauses.append("LOWER(TRIM(serial_number)) = LOWER(:serial)")
             params["serial"] = serial_number
+        if internal_id:
+            clauses.append("LOWER(TRIM(internal_id)) = LOWER(:internal_id)")
+            params["internal_id"] = internal_id
         return db.execute(text(f"""
             SELECT id, service_id, batch_no, statu_code FROM warehouse.batch_entries
             WHERE ({' OR '.join(clauses)}) AND COALESCE(statu_code, 100) != 128
