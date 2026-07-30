@@ -347,18 +347,15 @@ export default function MainLayout() {
               <div key={idx} className="px-3">
                 <button 
                   onClick={() => toggleGroup(group.title)}
-                  className="w-full flex flex-wrap items-center justify-between px-3 py-2 mb-1.5 rounded-lg group outline-none transition-colors fast-transition hover:bg-[#ECEFF9]/80 dark:hover:bg-[#1e222d]/80"
+                  className="w-full flex flex-wrap items-center justify-between px-3 py-1.5 mb-1 rounded-lg group outline-none transition-colors fast-transition hover:bg-slate-100/80 dark:hover:bg-[#1e222d]/80"
                 >
-                  <h3 
-                    className="text-[11px] font-semibold uppercase tracking-widest transition-colors"
-                    style={{ color: groupColor }}
-                  >
+                  <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 group-hover:text-slate-800 dark:group-hover:text-slate-200 transition-colors">
                     {group.title}
                   </h3>
                   {isOpen ? (
-                    <ChevronDown size={14} style={{ color: groupColor }} />
+                    <ChevronDown size={14} className="text-slate-400 dark:text-slate-500" />
                   ) : (
-                    <ChevronRight size={14} style={{ color: groupColor }} />
+                    <ChevronRight size={14} className="text-slate-400 dark:text-slate-500" />
                   )}
                 </button>
                 
@@ -373,14 +370,13 @@ export default function MainLayout() {
                           <a
                             key={item.name}
                             href={item.path}
-                            className={`flex items-center gap-3.5 px-3.5 py-3 rounded-xl text-sm font-bold transition-all fast-transition group relative ${
+                            className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm transition-all fast-transition group relative ${
                               isActive 
-                                ? 'bg-[#ECEFF9] dark:bg-[#1e222d] text-[#12141c] dark:text-white shadow-md border-l-4 font-bold'
-                                : 'text-[#4A5A9E] dark:text-[#C3CAE6] hover:text-[#12141c] dark:hover:text-white hover:bg-[#ECEFF9]/60 dark:hover:bg-[#1e222d]/60'
+                                ? 'bg-blue-500/10 dark:bg-[#1e222d] text-blue-700 dark:text-white font-bold shadow-xs'
+                                : 'text-slate-700 dark:text-slate-300 font-semibold hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-[#1e222d]/60'
                             }`}
                             style={{
-                              borderLeftColor: isActive ? itemCfg.color : 'transparent',
-                              boxShadow: isActive ? `0 4px 14px ${itemCfg.color}35` : 'none'
+                              borderLeft: isActive ? `3.5px solid ${itemCfg.color}` : '3.5px solid transparent'
                             }}
                             onClick={(e) => {
                               e.preventDefault();
@@ -388,11 +384,10 @@ export default function MainLayout() {
                               navigate(item.path);
                             }}
                           >
-                            {/* Larger Clean Borderless Icon with Rich Darker Unique Color */}
                             <item.icon 
-                              size={20} 
-                              strokeWidth={isActive ? 2.5 : 2} 
-                              className="shrink-0 transition-transform group-hover:scale-110"
+                              size={19} 
+                              strokeWidth={isActive ? 2.4 : 1.9} 
+                              className="shrink-0 transition-transform group-hover:scale-105"
                               style={{ color: itemCfg.color }} 
                             />
 
