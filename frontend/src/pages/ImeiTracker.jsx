@@ -346,14 +346,14 @@ export default function ImeiTracker() {
 
   return (
     <div className="h-full flex flex-col space-y-6 overflow-hidden relative">
-      <div className="bg-white dark:bg-[#1E2B5C] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm shrink-0">
+      <div className="bg-white dark:bg-[#12141c] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm shrink-0">
         <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-2">
           <Search className="text-blue-400" size={24} /> IMEI ile Parça Takibi
         </h1>
         <p className="text-slate-400 mt-1">Cihazın IMEI numarasını okutarak kullanılan parçaları ve teknisyen durumlarını listeleyin.</p>
       </div>
 
-      <div className="bg-white dark:bg-[#1E2B5C] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm shrink-0">
+      <div className="bg-white dark:bg-[#12141c] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm shrink-0">
         <form onSubmit={handleSearch} className="flex flex-col gap-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
@@ -361,7 +361,7 @@ export default function ImeiTracker() {
               <input
                 type="text"
                 placeholder="Barkod okutun veya yazın..."
-                className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-blue-500"
+                className="w-full bg-slate-50 dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-blue-500"
                 value={imei}
                 onChange={e => setImei(e.target.value)}
               />
@@ -371,7 +371,7 @@ export default function ImeiTracker() {
               <input
                 type="text"
                 placeholder="Barkod okutulduğunda dolar..."
-                className="w-full bg-slate-100/50 dark:bg-[#232F63]/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-800 dark:text-slate-200 focus:outline-none cursor-not-allowed"
+                className="w-full bg-slate-100/50 dark:bg-[#181a24]/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-800 dark:text-slate-200 focus:outline-none cursor-not-allowed"
                 value={deviceInfo}
                 readOnly
               />
@@ -381,7 +381,7 @@ export default function ImeiTracker() {
               <input
                 type="text"
                 placeholder="Barkod okutulduğunda dolar..."
-                className="w-full bg-slate-100/50 dark:bg-[#232F63]/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-800 dark:text-slate-200 focus:outline-none cursor-not-allowed"
+                className="w-full bg-slate-100/50 dark:bg-[#181a24]/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-800 dark:text-slate-200 focus:outline-none cursor-not-allowed"
                 value={batchInfo}
                 readOnly
               />
@@ -403,7 +403,7 @@ export default function ImeiTracker() {
 
       {workOrderId && !repairData && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 shrink-0">
-          <div className="bg-white dark:bg-[#1E2B5C] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm flex flex-col gap-4">
+          <div className="bg-white dark:bg-[#12141c] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm flex flex-col gap-4">
             <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
               <Plus className="text-emerald-500" size={20} /> Parça İhtiyacı Ekle
             </h3>
@@ -424,7 +424,7 @@ export default function ImeiTracker() {
                   <label className="block text-sm font-medium text-slate-400 mb-1.5">Miktar</label>
                   <input 
                     type="number" min="1" 
-                    className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-blue-500" 
+                    className="w-full bg-slate-50 dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-blue-500" 
                     value={liveNewPart.quantity} 
                     onChange={e => setLiveNewPart({ ...liveNewPart, quantity: e.target.value })} 
                   />
@@ -440,7 +440,7 @@ export default function ImeiTracker() {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-[#1E2B5C] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm flex flex-col gap-4">
+          <div className="bg-white dark:bg-[#12141c] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm flex flex-col gap-4">
             <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
               <Package className="text-blue-500" size={20} /> Depodan Parça Çıkışı Yap
             </h3>
@@ -450,7 +450,7 @@ export default function ImeiTracker() {
               <div>
                 <label className="block text-sm font-medium text-slate-400 mb-1.5">Talep Edilen Parça</label>
                 <select 
-                  className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-blue-500"
+                  className="w-full bg-slate-50 dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-blue-500"
                   value={issueData.part_id} 
                   onChange={e => setIssueData({ ...issueData, part_id: e.target.value, location_id: '', quantity: 1 })}
                 >
@@ -470,7 +470,7 @@ export default function ImeiTracker() {
                     <div className="flex-[2]">
                       <label className="block text-sm font-medium text-slate-400 mb-1.5">Kaynak Depo</label>
                       <select 
-                        className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-blue-500"
+                        className="w-full bg-slate-50 dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-blue-500"
                         value={issueData.location_id} 
                         onChange={e => setIssueData({ ...issueData, location_id: e.target.value })}
                       >
@@ -491,7 +491,7 @@ export default function ImeiTracker() {
                       <label className="block text-sm font-medium text-slate-400 mb-1.5">Çıkılacak Miktar</label>
                       <input 
                         type="number" min="1" max={parts.find(p => String(p.id) === String(issueData.part_id))?.quantity || ""}
-                        className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-blue-500" 
+                        className="w-full bg-slate-50 dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-blue-500" 
                         value={issueData.quantity} 
                         onChange={e => setIssueData({ ...issueData, quantity: e.target.value })} 
                       />
@@ -514,9 +514,9 @@ export default function ImeiTracker() {
 
       {!repairData ? (
       <div className="flex-1 overflow-y-auto pr-2 pb-6">
-        <div className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden">
+        <div className="bg-white dark:bg-[#12141c] border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden">
           <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 dark:bg-[#232F63] text-slate-400 font-semibold uppercase tracking-wider text-xs">
+            <thead className="bg-slate-50 dark:bg-[#181a24] text-slate-400 font-semibold uppercase tracking-wider text-xs">
               <tr>
                 <th className="px-6 py-4">Parça Kategorisi</th>
                 <th className="px-6 py-4">Parça Kodu</th>
@@ -540,7 +540,7 @@ export default function ImeiTracker() {
               ) : parts.map((part) => (
                 <tr 
                   key={part.id} 
-                  className="hover:bg-slate-100 dark:bg-[#2E3F78] transition-colors text-slate-700 dark:text-slate-300"
+                  className="hover:bg-slate-100 dark:bg-[#1e222d] transition-colors text-slate-700 dark:text-slate-300"
                 >
                   <td className="px-6 py-4 font-medium">{part.part_category}</td>
                   <td className="px-6 py-4 text-blue-400">{part.item_code}</td>
@@ -573,19 +573,19 @@ export default function ImeiTracker() {
                       {openMenuIdx === part.id && (
                         <>
                           <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setOpenMenuIdx(null); }} />
-                          <div ref={menuRef} className="absolute right-0 mt-1.5 w-52 bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl z-50 py-1 text-left select-none">
+                          <div ref={menuRef} className="absolute right-0 mt-1.5 w-52 bg-white dark:bg-[#12141c] border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl z-50 py-1 text-left select-none">
 
                             <button
                               type="button"
                               onClick={(e) => { e.stopPropagation(); setOpenMenuIdx(null); setReturnPartDialog(part); }}
-                              className="w-full px-4 py-2.5 text-xs text-amber-600 dark:text-amber-400 hover:bg-slate-100 dark:hover:bg-[#2E3F78] flex items-center gap-2.5 font-medium transition-colors"
+                              className="w-full px-4 py-2.5 text-xs text-amber-600 dark:text-amber-400 hover:bg-slate-100 dark:hover:bg-[#1e222d] flex items-center gap-2.5 font-medium transition-colors"
                             >
                               <RotateCcw size={15} /> İade İşlemi
                             </button>
                             <button
                               type="button"
                               onClick={(e) => { e.stopPropagation(); setOpenMenuIdx(null); handleRemovePart(part); }}
-                              className="w-full px-4 py-2.5 text-xs text-red-600 dark:text-red-400 hover:bg-slate-100 dark:hover:bg-[#2E3F78] flex items-center gap-2.5 font-medium transition-colors"
+                              className="w-full px-4 py-2.5 text-xs text-red-600 dark:text-red-400 hover:bg-slate-100 dark:hover:bg-[#1e222d] flex items-center gap-2.5 font-medium transition-colors"
                             >
                               <X size={15} /> İptal Et / Sil
                             </button>
@@ -602,13 +602,13 @@ export default function ImeiTracker() {
 
         </div>
       ) : (
-        <div className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 shadow-2xl rounded-2xl w-full p-6 flex flex-col space-y-6 animate-in fade-in duration-250">
+        <div className="bg-white dark:bg-[#12141c] border border-slate-200 dark:border-slate-700/50 shadow-2xl rounded-2xl w-full p-6 flex flex-col space-y-6 animate-in fade-in duration-250">
           {/* Header */}
           <div className="flex justify-between items-center pb-4 border-b border-slate-200 dark:border-slate-700/50">
             <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
               <Wrench className="text-blue-500 animate-pulse" size={20} /> Servis Onarımları / Teknisyen Atölye Ekranı
             </h3>
-            <span className="text-xs font-semibold text-slate-400 bg-slate-100 dark:bg-[#232F63] px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800">
+            <span className="text-xs font-semibold text-slate-400 bg-slate-100 dark:bg-[#181a24] px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800">
               İş Emri ID: {'1' + String(workOrderId).padStart(14, '0')}
             </span>
           </div>
@@ -666,7 +666,7 @@ export default function ImeiTracker() {
                       <input 
                         type="number" min="1" 
                         placeholder="Miktar"
-                        className="w-full bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-blue-500" 
+                        className="w-full bg-white dark:bg-[#12141c] border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-blue-500" 
                         value={liveNewPart.quantity} 
                         onChange={e => setLiveNewPart({ ...liveNewPart, quantity: e.target.value })} 
                       />
@@ -730,7 +730,7 @@ export default function ImeiTracker() {
                       type="number"
                       value={repairData.diagnostics.battery_cycle || ''}
                       onChange={e => handleUpdateDiag('battery_cycle', e.target.value)}
-                      className="w-full bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-800 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-blue-500 text-slate-800 dark:text-slate-100 font-medium"
+                      className="w-full bg-white dark:bg-[#12141c] border border-slate-200 dark:border-slate-800 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-blue-500 text-slate-800 dark:text-slate-100 font-medium"
                     />
                   </div>
                   <div>
@@ -739,7 +739,7 @@ export default function ImeiTracker() {
                       type="number"
                       value={repairData.diagnostics.battery_health || ''}
                       onChange={e => handleUpdateDiag('battery_health', e.target.value)}
-                      className="w-full bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-800 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-blue-500 text-slate-800 dark:text-slate-100 font-medium"
+                      className="w-full bg-white dark:bg-[#12141c] border border-slate-200 dark:border-slate-800 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-blue-500 text-slate-800 dark:text-slate-100 font-medium"
                     />
                   </div>
                 </div>
@@ -792,7 +792,7 @@ export default function ImeiTracker() {
               
               <div className="bg-slate-50 dark:bg-[#1A2450] border border-slate-200 dark:border-slate-800/80 rounded-xl overflow-hidden">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-100 dark:bg-[#1E2B5C] text-slate-400 font-semibold uppercase tracking-wider text-[10px] border-b border-slate-200 dark:border-slate-800">
+                  <thead className="bg-slate-100 dark:bg-[#12141c] text-slate-400 font-semibold uppercase tracking-wider text-[10px] border-b border-slate-200 dark:border-slate-800">
                     <tr>
                       <th className="px-4 py-3">MissionGroupName</th>
                       <th className="px-4 py-3">RepairStaffName</th>
@@ -889,7 +889,7 @@ export default function ImeiTracker() {
               
               <div className="bg-slate-50 dark:bg-[#1A2450] border border-slate-200 dark:border-slate-800/80 rounded-xl overflow-hidden">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-100 dark:bg-[#1E2B5C] text-slate-400 font-semibold uppercase tracking-wider text-[10px] border-b border-slate-200 dark:border-slate-800">
+                  <thead className="bg-slate-100 dark:bg-[#12141c] text-slate-400 font-semibold uppercase tracking-wider text-[10px] border-b border-slate-200 dark:border-slate-800">
                     <tr>
                       <th className="px-4 py-3">ItemCategory</th>
                       <th className="px-4 py-3">ItemCode</th>
@@ -921,7 +921,7 @@ export default function ImeiTracker() {
                               <select
                                 value={extra.operation_type}
                                 onChange={e => handleUpdatePartExtra(wop.id, 'operation_type', e.target.value)}
-                                className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-850 rounded px-1.5 py-0.5 focus:outline-none"
+                                className="bg-white dark:bg-[#12141c] border border-slate-200 dark:border-slate-850 rounded px-1.5 py-0.5 focus:outline-none"
                               >
                                 <option value="Parça Değişim">Parça Değişim</option>
                                 <option value="Tamir">Tamir</option>
@@ -946,7 +946,7 @@ export default function ImeiTracker() {
                               <select
                                 value={extra.warranty}
                                 onChange={e => handleUpdatePartExtra(wop.id, 'warranty', e.target.value)}
-                                className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-850 rounded px-1.5 py-0.5 focus:outline-none"
+                                className="bg-white dark:bg-[#12141c] border border-slate-200 dark:border-slate-850 rounded px-1.5 py-0.5 focus:outline-none"
                               >
                                 <option value="Ücretli Onarım">Ücretli Onarım</option>
                                 <option value="Garanti Dışı">Garanti Dışı</option>
@@ -976,7 +976,7 @@ export default function ImeiTracker() {
           </div>
 
           {/* Footer */}
-          <div className="flex justify-between items-center pt-4 border-t border-slate-200 dark:border-slate-700/50 bg-slate-50 dark:bg-[#232F63] px-6 py-4 rounded-xl mt-6">
+          <div className="flex justify-between items-center pt-4 border-t border-slate-200 dark:border-slate-700/50 bg-slate-50 dark:bg-[#181a24] px-6 py-4 rounded-xl mt-6">
             <div className="flex items-center gap-2">
               <span className="text-xs text-slate-400 uppercase tracking-wider font-semibold">Toplam Fiyat:</span>
               <span className="text-sm font-mono font-bold text-slate-800 dark:text-slate-100 bg-slate-250 dark:bg-[#1A2450] px-2.5 py-1 rounded">
@@ -999,8 +999,8 @@ export default function ImeiTracker() {
       )}
       {returnPartDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-center px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 bg-slate-50 dark:bg-[#232F63]">
+          <div className="bg-white dark:bg-[#12141c] border border-slate-200 dark:border-slate-700/50 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 bg-slate-50 dark:bg-[#181a24]">
               <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                 <RotateCcw className="text-amber-500" size={20} /> İade İşlemi
               </h3>
@@ -1026,7 +1026,7 @@ export default function ImeiTracker() {
                     max={returnPartDialog.quantity} 
                     defaultValue={returnPartDialog.quantity}
                     required
-                    className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-amber-500"
+                    className="w-full bg-slate-50 dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-amber-500"
                   />
                 </div>
                 
@@ -1037,7 +1037,7 @@ export default function ImeiTracker() {
                   <select 
                     name="target_warehouse" 
                     required
-                    className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-amber-500"
+                    className="w-full bg-slate-50 dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-amber-500"
                   >
                     <option value="good">Sağlam Stoğa (Good Stock)</option>
                     <option value="doa">Arızalı Stoğa (DOA Stock)</option>
@@ -1050,7 +1050,7 @@ export default function ImeiTracker() {
                     name="request_replacement" 
                     type="checkbox" 
                     value="true"
-                    className="w-4 h-4 text-amber-500 bg-slate-50 border-slate-200 dark:bg-[#232F63] dark:border-slate-700 rounded focus:ring-amber-500"
+                    className="w-4 h-4 text-amber-500 bg-slate-50 border-slate-200 dark:bg-[#181a24] dark:border-slate-700 rounded focus:ring-amber-500"
                   />
                   <label htmlFor="request_replacement_checkbox" className="text-xs font-semibold text-amber-600 dark:text-amber-400 cursor-pointer">
                     Değişim İstiyorum (Yeniden İhtiyaç Ekle)
@@ -1066,12 +1066,12 @@ export default function ImeiTracker() {
                     rows="2" 
                     required
                     placeholder="Lütfen detaylıca yazın..."
-                    className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-amber-500 resize-none"
+                    className="w-full bg-slate-50 dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-amber-500 resize-none"
                   ></textarea>
                 </div>
               </div>
               
-              <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-200 dark:border-slate-700/50 bg-slate-50 dark:bg-[#232F63]">
+              <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-200 dark:border-slate-700/50 bg-slate-50 dark:bg-[#181a24]">
                 <button 
                   type="button" 
                   onClick={() => setReturnPartDialog(null)} 
@@ -1095,8 +1095,8 @@ export default function ImeiTracker() {
       {/* Cancel Part Modal */}
       {cancelPartDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-center px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 bg-slate-50 dark:bg-[#232F63]">
+          <div className="bg-white dark:bg-[#12141c] border border-slate-200 dark:border-slate-700/50 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 bg-slate-50 dark:bg-[#181a24]">
               <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                 <X className="text-red-500" size={20} /> İptal Et / Sil
               </h3>
@@ -1120,12 +1120,12 @@ export default function ImeiTracker() {
                     rows="3" 
                     required
                     placeholder="Lütfen iptal sebebini detaylıca yazın..."
-                    className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-red-500 resize-none"
+                    className="w-full bg-slate-50 dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-red-500 resize-none"
                   ></textarea>
                 </div>
               </div>
               
-              <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-200 dark:border-slate-700/50 bg-slate-50 dark:bg-[#232F63]">
+              <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-200 dark:border-slate-700/50 bg-slate-50 dark:bg-[#181a24]">
                 <button 
                   type="button" 
                   onClick={() => setCancelPartDialog(null)} 

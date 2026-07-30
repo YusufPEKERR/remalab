@@ -142,7 +142,7 @@ const TableNode = memo(function TableNode({
           className={`flex items-stretch cursor-grab active:cursor-grabbing ${
             isSelected
               ? 'bg-blue-600 dark:bg-blue-600'
-              : 'bg-slate-700 dark:bg-[#1E2B5C]'
+              : 'bg-slate-700 dark:bg-[#12141c]'
           }`}
           style={{ height: HEADER_HEIGHT }}
         >

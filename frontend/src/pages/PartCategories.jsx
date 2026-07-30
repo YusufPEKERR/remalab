@@ -132,10 +132,10 @@ export default function PartCategories() {
   }, [categories, searchTerm]);
 
   return (
-    <div className="flex flex-col space-y-6 pb-12 text-[#16204A] dark:text-[#F6F8FF] max-w-[1600px] mx-auto animate-in fade-in duration-300">
+    <div className="flex flex-col space-y-6 pb-12 text-[#12141c] dark:text-[#F6F8FF] max-w-[1600px] mx-auto animate-in fade-in duration-300">
 
       {/* ════════════════ HERO BANNER ════════════════ */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#EFF1FA] dark:from-[#101935] via-[#DDE2F2] dark:via-[#16204A] to-[#FFFFFF] dark:to-[#24326A] p-6 sm:p-8 text-[#1B2755] dark:text-white shadow-xl border border-[#DCE1F1] dark:border-[#24326A]">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#EFF1FA] dark:from-[#090a0f] via-[#DDE2F2] dark:via-[#12141c] to-[#FFFFFF] dark:to-[#1e222d] p-6 sm:p-8 text-[#181a24] dark:text-white shadow-xl border border-[#DCE1F1] dark:border-[#1e222d]">
         {/* Ambient Grid Overlay */}
         <div className="absolute inset-0 bg-[linear-gradient(rgba(91, 110, 196,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(91, 110, 196,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none" />
@@ -145,7 +145,7 @@ export default function PartCategories() {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-100 dark:bg-indigo-500/20 border border-indigo-200 dark:border-indigo-400/30 text-indigo-700 dark:text-indigo-300 text-xs font-semibold tracking-wide">
               <Tags size={13} className="text-indigo-400" /> ENVANTER VE PARÇA KATEGORİLERİ
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1B2755] dark:text-white">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#181a24] dark:text-white">
               Parça Kategorileri
             </h1>
             <p className="text-sm text-[#4A5A9E] dark:text-slate-300 leading-relaxed">
@@ -166,7 +166,7 @@ export default function PartCategories() {
                 </div>
                 <input
                   type="text"
-                  className="w-full bg-[#FFFFFF] dark:bg-[#24326A] border border-[#DCE1F1] dark:border-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] placeholder-[#5A6685] rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm font-medium focus:outline-none focus:border-[#4457A5] transition-all shadow-xs"
+                  className="w-full bg-[#FFFFFF] dark:bg-[#1e222d] border border-[#DCE1F1] dark:border-[#2e3545] text-[#12141c] dark:text-[#F6F8FF] placeholder-[#5A6685] rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm font-medium focus:outline-none focus:border-[#4457A5] transition-all shadow-xs"
                   placeholder="Kategori Ara..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -174,7 +174,7 @@ export default function PartCategories() {
               </div>
               <button
                 onClick={() => handleOpenForm()}
-                className="flex items-center gap-2 bg-[#4457A5] hover:bg-[#2E3F78] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer shrink-0"
+                className="flex items-center gap-2 bg-[#4457A5] hover:bg-[#1e222d] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer shrink-0"
               >
                 <Plus size={16} /> Yeni Kategori
               </button>
@@ -184,7 +184,7 @@ export default function PartCategories() {
             <div className="glass-card rounded-2xl shadow-md overflow-hidden flex flex-col">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs whitespace-nowrap">
-                  <thead className="bg-[#F5F7FC] dark:bg-[#1B2755] text-[#5A6685] dark:text-[#8892B5] font-semibold uppercase tracking-wider border-b border-[#DCE1F1] dark:border-[#24326A] sticky top-0 z-10 select-none">
+                  <thead className="bg-[#F5F7FC] dark:bg-[#181a24] text-[#5A6685] dark:text-[#8892B5] font-semibold uppercase tracking-wider border-b border-[#DCE1F1] dark:border-[#1e222d] sticky top-0 z-10 select-none">
                     <tr>
                       <th className="px-6 py-4">Kategori Adı</th>
                       <th className="px-6 py-4">Parça Tipi</th>
@@ -197,7 +197,7 @@ export default function PartCategories() {
                       <th className="px-6 py-4 text-center">İşlemler</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#DCE1F1] dark:divide-[#24326A]">
+                  <tbody className="divide-y divide-[#DCE1F1] dark:divide-[#1e222d]">
                     {loading ? (
                       <tr>
                         <td colSpan="9" className="px-6 py-8 text-center text-slate-400">Yükleniyor...</td>
@@ -208,7 +208,7 @@ export default function PartCategories() {
                       </tr>
                     ) : (
                       filteredCategories.map(cat => (
-                        <tr key={cat.id} className="hover:bg-slate-100 dark:hover:bg-[#2E3F78] transition-colors text-slate-700 dark:text-slate-300">
+                        <tr key={cat.id} className="hover:bg-slate-100 dark:hover:bg-[#1e222d] transition-colors text-slate-700 dark:text-slate-300">
                           <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200">{cat.name}</td>
                           <td className="px-6 py-4">
                             {cat.part_type ? (
@@ -278,7 +278,7 @@ export default function PartCategories() {
             </div>
           </>
         ) : (
-          <div className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-xl animate-in fade-in slide-in-from-bottom-4">
+          <div className="bg-white dark:bg-[#12141c] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-xl animate-in fade-in slide-in-from-bottom-4">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                 {editingCat ? 'Kategoriyi Düzenle' : 'Yeni Parça Kategorisi Ekle'}
@@ -296,7 +296,7 @@ export default function PartCategories() {
                     type="text"
                     list="part-types-list"
                     required
-                    className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                    className="w-full bg-slate-50 dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
                     value={formData.name}
                     onChange={e => setFormData({...formData, name: e.target.value})}
                     placeholder="Örn: Ekran, Batarya..."
@@ -311,7 +311,7 @@ export default function PartCategories() {
                 <label className="block text-sm font-medium text-slate-400 mb-2">Flow Seçimleri <span className="text-red-400">*</span></label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {flowValues.map(f => (
-                    <label key={f} className="flex items-center gap-2 bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 cursor-pointer hover:border-slate-500 transition-colors">
+                    <label key={f} className="flex items-center gap-2 bg-slate-50 dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 cursor-pointer hover:border-slate-500 transition-colors">
                       <input
                         type="checkbox"
                         className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700 dark:ring-offset-slate-800"
@@ -333,7 +333,7 @@ export default function PartCategories() {
                 <label className="block text-sm font-medium text-slate-400 mb-2">Kullanabilecek Departmanlar</label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {departmentList.map(dept => (
-                    <label key={dept} className="flex items-center gap-2 bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 cursor-pointer hover:border-slate-500 transition-colors">
+                    <label key={dept} className="flex items-center gap-2 bg-slate-50 dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 cursor-pointer hover:border-slate-500 transition-colors">
                       <input
                         type="checkbox"
                         checked={formData.departments.includes(dept)}
@@ -349,7 +349,7 @@ export default function PartCategories() {
               <div>
                 <label className="block text-sm font-medium text-slate-400 mb-1.5">Stok Takibi</label>
                 <select
-                  className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                  className="w-full bg-slate-50 dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
                   value={formData.stock_tracking_type}
                   onChange={e => setFormData({...formData, stock_tracking_type: e.target.value})}
                 >
@@ -359,7 +359,7 @@ export default function PartCategories() {
               </div>
 
               {editingCat && (
-                <div className="flex flex-wrap items-center justify-between p-4 bg-slate-50 dark:bg-[#232F63] rounded-xl border border-slate-200 dark:border-slate-700/50">
+                <div className="flex flex-wrap items-center justify-between p-4 bg-slate-50 dark:bg-[#181a24] rounded-xl border border-slate-200 dark:border-slate-700/50">
                   <div>
                     <h3 className="text-slate-800 dark:text-slate-200 font-medium text-sm">Durum</h3>
                     <p className="text-slate-400 text-xs mt-0.5">Pasif kategoriler Parçalar ekranındaki seçim listesinde görünmez.</p>
@@ -375,7 +375,7 @@ export default function PartCategories() {
               )}
 
               <div className="flex justify-end gap-3 pt-6 border-t border-slate-200 dark:border-slate-700/50 mt-6">
-                <button type="button" onClick={() => setShowForm(false)} className="px-5 py-2.5 bg-slate-50 dark:bg-[#232F63] hover:bg-slate-100 dark:hover:bg-[#2E3F78] text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors border border-slate-300 dark:border-slate-600">İptal</button>
+                <button type="button" onClick={() => setShowForm(false)} className="px-5 py-2.5 bg-slate-50 dark:bg-[#181a24] hover:bg-slate-100 dark:hover:bg-[#1e222d] text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors border border-slate-300 dark:border-slate-600">İptal</button>
                 <button type="submit" className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors shadow-lg shadow-blue-900/20 flex items-center gap-2"><Save size={18}/> Kaydet</button>
               </div>
             </form>

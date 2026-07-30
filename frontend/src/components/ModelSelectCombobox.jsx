@@ -79,9 +79,9 @@ export default function ModelSelectCombobox({
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="absolute left-0 right-0 mt-1 bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl z-[150] overflow-hidden animate-menu-in">
+        <div className="absolute left-0 right-0 mt-1 bg-white dark:bg-[#12141c] border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl z-[150] overflow-hidden animate-menu-in">
           {/* Search Box inside dropdown */}
-          <div className="p-2 border-b border-slate-100 dark:border-slate-700/50 bg-slate-50 dark:bg-[#232F63]">
+          <div className="p-2 border-b border-slate-100 dark:border-slate-700/50 bg-slate-50 dark:bg-[#181a24]">
             <div className="relative">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
@@ -112,7 +112,7 @@ export default function ModelSelectCombobox({
                     className={`w-full text-left px-3.5 py-2 text-xs flex flex-wrap items-center justify-between transition-colors fast-transition ${
                       isSelected
                         ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 font-semibold'
-                        : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#2E3F78]'
+                        : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#1e222d]'
                     }`}
                   >
                     <div className="truncate pr-2">

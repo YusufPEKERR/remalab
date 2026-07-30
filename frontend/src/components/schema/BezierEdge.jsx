@@ -89,7 +89,7 @@ const BezierEdge = memo(function BezierEdge({
             width={48}
             height={20}
             rx={6}
-            className="fill-white dark:fill-[#1E2B5C] stroke-slate-200 dark:stroke-slate-700"
+            className="fill-white dark:fill-[#12141c] stroke-slate-200 dark:stroke-slate-700"
             strokeWidth={1}
           />
           <text

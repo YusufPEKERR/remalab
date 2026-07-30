@@ -365,10 +365,10 @@ export default function Irsaliye() {
   };
 
   return (
-    <div className="flex flex-col space-y-6 pb-12 text-[#16204A] dark:text-[#F6F8FF] max-w-[1600px] mx-auto animate-in fade-in duration-300">
+    <div className="flex flex-col space-y-6 pb-12 text-[#12141c] dark:text-[#F6F8FF] max-w-[1600px] mx-auto animate-in fade-in duration-300">
       
       {/* ════════════════ HERO BANNER ════════════════ */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#EFF1FA] dark:from-[#101935] via-[#DDE2F2] dark:via-[#16204A] to-[#FFFFFF] dark:to-[#24326A] p-6 sm:p-8 text-[#1B2755] dark:text-white shadow-xl border border-[#DCE1F1] dark:border-[#24326A]">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#EFF1FA] dark:from-[#090a0f] via-[#DDE2F2] dark:via-[#12141c] to-[#FFFFFF] dark:to-[#1e222d] p-6 sm:p-8 text-[#181a24] dark:text-white shadow-xl border border-[#DCE1F1] dark:border-[#1e222d]">
         {/* Ambient Grid Overlay */}
         <div className="absolute inset-0 bg-[linear-gradient(rgba(63, 161, 135,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(63, 161, 135,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-600/10 rounded-full blur-3xl pointer-events-none" />
@@ -378,7 +378,7 @@ export default function Irsaliye() {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-500/20 border border-emerald-200 dark:border-emerald-400/30 text-emerald-700 dark:text-emerald-300 text-xs font-semibold tracking-wide">
               <FileSpreadsheet size={13} className="text-emerald-400" /> İRSALİYE & STOK HAREKETLERİ
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1B2755] dark:text-white">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#181a24] dark:text-white">
               İrsaliye İşlemleri
             </h1>
             <p className="text-sm text-[#4A5A9E] dark:text-slate-300 leading-relaxed">
@@ -435,7 +435,7 @@ export default function Irsaliye() {
             <div className="relative">
               <select
                 onChange={handleExcelAction}
-                className="appearance-none bg-[#FFFFFF] dark:bg-[#24326A] hover:bg-[#EFF1FA] dark:hover:bg-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] border border-[#DCE1F1] dark:border-[#3B4A85] rounded-xl px-4 py-2.5 pr-9 text-xs font-bold transition-all cursor-pointer focus:outline-none focus:border-[#4457A5]"
+                className="appearance-none bg-[#FFFFFF] dark:bg-[#1e222d] hover:bg-[#EFF1FA] dark:hover:bg-[#2e3545] text-[#12141c] dark:text-[#F6F8FF] border border-[#DCE1F1] dark:border-[#2e3545] rounded-xl px-4 py-2.5 pr-9 text-xs font-bold transition-all cursor-pointer focus:outline-none focus:border-[#4457A5]"
               >
                 <option value="">Excel İşlemleri...</option>
                 <option value="template">Şablon İndir</option>
@@ -460,12 +460,12 @@ export default function Irsaliye() {
       <div className="glass-card rounded-2xl shadow-md flex-1 overflow-hidden flex flex-col">
         <div className="overflow-auto flex-1">
           <table className="w-full text-left text-xs whitespace-nowrap">
-            <thead className="bg-[#F5F7FC] dark:bg-[#1B2755] text-[#5A6685] dark:text-[#8892B5] font-semibold uppercase tracking-wider border-b border-[#DCE1F1] dark:border-[#24326A] sticky top-0 z-10">
+            <thead className="bg-[#F5F7FC] dark:bg-[#181a24] text-[#5A6685] dark:text-[#8892B5] font-semibold uppercase tracking-wider border-b border-[#DCE1F1] dark:border-[#1e222d] sticky top-0 z-10">
               <tr>
                 <th className="px-6 py-4 w-12 text-center">
                   <input 
                     type="checkbox" 
-                    className="w-4 h-4 rounded border-[#DCE1F1] dark:border-[#3B4A85] text-[#4457A5] focus:ring-[#4457A5] bg-[#FFFFFF] dark:bg-[#24326A]"
+                    className="w-4 h-4 rounded border-[#DCE1F1] dark:border-[#2e3545] text-[#4457A5] focus:ring-[#4457A5] bg-[#FFFFFF] dark:bg-[#1e222d]"
                     checked={selectedRows.length === movements.length && movements.length > 0}
                     onChange={toggleSelectAll}
                   />
@@ -482,7 +482,7 @@ export default function Irsaliye() {
                 <th className="px-6 py-4">AÇIKLAMA</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#DCE1F1] dark:divide-[#24326A]">
+            <tbody className="divide-y divide-[#DCE1F1] dark:divide-[#1e222d]">
               {loading ? (
                 <tr>
                   <td colSpan={11} className="px-6 py-8 text-center text-[#5A6685] dark:text-[#8892B5]">
@@ -501,16 +501,16 @@ export default function Irsaliye() {
                   const dir = getDirection(mov);
                   const isChecked = selectedRows.includes(mov.id);
                   return (
-                    <tr key={`${mov.id}-${index}`} className={`hover:bg-[#FFFFFF]/70 dark:hover:bg-[#24326A]/70 transition-colors text-[#16204A] dark:text-[#F6F8FF] ${isChecked ? 'bg-blue-900/30 border-l-4 border-[#4457A5]' : ''}`}>
+                    <tr key={`${mov.id}-${index}`} className={`hover:bg-[#FFFFFF]/70 dark:hover:bg-[#1e222d]/70 transition-colors text-[#12141c] dark:text-[#F6F8FF] ${isChecked ? 'bg-blue-900/30 border-l-4 border-[#4457A5]' : ''}`}>
                       <td className="px-6 py-3 text-center" onClick={(e) => e.stopPropagation()}>
                         <input 
                           type="checkbox" 
-                          className="w-4 h-4 rounded border-[#DCE1F1] dark:border-[#3B4A85] text-[#4457A5] focus:ring-[#4457A5] bg-[#FFFFFF] dark:bg-[#24326A]"
+                          className="w-4 h-4 rounded border-[#DCE1F1] dark:border-[#2e3545] text-[#4457A5] focus:ring-[#4457A5] bg-[#FFFFFF] dark:bg-[#1e222d]"
                           checked={isChecked}
                           onChange={(e) => toggleRowSelect(mov.id, e)}
                         />
                       </td>
-                      <td className="px-6 py-3 font-semibold text-[#16204A] dark:text-[#F6F8FF]">{mov.part_name}</td>
+                      <td className="px-6 py-3 font-semibold text-[#12141c] dark:text-[#F6F8FF]">{mov.part_name}</td>
                       <td className="px-6 py-3">{directionBadge(dir)}</td>
                       <td className={`px-6 py-3 font-mono font-semibold ${dir === 'out' ? 'text-red-400' : (dir === 'transfer' ? 'text-blue-400' : 'text-emerald-400')}`}>
                         {dir === 'out' ? '-' : '+'}{mov.quantity}
@@ -530,22 +530,22 @@ export default function Irsaliye() {
           </table>
         </div>
         
-        <div className="flex justify-between items-center px-6 py-4 bg-[#F5F7FC] dark:bg-[#1B2755] border-t border-[#DCE1F1] dark:border-[#24326A] shrink-0 text-xs text-[#5A6685] dark:text-[#8892B5]">
+        <div className="flex justify-between items-center px-6 py-4 bg-[#F5F7FC] dark:bg-[#181a24] border-t border-[#DCE1F1] dark:border-[#1e222d] shrink-0 text-xs text-[#5A6685] dark:text-[#8892B5]">
           <span>
-            Toplam <strong className="text-[#16204A] dark:text-[#F6F8FF]">{movements.length}</strong> kayıttan <strong className="text-[#16204A] dark:text-[#F6F8FF]">{movements.length === 0 ? 0 : indexOfFirstItem + 1}-{Math.min(indexOfLastItem, movements.length)}</strong> arası gösteriliyor
+            Toplam <strong className="text-[#12141c] dark:text-[#F6F8FF]">{movements.length}</strong> kayıttan <strong className="text-[#12141c] dark:text-[#F6F8FF]">{movements.length === 0 ? 0 : indexOfFirstItem + 1}-{Math.min(indexOfLastItem, movements.length)}</strong> arası gösteriliyor
           </span>
           <div className="flex gap-2">
             <button
               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
               disabled={currentPage === 1 || movements.length === 0}
-              className="px-3 py-1.5 bg-[#F5F7FC] dark:bg-[#16204A] border border-[#DCE1F1] dark:border-[#3B4A85] rounded-xl text-xs font-bold text-[#16204A] dark:text-[#F6F8FF] hover:bg-[#FFFFFF] dark:hover:bg-[#24326A] disabled:opacity-40 transition-all cursor-pointer"
+              className="px-3 py-1.5 bg-[#F5F7FC] dark:bg-[#12141c] border border-[#DCE1F1] dark:border-[#2e3545] rounded-xl text-xs font-bold text-[#12141c] dark:text-[#F6F8FF] hover:bg-[#FFFFFF] dark:hover:bg-[#1e222d] disabled:opacity-40 transition-all cursor-pointer"
             >
               Önceki
             </button>
             <button
               onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
               disabled={currentPage >= totalPages || movements.length === 0}
-              className="px-3 py-1.5 bg-[#F5F7FC] dark:bg-[#16204A] border border-[#DCE1F1] dark:border-[#3B4A85] rounded-xl text-xs font-bold text-[#16204A] dark:text-[#F6F8FF] hover:bg-[#FFFFFF] dark:hover:bg-[#24326A] disabled:opacity-40 transition-all cursor-pointer"
+              className="px-3 py-1.5 bg-[#F5F7FC] dark:bg-[#12141c] border border-[#DCE1F1] dark:border-[#2e3545] rounded-xl text-xs font-bold text-[#12141c] dark:text-[#F6F8FF] hover:bg-[#FFFFFF] dark:hover:bg-[#1e222d] disabled:opacity-40 transition-all cursor-pointer"
             >
               Sonraki
             </button>
@@ -556,8 +556,8 @@ export default function Irsaliye() {
       {/* INBOUND MODAL */}
       {showInboundModal && (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white dark:bg-[#1E2B5C] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700/50 w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200 my-8 max-h-[90vh] flex flex-col">
-            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 flex justify-between items-center bg-slate-50 dark:bg-[#232F63] shrink-0">
+          <div className="bg-white dark:bg-[#12141c] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700/50 w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200 my-8 max-h-[90vh] flex flex-col">
+            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 flex justify-between items-center bg-slate-50 dark:bg-[#181a24] shrink-0">
               <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2"><Plus size={18}/> Stok Girişi Yap</h2>
               <button onClick={() => setShowInboundModal(false)} className="text-slate-400 hover:text-slate-900 dark:text-white">&times;</button>
             </div>
@@ -569,7 +569,7 @@ export default function Irsaliye() {
                 </label>
                 <div className="flex gap-2">
                   <input type="text" placeholder="Barkodu okutun veya manuel girin..." className="flex-1 px-4 py-2 bg-slate-50 dark:bg-[#131B3A] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={inboundBarcode} onChange={(e) => setInboundBarcode(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleBarcodeSearch())} />
-                  <button type="button" onClick={handleBarcodeSearch} className="px-4 bg-slate-100 dark:bg-[#2E3F78] hover:bg-blue-600 border border-slate-300 dark:border-slate-600 rounded-lg text-white transition-colors"><Search size={18} /></button>
+                  <button type="button" onClick={handleBarcodeSearch} className="px-4 bg-slate-100 dark:bg-[#1e222d] hover:bg-blue-600 border border-slate-300 dark:border-slate-600 rounded-lg text-white transition-colors"><Search size={18} /></button>
                 </div>
               </div>
 
@@ -652,8 +652,8 @@ export default function Irsaliye() {
       {/* OUTBOUND MODAL */}
       {showOutboundModal && (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white dark:bg-[#1E2B5C] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700/50 w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200 my-8 max-h-[90vh] flex flex-col">
-            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 flex justify-between items-center bg-slate-50 dark:bg-[#232F63] shrink-0">
+          <div className="bg-white dark:bg-[#12141c] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700/50 w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200 my-8 max-h-[90vh] flex flex-col">
+            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 flex justify-between items-center bg-slate-50 dark:bg-[#181a24] shrink-0">
               <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">Stok Çıkışı Yap</h2>
               <button onClick={() => setShowOutboundModal(false)} className="text-slate-400 hover:text-slate-900 dark:text-white">&times;</button>
             </div>
@@ -665,7 +665,7 @@ export default function Irsaliye() {
                 </label>
                 <div className="flex gap-2">
                   <input type="text" placeholder="Barkodu okutun veya manuel girin..." className="flex-1 px-4 py-2 bg-slate-50 dark:bg-[#131B3A] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={outboundBarcode} onChange={(e) => setOutboundBarcode(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleOutboundBarcodeSearch())} />
-                  <button type="button" onClick={handleOutboundBarcodeSearch} className="px-4 bg-slate-100 dark:bg-[#2E3F78] hover:bg-blue-600 border border-slate-200 dark:border-slate-600 rounded-lg text-white transition-colors"><Search size={18} /></button>
+                  <button type="button" onClick={handleOutboundBarcodeSearch} className="px-4 bg-slate-100 dark:bg-[#1e222d] hover:bg-blue-600 border border-slate-200 dark:border-slate-600 rounded-lg text-white transition-colors"><Search size={18} /></button>
                 </div>
               </div>
 
@@ -738,7 +738,7 @@ export default function Irsaliye() {
       {/* Dışa Aktar Sütun Seçimi Modalı */}
       {isExportModalOpen && (
         <div className="fixed inset-0 bg-slate-900/80 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-sm p-6">
+          <div className="bg-white dark:bg-[#12141c] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-sm p-6">
             <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-4">Sütun Seçimi</h2>
             <p className="text-sm text-slate-500 mb-4">Dışa aktarılacak Excel dosyasında hangi sütunların bulunmasını istediğinizi seçin.</p>
             

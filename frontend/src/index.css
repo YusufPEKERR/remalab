@@ -7,7 +7,7 @@
 
    Onemli: bu dosya eskiden yalnizca koyu tema icin yazilmisti.
    Tailwind'in acik-uc renkleri koyu degerlerle EZILIYORDU
-   (ornegin slate-50 -> #0E1630, yani neredeyse siyah). Uygulamada
+   (ornegin slate-50 -> #090a0f, yani neredeyse siyah). Uygulamada
    288 yerde "bg-slate-50 dark:bg-[...]" deseni var; bunlarin
    acik temadaki hali de siyah kaliyordu.
 
@@ -37,7 +37,7 @@
 @theme {
   /* Marka */
   --color-brand-primary: #4457A5;
-  --color-brand-primary-hover: #2E3F78;
+  --color-brand-primary-hover: #1e222d;
   --color-brand-soft-accent: rgba(68, 87, 165, 0.10);
 
   /* Notr rampa - Tema2 indigo tonlu "slate" */
@@ -48,9 +48,9 @@
   --color-slate-400: #8892B5;
   --color-slate-500: #5A6685;
   --color-slate-600: #4A5A9E;
-  --color-slate-700: #3B4A85;
-  --color-slate-800: #24326A;
-  --color-slate-900: #16204A;
+  --color-slate-700: #2e3545;
+  --color-slate-800: #1e222d;
+  --color-slate-900: #12141c;
   --color-slate-950: #0B1128;
 
   /* Birincil rampa - Tema2 indigo / periwinkle */
@@ -61,10 +61,10 @@
   --color-blue-400: #8894D8;
   --color-blue-500: #5B6EC4;
   --color-blue-600: #4457A5;
-  --color-blue-700: #2E3F78;
-  --color-blue-800: #24326A;
-  --color-blue-900: #1B2755;
-  --color-blue-950: #101935;
+  --color-blue-700: #1e222d;
+  --color-blue-800: #1e222d;
+  --color-blue-900: #181a24;
+  --color-blue-950: #090a0f;
 
   /* Ikincil rampa - mora calan indigo */
   --color-indigo-200: #CBCDEE;
@@ -108,13 +108,13 @@
   --color-sidebar: #FFFFFF;
   --color-header: #FFFFFF;
   --color-primary: #4457A5;
-  --color-primary-hover: #2E3F78;
+  --color-primary-hover: #1e222d;
   --color-soft-accent: rgba(68, 87, 165, 0.10);
 
   --color-bg: #EFF1FA;   /* zemin - kartlarin uzerinde durdugu yuzey */
   --color-card: #FFFFFF; /* kart / panel */
   --color-border: #DCE1F1;
-  --color-text: #16204A;
+  --color-text: #12141c;
   --color-subtext: #5A6685;
 
   --scrollbar-track: #E7EBF7;
@@ -133,49 +133,62 @@
   --glass-shadow: 0 12px 32px rgba(22, 32, 74, .10);
 }
 
-/* ── KOYU TEMA (mevcut gorunum birebir korundu) ── */
+/* ── KOYU TEMA ── */
 .dark {
-  /* Tailwind renklerini koyu temaya ozgu tonlara geri al */
-  --color-slate-950: #0E1630;
-  --color-slate-900: #16204A;
-  --color-slate-800: #2A3872;
-  --color-slate-500: #6E79A4;
-  --color-slate-200: #E3E7F4;
-  --color-slate-50: #0E1630;
+  /* Kullanıcı Özel Koyu Tema Değişkenleri */
+  --bg-dark-main: #090a0f;
+  --bg-dark-card: #12141c;
+  --bg-dark-sidebar: #0e1017;
+  --border-dark: #1e222d;
 
-  --color-blue-50: rgba(68, 87, 165, 0.18);
+  --accent-blue: #00b2ff;
+  --accent-green: #00e676;
+  --accent-red: #ff3b30;
+  --accent-orange: #ff9500;
 
-  --color-emerald-500: #7CC7B2;
-  --color-amber-500: #FBBF24;
-  --color-red-500: #F87171;
+  --text-primary: #ffffff;
+  --text-secondary: #8e95a5;
 
-  /* Uygulama degiskenleri */
-  --color-sidebar: #0E1630;
-  --color-header: #0E1630;
-  --color-soft-accent: rgba(68, 87, 165, 0.18);
+  /* Tailwind renk rampası uyarlamaları */
+  --color-slate-950: #090a0f;
+  --color-slate-900: #12141c;
+  --color-slate-800: #1e222d;
+  --color-slate-500: #8e95a5;
+  --color-slate-200: #e3e7f4;
+  --color-slate-50: #090a0f;
 
-  --color-bg: #0E1630;
-  --color-card: #16204A;
-  --color-border: #2A3872;
-  --color-text: #F7F8FC;
-  --color-subtext: #9AA3C6;
+  --color-blue-50: rgba(0, 178, 255, 0.18);
+  --color-blue-500: #00b2ff;
+  --color-emerald-500: #00e676;
+  --color-amber-500: #ff9500;
+  --color-red-500: #ff3b30;
 
-  --scrollbar-track: #0E1630;
-  --scrollbar-thumb: #2A3872;
-  --scrollbar-thumb-hover: #3E4E8E;
+  /* Uygulama zemin, panel ve tipografi değişkenleri */
+  --color-sidebar: var(--bg-dark-sidebar);
+  --color-header: var(--bg-dark-sidebar);
+  --color-soft-accent: rgba(0, 178, 255, 0.15);
 
-  /* ── Yuzeyler - koyu varyant ──
-     Zemin duz #0E1630; yuzeyler ondan bir tik yukselen dolu indigo. */
-  --glass-panel: #18224E;
-  --glass-card: #202D62;
-  --glass-modal: #202D62;
-  --glass-border: rgba(136, 148, 216, 0.22);
-  --glass-edge: rgba(169, 178, 227, 0.14);
-  --glass-shadow: 0 14px 40px rgba(6, 10, 26, .40);
+  --color-bg: var(--bg-dark-main);
+  --color-card: var(--bg-dark-card);
+  --color-border: var(--border-dark);
+  --color-text: var(--text-primary);
+  --color-subtext: var(--text-secondary);
+
+  --scrollbar-track: var(--bg-dark-main);
+  --scrollbar-thumb: var(--border-dark);
+  --scrollbar-thumb-hover: #2e3545;
+
+  /* ── Yüzeyler - koyu varyant ── */
+  --glass-panel: var(--bg-dark-sidebar);
+  --glass-card: var(--bg-dark-card);
+  --glass-modal: var(--bg-dark-card);
+  --glass-border: var(--border-dark);
+  --glass-edge: var(--border-dark);
+  --glass-shadow: 0 14px 40px rgba(0, 0, 0, 0.60);
 }
 
 /* Uygulama zemini: her iki temada da TEK DUZ RENK.
-   Acik: #EFF1FA   Koyu: #0E1630   (ikisi de Tema2 paletinden)
+   Acik: #EFF1FA   Koyu: #090a0f   (ikisi de Tema2 paletinden)
    Mozaik/bokeh dokusu yalnizca giris ekraninda kalir. */
 body {
   margin: 0;

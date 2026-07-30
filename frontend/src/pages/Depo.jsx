@@ -75,20 +75,20 @@ export default function Depo() {
   const occupancy = calculateOccupancy();
 
   return (
-    <div className="flex flex-col space-y-6 pb-12 text-[#16204A] dark:text-[#F6F8FF] max-w-[1600px] mx-auto animate-in fade-in duration-300">
+    <div className="flex flex-col space-y-6 pb-12 text-[#12141c] dark:text-[#F6F8FF] max-w-[1600px] mx-auto animate-in fade-in duration-300">
 
       {/* ════════════════ HERO BANNER ════════════════ */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#EFF1FA] dark:from-[#16204A] via-[#DDE2F2] dark:via-[#1B2755] to-[#EEF1FB] dark:to-[#16204A] p-6 sm:p-8 text-[#1B2755] dark:text-white shadow-xl border border-[#DCE1F1] dark:border-[#24326A]">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#EFF1FA] dark:from-[#12141c] via-[#DDE2F2] dark:via-[#181a24] to-[#EEF1FB] dark:to-[#12141c] p-6 sm:p-8 text-[#181a24] dark:text-white shadow-xl border border-[#DCE1F1] dark:border-[#1e222d]">
         {/* Ambient Grid Overlay */}
         <div className="absolute inset-0 bg-[linear-gradient(rgba(68, 87, 165,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(68, 87, 165,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 dark:bg-blue-500/20 border border-blue-500/25 dark:border-blue-400/30 text-[#2E3F78] dark:text-blue-300 text-xs font-semibold tracking-wide">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 dark:bg-blue-500/20 border border-blue-500/25 dark:border-blue-400/30 text-[#1e222d] dark:text-blue-300 text-xs font-semibold tracking-wide">
               <Package size={13} className="text-blue-400" /> DEPO YÖNETİM MODÜLÜ
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1B2755] dark:text-white">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#181a24] dark:text-white">
               Depo Stok
             </h1>
             <p className="text-sm text-[#4A5A9E] dark:text-slate-300 leading-relaxed">
@@ -97,15 +97,15 @@ export default function Depo() {
           </div>
 
           <div className="flex items-center gap-3 shrink-0">
-            <div className="hidden md:flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 border border-white/15 backdrop-blur-md text-xs font-semibold text-[#1B2755] dark:text-white">
+            <div className="hidden md:flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 border border-white/15 backdrop-blur-md text-xs font-semibold text-[#181a24] dark:text-white">
               <Layers size={15} className="text-blue-400" />
-              <span>Toplam <strong className="text-[#1B2755] dark:text-white font-bold">{totalRecords.toLocaleString('tr-TR')}</strong> Kalem Kayıt</span>
+              <span>Toplam <strong className="text-[#181a24] dark:text-white font-bold">{totalRecords.toLocaleString('tr-TR')}</strong> Kalem Kayıt</span>
             </div>
 
             <button
               onClick={() => loadInventory()}
               disabled={loading}
-              className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-[#1B2755] dark:text-white transition-all backdrop-blur-md cursor-pointer"
+              className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-[#181a24] dark:text-white transition-all backdrop-blur-md cursor-pointer"
               title="Listeyi Yenile"
             >
               <RefreshCw size={18} className={loading ? "animate-spin text-blue-400" : ""} />
@@ -119,7 +119,7 @@ export default function Depo() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <Info size={18} className="text-[#8894D8]" />
-            <h3 className="text-sm font-semibold text-[#16204A] dark:text-[#F6F8FF]">
+            <h3 className="text-sm font-semibold text-[#12141c] dark:text-[#F6F8FF]">
               {occupancy.title}
             </h3>
             {selectedItem && (
@@ -144,7 +144,7 @@ export default function Depo() {
           </div>
         </div>
 
-        <div className="w-full bg-[#FFFFFF] dark:bg-[#24326A] rounded-full h-3.5 border border-[#DCE1F1] dark:border-[#3B4A85] overflow-hidden relative">
+        <div className="w-full bg-[#FFFFFF] dark:bg-[#1e222d] rounded-full h-3.5 border border-[#DCE1F1] dark:border-[#2e3545] overflow-hidden relative">
           <div
             className={`h-full rounded-full transition-all duration-500 ease-out shadow-xs ${
               occupancy.isCritical 
@@ -164,7 +164,7 @@ export default function Depo() {
           </div>
           <input
             type="text"
-            className="w-full bg-[#FFFFFF] dark:bg-[#24326A] border border-[#DCE1F1] dark:border-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] placeholder-[#5A6685] rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm font-medium focus:outline-none focus:border-[#4457A5] transition-all shadow-xs"
+            className="w-full bg-[#FFFFFF] dark:bg-[#1e222d] border border-[#DCE1F1] dark:border-[#2e3545] text-[#12141c] dark:text-[#F6F8FF] placeholder-[#5A6685] rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm font-medium focus:outline-none focus:border-[#4457A5] transition-all shadow-xs"
             placeholder="Arama yapın (İtem Kodu, Parça Adı, Lokasyon)..."
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
@@ -174,7 +174,7 @@ export default function Depo() {
         {searchInput && (
           <button
             onClick={() => setSearchInput('')}
-            className="px-3 py-2 text-xs font-semibold text-[#5A6685] dark:text-[#8892B5] hover:text-[#16204A] dark:hover:text-[#F6F8FF] bg-[#FFFFFF] dark:bg-[#24326A] hover:bg-[#EFF1FA] dark:hover:bg-[#3B4A85] rounded-xl border border-[#DCE1F1] dark:border-[#3B4A85] transition-colors"
+            className="px-3 py-2 text-xs font-semibold text-[#5A6685] dark:text-[#8892B5] hover:text-[#12141c] dark:hover:text-[#F6F8FF] bg-[#FFFFFF] dark:bg-[#1e222d] hover:bg-[#EFF1FA] dark:hover:bg-[#2e3545] rounded-xl border border-[#DCE1F1] dark:border-[#2e3545] transition-colors"
           >
             Aramayı Temizle
           </button>
@@ -185,7 +185,7 @@ export default function Depo() {
       <div className="glass-card rounded-2xl shadow-md overflow-hidden flex flex-col">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs whitespace-nowrap">
-            <thead className="bg-[#F5F7FC] dark:bg-[#1B2755] text-[#5A6685] dark:text-[#8892B5] font-semibold uppercase tracking-wider border-b border-[#DCE1F1] dark:border-[#24326A]">
+            <thead className="bg-[#F5F7FC] dark:bg-[#181a24] text-[#5A6685] dark:text-[#8892B5] font-semibold uppercase tracking-wider border-b border-[#DCE1F1] dark:border-[#1e222d]">
               <tr>
                 <th className="px-6 py-4">SON HAREKET TARİHİ</th>
                 <th className="px-6 py-4">İTEM KODU</th>
@@ -194,7 +194,7 @@ export default function Depo() {
                 <th className="px-6 py-4">STOK MİKTARI</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#DCE1F1] dark:divide-[#24326A]">
+            <tbody className="divide-y divide-[#DCE1F1] dark:divide-[#1e222d]">
               {inventory.length > 0 ? (
                 inventory.map((item) => {
                   const isSelected = selectedItem?.id === item.id;
@@ -209,22 +209,22 @@ export default function Depo() {
                       className={`cursor-pointer transition-colors duration-150
                         ${isSelected 
                           ? 'bg-blue-900/30 border-l-4 border-[#4457A5]' 
-                          : 'hover:bg-[#FFFFFF]/70 dark:hover:bg-[#24326A]/70 border-l-4 border-transparent text-[#16204A] dark:text-[#F6F8FF]'
+                          : 'hover:bg-[#FFFFFF]/70 dark:hover:bg-[#1e222d]/70 border-l-4 border-transparent text-[#12141c] dark:text-[#F6F8FF]'
                         }`}
                     >
                       <td className="px-6 py-3.5 font-mono text-[#5A6685] dark:text-[#8892B5] text-[11px]">
                         {item.updated_at || '-'}
                       </td>
                       <td className="px-6 py-3.5">
-                        <span className="px-2.5 py-1 rounded-md bg-blue-50 dark:bg-blue-950/70 text-[#2E3F78] dark:text-[#8894D8] border border-blue-200 dark:border-blue-800/60 font-mono font-bold text-[11px]">
+                        <span className="px-2.5 py-1 rounded-md bg-blue-50 dark:bg-blue-950/70 text-[#1e222d] dark:text-[#8894D8] border border-blue-200 dark:border-blue-800/60 font-mono font-bold text-[11px]">
                           {item.item_code}
                         </span>
                       </td>
-                      <td className="px-6 py-3.5 font-semibold text-[#16204A] dark:text-[#F6F8FF] text-sm">
+                      <td className="px-6 py-3.5 font-semibold text-[#12141c] dark:text-[#F6F8FF] text-sm">
                         {item.part_name}
                       </td>
                       <td className="px-6 py-3.5">
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#FFFFFF] dark:bg-[#24326A] border border-[#DCE1F1] dark:border-[#3B4A85] text-[#3B4A85] dark:text-slate-200 font-semibold text-xs">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#FFFFFF] dark:bg-[#1e222d] border border-[#DCE1F1] dark:border-[#2e3545] text-[#2e3545] dark:text-slate-200 font-semibold text-xs">
                           <MapPin size={13} className="text-[#4457A5] dark:text-[#8894D8]" />
                           {item.location_name}
                         </span>
@@ -254,29 +254,29 @@ export default function Depo() {
         </div>
 
         {/* PAGINATION FOOTER */}
-        <div className="flex flex-col sm:flex-row justify-between items-center px-6 py-4 bg-[#F5F7FC] dark:bg-[#1B2755] border-t border-[#DCE1F1] dark:border-[#24326A] gap-4 shrink-0">
+        <div className="flex flex-col sm:flex-row justify-between items-center px-6 py-4 bg-[#F5F7FC] dark:bg-[#181a24] border-t border-[#DCE1F1] dark:border-[#1e222d] gap-4 shrink-0">
           <span className="text-xs text-[#5A6685] dark:text-[#8892B5] font-medium">
-            Toplam <strong className="text-[#16204A] dark:text-[#F6F8FF]">{totalRecords.toLocaleString('tr-TR')}</strong> kayıttan{' '}
-            <strong className="text-[#16204A] dark:text-[#F6F8FF]">{totalRecords === 0 ? 0 : indexOfFirstItem + 1}-{indexOfLastItem}</strong> arası gösteriliyor
+            Toplam <strong className="text-[#12141c] dark:text-[#F6F8FF]">{totalRecords.toLocaleString('tr-TR')}</strong> kayıttan{' '}
+            <strong className="text-[#12141c] dark:text-[#F6F8FF]">{totalRecords === 0 ? 0 : indexOfFirstItem + 1}-{indexOfLastItem}</strong> arası gösteriliyor
           </span>
 
           <div className="flex items-center gap-2">
             <button
               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
               disabled={currentPage === 1 || totalRecords === 0}
-              className="inline-flex items-center gap-1 px-3 py-1.5 bg-[#F5F7FC] dark:bg-[#16204A] border border-[#DCE1F1] dark:border-[#3B4A85] rounded-xl text-xs font-bold text-[#16204A] dark:text-[#F6F8FF] hover:bg-[#FFFFFF] dark:hover:bg-[#24326A] hover:border-blue-500 hover:text-[#8894D8] disabled:opacity-40 transition-all cursor-pointer"
+              className="inline-flex items-center gap-1 px-3 py-1.5 bg-[#F5F7FC] dark:bg-[#12141c] border border-[#DCE1F1] dark:border-[#2e3545] rounded-xl text-xs font-bold text-[#12141c] dark:text-[#F6F8FF] hover:bg-[#FFFFFF] dark:hover:bg-[#1e222d] hover:border-blue-500 hover:text-[#8894D8] disabled:opacity-40 transition-all cursor-pointer"
             >
               <ChevronLeft size={14} /> Önceki
             </button>
 
-            <span className="text-xs font-bold px-3 py-1.5 bg-[#F5F7FC] dark:bg-[#16204A] border border-[#DCE1F1] dark:border-[#3B4A85] rounded-xl text-[#8894D8]">
+            <span className="text-xs font-bold px-3 py-1.5 bg-[#F5F7FC] dark:bg-[#12141c] border border-[#DCE1F1] dark:border-[#2e3545] rounded-xl text-[#8894D8]">
               Sayfa {currentPage} / {totalPages}
             </span>
 
             <button
               onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
               disabled={currentPage >= totalPages || totalRecords === 0}
-              className="inline-flex items-center gap-1 px-3 py-1.5 bg-[#F5F7FC] dark:bg-[#16204A] border border-[#DCE1F1] dark:border-[#3B4A85] rounded-xl text-xs font-bold text-[#16204A] dark:text-[#F6F8FF] hover:bg-[#FFFFFF] dark:hover:bg-[#24326A] hover:border-blue-500 hover:text-[#8894D8] disabled:opacity-40 transition-all cursor-pointer"
+              className="inline-flex items-center gap-1 px-3 py-1.5 bg-[#F5F7FC] dark:bg-[#12141c] border border-[#DCE1F1] dark:border-[#2e3545] rounded-xl text-xs font-bold text-[#12141c] dark:text-[#F6F8FF] hover:bg-[#FFFFFF] dark:hover:bg-[#1e222d] hover:border-blue-500 hover:text-[#8894D8] disabled:opacity-40 transition-all cursor-pointer"
             >
               Sonraki <ChevronRight size={14} />
             </button>

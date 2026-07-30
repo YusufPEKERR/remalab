@@ -310,35 +310,35 @@ export default function MainLayout() {
   );
 
   return (
-    <div className="app-shell flex h-screen text-[#16204A] dark:text-[#F6F8FF] overflow-hidden">
+    <div className="app-shell flex h-screen text-[#12141c] dark:text-[#F6F8FF] overflow-hidden">
       {/* Mobile Sidebar Backdrop Overlay */}
       {isMobileOpen && (
         <div 
-          className="fixed inset-0 bg-[#EFF1FA]/80 dark:bg-[#101935]/80 backdrop-blur-sm z-40 lg:hidden"
+          className="fixed inset-0 bg-[#EFF1FA]/80 dark:bg-[#090a0f]/80 backdrop-blur-sm z-40 lg:hidden"
           onClick={() => setIsMobileOpen(false)}
         />
       )}
 
       {/* Sidebar - Tema2 cam panel (giris ekraniyla ayni yuzey) */}
       <aside className={`
-        app-sidebar fixed inset-y-0 left-0 w-64 text-[#16204A] dark:text-[#F6F8FF] flex flex-col z-50
+        app-sidebar fixed inset-y-0 left-0 w-64 text-[#12141c] dark:text-[#F6F8FF] flex flex-col z-50
         transition-transform duration-300 transform lg:translate-x-0 lg:static lg:inset-auto shadow-2xl
         ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
         {/* Mobile Close Button */}
         <button 
           onClick={() => setIsMobileOpen(false)}
-          className="absolute top-4 right-4 p-1.5 rounded-lg bg-[#ECEFF9] dark:bg-[#24326A] border border-[#DCE1F1] dark:border-[#35468A] text-[#5A6685] dark:text-[#8892B5] hover:text-[#16204A] dark:hover:text-[#F6F8FF] lg:hidden"
+          className="absolute top-4 right-4 p-1.5 rounded-lg bg-[#ECEFF9] dark:bg-[#1e222d] border border-[#DCE1F1] dark:border-[#1e222d] text-[#5A6685] dark:text-[#8892B5] hover:text-[#12141c] dark:hover:text-[#F6F8FF] lg:hidden"
         >
           <X size={16} />
         </button>
 
-        <div className="flex items-center justify-center pb-6 pt-10 border-b border-[#DCE1F1]/80 dark:border-[#35468A]/80">
+        <div className="flex items-center justify-center pb-6 pt-10 border-b border-[#DCE1F1]/80 dark:border-[#1e222d]/80">
           <img src="/logo.png" alt="Remalab Logo" className="h-36 w-full object-contain drop-shadow-md scale-110 dark:hidden" />
           <img src="/karanlık-mod.png" alt="Remalab Logo" className="h-36 w-full object-contain drop-shadow-md scale-110 hidden dark:block" />
         </div>
         
-        <div className="flex-1 overflow-y-auto py-6 space-y-5 scrollbar-thin scrollbar-thumb-[#35468A] scrollbar-track-transparent">
+        <div className="flex-1 overflow-y-auto py-6 space-y-5 scrollbar-thin scrollbar-thumb-[#1e222d] scrollbar-track-transparent">
           {filteredGroups.map((group, idx) => {
             const isOpen = openGroups[group.title];
             const groupColor = getGroupTitleColor(group.title);
@@ -347,7 +347,7 @@ export default function MainLayout() {
               <div key={idx} className="px-3">
                 <button 
                   onClick={() => toggleGroup(group.title)}
-                  className="w-full flex flex-wrap items-center justify-between px-3 py-2 mb-1.5 rounded-lg group outline-none transition-colors fast-transition hover:bg-[#ECEFF9]/80 dark:hover:bg-[#24326A]/80"
+                  className="w-full flex flex-wrap items-center justify-between px-3 py-2 mb-1.5 rounded-lg group outline-none transition-colors fast-transition hover:bg-[#ECEFF9]/80 dark:hover:bg-[#1e222d]/80"
                 >
                   <h3 
                     className="text-[11px] font-semibold uppercase tracking-widest transition-colors"
@@ -375,8 +375,8 @@ export default function MainLayout() {
                             href={item.path}
                             className={`flex items-center gap-3.5 px-3.5 py-3 rounded-xl text-sm font-bold transition-all fast-transition group relative ${
                               isActive 
-                                ? 'bg-[#ECEFF9] dark:bg-[#24326A] text-[#16204A] dark:text-white shadow-md border-l-4 font-bold'
-                                : 'text-[#4A5A9E] dark:text-[#C3CAE6] hover:text-[#16204A] dark:hover:text-white hover:bg-[#ECEFF9]/60 dark:hover:bg-[#24326A]/60'
+                                ? 'bg-[#ECEFF9] dark:bg-[#1e222d] text-[#12141c] dark:text-white shadow-md border-l-4 font-bold'
+                                : 'text-[#4A5A9E] dark:text-[#C3CAE6] hover:text-[#12141c] dark:hover:text-white hover:bg-[#ECEFF9]/60 dark:hover:bg-[#1e222d]/60'
                             }`}
                             style={{
                               borderLeftColor: isActive ? itemCfg.color : 'transparent',
@@ -421,13 +421,13 @@ export default function MainLayout() {
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Header / Üst Bar - Ultra Dark Charcoal Navy: #0E1630 */}
-        <header className="app-header h-16 flex flex-wrap items-center justify-between px-6 shadow-sm z-30 shrink-0 text-[#16204A] dark:text-[#F7F8FC]">
+        {/* Header / Üst Bar - Ultra Dark Charcoal Navy: #090a0f */}
+        <header className="app-header h-16 flex flex-wrap items-center justify-between px-6 shadow-sm z-30 shrink-0 text-[#12141c] dark:text-[#F7F8FC]">
           <div className="flex items-center gap-3">
             {/* Mobile Hamburger Button */}
             <button
               onClick={() => setIsMobileOpen(true)}
-              className="p-2 -ml-2 text-[#5A6685] dark:text-[#9AA3C6] hover:text-[#16204A] dark:hover:text-[#F7F8FC] transition-colors lg:hidden rounded-xl bg-[#F5F7FC] dark:bg-[#16204A] border border-[#DCE1F1] dark:border-[#2A3872]"
+              className="p-2 -ml-2 text-[#5A6685] dark:text-[#9AA3C6] hover:text-[#12141c] dark:hover:text-[#F7F8FC] transition-colors lg:hidden rounded-xl bg-[#F5F7FC] dark:bg-[#12141c] border border-[#DCE1F1] dark:border-[#2A3872]"
               title="Menüyü Aç"
             >
               <Menu size={20} />
@@ -436,9 +436,9 @@ export default function MainLayout() {
 
           <div className="flex items-center gap-3">
             {/* Date/Time Widget (Next to Theme Toggle) */}
-            <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-[#F5F7FC] dark:bg-[#16204A] rounded-lg border border-[#DCE1F1] dark:border-[#2A3872]">
+            <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-[#F5F7FC] dark:bg-[#12141c] rounded-lg border border-[#DCE1F1] dark:border-[#2A3872]">
               <span className="text-[11px] font-medium text-[#5A6685] dark:text-[#9AA3C6]">⏱ SON GÜNCELLEME:</span>
-              <span className="text-xs font-bold text-[#16204A] dark:text-[#F7F8FC] font-mono tracking-wider">
+              <span className="text-xs font-bold text-[#12141c] dark:text-[#F7F8FC] font-mono tracking-wider">
                 {currentTime.toLocaleDateString('tr-TR', { day: '2-digit', month: 'short', year: 'numeric' })} - {currentTime.toLocaleTimeString('tr-TR')}
               </span>
             </div>
@@ -446,7 +446,7 @@ export default function MainLayout() {
             {/* Refresh Page Button */}
             <button
               onClick={() => window.location.reload()}
-              className="p-2 text-[#5A6685] dark:text-[#9AA3C6] hover:text-[#4457A5] transition-colors bg-[#F5F7FC] dark:bg-[#16204A] rounded-xl border border-[#DCE1F1] dark:border-[#2A3872] hover:border-[#4457A5] cursor-pointer"
+              className="p-2 text-[#5A6685] dark:text-[#9AA3C6] hover:text-[#4457A5] transition-colors bg-[#F5F7FC] dark:bg-[#12141c] rounded-xl border border-[#DCE1F1] dark:border-[#2A3872] hover:border-[#4457A5] cursor-pointer"
               title="Sayfayı Yenile"
             >
               <RefreshCw size={18} />
@@ -455,7 +455,7 @@ export default function MainLayout() {
             {/* Theme Toggle Button */}
             <button
               onClick={toggleTheme}
-              className="p-2 text-[#5A6685] dark:text-[#9AA3C6] hover:text-[#8894D8] transition-colors bg-[#F5F7FC] dark:bg-[#16204A] rounded-xl border border-[#DCE1F1] dark:border-[#2A3872] hover:border-[#8894D8] cursor-pointer"
+              className="p-2 text-[#5A6685] dark:text-[#9AA3C6] hover:text-[#8894D8] transition-colors bg-[#F5F7FC] dark:bg-[#12141c] rounded-xl border border-[#DCE1F1] dark:border-[#2A3872] hover:border-[#8894D8] cursor-pointer"
               title={theme === 'dark' ? 'Açık Tema' : 'Koyu Tema'}
             >
               {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
@@ -464,20 +464,20 @@ export default function MainLayout() {
             <div className="relative" ref={notifRef}>
               <button 
                 onClick={() => setShowNotifications(!showNotifications)}
-                className="p-2 text-[#5A6685] dark:text-[#8892B5] hover:text-[#16204A] dark:hover:text-[#F6F8FF] transition-colors relative bg-[#FFFFFF] dark:bg-[#24326A] rounded-xl border border-[#3B4A85]" 
+                className="p-2 text-[#5A6685] dark:text-[#8892B5] hover:text-[#12141c] dark:hover:text-[#F6F8FF] transition-colors relative bg-[#FFFFFF] dark:bg-[#1e222d] rounded-xl border border-[#2e3545]" 
                 title="Bildirimler"
               >
                 <Bell size={18} />
                 {notifications.length > 0 && (
-                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#EF4444] rounded-full border border-[#EFF1FA] dark:border-[#16204A] animate-pulse"></span>
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#EF4444] rounded-full border border-[#EFF1FA] dark:border-[#12141c] animate-pulse"></span>
                 )}
               </button>
 
               {showNotifications && (
-                <div className="glass-card absolute right-0 mt-3 w-[calc(100vw-32px)] sm:w-[360px] shadow-2xl rounded-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 text-[#16204A] dark:text-[#F6F8FF]">
-                  <div className="p-4 border-b border-[#DCE1F1] dark:border-[#3B4A85] bg-[#EFF1FA]/70 dark:bg-[#16204A]/70 flex flex-col gap-2">
+                <div className="glass-card absolute right-0 mt-3 w-[calc(100vw-32px)] sm:w-[360px] shadow-2xl rounded-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 text-[#12141c] dark:text-[#F6F8FF]">
+                  <div className="p-4 border-b border-[#DCE1F1] dark:border-[#2e3545] bg-[#EFF1FA]/70 dark:bg-[#12141c]/70 flex flex-col gap-2">
                     <div className="flex flex-wrap items-center justify-between">
-                      <h3 className="font-semibold text-[#16204A] dark:text-[#F6F8FF]">Kritik Stok Bildirimleri</h3>
+                      <h3 className="font-semibold text-[#12141c] dark:text-[#F6F8FF]">Kritik Stok Bildirimleri</h3>
                       {notifications.length > 0 && (
                         <div className="flex items-center gap-2">
                           <span className="bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400 text-xs font-bold px-2 py-0.5 rounded-md">{notifications.length} Uyarı</span>
@@ -500,9 +500,9 @@ export default function MainLayout() {
                       )}
                     </div>
                   </div>
-                  <div className="max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-[#3B4A85] scrollbar-track-transparent">
+                  <div className="max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-[#2e3545] scrollbar-track-transparent">
                     {notifications.length > 0 ? (
-                      <div className="divide-y divide-[#DCE1F1] dark:divide-[#3B4A85]">
+                      <div className="divide-y divide-[#DCE1F1] dark:divide-[#2e3545]">
                         {notifications.map((notif, idx) => {
                           const notifKey = String(notif.id);
                           
@@ -518,7 +518,7 @@ export default function MainLayout() {
                           return (
                           <div 
                             key={idx} 
-                            className="p-4 hover:bg-[#EFF1FA]/60 dark:hover:bg-[#16204A]/60 transition-colors cursor-pointer" 
+                            className="p-4 hover:bg-[#EFF1FA]/60 dark:hover:bg-[#12141c]/60 transition-colors cursor-pointer" 
                             onClick={() => {
                               markAsRead();
                               setShowNotifications(false); 
@@ -530,10 +530,10 @@ export default function MainLayout() {
                                 <AlertTriangle size={18} className={notif.status === 'Tükendi' ? "text-red-400" : "text-amber-400"} />
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-[#16204A] dark:text-[#F6F8FF] mb-1 leading-snug line-clamp-2" title={notif.part_name}>{notif.part_name}</p>
-                                <p className="text-xs text-[#5A6685] dark:text-[#8892B5] mb-1">Lokasyon: <strong className="text-[#16204A] dark:text-[#F6F8FF]">{notif.location_name}</strong></p>
+                                <p className="text-sm font-medium text-[#12141c] dark:text-[#F6F8FF] mb-1 leading-snug line-clamp-2" title={notif.part_name}>{notif.part_name}</p>
+                                <p className="text-xs text-[#5A6685] dark:text-[#8892B5] mb-1">Lokasyon: <strong className="text-[#12141c] dark:text-[#F6F8FF]">{notif.location_name}</strong></p>
                                 <div className="flex flex-wrap items-center justify-between mt-2">
-                                  <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-[#EFF1FA] dark:bg-[#16204A] text-[#16204A] dark:text-[#F6F8FF] border border-[#DCE1F1] dark:border-[#3B4A85]">Stok: {notif.quantity}</span>
+                                  <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-[#EFF1FA] dark:bg-[#12141c] text-[#12141c] dark:text-[#F6F8FF] border border-[#DCE1F1] dark:border-[#2e3545]">Stok: {notif.quantity}</span>
                                   <span className={`text-[10px] font-bold uppercase tracking-wider ${notif.status === 'Tükendi' ? 'text-red-400' : 'text-amber-400'}`}>
                                     {notif.status === 'Tükendi' ? 'STOK TÜKENDİ' : 'KRİTİK SEVİYE'}
                                   </span>
@@ -546,7 +546,7 @@ export default function MainLayout() {
                     ) : (
                       <div className="p-8 text-center text-[#5A6685] dark:text-[#8892B5] flex flex-col items-center">
                         <CheckCircle size={36} className="mb-3 text-emerald-500/60" />
-                        <p className="text-sm font-medium text-[#16204A] dark:text-[#F6F8FF]">Harika! Tüm stoklar güvende.</p>
+                        <p className="text-sm font-medium text-[#12141c] dark:text-[#F6F8FF]">Harika! Tüm stoklar güvende.</p>
                         <p className="text-xs mt-1">Şu an için kritik seviyede ürün yok.</p>
                       </div>
                     )}
@@ -554,12 +554,12 @@ export default function MainLayout() {
                 </div>
               )}
             </div>
-            <div className="flex items-center gap-3 border-l border-[#DCE1F1] dark:border-[#3B4A85] pl-4">
+            <div className="flex items-center gap-3 border-l border-[#DCE1F1] dark:border-[#2e3545] pl-4">
               <div className="w-10 h-10 rounded-xl bg-[#4457A5]/10 dark:bg-[#4457A5]/20 border border-[#4457A5]/25 dark:border-[#4457A5]/40 flex items-center justify-center text-[#4457A5] dark:text-[#8894D8] font-bold uppercase shadow-sm">
                 {user && user.username ? user.username.charAt(0) : 'U'}
               </div>
               <div className="hidden md:block">
-                <p className="text-sm font-semibold text-[#16204A] dark:text-[#F6F8FF] leading-none">{(user && user.username) ? user.username : 'Misafir'}</p>
+                <p className="text-sm font-semibold text-[#12141c] dark:text-[#F6F8FF] leading-none">{(user && user.username) ? user.username : 'Misafir'}</p>
                 <p className="text-xs text-[#5A6685] dark:text-[#8892B5] mt-1">{(user && user.role) ? user.role : 'Guest'}</p>
               </div>
             </div>

@@ -127,8 +127,8 @@ const AddTableModal = ({ onClose, onAdd }) => {
   const [feName, setFeName] = useState('');
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm">
-      <div className="bg-white dark:bg-[#1E2B5C] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 max-w-sm w-full mx-4 overflow-hidden">
-        <div className="border-b border-slate-200 dark:border-slate-700 px-6 py-4 flex flex-wrap items-center justify-between bg-slate-50 dark:bg-[#232F63]">
+      <div className="bg-white dark:bg-[#12141c] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 max-w-sm w-full mx-4 overflow-hidden">
+        <div className="border-b border-slate-200 dark:border-slate-700 px-6 py-4 flex flex-wrap items-center justify-between bg-slate-50 dark:bg-[#181a24]">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center"><Plus size={20} className="text-blue-500" /></div>
             <h3 className="font-semibold text-slate-800 dark:text-slate-100">Yeni Tablo Ekle</h3>
@@ -575,23 +575,23 @@ export default function SchemaMapper() {
       {showAddModal && <AddTableModal onClose={() => setShowAddModal(false)} onAdd={handleAddTable} />}
 
       {/* ════════════════ TOOLBAR ════════════════ */}
-      <div className="bg-[#F5F7FC] dark:bg-[#16204A] border-b border-[#DCE1F1] dark:border-[#24326A] px-5 py-3 flex flex-wrap items-center justify-between gap-3 flex-wrap shrink-0 z-20 shadow-md">
+      <div className="bg-[#F5F7FC] dark:bg-[#12141c] border-b border-[#DCE1F1] dark:border-[#1e222d] px-5 py-3 flex flex-wrap items-center justify-between gap-3 flex-wrap shrink-0 z-20 shadow-md">
         <div className="flex items-center gap-2.5">
           <h2 className="text-sm font-semibold text-white flex items-center gap-2 mr-3 font-mono">
             <Database size={17} className="text-blue-400" />
             SCHEMA MAPPER
           </h2>
 
-          <button onClick={() => setShowAddModal(true)} className="px-3.5 py-2 rounded-xl bg-[#4457A5] hover:bg-[#2E3F78] text-white text-xs font-bold flex items-center gap-1.5 shadow-md cursor-pointer transition-all">
+          <button onClick={() => setShowAddModal(true)} className="px-3.5 py-2 rounded-xl bg-[#4457A5] hover:bg-[#1e222d] text-white text-xs font-bold flex items-center gap-1.5 shadow-md cursor-pointer transition-all">
             <Plus size={14} /> Yeni Tablo
           </button>
-          <button onClick={() => { setConnectMode(!connectMode); setConnectSource(null); }} className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md transition-all cursor-pointer border ${connectMode ? 'bg-rose-500 text-white border-rose-500' : 'bg-[#FFFFFF] dark:bg-[#24326A] text-[#16204A] dark:text-[#F6F8FF] border-[#DCE1F1] dark:border-[#3B4A85] hover:border-rose-400'}`}>
+          <button onClick={() => { setConnectMode(!connectMode); setConnectSource(null); }} className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md transition-all cursor-pointer border ${connectMode ? 'bg-rose-500 text-white border-rose-500' : 'bg-[#FFFFFF] dark:bg-[#1e222d] text-[#12141c] dark:text-[#F6F8FF] border-[#DCE1F1] dark:border-[#2e3545] hover:border-rose-400'}`}>
             <Link2 size={14} /> {connectMode ? 'Bağlama: AÇIK' : 'İlişki Bağla'}
           </button>
           <button onClick={handleSaveMapping} className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold flex items-center gap-1.5 shadow-md cursor-pointer transition-all">
             <Save size={14} /> Kaydet
           </button>
-          <button onClick={handleOpenProjectGuide} title="Proje rehberini PDF olarak aç" className="px-3.5 py-2 rounded-xl bg-[#FFFFFF] dark:bg-[#24326A] text-[#16204A] dark:text-[#F6F8FF] border border-[#DCE1F1] dark:border-[#3B4A85] text-xs font-semibold flex items-center gap-1.5 shadow-md hover:border-blue-400 transition-all cursor-pointer">
+          <button onClick={handleOpenProjectGuide} title="Proje rehberini PDF olarak aç" className="px-3.5 py-2 rounded-xl bg-[#FFFFFF] dark:bg-[#1e222d] text-[#12141c] dark:text-[#F6F8FF] border border-[#DCE1F1] dark:border-[#2e3545] text-xs font-semibold flex items-center gap-1.5 shadow-md hover:border-blue-400 transition-all cursor-pointer">
             <FileText size={14} /> Proje Rehberi
           </button>
         </div>
@@ -601,13 +601,13 @@ export default function SchemaMapper() {
           <div className="flex items-center bg-slate-100 dark:bg-[#131B3A] p-1 rounded-xl mr-2">
             <button 
               onClick={() => setActiveTab('visual')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === 'visual' ? 'bg-white dark:bg-[#1E2B5C] text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === 'visual' ? 'bg-white dark:bg-[#12141c] text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
             >
               <Map size={14} /> Görsel Şema
             </button>
             <button 
               onClick={() => setActiveTab('list')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === 'list' ? 'bg-white dark:bg-[#1E2B5C] text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === 'list' ? 'bg-white dark:bg-[#12141c] text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
             >
               <List size={14} /> Liste Görünümü
             </button>
@@ -623,7 +623,7 @@ export default function SchemaMapper() {
               className="pl-8 pr-3 py-1.5 w-48 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#131B3A] text-xs text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-blue-500 outline-none transition-all" 
             />
             {filteredSearch.length > 0 && !["tüm tablolar", "tümü", "hepsi", "all", "*", "listele"].includes(searchTerm.trim().toLowerCase()) && (
-              <div className="absolute top-full left-0 mt-1 w-60 bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-30 overflow-hidden">
+              <div className="absolute top-full left-0 mt-1 w-60 bg-white dark:bg-[#12141c] border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-30 overflow-hidden">
                 {filteredSearch.map(t => (
                   <button key={t.id} onClick={() => handleSearchFocus(t.id)} className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors text-left">
                     <Table2 size={13} className="text-slate-400 shrink-0" />
@@ -661,7 +661,7 @@ export default function SchemaMapper() {
           {/* No Schema State */}
           {!isLoading && tables.length === 0 && (
             <div className="absolute inset-0 z-40 flex items-center justify-center pointer-events-none">
-              <div className="bg-white dark:bg-[#1E2B5C] p-8 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 max-w-md text-center pointer-events-auto">
+              <div className="bg-white dark:bg-[#12141c] p-8 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 max-w-md text-center pointer-events-auto">
                 <Database size={48} className="text-slate-700 dark:text-slate-300 dark:text-slate-600 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-2">Veritabanı Şeması Bulunamadı</h3>
                 <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">Herhangi bir tablo veya ilişki verisi okunamadı. Yeni bir tablo ekleyerek başlayabilirsiniz.</p>

@@ -68,10 +68,10 @@ export default function SupplyRequests() {
   };
 
   return (
-    <div className="flex flex-col space-y-6 pb-12 text-[#16204A] dark:text-[#F6F8FF] max-w-[1600px] mx-auto animate-in fade-in duration-300">
+    <div className="flex flex-col space-y-6 pb-12 text-[#12141c] dark:text-[#F6F8FF] max-w-[1600px] mx-auto animate-in fade-in duration-300">
 
       {/* ════════════════ HERO BANNER ════════════════ */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#EFF1FA] dark:from-[#101935] via-[#DDE2F2] dark:via-[#16204A] to-[#FFFFFF] dark:to-[#24326A] p-6 sm:p-8 text-[#1B2755] dark:text-white shadow-xl border border-[#DCE1F1] dark:border-[#24326A]">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#EFF1FA] dark:from-[#090a0f] via-[#DDE2F2] dark:via-[#12141c] to-[#FFFFFF] dark:to-[#1e222d] p-6 sm:p-8 text-[#181a24] dark:text-white shadow-xl border border-[#DCE1F1] dark:border-[#1e222d]">
         {/* Ambient Grid Overlay */}
         <div className="absolute inset-0 bg-[linear-gradient(rgba(245,158,11,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(245,158,11,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-amber-600/10 rounded-full blur-3xl pointer-events-none" />
@@ -81,7 +81,7 @@ export default function SupplyRequests() {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-100 dark:bg-amber-500/20 border border-amber-200 dark:border-amber-400/30 text-amber-700 dark:text-amber-300 text-xs font-semibold tracking-wide">
               <PackageSearch size={13} className="text-amber-400" /> DEPO PARÇA TEDARİK İSTEKLERİ
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1B2755] dark:text-white">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#181a24] dark:text-white">
               Tedarik İstekleri Paneli
             </h1>
             <p className="text-sm text-[#4A5A9E] dark:text-slate-300 leading-relaxed">
@@ -94,7 +94,7 @@ export default function SupplyRequests() {
       <div className="flex-1 space-y-6">
         <div className="glass-card rounded-2xl shadow-md overflow-hidden">
           <table className="w-full text-left text-xs whitespace-nowrap">
-            <thead className="bg-[#F5F7FC] dark:bg-[#1B2755] text-[#5A6685] dark:text-[#8892B5] font-semibold uppercase tracking-wider border-b border-[#DCE1F1] dark:border-[#24326A] sticky top-0 z-10 select-none">
+            <thead className="bg-[#F5F7FC] dark:bg-[#181a24] text-[#5A6685] dark:text-[#8892B5] font-semibold uppercase tracking-wider border-b border-[#DCE1F1] dark:border-[#1e222d] sticky top-0 z-10 select-none">
               <tr>
                 <th className="px-6 py-4">Müşteri / Cihaz</th>
                 <th className="px-6 py-4">Parça</th>
@@ -106,7 +106,7 @@ export default function SupplyRequests() {
                 <th className="px-6 py-4 text-center">Tedarik İşlemleri</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#DCE1F1] dark:divide-[#24326A]">
+            <tbody className="divide-y divide-[#DCE1F1] dark:divide-[#1e222d]">
               {loading ? (
                 <tr>
                   <td colSpan="8" className="px-6 py-8 text-center text-slate-400">Yükleniyor...</td>
@@ -117,7 +117,7 @@ export default function SupplyRequests() {
                 </tr>
               ) : (
                 requests.map(row => (
-                  <tr key={row.id} className="hover:bg-slate-100 dark:bg-[#2E3F78] transition-colors text-slate-700 dark:text-slate-300">
+                  <tr key={row.id} className="hover:bg-slate-100 dark:bg-[#1e222d] transition-colors text-slate-700 dark:text-slate-300">
                     <td className="px-6 py-4">
                       <div className="font-medium text-slate-800 dark:text-slate-200">{row.customer_name || '-'}</div>
                       <div className="text-xs text-slate-400">{row.device_brand} {row.device_model}</div>

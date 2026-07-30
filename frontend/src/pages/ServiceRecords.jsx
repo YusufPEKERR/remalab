@@ -197,7 +197,7 @@ export default function ServiceRecords() {
     <div className="h-full flex flex-col space-y-6 overflow-hidden">
 
       {/* Header */}
-      <div className="bg-white dark:bg-[#1E2B5C] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm shrink-0 flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+      <div className="bg-white dark:bg-[#12141c] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm shrink-0 flex flex-col md:flex-row md:justify-between md:items-center gap-4">
         <div>
             <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-2">
             <Wrench className="text-blue-400" size={24} /> Servis Kaydı
@@ -214,7 +214,7 @@ export default function ServiceRecords() {
                     placeholder="IMEI ile Onarım Ara..." 
                     value={searchImei}
                     onChange={(e) => setSearchImei(e.target.value)}
-                    className="pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:border-blue-500 min-w-[250px]"
+                    className="pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:border-blue-500 min-w-[250px]"
                 />
             </div>
             <button 
@@ -246,9 +246,9 @@ export default function ServiceRecords() {
               </button>
             </div>
 
-            <div className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden">
+            <div className="bg-white dark:bg-[#12141c] border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden">
               <table className="w-full text-left text-sm">
-                <thead className="bg-slate-50 dark:bg-[#232F63] text-slate-400 font-semibold uppercase tracking-wider text-xs">
+                <thead className="bg-slate-50 dark:bg-[#181a24] text-slate-400 font-semibold uppercase tracking-wider text-xs">
                   <tr>
                     <th className="px-6 py-4">Teknisyen</th>
                     <th className="px-6 py-4">Cihaz</th>
@@ -269,7 +269,7 @@ export default function ServiceRecords() {
                     </tr>
                   ) : (
                     records.map(rec => (
-                      <tr key={rec.id} className="hover:bg-slate-100 dark:bg-[#2E3F78] transition-colors text-slate-700 dark:text-slate-300">
+                      <tr key={rec.id} className="hover:bg-slate-100 dark:bg-[#1e222d] transition-colors text-slate-700 dark:text-slate-300">
                         <td className="px-6 py-4">
                           <div className="font-medium text-slate-800 dark:text-slate-200">{rec.customer_name}</div>
                           <div className="text-xs text-slate-400">{rec.customer_phone}{rec.company ? ` · ${rec.company}` : ''}</div>
@@ -306,7 +306,7 @@ export default function ServiceRecords() {
             </div>
           </>
         ) : showImeiDetails && imeiSearchResult ? (
-          <div className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-xl animate-in fade-in slide-in-from-bottom-4">
+          <div className="bg-white dark:bg-[#12141c] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-xl animate-in fade-in slide-in-from-bottom-4">
             <div className="flex justify-between items-center mb-6 border-b border-slate-200 dark:border-slate-700/50 pb-4">
               <div>
                   <h2 className="text-xl font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
@@ -321,7 +321,7 @@ export default function ServiceRecords() {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Sol Kolon: Cihaz Bilgileri (Salt Okunur) */}
-                <div className="space-y-6 bg-slate-50 dark:bg-[#232F63] p-5 rounded-xl border border-slate-200 dark:border-slate-700">
+                <div className="space-y-6 bg-slate-50 dark:bg-[#181a24] p-5 rounded-xl border border-slate-200 dark:border-slate-700">
                     <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-2">
                         <Smartphone size={16} className="text-blue-400"/> Cihaz Bilgileri (Batch)
                     </h3>
@@ -347,7 +347,7 @@ export default function ServiceRecords() {
                     
                     <div>
                         <span className="block text-xs text-slate-400 mb-1">Müşteri Şikayeti / Kusurlar</span>
-                        <div className="text-sm font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-[#1E2B5C] p-3 rounded-lg border border-slate-200 dark:border-slate-700 min-h-[60px]">
+                        <div className="text-sm font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-[#12141c] p-3 rounded-lg border border-slate-200 dark:border-slate-700 min-h-[60px]">
                             {imeiSearchResult.customer_complaint || '-'}
                         </div>
                     </div>
@@ -370,14 +370,14 @@ export default function ServiceRecords() {
                     }} className="space-y-4">
                         <div>
                             <label className="block text-sm font-medium text-slate-400 mb-1.5">Teknisyen Adı</label>
-                            <input type="text" className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" 
+                            <input type="text" className="w-full bg-slate-50 dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" 
                                 value={imeiSearchResult.technician_name} 
                                 onChange={e => setImeiSearchResult({...imeiSearchResult, technician_name: e.target.value})} 
                             />
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-slate-400 mb-1.5">Durum</label>
-                            <select className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" 
+                            <select className="w-full bg-slate-50 dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" 
                                 value={imeiSearchResult.status} 
                                 onChange={e => setImeiSearchResult({...imeiSearchResult, status: e.target.value})}>
                                 {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
@@ -385,7 +385,7 @@ export default function ServiceRecords() {
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-slate-400 mb-1.5">Teknisyen Notları / Yapılan İşlemler</label>
-                            <textarea rows={4} className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 resize-none" 
+                            <textarea rows={4} className="w-full bg-slate-50 dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 resize-none" 
                                 value={imeiSearchResult.repair_notes} 
                                 onChange={e => setImeiSearchResult({...imeiSearchResult, repair_notes: e.target.value})} 
                             />
@@ -400,7 +400,7 @@ export default function ServiceRecords() {
             </div>
           </div>
         ) : (
-          <div className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-xl animate-in fade-in slide-in-from-bottom-4">
+          <div className="bg-white dark:bg-[#12141c] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-xl animate-in fade-in slide-in-from-bottom-4">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                 {editingRecord ? 'Servis Kaydını Düzenle' : 'Yeni Servis Kaydı'}
@@ -420,19 +420,19 @@ export default function ServiceRecords() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div>
                     <label className="block text-sm font-medium text-slate-400 mb-1.5">Teknisyen Adı <span className="text-red-400">*</span></label>
-                    <input type="text" required className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={formData.customer_name} onChange={e => setFormData({...formData, customer_name: e.target.value})} />
+                    <input type="text" required className="w-full bg-slate-50 dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={formData.customer_name} onChange={e => setFormData({...formData, customer_name: e.target.value})} />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-400 mb-1.5">Telefon</label>
-                    <input type="text" className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={formData.customer_phone} onChange={e => setFormData({...formData, customer_phone: e.target.value})} />
+                    <input type="text" className="w-full bg-slate-50 dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={formData.customer_phone} onChange={e => setFormData({...formData, customer_phone: e.target.value})} />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-400 mb-1.5">E-posta (Opsiyonel)</label>
-                    <input type="email" className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={formData.customer_email} onChange={e => setFormData({...formData, customer_email: e.target.value})} />
+                    <input type="email" className="w-full bg-slate-50 dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={formData.customer_email} onChange={e => setFormData({...formData, customer_email: e.target.value})} />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-400 mb-1.5">Firma (B2B ise)</label>
-                    <input type="text" className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={formData.company} onChange={e => setFormData({...formData, company: e.target.value})} />
+                    <input type="text" className="w-full bg-slate-50 dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={formData.company} onChange={e => setFormData({...formData, company: e.target.value})} />
                   </div>
                 </div>
               </div>
@@ -444,28 +444,28 @@ export default function ServiceRecords() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div>
                     <label className="block text-sm font-medium text-slate-400 mb-1.5">Marka</label>
-                    <input type="text" list="service-brand-list" placeholder="Marka seçin veya yazın..." className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={formData.brand} onChange={e => handleBrandChange(e.target.value)} />
+                    <input type="text" list="service-brand-list" placeholder="Marka seçin veya yazın..." className="w-full bg-slate-50 dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={formData.brand} onChange={e => handleBrandChange(e.target.value)} />
                     <datalist id="service-brand-list">
                       {uniqueBrands.map(b => <option key={b} value={b} />)}
                     </datalist>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-400 mb-1.5">Model</label>
-                    <input type="text" list="service-model-list" placeholder="Model seçin veya yazın..." className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={formData.model} onChange={e => handleModelChange(e.target.value)} />
+                    <input type="text" list="service-model-list" placeholder="Model seçin veya yazın..." className="w-full bg-slate-50 dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={formData.model} onChange={e => handleModelChange(e.target.value)} />
                     <datalist id="service-model-list">
                       {modelsForBrand.map(m => <option key={m} value={m} />)}
                     </datalist>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-400 mb-1.5">Hafıza</label>
-                    <input type="text" list="service-memory-list" placeholder="Hafıza seçin veya yazın..." className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={formData.memory} onChange={e => handleMemoryChange(e.target.value)} />
+                    <input type="text" list="service-memory-list" placeholder="Hafıza seçin veya yazın..." className="w-full bg-slate-50 dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={formData.memory} onChange={e => handleMemoryChange(e.target.value)} />
                     <datalist id="service-memory-list">
                       {memoriesForModel.map(m => <option key={m} value={m} />)}
                     </datalist>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-400 mb-1.5">Ürün Kodu</label>
-                    <input type="text" list="service-code-list" placeholder="Ürün kodu seçin veya yazın..." className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={formData.product_code} onChange={e => handleProductCodeChange(e.target.value)} />
+                    <input type="text" list="service-code-list" placeholder="Ürün kodu seçin veya yazın..." className="w-full bg-slate-50 dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={formData.product_code} onChange={e => handleProductCodeChange(e.target.value)} />
                     <datalist id="service-code-list">
                       {codesForMemory.map(c => <option key={c} value={c} />)}
                     </datalist>
@@ -475,7 +475,7 @@ export default function ServiceRecords() {
                     <input
                       type="text"
                       placeholder="IMEI veya Seri No okutun..."
-                      className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                      className="w-full bg-slate-50 dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
                       value={formData.imei_number || ''}
                       onChange={e => { setFormData({...formData, imei_number: e.target.value}); setDeviceLookupStatus(null); }}
                       onBlur={handleDeviceLookup}
@@ -493,7 +493,7 @@ export default function ServiceRecords() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-400 mb-1.5">Renk</label>
-                    <input type="text" className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={formData.color} onChange={e => setFormData({...formData, color: e.target.value})} />
+                    <input type="text" className="w-full bg-slate-50 dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={formData.color} onChange={e => setFormData({...formData, color: e.target.value})} />
                   </div>
                 </div>
               </div>
@@ -505,14 +505,14 @@ export default function ServiceRecords() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div>
                     <label className="block text-sm font-medium text-slate-400 mb-1.5">Arıza Kategorisi</label>
-                    <select className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={formData.fault_category} onChange={e => handleCategoryChange(e.target.value)}>
+                    <select className="w-full bg-slate-50 dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={formData.fault_category} onChange={e => handleCategoryChange(e.target.value)}>
                       <option value="">Kategori seçiniz...</option>
                       {FAULT_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-400 mb-1.5">Arıza Tipi</label>
-                    <select disabled={!formData.fault_category} className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 disabled:opacity-50" value={formData.fault_type} onChange={e => setFormData({...formData, fault_type: e.target.value})}>
+                    <select disabled={!formData.fault_category} className="w-full bg-slate-50 dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 disabled:opacity-50" value={formData.fault_type} onChange={e => setFormData({...formData, fault_type: e.target.value})}>
                       <option value="">{formData.fault_category ? 'Tip seçiniz...' : 'Önce kategori seçin'}</option>
                       {availableFaultTypes.map(t => <option key={t} value={t}>{t}</option>)}
                     </select>
@@ -520,11 +520,11 @@ export default function ServiceRecords() {
                 </div>
                 <div className="mt-5">
                   <label className="block text-sm font-medium text-slate-400 mb-1.5">Teknisyen Açıklaması / Şikayeti</label>
-                  <textarea rows={3} placeholder="Teknisyenin kendi ifadesiyle şikayeti..." className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 resize-none" value={formData.customer_complaint} onChange={e => setFormData({...formData, customer_complaint: e.target.value})} />
+                  <textarea rows={3} placeholder="Teknisyenin kendi ifadesiyle şikayeti..." className="w-full bg-slate-50 dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 resize-none" value={formData.customer_complaint} onChange={e => setFormData({...formData, customer_complaint: e.target.value})} />
                 </div>
                 <div className="mt-5">
                   <label className="block text-sm font-medium text-slate-400 mb-1.5">Ön Teşhis</label>
-                  <textarea rows={2} placeholder="Kabul sırasındaki ön teşhis..." className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 resize-none" value={formData.preliminary_diagnosis} onChange={e => setFormData({...formData, preliminary_diagnosis: e.target.value})} />
+                  <textarea rows={2} placeholder="Kabul sırasındaki ön teşhis..." className="w-full bg-slate-50 dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 resize-none" value={formData.preliminary_diagnosis} onChange={e => setFormData({...formData, preliminary_diagnosis: e.target.value})} />
                 </div>
               </div>
 
@@ -532,19 +532,19 @@ export default function ServiceRecords() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div>
                     <label className="block text-sm font-medium text-slate-400 mb-1.5">Durum</label>
-                    <select className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})}>
+                    <select className="w-full bg-slate-50 dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})}>
                       {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </div>
                 </div>
                 <div className="mt-5">
                   <label className="block text-sm font-medium text-slate-400 mb-1.5">Teknisyen Notu</label>
-                  <textarea rows={3} placeholder="Teknisyenin dahili notu..." className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 resize-none" value={formData.technician_note} onChange={e => setFormData({...formData, technician_note: e.target.value})} />
+                  <textarea rows={3} placeholder="Teknisyenin dahili notu..." className="w-full bg-slate-50 dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 resize-none" value={formData.technician_note} onChange={e => setFormData({...formData, technician_note: e.target.value})} />
                 </div>
               </div>
 
               <div className="flex justify-end gap-3 pt-6 border-t border-slate-200 dark:border-slate-700/50 mt-6">
-                <button type="button" onClick={() => setShowForm(false)} className="px-5 py-2.5 bg-slate-50 dark:bg-[#232F63] hover:bg-slate-100 dark:bg-[#2E3F78] text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors border border-slate-300 dark:border-slate-600">İptal</button>
+                <button type="button" onClick={() => setShowForm(false)} className="px-5 py-2.5 bg-slate-50 dark:bg-[#181a24] hover:bg-slate-100 dark:bg-[#1e222d] text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors border border-slate-300 dark:border-slate-600">İptal</button>
                 <button type="submit" className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors shadow-lg shadow-blue-900/20 flex items-center gap-2"><Save size={18}/> Kaydet</button>
               </div>
             </form>

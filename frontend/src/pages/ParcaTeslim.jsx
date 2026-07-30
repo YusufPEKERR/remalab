@@ -146,7 +146,7 @@ export default function ParcaTeslim() {
   return (
     <div className="space-y-6 pb-12 animate-in fade-in duration-300">
       {/* ── BARKOD SORGULA ÜST KART ── */}
-      <div className="app-card rounded-2xl p-8 border border-slate-200 dark:border-slate-800 shadow-xl bg-white dark:bg-[#16204A] transition-colors">
+      <div className="app-card rounded-2xl p-8 border border-slate-200 dark:border-slate-800 shadow-xl bg-white dark:bg-[#12141c] transition-colors">
         <form onSubmit={handleSearch} className="max-w-2xl mx-auto text-center space-y-4">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-blue-500/10 text-blue-500 dark:text-blue-400 border border-blue-500/20 mb-1">
             <Scan size={28} />
@@ -166,7 +166,7 @@ export default function ParcaTeslim() {
                 value={imeiInput}
                 onChange={(e) => setImeiInput(e.target.value)}
                 placeholder="IMEI veya Seri No giriniz..."
-                className="w-full bg-slate-50 dark:bg-[#0E1630] border border-slate-300 dark:border-slate-700/80 rounded-xl px-5 py-3 text-center font-mono text-base font-semibold text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                className="w-full bg-slate-50 dark:bg-[#090a0f] border border-slate-300 dark:border-slate-700/80 rounded-xl px-5 py-3 text-center font-mono text-base font-semibold text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
               />
             </div>
             <button
@@ -197,7 +197,7 @@ export default function ParcaTeslim() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in slide-in-from-bottom-4 duration-300">
 
           {/* KART 1: Genel Bilgiler */}
-          <div className="app-card rounded-2xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#16204A] shadow-lg flex flex-col justify-between space-y-4">
+          <div className="app-card rounded-2xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#12141c] shadow-lg flex flex-col justify-between space-y-4">
             <div className="flex items-center gap-2 text-blue-500 dark:text-blue-400 border-b border-slate-100 dark:border-slate-800 pb-3">
               <Info size={20} />
               <h2 className="font-bold text-slate-800 dark:text-slate-100">Genel Bilgiler</h2>
@@ -238,7 +238,7 @@ export default function ParcaTeslim() {
           </div>
 
           {/* KART 2: Depo / Teslim */}
-          <div className="app-card rounded-2xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#16204A] shadow-lg flex flex-col justify-between space-y-4">
+          <div className="app-card rounded-2xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#12141c] shadow-lg flex flex-col justify-between space-y-4">
             <div className="flex items-center gap-2 text-purple-500 dark:text-purple-400 border-b border-slate-100 dark:border-slate-800 pb-3">
               <Layers size={20} />
               <h2 className="font-bold text-slate-800 dark:text-slate-100">Depo / Teslim</h2>
@@ -283,7 +283,7 @@ export default function ParcaTeslim() {
           </div>
 
           {/* KART 3: Talep Edilen Parçalar */}
-          <div className="app-card rounded-2xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#16204A] shadow-lg flex flex-col justify-between space-y-4">
+          <div className="app-card rounded-2xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#12141c] shadow-lg flex flex-col justify-between space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-2 text-emerald-500 dark:text-emerald-400">
                 <Package size={20} />
@@ -307,7 +307,7 @@ export default function ParcaTeslim() {
                       className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
                         isSelected
                           ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-500/10 shadow-sm'
-                          : 'border-slate-100 dark:border-slate-800/80 hover:bg-slate-50 dark:hover:bg-[#1E2B5C]'
+                          : 'border-slate-100 dark:border-slate-800/80 hover:bg-slate-50 dark:hover:bg-[#12141c]'
                       }`}
                     >
                       <div className="min-w-0 flex-1">

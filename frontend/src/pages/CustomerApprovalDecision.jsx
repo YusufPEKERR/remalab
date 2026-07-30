@@ -95,11 +95,11 @@ const CustomerApprovalDecision = () => {
   };
 
   return (
-    <div className="flex flex-col space-y-6 pb-12 text-[#16204A] dark:text-[#F6F8FF] max-w-[1600px] mx-auto animate-in fade-in duration-300 relative">
+    <div className="flex flex-col space-y-6 pb-12 text-[#12141c] dark:text-[#F6F8FF] max-w-[1600px] mx-auto animate-in fade-in duration-300 relative">
       <NotificationToast notification={notification} onClose={() => setNotification(null)} />
 
       {/* ════════════════ HERO BANNER ════════════════ */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#EFF1FA] dark:from-[#101935] via-[#DDE2F2] dark:via-[#16204A] to-[#FFFFFF] dark:to-[#24326A] p-6 sm:p-8 text-[#1B2755] dark:text-white shadow-xl border border-[#DCE1F1] dark:border-[#24326A]">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#EFF1FA] dark:from-[#090a0f] via-[#DDE2F2] dark:via-[#12141c] to-[#FFFFFF] dark:to-[#1e222d] p-6 sm:p-8 text-[#181a24] dark:text-white shadow-xl border border-[#DCE1F1] dark:border-[#1e222d]">
         {/* Ambient Grid Overlay */}
         <div className="absolute inset-0 bg-[linear-gradient(rgba(122, 84, 192,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(122, 84, 192,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl pointer-events-none" />
@@ -109,7 +109,7 @@ const CustomerApprovalDecision = () => {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-100 dark:bg-purple-500/20 border border-purple-200 dark:border-purple-400/30 text-purple-700 dark:text-purple-300 text-xs font-semibold tracking-wide">
               <ScanLine size={13} className="text-purple-400" /> MÜŞTERİ ONAY KARARLARI
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1B2755] dark:text-white">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#181a24] dark:text-white">
               Müşteri Onayı Bekleyen Cihazlar
             </h1>
             <p className="text-sm text-[#4A5A9E] dark:text-slate-300 leading-relaxed">
@@ -120,7 +120,7 @@ const CustomerApprovalDecision = () => {
           <button
             onClick={loadItems}
             disabled={loading}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#FFFFFF] dark:bg-[#24326A] hover:bg-[#EFF1FA] dark:hover:bg-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] border border-[#DCE1F1] dark:border-[#3B4A85] text-xs font-semibold transition-all cursor-pointer disabled:opacity-40 shrink-0"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#FFFFFF] dark:bg-[#1e222d] hover:bg-[#EFF1FA] dark:hover:bg-[#2e3545] text-[#12141c] dark:text-[#F6F8FF] border border-[#DCE1F1] dark:border-[#2e3545] text-xs font-semibold transition-all cursor-pointer disabled:opacity-40 shrink-0"
           >
             <RefreshCw size={15} className={loading ? "animate-spin" : ""} /> Yenile
           </button>
@@ -134,7 +134,7 @@ const CustomerApprovalDecision = () => {
           ref={inputRef}
           type="text"
           placeholder="Okutunuz veya yazınız..."
-          className="w-full bg-[#FFFFFF] dark:bg-[#24326A] border border-[#DCE1F1] dark:border-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] placeholder-[#5A6685] rounded-xl px-4 py-3 text-xs sm:text-sm font-mono font-medium focus:outline-none focus:border-[#4457A5] transition-all shadow-xs"
+          className="w-full bg-[#FFFFFF] dark:bg-[#1e222d] border border-[#DCE1F1] dark:border-[#2e3545] text-[#12141c] dark:text-[#F6F8FF] placeholder-[#5A6685] rounded-xl px-4 py-3 text-xs sm:text-sm font-mono font-medium focus:outline-none focus:border-[#4457A5] transition-all shadow-xs"
           value={term}
           onChange={(e) => setTerm(e.target.value)}
         />
@@ -148,7 +148,7 @@ const CustomerApprovalDecision = () => {
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-3 py-16 text-[#5A6685]">
-            <Info size={32} className="text-[#3B4A85]" />
+            <Info size={32} className="text-[#2e3545]" />
             <p className="text-xs font-semibold">{items.length === 0 ? "Müşteri onayı bekleyen cihaz bulunmuyor." : "Aramanızla eşleşen cihaz bulunamadı."}</p>
           </div>
         ) : (
@@ -156,10 +156,10 @@ const CustomerApprovalDecision = () => {
             {filtered.map((entry) => (
               <div
                 key={entry.entry_id}
-                className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border border-[#DCE1F1] dark:border-[#24326A] bg-[#F5F7FC] dark:bg-[#1B2755] hover:bg-[#FFFFFF]/70 dark:hover:bg-[#24326A]/70 transition-all"
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border border-[#DCE1F1] dark:border-[#1e222d] bg-[#F5F7FC] dark:bg-[#181a24] hover:bg-[#FFFFFF]/70 dark:hover:bg-[#1e222d]/70 transition-all"
               >
                 <div className="min-w-0">
-                  <p className="text-sm font-bold text-[#16204A] dark:text-[#F6F8FF] font-mono tracking-wide">{entry.imei}</p>
+                  <p className="text-sm font-bold text-[#12141c] dark:text-[#F6F8FF] font-mono tracking-wide">{entry.imei}</p>
                   <p className="text-xs text-[#5A6685] dark:text-[#8892B5] mt-0.5">{entry.batch_no} · <span className="text-blue-400 font-semibold">{entry.flow}</span></p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">

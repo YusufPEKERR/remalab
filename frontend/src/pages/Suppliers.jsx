@@ -24,13 +24,13 @@ function Dropdown({ value, onChange, options, placeholder }) {
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
-        className="w-full flex flex-wrap items-center justify-between bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500"
+        className="w-full flex flex-wrap items-center justify-between bg-slate-50 dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500"
       >
         <span className={selected ? '' : 'text-slate-500'}>{selected ? selected.label : (placeholder || 'Seçiniz...')}</span>
         <ChevronDown size={16} className="text-slate-400 shrink-0" />
       </button>
       {open && (
-        <div className="absolute left-0 top-full mt-1 w-full bg-white dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg max-h-52 overflow-y-auto z-50">
+        <div className="absolute left-0 top-full mt-1 w-full bg-white dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg max-h-52 overflow-y-auto z-50">
           {options.map(o => (
             <div
               key={o.value}
@@ -356,10 +356,10 @@ export default function Suppliers() {
   };
 
   return (
-    <div className="flex flex-col space-y-6 pb-12 text-[#16204A] dark:text-[#F6F8FF] max-w-[1600px] mx-auto animate-in fade-in duration-300">
+    <div className="flex flex-col space-y-6 pb-12 text-[#12141c] dark:text-[#F6F8FF] max-w-[1600px] mx-auto animate-in fade-in duration-300">
 
       {/* ════════════════ HERO BANNER ════════════════ */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#EFF1FA] dark:from-[#101935] via-[#DDE2F2] dark:via-[#16204A] to-[#FFFFFF] dark:to-[#24326A] p-6 sm:p-8 text-[#1B2755] dark:text-white shadow-xl border border-[#DCE1F1] dark:border-[#24326A]">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#EFF1FA] dark:from-[#090a0f] via-[#DDE2F2] dark:via-[#12141c] to-[#FFFFFF] dark:to-[#1e222d] p-6 sm:p-8 text-[#181a24] dark:text-white shadow-xl border border-[#DCE1F1] dark:border-[#1e222d]">
         {/* Ambient Grid Overlay */}
         <div className="absolute inset-0 bg-[linear-gradient(rgba(91, 110, 196,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(91, 110, 196,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none" />
@@ -369,7 +369,7 @@ export default function Suppliers() {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-100 dark:bg-indigo-500/20 border border-indigo-200 dark:border-indigo-400/30 text-indigo-700 dark:text-indigo-300 text-xs font-semibold tracking-wide">
               <Users size={13} className="text-indigo-400" /> MÜŞTERİ VE FİRMA YÖNETİMİ
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1B2755] dark:text-white">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#181a24] dark:text-white">
               Müşteriler & Müşteri Kayıtları
             </h1>
             <p className="text-sm text-[#4A5A9E] dark:text-slate-300 leading-relaxed">
@@ -379,7 +379,7 @@ export default function Suppliers() {
 
           <div className="flex items-center gap-3 shrink-0 flex-wrap">
             <select
-              className="bg-[#FFFFFF] dark:bg-[#24326A] hover:bg-[#EFF1FA] dark:hover:bg-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] border border-[#DCE1F1] dark:border-[#3B4A85] px-4 py-2.5 rounded-xl text-xs font-bold transition-all focus:outline-none cursor-pointer"
+              className="bg-[#FFFFFF] dark:bg-[#1e222d] hover:bg-[#EFF1FA] dark:hover:bg-[#2e3545] text-[#12141c] dark:text-[#F6F8FF] border border-[#DCE1F1] dark:border-[#2e3545] px-4 py-2.5 rounded-xl text-xs font-bold transition-all focus:outline-none cursor-pointer"
               onChange={(e) => {
                 const val = e.target.value;
                 if (val === 'download_template') handleDownloadTemplate();
@@ -396,7 +396,7 @@ export default function Suppliers() {
 
             <button
               onClick={() => handleOpenModal()}
-              className="flex items-center gap-2 bg-[#4457A5] hover:bg-[#2E3F78] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+              className="flex items-center gap-2 bg-[#4457A5] hover:bg-[#1e222d] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
             >
               <Plus size={16} /> Yeni Müşteri Ekle
             </button>
@@ -422,7 +422,7 @@ export default function Suppliers() {
             placeholder="Müşteri Ara (Müşteri Adı, Kod, E-posta, Firma)..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-[#FFFFFF] dark:bg-[#24326A] border border-[#DCE1F1] dark:border-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] placeholder-[#5A6685] rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm font-medium focus:outline-none focus:border-[#4457A5] transition-all shadow-xs"
+            className="w-full bg-[#FFFFFF] dark:bg-[#1e222d] border border-[#DCE1F1] dark:border-[#2e3545] text-[#12141c] dark:text-[#F6F8FF] placeholder-[#5A6685] rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm font-medium focus:outline-none focus:border-[#4457A5] transition-all shadow-xs"
           />
         </div>
       </div>
@@ -431,7 +431,7 @@ export default function Suppliers() {
       <div className="glass-card rounded-2xl shadow-md overflow-hidden flex flex-col">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs whitespace-nowrap">
-            <thead className="bg-[#F5F7FC] dark:bg-[#1B2755] text-[#5A6685] dark:text-[#8892B5] font-semibold uppercase tracking-wider border-b border-[#DCE1F1] dark:border-[#24326A] sticky top-0 z-10 select-none">
+            <thead className="bg-[#F5F7FC] dark:bg-[#181a24] text-[#5A6685] dark:text-[#8892B5] font-semibold uppercase tracking-wider border-b border-[#DCE1F1] dark:border-[#1e222d] sticky top-0 z-10 select-none">
               <tr>
                 <th
                   className={`px-6 py-4 cursor-pointer transition-colors select-none ${sortField === 'customer_name' ? 'text-indigo-400 font-semibold' : 'hover:text-slate-200'}`}
@@ -504,7 +504,7 @@ export default function Suppliers() {
                 </tr>
               ) : (
                 filteredCustomers.map((customer) => (
-                  <tr key={customer.id} className="hover:bg-slate-100 dark:hover:bg-[#2E3F78] transition-colors group text-slate-700 dark:text-slate-300">
+                  <tr key={customer.id} className="hover:bg-slate-100 dark:hover:bg-[#1e222d] transition-colors group text-slate-700 dark:text-slate-300">
                     <td className="px-6 py-4">
                       <div className="font-medium text-slate-800 dark:text-slate-200">{customer.customer_name || '-'}</div>
                       <div className="text-xs text-slate-400">{customer.customer_phone}{(customer.company && customer.company !== customer.customer_name) ? ` · ${customer.company}` : ''}</div>
@@ -556,13 +556,13 @@ export default function Suppliers() {
       {/* Ekle/Düzenle Modalı */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-50 dark:bg-[#131B3A]/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in duration-200">
-            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 flex justify-between items-center bg-slate-50 dark:bg-[#232F63]">
+          <div className="bg-white dark:bg-[#12141c] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in duration-200">
+            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 flex justify-between items-center bg-slate-50 dark:bg-[#181a24]">
               <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <Users size={20} className="text-indigo-400"/>
                 {currentCustomer ? 'Müşteri Düzenle' : 'Yeni Müşteri Ekle'}
               </h2>
-              <button type="button" onClick={handleCloseModal} className="text-slate-400 hover:text-slate-900 dark:text-white transition-colors bg-white dark:bg-[#1E2B5C] p-1.5 rounded-lg border border-slate-200 dark:border-slate-700">
+              <button type="button" onClick={handleCloseModal} className="text-slate-400 hover:text-slate-900 dark:text-white transition-colors bg-white dark:bg-[#12141c] p-1.5 rounded-lg border border-slate-200 dark:border-slate-700">
                 <X size={18} />
               </button>
             </div>
@@ -575,7 +575,7 @@ export default function Suppliers() {
                   type="text"
                   required
                   placeholder="Örn. Jean Dupont"
-                  className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500 placeholder-slate-500"
+                  className="w-full bg-slate-50 dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500 placeholder-slate-500"
                   value={formData.customer_name}
                   onChange={e => setFormData({...formData, customer_name: e.target.value})}
                 />
@@ -584,17 +584,17 @@ export default function Suppliers() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-slate-400">Posta Kodu</label>
-                  <input type="text" className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500" value={formData.customer_phone} onChange={e => setFormData({...formData, customer_phone: e.target.value})} />
+                  <input type="text" className="w-full bg-slate-50 dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500" value={formData.customer_phone} onChange={e => setFormData({...formData, customer_phone: e.target.value})} />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-slate-400">E-posta</label>
-                  <input type="email" className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500" value={formData.customer_email} onChange={e => setFormData({...formData, customer_email: e.target.value})} />
+                  <input type="email" className="w-full bg-slate-50 dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500" value={formData.customer_email} onChange={e => setFormData({...formData, customer_email: e.target.value})} />
                 </div>
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-sm font-medium text-slate-400">Firma</label>
-                <input type="text" className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500" value={formData.company} onChange={e => setFormData({...formData, company: e.target.value})} />
+                <input type="text" className="w-full bg-slate-50 dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500" value={formData.company} onChange={e => setFormData({...formData, company: e.target.value})} />
               </div>
 
               <div className="border-t border-slate-200 dark:border-slate-700/50 pt-4">
@@ -602,11 +602,11 @@ export default function Suppliers() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium text-slate-400">Kod</label>
-                    <input type="text" className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500 font-mono" value={formData.code} onChange={e => setFormData({...formData, code: e.target.value})} />
+                    <input type="text" className="w-full bg-slate-50 dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500 font-mono" value={formData.code} onChange={e => setFormData({...formData, code: e.target.value})} />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium text-slate-400">Kısa Ad</label>
-                    <input type="text" className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500" value={formData.short_name} onChange={e => setFormData({...formData, short_name: e.target.value})} />
+                    <input type="text" className="w-full bg-slate-50 dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500" value={formData.short_name} onChange={e => setFormData({...formData, short_name: e.target.value})} />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium text-slate-400">Para Birimi</label>
@@ -632,7 +632,7 @@ export default function Suppliers() {
               </div>
 
               <div className="pt-4 flex justify-end gap-3 border-t border-slate-200 dark:border-slate-700/50 mt-6">
-                <button type="button" onClick={handleCloseModal} className="px-5 py-2.5 bg-slate-50 dark:bg-[#232F63] hover:bg-slate-100 dark:hover:bg-[#2E3F78] text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors border border-slate-300 dark:border-slate-600">İptal</button>
+                <button type="button" onClick={handleCloseModal} className="px-5 py-2.5 bg-slate-50 dark:bg-[#181a24] hover:bg-slate-100 dark:hover:bg-[#1e222d] text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors border border-slate-300 dark:border-slate-600">İptal</button>
                 <button type="submit" className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors shadow-lg shadow-indigo-900/20">Kaydet</button>
               </div>
             </form>
@@ -644,10 +644,10 @@ export default function Suppliers() {
       {showBulkModal && (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => !bulkSaving && setShowBulkModal(false)}>
           <div
-            className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in duration-200"
+            className="bg-white dark:bg-[#12141c] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in duration-200"
             onClick={e => e.stopPropagation()}
           >
-            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 flex justify-between items-center bg-slate-50 dark:bg-[#232F63]">
+            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 flex justify-between items-center bg-slate-50 dark:bg-[#181a24]">
               <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                 <FileSpreadsheet size={20} className="text-teal-500" /> Toplu Müşteri / Cihaz Girişi
               </h2>
@@ -671,7 +671,7 @@ export default function Suppliers() {
                     Önce <strong>Şablon İndir</strong> ile örnek dosyayı indirin, doldurun ve buradan yükleyin. IMEI/Seri Numarası/Internal ID/Cihaz Modeli/Flow/Müşteri Şikayeti/Giriş Tarihi alanları zorunludur; herhangi biri boş veya geçersizse dosyanın tamamı reddedilir.
                   </p>
 
-                  <label className="flex flex-col items-center justify-center py-10 px-4 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-[#232F63]/50 cursor-pointer hover:border-teal-500 transition-colors">
+                  <label className="flex flex-col items-center justify-center py-10 px-4 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-[#181a24]/50 cursor-pointer hover:border-teal-500 transition-colors">
                     <Upload size={28} className="text-slate-400 mb-3" />
                     <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
                       {bulkFileName || 'Doldurulmuş şablon dosyasını seçin (.xlsx)'}
@@ -720,7 +720,7 @@ export default function Suppliers() {
                     type="button"
                     onClick={() => setShowBulkModal(false)}
                     disabled={bulkSaving}
-                    className="px-5 py-2.5 bg-slate-50 dark:bg-[#232F63] hover:bg-slate-100 dark:hover:bg-[#2E3F78] text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors border border-slate-300 dark:border-slate-600 disabled:opacity-50"
+                    className="px-5 py-2.5 bg-slate-50 dark:bg-[#181a24] hover:bg-slate-100 dark:hover:bg-[#1e222d] text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors border border-slate-300 dark:border-slate-600 disabled:opacity-50"
                   >
                     İptal
                   </button>

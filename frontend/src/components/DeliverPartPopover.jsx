@@ -27,7 +27,7 @@ export default function DeliverPartPopover({ isOpen, position, partName, quantit
     <div
       ref={ref}
       style={{ position: 'fixed', top: Math.max(top, 8), left: Math.max(left, 8) }}
-      className="z-[100] w-72 bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-xl p-4 space-y-3 animate-in fade-in zoom-in-95"
+      className="z-[100] w-72 bg-white dark:bg-[#12141c] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-xl p-4 space-y-3 animate-in fade-in zoom-in-95"
     >
       <div className="flex flex-wrap items-center justify-between">
         <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
@@ -44,7 +44,7 @@ export default function DeliverPartPopover({ isOpen, position, partName, quantit
         <p className="text-xs text-red-500 font-medium">Bu parça için hiçbir lokasyonda stok bulunmuyor.</p>
       ) : (
         <select
-          className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+          className="w-full bg-slate-50 dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
           value={locationId}
           onChange={e => setLocationId(e.target.value)}
         >
@@ -55,7 +55,7 @@ export default function DeliverPartPopover({ isOpen, position, partName, quantit
       )}
 
       <div className="flex justify-end gap-2 pt-1">
-        <button type="button" onClick={onClose} className="px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-[#232F63] rounded-lg hover:bg-slate-200 dark:hover:bg-[#2E3F78] transition-colors">
+        <button type="button" onClick={onClose} className="px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-[#181a24] rounded-lg hover:bg-slate-200 dark:hover:bg-[#1e222d] transition-colors">
           İptal
         </button>
         <button

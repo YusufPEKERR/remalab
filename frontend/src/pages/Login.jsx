@@ -13,9 +13,9 @@ import amblemPr from '../assets/Uygulama-Amblemi-Pr.png';
 
 /* ════════════ TEMA-2 PALETİ (kurumsal banner görselinden) ════════════ */
 const T = {
-  ink: '#16204A',   // en koyu lacivert
-  deep: '#1E2B5C',
-  navy: '#2E3F78',
+  ink: '#12141c',   // en koyu lacivert
+  deep: '#12141c',
+  navy: '#1e222d',
   indigo: '#4457A5',  // birincil aksiyon rengi
   royal: '#5B6EC4',
   peri: '#8894D8',  // periwinkle
@@ -29,7 +29,7 @@ const T = {
 
 /* Sayfa fonu: koyu indigodan açık lilaya diyagonal geçiş */
 const THEME_BG =
-  'linear-gradient(100deg,#16204A 0%,#24326A 17%,#3C4C90 36%,#6C7ABF 54%,#A9B2E3 70%,#DDE2F2 85%,#F5F7FC 100%)';
+  'linear-gradient(100deg,#12141c 0%,#1e222d 17%,#3C4C90 36%,#6C7ABF 54%,#A9B2E3 70%,#DDE2F2 85%,#F5F7FC 100%)';
 
 const DIAMOND_COLORS = [T.royal, T.peri, T.indigo, T.lilac, T.teal, T.tealSoft, '#FFFFFF', T.navy];
 
