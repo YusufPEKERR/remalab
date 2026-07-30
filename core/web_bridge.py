@@ -956,6 +956,12 @@ class WebBridge(QObject):
             db.execute(text("CREATE INDEX IF NOT EXISTS idx_batch_entries_internal_lower ON warehouse.batch_entries (LOWER(TRIM(internal_id)));"))
             db.execute(text("CREATE INDEX IF NOT EXISTS idx_batch_entries_batch_no_lower ON warehouse.batch_entries (LOWER(TRIM(batch_no)));"))
             db.execute(text("CREATE INDEX IF NOT EXISTS idx_batch_entries_customer_no_lower ON warehouse.batch_entries (LOWER(TRIM(customer_no)));"))
+            # repair_records şu an küçük (bu oturumda ~16 satır) ama batch_entries'in
+            # aynı oturum içinde 82'den 7600+'e çıktığı gözlemlendiğinden, esas arama
+            # sütununa (service_record_id - get_repair_operations_by_imei,
+            # submit_dismantle_decision, get_repair_records vb. hemen her yerde
+            # kullanılıyor) tablo büyümeden önce indeks eklenir.
+            db.execute(text("CREATE INDEX IF NOT EXISTS idx_repair_records_service_record_id ON warehouse.repair_records (service_record_id);"))
             db.commit()
         except Exception as e:
             db.rollback()
@@ -6458,68 +6464,87 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    @Slot(str, result=str)
-    def get_stock_movements(self, mov_type):
-        # mov_type can be 'in' or 'out' or 'all'
+    def _query_stock_movements(self, db, mov_type, limit):
         from models.stock_movement import StockMovement
         from models.part import Part
         from models.location import Location
         from sqlalchemy.orm import aliased
+        SourceLoc = aliased(Location)
+        TargetLoc = aliased(Location)
+        query = db.query(StockMovement, Part, SourceLoc, TargetLoc) \
+            .outerjoin(Part, StockMovement.part_id == Part.id) \
+            .outerjoin(SourceLoc, StockMovement.source_location_id == SourceLoc.id) \
+            .outerjoin(TargetLoc, StockMovement.target_location_id == TargetLoc.id)
+
+        if mov_type == 'in':
+            query = query.filter(StockMovement.type.in_(["Giriş", "İç Transfer", "Yeni Alım", "Inbound", "Transfer"]))
+        elif mov_type == 'out':
+            query = query.filter(StockMovement.type.in_(["Çıkış", "İç Transfer", "Müşteri Satışı", "Tedarikçiye İade", "Outbound", "Transfer"]))
+
+        results = query.order_by(StockMovement.created_at.desc()).limit(limit).all()
+
+        res = []
+        for mov, p, sloc, tloc in results:
+            source_name = sloc.name if sloc else None
+            target_name = tloc.name if tloc else None
+
+            if not source_name:
+                if "İade" in mov.type and "İptal" not in mov.type:
+                    source_name = "Good Stock"
+                elif "İptali" in mov.type:
+                    source_name = "Good Stock"
+                elif mov.type == "Giriş":
+                    source_name = "Dış Kaynak"
+                else:
+                    source_name = "Bilinmiyor"
+
+            if not target_name:
+                if "Çıkış" in mov.type or "Tüketimi" in mov.type or ("İptal" in mov.type and "İptali" not in mov.type):
+                    target_name = "Kullanım/Tüketim"
+                elif mov.type == "Çıkış":
+                    target_name = "Dış Kaynak"
+                else:
+                    target_name = "Bilinmiyor"
+            res.append({
+                "id": mov.id,
+                "type": mov.type,
+                "quantity": mov.quantity,
+                "part_id": mov.part_id,
+                "part_name": p.name if p else (f"{mov.part_name_snapshot} (silindi)" if mov.part_name_snapshot else "Silinmiş Parça"),
+                "source_location_id": mov.source_location_id,
+                "source_location": source_name,
+                "target_location_id": mov.target_location_id,
+                "target_location": target_name,
+                "created_by": mov.created_by,
+                "technician": mov.technician or "-",
+                "description": mov.description or "-",
+                "unit_price": float(mov.unit_price) if mov.unit_price else None,
+                "created_at": mov.created_at.strftime("%Y-%m-%d %H:%M") if mov.created_at else ""
+            })
+        return res
+
+    @Slot(str, result=str)
+    def get_stock_movements(self, mov_type):
+        # mov_type can be 'in' or 'out' or 'all'
         db = SessionLocal()
         try:
-            SourceLoc = aliased(Location)
-            TargetLoc = aliased(Location)
-            query = db.query(StockMovement, Part, SourceLoc, TargetLoc) \
-                .outerjoin(Part, StockMovement.part_id == Part.id) \
-                .outerjoin(SourceLoc, StockMovement.source_location_id == SourceLoc.id) \
-                .outerjoin(TargetLoc, StockMovement.target_location_id == TargetLoc.id)
-                
-            if mov_type == 'in':
-                query = query.filter(StockMovement.type.in_(["Giriş", "İç Transfer", "Yeni Alım", "Inbound", "Transfer"]))
-            elif mov_type == 'out':
-                query = query.filter(StockMovement.type.in_(["Çıkış", "İç Transfer", "Müşteri Satışı", "Tedarikçiye İade", "Outbound", "Transfer"]))
-                
-            query = query.order_by(StockMovement.created_at.desc()).limit(200)
-            results = query.all()
-            
-            res = []
-            for mov, p, sloc, tloc in results:
-                source_name = sloc.name if sloc else None
-                target_name = tloc.name if tloc else None
-                
-                if not source_name:
-                    if "İade" in mov.type and "İptal" not in mov.type:
-                        source_name = "Good Stock"
-                    elif "İptali" in mov.type:
-                        source_name = "Good Stock"
-                    elif mov.type == "Giriş":
-                        source_name = "Dış Kaynak"
-                    else:
-                        source_name = "Bilinmiyor"
-                        
-                if not target_name:
-                    if "Çıkış" in mov.type or "Tüketimi" in mov.type or ("İptal" in mov.type and "İptali" not in mov.type):
-                        target_name = "Kullanım/Tüketim"
-                    elif mov.type == "Çıkış":
-                        target_name = "Dış Kaynak"
-                    else:
-                        target_name = "Bilinmiyor"
-                res.append({
-                    "id": mov.id,
-                    "type": mov.type,
-                    "quantity": mov.quantity,
-                    "part_id": mov.part_id,
-                    "part_name": p.name if p else (f"{mov.part_name_snapshot} (silindi)" if mov.part_name_snapshot else "Silinmiş Parça"),
-                    "source_location_id": mov.source_location_id,
-                    "source_location": source_name,
-                    "target_location_id": mov.target_location_id,
-                    "target_location": target_name,
-                    "created_by": mov.created_by,
-                    "technician": mov.technician or "-",
-                    "description": mov.description or "-",
-                    "unit_price": float(mov.unit_price) if mov.unit_price else None,
-                    "created_at": mov.created_at.strftime("%Y-%m-%d %H:%M") if mov.created_at else ""
-                })
+            res = self._query_stock_movements(db, mov_type, 200)
+            return json.dumps({"success": True, "movements": res})
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(int, result=str)
+    def get_recent_stock_movements(self, limit):
+        """Dashboard'daki 'Son Hareketler' widget'ı için - Dashboard eskiden sadece
+        ilk 5'ini göstermek üzere get_stock_movements('all') ile 200 satırlık tam
+        JOIN'i çekip 200 satırın source/target ismini çözüyordu, sonra JS'te 5'e
+        kırpıyordu. Bu, ihtiyaç duyulan satır sayısıyla sınırlı ayrı bir Slot."""
+        db = SessionLocal()
+        try:
+            limit = max(1, min(50, int(limit or 5)))
+            res = self._query_stock_movements(db, 'all', limit)
             return json.dumps({"success": True, "movements": res})
         except Exception as e:
             return json.dumps({"success": False, "message": str(e)})
@@ -6772,60 +6797,45 @@ class WebBridge(QObject):
 
     @Slot(result=str)
     def get_dashboard_stats(self):
-        from models.part import Part
-        from models.stock import Stock
-        from models.stock_movement import StockMovement
-        from models.location import Location
-        from sqlalchemy import func
-        from datetime import date
+        """Dashboard, giriş sonrası ilk görülen sayfa olduğundan burası özellikle
+        önemli - eskiden 5 ayrı round trip (parça sayısı, kritik stok, bugünkü giriş,
+        bugünkü çıkış, lokasyon sayısı) yapıyordu, tek bir sorguda birleştirildi."""
+        from sqlalchemy import text
+        from datetime import date, datetime, time
         db = SessionLocal()
         try:
-            total_parts = db.query(func.count(Part.id)).scalar() or 0
-            
-            good_stock_id = _get_system_location_id(db, "good_stock")
-            if good_stock_id:
-                critical_count = db.query(func.count(Stock.id)).join(Part, Stock.part_id == Part.id).filter(
-                    Stock.location_id == good_stock_id,
-                    Stock.quantity < func.coalesce(Part.critical_limit, 50)
-                ).scalar() or 0
-            else:
-                critical_count = 0
-            
-            from datetime import datetime, time
-            from sqlalchemy import or_
-            today = date.today()
-            today_start = datetime.combine(today, time.min)
-            
+            today_start = datetime.combine(date.today(), time.min)
             inbound_types = ["Giriş", "İç Transfer", "Yeni Alım", "Inbound", "Transfer", "Yeni Alım (Tedarikçiden)", "İade Girişi", "Diğer"]
             outbound_types = ["Çıkış", "İç Transfer", "Müşteri Satışı", "Tedarikçiye İade", "Outbound", "Transfer", "Teknik Servis", "Fire", "Fire / Bozuk", "Servis Kullanımı"]
 
-            todays_inbound = db.query(func.sum(StockMovement.quantity)).filter(
-                or_(
-                    StockMovement.movement_kind == "Inbound",
-                    StockMovement.type.in_(inbound_types)
-                ),
-                StockMovement.created_at >= today_start
-            ).scalar() or 0
-            
-            todays_outbound = db.query(func.sum(StockMovement.quantity)).filter(
-                or_(
-                    StockMovement.movement_kind.in_(["Outbound", "Scrap"]),
-                    StockMovement.type.in_(outbound_types)
-                ),
-                StockMovement.created_at >= today_start
-            ).scalar() or 0
-            
-            active_locations = db.query(func.count(Location.id)).scalar() or 0
-            
+            row = db.execute(text("""
+                SELECT
+                    (SELECT COUNT(*) FROM warehouse.parts) AS total_parts,
+                    (SELECT COUNT(*) FROM warehouse.stock s
+                     JOIN warehouse.parts p ON s.part_id = p.id
+                     WHERE s.location_id = (SELECT id FROM warehouse.locations WHERE kind = 'good_stock' LIMIT 1)
+                       AND s.quantity < COALESCE(p.critical_limit, 50)) AS critical_count,
+                    (SELECT COALESCE(SUM(quantity), 0) FROM warehouse.stock_movements
+                     WHERE (movement_kind = 'Inbound' OR type = ANY(:inbound_types)) AND created_at >= :today_start) AS todays_inbound,
+                    (SELECT COALESCE(SUM(quantity), 0) FROM warehouse.stock_movements
+                     WHERE (movement_kind = ANY(:outbound_kinds) OR type = ANY(:outbound_types)) AND created_at >= :today_start) AS todays_outbound,
+                    (SELECT COUNT(*) FROM warehouse.locations) AS active_locations
+            """), {
+                "inbound_types": inbound_types,
+                "outbound_types": outbound_types,
+                "outbound_kinds": ["Outbound", "Scrap"],
+                "today_start": today_start,
+            }).mappings().first()
+
             import json
             return json.dumps({
                 "success": True,
                 "stats": {
-                    "totalParts": str(total_parts),
-                    "criticalStock": str(critical_count),
-                    "todaysInbound": str(int(todays_inbound)),
-                    "todaysOutbound": str(int(todays_outbound)),
-                    "activeLocations": str(active_locations)
+                    "totalParts": str(row["total_parts"] or 0),
+                    "criticalStock": str(row["critical_count"] or 0),
+                    "todaysInbound": str(int(row["todays_inbound"] or 0)),
+                    "todaysOutbound": str(int(row["todays_outbound"] or 0)),
+                    "activeLocations": str(row["active_locations"] or 0)
                 }
             })
         except Exception as e:
@@ -7690,7 +7700,12 @@ class WebBridge(QObject):
                     COALESCE(MAX(NULLIF(b.created_by, '')), 'io') AS create_by,
                     MAX(b.created_at) AS last_created
                 FROM warehouse.batch_entries b
-                LEFT JOIN warehouse.customers c ON (LOWER(b.customer_name) = LOWER(c.customer_name) OR b.customer_no = c.code)
+                LEFT JOIN LATERAL (
+                    SELECT customer_name, code, currency
+                    FROM warehouse.customers c
+                    WHERE LOWER(b.customer_name) = LOWER(c.customer_name) OR b.customer_no = c.code
+                    LIMIT 1
+                ) c ON true
                 GROUP BY
                     b.batch_no,
                     COALESCE(NULLIF(b.customer_no, ''), LOWER(NULLIF(b.customer_name, '')), 'tanimsiz')

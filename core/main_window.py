@@ -40,6 +40,11 @@ class WebSocketTransport(QWebChannelAbstractTransport):
 
 
 class CustomRequestHandler(http.server.SimpleHTTPRequestHandler):
+    # Varsayılan HTTP/1.0 (keep-alive yok) her varlık (JS/CSS/görsel) için ayrı bir
+    # TCP bağlantısı açtırıyordu - sayfa başına onlarca kısa ömürlü bağlantı anlamına
+    # geliyordu. HTTP/1.1 ile tarayıcı aynı bağlantıyı varlıklar arasında yeniden kullanır.
+    protocol_version = "HTTP/1.1"
+
     def translate_path(self, path):
         if path.startswith('/api_cache/'):
             # Serve from the top-level api_cache directory
@@ -56,15 +61,46 @@ class CustomRequestHandler(http.server.SimpleHTTPRequestHandler):
             path = '/favicon.svg'
         return super().translate_path(path)
 
+    def do_GET(self):
+        # SPA (React Router) Fallback: İstenen rota fiziksel bir dosya değilse index.html sun
+        target_file = self.translate_path(self.path)
+        if not os.path.exists(target_file) and not self.path.startswith(('/assets/', '/api_cache/')) and '.' not in os.path.basename(self.path):
+            self.path = '/index.html'
+        super().do_GET()
+
     def end_headers(self):
         if self.path.startswith('/api_cache/'):
             self.send_header('Cache-Control', 'no-store')
+        elif self.path.startswith('/assets/'):
+            # Vite build çıktısındaki /assets/*.js|css dosya adları içerik hash'i
+            # taşır (ör. index-B8be4loj.js) - içerik değişirse dosya adı da değişir,
+            # bu yüzden sonsuza kadar önbelleklenmeleri güvenlidir.
+            self.send_header('Cache-Control', 'public, max-age=31536000, immutable')
         super().end_headers()
 
-def _start_static_server(directory):
-    """dist/ klasörünü 127.0.0.1'de servis eder."""
+
+class _ThreadingHTTPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
+    daemon_threads = True
+    # HTTP/1.1 keep-alive ile bağlantılar istekler arasında açık kalabildiğinden,
+    # tek thread'li TCPServer aynı anda gelen ikinci bir varlık isteğini önceki
+    # bağlantı kapanana kadar bekletirdi - ThreadingMixIn, tarayıcının paralel
+    # açtığı bağlantıların hepsine eşzamanlı cevap verilmesini sağlar.
+    allow_reuse_address = True
+
+
+def _start_static_server(directory, preferred_port=5175):
+    """dist/ klasörünü 127.0.0.1'de sabit bir portta servis eder (localStorage origin tutarlılığı için)."""
     handler = functools.partial(CustomRequestHandler, directory=directory)
-    httpd = socketserver.TCPServer(("127.0.0.1", 0), handler)
+    for port in range(preferred_port, preferred_port + 20):
+        try:
+            httpd = _ThreadingHTTPServer(("127.0.0.1", port), handler)
+            thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+            thread.start()
+            print(f"[INFO] Statik sunucu {port} portunda başlatıldı.")
+            return httpd
+        except OSError:
+            continue
+    httpd = _ThreadingHTTPServer(("127.0.0.1", 0), handler)
     thread = threading.Thread(target=httpd.serve_forever, daemon=True)
     thread.start()
     return httpd
@@ -121,13 +157,18 @@ class MainWindow(QMainWindow):
         # WebEngineView oluştur
         self.web_view = QWebEngineView()
         # QWebEngineProfile Kurulumu (Kalıcı Profil)
-        from PySide6.QtWebEngineCore import QWebEngineProfile
+        from PySide6.QtWebEngineCore import QWebEngineProfile, QWebEngineSettings
         self.profile = QWebEngineProfile("remalab_persistent_profile", self)
         
         # Windows/Linux/Mac için standart veri yoluna kaydet
         storage_path = os.path.join(os.path.expanduser("~"), ".remalab", "webengine_data")
+        os.makedirs(storage_path, exist_ok=True)
         self.profile.setPersistentStoragePath(storage_path)
         self.profile.setCachePath(storage_path)
+        self.profile.setPersistentCookiesPolicy(QWebEngineProfile.PersistentCookiesPolicy.AllowPersistentCookies)
+        self.profile.settings().setAttribute(QWebEngineSettings.WebAttribute.LocalStorageEnabled, True)
+        self.profile.settings().setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessRemoteUrls, True)
+        self.profile.settings().setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessFileUrls, True)
         # Disk hatası almamak ama performansı artırmak için RAM'e önbellekle
         self.profile.setHttpCacheType(QWebEngineProfile.HttpCacheType.MemoryHttpCache)
 
