@@ -171,14 +171,14 @@ const ServiceTransition = () => {
               <input
                 type="text"
                 placeholder="Barkod veya IMEI okutunuz..."
-                className="flex-1 bg-[#FFFFFF] dark:bg-[#1e222d] border border-[#DCE1F1] dark:border-[#2e3545] text-[#12141c] dark:text-[#F6F8FF] placeholder-[#5A6685] rounded-xl px-4 py-3 text-xs sm:text-sm font-mono font-medium focus:outline-none focus:border-[#4457A5] transition-all shadow-xs"
+                className="flex-1 bg-[#FFFFFF] dark:bg-[#1e222d] border border-[#DCE1F1] dark:border-[#2e3545] text-[#12141c] dark:text-[#F6F8FF] placeholder-[#5A6685] rounded-xl px-4 py-3 text-xs sm:text-sm font-mono font-medium focus:outline-none focus:border-[#00B2FF] transition-all shadow-xs"
                 value={barcode}
                 onChange={(e) => setBarcode(e.target.value)}
               />
               <button
                 type="submit"
                 disabled={loading}
-                className="bg-[#4457A5] hover:bg-[#1e222d] disabled:opacity-40 text-white px-8 py-3 rounded-xl transition-all shadow-md font-semibold text-xs cursor-pointer whitespace-nowrap flex items-center justify-center gap-2"
+                className="bg-[#00B2FF] hover:bg-[#1e222d] disabled:opacity-40 text-white px-8 py-3 rounded-xl transition-all shadow-md font-semibold text-xs cursor-pointer whitespace-nowrap flex items-center justify-center gap-2"
               >
                 <ScanLine size={16} /> {loading ? "Sorgulanıyor..." : "Sorgula"}
               </button>

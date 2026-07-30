@@ -780,10 +780,10 @@ const TechnicianRepairOperations = () => {
               onChange={e => setSearchTerm(e.target.value)}
               disabled={isSearching}
               placeholder="IMEI / Internal ID / Seri No okutunuz..."
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[#DCE1F1] dark:border-[#2e3545] bg-[#FFFFFF] dark:bg-[#1e222d] text-xs sm:text-sm text-[#12141c] dark:text-[#F6F8FF] placeholder-[#5A6685] focus:outline-none focus:border-[#4457A5] transition-all disabled:opacity-50 font-mono"
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[#DCE1F1] dark:border-[#2e3545] bg-[#FFFFFF] dark:bg-[#1e222d] text-xs sm:text-sm text-[#12141c] dark:text-[#F6F8FF] placeholder-[#5A6685] focus:outline-none focus:border-[#00B2FF] transition-all disabled:opacity-50 font-mono"
             />
           </div>
-          <button type="submit" disabled={isSearching} className="w-full md:w-auto px-6 py-2.5 rounded-xl bg-[#4457A5] hover:bg-[#1e222d] disabled:opacity-40 text-white text-xs font-semibold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer">
+          <button type="submit" disabled={isSearching} className="w-full md:w-auto px-6 py-2.5 rounded-xl bg-[#00B2FF] hover:bg-[#1e222d] disabled:opacity-40 text-white text-xs font-semibold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer">
             <Search size={15} /> {isSearching ? "Sorgulanıyor..." : "Sorgula"}
           </button>
           {statusBadge && (

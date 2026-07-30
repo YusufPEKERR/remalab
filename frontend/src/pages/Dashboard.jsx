@@ -83,9 +83,9 @@ export default function Dashboard() {
       value: stats.totalParts || '0', 
       change: '+12%', 
       isPositive: true, 
-      color: '#4457A5', 
+      color: '#00B2FF', 
       bgColor: 'rgba(68, 87, 165,0.08)',
-      icon: <Package size={22} color="#4457A5" /> 
+      icon: <Package size={22} color="#00B2FF" /> 
     },
     { 
       id: 'low_stock', 
@@ -113,9 +113,9 @@ export default function Dashboard() {
       value: stats.todaysOutbound || '0', 
       change: 'Adet', 
       isPositive: false, 
-      color: '#4457A5', 
+      color: '#00B2FF', 
       bgColor: 'rgba(68, 87, 165,0.08)',
-      icon: <ArrowUpFromLine size={22} color="#4457A5" /> 
+      icon: <ArrowUpFromLine size={22} color="#00B2FF" /> 
     },
     { 
       id: 'locations', 
@@ -155,7 +155,7 @@ export default function Dashboard() {
           <div className="flex items-center gap-3 shrink-0">
             <button
               onClick={() => navigate('/depo')}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#4457A5] hover:bg-[#1e222d] text-white text-xs font-bold shadow-lg shadow-blue-600/30 transition-all transform hover:-translate-y-0.5 cursor-pointer"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#00B2FF] hover:bg-[#1e222d] text-white text-xs font-bold shadow-lg shadow-blue-600/30 transition-all transform hover:-translate-y-0.5 cursor-pointer"
             >
               <Package size={15} /> Depo Yönetimi
             </button>
@@ -195,7 +195,7 @@ export default function Dashboard() {
                 <span className="text-xs font-medium text-[#5A6685] dark:text-slate-400 block mb-1">{card.title}</span>
                 <div className="flex items-baseline justify-between">
                   <h3 className="text-2xl font-semibold text-[#12141c] dark:text-white tracking-tight">{card.value}</h3>
-                  <span className="text-[11px] text-[#4457A5] dark:text-blue-400 font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
+                  <span className="text-[11px] text-[#00B2FF] dark:text-blue-400 font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
                     Detay &rsaquo;
                   </span>
                 </div>
@@ -255,7 +255,7 @@ export default function Dashboard() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <button onClick={() => navigate('/depo')} className="text-[#4457A5] dark:text-blue-400 hover:text-[#1e222d] font-bold inline-flex items-center gap-1">
+                        <button onClick={() => navigate('/depo')} className="text-[#00B2FF] dark:text-blue-400 hover:text-[#1e222d] font-bold inline-flex items-center gap-1">
                           İncele <ChevronRight size={14} />
                         </button>
                       </td>

@@ -395,7 +395,7 @@ export default function Parts() {
             <div className="relative">
               <select
                 onChange={handleExcelAction}
-                className="appearance-none bg-[#FFFFFF] dark:bg-[#1e222d] hover:bg-[#EFF1FA] dark:hover:bg-[#2e3545] text-[#12141c] dark:text-[#F6F8FF] border border-[#DCE1F1] dark:border-[#2e3545] rounded-xl px-4 py-2.5 pr-9 text-xs font-bold transition-all cursor-pointer focus:outline-none focus:border-[#4457A5]"
+                className="appearance-none bg-[#FFFFFF] dark:bg-[#1e222d] hover:bg-[#EFF1FA] dark:hover:bg-[#2e3545] text-[#12141c] dark:text-[#F6F8FF] border border-[#DCE1F1] dark:border-[#2e3545] rounded-xl px-4 py-2.5 pr-9 text-xs font-bold transition-all cursor-pointer focus:outline-none focus:border-[#00B2FF]"
               >
                 <option value="">Excel İşlemleri...</option>
                 <option value="download_template">Boş Şablon İndir</option>
@@ -418,7 +418,7 @@ export default function Parts() {
 
             <button
               onClick={() => handleOpenModal()}
-              className="flex items-center gap-2 bg-[#4457A5] hover:bg-[#1e222d] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+              className="flex items-center gap-2 bg-[#00B2FF] hover:bg-[#1e222d] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
             >
               <Plus size={16} /> Yeni Parça Ekle
             </button>
@@ -434,7 +434,7 @@ export default function Parts() {
           </div>
           <input
             type="text"
-            className="w-full bg-[#FFFFFF] dark:bg-[#1e222d] border border-[#DCE1F1] dark:border-[#2e3545] text-[#12141c] dark:text-[#F6F8FF] placeholder-[#5A6685] rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm font-medium focus:outline-none focus:border-[#4457A5] transition-all shadow-xs"
+            className="w-full bg-[#FFFFFF] dark:bg-[#1e222d] border border-[#DCE1F1] dark:border-[#2e3545] text-[#12141c] dark:text-[#F6F8FF] placeholder-[#5A6685] rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm font-medium focus:outline-none focus:border-[#00B2FF] transition-all shadow-xs"
             placeholder="Parça Ara (Kod, Barkod, Ad, Kategori)..."
             value={searchTerm}
             onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
@@ -451,7 +451,7 @@ export default function Parts() {
                 <th className="px-6 py-4 w-12 text-center">
                   <input
                     type="checkbox"
-                    className="w-4 h-4 rounded border-[#DCE1F1] dark:border-[#2e3545] text-[#4457A5] focus:ring-[#4457A5] bg-[#FFFFFF] dark:bg-[#1e222d]"
+                    className="w-4 h-4 rounded border-[#DCE1F1] dark:border-[#2e3545] text-[#00B2FF] focus:ring-[#00B2FF] bg-[#FFFFFF] dark:bg-[#1e222d]"
                     checked={selectedRows.length === (parts?.length || 0) && (parts?.length || 0) > 0}
                     onChange={toggleSelectAll}
                   />
@@ -519,11 +519,11 @@ export default function Parts() {
                 (parts || []).map((part) => {
                   const isChecked = selectedRows.includes(part.id);
                   return (
-                  <tr key={part.id} className={`hover:bg-[#FFFFFF]/70 dark:hover:bg-[#1e222d]/70 transition-colors text-[#12141c] dark:text-[#F6F8FF] ${isChecked ? 'bg-blue-900/30 border-l-4 border-[#4457A5]' : ''}`}>
+                  <tr key={part.id} className={`hover:bg-[#FFFFFF]/70 dark:hover:bg-[#1e222d]/70 transition-colors text-[#12141c] dark:text-[#F6F8FF] ${isChecked ? 'bg-blue-900/30 border-l-4 border-[#00B2FF]' : ''}`}>
                     <td className="px-6 py-3.5 text-center" onClick={(e) => e.stopPropagation()}>
                       <input
                         type="checkbox"
-                        className="w-4 h-4 rounded border-[#DCE1F1] dark:border-[#2e3545] text-[#4457A5] focus:ring-[#4457A5] bg-[#FFFFFF] dark:bg-[#1e222d]"
+                        className="w-4 h-4 rounded border-[#DCE1F1] dark:border-[#2e3545] text-[#00B2FF] focus:ring-[#00B2FF] bg-[#FFFFFF] dark:bg-[#1e222d]"
                         checked={isChecked}
                         onChange={(e) => toggleRowSelect(part.id, e)}
                       />

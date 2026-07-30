@@ -1517,7 +1517,7 @@ export default function WorkOrders() {
             onClick={() => setActiveTab(tab.key)}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === tab.key 
-                ? 'bg-[#4457A5] text-white shadow-md' 
+                ? 'bg-[#00B2FF] text-white shadow-md' 
                 : 'text-[#5A6685] dark:text-[#8892B5] hover:text-[#12141c] dark:hover:text-[#F6F8FF] hover:bg-[#FFFFFF] dark:hover:bg-[#1e222d]'
             }`}
           >

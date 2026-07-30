@@ -149,7 +149,7 @@ export default function Depo() {
             className={`h-full rounded-full transition-all duration-500 ease-out shadow-xs ${
               occupancy.isCritical 
                 ? 'bg-gradient-to-r from-red-500 to-red-600' 
-                : 'bg-gradient-to-r from-[#4457A5] to-blue-400'
+                : 'bg-gradient-to-r from-[#00B2FF] to-blue-400'
             }`}
             style={{ width: `${occupancy.percentage}%` }}
           />
@@ -164,7 +164,7 @@ export default function Depo() {
           </div>
           <input
             type="text"
-            className="w-full bg-[#FFFFFF] dark:bg-[#1e222d] border border-[#DCE1F1] dark:border-[#2e3545] text-[#12141c] dark:text-[#F6F8FF] placeholder-[#5A6685] rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm font-medium focus:outline-none focus:border-[#4457A5] transition-all shadow-xs"
+            className="w-full bg-[#FFFFFF] dark:bg-[#1e222d] border border-[#DCE1F1] dark:border-[#2e3545] text-[#12141c] dark:text-[#F6F8FF] placeholder-[#5A6685] rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm font-medium focus:outline-none focus:border-[#00B2FF] transition-all shadow-xs"
             placeholder="Arama yapın (İtem Kodu, Parça Adı, Lokasyon)..."
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
@@ -208,7 +208,7 @@ export default function Depo() {
                       onClick={() => setSelectedItem(isSelected ? null : item)}
                       className={`cursor-pointer transition-colors duration-150
                         ${isSelected 
-                          ? 'bg-blue-900/30 border-l-4 border-[#4457A5]' 
+                          ? 'bg-blue-900/30 border-l-4 border-[#00B2FF]' 
                           : 'hover:bg-[#FFFFFF]/70 dark:hover:bg-[#1e222d]/70 border-l-4 border-transparent text-[#12141c] dark:text-[#F6F8FF]'
                         }`}
                     >
@@ -225,7 +225,7 @@ export default function Depo() {
                       </td>
                       <td className="px-6 py-3.5">
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#FFFFFF] dark:bg-[#1e222d] border border-[#DCE1F1] dark:border-[#2e3545] text-[#2e3545] dark:text-slate-200 font-semibold text-xs">
-                          <MapPin size={13} className="text-[#4457A5] dark:text-[#8894D8]" />
+                          <MapPin size={13} className="text-[#00B2FF] dark:text-[#8894D8]" />
                           {item.location_name}
                         </span>
                       </td>

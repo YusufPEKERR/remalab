@@ -283,7 +283,7 @@ export default function Raporlar() {
 
             <button 
               onClick={() => setIsExportModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-[#4457A5] hover:bg-[#1e222d] text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+              className="flex items-center gap-2 px-4 py-2.5 bg-[#00B2FF] hover:bg-[#1e222d] text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
             >
               <Download size={16} /> {selectedRows.length > 0 ? `${selectedRows.length} Seçiliyi Dışa Aktar` : "Excel Dışa Aktar"}
             </button>
@@ -297,7 +297,7 @@ export default function Raporlar() {
           onClick={() => setActiveTab('stok')}
           className={`whitespace-nowrap px-6 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
             activeTab === 'stok' 
-              ? 'bg-[#4457A5] text-white shadow-md' 
+              ? 'bg-[#00B2FF] text-white shadow-md' 
               : 'text-[#5A6685] dark:text-[#8892B5] hover:text-[#12141c] dark:hover:text-[#F6F8FF] hover:bg-[#FFFFFF] dark:hover:bg-[#1e222d]'
           }`}
         >
@@ -335,7 +335,7 @@ export default function Raporlar() {
                     <th className="px-6 py-4 w-12 text-center">
                       <input 
                         type="checkbox" 
-                        className="w-4 h-4 rounded border-[#DCE1F1] dark:border-[#2e3545] text-[#4457A5] focus:ring-[#4457A5] bg-[#FFFFFF] dark:bg-[#1e222d]"
+                        className="w-4 h-4 rounded border-[#DCE1F1] dark:border-[#2e3545] text-[#00B2FF] focus:ring-[#00B2FF] bg-[#FFFFFF] dark:bg-[#1e222d]"
                         checked={selectedRows.length === filteredStockReports.length && filteredStockReports.length > 0}
                         onChange={toggleSelectAll}
                       />
@@ -367,11 +367,11 @@ export default function Raporlar() {
                       const isChecked = selectedRows.includes(r.id);
                       const isCritical = r.location_kind === 'good_stock' && r.quantity <= r.critical_limit;
                       return (
-                      <tr key={r.id} className={`hover:bg-[#FFFFFF]/70 dark:hover:bg-[#1e222d]/70 transition-colors text-[#12141c] dark:text-[#F6F8FF] ${isChecked ? 'bg-blue-900/30 border-l-4 border-[#4457A5]' : ''}`}>
+                      <tr key={r.id} className={`hover:bg-[#FFFFFF]/70 dark:hover:bg-[#1e222d]/70 transition-colors text-[#12141c] dark:text-[#F6F8FF] ${isChecked ? 'bg-blue-900/30 border-l-4 border-[#00B2FF]' : ''}`}>
                         <td className="px-6 py-3.5 text-center" onClick={(e) => e.stopPropagation()}>
                           <input 
                             type="checkbox" 
-                            className="w-4 h-4 rounded border-[#DCE1F1] dark:border-[#2e3545] text-[#4457A5] focus:ring-[#4457A5] bg-[#FFFFFF] dark:bg-[#1e222d]"
+                            className="w-4 h-4 rounded border-[#DCE1F1] dark:border-[#2e3545] text-[#00B2FF] focus:ring-[#00B2FF] bg-[#FFFFFF] dark:bg-[#1e222d]"
                             checked={isChecked}
                             onChange={(e) => toggleRowSelect(r.id, e)}
                           />
@@ -436,7 +436,7 @@ export default function Raporlar() {
                   <th className="px-6 py-4 w-12 text-center">
                     <input 
                       type="checkbox" 
-                      className="w-4 h-4 rounded border-[#DCE1F1] dark:border-[#2e3545] text-[#4457A5] focus:ring-[#4457A5] bg-[#FFFFFF] dark:bg-[#1e222d]"
+                      className="w-4 h-4 rounded border-[#DCE1F1] dark:border-[#2e3545] text-[#00B2FF] focus:ring-[#00B2FF] bg-[#FFFFFF] dark:bg-[#1e222d]"
                       checked={selectedRows.length === filteredCriticalReports.length && filteredCriticalReports.length > 0}
                       onChange={toggleSelectAll}
                     />
@@ -467,11 +467,11 @@ export default function Raporlar() {
                   paginatedReports.map((r) => {
                     const isChecked = selectedRows.includes(r.id);
                     return (
-                    <tr key={r.id} className={`hover:bg-[#FFFFFF]/70 dark:hover:bg-[#1e222d]/70 transition-colors text-[#12141c] dark:text-[#F6F8FF] ${isChecked ? 'bg-blue-900/30 border-l-4 border-[#4457A5]' : ''}`}>
+                    <tr key={r.id} className={`hover:bg-[#FFFFFF]/70 dark:hover:bg-[#1e222d]/70 transition-colors text-[#12141c] dark:text-[#F6F8FF] ${isChecked ? 'bg-blue-900/30 border-l-4 border-[#00B2FF]' : ''}`}>
                       <td className="px-6 py-3.5 text-center" onClick={(e) => e.stopPropagation()}>
                         <input 
                           type="checkbox" 
-                          className="w-4 h-4 rounded border-[#DCE1F1] dark:border-[#2e3545] text-[#4457A5] focus:ring-[#4457A5] bg-[#FFFFFF] dark:bg-[#1e222d]"
+                          className="w-4 h-4 rounded border-[#DCE1F1] dark:border-[#2e3545] text-[#00B2FF] focus:ring-[#00B2FF] bg-[#FFFFFF] dark:bg-[#1e222d]"
                           checked={isChecked}
                           onChange={(e) => toggleRowSelect(r.id, e)}
                         />
@@ -544,7 +544,7 @@ export default function Raporlar() {
                   <input 
                     type="date" 
                     style={{ colorScheme: 'dark' }}
-                    className="bg-[#FFFFFF] dark:bg-[#1e222d] text-[#12141c] dark:text-[#F6F8FF] border border-[#DCE1F1] dark:border-[#2e3545] rounded-xl px-3 py-2 text-xs font-mono focus:outline-none focus:border-[#4457A5]"
+                    className="bg-[#FFFFFF] dark:bg-[#1e222d] text-[#12141c] dark:text-[#F6F8FF] border border-[#DCE1F1] dark:border-[#2e3545] rounded-xl px-3 py-2 text-xs font-mono focus:outline-none focus:border-[#00B2FF]"
                     value={startDate.split('T')[0] || ''}
                     onChange={(e) => setStartDate(`${e.target.value}T${startDate.split('T')[1] || '00:00'}`)}
                   />
@@ -555,7 +555,7 @@ export default function Raporlar() {
                   <input 
                     type="date" 
                     style={{ colorScheme: 'dark' }}
-                    className="bg-[#FFFFFF] dark:bg-[#1e222d] text-[#12141c] dark:text-[#F6F8FF] border border-[#DCE1F1] dark:border-[#2e3545] rounded-xl px-3 py-2 text-xs font-mono focus:outline-none focus:border-[#4457A5]"
+                    className="bg-[#FFFFFF] dark:bg-[#1e222d] text-[#12141c] dark:text-[#F6F8FF] border border-[#DCE1F1] dark:border-[#2e3545] rounded-xl px-3 py-2 text-xs font-mono focus:outline-none focus:border-[#00B2FF]"
                     value={endDate.split('T')[0] || ''}
                     onChange={(e) => setEndDate(`${e.target.value}T${endDate.split('T')[1] || '23:59'}`)}
                   />
@@ -563,7 +563,7 @@ export default function Raporlar() {
 
                 <button 
                   onClick={() => fetchReports(false)}
-                  className="flex items-center gap-2 px-4 py-2 bg-[#4457A5] hover:bg-[#1e222d] text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+                  className="flex items-center gap-2 px-4 py-2 bg-[#00B2FF] hover:bg-[#1e222d] text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
                 >
                   <Filter size={15} /> Filtrele
                 </button>
@@ -580,7 +580,7 @@ export default function Raporlar() {
                     <th className="px-6 py-4 w-12 text-center">
                       <input 
                         type="checkbox" 
-                        className="w-4 h-4 rounded border-[#DCE1F1] dark:border-[#2e3545] text-[#4457A5] focus:ring-[#4457A5] bg-[#FFFFFF] dark:bg-[#1e222d]"
+                        className="w-4 h-4 rounded border-[#DCE1F1] dark:border-[#2e3545] text-[#00B2FF] focus:ring-[#00B2FF] bg-[#FFFFFF] dark:bg-[#1e222d]"
                         checked={selectedRows.length === filteredTransferReports.length && filteredTransferReports.length > 0}
                         onChange={toggleSelectAll}
                       />
@@ -615,11 +615,11 @@ export default function Raporlar() {
                       const isOut = (r.type || '').includes('Çıkış') || (r.type || '').includes('Satış') || (r.type || '').includes('Servis Kullanımı') || (r.type || '').includes('Outbound') || (r.type || '').includes('Fire') || (r.type || '').includes('Teknik Servis');
                       const isIn = (r.type || '').includes('Giriş') || (r.type || '').includes('Yeni Alım') || (r.type || '').includes('İade') || (r.type || '').includes('Return') || (r.type || '').includes('İptal') || (r.type || '').includes('Inbound');
                       return (
-                      <tr key={r.id} className={`hover:bg-[#FFFFFF]/70 dark:hover:bg-[#1e222d]/70 transition-colors text-[#12141c] dark:text-[#F6F8FF] ${isChecked ? 'bg-blue-900/30 border-l-4 border-[#4457A5]' : ''}`}>
+                      <tr key={r.id} className={`hover:bg-[#FFFFFF]/70 dark:hover:bg-[#1e222d]/70 transition-colors text-[#12141c] dark:text-[#F6F8FF] ${isChecked ? 'bg-blue-900/30 border-l-4 border-[#00B2FF]' : ''}`}>
                         <td className="px-6 py-3.5 text-center" onClick={(e) => e.stopPropagation()}>
                           <input 
                             type="checkbox" 
-                            className="w-4 h-4 rounded border-[#DCE1F1] dark:border-[#2e3545] text-[#4457A5] focus:ring-[#4457A5] bg-[#FFFFFF] dark:bg-[#1e222d]"
+                            className="w-4 h-4 rounded border-[#DCE1F1] dark:border-[#2e3545] text-[#00B2FF] focus:ring-[#00B2FF] bg-[#FFFFFF] dark:bg-[#1e222d]"
                             checked={isChecked}
                             onChange={(e) => toggleRowSelect(r.id, e)}
                           />
@@ -696,7 +696,7 @@ export default function Raporlar() {
                         setSelectedCriticalCols(prev => ({...prev, [col]: e.target.checked}));
                       }
                     }}
-                    className="w-4 h-4 rounded border-[#DCE1F1] dark:border-[#2e3545] text-[#4457A5] focus:ring-[#4457A5] bg-[#FFFFFF] dark:bg-[#1e222d]"
+                    className="w-4 h-4 rounded border-[#DCE1F1] dark:border-[#2e3545] text-[#00B2FF] focus:ring-[#00B2FF] bg-[#FFFFFF] dark:bg-[#1e222d]"
                   />
                   <span>{col}</span>
                 </label>
@@ -713,7 +713,7 @@ export default function Raporlar() {
               <button 
                 onClick={executeExport}
                 disabled={!Object.values(activeTab === 'stok' ? selectedStockCols : (activeTab === 'transfers' ? selectedTransferCols : selectedCriticalCols)).some(Boolean)}
-                className="px-4 py-2 bg-[#4457A5] hover:bg-[#1e222d] text-white rounded-xl text-xs font-semibold transition-all shadow-md cursor-pointer disabled:opacity-50"
+                className="px-4 py-2 bg-[#00B2FF] hover:bg-[#1e222d] text-white rounded-xl text-xs font-semibold transition-all shadow-md cursor-pointer disabled:opacity-50"
               >
                 Dışa Aktar
               </button>

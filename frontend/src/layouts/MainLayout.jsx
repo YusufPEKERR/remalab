@@ -224,7 +224,7 @@ export default function MainLayout() {
     switch (itemPath) {
       // GENEL BAKIŞ
       case '/dashboard':
-        return { color: '#4457A5' }; // Rich Royal Blue
+        return { color: '#00B2FF' }; // Rich Royal Blue
       case '/statu-kontrol':
         return { color: '#2C8CA8' }; // Darker Cyan
       
@@ -301,7 +301,7 @@ export default function MainLayout() {
         return { color: '#8A44C4' };
 
       default:
-        return { color: '#4457A5' };
+        return { color: '#00B2FF' };
     }
   };
 
@@ -431,9 +431,9 @@ export default function MainLayout() {
 
           <div className="flex items-center gap-3">
             {/* Date/Time Widget (Next to Theme Toggle) */}
-            <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-[#F5F7FC] dark:bg-[#12141c] rounded-lg border border-[#DCE1F1] dark:border-[#2A3872]">
-              <span className="text-[11px] font-medium text-[#5A6685] dark:text-[#9AA3C6]">⏱ SON GÜNCELLEME:</span>
-              <span className="text-xs font-bold text-[#12141c] dark:text-[#F7F8FC] font-mono tracking-wider">
+            <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-slate-100 dark:bg-[#12141c] rounded-xl border border-slate-300 dark:border-[#1e222d] shadow-xs">
+              <span className="text-[11px] font-bold text-blue-600 dark:text-[#00b2ff]">⏱ SON GÜNCELLEME:</span>
+              <span className="text-xs font-bold text-slate-900 dark:text-white font-mono tracking-wider">
                 {currentTime.toLocaleDateString('tr-TR', { day: '2-digit', month: 'short', year: 'numeric' })} - {currentTime.toLocaleTimeString('tr-TR')}
               </span>
             </div>
@@ -441,7 +441,7 @@ export default function MainLayout() {
             {/* Refresh Page Button */}
             <button
               onClick={() => window.location.reload()}
-              className="p-2 text-[#5A6685] dark:text-[#9AA3C6] hover:text-[#4457A5] transition-colors bg-[#F5F7FC] dark:bg-[#12141c] rounded-xl border border-[#DCE1F1] dark:border-[#2A3872] hover:border-[#4457A5] cursor-pointer"
+              className="p-2 text-slate-700 dark:text-slate-200 hover:text-[#00b2ff] dark:hover:text-[#00b2ff] transition-colors bg-slate-100 dark:bg-[#12141c] rounded-xl border border-slate-300 dark:border-[#1e222d] hover:border-[#00b2ff] cursor-pointer shadow-xs"
               title="Sayfayı Yenile"
             >
               <RefreshCw size={18} />
@@ -450,7 +450,7 @@ export default function MainLayout() {
             {/* Theme Toggle Button */}
             <button
               onClick={toggleTheme}
-              className="p-2 text-[#5A6685] dark:text-[#9AA3C6] hover:text-[#8894D8] transition-colors bg-[#F5F7FC] dark:bg-[#12141c] rounded-xl border border-[#DCE1F1] dark:border-[#2A3872] hover:border-[#8894D8] cursor-pointer"
+              className="p-2 text-slate-700 dark:text-amber-400 hover:text-[#00b2ff] transition-colors bg-slate-100 dark:bg-[#12141c] rounded-xl border border-slate-300 dark:border-[#1e222d] hover:border-[#00b2ff] cursor-pointer shadow-xs"
               title={theme === 'dark' ? 'Açık Tema' : 'Koyu Tema'}
             >
               {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
@@ -459,45 +459,25 @@ export default function MainLayout() {
             <div className="relative" ref={notifRef}>
               <button 
                 onClick={() => setShowNotifications(!showNotifications)}
-                className="p-2 text-[#5A6685] dark:text-[#8892B5] hover:text-[#12141c] dark:hover:text-[#F6F8FF] transition-colors relative bg-[#FFFFFF] dark:bg-[#1e222d] rounded-xl border border-[#2e3545]" 
+                className="p-2 text-slate-700 dark:text-slate-200 hover:text-[#00b2ff] dark:hover:text-[#00b2ff] transition-colors relative bg-slate-100 dark:bg-[#12141c] rounded-xl border border-slate-300 dark:border-[#1e222d] hover:border-[#00b2ff] cursor-pointer shadow-xs" 
                 title="Bildirimler"
               >
                 <Bell size={18} />
                 {notifications.length > 0 && (
-                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#EF4444] rounded-full border border-[#EFF1FA] dark:border-[#12141c] animate-pulse"></span>
+                  <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white dark:border-[#090a0f] animate-pulse"></span>
                 )}
               </button>
 
               {showNotifications && (
-                <div className="glass-card absolute right-0 mt-3 w-[calc(100vw-32px)] sm:w-[360px] shadow-2xl rounded-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 text-[#12141c] dark:text-[#F6F8FF]">
-                  <div className="p-4 border-b border-[#DCE1F1] dark:border-[#2e3545] bg-[#EFF1FA]/70 dark:bg-[#12141c]/70 flex flex-col gap-2">
+                <div className="glass-card absolute right-0 mt-3 w-[calc(100vw-32px)] sm:w-[360px] shadow-2xl rounded-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 text-slate-900 dark:text-white">
+                  <div className="p-4 border-b border-slate-200 dark:border-[#1e222d] bg-slate-100/90 dark:bg-[#12141c] flex flex-col gap-2">
                     <div className="flex flex-wrap items-center justify-between">
-                      <h3 className="font-semibold text-[#12141c] dark:text-[#F6F8FF]">Kritik Stok Bildirimleri</h3>
-                      {notifications.length > 0 && (
-                        <div className="flex items-center gap-2">
-                          <span className="bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400 text-xs font-bold px-2 py-0.5 rounded-md">{notifications.length} Uyarı</span>
-                          <button 
-                            onClick={(e) => { 
-                              e.stopPropagation(); 
-                              const saved = JSON.parse(localStorage.getItem('readNotifications') || '[]');
-                              notifications.forEach(n => {
-                                const key = String(n.id);
-                                if (!saved.includes(key)) saved.push(key);
-                              });
-                              localStorage.setItem('readNotifications', JSON.stringify(saved));
-                              setNotifications([]); 
-                            }}
-                            className="text-xs text-red-400 hover:text-red-300 font-medium px-2 py-1 bg-red-500/10 rounded-md transition-colors"
-                          >
-                            Tümünü Sil
-                          </button>
-                        </div>
-                      )}
+                      <h3 className="font-bold text-slate-900 dark:text-white">Kritik Stok Bildirimleri</h3>
                     </div>
                   </div>
-                  <div className="max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-[#2e3545] scrollbar-track-transparent">
+                  <div className="max-h-80 overflow-y-auto">
                     {notifications.length > 0 ? (
-                      <div className="divide-y divide-[#DCE1F1] dark:divide-[#2e3545]">
+                      <div className="divide-y divide-slate-200 dark:divide-[#1e222d]">
                         {notifications.map((notif, idx) => {
                           const notifKey = String(notif.id);
                           
@@ -513,7 +493,7 @@ export default function MainLayout() {
                           return (
                           <div 
                             key={idx} 
-                            className="p-4 hover:bg-[#EFF1FA]/60 dark:hover:bg-[#12141c]/60 transition-colors cursor-pointer" 
+                            className="p-4 hover:bg-slate-100 dark:hover:bg-[#181a24] transition-colors cursor-pointer" 
                             onClick={() => {
                               markAsRead();
                               setShowNotifications(false); 
@@ -525,10 +505,10 @@ export default function MainLayout() {
                                 <AlertTriangle size={18} className={notif.status === 'Tükendi' ? "text-red-400" : "text-amber-400"} />
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-[#12141c] dark:text-[#F6F8FF] mb-1 leading-snug line-clamp-2" title={notif.part_name}>{notif.part_name}</p>
-                                <p className="text-xs text-[#5A6685] dark:text-[#8892B5] mb-1">Lokasyon: <strong className="text-[#12141c] dark:text-[#F6F8FF]">{notif.location_name}</strong></p>
+                                <p className="text-sm font-semibold text-slate-900 dark:text-white mb-1 leading-snug line-clamp-2" title={notif.part_name}>{notif.part_name}</p>
+                                <p className="text-xs text-slate-600 dark:text-slate-300 mb-1">Lokasyon: <strong className="text-slate-900 dark:text-white">{notif.location_name}</strong></p>
                                 <div className="flex flex-wrap items-center justify-between mt-2">
-                                  <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-[#EFF1FA] dark:bg-[#12141c] text-[#12141c] dark:text-[#F6F8FF] border border-[#DCE1F1] dark:border-[#2e3545]">Stok: {notif.quantity}</span>
+                                  <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-[#181a24] text-slate-900 dark:text-white border border-slate-300 dark:border-[#1e222d]">Stok: {notif.quantity}</span>
                                   <span className={`text-[10px] font-bold uppercase tracking-wider ${notif.status === 'Tükendi' ? 'text-red-400' : 'text-amber-400'}`}>
                                     {notif.status === 'Tükendi' ? 'STOK TÜKENDİ' : 'KRİTİK SEVİYE'}
                                   </span>
@@ -539,9 +519,9 @@ export default function MainLayout() {
                         )})}
                       </div>
                     ) : (
-                      <div className="p-8 text-center text-[#5A6685] dark:text-[#8892B5] flex flex-col items-center">
-                        <CheckCircle size={36} className="mb-3 text-emerald-500/60" />
-                        <p className="text-sm font-medium text-[#12141c] dark:text-[#F6F8FF]">Harika! Tüm stoklar güvende.</p>
+                      <div className="p-8 text-center text-slate-600 dark:text-slate-300 flex flex-col items-center">
+                        <CheckCircle size={36} className="mb-3 text-emerald-500" />
+                        <p className="text-sm font-semibold text-slate-900 dark:text-white">Harika! Tüm stoklar güvende.</p>
                         <p className="text-xs mt-1">Şu an için kritik seviyede ürün yok.</p>
                       </div>
                     )}
@@ -549,13 +529,13 @@ export default function MainLayout() {
                 </div>
               )}
             </div>
-            <div className="flex items-center gap-3 border-l border-[#DCE1F1] dark:border-[#2e3545] pl-4">
-              <div className="w-10 h-10 rounded-xl bg-[#4457A5]/10 dark:bg-[#4457A5]/20 border border-[#4457A5]/25 dark:border-[#4457A5]/40 flex items-center justify-center text-[#4457A5] dark:text-[#8894D8] font-bold uppercase shadow-sm">
+            <div className="flex items-center gap-3 border-l border-slate-300 dark:border-[#1e222d] pl-4">
+              <div className="w-10 h-10 rounded-xl bg-blue-600/20 dark:bg-[#00b2ff]/20 border border-blue-500/40 dark:border-[#00b2ff]/50 flex items-center justify-center text-blue-700 dark:text-[#00b2ff] font-extrabold text-base uppercase shadow-sm">
                 {user && user.username ? user.username.charAt(0) : 'U'}
               </div>
               <div className="hidden md:block">
-                <p className="text-sm font-semibold text-[#12141c] dark:text-[#F6F8FF] leading-none">{(user && user.username) ? user.username : 'Misafir'}</p>
-                <p className="text-xs text-[#5A6685] dark:text-[#8892B5] mt-1">{(user && user.role) ? user.role : 'Guest'}</p>
+                <p className="text-sm font-extrabold text-slate-900 dark:text-white leading-none">{(user && user.username) ? user.username : 'Misafir'}</p>
+                <p className="text-xs font-bold text-blue-600 dark:text-[#00b2ff] mt-1">{(user && user.role) ? user.role : 'Guest'}</p>
               </div>
             </div>
           </div>

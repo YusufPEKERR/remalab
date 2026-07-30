@@ -36,7 +36,7 @@
 
 @theme {
   /* Marka */
-  --color-brand-primary: #4457A5;
+  --color-brand-primary: #00B2FF;
   --color-brand-primary-hover: #1e222d;
   --color-brand-soft-accent: rgba(68, 87, 165, 0.10);
 
@@ -60,7 +60,7 @@
   --color-blue-300: #A9B2E3;
   --color-blue-400: #8894D8;
   --color-blue-500: #5B6EC4;
-  --color-blue-600: #4457A5;
+  --color-blue-600: #00B2FF;
   --color-blue-700: #1e222d;
   --color-blue-800: #1e222d;
   --color-blue-900: #181a24;
@@ -107,7 +107,7 @@
 :root {
   --color-sidebar: #FFFFFF;
   --color-header: #FFFFFF;
-  --color-primary: #4457A5;
+  --color-primary: #00B2FF;
   --color-primary-hover: #1e222d;
   --color-soft-accent: rgba(68, 87, 165, 0.10);
 
@@ -147,14 +147,19 @@
   --accent-orange: #ff9500;
 
   --text-primary: #ffffff;
-  --text-secondary: #8e95a5;
+  --text-secondary: #cbd5e1;
 
-  /* Tailwind renk rampası uyarlamaları */
+  /* Tailwind renk rampası uyarlamaları - Canlı Yüksek Kontrastlı Tonlar */
   --color-slate-950: #090a0f;
   --color-slate-900: #12141c;
   --color-slate-800: #1e222d;
-  --color-slate-500: #8e95a5;
-  --color-slate-200: #e3e7f4;
+  --color-slate-700: #2b3345;
+  --color-slate-600: #475569;
+  --color-slate-500: #94a3b8;
+  --color-slate-400: #cbd5e1;
+  --color-slate-300: #e2e8f0;
+  --color-slate-200: #f1f5f9;
+  --color-slate-100: #ffffff;
   --color-slate-50: #090a0f;
 
   --color-blue-50: rgba(0, 178, 255, 0.18);

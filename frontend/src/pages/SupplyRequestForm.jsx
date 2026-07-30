@@ -105,7 +105,7 @@ export default function SupplyRequestForm() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div>
                 <label className="block text-xs font-bold text-[#5A6685] dark:text-[#8892B5] uppercase tracking-wider mb-2">İş Emri <span className="text-rose-400">*</span></label>
-                <select required className="w-full bg-[#FFFFFF] dark:bg-[#1e222d] border border-[#DCE1F1] dark:border-[#2e3545] text-[#12141c] dark:text-[#F6F8FF] rounded-xl px-4 py-2.5 text-xs sm:text-sm focus:outline-none focus:border-[#4457A5]" value={formData.work_order_id} onChange={e => setFormData({ ...formData, work_order_id: e.target.value })}>
+                <select required className="w-full bg-[#FFFFFF] dark:bg-[#1e222d] border border-[#DCE1F1] dark:border-[#2e3545] text-[#12141c] dark:text-[#F6F8FF] rounded-xl px-4 py-2.5 text-xs sm:text-sm focus:outline-none focus:border-[#00B2FF]" value={formData.work_order_id} onChange={e => setFormData({ ...formData, work_order_id: e.target.value })}>
                   <option value="">İş emri seçiniz...</option>
                   {workOrders.map(wo => (
                     <option key={wo.id} value={wo.id}>

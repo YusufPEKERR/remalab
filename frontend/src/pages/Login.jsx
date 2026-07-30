@@ -16,7 +16,7 @@ const T = {
   ink: '#12141c',   // en koyu lacivert
   deep: '#12141c',
   navy: '#1e222d',
-  indigo: '#4457A5',  // birincil aksiyon rengi
+  indigo: '#00B2FF',  // birincil aksiyon rengi
   royal: '#5B6EC4',
   peri: '#8894D8',  // periwinkle
   lilac: '#A9B2E3',

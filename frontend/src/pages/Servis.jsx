@@ -169,7 +169,7 @@ export default function Servis() {
               <input
                 type="text"
                 placeholder="IMEI veya Seri Numarası girin..."
-                className="glass-card w-full pl-10 pr-4 py-3 rounded-xl text-sm font-medium text-[#12141c] dark:text-[#F6F8FF] placeholder-[#5A6685] focus:outline-none focus:border-[#4457A5] shadow-xs"
+                className="glass-card w-full pl-10 pr-4 py-3 rounded-xl text-sm font-medium text-[#12141c] dark:text-[#F6F8FF] placeholder-[#5A6685] focus:outline-none focus:border-[#00B2FF] shadow-xs"
                 value={imei}
                 onChange={(e) => setImei(e.target.value)}
               />
@@ -177,7 +177,7 @@ export default function Servis() {
             <button
               type="submit"
               disabled={!imei.trim() || loading}
-              className="px-6 py-3 bg-[#4457A5] hover:bg-[#1e222d] disabled:opacity-50 text-white rounded-xl text-sm font-semibold shadow-md transition-all cursor-pointer inline-flex items-center gap-2"
+              className="px-6 py-3 bg-[#00B2FF] hover:bg-[#1e222d] disabled:opacity-50 text-white rounded-xl text-sm font-semibold shadow-md transition-all cursor-pointer inline-flex items-center gap-2"
             >
               {loading ? <RefreshCw size={16} className="animate-spin" /> : <Search size={16} />}
               {loading ? 'Aranıyor...' : 'Cihazı Sorgula'}
@@ -209,7 +209,7 @@ export default function Servis() {
               onClick={() => setActiveTab(key)}
               className={`flex items-center gap-2.5 px-6 py-3.5 text-xs font-bold border-b-2 transition-all cursor-pointer ${
                 activeTab === key
-                  ? 'border-[#4457A5] text-[#8894D8] bg-[#F5F7FC] dark:bg-[#12141c]'
+                  ? 'border-[#00B2FF] text-[#8894D8] bg-[#F5F7FC] dark:bg-[#12141c]'
                   : 'border-transparent text-[#5A6685] dark:text-[#8892B5] hover:text-[#12141c] dark:hover:text-[#F6F8FF] hover:bg-[#FFFFFF]/40 dark:hover:bg-[#1e222d]/40'
               }`}
             >

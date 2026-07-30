@@ -134,7 +134,7 @@ const CustomerApprovalDecision = () => {
           ref={inputRef}
           type="text"
           placeholder="Okutunuz veya yazınız..."
-          className="w-full bg-[#FFFFFF] dark:bg-[#1e222d] border border-[#DCE1F1] dark:border-[#2e3545] text-[#12141c] dark:text-[#F6F8FF] placeholder-[#5A6685] rounded-xl px-4 py-3 text-xs sm:text-sm font-mono font-medium focus:outline-none focus:border-[#4457A5] transition-all shadow-xs"
+          className="w-full bg-[#FFFFFF] dark:bg-[#1e222d] border border-[#DCE1F1] dark:border-[#2e3545] text-[#12141c] dark:text-[#F6F8FF] placeholder-[#5A6685] rounded-xl px-4 py-3 text-xs sm:text-sm font-mono font-medium focus:outline-none focus:border-[#00B2FF] transition-all shadow-xs"
           value={term}
           onChange={(e) => setTerm(e.target.value)}
         />

@@ -112,7 +112,7 @@ export default function Departments() {
             <div className="flex justify-end items-center">
               <button
                 onClick={() => handleOpenForm()}
-                className="flex items-center gap-2 bg-[#4457A5] hover:bg-[#1e222d] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+                className="flex items-center gap-2 bg-[#00B2FF] hover:bg-[#1e222d] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
               >
                 <Plus size={16} /> Yeni Görev Ekle
               </button>

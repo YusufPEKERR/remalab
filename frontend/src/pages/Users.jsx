@@ -522,12 +522,12 @@ export default function Users() {
             placeholder="Kullanıcı Ara (Ad, İsim, TC, Rol)..." 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-[#FFFFFF] dark:bg-[#1e222d] border border-[#DCE1F1] dark:border-[#2e3545] text-[#12141c] dark:text-[#F6F8FF] placeholder-[#5A6685] rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm font-medium focus:outline-none focus:border-[#4457A5] transition-all shadow-xs"
+            className="w-full bg-[#FFFFFF] dark:bg-[#1e222d] border border-[#DCE1F1] dark:border-[#2e3545] text-[#12141c] dark:text-[#F6F8FF] placeholder-[#5A6685] rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm font-medium focus:outline-none focus:border-[#00B2FF] transition-all shadow-xs"
           />
         </div>
         
         <div className="flex flex-wrap gap-2.5 shrink-0">
-          <button onClick={() => setIsExportModalOpen(true)} className="flex items-center gap-2 bg-[#4457A5] hover:bg-[#1e222d] text-white px-4 py-2.5 rounded-xl shadow-md text-xs font-bold transition-all cursor-pointer">
+          <button onClick={() => setIsExportModalOpen(true)} className="flex items-center gap-2 bg-[#00B2FF] hover:bg-[#1e222d] text-white px-4 py-2.5 rounded-xl shadow-md text-xs font-bold transition-all cursor-pointer">
             <Download size={15} /> {selectedRows.length > 0 ? `${selectedRows.length} Seçiliyi Aktar` : 'Excel Dışa Aktar'}
           </button>
           <button onClick={handleAdd} className="flex items-center gap-2 bg-[#FFFFFF] dark:bg-[#1e222d] hover:bg-[#EFF1FA] dark:hover:bg-[#2e3545] border border-[#DCE1F1] dark:border-[#2e3545] text-[#12141c] dark:text-[#F6F8FF] px-4 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer">
@@ -554,7 +554,7 @@ export default function Users() {
                 <th className="px-6 py-4 w-12 text-center select-none">
                   <input 
                     type="checkbox" 
-                    className="w-4 h-4 rounded border-[#DCE1F1] dark:border-[#2e3545] text-[#4457A5] focus:ring-[#4457A5] bg-[#FFFFFF] dark:bg-[#1e222d]"
+                    className="w-4 h-4 rounded border-[#DCE1F1] dark:border-[#2e3545] text-[#00B2FF] focus:ring-[#00B2FF] bg-[#FFFFFF] dark:bg-[#1e222d]"
                     checked={selectedRows.length === users.length && users.length > 0}
                     onChange={toggleSelectAll}
                   />

@@ -166,7 +166,7 @@ export default function PartCategories() {
                 </div>
                 <input
                   type="text"
-                  className="w-full bg-[#FFFFFF] dark:bg-[#1e222d] border border-[#DCE1F1] dark:border-[#2e3545] text-[#12141c] dark:text-[#F6F8FF] placeholder-[#5A6685] rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm font-medium focus:outline-none focus:border-[#4457A5] transition-all shadow-xs"
+                  className="w-full bg-[#FFFFFF] dark:bg-[#1e222d] border border-[#DCE1F1] dark:border-[#2e3545] text-[#12141c] dark:text-[#F6F8FF] placeholder-[#5A6685] rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm font-medium focus:outline-none focus:border-[#00B2FF] transition-all shadow-xs"
                   placeholder="Kategori Ara..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -174,7 +174,7 @@ export default function PartCategories() {
               </div>
               <button
                 onClick={() => handleOpenForm()}
-                className="flex items-center gap-2 bg-[#4457A5] hover:bg-[#1e222d] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer shrink-0"
+                className="flex items-center gap-2 bg-[#00B2FF] hover:bg-[#1e222d] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer shrink-0"
               >
                 <Plus size={16} /> Yeni Kategori
               </button>

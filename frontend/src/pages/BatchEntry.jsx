@@ -906,7 +906,7 @@ export default function BatchEntry() {
             <div className="relative">
               <select
                 onChange={handleExcelAction}
-                className="appearance-none bg-[#FFFFFF] dark:bg-[#1e222d] hover:bg-[#EFF1FA] dark:hover:bg-[#2e3545] text-[#12141c] dark:text-[#F6F8FF] border border-[#DCE1F1] dark:border-[#2e3545] rounded-xl px-4 py-2.5 pr-9 text-xs font-bold transition-all cursor-pointer focus:outline-none focus:border-[#4457A5]"
+                className="appearance-none bg-[#FFFFFF] dark:bg-[#1e222d] hover:bg-[#EFF1FA] dark:hover:bg-[#2e3545] text-[#12141c] dark:text-[#F6F8FF] border border-[#DCE1F1] dark:border-[#2e3545] rounded-xl px-4 py-2.5 pr-9 text-xs font-bold transition-all cursor-pointer focus:outline-none focus:border-[#00B2FF]"
               >
                 <option value="">Excel İşlemleri...</option>
                 <option value="download_template">Boş Şablon İndir</option>
@@ -919,7 +919,7 @@ export default function BatchEntry() {
             </div>
             <button
               onClick={() => handleOpenModal(null)}
-              className="flex items-center gap-2 px-5 py-2.5 bg-[#4457A5] hover:bg-[#1e222d] text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+              className="flex items-center gap-2 px-5 py-2.5 bg-[#00B2FF] hover:bg-[#1e222d] text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
             >
               <Plus size={16} />
               Yeni Batch Girişi

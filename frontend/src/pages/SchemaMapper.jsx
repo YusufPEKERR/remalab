@@ -582,7 +582,7 @@ export default function SchemaMapper() {
             SCHEMA MAPPER
           </h2>
 
-          <button onClick={() => setShowAddModal(true)} className="px-3.5 py-2 rounded-xl bg-[#4457A5] hover:bg-[#1e222d] text-white text-xs font-bold flex items-center gap-1.5 shadow-md cursor-pointer transition-all">
+          <button onClick={() => setShowAddModal(true)} className="px-3.5 py-2 rounded-xl bg-[#00B2FF] hover:bg-[#1e222d] text-white text-xs font-bold flex items-center gap-1.5 shadow-md cursor-pointer transition-all">
             <Plus size={14} /> Yeni Tablo
           </button>
           <button onClick={() => { setConnectMode(!connectMode); setConnectSource(null); }} className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md transition-all cursor-pointer border ${connectMode ? 'bg-rose-500 text-white border-rose-500' : 'bg-[#FFFFFF] dark:bg-[#1e222d] text-[#12141c] dark:text-[#F6F8FF] border-[#DCE1F1] dark:border-[#2e3545] hover:border-rose-400'}`}>

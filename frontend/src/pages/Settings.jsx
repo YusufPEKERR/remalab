@@ -142,7 +142,7 @@ export default function Settings() {
         <button
           onClick={() => setActiveTab('general')}
           className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-            activeTab === 'general' ? 'bg-[#4457A5] text-white shadow-md' : 'text-[#5A6685] dark:text-[#8892B5] hover:text-[#12141c] dark:hover:text-[#F6F8FF] hover:bg-[#FFFFFF] dark:hover:bg-[#1e222d]'
+            activeTab === 'general' ? 'bg-[#00B2FF] text-white shadow-md' : 'text-[#5A6685] dark:text-[#8892B5] hover:text-[#12141c] dark:hover:text-[#F6F8FF] hover:bg-[#FFFFFF] dark:hover:bg-[#1e222d]'
           }`}
         >
           <SettingsIcon size={16} /> Genel Ayarlar
@@ -150,7 +150,7 @@ export default function Settings() {
         <button
           onClick={() => setActiveTab('database')}
           className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-            activeTab === 'database' ? 'bg-[#4457A5] text-white shadow-md' : 'text-[#5A6685] dark:text-[#8892B5] hover:text-[#12141c] dark:hover:text-[#F6F8FF] hover:bg-[#FFFFFF] dark:hover:bg-[#1e222d]'
+            activeTab === 'database' ? 'bg-[#00B2FF] text-white shadow-md' : 'text-[#5A6685] dark:text-[#8892B5] hover:text-[#12141c] dark:hover:text-[#F6F8FF] hover:bg-[#FFFFFF] dark:hover:bg-[#1e222d]'
           }`}
         >
           <Server size={16} /> Veritabanı Bağlantıları
@@ -158,7 +158,7 @@ export default function Settings() {
         <button
           onClick={() => setActiveTab('local')}
           className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-            activeTab === 'local' ? 'bg-[#4457A5] text-white shadow-md' : 'text-[#5A6685] dark:text-[#8892B5] hover:text-[#12141c] dark:hover:text-[#F6F8FF] hover:bg-[#FFFFFF] dark:hover:bg-[#1e222d]'
+            activeTab === 'local' ? 'bg-[#00B2FF] text-white shadow-md' : 'text-[#5A6685] dark:text-[#8892B5] hover:text-[#12141c] dark:hover:text-[#F6F8FF] hover:bg-[#FFFFFF] dark:hover:bg-[#1e222d]'
           }`}
         >
           <HardDrive size={16} /> Lokal DB / Klasörler

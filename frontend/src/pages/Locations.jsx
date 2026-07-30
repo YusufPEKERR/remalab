@@ -96,7 +96,7 @@ export default function Locations() {
 
           <button 
             onClick={() => setIsModalOpen(true)}
-            className="flex items-center gap-2 bg-[#4457A5] hover:bg-[#1e222d] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer shrink-0"
+            className="flex items-center gap-2 bg-[#00B2FF] hover:bg-[#1e222d] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer shrink-0"
           >
             <Plus size={16} /> Yeni Lokasyon Ekle
           </button>
@@ -121,7 +121,7 @@ export default function Locations() {
             placeholder="Lokasyon Ara (ID veya Lokasyon Adı)..." 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-[#FFFFFF] dark:bg-[#1e222d] border border-[#DCE1F1] dark:border-[#2e3545] text-[#12141c] dark:text-[#F6F8FF] placeholder-[#5A6685] rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm font-medium focus:outline-none focus:border-[#4457A5] transition-all shadow-xs"
+            className="w-full bg-[#FFFFFF] dark:bg-[#1e222d] border border-[#DCE1F1] dark:border-[#2e3545] text-[#12141c] dark:text-[#F6F8FF] placeholder-[#5A6685] rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm font-medium focus:outline-none focus:border-[#00B2FF] transition-all shadow-xs"
           />
         </div>
       </div>
@@ -202,7 +202,7 @@ export default function Locations() {
                 <input
                   type="text" required
                   placeholder="Örn: A-01-01"
-                  className="w-full px-3.5 py-2.5 bg-[#FFFFFF] dark:bg-[#1e222d] border border-[#DCE1F1] dark:border-[#2e3545] rounded-xl text-xs text-[#12141c] dark:text-[#F6F8FF] placeholder-[#5A6685] focus:outline-none focus:border-[#4457A5]"
+                  className="w-full px-3.5 py-2.5 bg-[#FFFFFF] dark:bg-[#1e222d] border border-[#DCE1F1] dark:border-[#2e3545] rounded-xl text-xs text-[#12141c] dark:text-[#F6F8FF] placeholder-[#5A6685] focus:outline-none focus:border-[#00B2FF]"
                   value={newLocationName}
                   onChange={e => setNewLocationName(e.target.value)}
                 />
@@ -213,7 +213,7 @@ export default function Locations() {
                 <input
                   type="text"
                   placeholder="Örn: Yedek parçalar için raf"
-                  className="w-full px-3.5 py-2.5 bg-[#FFFFFF] dark:bg-[#1e222d] border border-[#DCE1F1] dark:border-[#2e3545] rounded-xl text-xs text-[#12141c] dark:text-[#F6F8FF] placeholder-[#5A6685] focus:outline-none focus:border-[#4457A5]"
+                  className="w-full px-3.5 py-2.5 bg-[#FFFFFF] dark:bg-[#1e222d] border border-[#DCE1F1] dark:border-[#2e3545] rounded-xl text-xs text-[#12141c] dark:text-[#F6F8FF] placeholder-[#5A6685] focus:outline-none focus:border-[#00B2FF]"
                   value={newLocationDesc}
                   onChange={e => setNewLocationDesc(e.target.value)}
                 />
@@ -221,7 +221,7 @@ export default function Locations() {
 
               <div className="pt-4 flex justify-end gap-3 border-t border-[#DCE1F1] dark:border-[#1e222d] mt-6">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 bg-[#FFFFFF] dark:bg-[#1e222d] hover:bg-[#EFF1FA] dark:hover:bg-[#2e3545] text-[#12141c] dark:text-[#F6F8FF] rounded-xl text-xs font-bold transition-all cursor-pointer">İptal</button>
-                <button type="submit" className="px-4 py-2 text-white bg-[#4457A5] hover:bg-[#1e222d] rounded-xl text-xs font-semibold transition-all shadow-md cursor-pointer">Kaydet</button>
+                <button type="submit" className="px-4 py-2 text-white bg-[#00B2FF] hover:bg-[#1e222d] rounded-xl text-xs font-semibold transition-all shadow-md cursor-pointer">Kaydet</button>
               </div>
             </form>
           </div>

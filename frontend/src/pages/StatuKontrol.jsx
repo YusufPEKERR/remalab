@@ -143,7 +143,7 @@ export default function StatuKontrol() {
                 ref={inputRef}
                 type="text"
                 placeholder="Sorgulanacak cihazı okutunuz veya yazınız..."
-                className="w-full bg-[#FFFFFF] dark:bg-[#1e222d] border border-[#DCE1F1] dark:border-[#2e3545] text-[#12141c] dark:text-[#F6F8FF] placeholder-[#5A6685] rounded-xl pl-10 pr-4 py-3 text-xs sm:text-sm font-mono focus:outline-none focus:border-[#4457A5] transition-all disabled:opacity-50"
+                className="w-full bg-[#FFFFFF] dark:bg-[#1e222d] border border-[#DCE1F1] dark:border-[#2e3545] text-[#12141c] dark:text-[#F6F8FF] placeholder-[#5A6685] rounded-xl pl-10 pr-4 py-3 text-xs sm:text-sm font-mono focus:outline-none focus:border-[#00B2FF] transition-all disabled:opacity-50"
                 value={term}
                 onChange={(e) => setTerm(e.target.value)}
                 disabled={loading}
@@ -152,7 +152,7 @@ export default function StatuKontrol() {
             <button
               type="submit"
               disabled={loading || !term.trim()}
-              className="bg-[#4457A5] hover:bg-[#1e222d] disabled:opacity-40 text-white px-8 py-3 rounded-xl text-xs font-semibold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer shrink-0"
+              className="bg-[#00B2FF] hover:bg-[#1e222d] disabled:opacity-40 text-white px-8 py-3 rounded-xl text-xs font-semibold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer shrink-0"
             >
               <Search size={15} /> {loading ? "Sorgulanıyor..." : "Sorgula"}
             </button>
@@ -184,7 +184,7 @@ export default function StatuKontrol() {
               <select
                 value={targetCode}
                 onChange={(e) => setTargetCode(e.target.value)}
-                className="w-full bg-[#FFFFFF] dark:bg-[#1e222d] border border-[#DCE1F1] dark:border-[#2e3545] text-[#12141c] dark:text-[#F6F8FF] rounded-xl px-4 py-3 text-xs sm:text-sm font-semibold focus:outline-none focus:border-[#4457A5] cursor-pointer"
+                className="w-full bg-[#FFFFFF] dark:bg-[#1e222d] border border-[#DCE1F1] dark:border-[#2e3545] text-[#12141c] dark:text-[#F6F8FF] rounded-xl px-4 py-3 text-xs sm:text-sm font-semibold focus:outline-none focus:border-[#00B2FF] cursor-pointer"
               >
                 {statuList.map((s) => (
                   <option key={s.code} value={s.code}>
