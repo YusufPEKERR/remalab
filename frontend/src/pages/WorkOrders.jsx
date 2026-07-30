@@ -1976,7 +1976,7 @@ export default function WorkOrders() {
                                 const stockQty = getTotalStockQty(m.child_part_id);
                                 const isInsufficient = stockQty < m.quantity;
                                 return (
-                                  <div key={mIdx} className="flex items-center justify-between gap-4 text-xs border-b border-slate-100 dark:border-slate-800/30 pb-1 last:border-0 last:pb-0">
+                                  <div key={mIdx} className="flex flex-wrap items-center justify-between gap-4 text-xs border-b border-slate-100 dark:border-slate-800/30 pb-1 last:border-0 last:pb-0">
                                     <div className="text-left">
                                       <span className="font-mono font-medium text-slate-800 dark:text-slate-200">{m.child_item_id}</span>
                                       <span className="text-[10px] text-slate-400 dark:text-slate-500 ml-1">({m.child_name})</span>
@@ -2434,7 +2434,7 @@ export default function WorkOrders() {
             </div>
 
             {/* Pagination Footer */}
-            <div className="bg-slate-50 dark:bg-[#232F63] border-t border-slate-200 dark:border-slate-700/50 px-6 py-4 flex items-center justify-between text-slate-400 text-sm">
+            <div className="bg-slate-50 dark:bg-[#232F63] border-t border-slate-200 dark:border-slate-700/50 px-6 py-4 flex flex-wrap items-center justify-between text-slate-400 text-sm">
               <div className="flex items-center gap-2">
                 <span>Sayfa Başına:</span>
                 <select
@@ -2579,7 +2579,7 @@ export default function WorkOrders() {
               {issueDialog.part_name} {issueDialog.item_code ? <span className="text-slate-400">({issueDialog.item_code})</span> : null}
             </p>
             <form onSubmit={handleConfirmIssue} className="space-y-4">
-              <div className="grid grid-cols-3 gap-3 text-center">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-center">
                 <div className="bg-slate-50 dark:bg-[#232F63] rounded-xl py-2.5">
                   <div className="text-xs text-slate-400 mb-1">Gerekli</div>
                   <div className="font-mono font-semibold text-slate-800 dark:text-slate-200">{issueDialog.required_quantity}</div>
@@ -2705,7 +2705,7 @@ export default function WorkOrders() {
                       const currentVal = defectiveParts[m.part_id] || 0;
                       const repVal = replacementParts[m.part_id] || 0;
                       return (
-                        <div key={m.part_id} className="flex items-center justify-between gap-4 px-4 py-3">
+                        <div key={m.part_id} className="flex flex-wrap items-center justify-between gap-4 px-4 py-3">
                           <div className="flex-1 min-w-0">
                             <div className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">{m.part_name}</div>
                             {m.item_code && <div className="text-xs text-slate-400 font-mono">{m.item_code}</div>}

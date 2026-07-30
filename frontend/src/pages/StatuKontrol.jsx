@@ -163,7 +163,7 @@ export default function StatuKontrol() {
       {/* DEVICE DETAILS & TARGET STATUS SELECTION */}
       {device && (
         <div className="glass-card p-6 rounded-2xl shadow-md space-y-6">
-          <div className="flex items-center justify-between flex-wrap gap-4 p-4 rounded-xl bg-[#F5F7FC] dark:bg-[#1B2755] border border-[#DCE1F1] dark:border-[#24326A]">
+          <div className="flex flex-wrap items-center justify-between flex-wrap gap-4 p-4 rounded-xl bg-[#F5F7FC] dark:bg-[#1B2755] border border-[#DCE1F1] dark:border-[#24326A]">
             <div>
               <h3 className="text-base font-semibold text-[#16204A] dark:text-[#F6F8FF] font-mono tracking-wide">
                 {device.imei_number}

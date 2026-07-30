@@ -989,7 +989,7 @@ export default function BatchEntry() {
         </div>
 
         {/* Footer Pagination */}
-        <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-700/50 bg-slate-50 dark:bg-[#1E2B5C] flex items-center justify-between text-xs text-slate-400">
+        <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-700/50 bg-slate-50 dark:bg-[#1E2B5C] flex flex-wrap items-center justify-between text-xs text-slate-400">
           <div className="flex items-center gap-2">
             <span>Sayfa Başına:</span>
             <select
@@ -1342,7 +1342,7 @@ export default function BatchEntry() {
                 /* BATCH KAYDINI DÜZENLE: EXCEL ÖN İZLEMESİ & HATA GÖSTEREN KUTUCUK & ŞABLON İNDİRME */
                 <div className="space-y-5">
                   {/* Info Header */}
-                  <div className="flex items-center justify-between bg-slate-100 dark:bg-[#232F63] p-3.5 rounded-xl border border-slate-200 dark:border-slate-700">
+                  <div className="flex flex-wrap items-center justify-between bg-slate-100 dark:bg-[#232F63] p-3.5 rounded-xl border border-slate-200 dark:border-slate-700">
                     <div className="flex items-center gap-2 text-xs font-medium text-slate-700 dark:text-slate-200">
                       <FileSpreadsheet size={18} className="text-emerald-500" />
                       <span>Düzenlenen Kayıt Detayı: <strong className="font-semibold text-blue-400">Kayıt #{editingRecord.id} ({editingRecord.customer_name || 'Müşteri'})</strong></span>
@@ -1356,7 +1356,7 @@ export default function BatchEntry() {
                   {/* HATA GÖSTEREN KUTUCUK (Validation Report Box) */}
                   {excelValidationErrors.length > 0 ? (
                     <div className="bg-rose-500/10 border border-rose-500/30 text-rose-400 p-4 rounded-xl space-y-3">
-                      <div className="flex items-center justify-between font-bold text-xs">
+                      <div className="flex flex-wrap items-center justify-between font-bold text-xs">
                         <div className="flex items-center gap-2">
                           <AlertTriangle size={18} className="text-rose-500" />
                           <span>Hata Gösteren Kutucuk ({excelValidationErrors.length} Sütun / Satır Sorunu Tespit Edildi)</span>

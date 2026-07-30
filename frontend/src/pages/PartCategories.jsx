@@ -159,7 +159,7 @@ export default function PartCategories() {
         {!showForm ? (
           <>
             {/* SEARCH & NEW BTN */}
-            <div className="glass-card rounded-2xl p-4 shadow-md flex items-center justify-between gap-4">
+            <div className="glass-card rounded-2xl p-4 shadow-md flex flex-wrap items-center justify-between gap-4">
               <div className="flex-1 relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#5A6685] dark:text-[#8892B5]">
                   <Search size={18} />
@@ -309,7 +309,7 @@ export default function PartCategories() {
 
               <div>
                 <label className="block text-sm font-medium text-slate-400 mb-2">Flow Seçimleri <span className="text-red-400">*</span></label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {flowValues.map(f => (
                     <label key={f} className="flex items-center gap-2 bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 cursor-pointer hover:border-slate-500 transition-colors">
                       <input
@@ -331,7 +331,7 @@ export default function PartCategories() {
 
               <div>
                 <label className="block text-sm font-medium text-slate-400 mb-2">Kullanabilecek Departmanlar</label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {departmentList.map(dept => (
                     <label key={dept} className="flex items-center gap-2 bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2.5 cursor-pointer hover:border-slate-500 transition-colors">
                       <input
@@ -359,7 +359,7 @@ export default function PartCategories() {
               </div>
 
               {editingCat && (
-                <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-[#232F63] rounded-xl border border-slate-200 dark:border-slate-700/50">
+                <div className="flex flex-wrap items-center justify-between p-4 bg-slate-50 dark:bg-[#232F63] rounded-xl border border-slate-200 dark:border-slate-700/50">
                   <div>
                     <h3 className="text-slate-800 dark:text-slate-200 font-medium text-sm">Durum</h3>
                     <p className="text-slate-400 text-xs mt-0.5">Pasif kategoriler Parçalar ekranındaki seçim listesinde görünmez.</p>

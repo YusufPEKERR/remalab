@@ -290,6 +290,75 @@ body {
   border: 1px solid var(--color-border);
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   RESPONSIVE KATMANI
+
+   Sayfalar masaustu genisligine gore yazilmis (3400 satirlik
+   WorkOrders'ta 9 breakpoint var). Sayfa sayfa duzeltmek yerine
+   yapisal sorunlarin buyuk kismi burada tek yerden kapatiliyor;
+   sayfa ici duzeltmeler bunun uzerine biniyor.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* !!! TAMAMI @layer base ICINDE OLMALI !!!
+   Tailwind v4 utility'leri @layer utilities icinde uretilir ve CSS
+   kaskadinda KATMANSIZ kurallar katmanli kurallari YENER. Bu blok
+   katmansiz yazilirsa "img{height:auto}" gibi bir kural sayfadaki
+   h-36 / w-64 gibi utility siniflarini sessizce ezer.
+   base katmani utilities'ten once geldigi icin utility'ler kazanir:
+   asagidaki kurallar yalnizca ilgili utility YOKKEN devreye girer. */
+@layer base {
+
+  /* 1 ── Sayfa hicbir kosulda yatay kaymasin.
+          Tasan icerik kendi kabinda kaysin, tum arayuzu kaydirmasin. */
+  html, body { max-width: 100%; overflow-x: hidden; }
+
+  /* 2 ── Tablolar kendi kabinda yatay kaysin.
+          40 tablonun 18'inde overflow-x sarmalayicisi yoktu;
+          :has() ile tablonun dogrudan ebeveynini kaydirilabilir yapiyoruz,
+          boylece eksik sarmalayicilar tek kuraldan geliyor. */
+  :where(div, section, form, main):has(> table) {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* 3 ── Dar ekranda tablo sutunlari ezilip okunmaz hale gelmesin.
+          DIKKAT: min-width yalnizca KAYDIRILABILIR bir kabin icindeki
+          tablolara verilir. Aksi halde genis tablo kabini gerer ve tum
+          sayfayi tasirir (overflow-x:hidden bunu gizler, cozmez). */
+  @media (max-width: 900px) {
+    :where(div, section, form, main):has(> table) > table,
+    .overflow-x-auto table,
+    .overflow-x-scroll table {
+      min-width: 660px;
+    }
+  }
+
+  /* 3b ── Grid/flex cocuklarinin varsayilan min-width:auto degeri, genis
+           bir icerik (uzun metin, tablo, kod) yuzunden kabi germesine
+           yol acar. Dar ekranda bunu sifirlayip tasmayi kaynaginda keser. */
+  @media (max-width: 1024px) {
+    .grid > *, .flex > * { min-width: 0; }
+  }
+
+  /* 4 ── Modal govdesi ekrani asmasin.
+          Overlay deseni tum sayfalarda ayni: .fixed.inset-0 > govde */
+  .fixed.inset-0 > div {
+    max-height: 92vh;
+    overflow-y: auto;
+  }
+
+  /* 5 ── Medya kabini asmasin.
+          height:auto BILEREK YOK: h-36 gibi acik yukseklik veren
+          siniflari ezmemesi icin yalnizca max-width sinirlanir. */
+  img, svg, video, canvas { max-width: 100%; }
+  pre { max-width: 100%; overflow-x: auto; }
+
+  /* 6 ── Dokunmatik hedefler: dar ekranda buton/ikon alanlari kucuk kalmasin */
+  @media (max-width: 640px) {
+    button, [role="button"], a.btn { min-height: 36px; }
+  }
+}
+
 /* Buttons */
 .btn-primary-blue {
   background-color: var(--color-primary);

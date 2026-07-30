@@ -29,7 +29,7 @@ export default function DeliverPartPopover({ isOpen, position, partName, quantit
       style={{ position: 'fixed', top: Math.max(top, 8), left: Math.max(left, 8) }}
       className="z-[100] w-72 bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-xl p-4 space-y-3 animate-in fade-in zoom-in-95"
     >
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between">
         <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
           <Truck size={16} className="text-blue-400" /> Depodan Teslim Al
         </h4>

@@ -326,7 +326,7 @@ export default function ServiceRecords() {
                         <Smartphone size={16} className="text-blue-400"/> Cihaz Bilgileri (Batch)
                     </h3>
                     
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <span className="block text-xs text-slate-400 mb-1">Müşteri</span>
                             <div className="text-sm font-medium text-slate-700 dark:text-slate-300">{imeiSearchResult.customer_name || '-'}</div>

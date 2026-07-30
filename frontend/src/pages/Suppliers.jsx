@@ -24,7 +24,7 @@ function Dropdown({ value, onChange, options, placeholder }) {
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500"
+        className="w-full flex flex-wrap items-center justify-between bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500"
       >
         <span className={selected ? '' : 'text-slate-500'}>{selected ? selected.label : (placeholder || 'Seçiniz...')}</span>
         <ChevronDown size={16} className="text-slate-400 shrink-0" />
@@ -581,7 +581,7 @@ export default function Suppliers() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-slate-400">Posta Kodu</label>
                   <input type="text" className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500" value={formData.customer_phone} onChange={e => setFormData({...formData, customer_phone: e.target.value})} />
@@ -599,7 +599,7 @@ export default function Suppliers() {
 
               <div className="border-t border-slate-200 dark:border-slate-700/50 pt-4">
                 <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Firma Master Verisi</p>
-                <div className="grid grid-cols-2 gap-5 mb-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium text-slate-400">Kod</label>
                     <input type="text" className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500 font-mono" value={formData.code} onChange={e => setFormData({...formData, code: e.target.value})} />

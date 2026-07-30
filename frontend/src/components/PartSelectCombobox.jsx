@@ -61,7 +61,7 @@ export default function PartSelectCombobox({ parts = [], value, onChange, placeh
       {/* Selected Box / Combobox Trigger */}
       <div
         onClick={() => !disabled && setIsOpen(!isOpen)}
-        className={`w-full px-3 py-2 bg-slate-50 dark:bg-[#131B3A] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm flex items-center justify-between transition-colors shadow-sm select-none ${disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer hover:border-blue-500'}`}
+        className={`w-full px-3 py-2 bg-slate-50 dark:bg-[#131B3A] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm flex flex-wrap items-center justify-between transition-colors shadow-sm select-none ${disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer hover:border-blue-500'}`}
       >
         <span className="truncate font-medium">
           {selectedPart ? formatPartLabel(selectedPart) : <span className="text-slate-400">{placeholder}</span>}
@@ -116,7 +116,7 @@ export default function PartSelectCombobox({ parts = [], value, onChange, placeh
                     key={p.id}
                     type="button"
                     onClick={() => handleSelect(String(p.id))}
-                    className={`w-full text-left px-3.5 py-2 text-xs flex items-center justify-between transition-colors fast-transition ${
+                    className={`w-full text-left px-3.5 py-2 text-xs flex flex-wrap items-center justify-between transition-colors fast-transition ${
                       isSelected
                         ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 font-semibold'
                         : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#2E3F78]'

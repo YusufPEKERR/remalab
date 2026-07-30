@@ -220,7 +220,7 @@ export default function TestResultScreen({
             </div>
 
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between">
                 <label className="block text-xs font-bold text-[#5A6685] dark:text-[#8892B5]">
                   Hatalı Parça ve Hata Kodu <span className="text-rose-400">*</span>
                 </label>

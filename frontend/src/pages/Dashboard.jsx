@@ -176,7 +176,7 @@ export default function Dashboard() {
                 ${isSelected ? 'border-[#4457A5] ring-2 ring-[#4457A5]/20 bg-blue-50/20 dark:bg-blue-900/20' : 'border-[#DCE1F1] dark:border-[#24326A] hover:border-blue-400 dark:hover:border-blue-500'}
               `}
             >
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex flex-wrap items-center justify-between mb-3">
                 <div 
                   className="w-11 h-11 rounded-xl flex items-center justify-center transition-transform group-hover:scale-105"
                   style={{ backgroundColor: card.bgColor }}
@@ -208,7 +208,7 @@ export default function Dashboard() {
       {/* ════════════════ CARD DETAIL MODAL / EXTENDED PANEL ════════════════ */}
       {activeDetail && (
         <div className="bg-white dark:bg-[#16204A] rounded-2xl p-6 border border-[#DCE1F1] dark:border-[#24326A] shadow-md animate-in fade-in slide-in-from-top-3 duration-200">
-          <div className="flex items-center justify-between mb-4 border-b border-[#DCE1F1] dark:border-[#24326A] pb-3">
+          <div className="flex flex-wrap items-center justify-between mb-4 border-b border-[#DCE1F1] dark:border-[#24326A] pb-3">
             <div className="flex items-center gap-2">
               <div className="w-2.5 h-2.5 rounded-full bg-[#4457A5]" />
               <h3 className="text-base font-semibold text-[#16204A] dark:text-white">
@@ -351,7 +351,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="mt-4 pt-3 border-t border-[#DCE1F1] dark:border-[#24326A] flex items-center justify-between text-xs text-[#5A6685] dark:text-slate-400">
+          <div className="mt-4 pt-3 border-t border-[#DCE1F1] dark:border-[#24326A] flex flex-wrap items-center justify-between text-xs text-[#5A6685] dark:text-slate-400">
             <span>Son 24 saatteki hareketler gösteriliyor</span>
             <span className="font-semibold text-[#4457A5] dark:text-blue-400">Otomatik Canlı Güncelleme Açık</span>
           </div>
@@ -367,7 +367,7 @@ export default function Dashboard() {
             </h3>
             <p className="text-xs text-[#5A6685] dark:text-slate-400 mb-4">Sık kullanılan modüllere doğrudan erişin</p>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {[
                 { title: 'Stok Listesi', path: '/depo', icon: Package, count: stats.totalParts || '0', color: '#4457A5' },
                 { title: 'İş Emirleri', path: '/is-emirleri', icon: Layers, count: 'Aktif', color: '#3A76B8' },
@@ -379,7 +379,7 @@ export default function Dashboard() {
                   onClick={() => navigate(sc.path)}
                   className="flex flex-col p-3.5 rounded-xl border border-[#DCE1F1] dark:border-[#24326A] hover:border-blue-300 dark:hover:border-blue-500 bg-[#F5F7FC] dark:bg-[#24326A] hover:bg-[#EEF1FB]/60 dark:hover:bg-blue-900/20 transition-all text-left group cursor-pointer"
                 >
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex flex-wrap items-center justify-between mb-2">
                     <div className="w-8 h-8 rounded-lg bg-white dark:bg-[#16204A] border border-[#DCE1F1] dark:border-[#3B4A85] flex items-center justify-center shadow-xs">
                       <sc.icon size={16} color={sc.color} />
                     </div>
@@ -395,7 +395,7 @@ export default function Dashboard() {
           {/* System Health / Status Card */}
           <div className="bg-white dark:bg-[#16204A] rounded-2xl p-6 border border-[#DCE1F1] dark:border-[#24326A] shadow-sm flex-1 flex flex-col justify-between transition-colors">
             <div>
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex flex-wrap items-center justify-between mb-4">
                 <h3 className="text-base font-semibold text-[#16204A] dark:text-white flex items-center gap-2">
                   <TrendingUp size={18} className="text-emerald-500" /> Sistem Durumu
                 </h3>
@@ -405,7 +405,7 @@ export default function Dashboard() {
               </div>
 
               <div className="space-y-3">
-                <div className="flex items-center justify-between text-xs">
+                <div className="flex flex-wrap items-center justify-between text-xs">
                   <span className="text-[#5A6685] dark:text-slate-400 font-medium">Veritabanı Senkronizasyonu</span>
                   <span className="font-bold text-emerald-600 dark:text-emerald-400">Aktif</span>
                 </div>
@@ -413,7 +413,7 @@ export default function Dashboard() {
                   <div className="bg-emerald-500 h-full rounded-full w-full" />
                 </div>
 
-                <div className="flex items-center justify-between text-xs pt-2">
+                <div className="flex flex-wrap items-center justify-between text-xs pt-2">
                   <span className="text-[#5A6685] dark:text-slate-400 font-medium">Kritik Stok Doluluk Oranı</span>
                   <span className="font-bold text-[#4457A5] dark:text-blue-400">%98.4 Güvenli</span>
                 </div>
@@ -423,7 +423,7 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div className="mt-6 pt-4 border-t border-[#DCE1F1] dark:border-[#24326A] text-[11px] text-[#5A6685] dark:text-slate-400 flex items-center justify-between">
+            <div className="mt-6 pt-4 border-t border-[#DCE1F1] dark:border-[#24326A] text-[11px] text-[#5A6685] dark:text-slate-400 flex flex-wrap items-center justify-between">
               <span>Remalab WMS v1.0</span>
               <span className="font-semibold text-[#16204A] dark:text-white">Kesintisiz Bağlantı</span>
             </div>

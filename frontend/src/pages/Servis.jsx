@@ -242,7 +242,7 @@ export default function Servis() {
               <InfoPanel fields={fields} />
               <div className="flex-1 overflow-y-auto p-6 space-y-6">
                 <div>
-                  <div className="flex items-center justify-between mb-3">
+                  <div className="flex flex-wrap items-center justify-between mb-3">
                     <h3 className="text-sm font-semibold text-[#16204A] dark:text-[#F6F8FF] flex items-center gap-2">
                       <Download size={16} className="text-[#8894D8]" /> PhoneCheck Cihaz Test Verisi
                     </h3>
@@ -252,7 +252,7 @@ export default function Servis() {
                 </div>
 
                 <div>
-                  <div className="flex items-center justify-between mb-3">
+                  <div className="flex flex-wrap items-center justify-between mb-3">
                     <h3 className="text-sm font-semibold text-[#16204A] dark:text-[#F6F8FF]">Tespit Edilen Parçalar</h3>
                     <span className="text-xs font-semibold text-[#5A6685] dark:text-[#8892B5]">Toplam: {detectedParts.length} Kayıt</span>
                   </div>
@@ -265,7 +265,7 @@ export default function Servis() {
               <InfoPanel fields={fields} />
               <div className="flex-1 overflow-y-auto p-6 space-y-6">
                 <div>
-                  <div className="flex items-center justify-between mb-3">
+                  <div className="flex flex-wrap items-center justify-between mb-3">
                     <h3 className="text-sm font-semibold text-[#16204A] dark:text-[#F6F8FF]">Alt Onarımlar</h3>
                     <span className="text-xs font-semibold text-[#5A6685] dark:text-[#8892B5]">Toplam: {repairRecords.length} Kayıt</span>
                   </div>
@@ -273,7 +273,7 @@ export default function Servis() {
                 </div>
 
                 <div>
-                  <div className="flex items-center justify-between mb-3">
+                  <div className="flex flex-wrap items-center justify-between mb-3">
                     <h3 className="text-sm font-semibold text-[#16204A] dark:text-[#F6F8FF]">Onarım Parça ve İşçilikleri</h3>
                     <span className="text-xs font-semibold text-[#5A6685] dark:text-[#8892B5]">Toplam: {repairRecords.length} Kayıt</span>
                   </div>

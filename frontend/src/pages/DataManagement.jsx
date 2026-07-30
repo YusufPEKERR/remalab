@@ -310,7 +310,7 @@ export default function DataManagement() {
 
               {/* Preview UI */}
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between">
                   <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
                     <Eye size={20} className="text-slate-400" /> 3. Veri Önizleme
                   </h3>
