@@ -203,7 +203,8 @@ export default function Login() {
       </div>
 
       {/* ════════════════ SOL BÖLÜM: GÖRSEL & MARKA (58%) ════════════════ */}
-      <div style={{ flex: '1 1 58%', position: 'relative', zIndex: 10, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '48px 56px', overflow: 'hidden' }}>
+      {/* login-left: 980px altinda gizlenir (asagidaki media query) */}
+      <div className="login-left" style={{ flex: '1 1 58%', position: 'relative', zIndex: 10, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '48px 56px', overflow: 'hidden' }}>
 
         {/* ── ÜST LOGO ──
             Beyaz yazili tam logo (marka + "remalab teknoloji" kelime isareti).
@@ -383,7 +384,7 @@ export default function Login() {
       </div>
 
       {/* ════════════════ SAĞ BÖLÜM: CAM (FROSTED GLASS) PANEL & FORM (42%) ════════════════ */}
-      <div style={{
+      <div className="login-right" style={{
         flex: '1 1 42%',
         background: 'linear-gradient(160deg, rgba(255,255,255,.22) 0%, rgba(255,255,255,.10) 100%)',
         backdropFilter: 'blur(28px) saturate(150%)',
@@ -397,7 +398,7 @@ export default function Login() {
       }}>
 
         {/* CAM GİRİŞ KARTI */}
-        <div style={{
+        <div className="login-card" style={{
           width: '100%', maxWidth: 440,
           background: 'linear-gradient(155deg, rgba(255,255,255,.62) 0%, rgba(255,255,255,.42) 100%)',
           backdropFilter: 'blur(32px) saturate(165%)',
@@ -577,6 +578,30 @@ export default function Login() {
         @keyframes dotb     { 0%,80%,100%{transform:scale(.6);opacity:.4} 40%{transform:scale(1);opacity:1} }
         @keyframes iconFloat{ 0%,100%{transform:translateY(0px)} 50%{transform:translateY(-8px)} }
         input::placeholder  { color:#7C87AC; letter-spacing:normal; }
+
+        /* ── RESPONSIVE ──────────────────────────────────────────
+           Sol tanitim paneli 980px altinda gizlenir; form paneli tum
+           genisligi alir. Boylece dar ekranda 42%'lik bir sutuna
+           sikismis form yerine tam genislikte bir giris ekrani olur. */
+        @media (max-width: 980px) {
+          .login-left  { display: none !important; }
+          .login-right {
+            flex: 1 1 100% !important;
+            border-top-left-radius: 0 !important;
+            border-bottom-left-radius: 0 !important;
+            border-left: none !important;
+            box-shadow: none !important;
+            padding: 32px 20px !important;
+          }
+        }
+        @media (max-width: 560px) {
+          .login-right { padding: 20px 14px !important; }
+          .login-card  { padding: 28px 20px !important; border-radius: 22px !important; }
+        }
+        /* Kisa ekranlarda (yatay telefon) form dikeyde sigsin */
+        @media (max-height: 700px) {
+          .login-right { justify-content: flex-start !important; overflow-y: auto; }
+        }
         input:-webkit-autofill,
         input:-webkit-autofill:hover,
         input:-webkit-autofill:focus {

@@ -347,7 +347,7 @@ export default function MainLayout() {
               <div key={idx} className="px-3">
                 <button 
                   onClick={() => toggleGroup(group.title)}
-                  className="w-full flex items-center justify-between px-3 py-2 mb-1.5 rounded-lg group outline-none transition-colors fast-transition hover:bg-[#ECEFF9]/80 dark:hover:bg-[#24326A]/80"
+                  className="w-full flex flex-wrap items-center justify-between px-3 py-2 mb-1.5 rounded-lg group outline-none transition-colors fast-transition hover:bg-[#ECEFF9]/80 dark:hover:bg-[#24326A]/80"
                 >
                   <h3 
                     className="text-[11px] font-semibold uppercase tracking-widest transition-colors"
@@ -422,7 +422,7 @@ export default function MainLayout() {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Header / Üst Bar - Ultra Dark Charcoal Navy: #0E1630 */}
-        <header className="app-header h-16 flex items-center justify-between px-6 shadow-sm z-30 shrink-0 text-[#16204A] dark:text-[#F7F8FC]">
+        <header className="app-header h-16 flex flex-wrap items-center justify-between px-6 shadow-sm z-30 shrink-0 text-[#16204A] dark:text-[#F7F8FC]">
           <div className="flex items-center gap-3">
             {/* Mobile Hamburger Button */}
             <button
@@ -476,7 +476,7 @@ export default function MainLayout() {
               {showNotifications && (
                 <div className="glass-card absolute right-0 mt-3 w-[calc(100vw-32px)] sm:w-[360px] shadow-2xl rounded-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 text-[#16204A] dark:text-[#F6F8FF]">
                   <div className="p-4 border-b border-[#DCE1F1] dark:border-[#3B4A85] bg-[#EFF1FA]/70 dark:bg-[#16204A]/70 flex flex-col gap-2">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-wrap items-center justify-between">
                       <h3 className="font-semibold text-[#16204A] dark:text-[#F6F8FF]">Kritik Stok Bildirimleri</h3>
                       {notifications.length > 0 && (
                         <div className="flex items-center gap-2">
@@ -532,7 +532,7 @@ export default function MainLayout() {
                               <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium text-[#16204A] dark:text-[#F6F8FF] mb-1 leading-snug line-clamp-2" title={notif.part_name}>{notif.part_name}</p>
                                 <p className="text-xs text-[#5A6685] dark:text-[#8892B5] mb-1">Lokasyon: <strong className="text-[#16204A] dark:text-[#F6F8FF]">{notif.location_name}</strong></p>
-                                <div className="flex items-center justify-between mt-2">
+                                <div className="flex flex-wrap items-center justify-between mt-2">
                                   <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-[#EFF1FA] dark:bg-[#16204A] text-[#16204A] dark:text-[#F6F8FF] border border-[#DCE1F1] dark:border-[#3B4A85]">Stok: {notif.quantity}</span>
                                   <span className={`text-[10px] font-bold uppercase tracking-wider ${notif.status === 'Tükendi' ? 'text-red-400' : 'text-amber-400'}`}>
                                     {notif.status === 'Tükendi' ? 'STOK TÜKENDİ' : 'KRİTİK SEVİYE'}

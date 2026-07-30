@@ -175,7 +175,7 @@ export default function Settings() {
               <Globe className="text-blue-400" size={20} />
               Dil Ayarları
             </h2>
-            <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-[#232F63] rounded-xl border border-slate-200 dark:border-slate-700/50">
+            <div className="flex flex-wrap items-center justify-between p-4 bg-slate-50 dark:bg-[#232F63] rounded-xl border border-slate-200 dark:border-slate-700/50">
               <div>
                 <h3 className="text-slate-800 dark:text-slate-200 font-medium">Uygulama Dili</h3>
                 <p className="text-slate-400 text-sm mt-1">Arayüzde kullanılacak dili seçin</p>
@@ -197,7 +197,7 @@ export default function Settings() {
                   Geliştirici Ayarları
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase tracking-wider">Admin</span>
                 </h2>
-                <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-[#232F63] rounded-xl border border-slate-200 dark:border-slate-700/50">
+                <div className="flex flex-wrap items-center justify-between p-4 bg-slate-50 dark:bg-[#232F63] rounded-xl border border-slate-200 dark:border-slate-700/50">
                   <div>
                     <h3 className="text-slate-800 dark:text-slate-200 font-medium">Dev Mode</h3>
                     <p className="text-slate-400 text-sm mt-1">

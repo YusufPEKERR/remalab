@@ -123,7 +123,7 @@ const ManualTestModal = ({ open, imei, stageName, fields, onClose, onSubmit, sav
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {(fields || []).map((f) => (
               <div key={f} className={f === "notes" ? "col-span-2" : ""}>
                 <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
@@ -463,7 +463,7 @@ const BatchStatuTransition = () => {
 
       {deviceInfo && (
         <div className="glass-card p-6 rounded-2xl shadow-md">
-          <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex flex-wrap items-center justify-between flex-wrap gap-3">
             <h3 className="text-base font-semibold text-[#16204A] dark:text-[#F6F8FF]">
               <span className="font-mono text-[#8894D8]">{deviceInfo.imei}</span> <span className="text-[#5A6685] dark:text-[#8892B5] font-normal">· {deviceInfo.batchNo} · {deviceInfo.flow}</span>
             </h3>

@@ -688,7 +688,7 @@ export default function ImeiTracker() {
               <div className="space-y-4 bg-slate-50 dark:bg-[#1A2450] p-4 rounded-xl border border-slate-200/50 dark:border-slate-800">
                 <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-200 dark:border-slate-850 pb-2 mb-3">Tanı & Cihaz Sağlık Kartları</h4>
                 
-                <div className="grid grid-cols-3 gap-2 text-center text-xs font-bold">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-center text-xs font-bold">
                   <div className="space-y-1">
                     <span className="block text-[10px] text-slate-400">LCD</span>
                     <button
@@ -723,7 +723,7 @@ export default function ImeiTracker() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 pt-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                   <div>
                     <label className="block text-[10px] text-slate-400 font-semibold mb-1">Battery Cycle</label>
                     <input

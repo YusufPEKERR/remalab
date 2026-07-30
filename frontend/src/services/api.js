@@ -1797,6 +1797,39 @@ export const api = {
         });
     },
 
+    importDefinedBatchEntry: async (data) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.import_defined_batch_entry) {
+                backend.import_defined_batch_entry(JSON.stringify(data), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false, ok: false, message: "Backend eksik (import_defined_batch_entry)" });
+            }
+        });
+    },
+
+    validateBatchEntry: async (data) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.validate_batch_entry) {
+                backend.validate_batch_entry(JSON.stringify(data), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true, ok: true, message: "" });
+            }
+        });
+    },
+
+    getPhonecheckDeviceByImei: async (term) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_phonecheck_device_by_imei) {
+                backend.get_phonecheck_device_by_imei(String(term), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false, found: false, message: "Backend eksik (get_phonecheck_device_by_imei)" });
+            }
+        });
+    },
+
     exportAllTablesToExcel: async (filename) => {
         const backend = await getBackend();
         return new Promise((resolve) => {

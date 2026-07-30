@@ -345,7 +345,7 @@ export default function ItemBOM() {
         </div>
 
         {/* Pagination Footer */}
-        <div className="bg-slate-50 dark:bg-[#232F63] border-t border-slate-200 dark:border-slate-700/50 px-6 py-4 flex items-center justify-between text-slate-400 text-sm">
+        <div className="bg-slate-50 dark:bg-[#232F63] border-t border-slate-200 dark:border-slate-700/50 px-6 py-4 flex flex-wrap items-center justify-between text-slate-400 text-sm">
           <div className="flex items-center gap-2">
             <span>Sayfa Başına:</span>
             <select

@@ -127,7 +127,7 @@ const AddRepairModal = ({ onClose, onAdd, missionGroups, device }) => {
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm">
       <div className="bg-white dark:bg-[#1A2450] rounded-2xl shadow-2xl border border-slate-200 dark:border-[#3A4A8C] max-w-2xl w-full mx-4 flex flex-col min-h-0">
-        <div className="px-5 py-4 border-b border-slate-100 dark:border-[#3A4A8C] flex items-center justify-between">
+        <div className="px-5 py-4 border-b border-slate-100 dark:border-[#3A4A8C] flex flex-wrap items-center justify-between">
           <h3 className="text-base font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
             <Wrench size={18} className="text-slate-400" /> Teknik: Teklif Parçaları
           </h3>
@@ -235,7 +235,7 @@ const StatusAdvanceModal = ({ repair, onClose, onAdvance }) => {
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm">
       <div className="bg-white dark:bg-[#1E2B5C] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 max-w-md w-full mx-4 overflow-hidden">
-        <div className="border-b border-slate-200 dark:border-slate-700 px-6 py-4 flex items-center justify-between bg-slate-50 dark:bg-[#232F63]">
+        <div className="border-b border-slate-200 dark:border-slate-700 px-6 py-4 flex flex-wrap items-center justify-between bg-slate-50 dark:bg-[#232F63]">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center">
               <Play size={20} className="text-indigo-500" />
@@ -260,7 +260,7 @@ const StatusAdvanceModal = ({ repair, onClose, onAdvance }) => {
               <p className="text-sm text-slate-500 dark:text-slate-400 italic py-4 text-center">Bu statüden ileri geçiş yapılamaz.</p>
             )}
             {nextOptions.map(opt => (
-              <button key={opt.code} onClick={() => { onAdvance(repair.id, opt.code); onClose(); }} className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-500/50 hover:bg-blue-50 dark:hover:bg-blue-500/5 transition-all group">
+              <button key={opt.code} onClick={() => { onAdvance(repair.id, opt.code); onClose(); }} className="w-full flex flex-wrap items-center justify-between px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-500/50 hover:bg-blue-50 dark:hover:bg-blue-500/5 transition-all group">
                 <div className="flex items-center gap-3">
                   <ArrowRightLeft size={16} className="text-slate-400 group-hover:text-blue-500 transition-colors" />
                   <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{opt.label}</span>
@@ -328,7 +328,7 @@ const DOAReturnModal = ({ parts, onClose, onConfirm, submitting }) => {
             <div className="space-y-3">
               {outParts.map(p => (
                 <div key={p.id} className="border border-slate-200 dark:border-slate-700 rounded-xl p-4 bg-slate-50 dark:bg-[#1A2450]">
-                  <div className="flex items-center justify-between mb-3">
+                  <div className="flex flex-wrap items-center justify-between mb-3">
                     <div>
                       <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">{p.name}</p>
                       <p className="text-xs text-slate-500 mt-0.5">{p.itemCode} — Miktar: {p.qty}</p>
@@ -899,7 +899,7 @@ const TechnicianRepairOperations = () => {
          ═══════════════════════════════════════════════════════════ */}
       <div className="bg-white dark:bg-[#1A2450] rounded-2xl border border-slate-200 dark:border-[#3A4A8C] shadow-sm overflow-hidden flex-1 flex flex-col min-h-0">
         {/* Toolbar */}
-        <div className="px-5 py-3 border-b border-slate-100 dark:border-[#3A4A8C] flex items-center justify-between flex-wrap gap-2">
+        <div className="px-5 py-3 border-b border-slate-100 dark:border-[#3A4A8C] flex flex-wrap items-center justify-between flex-wrap gap-2">
           <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
             <Wrench size={16} className="text-slate-400" />
             Onarım Detay
@@ -996,7 +996,7 @@ const TechnicianRepairOperations = () => {
          ═══════════════════════════════════════════════════════════ */}
       {selectedGroup && (
         <div className="bg-white dark:bg-[#1A2450] rounded-2xl border border-slate-200 dark:border-[#3A4A8C] shadow-sm overflow-hidden">
-          <div className="px-5 py-3 border-b border-slate-100 dark:border-[#3A4A8C] flex items-center justify-between">
+          <div className="px-5 py-3 border-b border-slate-100 dark:border-[#3A4A8C] flex flex-wrap items-center justify-between">
             <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
               <Package size={16} className="text-slate-400" />
               Onarım Parçaları

@@ -128,7 +128,7 @@ const AddTableModal = ({ onClose, onAdd }) => {
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm">
       <div className="bg-white dark:bg-[#1E2B5C] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 max-w-sm w-full mx-4 overflow-hidden">
-        <div className="border-b border-slate-200 dark:border-slate-700 px-6 py-4 flex items-center justify-between bg-slate-50 dark:bg-[#232F63]">
+        <div className="border-b border-slate-200 dark:border-slate-700 px-6 py-4 flex flex-wrap items-center justify-between bg-slate-50 dark:bg-[#232F63]">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center"><Plus size={20} className="text-blue-500" /></div>
             <h3 className="font-semibold text-slate-800 dark:text-slate-100">Yeni Tablo Ekle</h3>
@@ -575,7 +575,7 @@ export default function SchemaMapper() {
       {showAddModal && <AddTableModal onClose={() => setShowAddModal(false)} onAdd={handleAddTable} />}
 
       {/* ════════════════ TOOLBAR ════════════════ */}
-      <div className="bg-[#F5F7FC] dark:bg-[#16204A] border-b border-[#DCE1F1] dark:border-[#24326A] px-5 py-3 flex items-center justify-between gap-3 flex-wrap shrink-0 z-20 shadow-md">
+      <div className="bg-[#F5F7FC] dark:bg-[#16204A] border-b border-[#DCE1F1] dark:border-[#24326A] px-5 py-3 flex flex-wrap items-center justify-between gap-3 flex-wrap shrink-0 z-20 shadow-md">
         <div className="flex items-center gap-2.5">
           <h2 className="text-sm font-semibold text-white flex items-center gap-2 mr-3 font-mono">
             <Database size={17} className="text-blue-400" />
@@ -741,7 +741,7 @@ export default function SchemaMapper() {
           {/* ── INSPECTOR PANEL ─────────────────────────────── */}
           {inspectorOpen && (selectedTable || selectedEdge) && (
             <div className="w-80 shrink-0 bg-white dark:bg-[#1A2450] border-l border-slate-200 dark:border-[#3A4A8C] flex flex-col overflow-hidden">
-              <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-[#3A4A8C] bg-slate-50/50 dark:bg-[#131B3A]/50">
+              <div className="flex flex-wrap items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-[#3A4A8C] bg-slate-50/50 dark:bg-[#131B3A]/50">
                 <h3 className="text-xs font-semibold text-slate-800 dark:text-slate-200 uppercase tracking-widest">Özellikler</h3>
                 <button onClick={() => setInspectorOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"><X size={16} /></button>
               </div>
@@ -764,7 +764,7 @@ export default function SchemaMapper() {
                       <h4 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Alanlar ({selectedTable.fields.length})</h4>
                       <div className="space-y-1">
                         {selectedTable.fields.map(f => (
-                          <div key={f.id} className="flex items-center justify-between px-2 py-1 rounded-lg bg-slate-50 dark:bg-[#131B3A]">
+                          <div key={f.id} className="flex flex-wrap items-center justify-between px-2 py-1 rounded-lg bg-slate-50 dark:bg-[#131B3A]">
                             <span className="text-[11px] font-mono text-slate-600 dark:text-slate-400">{f.dbName}</span>
                             <div className="flex items-center gap-1.5">
                               <ArrowRight size={10} className="text-slate-700 dark:text-slate-300" />
@@ -829,7 +829,7 @@ export default function SchemaMapper() {
             {/* List View Left Sidebar (Tables) */}
             <div className="w-72 flex flex-col bg-white dark:bg-[#1A2450] border border-slate-200 dark:border-[#3A4A8C] rounded-2xl overflow-hidden shadow-sm shrink-0">
               <div className="px-4 py-3 border-b border-slate-100 dark:border-[#3A4A8C] bg-slate-50/50 dark:bg-[#131B3A]/50 flex flex-col gap-3">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between">
                   <h3 className="text-xs font-semibold text-slate-800 dark:text-slate-200 uppercase tracking-widest flex items-center gap-2">
                     <Database size={14} className="text-blue-500" /> Tablolar
                   </h3>
@@ -892,7 +892,7 @@ export default function SchemaMapper() {
                       }`}
                     >
                       <span className="font-bold">{t.displayName}</span>
-                      <div className="flex items-center justify-between mt-1 w-full gap-2">
+                      <div className="flex flex-wrap items-center justify-between mt-1 w-full gap-2">
                         <span className="text-[10px] font-mono opacity-70 flex items-center gap-1 truncate">
                           <Database size={10} className="shrink-0" /> <span className="truncate">{t.dbName}</span>
                         </span>
@@ -910,7 +910,7 @@ export default function SchemaMapper() {
           <div className="flex-1 flex flex-col bg-white dark:bg-[#1A2450] border border-slate-200 dark:border-[#3A4A8C] rounded-2xl overflow-hidden shadow-sm">
             {selectedTable ? (
               <>
-                <div className="px-6 py-4 border-b border-slate-100 dark:border-[#3A4A8C] bg-slate-50/50 dark:bg-[#131B3A]/50 flex items-center justify-between">
+                <div className="px-6 py-4 border-b border-slate-100 dark:border-[#3A4A8C] bg-slate-50/50 dark:bg-[#131B3A]/50 flex flex-wrap items-center justify-between">
                   <div>
                     <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200">{selectedTable.feName}</h2>
                     <p className="text-xs text-slate-500 font-mono mt-1">Veritabanı Tablosu: {selectedTable.dbName}</p>
