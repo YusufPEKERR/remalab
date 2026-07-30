@@ -40,6 +40,11 @@ class WebSocketTransport(QWebChannelAbstractTransport):
 
 
 class CustomRequestHandler(http.server.SimpleHTTPRequestHandler):
+    # Varsayılan HTTP/1.0 (keep-alive yok) her varlık (JS/CSS/görsel) için ayrı bir
+    # TCP bağlantısı açtırıyordu - sayfa başına onlarca kısa ömürlü bağlantı anlamına
+    # geliyordu. HTTP/1.1 ile tarayıcı aynı bağlantıyı varlıklar arasında yeniden kullanır.
+    protocol_version = "HTTP/1.1"
+
     def translate_path(self, path):
         if path.startswith('/api_cache/'):
             # Serve from the top-level api_cache directory
@@ -59,12 +64,27 @@ class CustomRequestHandler(http.server.SimpleHTTPRequestHandler):
     def end_headers(self):
         if self.path.startswith('/api_cache/'):
             self.send_header('Cache-Control', 'no-store')
+        elif self.path.startswith('/assets/'):
+            # Vite build çıktısındaki /assets/*.js|css dosya adları içerik hash'i
+            # taşır (ör. index-B8be4loj.js) - içerik değişirse dosya adı da değişir,
+            # bu yüzden sonsuza kadar önbelleklenmeleri güvenlidir.
+            self.send_header('Cache-Control', 'public, max-age=31536000, immutable')
         super().end_headers()
+
+
+class _ThreadingHTTPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
+    daemon_threads = True
+    # HTTP/1.1 keep-alive ile bağlantılar istekler arasında açık kalabildiğinden,
+    # tek thread'li TCPServer aynı anda gelen ikinci bir varlık isteğini önceki
+    # bağlantı kapanana kadar bekletirdi - ThreadingMixIn, tarayıcının paralel
+    # açtığı bağlantıların hepsine eşzamanlı cevap verilmesini sağlar.
+    allow_reuse_address = True
+
 
 def _start_static_server(directory):
     """dist/ klasörünü 127.0.0.1'de servis eder."""
     handler = functools.partial(CustomRequestHandler, directory=directory)
-    httpd = socketserver.TCPServer(("127.0.0.1", 0), handler)
+    httpd = _ThreadingHTTPServer(("127.0.0.1", 0), handler)
     thread = threading.Thread(target=httpd.serve_forever, daemon=True)
     thread.start()
     return httpd

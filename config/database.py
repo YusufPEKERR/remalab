@@ -49,6 +49,14 @@ def _create_engine_instance():
         pool_pre_ping=True,
         pool_timeout=5,
         pool_recycle=300,
+        # Birçok sayfa artık Promise.all() ile 5-7 Slot'u aynı anda çağırıyor (ör.
+        # İrsaliye'nin fetchDependencies'i); varsayılan pool_size=5 bu durumda hemen
+        # dolup fazlasını "overflow" bağlantılarına düşürüyordu - bunlar havuzda
+        # tutulmadığından her seferinde yeniden kurulmaları gerekiyordu. pool_size
+        # artırılarak eşzamanlı çağrıların çoğu gerçekten havuzlanmış (yeniden
+        # kullanılan) bağlantılardan karşılanır.
+        pool_size=10,
+        max_overflow=10,
         connect_args=_get_connect_args(),
     )
 

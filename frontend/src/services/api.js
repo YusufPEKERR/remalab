@@ -14,9 +14,11 @@ const getMockBackend = () => ({
     },
     get_users: (cb) => {
         setTimeout(() => {
-            cb(JSON.stringify({ success: true, users: [
-                { id: 1, username: 'admin', email: 'admin@test.com', role: 'Admin' }
-            ]}));
+            cb(JSON.stringify({
+                success: true, users: [
+                    { id: 1, username: 'admin', email: 'admin@test.com', role: 'Admin' }
+                ]
+            }));
         }, 500);
     },
     create_user: (username, email, password, role, cb) => {
@@ -106,7 +108,7 @@ export const api = {
             backend.get_schema_introspection((res) => resolve(res));
         });
     },
-    
+
     getUsers: async () => {
         const backend = await getBackend();
         return new Promise((resolve) => {
@@ -321,7 +323,7 @@ export const api = {
             if (backend.get_locations) {
                 backend.get_locations((res) => resolve(JSON.parse(res)));
             } else {
-                resolve({ success: true, locations: [{id: 1, name: "Raf A1 (Mock)"}]});
+                resolve({ success: true, locations: [{ id: 1, name: "Raf A1 (Mock)" }] });
             }
         });
     },
@@ -638,25 +640,25 @@ export const api = {
             if (backend.get_part_categories) {
                 backend.get_part_categories((res) => resolve(JSON.parse(res)));
             } else {
-                resolve({ 
-                    success: true, 
+                resolve({
+                    success: true,
                     categories: [
-                        {id: 1, name: "Ekran / LCD"}, 
-                        {id: 2, name: "Batarya"}, 
-                        {id: 3, name: "Kasa / Back Cover"}, 
-                        {id: 4, name: "Ön Cam / Front Glass"},
-                        {id: 5, name: "Arka Cam / Back Glass"},
-                        {id: 6, name: "Anakart / Mainboard"}, 
-                        {id: 7, name: "Ön Kamera / Front Camera"}, 
-                        {id: 8, name: "Arka Kamera / Main Camera"}, 
-                        {id: 9, name: "Şarj Soketi / Charging Connector"},
-                        {id: 10, name: "Ahize / Receiver"},
-                        {id: 11, name: "Hoparlör / Speaker"},
-                        {id: 12, name: "Mikrofon / Microphone"},
-                        {id: 13, name: "NFC"},
-                        {id: 14, name: "Titreşim / Vibration Engine"},
-                        {id: 15, name: "Sensör / Sensor FPC"}
-                    ] 
+                        { id: 1, name: "Ekran / LCD" },
+                        { id: 2, name: "Batarya" },
+                        { id: 3, name: "Kasa / Back Cover" },
+                        { id: 4, name: "Ön Cam / Front Glass" },
+                        { id: 5, name: "Arka Cam / Back Glass" },
+                        { id: 6, name: "Anakart / Mainboard" },
+                        { id: 7, name: "Ön Kamera / Front Camera" },
+                        { id: 8, name: "Arka Kamera / Main Camera" },
+                        { id: 9, name: "Şarj Soketi / Charging Connector" },
+                        { id: 10, name: "Ahize / Receiver" },
+                        { id: 11, name: "Hoparlör / Speaker" },
+                        { id: 12, name: "Mikrofon / Microphone" },
+                        { id: 13, name: "NFC" },
+                        { id: 14, name: "Titreşim / Vibration Engine" },
+                        { id: 15, name: "Sensör / Sensor FPC" }
+                    ]
                 });
             }
         });
@@ -1069,7 +1071,7 @@ export const api = {
         });
     },
 
-        addMaterialRequest: async (workOrderId, partId, quantity, username) => {
+    addMaterialRequest: async (workOrderId, partId, quantity, username) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
             if (backend.add_material_request) {
@@ -1117,8 +1119,8 @@ export const api = {
         return new Promise((resolve) => {
             if (backend.remove_work_order_part) {
                 // Try sending it as a single JSON string!
-                backend.remove_work_order_part(JSON.stringify({id: wopId, reason: reason || ''}), (res) => {
-                    try { resolve(JSON.parse(res)); } catch(e) { resolve({success: false, message: 'Parse error'}); }
+                backend.remove_work_order_part(JSON.stringify({ id: wopId, reason: reason || '' }), (res) => {
+                    try { resolve(JSON.parse(res)); } catch (e) { resolve({ success: false, message: 'Parse error' }); }
                 });
             } else {
                 resolve({ success: true });
@@ -1153,8 +1155,8 @@ export const api = {
         return new Promise((resolve) => {
             if (backend.remove_work_order_part) {
                 // Try sending it as a single JSON string!
-                backend.remove_work_order_part(JSON.stringify({id: wopId, reason: reason || ''}), (res) => {
-                    try { resolve(JSON.parse(res)); } catch(e) { resolve({success: false, message: 'Parse error'}); }
+                backend.remove_work_order_part(JSON.stringify({ id: wopId, reason: reason || '' }), (res) => {
+                    try { resolve(JSON.parse(res)); } catch (e) { resolve({ success: false, message: 'Parse error' }); }
                 });
             } else {
                 resolve({ success: true });
@@ -1214,7 +1216,7 @@ export const api = {
                 backend.delete_production_run(paramsJson, (res) => {
                     try {
                         resolve(JSON.parse(res));
-                    } catch(e) {
+                    } catch (e) {
                         reject(new Error("Backend yanıt parse hatası: " + res));
                     }
                 });
@@ -1599,11 +1601,11 @@ export const api = {
         return new Promise((resolve) => {
             if (backend.get_product_boms) {
                 backend.get_product_boms(
-                    String(page), 
-                    String(pageSize), 
-                    String(searchTerm || ''), 
-                    String(modelFilter || ''), 
-                    String(statusFilter || ''), 
+                    String(page),
+                    String(pageSize),
+                    String(searchTerm || ''),
+                    String(modelFilter || ''),
+                    String(statusFilter || ''),
                     (res) => resolve(JSON.parse(res))
                 );
             } else {
@@ -1617,9 +1619,9 @@ export const api = {
         return new Promise((resolve) => {
             if (backend.create_product_bom) {
                 backend.create_product_bom(
-                    product_model, 
-                    child_item_code, 
-                    String(quantity || 1), 
+                    product_model,
+                    child_item_code,
+                    String(quantity || 1),
                     (res) => resolve(JSON.parse(res))
                 );
             } else {
@@ -1634,9 +1636,9 @@ export const api = {
             if (backend.update_product_bom) {
                 backend.update_product_bom(
                     String(id),
-                    product_model, 
-                    child_item_code, 
-                    String(quantity || 1), 
+                    product_model,
+                    child_item_code,
+                    String(quantity || 1),
                     (res) => resolve(JSON.parse(res))
                 );
             } else {

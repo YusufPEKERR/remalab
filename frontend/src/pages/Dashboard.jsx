@@ -34,13 +34,13 @@ export default function Dashboard() {
     try {
       const [statRes, movRes] = await Promise.all([
         api.getDashboardStats(),
-        api.getStockMovements('all')
+        api.getRecentStockMovements(5)
       ]);
       if (statRes && statRes.success) {
         setStats(statRes.stats);
       }
       if (movRes && movRes.success) {
-        setRecentMovements(movRes.movements.slice(0, 6)); // top 6
+        setRecentMovements(movRes.movements || []);
       }
     } catch (err) {
       console.error("Dashboard error:", err);
