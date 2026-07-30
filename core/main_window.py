@@ -61,6 +61,13 @@ class CustomRequestHandler(http.server.SimpleHTTPRequestHandler):
             path = '/favicon.svg'
         return super().translate_path(path)
 
+    def do_GET(self):
+        # SPA (React Router) Fallback: İstenen rota fiziksel bir dosya değilse index.html sun
+        target_file = self.translate_path(self.path)
+        if not os.path.exists(target_file) and not self.path.startswith(('/assets/', '/api_cache/')) and '.' not in os.path.basename(self.path):
+            self.path = '/index.html'
+        super().do_GET()
+
     def end_headers(self):
         if self.path.startswith('/api_cache/'):
             self.send_header('Cache-Control', 'no-store')

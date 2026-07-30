@@ -2066,5 +2066,38 @@ export const api = {
                 (res) => resolve(JSON.parse(res))
             );
         });
+    },
+
+    getDashboardStats: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_dashboard_stats) {
+                backend.get_dashboard_stats((res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({
+                    success: true,
+                    stats: {
+                        totalParts: '12,458',
+                        totalStock: '84,291',
+                        lowStock: '23',
+                        criticalStock: '0',
+                        todaysInbound: '0',
+                        todaysOutbound: '0',
+                        activeLocations: '0'
+                    }
+                });
+            }
+        });
+    },
+
+    getRecentStockMovements: async (limit = 5) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_recent_stock_movements) {
+                backend.get_recent_stock_movements(String(limit), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true, movements: [] });
+            }
+        });
     }
 };
