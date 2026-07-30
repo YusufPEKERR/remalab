@@ -276,10 +276,11 @@ export default function BatchEntry() {
         else errorMessages.push(`Kayıt #${item.id} güncellenemedi: ${res.message}`);
       } else {
         // Fallback for new items imported via Excel that lack IDs
+        const clean = (val) => (val || '').toString().trim().toLowerCase();
         const existing = records.find(r => 
-          (item.imei_number && r.imei_number === item.imei_number) ||
-          (item.serial_number && r.serial_number === item.serial_number) ||
-          (item.internal_id && r.internal_id === item.internal_id)
+          (item.imei_number && clean(item.imei_number) && clean(r.imei_number) === clean(item.imei_number)) ||
+          (item.serial_number && clean(item.serial_number) && clean(r.serial_number) === clean(item.serial_number)) ||
+          (item.internal_id && clean(item.internal_id) && clean(r.internal_id) === clean(item.internal_id))
         );
 
         if (existing) {
