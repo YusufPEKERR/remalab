@@ -1310,7 +1310,7 @@ export default function WorkOrders() {
   const renderMaterialScanner = () => {
     if (!selectedProductionOrder) return null;
     return (
-      <div className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden mt-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+      <div className="bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden mt-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
         <div className="flex justify-between items-center p-6 bg-slate-50/50 dark:bg-[#232F63]/50 border-b border-slate-200 dark:border-slate-700/50">
           <div>
             <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
@@ -1388,7 +1388,7 @@ export default function WorkOrders() {
   const renderProductionOrderDetails = () => {
     if (!selectedProductionOrder) return null;
     return (
-              <div className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden">
+              <div className="bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden">
                 <div className="flex justify-between items-center p-6 pb-4">
                   <div>
                     <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
@@ -1489,7 +1489,7 @@ export default function WorkOrders() {
     <div className="flex flex-col space-y-6 pb-12 text-[#16204A] dark:text-[#F6F8FF] max-w-[1600px] mx-auto animate-in fade-in duration-300">
 
       {/* ════════════════ HERO BANNER ════════════════ */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#EFF1FA] dark:from-[#101935] via-[#DDE2F2] dark:via-[#16204A] to-[#FFFFFF] dark:to-[#24326A] p-6 sm:p-8 text-[#1B2755] dark:text-white shadow-xl border border-[#DCE1F1] dark:border-[#24326A]">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#9FADC9] dark:from-[#101935] via-[#8A98B8] dark:via-[#16204A] to-[#C6CEE2] dark:to-[#24326A] p-6 sm:p-8 text-[#1B2755] dark:text-white shadow-xl border border-[#8593B4] dark:border-[#24326A]">
         {/* Ambient Grid Overlay */}
         <div className="absolute inset-0 bg-[linear-gradient(rgba(47, 140, 134,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(47, 140, 134,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-teal-600/10 rounded-full blur-3xl pointer-events-none" />
@@ -1502,7 +1502,7 @@ export default function WorkOrders() {
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1B2755] dark:text-white">
               İş Emirleri & Üretim Yönetimi
             </h1>
-            <p className="text-sm text-[#4A5A9E] dark:text-slate-300 leading-relaxed">
+            <p className="text-sm text-[#3D4B86] dark:text-slate-300 leading-relaxed">
               Servis kayıtlarına bağlı iş emirlerini, yarı mamul üretimlerini ve malzeme tüketimlerini anlık takip edin.
             </p>
           </div>
@@ -1517,8 +1517,8 @@ export default function WorkOrders() {
             onClick={() => setActiveTab(tab.key)}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === tab.key 
-                ? 'bg-[#4457A5] text-white shadow-md' 
-                : 'text-[#5A6685] dark:text-[#8892B5] hover:text-[#16204A] dark:hover:text-[#F6F8FF] hover:bg-[#FFFFFF] dark:hover:bg-[#24326A]'
+                ? 'bg-[#3B4C93] text-white shadow-md' 
+                : 'text-[#2E3650] dark:text-[#8892B5] hover:text-[#16204A] dark:hover:text-[#F6F8FF] hover:bg-[#C6CEE2] dark:hover:bg-[#24326A]'
             }`}
           >
             <tab.icon size={15} /> {tab.label}
@@ -1530,7 +1530,7 @@ export default function WorkOrders() {
 
         {/* --- YENİ İŞ EMRİ --- */}
         {activeTab === 'new' && (
-          <div className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-sm">
+          <div className="bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-sm">
             <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2 mb-6">
               {editingOrder ? 'İş Emrini Düzenle' : 'Yeni İş Emri'}
             </h2>
@@ -1691,7 +1691,7 @@ export default function WorkOrders() {
 
         {/* --- İŞ EMRİ LİSTESİ --- */}
         {activeTab === 'list' && (
-          <div className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden">
+          <div className="bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden">
             <table className="w-full text-left text-sm">
               <thead className="bg-slate-50 dark:bg-[#232F63] text-slate-400 font-semibold uppercase tracking-wider text-xs">
                 <tr>
@@ -1760,7 +1760,7 @@ export default function WorkOrders() {
 
         {/* --- YARI MAMUL ÜRETİMİ --- */}
         {activeTab === 'production' && (
-          <div className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-sm">
+          <div className="bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-sm">
             <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2 mb-2">
               <Factory size={20} className="text-orange-400" /> Yarı Mamul Üretimi
             </h2>
@@ -1798,7 +1798,7 @@ export default function WorkOrders() {
                       </button>
                     </div>
                     {showResultsDropdown && (
-                      <div className="absolute z-50 w-full mt-1 bg-white dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg max-h-60 overflow-y-auto">
+                      <div className="absolute z-50 w-full mt-1 bg-[#C6CEE2] dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg max-h-60 overflow-y-auto">
                         {searchResults.length > 0 ? (
                           searchResults.map(part => {
                             const hasBom = itemBoms.some(b => String(b.parent_part_id) === String(part.id));
@@ -1925,7 +1925,7 @@ export default function WorkOrders() {
 
         {/* --- HIZLI TEKRAR ÜRETİM --- */}
         {activeTab === 'recent_productions' && (
-          <div className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300 flex flex-col h-full overflow-hidden">
+          <div className="bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300 flex flex-col h-full overflow-hidden">
             <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-2 flex items-center gap-2 shrink-0">
               <Repeat size={20} className="text-blue-400" /> Hızlı Tekrar Üretim (BOM)
             </h3>
@@ -2005,7 +2005,7 @@ export default function WorkOrders() {
                               {openBomMenuIdx === index && (
                                 <>
                                   <div className="fixed inset-0 z-40" onClick={() => setOpenBomMenuIdx(null)} />
-                                  <div className="absolute right-0 mt-1.5 w-52 bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl z-50 py-1 text-left animate-menu-in select-none">
+                                  <div className="absolute right-0 mt-1.5 w-52 bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl z-50 py-1 text-left animate-menu-in select-none">
                                     <button
                                       type="button"
                                       onClick={() => { setOpenBomMenuIdx(null); handleFillFormFromBOM(bom); }}
@@ -2063,14 +2063,14 @@ export default function WorkOrders() {
                 <button
                   onClick={() => setBomsPage(p => Math.max(1, p - 1))}
                   disabled={bomsPage === 1}
-                  className="px-3 py-1 bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 disabled:opacity-50"
+                  className="px-3 py-1 bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 disabled:opacity-50"
                 >
                   Önceki
                 </button>
                 <button
                   onClick={() => setBomsPage(p => Math.min(bomsTotalPages, p + 1))}
                   disabled={bomsPage >= bomsTotalPages}
-                  className="px-3 py-1 bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 disabled:opacity-50"
+                  className="px-3 py-1 bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 disabled:opacity-50"
                 >
                   Sonraki
                 </button>
@@ -2081,7 +2081,7 @@ export default function WorkOrders() {
 
         {/* --- MALZEME TÜKETİMİ --- */}
         {activeTab === 'consumption' && (
-          <div className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden">
+          <div className="bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden">
             <div className="p-6 pb-4">
               <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                 <Package size={20} className="text-purple-400" /> Malzeme Tüketimi
@@ -2127,14 +2127,14 @@ export default function WorkOrders() {
                 <button
                   onClick={() => setConsumptionPage(p => Math.max(1, p - 1))}
                   disabled={consumptionPage === 1}
-                  className="px-3 py-1 bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 disabled:opacity-50"
+                  className="px-3 py-1 bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 disabled:opacity-50"
                 >
                   Önceki
                 </button>
                 <button
                   onClick={() => setConsumptionPage(p => Math.min(consumptionTotalPages, p + 1))}
                   disabled={consumptionPage >= consumptionTotalPages}
-                  className="px-3 py-1 bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 disabled:opacity-50"
+                  className="px-3 py-1 bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 disabled:opacity-50"
                 >
                   Sonraki
                 </button>
@@ -2146,7 +2146,7 @@ export default function WorkOrders() {
 
         {/* --- ÜRETİM RAPORU --- */}
         {activeTab === 'production_report' && (
-          <div className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden">
+          <div className="bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden">
             <div className="p-6 pb-4">
               <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                 <TrendingUp size={20} className="text-emerald-400" /> Üretim Raporu
@@ -2256,14 +2256,14 @@ export default function WorkOrders() {
                 <button
                   onClick={() => setProductionReportPage(p => Math.max(1, p - 1))}
                   disabled={productionReportPage === 1}
-                  className="px-3 py-1 bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 disabled:opacity-50"
+                  className="px-3 py-1 bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 disabled:opacity-50"
                 >
                   Önceki
                 </button>
                 <button
                   onClick={() => setProductionReportPage(p => Math.min(productionReportTotalPages, p + 1))}
                   disabled={productionReportPage >= productionReportTotalPages}
-                  className="px-3 py-1 bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 disabled:opacity-50"
+                  className="px-3 py-1 bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 disabled:opacity-50"
                 >
                   Sonraki
                 </button>
@@ -2291,7 +2291,7 @@ export default function WorkOrders() {
             </div>
 
             {showProductionWOForm && (
-              <div className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-sm">
+              <div className="bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-sm">
                 <div className="flex justify-between items-center mb-6">
                   <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Yeni Üretim İş Emri</h3>
                   <button onClick={() => setShowProductionWOForm(false)} className="p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-[#2E3F78] rounded-lg transition-colors">
@@ -2355,7 +2355,7 @@ export default function WorkOrders() {
               </div>
             )}
 
-            <div className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden flex flex-col">
+            <div className="bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden flex flex-col">
               <div className="overflow-y-auto max-h-[480px]">
                 <table className="w-full text-left text-sm whitespace-nowrap">
                   <thead className="bg-slate-50 dark:bg-[#232F63] text-slate-400 font-semibold uppercase tracking-wider text-xs sticky top-0 z-10">
@@ -2440,7 +2440,7 @@ export default function WorkOrders() {
                 <select
                   value={prodWOItemsPerPage}
                   onChange={(e) => { setProdWOItemsPerPage(Number(e.target.value)); setProdWOCurrentPage(1); }}
-                  className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-slate-500"
+                  className="bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-slate-500"
                 >
                   <option value={10}>10</option>
                   <option value={20}>20</option>
@@ -2454,7 +2454,7 @@ export default function WorkOrders() {
                 <button
                   onClick={() => setProdWOCurrentPage(prev => Math.max(prev - 1, 1))}
                   disabled={prodWOCurrentPage === 1}
-                  className="px-3 py-1.5 bg-white dark:bg-[#1E2B5C] hover:bg-slate-100 dark:hover:bg-[#2E3F78] disabled:opacity-50 disabled:cursor-not-allowed border border-slate-200 dark:border-slate-700 rounded-lg transition-colors text-slate-700 dark:text-slate-300"
+                  className="px-3 py-1.5 bg-[#C6CEE2] dark:bg-[#1E2B5C] hover:bg-slate-100 dark:hover:bg-[#2E3F78] disabled:opacity-50 disabled:cursor-not-allowed border border-slate-200 dark:border-slate-700 rounded-lg transition-colors text-slate-700 dark:text-slate-300"
                 >
                   ← Önceki
                 </button>
@@ -2485,7 +2485,7 @@ export default function WorkOrders() {
                         setProdWOPageInput(String(prodWOCurrentPage));
                       }
                     }}
-                    className="w-16 bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-center text-slate-800 dark:text-slate-200 focus:outline-none focus:border-slate-500"
+                    className="w-16 bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-center text-slate-800 dark:text-slate-200 focus:outline-none focus:border-slate-500"
                   />
                   <span>/ {totalProdWOPages} <span className="text-slate-500 font-normal ml-1">({productionWorkOrders.length} Kayıt)</span></span>
                 </div>
@@ -2493,7 +2493,7 @@ export default function WorkOrders() {
                 <button
                   onClick={() => setProdWOCurrentPage(prev => Math.min(prev + 1, totalProdWOPages))}
                   disabled={prodWOCurrentPage === totalProdWOPages}
-                  className="px-3 py-1.5 bg-white dark:bg-[#1E2B5C] hover:bg-slate-100 dark:hover:bg-[#2E3F78] disabled:opacity-50 disabled:cursor-not-allowed border border-slate-200 dark:border-slate-700 rounded-lg transition-colors text-slate-700 dark:text-slate-300"
+                  className="px-3 py-1.5 bg-[#C6CEE2] dark:bg-[#1E2B5C] hover:bg-slate-100 dark:hover:bg-[#2E3F78] disabled:opacity-50 disabled:cursor-not-allowed border border-slate-200 dark:border-slate-700 rounded-lg transition-colors text-slate-700 dark:text-slate-300"
                 >
                   Sonraki →
                 </button>
@@ -2566,7 +2566,7 @@ export default function WorkOrders() {
       {issueDialog && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setIssueDialog(null)}>
           <div
-            className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-xl w-full max-w-sm"
+            className="bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-xl w-full max-w-sm"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex justify-between items-center mb-4">
@@ -2622,7 +2622,7 @@ export default function WorkOrders() {
       {completeDialog && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setCompleteDialog(null)}>
           <div
-            className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-xl w-full max-w-sm"
+            className="bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-xl w-full max-w-sm"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex justify-between items-center mb-4">
@@ -2677,7 +2677,7 @@ export default function WorkOrders() {
       {/* --- İADE / DEĞİŞİM DIALOG --- */}
       {returnDialog && (
         <div className="fixed inset-0 bg-slate-900/80 flex items-center justify-center z-50 animate-in fade-in duration-200" style={{ overflowY: 'auto' }}>
-          <div className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 shadow-2xl rounded-2xl w-full max-w-lg p-6 animate-in zoom-in-95 duration-200 my-8">
+          <div className="bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 shadow-2xl rounded-2xl w-full max-w-lg p-6 animate-in zoom-in-95 duration-200 my-8">
             <div className="flex justify-between items-center mb-2">
               <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                 <RotateCcw className="text-amber-500" size={22} /> İade / Değişim İşlemi
@@ -2731,7 +2731,7 @@ export default function WorkOrders() {
                                       return { ...prev, [m.part_id]: Math.min(oldRep, val) };
                                     });
                                   }}
-                                  className="w-14 bg-white dark:bg-[#232F63] text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700/60 rounded-lg px-2 py-1 text-sm text-center font-mono focus:outline-none focus:border-amber-500"
+                                  className="w-14 bg-[#C6CEE2] dark:bg-[#232F63] text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700/60 rounded-lg px-2 py-1 text-sm text-center font-mono focus:outline-none focus:border-amber-500"
                                 />
                                 <span className="text-[10px] text-slate-500">/ {maxQty}</span>
                               </div>
@@ -2752,7 +2752,7 @@ export default function WorkOrders() {
                                     if (val > currentVal) val = currentVal;
                                     setReplacementParts(prev => ({ ...prev, [m.part_id]: val }));
                                   }}
-                                  className="w-14 bg-white dark:bg-[#232F63] text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700/60 rounded-lg px-2 py-1 text-sm text-center font-mono focus:outline-none focus:border-amber-500"
+                                  className="w-14 bg-[#C6CEE2] dark:bg-[#232F63] text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700/60 rounded-lg px-2 py-1 text-sm text-center font-mono focus:outline-none focus:border-amber-500"
                                 />
                                 <span className="text-[10px] text-slate-500">/ {currentVal}</span>
                               </div>
@@ -2818,7 +2818,7 @@ export default function WorkOrders() {
       {/* --- CİHAZ DETAY DIALOG --- */}
       {detailDialog && (
         <div className="fixed inset-0 bg-slate-900/80 flex items-center justify-center z-50 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 shadow-2xl rounded-2xl w-full max-w-lg p-6 animate-in zoom-in-95 duration-200">
+          <div className="bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 shadow-2xl rounded-2xl w-full max-w-lg p-6 animate-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                 <Info className="text-blue-500" size={22} /> Cihaz Detay Bilgisi
@@ -2892,7 +2892,7 @@ export default function WorkOrders() {
                     )}
                     <div className="text-sm pt-1">
                       <div className="text-slate-400 mb-1">İade/Değişim Nedeni:</div>
-                      <div className="bg-white dark:bg-[#1E2B5C] p-3 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-sans italic text-sm">
+                      <div className="bg-[#C6CEE2] dark:bg-[#1E2B5C] p-3 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-sans italic text-sm">
                         {detailDialog.return_reason || 'Belirtilmedi'}
                       </div>
                     </div>
@@ -2962,7 +2962,7 @@ export default function WorkOrders() {
       {quickProduceDialog && (
         <div className="fixed inset-0 bg-slate-900/80 flex items-center justify-center z-50 p-4" onClick={() => !quickProduceSaving && handleCloseQuickProduceDialog()}>
           <div
-            className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 shadow-2xl rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200"
+            className="bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 shadow-2xl rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200"
             onClick={e => e.stopPropagation()}
           >
             <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 flex justify-between items-center bg-slate-50 dark:bg-[#232F63]">
@@ -3081,7 +3081,7 @@ export default function WorkOrders() {
       {extraPartDialog && (
         <div className="fixed inset-0 bg-slate-900/80 flex items-center justify-center z-50 p-4" onClick={() => !extraPartSaving && setExtraPartDialog(null)}>
           <div
-            className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 shadow-2xl rounded-2xl w-full max-w-lg animate-in fade-in zoom-in-95 duration-200"
+            className="bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 shadow-2xl rounded-2xl w-full max-w-lg animate-in fade-in zoom-in-95 duration-200"
             onClick={e => e.stopPropagation()}
           >
             <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 flex justify-between items-center bg-slate-50 dark:bg-[#232F63]">
@@ -3177,7 +3177,7 @@ export default function WorkOrders() {
       {extraPartInDialog && (
         <div className="fixed inset-0 bg-slate-900/80 flex items-center justify-center z-50 p-4" onClick={() => !extraPartInSaving && setExtraPartInDialog(null)}>
           <div
-            className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 shadow-2xl rounded-2xl w-full max-w-lg animate-in fade-in zoom-in-95 duration-200"
+            className="bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 shadow-2xl rounded-2xl w-full max-w-lg animate-in fade-in zoom-in-95 duration-200"
             onClick={e => e.stopPropagation()}
           >
             <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 flex justify-between items-center bg-slate-50 dark:bg-[#232F63]">
@@ -3268,7 +3268,7 @@ export default function WorkOrders() {
       {returnDoaDialog && (
         <div className="fixed inset-0 bg-slate-900/80 flex items-center justify-center z-50 p-4" onClick={() => !returnDoaSaving && setReturnDoaDialog(null)}>
           <div
-            className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 shadow-2xl rounded-2xl w-full max-w-lg animate-in fade-in zoom-in-95 duration-200"
+            className="bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 shadow-2xl rounded-2xl w-full max-w-lg animate-in fade-in zoom-in-95 duration-200"
             onClick={e => e.stopPropagation()}
           >
             <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 flex justify-between items-center bg-slate-50 dark:bg-[#232F63]">
@@ -3363,8 +3363,8 @@ export default function WorkOrders() {
 
       {/* --- BARKOD YAZDIRMA MODAL (PRINT/PDF) --- */}
       {printBarcodeDialog && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 print:bg-white print:p-0">
-          <div className="bg-white dark:bg-[#1E2B5C] rounded-2xl w-full max-w-sm shadow-2xl border border-slate-200 dark:border-slate-700/50 overflow-hidden print:shadow-none print:border-none print:dark:bg-white">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 print:bg-[#C6CEE2] print:p-0">
+          <div className="bg-[#C6CEE2] dark:bg-[#1E2B5C] rounded-2xl w-full max-w-sm shadow-2xl border border-slate-200 dark:border-slate-700/50 overflow-hidden print:shadow-none print:border-none print:dark:bg-white">
             
             <div className="flex justify-between items-center p-5 border-b border-slate-200 dark:border-slate-700/50 bg-slate-50 dark:bg-[#232F63] print:hidden">
               <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
@@ -3388,13 +3388,13 @@ export default function WorkOrders() {
                 </p>
               </div>
 
-              <div className="bg-white p-4 rounded-xl print:p-0">
+              <div className="bg-[#C6CEE2] p-4 rounded-xl print:p-0">
                 <Barcode 
                   value={printBarcodeDialog.barcodeValue || ('1' + String(printBarcodeDialog.id).padStart(14, '0'))} 
                   width={2} 
                   height={80} 
                   fontSize={18}
-                  background="#ffffff"
+                  background="#C6CEE2"
                   lineColor="#000000"
                   margin={0}
                 />

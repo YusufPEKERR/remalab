@@ -86,7 +86,7 @@ export default function PartSelectCombobox({ parts = [], value, onChange, placeh
 
       {/* Dropdown Menu */}
       {isOpen && !disabled && (
-        <div className="absolute left-0 right-0 mt-1 bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl z-[150] overflow-hidden animate-menu-in">
+        <div className="absolute left-0 right-0 mt-1 bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl z-[150] overflow-hidden animate-menu-in">
           {/* Search Box inside dropdown */}
           <div className="p-2 border-b border-slate-100 dark:border-slate-700/50 bg-slate-50 dark:bg-[#232F63]">
             <div className="relative">
@@ -97,7 +97,7 @@ export default function PartSelectCombobox({ parts = [], value, onChange, placeh
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Parça kodu, marka, model ara..."
-                className="w-full pl-8 pr-3 py-1.5 bg-white dark:bg-[#131B3A] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-md text-xs focus:outline-none focus:border-blue-500"
+                className="w-full pl-8 pr-3 py-1.5 bg-[#C6CEE2] dark:bg-[#131B3A] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-md text-xs focus:outline-none focus:border-blue-500"
               />
             </div>
           </div>

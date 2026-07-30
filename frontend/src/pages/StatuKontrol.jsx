@@ -112,7 +112,7 @@ export default function StatuKontrol() {
       <NotificationToast notification={notification} onClose={() => setNotification(null)} />
 
       {/* ════════════════ HERO BANNER ════════════════ */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#EFF1FA] dark:from-[#101935] via-[#DDE2F2] dark:via-[#16204A] to-[#FFFFFF] dark:to-[#24326A] p-6 sm:p-8 text-[#1B2755] dark:text-white shadow-xl border border-[#DCE1F1] dark:border-[#24326A]">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#9FADC9] dark:from-[#101935] via-[#8A98B8] dark:via-[#16204A] to-[#C6CEE2] dark:to-[#24326A] p-6 sm:p-8 text-[#1B2755] dark:text-white shadow-xl border border-[#8593B4] dark:border-[#24326A]">
         {/* Ambient Grid Overlay */}
         <div className="absolute inset-0 bg-[linear-gradient(rgba(245,158,11,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(245,158,11,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-amber-600/10 rounded-full blur-3xl pointer-events-none" />
@@ -125,7 +125,7 @@ export default function StatuKontrol() {
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1B2755] dark:text-white">
               Statü Kontrol & Doğrudan Statü Değişimi
             </h1>
-            <p className="text-sm text-[#4A5A9E] dark:text-slate-300 leading-relaxed">
+            <p className="text-sm text-[#3D4B86] dark:text-slate-300 leading-relaxed">
               IMEI, Seri No, Dahili ID veya Batch No ile sorgulayarak bir cihazın statüsünü doğrudan değiştirin. Bu ekran idari düzeltme amaçlıdır.
             </p>
           </div>
@@ -135,15 +135,15 @@ export default function StatuKontrol() {
       {/* SEARCH BAR */}
       <div className="glass-card p-6 rounded-2xl shadow-md">
         <form onSubmit={handleSearch} className="flex flex-col gap-3">
-          <label className="block text-xs font-bold text-[#5A6685] dark:text-[#8892B5] uppercase tracking-wider">Cihaz Sorgulama (IMEI / Seri No / Dahili ID / Batch No)</label>
+          <label className="block text-xs font-bold text-[#2E3650] dark:text-[#8892B5] uppercase tracking-wider">Cihaz Sorgulama (IMEI / Seri No / Dahili ID / Batch No)</label>
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
-              <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#5A6685] dark:text-[#8892B5]" />
+              <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2E3650] dark:text-[#8892B5]" />
               <input
                 ref={inputRef}
                 type="text"
                 placeholder="Sorgulanacak cihazı okutunuz veya yazınız..."
-                className="w-full bg-[#FFFFFF] dark:bg-[#24326A] border border-[#DCE1F1] dark:border-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] placeholder-[#5A6685] rounded-xl pl-10 pr-4 py-3 text-xs sm:text-sm font-mono focus:outline-none focus:border-[#4457A5] transition-all disabled:opacity-50"
+                className="w-full bg-[#C6CEE2] dark:bg-[#24326A] border border-[#8593B4] dark:border-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] placeholder-[#2E3650] rounded-xl pl-10 pr-4 py-3 text-xs sm:text-sm font-mono focus:outline-none focus:border-[#3B4C93] transition-all disabled:opacity-50"
                 value={term}
                 onChange={(e) => setTerm(e.target.value)}
                 disabled={loading}
@@ -152,7 +152,7 @@ export default function StatuKontrol() {
             <button
               type="submit"
               disabled={loading || !term.trim()}
-              className="bg-[#4457A5] hover:bg-[#2E3F78] disabled:opacity-40 text-white px-8 py-3 rounded-xl text-xs font-semibold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer shrink-0"
+              className="bg-[#3B4C93] hover:bg-[#2E3F78] disabled:opacity-40 text-white px-8 py-3 rounded-xl text-xs font-semibold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer shrink-0"
             >
               <Search size={15} /> {loading ? "Sorgulanıyor..." : "Sorgula"}
             </button>
@@ -163,12 +163,12 @@ export default function StatuKontrol() {
       {/* DEVICE DETAILS & TARGET STATUS SELECTION */}
       {device && (
         <div className="glass-card p-6 rounded-2xl shadow-md space-y-6">
-          <div className="flex flex-wrap items-center justify-between flex-wrap gap-4 p-4 rounded-xl bg-[#F5F7FC] dark:bg-[#1B2755] border border-[#DCE1F1] dark:border-[#24326A]">
+          <div className="flex flex-wrap items-center justify-between flex-wrap gap-4 p-4 rounded-xl bg-[#B5BFD8] dark:bg-[#1B2755] border border-[#8593B4] dark:border-[#24326A]">
             <div>
               <h3 className="text-base font-semibold text-[#16204A] dark:text-[#F6F8FF] font-mono tracking-wide">
                 {device.imei_number}
               </h3>
-              <p className="text-xs text-[#5A6685] dark:text-[#8892B5] mt-1 font-medium">
+              <p className="text-xs text-[#2E3650] dark:text-[#8892B5] mt-1 font-medium">
                 Parti: <span className="text-[#1B2755] dark:text-white font-semibold">{device.batch_no}</span> · Model: <span className="text-[#1B2755] dark:text-white font-semibold">{device.model}</span> · Akış: <span className="text-blue-400 font-semibold">{device.flow}</span>
               </p>
             </div>
@@ -180,11 +180,11 @@ export default function StatuKontrol() {
 
           <div className="flex flex-col md:flex-row items-end gap-4">
             <div className="flex-1 w-full">
-              <label className="block text-xs font-bold text-[#5A6685] dark:text-[#8892B5] uppercase tracking-wider mb-2">Hedef Yeni Statü Seçiniz</label>
+              <label className="block text-xs font-bold text-[#2E3650] dark:text-[#8892B5] uppercase tracking-wider mb-2">Hedef Yeni Statü Seçiniz</label>
               <select
                 value={targetCode}
                 onChange={(e) => setTargetCode(e.target.value)}
-                className="w-full bg-[#FFFFFF] dark:bg-[#24326A] border border-[#DCE1F1] dark:border-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] rounded-xl px-4 py-3 text-xs sm:text-sm font-semibold focus:outline-none focus:border-[#4457A5] cursor-pointer"
+                className="w-full bg-[#C6CEE2] dark:bg-[#24326A] border border-[#8593B4] dark:border-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] rounded-xl px-4 py-3 text-xs sm:text-sm font-semibold focus:outline-none focus:border-[#3B4C93] cursor-pointer"
               >
                 {statuList.map((s) => (
                   <option key={s.code} value={s.code}>

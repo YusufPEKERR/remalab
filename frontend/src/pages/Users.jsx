@@ -484,7 +484,7 @@ export default function Users() {
     <div className="flex flex-col space-y-6 pb-12 text-[#16204A] dark:text-[#F6F8FF] max-w-[1600px] mx-auto animate-in fade-in duration-300">
       
       {/* ════════════════ HERO BANNER ════════════════ */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#EFF1FA] dark:from-[#101935] via-[#DDE2F2] dark:via-[#16204A] to-[#FFFFFF] dark:to-[#24326A] p-6 sm:p-8 text-[#1B2755] dark:text-white shadow-xl border border-[#DCE1F1] dark:border-[#24326A]">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#9FADC9] dark:from-[#101935] via-[#8A98B8] dark:via-[#16204A] to-[#C6CEE2] dark:to-[#24326A] p-6 sm:p-8 text-[#1B2755] dark:text-white shadow-xl border border-[#8593B4] dark:border-[#24326A]">
         {/* Ambient Grid Overlay */}
         <div className="absolute inset-0 bg-[linear-gradient(rgba(91, 110, 196,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(91, 110, 196,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none" />
@@ -497,7 +497,7 @@ export default function Users() {
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1B2755] dark:text-white">
               Kullanıcılar & Personel Tanımları
             </h1>
-            <p className="text-sm text-[#4A5A9E] dark:text-slate-300 leading-relaxed">
+            <p className="text-sm text-[#3D4B86] dark:text-slate-300 leading-relaxed">
               Sistem erişim rollerini, teknisyen görevlerini, yöneticileri ve kullanıcı hesap durumlarını yönetin.
             </p>
           </div>
@@ -514,7 +514,7 @@ export default function Users() {
       {/* SEARCH & TOOLBAR */}
       <div className="glass-card rounded-2xl p-4 shadow-md flex flex-col md:flex-row gap-4 items-center justify-between">
         <div className="relative flex-1 w-full">
-          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#5A6685] dark:text-[#8892B5]">
+          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#2E3650] dark:text-[#8892B5]">
             <Search size={18} />
           </div>
           <input 
@@ -522,24 +522,24 @@ export default function Users() {
             placeholder="Kullanıcı Ara (Ad, İsim, TC, Rol)..." 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-[#FFFFFF] dark:bg-[#24326A] border border-[#DCE1F1] dark:border-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] placeholder-[#5A6685] rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm font-medium focus:outline-none focus:border-[#4457A5] transition-all shadow-xs"
+            className="w-full bg-[#C6CEE2] dark:bg-[#24326A] border border-[#8593B4] dark:border-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] placeholder-[#2E3650] rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm font-medium focus:outline-none focus:border-[#3B4C93] transition-all shadow-xs"
           />
         </div>
         
         <div className="flex flex-wrap gap-2.5 shrink-0">
-          <button onClick={() => setIsExportModalOpen(true)} className="flex items-center gap-2 bg-[#4457A5] hover:bg-[#2E3F78] text-white px-4 py-2.5 rounded-xl shadow-md text-xs font-bold transition-all cursor-pointer">
+          <button onClick={() => setIsExportModalOpen(true)} className="flex items-center gap-2 bg-[#3B4C93] hover:bg-[#2E3F78] text-white px-4 py-2.5 rounded-xl shadow-md text-xs font-bold transition-all cursor-pointer">
             <Download size={15} /> {selectedRows.length > 0 ? `${selectedRows.length} Seçiliyi Aktar` : 'Excel Dışa Aktar'}
           </button>
-          <button onClick={handleAdd} className="flex items-center gap-2 bg-[#FFFFFF] dark:bg-[#24326A] hover:bg-[#EFF1FA] dark:hover:bg-[#3B4A85] border border-[#DCE1F1] dark:border-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] px-4 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer">
+          <button onClick={handleAdd} className="flex items-center gap-2 bg-[#C6CEE2] dark:bg-[#24326A] hover:bg-[#9FADC9] dark:hover:bg-[#3B4A85] border border-[#8593B4] dark:border-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] px-4 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer">
             <Plus size={15} className="text-emerald-400" /> Ekle
           </button>
-          <button onClick={handleEdit} disabled={!selectedUserId} className="flex items-center gap-2 bg-[#FFFFFF] dark:bg-[#24326A] hover:bg-[#EFF1FA] dark:hover:bg-[#3B4A85] border border-[#DCE1F1] dark:border-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] px-4 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer disabled:opacity-40">
+          <button onClick={handleEdit} disabled={!selectedUserId} className="flex items-center gap-2 bg-[#C6CEE2] dark:bg-[#24326A] hover:bg-[#9FADC9] dark:hover:bg-[#3B4A85] border border-[#8593B4] dark:border-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] px-4 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer disabled:opacity-40">
             <Edit size={15} className="text-blue-400" /> Düzenle
           </button>
-          <button onClick={handleResetPassword} disabled={!selectedUserId} className="flex items-center gap-2 bg-[#FFFFFF] dark:bg-[#24326A] hover:bg-[#EFF1FA] dark:hover:bg-[#3B4A85] border border-[#DCE1F1] dark:border-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] px-4 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer disabled:opacity-40">
+          <button onClick={handleResetPassword} disabled={!selectedUserId} className="flex items-center gap-2 bg-[#C6CEE2] dark:bg-[#24326A] hover:bg-[#9FADC9] dark:hover:bg-[#3B4A85] border border-[#8593B4] dark:border-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] px-4 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer disabled:opacity-40">
             <Key size={15} className="text-amber-400" /> Şifre
           </button>
-          <button onClick={handleDelete} disabled={!selectedUserId} className="flex items-center gap-2 bg-[#FFFFFF] dark:bg-[#24326A] hover:bg-red-500/20 border border-[#DCE1F1] dark:border-[#3B4A85] hover:border-red-500/30 text-[#16204A] dark:text-[#F6F8FF] hover:text-red-400 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer disabled:opacity-40">
+          <button onClick={handleDelete} disabled={!selectedUserId} className="flex items-center gap-2 bg-[#C6CEE2] dark:bg-[#24326A] hover:bg-red-500/20 border border-[#8593B4] dark:border-[#3B4A85] hover:border-red-500/30 text-[#16204A] dark:text-[#F6F8FF] hover:text-red-400 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer disabled:opacity-40">
             <Trash2 size={15} className={selectedUserId ? "text-red-400" : ""} /> Sil
           </button>
         </div>
@@ -549,20 +549,20 @@ export default function Users() {
       <div className="glass-card rounded-2xl shadow-md overflow-hidden flex flex-col">
         <div className="overflow-x-auto flex-1">
           <table className="w-full text-left text-xs whitespace-nowrap">
-            <thead className="bg-[#F5F7FC] dark:bg-[#1B2755] text-[#5A6685] dark:text-[#8892B5] font-semibold border-b border-[#DCE1F1] dark:border-[#24326A] sticky top-0 uppercase tracking-wider text-xs z-10 select-none">
+            <thead className="bg-[#B5BFD8] dark:bg-[#1B2755] text-[#2E3650] dark:text-[#8892B5] font-semibold border-b border-[#8593B4] dark:border-[#24326A] sticky top-0 uppercase tracking-wider text-xs z-10 select-none">
               <tr>
                 <th className="px-6 py-4 w-12 text-center select-none">
                   <input 
                     type="checkbox" 
-                    className="w-4 h-4 rounded border-[#DCE1F1] dark:border-[#3B4A85] text-[#4457A5] focus:ring-[#4457A5] bg-[#FFFFFF] dark:bg-[#24326A]"
+                    className="w-4 h-4 rounded border-[#8593B4] dark:border-[#3B4A85] text-[#3B4C93] focus:ring-[#3B4C93] bg-[#C6CEE2] dark:bg-[#24326A]"
                     checked={selectedRows.length === users.length && users.length > 0}
                     onChange={toggleSelectAll}
                   />
                 </th>
-                <th className="px-6 py-4 w-20 cursor-pointer select-none group hover:bg-[#FFFFFF]/60 dark:hover:bg-[#24326A]/60 transition-colors" onClick={() => handleSort('id')}>
+                <th className="px-6 py-4 w-20 cursor-pointer select-none group hover:bg-[#C6CEE2]/60 dark:hover:bg-[#24326A]/60 transition-colors" onClick={() => handleSort('id')}>
                   <div className="flex items-center gap-1.5 text-[#16204A] dark:text-[#F6F8FF]">
                     ID
-                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'id' ? 'text-[#8894D8] font-bold' : 'text-[#5A6685] opacity-40 group-hover:opacity-100'}`} />
+                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'id' ? 'text-[#8894D8] font-bold' : 'text-[#2E3650] opacity-40 group-hover:opacity-100'}`} />
                   </div>
                 </th>
                 <th className="px-6 py-4 cursor-pointer select-none group hover:bg-slate-100/30 dark:hover:bg-slate-800/20 transition-colors" onClick={() => handleSort('username')}>
@@ -629,7 +629,7 @@ export default function Users() {
                   <input
                     type="text"
                     placeholder="Ara..."
-                    className="w-16 px-2.5 py-1.5 text-xs bg-white dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 text-slate-700 dark:text-slate-300 placeholder-slate-400/50 transition-all font-normal"
+                    className="w-16 px-2.5 py-1.5 text-xs bg-[#C6CEE2] dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 text-slate-700 dark:text-slate-300 placeholder-slate-400/50 transition-all font-normal"
                     value={columnFilters.id}
                     onChange={e => setColumnFilters({ ...columnFilters, id: e.target.value })}
                   />
@@ -640,7 +640,7 @@ export default function Users() {
                   <input
                     type="text"
                     placeholder="Ara..."
-                    className="w-full min-w-[110px] px-2.5 py-1.5 text-xs bg-white dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 text-slate-700 dark:text-slate-300 placeholder-slate-400/50 transition-all font-normal"
+                    className="w-full min-w-[110px] px-2.5 py-1.5 text-xs bg-[#C6CEE2] dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 text-slate-700 dark:text-slate-300 placeholder-slate-400/50 transition-all font-normal"
                     value={columnFilters.username}
                     onChange={e => setColumnFilters({ ...columnFilters, username: e.target.value })}
                   />
@@ -651,7 +651,7 @@ export default function Users() {
                   <input
                     type="text"
                     placeholder="Ara..."
-                    className="w-full min-w-[120px] px-2.5 py-1.5 text-xs bg-white dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 text-slate-700 dark:text-slate-300 placeholder-slate-400/50 transition-all font-normal"
+                    className="w-full min-w-[120px] px-2.5 py-1.5 text-xs bg-[#C6CEE2] dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 text-slate-700 dark:text-slate-300 placeholder-slate-400/50 transition-all font-normal"
                     value={columnFilters.fullname}
                     onChange={e => setColumnFilters({ ...columnFilters, fullname: e.target.value })}
                   />
@@ -662,7 +662,7 @@ export default function Users() {
                   <input
                     type="text"
                     placeholder="Ara..."
-                    className="w-full min-w-[100px] px-2.5 py-1.5 text-xs bg-white dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 text-slate-700 dark:text-slate-300 placeholder-slate-400/50 transition-all font-normal"
+                    className="w-full min-w-[100px] px-2.5 py-1.5 text-xs bg-[#C6CEE2] dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 text-slate-700 dark:text-slate-300 placeholder-slate-400/50 transition-all font-normal"
                     value={columnFilters.tc_no}
                     onChange={e => setColumnFilters({ ...columnFilters, tc_no: e.target.value })}
                   />
@@ -671,7 +671,7 @@ export default function Users() {
                 {/* Hesap Tipi Filtresi */}
                 <td className="px-6 py-3">
                   <select
-                    className="w-full min-w-[110px] px-2 py-1.5 text-xs bg-white dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 text-slate-700 dark:text-slate-300 transition-all font-normal cursor-pointer"
+                    className="w-full min-w-[110px] px-2 py-1.5 text-xs bg-[#C6CEE2] dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 text-slate-700 dark:text-slate-300 transition-all font-normal cursor-pointer"
                     value={columnFilters.role}
                     onChange={e => setColumnFilters({ ...columnFilters, role: e.target.value })}
                   >
@@ -685,7 +685,7 @@ export default function Users() {
                   <input
                     type="text"
                     placeholder="Ara..."
-                    className="w-full min-w-[120px] px-2.5 py-1.5 text-xs bg-white dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 text-slate-700 dark:text-slate-300 placeholder-slate-400/50 transition-all font-normal"
+                    className="w-full min-w-[120px] px-2.5 py-1.5 text-xs bg-[#C6CEE2] dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 text-slate-700 dark:text-slate-300 placeholder-slate-400/50 transition-all font-normal"
                     value={columnFilters.gorev}
                     onChange={e => setColumnFilters({ ...columnFilters, gorev: e.target.value })}
                   />
@@ -694,7 +694,7 @@ export default function Users() {
                 {/* Durum Filtresi */}
                 <td className="px-6 py-3">
                   <select
-                    className="w-full min-w-[100px] px-2 py-1.5 text-xs bg-white dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 text-slate-700 dark:text-slate-300 transition-all font-normal cursor-pointer"
+                    className="w-full min-w-[100px] px-2 py-1.5 text-xs bg-[#C6CEE2] dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 text-slate-700 dark:text-slate-300 transition-all font-normal cursor-pointer"
                     value={columnFilters.account_enabled}
                     onChange={e => setColumnFilters({ ...columnFilters, account_enabled: e.target.value })}
                   >
@@ -707,7 +707,7 @@ export default function Users() {
                 {/* Team Leader Filtresi */}
                 <td className="px-6 py-3">
                   <select
-                    className="w-full min-w-[120px] px-2 py-1.5 text-xs bg-white dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 text-slate-700 dark:text-slate-300 transition-all font-normal cursor-pointer"
+                    className="w-full min-w-[120px] px-2 py-1.5 text-xs bg-[#C6CEE2] dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 text-slate-700 dark:text-slate-300 transition-all font-normal cursor-pointer"
                     value={columnFilters.team_leader}
                     onChange={e => setColumnFilters({ ...columnFilters, team_leader: e.target.value })}
                   >
@@ -723,7 +723,7 @@ export default function Users() {
                   <input
                     type="text"
                     placeholder="Ara..."
-                    className="w-full min-w-[120px] px-2.5 py-1.5 text-xs bg-white dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 text-slate-700 dark:text-slate-300 placeholder-slate-400/50 transition-all font-normal"
+                    className="w-full min-w-[120px] px-2.5 py-1.5 text-xs bg-[#C6CEE2] dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 text-slate-700 dark:text-slate-300 placeholder-slate-400/50 transition-all font-normal"
                     value={columnFilters.operation_manager}
                     onChange={e => setColumnFilters({ ...columnFilters, operation_manager: e.target.value })}
                   />
@@ -734,7 +734,7 @@ export default function Users() {
                   <input
                     type="text"
                     placeholder="Ara..."
-                    className="w-full min-w-[120px] px-2.5 py-1.5 text-xs bg-white dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 text-slate-700 dark:text-slate-300 placeholder-slate-400/50 transition-all font-normal"
+                    className="w-full min-w-[120px] px-2.5 py-1.5 text-xs bg-[#C6CEE2] dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 text-slate-700 dark:text-slate-300 placeholder-slate-400/50 transition-all font-normal"
                     value={columnFilters.administrative_manager}
                     onChange={e => setColumnFilters({ ...columnFilters, administrative_manager: e.target.value })}
                   />
@@ -769,7 +769,7 @@ export default function Users() {
                     <td className="px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
                       <input 
                         type="checkbox" 
-                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-white dark:bg-slate-800"
+                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 bg-[#C6CEE2] dark:bg-slate-800"
                         checked={isChecked}
                         onChange={(e) => toggleRowSelect(user.id, e)}
                       />
@@ -827,14 +827,14 @@ export default function Users() {
             <button
               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
               disabled={currentPage === 1 || filteredUsers.length === 0}
-              className="px-3 py-1 bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 disabled:opacity-50"
+              className="px-3 py-1 bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 disabled:opacity-50"
             >
               Önceki
             </button>
             <button
               onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
               disabled={currentPage >= totalPages || filteredUsers.length === 0}
-              className="px-3 py-1 bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 disabled:opacity-50"
+              className="px-3 py-1 bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 disabled:opacity-50"
             >
               Sonraki
             </button>
@@ -845,14 +845,14 @@ export default function Users() {
       {/* Add/Edit/Password Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-50 dark:bg-[#131B3A]/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
+          <div className="bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
             <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 flex justify-between items-center bg-slate-50 dark:bg-[#232F63] shrink-0">
               <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 {modalMode === 'add' ? <><Plus size={20} className="text-green-400"/> Yeni Kullanıcı</> : 
                  modalMode === 'password' ? <><Key size={20} className="text-yellow-400"/> Şifre Sıfırla</> : 
                  <><Edit size={20} className="text-blue-400"/> Kullanıcı Düzenle</>}
               </h2>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-900 dark:text-white transition-colors bg-white dark:bg-[#1E2B5C] p-1.5 rounded-lg border border-slate-200 dark:border-slate-700">
+              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-900 dark:text-white transition-colors bg-[#C6CEE2] dark:bg-[#1E2B5C] p-1.5 rounded-lg border border-slate-200 dark:border-slate-700">
                 <X size={18} />
               </button>
             </div>
@@ -1166,7 +1166,7 @@ export default function Users() {
       {/* Dışa Aktar Sütun Seçimi Modalı */}
       {isExportModalOpen && (
         <div className="fixed inset-0 bg-slate-900/80 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-sm p-6">
+          <div className="bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-sm p-6">
             <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-4">Sütun Seçimi</h2>
             <p className="text-sm text-slate-500 mb-4">Dışa aktarılacak Excel dosyasında hangi sütunların bulunmasını istediğinizi seçin.</p>
             

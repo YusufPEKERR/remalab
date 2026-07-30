@@ -33,7 +33,7 @@ export default function TextCombobox({ options = [], value, onChange, placeholde
         autoComplete="off"
       />
       {isOpen && filtered.length > 0 && (
-        <div className="absolute left-0 right-0 mt-1 bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl z-[150] max-h-60 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/60">
+        <div className="absolute left-0 right-0 mt-1 bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl z-[150] max-h-60 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/60">
           {filtered.map(opt => (
             <button
               key={opt}

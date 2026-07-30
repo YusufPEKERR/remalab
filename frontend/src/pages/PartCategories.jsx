@@ -135,7 +135,7 @@ export default function PartCategories() {
     <div className="flex flex-col space-y-6 pb-12 text-[#16204A] dark:text-[#F6F8FF] max-w-[1600px] mx-auto animate-in fade-in duration-300">
 
       {/* ════════════════ HERO BANNER ════════════════ */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#EFF1FA] dark:from-[#101935] via-[#DDE2F2] dark:via-[#16204A] to-[#FFFFFF] dark:to-[#24326A] p-6 sm:p-8 text-[#1B2755] dark:text-white shadow-xl border border-[#DCE1F1] dark:border-[#24326A]">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#9FADC9] dark:from-[#101935] via-[#8A98B8] dark:via-[#16204A] to-[#C6CEE2] dark:to-[#24326A] p-6 sm:p-8 text-[#1B2755] dark:text-white shadow-xl border border-[#8593B4] dark:border-[#24326A]">
         {/* Ambient Grid Overlay */}
         <div className="absolute inset-0 bg-[linear-gradient(rgba(91, 110, 196,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(91, 110, 196,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none" />
@@ -148,7 +148,7 @@ export default function PartCategories() {
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1B2755] dark:text-white">
               Parça Kategorileri
             </h1>
-            <p className="text-sm text-[#4A5A9E] dark:text-slate-300 leading-relaxed">
+            <p className="text-sm text-[#3D4B86] dark:text-slate-300 leading-relaxed">
               Departman yetkileri, stok takip kuralları ve varsayılan parça parametrelerini yapılandırın.
             </p>
           </div>
@@ -161,12 +161,12 @@ export default function PartCategories() {
             {/* SEARCH & NEW BTN */}
             <div className="glass-card rounded-2xl p-4 shadow-md flex flex-wrap items-center justify-between gap-4">
               <div className="flex-1 relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#5A6685] dark:text-[#8892B5]">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#2E3650] dark:text-[#8892B5]">
                   <Search size={18} />
                 </div>
                 <input
                   type="text"
-                  className="w-full bg-[#FFFFFF] dark:bg-[#24326A] border border-[#DCE1F1] dark:border-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] placeholder-[#5A6685] rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm font-medium focus:outline-none focus:border-[#4457A5] transition-all shadow-xs"
+                  className="w-full bg-[#C6CEE2] dark:bg-[#24326A] border border-[#8593B4] dark:border-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] placeholder-[#2E3650] rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm font-medium focus:outline-none focus:border-[#3B4C93] transition-all shadow-xs"
                   placeholder="Kategori Ara..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -174,7 +174,7 @@ export default function PartCategories() {
               </div>
               <button
                 onClick={() => handleOpenForm()}
-                className="flex items-center gap-2 bg-[#4457A5] hover:bg-[#2E3F78] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer shrink-0"
+                className="flex items-center gap-2 bg-[#3B4C93] hover:bg-[#2E3F78] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer shrink-0"
               >
                 <Plus size={16} /> Yeni Kategori
               </button>
@@ -184,7 +184,7 @@ export default function PartCategories() {
             <div className="glass-card rounded-2xl shadow-md overflow-hidden flex flex-col">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs whitespace-nowrap">
-                  <thead className="bg-[#F5F7FC] dark:bg-[#1B2755] text-[#5A6685] dark:text-[#8892B5] font-semibold uppercase tracking-wider border-b border-[#DCE1F1] dark:border-[#24326A] sticky top-0 z-10 select-none">
+                  <thead className="bg-[#B5BFD8] dark:bg-[#1B2755] text-[#2E3650] dark:text-[#8892B5] font-semibold uppercase tracking-wider border-b border-[#8593B4] dark:border-[#24326A] sticky top-0 z-10 select-none">
                     <tr>
                       <th className="px-6 py-4">Kategori Adı</th>
                       <th className="px-6 py-4">Parça Tipi</th>
@@ -197,7 +197,7 @@ export default function PartCategories() {
                       <th className="px-6 py-4 text-center">İşlemler</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#DCE1F1] dark:divide-[#24326A]">
+                  <tbody className="divide-y divide-[#8593B4] dark:divide-[#24326A]">
                     {loading ? (
                       <tr>
                         <td colSpan="9" className="px-6 py-8 text-center text-slate-400">Yükleniyor...</td>
@@ -278,7 +278,7 @@ export default function PartCategories() {
             </div>
           </>
         ) : (
-          <div className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-xl animate-in fade-in slide-in-from-bottom-4">
+          <div className="bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-xl animate-in fade-in slide-in-from-bottom-4">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                 {editingCat ? 'Kategoriyi Düzenle' : 'Yeni Parça Kategorisi Ekle'}
@@ -369,7 +369,7 @@ export default function PartCategories() {
                     onClick={() => setFormData(prev => ({...prev, is_active: !prev.is_active}))}
                     className={`relative w-14 h-8 rounded-full transition-colors shrink-0 ${formData.is_active ? 'bg-blue-600' : 'bg-slate-600'}`}
                   >
-                    <span className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${formData.is_active ? 'translate-x-6' : 'translate-x-0'}`} />
+                    <span className={`absolute top-1 left-1 w-6 h-6 bg-[#C6CEE2] rounded-full transition-transform ${formData.is_active ? 'translate-x-6' : 'translate-x-0'}`} />
                   </button>
                 </div>
               )}

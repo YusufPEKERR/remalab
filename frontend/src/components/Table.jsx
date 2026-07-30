@@ -40,7 +40,7 @@ export default function Table({
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+    <div className="bg-[#C6CEE2] rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
       {/* Table Header Controls */}
       <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-4">
         <div className="relative w-full sm:w-64 group">
@@ -49,7 +49,7 @@ export default function Table({
           </div>
           <input
             type="text"
-            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 focus:bg-white transition-all"
+            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 focus:bg-[#C6CEE2] transition-all"
             placeholder={searchPlaceholder}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}

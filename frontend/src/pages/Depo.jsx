@@ -78,7 +78,7 @@ export default function Depo() {
     <div className="flex flex-col space-y-6 pb-12 text-[#16204A] dark:text-[#F6F8FF] max-w-[1600px] mx-auto animate-in fade-in duration-300">
 
       {/* ════════════════ HERO BANNER ════════════════ */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#EFF1FA] dark:from-[#16204A] via-[#DDE2F2] dark:via-[#1B2755] to-[#EEF1FB] dark:to-[#16204A] p-6 sm:p-8 text-[#1B2755] dark:text-white shadow-xl border border-[#DCE1F1] dark:border-[#24326A]">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#9FADC9] dark:from-[#16204A] via-[#8A98B8] dark:via-[#1B2755] to-[#EEF1FB] dark:to-[#16204A] p-6 sm:p-8 text-[#1B2755] dark:text-white shadow-xl border border-[#8593B4] dark:border-[#24326A]">
         {/* Ambient Grid Overlay */}
         <div className="absolute inset-0 bg-[linear-gradient(rgba(68, 87, 165,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(68, 87, 165,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
@@ -91,7 +91,7 @@ export default function Depo() {
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1B2755] dark:text-white">
               Depo Stok
             </h1>
-            <p className="text-sm text-[#4A5A9E] dark:text-slate-300 leading-relaxed">
+            <p className="text-sm text-[#3D4B86] dark:text-slate-300 leading-relaxed">
               Depo lokasyonlarındaki stok miktarlarını, parça hareketlerini ve kritik sınırı canlı takip edin.
             </p>
           </div>
@@ -132,7 +132,7 @@ export default function Depo() {
             )}
           </div>
 
-          <div className="flex items-center gap-3 text-xs font-semibold text-[#5A6685] dark:text-[#8892B5]">
+          <div className="flex items-center gap-3 text-xs font-semibold text-[#2E3650] dark:text-[#8892B5]">
             <span>
               Miktar: <strong className="text-[#8894D8] font-mono text-sm">{occupancy.currentQty.toLocaleString('tr-TR')}</strong> / {occupancy.maxCapacity.toLocaleString('tr-TR')} Adet
             </span>
@@ -144,12 +144,12 @@ export default function Depo() {
           </div>
         </div>
 
-        <div className="w-full bg-[#FFFFFF] dark:bg-[#24326A] rounded-full h-3.5 border border-[#DCE1F1] dark:border-[#3B4A85] overflow-hidden relative">
+        <div className="w-full bg-[#C6CEE2] dark:bg-[#24326A] rounded-full h-3.5 border border-[#8593B4] dark:border-[#3B4A85] overflow-hidden relative">
           <div
             className={`h-full rounded-full transition-all duration-500 ease-out shadow-xs ${
               occupancy.isCritical 
                 ? 'bg-gradient-to-r from-red-500 to-red-600' 
-                : 'bg-gradient-to-r from-[#4457A5] to-blue-400'
+                : 'bg-gradient-to-r from-[#3B4C93] to-blue-400'
             }`}
             style={{ width: `${occupancy.percentage}%` }}
           />
@@ -159,12 +159,12 @@ export default function Depo() {
       {/* ════════════════ SEARCH & FILTER BAR ════════════════ */}
       <div className="glass-card rounded-2xl p-4 shadow-md flex flex-col sm:flex-row items-center gap-3">
         <div className="flex-1 w-full relative">
-          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#5A6685] dark:text-[#8892B5]">
+          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#2E3650] dark:text-[#8892B5]">
             <Search size={18} />
           </div>
           <input
             type="text"
-            className="w-full bg-[#FFFFFF] dark:bg-[#24326A] border border-[#DCE1F1] dark:border-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] placeholder-[#5A6685] rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm font-medium focus:outline-none focus:border-[#4457A5] transition-all shadow-xs"
+            className="w-full bg-[#C6CEE2] dark:bg-[#24326A] border border-[#8593B4] dark:border-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] placeholder-[#2E3650] rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm font-medium focus:outline-none focus:border-[#3B4C93] transition-all shadow-xs"
             placeholder="Arama yapın (İtem Kodu, Parça Adı, Lokasyon)..."
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
@@ -174,7 +174,7 @@ export default function Depo() {
         {searchInput && (
           <button
             onClick={() => setSearchInput('')}
-            className="px-3 py-2 text-xs font-semibold text-[#5A6685] dark:text-[#8892B5] hover:text-[#16204A] dark:hover:text-[#F6F8FF] bg-[#FFFFFF] dark:bg-[#24326A] hover:bg-[#EFF1FA] dark:hover:bg-[#3B4A85] rounded-xl border border-[#DCE1F1] dark:border-[#3B4A85] transition-colors"
+            className="px-3 py-2 text-xs font-semibold text-[#2E3650] dark:text-[#8892B5] hover:text-[#16204A] dark:hover:text-[#F6F8FF] bg-[#C6CEE2] dark:bg-[#24326A] hover:bg-[#9FADC9] dark:hover:bg-[#3B4A85] rounded-xl border border-[#8593B4] dark:border-[#3B4A85] transition-colors"
           >
             Aramayı Temizle
           </button>
@@ -185,7 +185,7 @@ export default function Depo() {
       <div className="glass-card rounded-2xl shadow-md overflow-hidden flex flex-col">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs whitespace-nowrap">
-            <thead className="bg-[#F5F7FC] dark:bg-[#1B2755] text-[#5A6685] dark:text-[#8892B5] font-semibold uppercase tracking-wider border-b border-[#DCE1F1] dark:border-[#24326A]">
+            <thead className="bg-[#B5BFD8] dark:bg-[#1B2755] text-[#2E3650] dark:text-[#8892B5] font-semibold uppercase tracking-wider border-b border-[#8593B4] dark:border-[#24326A]">
               <tr>
                 <th className="px-6 py-4">SON HAREKET TARİHİ</th>
                 <th className="px-6 py-4">İTEM KODU</th>
@@ -194,7 +194,7 @@ export default function Depo() {
                 <th className="px-6 py-4">STOK MİKTARI</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#DCE1F1] dark:divide-[#24326A]">
+            <tbody className="divide-y divide-[#8593B4] dark:divide-[#24326A]">
               {inventory.length > 0 ? (
                 inventory.map((item) => {
                   const isSelected = selectedItem?.id === item.id;
@@ -208,11 +208,11 @@ export default function Depo() {
                       onClick={() => setSelectedItem(isSelected ? null : item)}
                       className={`cursor-pointer transition-colors duration-150
                         ${isSelected 
-                          ? 'bg-blue-900/30 border-l-4 border-[#4457A5]' 
-                          : 'hover:bg-[#FFFFFF]/70 dark:hover:bg-[#24326A]/70 border-l-4 border-transparent text-[#16204A] dark:text-[#F6F8FF]'
+                          ? 'bg-blue-900/30 border-l-4 border-[#3B4C93]' 
+                          : 'hover:bg-[#C6CEE2]/70 dark:hover:bg-[#24326A]/70 border-l-4 border-transparent text-[#16204A] dark:text-[#F6F8FF]'
                         }`}
                     >
-                      <td className="px-6 py-3.5 font-mono text-[#5A6685] dark:text-[#8892B5] text-[11px]">
+                      <td className="px-6 py-3.5 font-mono text-[#2E3650] dark:text-[#8892B5] text-[11px]">
                         {item.updated_at || '-'}
                       </td>
                       <td className="px-6 py-3.5">
@@ -224,8 +224,8 @@ export default function Depo() {
                         {item.part_name}
                       </td>
                       <td className="px-6 py-3.5">
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#FFFFFF] dark:bg-[#24326A] border border-[#DCE1F1] dark:border-[#3B4A85] text-[#3B4A85] dark:text-slate-200 font-semibold text-xs">
-                          <MapPin size={13} className="text-[#4457A5] dark:text-[#8894D8]" />
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#C6CEE2] dark:bg-[#24326A] border border-[#8593B4] dark:border-[#3B4A85] text-[#3B4A85] dark:text-slate-200 font-semibold text-xs">
+                          <MapPin size={13} className="text-[#3B4C93] dark:text-[#8894D8]" />
                           {item.location_name}
                         </span>
                       </td>
@@ -244,7 +244,7 @@ export default function Depo() {
                 })
               ) : (
                 <tr>
-                  <td colSpan="5" className="px-6 py-12 text-center text-[#5A6685] dark:text-[#8892B5]">
+                  <td colSpan="5" className="px-6 py-12 text-center text-[#2E3650] dark:text-[#8892B5]">
                     {loading ? 'Kayıtlar yükleniyor…' : 'Aradığınız kriterlere uygun stok bulunamadı.'}
                   </td>
                 </tr>
@@ -254,8 +254,8 @@ export default function Depo() {
         </div>
 
         {/* PAGINATION FOOTER */}
-        <div className="flex flex-col sm:flex-row justify-between items-center px-6 py-4 bg-[#F5F7FC] dark:bg-[#1B2755] border-t border-[#DCE1F1] dark:border-[#24326A] gap-4 shrink-0">
-          <span className="text-xs text-[#5A6685] dark:text-[#8892B5] font-medium">
+        <div className="flex flex-col sm:flex-row justify-between items-center px-6 py-4 bg-[#B5BFD8] dark:bg-[#1B2755] border-t border-[#8593B4] dark:border-[#24326A] gap-4 shrink-0">
+          <span className="text-xs text-[#2E3650] dark:text-[#8892B5] font-medium">
             Toplam <strong className="text-[#16204A] dark:text-[#F6F8FF]">{totalRecords.toLocaleString('tr-TR')}</strong> kayıttan{' '}
             <strong className="text-[#16204A] dark:text-[#F6F8FF]">{totalRecords === 0 ? 0 : indexOfFirstItem + 1}-{indexOfLastItem}</strong> arası gösteriliyor
           </span>
@@ -264,19 +264,19 @@ export default function Depo() {
             <button
               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
               disabled={currentPage === 1 || totalRecords === 0}
-              className="inline-flex items-center gap-1 px-3 py-1.5 bg-[#F5F7FC] dark:bg-[#16204A] border border-[#DCE1F1] dark:border-[#3B4A85] rounded-xl text-xs font-bold text-[#16204A] dark:text-[#F6F8FF] hover:bg-[#FFFFFF] dark:hover:bg-[#24326A] hover:border-blue-500 hover:text-[#8894D8] disabled:opacity-40 transition-all cursor-pointer"
+              className="inline-flex items-center gap-1 px-3 py-1.5 bg-[#B5BFD8] dark:bg-[#16204A] border border-[#8593B4] dark:border-[#3B4A85] rounded-xl text-xs font-bold text-[#16204A] dark:text-[#F6F8FF] hover:bg-[#C6CEE2] dark:hover:bg-[#24326A] hover:border-blue-500 hover:text-[#8894D8] disabled:opacity-40 transition-all cursor-pointer"
             >
               <ChevronLeft size={14} /> Önceki
             </button>
 
-            <span className="text-xs font-bold px-3 py-1.5 bg-[#F5F7FC] dark:bg-[#16204A] border border-[#DCE1F1] dark:border-[#3B4A85] rounded-xl text-[#8894D8]">
+            <span className="text-xs font-bold px-3 py-1.5 bg-[#B5BFD8] dark:bg-[#16204A] border border-[#8593B4] dark:border-[#3B4A85] rounded-xl text-[#8894D8]">
               Sayfa {currentPage} / {totalPages}
             </span>
 
             <button
               onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
               disabled={currentPage >= totalPages || totalRecords === 0}
-              className="inline-flex items-center gap-1 px-3 py-1.5 bg-[#F5F7FC] dark:bg-[#16204A] border border-[#DCE1F1] dark:border-[#3B4A85] rounded-xl text-xs font-bold text-[#16204A] dark:text-[#F6F8FF] hover:bg-[#FFFFFF] dark:hover:bg-[#24326A] hover:border-blue-500 hover:text-[#8894D8] disabled:opacity-40 transition-all cursor-pointer"
+              className="inline-flex items-center gap-1 px-3 py-1.5 bg-[#B5BFD8] dark:bg-[#16204A] border border-[#8593B4] dark:border-[#3B4A85] rounded-xl text-xs font-bold text-[#16204A] dark:text-[#F6F8FF] hover:bg-[#C6CEE2] dark:hover:bg-[#24326A] hover:border-blue-500 hover:text-[#8894D8] disabled:opacity-40 transition-all cursor-pointer"
             >
               Sonraki <ChevronRight size={14} />
             </button>

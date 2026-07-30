@@ -132,7 +132,7 @@ export default function ExcelMappingModal({
 
   return (
     <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
-      <div className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
+      <div className="bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
         
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 flex justify-between items-center bg-slate-50 dark:bg-[#232F63]">
@@ -193,7 +193,7 @@ export default function ExcelMappingModal({
                           </td>
                           <td className="px-4 py-3">
                             <select 
-                              className="w-full bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500"
+                              className="w-full bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500"
                               value={mappings[dbCol] || ''}
                               onChange={(e) => handleMappingChange(dbCol, e.target.value)}
                             >
@@ -249,7 +249,7 @@ export default function ExcelMappingModal({
           <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-700/50 flex justify-end gap-3 bg-slate-50 dark:bg-[#232F63]">
             <button 
               onClick={onClose}
-              className="px-5 py-2.5 text-slate-700 dark:text-slate-300 bg-white dark:bg-[#1E2B5C] hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium transition-colors"
+              className="px-5 py-2.5 text-slate-700 dark:text-slate-300 bg-[#C6CEE2] dark:bg-[#1E2B5C] hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium transition-colors"
             >
               İptal
             </button>

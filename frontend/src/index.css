@@ -36,18 +36,21 @@
 
 @theme {
   /* Marka */
-  --color-brand-primary: #4457A5;
+  --color-brand-primary: #3B4C93;
   --color-brand-primary-hover: #2E3F78;
   --color-brand-soft-accent: rgba(68, 87, 165, 0.10);
 
   /* Notr rampa - Tema2 indigo tonlu "slate" */
-  --color-slate-50: #F5F7FC;
-  --color-slate-100: #ECEFF9;
-  --color-slate-200: #DCE1F1;
-  --color-slate-300: #C3CAE6;
-  --color-slate-400: #8892B5;
-  --color-slate-500: #5A6685;
-  --color-slate-600: #4A5A9E;
+  --color-slate-50: #B5BFD8;
+  --color-slate-100: #A6B2CE;
+  --color-slate-200: #8593B4;
+  /* 300, 200'den koyu olmali (rampa monotonlugu). Koyu temada bu ton
+     metin olarak kullanildigi icin .dark altinda acik degerine geri alinir. */
+  --color-slate-300: #7A88AB;
+  /* 400 de 300'den koyu olmali; koyu temada metin oldugu icin .dark'ta geri alinir */
+  --color-slate-400: #5F6C8E;
+  --color-slate-500: #2E3650;
+  --color-slate-600: #3D4B86;
   --color-slate-700: #3B4A85;
   --color-slate-800: #24326A;
   --color-slate-900: #16204A;
@@ -60,7 +63,7 @@
   --color-blue-300: #A9B2E3;
   --color-blue-400: #8894D8;
   --color-blue-500: #5B6EC4;
-  --color-blue-600: #4457A5;
+  --color-blue-600: #3B4C93;
   --color-blue-700: #2E3F78;
   --color-blue-800: #24326A;
   --color-blue-900: #1B2755;
@@ -105,31 +108,31 @@
 
 /* ── ACIK TEMA (varsayilan) ── */
 :root {
-  --color-sidebar: #FFFFFF;
-  --color-header: #FFFFFF;
-  --color-primary: #4457A5;
+  --color-sidebar: #C6CEE2;
+  --color-header: #C6CEE2;
+  --color-primary: #3B4C93;
   --color-primary-hover: #2E3F78;
   --color-soft-accent: rgba(68, 87, 165, 0.10);
 
-  --color-bg: #EFF1FA;   /* zemin - kartlarin uzerinde durdugu yuzey */
-  --color-card: #FFFFFF; /* kart / panel */
-  --color-border: #DCE1F1;
+  --color-bg: #9FADC9;   /* zemin - kartlarin uzerinde durdugu yuzey */
+  --color-card: #C6CEE2; /* kart / panel */
+  --color-border: #8593B4;
   --color-text: #16204A;
-  --color-subtext: #5A6685;
+  --color-subtext: #2E3650;
 
-  --scrollbar-track: #E7EBF7;
-  --scrollbar-thumb: #C3CAE6;
-  --scrollbar-thumb-hover: #A4AECD;
+  --scrollbar-track: #A9B4CF;
+  --scrollbar-thumb: #7D8CAE;
+  --scrollbar-thumb-hover: #66759B;
 
   /* ── Yuzeyler ──
      Zemin duz tek renk oldugu icin panel/kart yuzeyleri de dolu:
      bulaniklastirilacak bir doku olmadigindan saydamlik ve blur
      gorsel olarak hicbir sey katmaz, sadece maliyet olurdu. */
-  --glass-panel: #FFFFFF;
-  --glass-card: #FFFFFF;
-  --glass-modal: #FFFFFF;
-  --glass-border: #DCE1F1;
-  --glass-edge: #DCE1F1;
+  --glass-panel: #C6CEE2;
+  --glass-card: #C6CEE2;
+  --glass-modal: #C6CEE2;
+  --glass-border: #8593B4;
+  --glass-edge: #8593B4;
   --glass-shadow: 0 12px 32px rgba(22, 32, 74, .10);
 }
 
@@ -141,6 +144,8 @@
   --color-slate-800: #2A3872;
   --color-slate-500: #6E79A4;
   --color-slate-200: #E3E7F4;
+  --color-slate-300: #C3CAE6;   /* koyu zeminde metin: acik kalmali */
+  --color-slate-400: #8892B5;   /* koyu zeminde ikincil metin */
   --color-slate-50: #0E1630;
 
   --color-blue-50: rgba(68, 87, 165, 0.18);
@@ -175,7 +180,7 @@
 }
 
 /* Uygulama zemini: her iki temada da TEK DUZ RENK.
-   Acik: #EFF1FA   Koyu: #0E1630   (ikisi de Tema2 paletinden)
+   Acik: #9FADC9   Koyu: #0E1630   (ikisi de Tema2 paletinden)
    Mozaik/bokeh dokusu yalnizca giris ekraninda kalir. */
 body {
   margin: 0;
@@ -362,7 +367,7 @@ body {
 /* Buttons */
 .btn-primary-blue {
   background-color: var(--color-primary);
-  color: #FFFFFF;
+  color: #C6CEE2;
   font-weight: 600;
   transition: background-color 0.15s ease-in-out;
 }

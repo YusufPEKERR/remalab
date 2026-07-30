@@ -142,7 +142,7 @@ const ServiceTransition = () => {
       <NotificationToast notification={notification} onClose={() => setNotification(null)} />
 
       {/* ════════════════ HERO BANNER ════════════════ */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#EFF1FA] dark:from-[#101935] via-[#DDE2F2] dark:via-[#16204A] to-[#FFFFFF] dark:to-[#24326A] p-6 sm:p-8 text-[#1B2755] dark:text-white shadow-xl border border-[#DCE1F1] dark:border-[#24326A]">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#9FADC9] dark:from-[#101935] via-[#8A98B8] dark:via-[#16204A] to-[#C6CEE2] dark:to-[#24326A] p-6 sm:p-8 text-[#1B2755] dark:text-white shadow-xl border border-[#8593B4] dark:border-[#24326A]">
         {/* Ambient Grid Overlay */}
         <div className="absolute inset-0 bg-[linear-gradient(rgba(245,158,11,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(245,158,11,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-amber-600/10 rounded-full blur-3xl pointer-events-none" />
@@ -155,7 +155,7 @@ const ServiceTransition = () => {
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1B2755] dark:text-white">
               Yedek Parça & Statü Geçiş İşlemleri
             </h1>
-            <p className="text-sm text-[#4A5A9E] dark:text-slate-300 leading-relaxed">
+            <p className="text-sm text-[#3D4B86] dark:text-slate-300 leading-relaxed">
               Barkod veya IMEI okutarak cihazın kayıt kabul, test veya sevkiyat statüsünü güncelleyin.
             </p>
           </div>
@@ -166,19 +166,19 @@ const ServiceTransition = () => {
       <div className="glass-card p-6 rounded-2xl shadow-md">
         <form onSubmit={handleSearch} className="flex flex-col gap-4">
           <div>
-            <label className="block text-xs font-bold text-[#5A6685] dark:text-[#8892B5] uppercase tracking-wider mb-2">Barkod / IMEI Okutun</label>
+            <label className="block text-xs font-bold text-[#2E3650] dark:text-[#8892B5] uppercase tracking-wider mb-2">Barkod / IMEI Okutun</label>
             <div className="flex flex-col sm:flex-row gap-3">
               <input
                 type="text"
                 placeholder="Barkod veya IMEI okutunuz..."
-                className="flex-1 bg-[#FFFFFF] dark:bg-[#24326A] border border-[#DCE1F1] dark:border-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] placeholder-[#5A6685] rounded-xl px-4 py-3 text-xs sm:text-sm font-mono font-medium focus:outline-none focus:border-[#4457A5] transition-all shadow-xs"
+                className="flex-1 bg-[#C6CEE2] dark:bg-[#24326A] border border-[#8593B4] dark:border-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] placeholder-[#2E3650] rounded-xl px-4 py-3 text-xs sm:text-sm font-mono font-medium focus:outline-none focus:border-[#3B4C93] transition-all shadow-xs"
                 value={barcode}
                 onChange={(e) => setBarcode(e.target.value)}
               />
               <button
                 type="submit"
                 disabled={loading}
-                className="bg-[#4457A5] hover:bg-[#2E3F78] disabled:opacity-40 text-white px-8 py-3 rounded-xl transition-all shadow-md font-semibold text-xs cursor-pointer whitespace-nowrap flex items-center justify-center gap-2"
+                className="bg-[#3B4C93] hover:bg-[#2E3F78] disabled:opacity-40 text-white px-8 py-3 rounded-xl transition-all shadow-md font-semibold text-xs cursor-pointer whitespace-nowrap flex items-center justify-center gap-2"
               >
                 <ScanLine size={16} /> {loading ? "Sorgulanıyor..." : "Sorgula"}
               </button>
@@ -189,10 +189,10 @@ const ServiceTransition = () => {
 
       {deviceInfo && currentStatu !== 109 && (
         <div className="glass-card p-6 rounded-2xl shadow-md space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#DCE1F1] dark:border-[#24326A] pb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#8593B4] dark:border-[#24326A] pb-4">
             <div>
               <h3 className="text-base font-semibold text-[#16204A] dark:text-[#F6F8FF]">
-                Cihaz: <span className="font-mono text-[#8894D8]">{deviceInfo.imei}</span> {deviceInfo.model && <span className="text-[#5A6685] dark:text-[#8892B5]">({deviceInfo.model})</span>}
+                Cihaz: <span className="font-mono text-[#8894D8]">{deviceInfo.imei}</span> {deviceInfo.model && <span className="text-[#2E3650] dark:text-[#8892B5]">({deviceInfo.model})</span>}
               </h3>
             </div>
             <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-500/10 dark:bg-blue-500/20 text-blue-400 border border-blue-500/30 w-fit">
@@ -200,10 +200,10 @@ const ServiceTransition = () => {
             </span>
           </div>
 
-          <p className="text-xs font-bold text-[#5A6685] dark:text-[#8892B5] uppercase tracking-wider">İzin Verilen Statü Geçişleri</p>
+          <p className="text-xs font-bold text-[#2E3650] dark:text-[#8892B5] uppercase tracking-wider">İzin Verilen Statü Geçişleri</p>
 
           {transitions.length === 0 ? (
-            <p className="text-[#5A6685] dark:text-[#8892B5] text-xs italic">Bu statüden yapılabilecek işlem bulunamadı.</p>
+            <p className="text-[#2E3650] dark:text-[#8892B5] text-xs italic">Bu statüden yapılabilecek işlem bulunamadı.</p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pt-2">
               {transitions.map((t, idx) => (

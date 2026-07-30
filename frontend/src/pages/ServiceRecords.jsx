@@ -197,7 +197,7 @@ export default function ServiceRecords() {
     <div className="h-full flex flex-col space-y-6 overflow-hidden">
 
       {/* Header */}
-      <div className="bg-white dark:bg-[#1E2B5C] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm shrink-0 flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+      <div className="bg-[#C6CEE2] dark:bg-[#1E2B5C] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm shrink-0 flex flex-col md:flex-row md:justify-between md:items-center gap-4">
         <div>
             <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-2">
             <Wrench className="text-blue-400" size={24} /> Servis Kaydı
@@ -220,7 +220,7 @@ export default function ServiceRecords() {
             <button 
                 type="submit" 
                 disabled={isSearching}
-                className="bg-slate-800 hover:bg-slate-900 dark:bg-slate-100 dark:hover:bg-white text-white dark:text-slate-900 px-4 py-2.5 rounded-xl font-medium text-sm transition-colors disabled:opacity-50"
+                className="bg-slate-800 hover:bg-slate-900 dark:bg-slate-100 dark:hover:bg-[#C6CEE2] text-white dark:text-slate-900 px-4 py-2.5 rounded-xl font-medium text-sm transition-colors disabled:opacity-50"
             >
                 {isSearching ? 'Aranıyor...' : 'Ara'}
             </button>
@@ -246,7 +246,7 @@ export default function ServiceRecords() {
               </button>
             </div>
 
-            <div className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden">
+            <div className="bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden">
               <table className="w-full text-left text-sm">
                 <thead className="bg-slate-50 dark:bg-[#232F63] text-slate-400 font-semibold uppercase tracking-wider text-xs">
                   <tr>
@@ -306,7 +306,7 @@ export default function ServiceRecords() {
             </div>
           </>
         ) : showImeiDetails && imeiSearchResult ? (
-          <div className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-xl animate-in fade-in slide-in-from-bottom-4">
+          <div className="bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-xl animate-in fade-in slide-in-from-bottom-4">
             <div className="flex justify-between items-center mb-6 border-b border-slate-200 dark:border-slate-700/50 pb-4">
               <div>
                   <h2 className="text-xl font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
@@ -347,7 +347,7 @@ export default function ServiceRecords() {
                     
                     <div>
                         <span className="block text-xs text-slate-400 mb-1">Müşteri Şikayeti / Kusurlar</span>
-                        <div className="text-sm font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-[#1E2B5C] p-3 rounded-lg border border-slate-200 dark:border-slate-700 min-h-[60px]">
+                        <div className="text-sm font-medium text-slate-700 dark:text-slate-300 bg-[#C6CEE2] dark:bg-[#1E2B5C] p-3 rounded-lg border border-slate-200 dark:border-slate-700 min-h-[60px]">
                             {imeiSearchResult.customer_complaint || '-'}
                         </div>
                     </div>
@@ -400,7 +400,7 @@ export default function ServiceRecords() {
             </div>
           </div>
         ) : (
-          <div className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-xl animate-in fade-in slide-in-from-bottom-4">
+          <div className="bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-xl animate-in fade-in slide-in-from-bottom-4">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                 {editingRecord ? 'Servis Kaydını Düzenle' : 'Yeni Servis Kaydı'}

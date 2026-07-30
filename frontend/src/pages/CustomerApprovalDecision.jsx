@@ -99,7 +99,7 @@ const CustomerApprovalDecision = () => {
       <NotificationToast notification={notification} onClose={() => setNotification(null)} />
 
       {/* ════════════════ HERO BANNER ════════════════ */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#EFF1FA] dark:from-[#101935] via-[#DDE2F2] dark:via-[#16204A] to-[#FFFFFF] dark:to-[#24326A] p-6 sm:p-8 text-[#1B2755] dark:text-white shadow-xl border border-[#DCE1F1] dark:border-[#24326A]">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#9FADC9] dark:from-[#101935] via-[#8A98B8] dark:via-[#16204A] to-[#C6CEE2] dark:to-[#24326A] p-6 sm:p-8 text-[#1B2755] dark:text-white shadow-xl border border-[#8593B4] dark:border-[#24326A]">
         {/* Ambient Grid Overlay */}
         <div className="absolute inset-0 bg-[linear-gradient(rgba(122, 84, 192,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(122, 84, 192,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl pointer-events-none" />
@@ -112,7 +112,7 @@ const CustomerApprovalDecision = () => {
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1B2755] dark:text-white">
               Müşteri Onayı Bekleyen Cihazlar
             </h1>
-            <p className="text-sm text-[#4A5A9E] dark:text-slate-300 leading-relaxed">
+            <p className="text-sm text-[#3D4B86] dark:text-slate-300 leading-relaxed">
               Müşteri onayına sunulmuş ({SOURCE_STATU}) tüm cihazları görüntüleyin, gelen müşteri kararına göre onay (109) veya red (124) işlemini yapın.
             </p>
           </div>
@@ -120,7 +120,7 @@ const CustomerApprovalDecision = () => {
           <button
             onClick={loadItems}
             disabled={loading}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#FFFFFF] dark:bg-[#24326A] hover:bg-[#EFF1FA] dark:hover:bg-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] border border-[#DCE1F1] dark:border-[#3B4A85] text-xs font-semibold transition-all cursor-pointer disabled:opacity-40 shrink-0"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#C6CEE2] dark:bg-[#24326A] hover:bg-[#9FADC9] dark:hover:bg-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] border border-[#8593B4] dark:border-[#3B4A85] text-xs font-semibold transition-all cursor-pointer disabled:opacity-40 shrink-0"
           >
             <RefreshCw size={15} className={loading ? "animate-spin" : ""} /> Yenile
           </button>
@@ -129,12 +129,12 @@ const CustomerApprovalDecision = () => {
 
       {/* SEARCH BAR */}
       <div className="glass-card p-6 rounded-2xl shadow-md">
-        <label className="block text-xs font-bold text-[#5A6685] dark:text-[#8892B5] uppercase tracking-wider mb-2">Filtrele (IMEI / Seri No / Batch No)</label>
+        <label className="block text-xs font-bold text-[#2E3650] dark:text-[#8892B5] uppercase tracking-wider mb-2">Filtrele (IMEI / Seri No / Batch No)</label>
         <input
           ref={inputRef}
           type="text"
           placeholder="Okutunuz veya yazınız..."
-          className="w-full bg-[#FFFFFF] dark:bg-[#24326A] border border-[#DCE1F1] dark:border-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] placeholder-[#5A6685] rounded-xl px-4 py-3 text-xs sm:text-sm font-mono font-medium focus:outline-none focus:border-[#4457A5] transition-all shadow-xs"
+          className="w-full bg-[#C6CEE2] dark:bg-[#24326A] border border-[#8593B4] dark:border-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] placeholder-[#2E3650] rounded-xl px-4 py-3 text-xs sm:text-sm font-mono font-medium focus:outline-none focus:border-[#3B4C93] transition-all shadow-xs"
           value={term}
           onChange={(e) => setTerm(e.target.value)}
         />
@@ -143,11 +143,11 @@ const CustomerApprovalDecision = () => {
       {/* DEVICE LIST */}
       <div className="glass-card rounded-2xl p-6 shadow-md flex-1 min-h-[300px]">
         {loading ? (
-          <div className="flex items-center justify-center h-full text-[#5A6685] dark:text-[#8892B5] text-xs font-semibold py-16">
+          <div className="flex items-center justify-center h-full text-[#2E3650] dark:text-[#8892B5] text-xs font-semibold py-16">
             <RefreshCw className="animate-spin mr-2" size={18} /> Yükleniyor...
           </div>
         ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-3 py-16 text-[#5A6685]">
+          <div className="flex flex-col items-center justify-center gap-3 py-16 text-[#2E3650]">
             <Info size={32} className="text-[#3B4A85]" />
             <p className="text-xs font-semibold">{items.length === 0 ? "Müşteri onayı bekleyen cihaz bulunmuyor." : "Aramanızla eşleşen cihaz bulunamadı."}</p>
           </div>
@@ -156,11 +156,11 @@ const CustomerApprovalDecision = () => {
             {filtered.map((entry) => (
               <div
                 key={entry.entry_id}
-                className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border border-[#DCE1F1] dark:border-[#24326A] bg-[#F5F7FC] dark:bg-[#1B2755] hover:bg-[#FFFFFF]/70 dark:hover:bg-[#24326A]/70 transition-all"
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border border-[#8593B4] dark:border-[#24326A] bg-[#B5BFD8] dark:bg-[#1B2755] hover:bg-[#C6CEE2]/70 dark:hover:bg-[#24326A]/70 transition-all"
               >
                 <div className="min-w-0">
                   <p className="text-sm font-bold text-[#16204A] dark:text-[#F6F8FF] font-mono tracking-wide">{entry.imei}</p>
-                  <p className="text-xs text-[#5A6685] dark:text-[#8892B5] mt-0.5">{entry.batch_no} · <span className="text-blue-400 font-semibold">{entry.flow}</span></p>
+                  <p className="text-xs text-[#2E3650] dark:text-[#8892B5] mt-0.5">{entry.batch_no} · <span className="text-blue-400 font-semibold">{entry.flow}</span></p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   {entry.decision === "approved" ? (

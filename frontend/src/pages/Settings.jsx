@@ -117,7 +117,7 @@ export default function Settings() {
     <div className="flex flex-col space-y-6 pb-12 text-[#16204A] dark:text-[#F6F8FF] max-w-[1600px] mx-auto animate-in fade-in duration-300">
       
       {/* ════════════════ HERO BANNER ════════════════ */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#EFF1FA] dark:from-[#101935] via-[#DDE2F2] dark:via-[#16204A] to-[#FFFFFF] dark:to-[#24326A] p-6 sm:p-8 text-[#1B2755] dark:text-white shadow-xl border border-[#DCE1F1] dark:border-[#24326A]">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#9FADC9] dark:from-[#101935] via-[#8A98B8] dark:via-[#16204A] to-[#C6CEE2] dark:to-[#24326A] p-6 sm:p-8 text-[#1B2755] dark:text-white shadow-xl border border-[#8593B4] dark:border-[#24326A]">
         {/* Ambient Grid Overlay */}
         <div className="absolute inset-0 bg-[linear-gradient(rgba(91, 110, 196,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(91, 110, 196,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
@@ -130,7 +130,7 @@ export default function Settings() {
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1B2755] dark:text-white">
               Sistem Ayarları
             </h1>
-            <p className="text-sm text-[#4A5A9E] dark:text-slate-300 leading-relaxed">
+            <p className="text-sm text-[#3D4B86] dark:text-slate-300 leading-relaxed">
               Uygulama dilini, veritabanı bağlantılarını ve lokal depolama klasörlerini yönetin.
             </p>
           </div>
@@ -142,7 +142,7 @@ export default function Settings() {
         <button
           onClick={() => setActiveTab('general')}
           className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-            activeTab === 'general' ? 'bg-[#4457A5] text-white shadow-md' : 'text-[#5A6685] dark:text-[#8892B5] hover:text-[#16204A] dark:hover:text-[#F6F8FF] hover:bg-[#FFFFFF] dark:hover:bg-[#24326A]'
+            activeTab === 'general' ? 'bg-[#3B4C93] text-white shadow-md' : 'text-[#2E3650] dark:text-[#8892B5] hover:text-[#16204A] dark:hover:text-[#F6F8FF] hover:bg-[#C6CEE2] dark:hover:bg-[#24326A]'
           }`}
         >
           <SettingsIcon size={16} /> Genel Ayarlar
@@ -150,7 +150,7 @@ export default function Settings() {
         <button
           onClick={() => setActiveTab('database')}
           className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-            activeTab === 'database' ? 'bg-[#4457A5] text-white shadow-md' : 'text-[#5A6685] dark:text-[#8892B5] hover:text-[#16204A] dark:hover:text-[#F6F8FF] hover:bg-[#FFFFFF] dark:hover:bg-[#24326A]'
+            activeTab === 'database' ? 'bg-[#3B4C93] text-white shadow-md' : 'text-[#2E3650] dark:text-[#8892B5] hover:text-[#16204A] dark:hover:text-[#F6F8FF] hover:bg-[#C6CEE2] dark:hover:bg-[#24326A]'
           }`}
         >
           <Server size={16} /> Veritabanı Bağlantıları
@@ -158,7 +158,7 @@ export default function Settings() {
         <button
           onClick={() => setActiveTab('local')}
           className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-            activeTab === 'local' ? 'bg-[#4457A5] text-white shadow-md' : 'text-[#5A6685] dark:text-[#8892B5] hover:text-[#16204A] dark:hover:text-[#F6F8FF] hover:bg-[#FFFFFF] dark:hover:bg-[#24326A]'
+            activeTab === 'local' ? 'bg-[#3B4C93] text-white shadow-md' : 'text-[#2E3650] dark:text-[#8892B5] hover:text-[#16204A] dark:hover:text-[#F6F8FF] hover:bg-[#C6CEE2] dark:hover:bg-[#24326A]'
           }`}
         >
           <HardDrive size={16} /> Lokal DB / Klasörler
@@ -170,7 +170,7 @@ export default function Settings() {
         
         {/* --- GENERAL TAB --- */}
         {activeTab === 'general' && (
-          <div className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-sm">
+          <div className="bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-sm">
             <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-6 flex items-center gap-2">
               <Globe className="text-blue-400" size={20} />
               Dil Ayarları
@@ -183,7 +183,7 @@ export default function Settings() {
               <select
                 value={language}
                 onChange={(e) => setLanguage(e.target.value)}
-                className="bg-white dark:bg-[#1E2B5C] border border-slate-300 dark:border-slate-600 text-slate-800 dark:text-slate-200 rounded-lg px-4 py-2.5 focus:outline-none focus:border-blue-500 font-medium"
+                className="bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-300 dark:border-slate-600 text-slate-800 dark:text-slate-200 rounded-lg px-4 py-2.5 focus:outline-none focus:border-blue-500 font-medium"
               >
                 <option value="tr">🇹🇷 Türkçe</option>
                 <option value="en">🇬🇧 English</option>
@@ -211,7 +211,7 @@ export default function Settings() {
                     onClick={handleToggleDevMode}
                     className={`relative w-14 h-8 rounded-full transition-colors shrink-0 ${devMode ? 'bg-blue-600' : 'bg-slate-600'}`}
                   >
-                    <span className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${devMode ? 'translate-x-6' : 'translate-x-0'}`} />
+                    <span className={`absolute top-1 left-1 w-6 h-6 bg-[#C6CEE2] rounded-full transition-transform ${devMode ? 'translate-x-6' : 'translate-x-0'}`} />
                   </button>
                 </div>
               </div>
@@ -241,7 +241,7 @@ export default function Settings() {
                   {connections.map(conn => {
                     const cfg = dbTypeConfig[conn.db_type] || dbTypeConfig.postgresql;
                     return (
-                      <div key={conn.id} className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-5 flex gap-5 hover:border-slate-500 transition-colors group relative overflow-hidden">
+                      <div key={conn.id} className="bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-5 flex gap-5 hover:border-slate-500 transition-colors group relative overflow-hidden">
                         {conn.active && (
                           <div className="absolute top-0 right-0 bg-blue-600 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl uppercase tracking-wider">
                             Aktif
@@ -286,7 +286,7 @@ export default function Settings() {
               </>
             ) : (
               // DB FORM
-              <div className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-xl animate-in fade-in slide-in-from-bottom-4">
+              <div className="bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-xl animate-in fade-in slide-in-from-bottom-4">
                 <div className="flex justify-between items-center mb-6">
                   <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                     {editingDb ? 'Bağlantıyı Düzenle' : 'Yeni Bağlantı Ekle'}
@@ -373,7 +373,7 @@ export default function Settings() {
 
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                 {localFiles.map(file => (
-                  <div key={file.id} className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-5 flex gap-4 hover:border-slate-500 transition-colors">
+                  <div key={file.id} className="bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-5 flex gap-4 hover:border-slate-500 transition-colors">
                     <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl shrink-0 ${file.type === 'sql' ? 'bg-green-500/10 text-green-400' : 'bg-purple-500/10 text-purple-400'}`}>
                       {file.type === 'sql' ? '­şô£' : '­şùä´©Å'}
                     </div>
@@ -414,7 +414,7 @@ export default function Settings() {
                 {dataFolders.map(folder => {
                   const isBackup = folder.type === 'backup';
                   return (
-                    <div key={folder.id} className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-4 flex gap-4 hover:border-slate-500 transition-colors items-center">
+                    <div key={folder.id} className="bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-4 flex gap-4 hover:border-slate-500 transition-colors items-center">
                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0 ${isBackup ? 'bg-green-500/10 text-green-400' : 'bg-orange-500/10 text-orange-400'}`}>
                         {isBackup ? '­şÆ╝' : '­şôü'}
                       </div>

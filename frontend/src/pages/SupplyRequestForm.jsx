@@ -76,7 +76,7 @@ export default function SupplyRequestForm() {
     <div className="flex flex-col space-y-6 pb-12 text-[#16204A] dark:text-[#F6F8FF] max-w-[1600px] mx-auto animate-in fade-in duration-300">
 
       {/* ════════════════ HERO BANNER ════════════════ */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#EFF1FA] dark:from-[#101935] via-[#DDE2F2] dark:via-[#16204A] to-[#FFFFFF] dark:to-[#24326A] p-6 sm:p-8 text-[#1B2755] dark:text-white shadow-xl border border-[#DCE1F1] dark:border-[#24326A]">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#9FADC9] dark:from-[#101935] via-[#8A98B8] dark:via-[#16204A] to-[#C6CEE2] dark:to-[#24326A] p-6 sm:p-8 text-[#1B2755] dark:text-white shadow-xl border border-[#8593B4] dark:border-[#24326A]">
         {/* Ambient Grid Overlay */}
         <div className="absolute inset-0 bg-[linear-gradient(rgba(68, 87, 165,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(68, 87, 165,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
@@ -89,7 +89,7 @@ export default function SupplyRequestForm() {
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1B2755] dark:text-white">
               Tedarik Talepleri Formu
             </h1>
-            <p className="text-sm text-[#4A5A9E] dark:text-slate-300 leading-relaxed">
+            <p className="text-sm text-[#3D4B86] dark:text-slate-300 leading-relaxed">
               Bir iş emri için depodan veya dış tedarikçiden temin edilmesi gereken parça taleplerini oluşturun.
             </p>
           </div>
@@ -104,8 +104,8 @@ export default function SupplyRequestForm() {
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div>
-                <label className="block text-xs font-bold text-[#5A6685] dark:text-[#8892B5] uppercase tracking-wider mb-2">İş Emri <span className="text-rose-400">*</span></label>
-                <select required className="w-full bg-[#FFFFFF] dark:bg-[#24326A] border border-[#DCE1F1] dark:border-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] rounded-xl px-4 py-2.5 text-xs sm:text-sm focus:outline-none focus:border-[#4457A5]" value={formData.work_order_id} onChange={e => setFormData({ ...formData, work_order_id: e.target.value })}>
+                <label className="block text-xs font-bold text-[#2E3650] dark:text-[#8892B5] uppercase tracking-wider mb-2">İş Emri <span className="text-rose-400">*</span></label>
+                <select required className="w-full bg-[#C6CEE2] dark:bg-[#24326A] border border-[#8593B4] dark:border-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] rounded-xl px-4 py-2.5 text-xs sm:text-sm focus:outline-none focus:border-[#3B4C93]" value={formData.work_order_id} onChange={e => setFormData({ ...formData, work_order_id: e.target.value })}>
                   <option value="">İş emri seçiniz...</option>
                   {workOrders.map(wo => (
                     <option key={wo.id} value={wo.id}>
@@ -146,7 +146,7 @@ export default function SupplyRequestForm() {
         </div>
 
         {/* Talepler */}
-        <div className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden">
+        <div className="bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden">
           <div className="p-6 pb-4">
             <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Talepler</h2>
             <p className="text-slate-400 text-sm mt-1">Sizin oluşturduğunuz tedarik talepleri ve güncel durumları.</p>

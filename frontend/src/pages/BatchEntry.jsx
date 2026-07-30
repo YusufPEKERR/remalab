@@ -884,7 +884,7 @@ export default function BatchEntry() {
     <div className="flex flex-col space-y-6 pb-12 text-[#16204A] dark:text-[#F6F8FF] max-w-[1600px] mx-auto animate-in fade-in duration-300">
       
       {/* ════════════════ HERO BANNER ════════════════ */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#EFF1FA] dark:from-[#101935] via-[#DDE2F2] dark:via-[#16204A] to-[#FFFFFF] dark:to-[#24326A] p-6 sm:p-8 text-[#1B2755] dark:text-white shadow-xl border border-[#DCE1F1] dark:border-[#24326A]">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#9FADC9] dark:from-[#101935] via-[#8A98B8] dark:via-[#16204A] to-[#C6CEE2] dark:to-[#24326A] p-6 sm:p-8 text-[#1B2755] dark:text-white shadow-xl border border-[#8593B4] dark:border-[#24326A]">
         {/* Ambient Grid Overlay */}
         <div className="absolute inset-0 bg-[linear-gradient(rgba(245,158,11,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(245,158,11,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-amber-600/10 rounded-full blur-3xl pointer-events-none" />
@@ -897,7 +897,7 @@ export default function BatchEntry() {
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1B2755] dark:text-white">
               Batch Girişi Yönetimi
             </h1>
-            <p className="text-sm text-[#4A5A9E] dark:text-slate-300 leading-relaxed">
+            <p className="text-sm text-[#3D4B86] dark:text-slate-300 leading-relaxed">
               Müşteri parti cihazlarını, servis arıza teşhislerini ve akış bilgilerini kaydedin ve yönetin.
             </p>
           </div>
@@ -906,20 +906,20 @@ export default function BatchEntry() {
             <div className="relative">
               <select
                 onChange={handleExcelAction}
-                className="appearance-none bg-[#FFFFFF] dark:bg-[#24326A] hover:bg-[#EFF1FA] dark:hover:bg-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] border border-[#DCE1F1] dark:border-[#3B4A85] rounded-xl px-4 py-2.5 pr-9 text-xs font-bold transition-all cursor-pointer focus:outline-none focus:border-[#4457A5]"
+                className="appearance-none bg-[#C6CEE2] dark:bg-[#24326A] hover:bg-[#9FADC9] dark:hover:bg-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] border border-[#8593B4] dark:border-[#3B4A85] rounded-xl px-4 py-2.5 pr-9 text-xs font-bold transition-all cursor-pointer focus:outline-none focus:border-[#3B4C93]"
               >
                 <option value="">Excel İşlemleri...</option>
                 <option value="download_template">Boş Şablon İndir</option>
                 <option value="export">Dışa Aktar (Seçili / Tümü)</option>
                 <option value="import">Excel'den İçe Aktar</option>
               </select>
-              <div className="absolute inset-y-0 right-0 flex items-center px-2.5 pointer-events-none text-[#5A6685] dark:text-[#8892B5]">
+              <div className="absolute inset-y-0 right-0 flex items-center px-2.5 pointer-events-none text-[#2E3650] dark:text-[#8892B5]">
                 <FileSpreadsheet size={15} />
               </div>
             </div>
             <button
               onClick={() => handleOpenModal(null)}
-              className="flex items-center gap-2 px-5 py-2.5 bg-[#4457A5] hover:bg-[#2E3F78] text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+              className="flex items-center gap-2 px-5 py-2.5 bg-[#3B4C93] hover:bg-[#2E3F78] text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
             >
               <Plus size={16} />
               Yeni Batch Girişi
@@ -989,7 +989,7 @@ export default function BatchEntry() {
       {/* MAIN CONTAINER */}
       <div className="glass-card rounded-2xl shadow-md overflow-hidden flex flex-col">
         {/* Filter Bar */}
-        <div className="p-4 border-b border-[#DCE1F1] dark:border-[#24326A] bg-[#F5F7FC] dark:bg-[#1B2755] flex flex-wrap items-center gap-3">
+        <div className="p-4 border-b border-[#8593B4] dark:border-[#24326A] bg-[#B5BFD8] dark:bg-[#1B2755] flex flex-wrap items-center gap-3">
           <div className="relative flex-1 min-w-[240px]">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
@@ -997,7 +997,7 @@ export default function BatchEntry() {
               value={searchTerm}
               onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
               placeholder="Müşteri, IMEI, Seri No, Batch No veya Model ile ara..."
-              className="w-full pl-9 pr-8 py-2 bg-white dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 shadow-sm"
+              className="w-full pl-9 pr-8 py-2 bg-[#C6CEE2] dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 shadow-sm"
             />
             {searchTerm && (
               <button
@@ -1026,7 +1026,7 @@ export default function BatchEntry() {
                 setSearchTerm(val);
                 setCurrentPage(1);
               }}
-              className="w-full px-3 py-2 bg-white dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 shadow-sm cursor-pointer"
+              className="w-full px-3 py-2 bg-[#C6CEE2] dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 shadow-sm cursor-pointer"
             >
               <option value="">Müşteri: Tümü</option>
               {(customerList || [])
@@ -1070,7 +1070,7 @@ export default function BatchEntry() {
                 }
                 setCurrentPage(1);
               }}
-              className="w-full px-3 py-2 bg-white dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 shadow-sm cursor-pointer"
+              className="w-full px-3 py-2 bg-[#C6CEE2] dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 shadow-sm cursor-pointer"
             >
               <option value="">Batch: Tümü</option>
               {(batchSummaryList || [])
@@ -1200,7 +1200,7 @@ export default function BatchEntry() {
                 setItemsPerPage(Number(e.target.value));
                 setCurrentPage(1);
               }}
-              className="px-2 py-1 bg-white dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 font-medium cursor-pointer focus:outline-none"
+              className="px-2 py-1 bg-[#C6CEE2] dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 font-medium cursor-pointer focus:outline-none"
             >
               <option value={20}>20</option>
               <option value={50}>50</option>
@@ -1214,7 +1214,7 @@ export default function BatchEntry() {
             <button
               disabled={currentPage === 1}
               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 disabled:opacity-40 rounded-lg text-slate-700 dark:text-slate-300 font-medium hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+              className="px-3 py-1.5 bg-[#C6CEE2] dark:bg-slate-800 border border-slate-200 dark:border-slate-700 disabled:opacity-40 rounded-lg text-slate-700 dark:text-slate-300 font-medium hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
             >
               ← Önceki
             </button>
@@ -1230,7 +1230,7 @@ export default function BatchEntry() {
                   const p = parseInt(e.target.value, 10);
                   if (p >= 1 && p <= (summaryTotalPages || 1)) setCurrentPage(p);
                 }}
-                className="w-14 px-2 py-1 bg-white dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-lg text-center font-bold text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                className="w-14 px-2 py-1 bg-[#C6CEE2] dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-lg text-center font-bold text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
               />
               <span>/ {summaryTotalPages} <span className="text-slate-500 font-normal">({summaryTotalCount} Kayıt)</span></span>
             </div>
@@ -1238,7 +1238,7 @@ export default function BatchEntry() {
             <button
               disabled={currentPage >= summaryTotalPages}
               onClick={() => setCurrentPage(p => Math.min(summaryTotalPages, p + 1))}
-              className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 disabled:opacity-40 rounded-lg text-slate-700 dark:text-slate-300 font-medium hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+              className="px-3 py-1.5 bg-[#C6CEE2] dark:bg-slate-800 border border-slate-200 dark:border-slate-700 disabled:opacity-40 rounded-lg text-slate-700 dark:text-slate-300 font-medium hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
             >
               Sonraki →
             </button>
@@ -1249,9 +1249,9 @@ export default function BatchEntry() {
       {/* BATCH GİRİŞİ MODALI */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-4xl max-h-[92vh] overflow-hidden flex flex-col">
+          <div className="bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-4xl max-h-[92vh] overflow-hidden flex flex-col">
             {/* Modal Header */}
-            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center bg-white dark:bg-[#1E2B5C]">
+            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center bg-[#C6CEE2] dark:bg-[#1E2B5C]">
               <h2 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
                 <FileSpreadsheet size={20} className="text-blue-500" />
                 {editingRecord ? 'Batch Kaydını Düzenle & Excel Ön İzleme' : 'Yeni Batch Girişi'}
@@ -1302,7 +1302,7 @@ export default function BatchEntry() {
                           type="text"
                           value={formData.customer_no || ''}
                           onChange={e => setFormData({ ...formData, customer_no: e.target.value })}
-                          className="w-full bg-white dark:bg-[#16204A] border border-slate-300 dark:border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-500 font-mono"
+                          className="w-full bg-[#C6CEE2] dark:bg-[#16204A] border border-slate-300 dark:border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-500 font-mono"
                           placeholder="Örn: CUST-001"
                         />
                       </div>
@@ -1324,7 +1324,7 @@ export default function BatchEntry() {
                               customer_no: foundCust?.code || prev.customer_no || ''
                             }));
                           }}
-                          className="w-full bg-white dark:bg-[#16204A] border border-slate-300 dark:border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-500"
+                          className="w-full bg-[#C6CEE2] dark:bg-[#16204A] border border-slate-300 dark:border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-500"
                           placeholder="Müşteri listesinden seçin veya yazın"
                         />
                         <datalist id="customer-names-list">
@@ -1357,7 +1357,7 @@ export default function BatchEntry() {
                           type="text"
                           value={formData.imei_number || ''}
                           onChange={e => handleAutoLookup('imei_number', e.target.value)}
-                          className="w-full bg-white dark:bg-[#16204A] border border-slate-300 dark:border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 font-mono focus:outline-none focus:border-blue-500"
+                          className="w-full bg-[#C6CEE2] dark:bg-[#16204A] border border-slate-300 dark:border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 font-mono focus:outline-none focus:border-blue-500"
                           placeholder="IMEI giriniz (örn: 358901234567890)"
                         />
                       </div>
@@ -1370,7 +1370,7 @@ export default function BatchEntry() {
                           type="text"
                           value={formData.serial_number || ''}
                           onChange={e => handleAutoLookup('serial_number', e.target.value)}
-                          className="w-full bg-white dark:bg-[#16204A] border border-slate-300 dark:border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 font-mono focus:outline-none focus:border-blue-500"
+                          className="w-full bg-[#C6CEE2] dark:bg-[#16204A] border border-slate-300 dark:border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 font-mono focus:outline-none focus:border-blue-500"
                           placeholder="Cihaz seri numarası"
                         />
                       </div>
@@ -1383,7 +1383,7 @@ export default function BatchEntry() {
                           type="text"
                           value={formData.internal_id || ''}
                           onChange={e => handleAutoLookup('internal_id', e.target.value)}
-                          className="w-full bg-white dark:bg-[#16204A] border border-slate-300 dark:border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 font-mono focus:outline-none focus:border-blue-500"
+                          className="w-full bg-[#C6CEE2] dark:bg-[#16204A] border border-slate-300 dark:border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 font-mono focus:outline-none focus:border-blue-500"
                           placeholder="İç takip ID"
                         />
                       </div>
@@ -1396,7 +1396,7 @@ export default function BatchEntry() {
                           type="text"
                           value={formData.batch_no || ''}
                           onChange={e => setFormData({ ...formData, batch_no: e.target.value })}
-                          className="w-full bg-white dark:bg-[#16204A] border border-slate-300 dark:border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 font-mono focus:outline-none focus:border-blue-500"
+                          className="w-full bg-[#C6CEE2] dark:bg-[#16204A] border border-slate-300 dark:border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 font-mono focus:outline-none focus:border-blue-500"
                           placeholder="Batch grup numarası"
                         />
                       </div>
@@ -1419,7 +1419,7 @@ export default function BatchEntry() {
                           type="text"
                           value={formData.model || ''}
                           onChange={e => setFormData({ ...formData, model: e.target.value })}
-                          className="w-full bg-white dark:bg-[#16204A] border border-slate-300 dark:border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-500"
+                          className="w-full bg-[#C6CEE2] dark:bg-[#16204A] border border-slate-300 dark:border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-500"
                           placeholder="Örn: iPhone 13 Pro"
                         />
                       </div>
@@ -1431,7 +1431,7 @@ export default function BatchEntry() {
                         <select
                           value={formData.gb || ''}
                           onChange={e => setFormData({ ...formData, gb: e.target.value })}
-                          className="w-full bg-white dark:bg-[#16204A] border border-slate-300 dark:border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-500 cursor-pointer"
+                          className="w-full bg-[#C6CEE2] dark:bg-[#16204A] border border-slate-300 dark:border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-500 cursor-pointer"
                         >
                           <option value="">Hafıza Seçiniz...</option>
                           <option value="64GB">64GB</option>
@@ -1450,7 +1450,7 @@ export default function BatchEntry() {
                           type="text"
                           value={formData.color || ''}
                           onChange={e => setFormData({ ...formData, color: e.target.value })}
-                          className="w-full bg-white dark:bg-[#16204A] border border-slate-300 dark:border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-500"
+                          className="w-full bg-[#C6CEE2] dark:bg-[#16204A] border border-slate-300 dark:border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-500"
                           placeholder="Örn: Graphite, Siyah"
                         />
                       </div>
@@ -1473,7 +1473,7 @@ export default function BatchEntry() {
                           rows={2}
                           value={formData.defects || ''}
                           onChange={e => setFormData({ ...formData, defects: e.target.value })}
-                          className="w-full bg-white dark:bg-[#16204A] border border-slate-300 dark:border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-500"
+                          className="w-full bg-[#C6CEE2] dark:bg-[#16204A] border border-slate-300 dark:border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-500"
                           placeholder="Müşterinin belirttiği kusur veya arızalar..."
                         />
                       </div>
@@ -1487,7 +1487,7 @@ export default function BatchEntry() {
                             type="text"
                             value={formData.screen_test || ''}
                             onChange={e => setFormData({ ...formData, screen_test: e.target.value })}
-                            className="w-full bg-white dark:bg-[#16204A] border border-slate-300 dark:border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-500"
+                            className="w-full bg-[#C6CEE2] dark:bg-[#16204A] border border-slate-300 dark:border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-500"
                             placeholder="Örn: Tamamlandı / Hasarlı"
                           />
                         </div>
@@ -1500,7 +1500,7 @@ export default function BatchEntry() {
                             type="text"
                             value={formData.power_test || ''}
                             onChange={e => setFormData({ ...formData, power_test: e.target.value })}
-                            className="w-full bg-white dark:bg-[#16204A] border border-slate-300 dark:border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-500"
+                            className="w-full bg-[#C6CEE2] dark:bg-[#16204A] border border-slate-300 dark:border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-500"
                             placeholder="Örn: Açılıyor / Şarj Olmuyor"
                           />
                         </div>
@@ -1512,7 +1512,7 @@ export default function BatchEntry() {
                           <select
                             value={formData.flow || 'To refurbish'}
                             onChange={e => setFormData({ ...formData, flow: e.target.value })}
-                            className="w-full bg-white dark:bg-[#16204A] border border-slate-300 dark:border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-500 cursor-pointer"
+                            className="w-full bg-[#C6CEE2] dark:bg-[#16204A] border border-slate-300 dark:border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-500 cursor-pointer"
                           >
                             {flowValues.map(f => <option key={f} value={f}>{f}</option>)}
                           </select>
@@ -1626,7 +1626,7 @@ export default function BatchEntry() {
                             const reason = importInvalid ? importInvalid.message : clientReason;
                             const hasErr = rowErrors.length > 0 || !!importInvalid;
                             return (
-                              <tr key={idx} className={`hover:bg-slate-100 dark:hover:bg-[#24316A] transition-colors ${hasErr ? 'bg-rose-500/10' : 'bg-white dark:bg-[#1E2B5C]'}`}>
+                              <tr key={idx} className={`hover:bg-slate-100 dark:hover:bg-[#24316A] transition-colors ${hasErr ? 'bg-rose-500/10' : 'bg-[#C6CEE2] dark:bg-[#1E2B5C]'}`}>
                                 <td className="px-3.5 py-2.5 text-center font-semibold text-slate-400 font-mono">{idx + 1}</td>
                                 <td className={`px-3.5 py-2.5 font-semibold ${!row.customer_name ? 'text-rose-700 dark:text-rose-400 font-semibold bg-rose-100 dark:bg-rose-500/20 px-2 py-1 rounded' : 'text-slate-800 dark:text-slate-100'}`}>
                                   {row.customer_name || '<BOŞ>'}

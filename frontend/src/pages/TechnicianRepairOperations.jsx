@@ -126,7 +126,7 @@ const AddRepairModal = ({ onClose, onAdd, missionGroups, device }) => {
 
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm">
-      <div className="bg-white dark:bg-[#1A2450] rounded-2xl shadow-2xl border border-slate-200 dark:border-[#3A4A8C] max-w-2xl w-full mx-4 flex flex-col min-h-0">
+      <div className="bg-[#C6CEE2] dark:bg-[#1A2450] rounded-2xl shadow-2xl border border-slate-200 dark:border-[#3A4A8C] max-w-2xl w-full mx-4 flex flex-col min-h-0">
         <div className="px-5 py-4 border-b border-slate-100 dark:border-[#3A4A8C] flex flex-wrap items-center justify-between">
           <h3 className="text-base font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
             <Wrench size={18} className="text-slate-400" /> Teknik: Teklif Parçaları
@@ -234,7 +234,7 @@ const StatusAdvanceModal = ({ repair, onClose, onAdvance }) => {
 
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm">
-      <div className="bg-white dark:bg-[#1E2B5C] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 max-w-md w-full mx-4 overflow-hidden">
+      <div className="bg-[#C6CEE2] dark:bg-[#1E2B5C] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 max-w-md w-full mx-4 overflow-hidden">
         <div className="border-b border-slate-200 dark:border-slate-700 px-6 py-4 flex flex-wrap items-center justify-between bg-slate-50 dark:bg-[#232F63]">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center">
@@ -287,7 +287,7 @@ const DOAReturnModal = ({ parts, onClose, onConfirm, submitting }) => {
 
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/70 backdrop-blur-sm">
-      <div className="bg-white dark:bg-[#1E2B5C] rounded-2xl shadow-2xl border border-red-300 dark:border-red-500/40 max-w-2xl w-full mx-4 overflow-hidden max-h-[90vh] flex flex-col">
+      <div className="bg-[#C6CEE2] dark:bg-[#1E2B5C] rounded-2xl shadow-2xl border border-red-300 dark:border-red-500/40 max-w-2xl w-full mx-4 overflow-hidden max-h-[90vh] flex flex-col">
         <div className="bg-red-500/10 dark:bg-red-500/5 border-b border-red-200 dark:border-red-500/20 px-6 py-5 flex items-center gap-4 shrink-0">
           <div className="w-14 h-14 rounded-2xl bg-red-100 dark:bg-red-500/20 flex items-center justify-center shrink-0">
             <Shield size={28} className="text-red-500" />
@@ -314,7 +314,7 @@ const DOAReturnModal = ({ parts, onClose, onConfirm, submitting }) => {
             onChange={e => setReturnReason(e.target.value)}
             rows="2"
             placeholder="İade nedenini yazınız..."
-            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1A2450] text-slate-800 dark:text-slate-200 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all placeholder:text-slate-400 resize-none"
+            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-[#C6CEE2] dark:bg-[#1A2450] text-slate-800 dark:text-slate-200 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all placeholder:text-slate-400 resize-none"
           />
         </div>
 
@@ -336,10 +336,10 @@ const DOAReturnModal = ({ parts, onClose, onConfirm, submitting }) => {
                     <span className="text-xs font-bold text-red-500 bg-red-50 dark:bg-red-500/10 px-2 py-1 rounded-lg border border-red-200 dark:border-red-500/30">DEPODAN ÇIKMIŞ</span>
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={() => setDispositions(d => ({ ...d, [p.id]: "GOOD" }))} className={`flex-1 py-2.5 rounded-xl text-xs font-bold border transition-all ${dispositions[p.id] === "GOOD" ? "bg-emerald-500 text-white border-emerald-500 shadow-lg shadow-emerald-500/20" : "bg-white dark:bg-[#1E2B5C] text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-emerald-300"}`}>
+                    <button onClick={() => setDispositions(d => ({ ...d, [p.id]: "GOOD" }))} className={`flex-1 py-2.5 rounded-xl text-xs font-bold border transition-all ${dispositions[p.id] === "GOOD" ? "bg-emerald-500 text-white border-emerald-500 shadow-lg shadow-emerald-500/20" : "bg-[#C6CEE2] dark:bg-[#1E2B5C] text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-emerald-300"}`}>
                       ✅ Sağlam Söküldü → GOOD Depoya
                     </button>
-                    <button onClick={() => setDispositions(d => ({ ...d, [p.id]: "DOA" }))} className={`flex-1 py-2.5 rounded-xl text-xs font-bold border transition-all ${dispositions[p.id] === "DOA" ? "bg-red-500 text-white border-red-500 shadow-lg shadow-red-500/20" : "bg-white dark:bg-[#1E2B5C] text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-red-300"}`}>
+                    <button onClick={() => setDispositions(d => ({ ...d, [p.id]: "DOA" }))} className={`flex-1 py-2.5 rounded-xl text-xs font-bold border transition-all ${dispositions[p.id] === "DOA" ? "bg-red-500 text-white border-red-500 shadow-lg shadow-red-500/20" : "bg-[#C6CEE2] dark:bg-[#1E2B5C] text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-red-300"}`}>
                       ❌ Hasarlı → DOA Hurda Depoya
                     </button>
                   </div>
@@ -748,7 +748,7 @@ const TechnicianRepairOperations = () => {
       {showDOAModal && <DOAReturnModal parts={deviceParts} onClose={() => setShowDOAModal(false)} onConfirm={handleDOAConfirm} submitting={returnSubmitting} />}
 
       {/* ════════════════ HERO BANNER ════════════════ */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#EFF1FA] dark:from-[#101935] via-[#DDE2F2] dark:via-[#16204A] to-[#FFFFFF] dark:to-[#24326A] p-6 sm:p-8 text-[#1B2755] dark:text-white shadow-xl border border-[#DCE1F1] dark:border-[#24326A]">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#9FADC9] dark:from-[#101935] via-[#8A98B8] dark:via-[#16204A] to-[#C6CEE2] dark:to-[#24326A] p-6 sm:p-8 text-[#1B2755] dark:text-white shadow-xl border border-[#8593B4] dark:border-[#24326A]">
         {/* Ambient Grid Overlay */}
         <div className="absolute inset-0 bg-[linear-gradient(rgba(194, 68, 95,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(194, 68, 95,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-rose-600/10 rounded-full blur-3xl pointer-events-none" />
@@ -761,7 +761,7 @@ const TechnicianRepairOperations = () => {
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1B2755] dark:text-white">
               Servis Onarımları & Teknisyen Operasyonları
             </h1>
-            <p className="text-sm text-[#4A5A9E] dark:text-slate-300 leading-relaxed">
+            <p className="text-sm text-[#3D4B86] dark:text-slate-300 leading-relaxed">
               IMEI/Seri no ile cihaz sorgulayın, arıza teşhisi ekleyin, yedek parça taleplerini ve onarım aşamalarını yönetin.
             </p>
           </div>
@@ -772,7 +772,7 @@ const TechnicianRepairOperations = () => {
       <div className="glass-card rounded-2xl p-5 shadow-md">
         <form onSubmit={handleSearch} className="flex flex-col md:flex-row items-center gap-3">
           <div className="relative flex-1 w-full">
-            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#5A6685] dark:text-[#8892B5]" />
+            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2E3650] dark:text-[#8892B5]" />
             <input
               ref={searchRef}
               type="text"
@@ -780,10 +780,10 @@ const TechnicianRepairOperations = () => {
               onChange={e => setSearchTerm(e.target.value)}
               disabled={isSearching}
               placeholder="IMEI / Internal ID / Seri No okutunuz..."
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[#DCE1F1] dark:border-[#3B4A85] bg-[#FFFFFF] dark:bg-[#24326A] text-xs sm:text-sm text-[#16204A] dark:text-[#F6F8FF] placeholder-[#5A6685] focus:outline-none focus:border-[#4457A5] transition-all disabled:opacity-50 font-mono"
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[#8593B4] dark:border-[#3B4A85] bg-[#C6CEE2] dark:bg-[#24326A] text-xs sm:text-sm text-[#16204A] dark:text-[#F6F8FF] placeholder-[#2E3650] focus:outline-none focus:border-[#3B4C93] transition-all disabled:opacity-50 font-mono"
             />
           </div>
-          <button type="submit" disabled={isSearching} className="w-full md:w-auto px-6 py-2.5 rounded-xl bg-[#4457A5] hover:bg-[#2E3F78] disabled:opacity-40 text-white text-xs font-semibold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer">
+          <button type="submit" disabled={isSearching} className="w-full md:w-auto px-6 py-2.5 rounded-xl bg-[#3B4C93] hover:bg-[#2E3F78] disabled:opacity-40 text-white text-xs font-semibold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer">
             <Search size={15} /> {isSearching ? "Sorgulanıyor..." : "Sorgula"}
           </button>
           {statusBadge && (
@@ -829,7 +829,7 @@ const TechnicianRepairOperations = () => {
                         onChange={e => setDiagnosisDraft(e.target.value)}
                         rows={2}
                         placeholder="Arıza tespitini giriniz..."
-                        className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1A2450] text-xs text-slate-700 dark:text-slate-300 leading-relaxed min-h-[56px] resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                        className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-[#C6CEE2] dark:bg-[#1A2450] text-xs text-slate-700 dark:text-slate-300 leading-relaxed min-h-[56px] resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                       />
                       <button
                         onClick={handleSaveDiagnosis}
@@ -897,7 +897,7 @@ const TechnicianRepairOperations = () => {
       {/* ═══════════════════════════════════════════════════════════
            SECTION 2: ORTA PANEL — Onarım Detay Grid
          ═══════════════════════════════════════════════════════════ */}
-      <div className="bg-white dark:bg-[#1A2450] rounded-2xl border border-slate-200 dark:border-[#3A4A8C] shadow-sm overflow-hidden flex-1 flex flex-col min-h-0">
+      <div className="bg-[#C6CEE2] dark:bg-[#1A2450] rounded-2xl border border-slate-200 dark:border-[#3A4A8C] shadow-sm overflow-hidden flex-1 flex flex-col min-h-0">
         {/* Toolbar */}
         <div className="px-5 py-3 border-b border-slate-100 dark:border-[#3A4A8C] flex flex-wrap items-center justify-between flex-wrap gap-2">
           <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
@@ -925,7 +925,7 @@ const TechnicianRepairOperations = () => {
               <ChevronLeft size={16} className="text-slate-500" />
             </button>
             {groupedRepairs.map((g, i) => (
-              <button key={g.key} onClick={() => setSelectedRepairIdx(i)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap border flex items-center gap-1.5 ${i === selectedRepairIdx ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-500/20' : 'bg-white dark:bg-[#131B3A] text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-500/50'}`}>
+              <button key={g.key} onClick={() => setSelectedRepairIdx(i)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap border flex items-center gap-1.5 ${i === selectedRepairIdx ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-500/20' : 'bg-[#C6CEE2] dark:bg-[#131B3A] text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-500/50'}`}>
                 {g.active.missionGroup}
                 {g.items.length > 1 && (
                   <span className={`px-1.5 rounded-full text-[10px] font-bold ${i === selectedRepairIdx ? 'bg-white/20' : 'bg-slate-100 dark:bg-slate-800'}`}>×{g.items.length}</span>
@@ -995,7 +995,7 @@ const TechnicianRepairOperations = () => {
            SECTION 3: ALT ORTA PANEL — Onarım Parçaları
          ═══════════════════════════════════════════════════════════ */}
       {selectedGroup && (
-        <div className="bg-white dark:bg-[#1A2450] rounded-2xl border border-slate-200 dark:border-[#3A4A8C] shadow-sm overflow-hidden">
+        <div className="bg-[#C6CEE2] dark:bg-[#1A2450] rounded-2xl border border-slate-200 dark:border-[#3A4A8C] shadow-sm overflow-hidden">
           <div className="px-5 py-3 border-b border-slate-100 dark:border-[#3A4A8C] flex flex-wrap items-center justify-between">
             <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
               <Package size={16} className="text-slate-400" />
@@ -1090,7 +1090,7 @@ const TechnicianRepairOperations = () => {
            SECTION 4: ALT PANEL — Teknisyen Notları & Chip Kodu
          ═══════════════════════════════════════════════════════════ */}
       {device && (
-        <div className="bg-white dark:bg-[#1A2450] rounded-2xl border border-slate-200 dark:border-[#3A4A8C] shadow-sm overflow-hidden">
+        <div className="bg-[#C6CEE2] dark:bg-[#1A2450] rounded-2xl border border-slate-200 dark:border-[#3A4A8C] shadow-sm overflow-hidden">
           <div className="px-5 py-4 grid grid-cols-1 lg:grid-cols-12 gap-4">
             <div className="lg:col-span-9">
               <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">Açıklama (Teknisyen Notu)</label>

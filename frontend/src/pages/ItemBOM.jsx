@@ -182,7 +182,7 @@ export default function ItemBOM() {
     <div className="flex flex-col space-y-6 pb-12 text-[#16204A] dark:text-[#F6F8FF] max-w-[1600px] mx-auto animate-in fade-in duration-300">
       
       {/* ════════════════ HERO BANNER ════════════════ */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#EFF1FA] dark:from-[#101935] via-[#DDE2F2] dark:via-[#16204A] to-[#FFFFFF] dark:to-[#24326A] p-6 sm:p-8 text-[#1B2755] dark:text-white shadow-xl border border-[#DCE1F1] dark:border-[#24326A]">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#9FADC9] dark:from-[#101935] via-[#8A98B8] dark:via-[#16204A] to-[#C6CEE2] dark:to-[#24326A] p-6 sm:p-8 text-[#1B2755] dark:text-white shadow-xl border border-[#8593B4] dark:border-[#24326A]">
         {/* Ambient Grid Overlay */}
         <div className="absolute inset-0 bg-[linear-gradient(rgba(47, 140, 134,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(47, 140, 134,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-teal-600/10 rounded-full blur-3xl pointer-events-none" />
@@ -195,7 +195,7 @@ export default function ItemBOM() {
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1B2755] dark:text-white">
               Product BOM (Ürün Reçeteleri) Yönetimi
             </h1>
-            <p className="text-sm text-[#4A5A9E] dark:text-slate-300 leading-relaxed">
+            <p className="text-sm text-[#3D4B86] dark:text-slate-300 leading-relaxed">
               Cihaz modellerine ait alt parça (BOM) bileşen tanımlarını ve miktar reçetelerini yönetin.
             </p>
           </div>
@@ -204,20 +204,20 @@ export default function ItemBOM() {
             <div className="relative">
               <select
                 onChange={handleExcelAction}
-                className="appearance-none bg-[#FFFFFF] dark:bg-[#24326A] hover:bg-[#EFF1FA] dark:hover:bg-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] border border-[#DCE1F1] dark:border-[#3B4A85] rounded-xl px-4 py-2.5 pr-9 text-xs font-bold transition-all cursor-pointer focus:outline-none focus:border-[#4457A5]"
+                className="appearance-none bg-[#C6CEE2] dark:bg-[#24326A] hover:bg-[#9FADC9] dark:hover:bg-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] border border-[#8593B4] dark:border-[#3B4A85] rounded-xl px-4 py-2.5 pr-9 text-xs font-bold transition-all cursor-pointer focus:outline-none focus:border-[#3B4C93]"
               >
                 <option value="">Excel İşlemleri...</option>
                 <option value="download_template">Boş Şablon İndir</option>
                 <option value="export">Tümünü Dışa Aktar</option>
                 <option value="import">Excel'den İçe Aktar</option>
               </select>
-              <div className="absolute inset-y-0 right-0 flex items-center px-2.5 pointer-events-none text-[#5A6685] dark:text-[#8892B5]">
+              <div className="absolute inset-y-0 right-0 flex items-center px-2.5 pointer-events-none text-[#2E3650] dark:text-[#8892B5]">
                 <FileSpreadsheet size={15} />
               </div>
             </div>
             <button 
               onClick={() => handleOpenModal(null)} 
-              className="flex items-center gap-2 bg-[#4457A5] hover:bg-[#2E3F78] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+              className="flex items-center gap-2 bg-[#3B4C93] hover:bg-[#2E3F78] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
             >
               <Plus size={16} /> Yeni Bileşen Ekle
             </button>
@@ -228,7 +228,7 @@ export default function ItemBOM() {
       {/* CONTAINER */}
       <div className="glass-card rounded-2xl shadow-md overflow-hidden flex flex-col">
         {/* Filter Bar */}
-        <div className="p-4 border-b border-[#DCE1F1] dark:border-[#24326A] bg-[#F5F7FC] dark:bg-[#1B2755] flex flex-wrap items-center gap-3">
+        <div className="p-4 border-b border-[#8593B4] dark:border-[#24326A] bg-[#B5BFD8] dark:bg-[#1B2755] flex flex-wrap items-center gap-3">
           {/* General Search Input */}
           <div className="relative flex-1 min-w-[240px]">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -237,7 +237,7 @@ export default function ItemBOM() {
               value={searchTerm}
               onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
               placeholder="Model, bileşen kodu veya adı ile ara..."
-              className="w-full pl-9 pr-8 py-2 bg-white dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 shadow-sm"
+              className="w-full pl-9 pr-8 py-2 bg-[#C6CEE2] dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 shadow-sm"
             />
             {searchTerm && (
               <button 
@@ -265,7 +265,7 @@ export default function ItemBOM() {
             <select
               value={selectedStatus}
               onChange={(e) => { setSelectedStatus(e.target.value); setCurrentPage(1); }}
-              className="w-full px-3 py-2 bg-white dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 shadow-sm cursor-pointer"
+              className="w-full px-3 py-2 bg-[#C6CEE2] dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 shadow-sm cursor-pointer"
             >
               <option value="Tümü">Durum: Tümü</option>
               <option value="Aktif">Aktif</option>
@@ -351,7 +351,7 @@ export default function ItemBOM() {
             <select
               value={itemsPerPage}
               onChange={(e) => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }}
-              className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-slate-500"
+              className="bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-slate-500"
             >
               <option value={10}>10</option>
               <option value={20}>20</option>
@@ -367,7 +367,7 @@ export default function ItemBOM() {
             <button
               onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
               disabled={currentPage === 1}
-              className="px-3 py-1.5 bg-white dark:bg-[#1E2B5C] hover:bg-slate-100 dark:hover:bg-[#2E3F78] disabled:opacity-50 disabled:cursor-not-allowed border border-slate-200 dark:border-slate-700 rounded-lg transition-colors text-slate-700 dark:text-slate-300"
+              className="px-3 py-1.5 bg-[#C6CEE2] dark:bg-[#1E2B5C] hover:bg-slate-100 dark:hover:bg-[#2E3F78] disabled:opacity-50 disabled:cursor-not-allowed border border-slate-200 dark:border-slate-700 rounded-lg transition-colors text-slate-700 dark:text-slate-300"
             >
               ← Önceki
             </button>
@@ -398,7 +398,7 @@ export default function ItemBOM() {
                     setPageInput(String(currentPage));
                   }
                 }}
-                className="w-16 bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-center text-slate-800 dark:text-slate-200 focus:outline-none focus:border-slate-500 font-semibold"
+                className="w-16 bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-center text-slate-800 dark:text-slate-200 focus:outline-none focus:border-slate-500 font-semibold"
               />
               <span>/ {totalPages}</span>
               <span className="text-xs text-slate-500 ml-1">({boms.length} Kayıt)</span>
@@ -407,7 +407,7 @@ export default function ItemBOM() {
             <button
               onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
               disabled={currentPage === totalPages}
-              className="px-3 py-1.5 bg-white dark:bg-[#1E2B5C] hover:bg-slate-100 dark:hover:bg-[#2E3F78] disabled:opacity-50 disabled:cursor-not-allowed border border-slate-200 dark:border-slate-700 rounded-lg transition-colors text-slate-700 dark:text-slate-300"
+              className="px-3 py-1.5 bg-[#C6CEE2] dark:bg-[#1E2B5C] hover:bg-slate-100 dark:hover:bg-[#2E3F78] disabled:opacity-50 disabled:cursor-not-allowed border border-slate-200 dark:border-slate-700 rounded-lg transition-colors text-slate-700 dark:text-slate-300"
             >
               Sonraki →
             </button>
@@ -417,7 +417,7 @@ export default function ItemBOM() {
 
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-900/80 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-md">
+          <div className="bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-md">
             <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex justify-between">
               <h2 className="text-lg font-semibold text-slate-900 dark:text-white">{currentBom ? 'BOM Bileşenini Düzenle' : 'BOM Bileşeni Ekle'}</h2>
               <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-900 dark:text-white"><X size={20} /></button>
@@ -451,7 +451,7 @@ export default function ItemBOM() {
                   onChange={e => setFormData({...formData, quantity: parseInt(e.target.value)})} 
                 />
               </div>
-              <button type="submit" className="w-full flex items-center justify-center gap-2 bg-[#4457A5] hover:bg-[#2E3F78] text-white py-2.5 rounded-xl text-xs font-semibold transition-all shadow-md cursor-pointer mt-4">Kaydet</button>
+              <button type="submit" className="w-full flex items-center justify-center gap-2 bg-[#3B4C93] hover:bg-[#2E3F78] text-white py-2.5 rounded-xl text-xs font-semibold transition-all shadow-md cursor-pointer mt-4">Kaydet</button>
             </form>
           </div>
         </div>

@@ -196,7 +196,7 @@ export default function Products() {
     <div className="flex flex-col space-y-6 pb-12 text-[#16204A] dark:text-[#F6F8FF] max-w-[1600px] mx-auto animate-in fade-in duration-300">
       
       {/* ════════════════ HERO BANNER ════════════════ */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#EFF1FA] dark:from-[#101935] via-[#DDE2F2] dark:via-[#16204A] to-[#FFFFFF] dark:to-[#24326A] p-6 sm:p-8 text-[#1B2755] dark:text-white shadow-xl border border-[#DCE1F1] dark:border-[#24326A]">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#9FADC9] dark:from-[#101935] via-[#8A98B8] dark:via-[#16204A] to-[#C6CEE2] dark:to-[#24326A] p-6 sm:p-8 text-[#1B2755] dark:text-white shadow-xl border border-[#8593B4] dark:border-[#24326A]">
         {/* Ambient Grid Overlay */}
         <div className="absolute inset-0 bg-[linear-gradient(rgba(44, 140, 168,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(44, 140, 168,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-600/10 rounded-full blur-3xl pointer-events-none" />
@@ -209,7 +209,7 @@ export default function Products() {
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1B2755] dark:text-white">
               Telefon Modelleri (Ürünler)
             </h1>
-            <p className="text-sm text-[#4A5A9E] dark:text-slate-300 leading-relaxed">
+            <p className="text-sm text-[#3D4B86] dark:text-slate-300 leading-relaxed">
               Sistemdeki tüm cihaz markaları, modelleri, renk ve hafıza parametrelerini yönetin.
             </p>
           </div>
@@ -218,21 +218,21 @@ export default function Products() {
             <div className="relative">
               <select 
                 onChange={handleExcelAction}
-                className="appearance-none bg-[#FFFFFF] dark:bg-[#24326A] hover:bg-[#EFF1FA] dark:hover:bg-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] border border-[#DCE1F1] dark:border-[#3B4A85] rounded-xl px-4 py-2.5 pr-9 text-xs font-bold transition-all cursor-pointer focus:outline-none focus:border-[#4457A5]"
+                className="appearance-none bg-[#C6CEE2] dark:bg-[#24326A] hover:bg-[#9FADC9] dark:hover:bg-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] border border-[#8593B4] dark:border-[#3B4A85] rounded-xl px-4 py-2.5 pr-9 text-xs font-bold transition-all cursor-pointer focus:outline-none focus:border-[#3B4C93]"
               >
                 <option value="">Excel İşlemleri...</option>
                 <option value="download_template">Boş Şablon İndir</option>
                 <option value="export">{selectedRows.length > 0 ? `${selectedRows.length} Seçiliyi Dışa Aktar` : 'Tümünü Dışa Aktar'}</option>
                 <option value="import">Excel'den İçe Aktar</option>
               </select>
-              <div className="absolute inset-y-0 right-0 flex items-center px-2.5 pointer-events-none text-[#5A6685] dark:text-[#8892B5]">
+              <div className="absolute inset-y-0 right-0 flex items-center px-2.5 pointer-events-none text-[#2E3650] dark:text-[#8892B5]">
                 <FileSpreadsheet size={15} />
               </div>
             </div>
             
             <button 
               onClick={() => handleOpenModal()}
-              className="flex items-center gap-2 bg-[#4457A5] hover:bg-[#2E3F78] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+              className="flex items-center gap-2 bg-[#3B4C93] hover:bg-[#2E3F78] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
             >
               <Plus size={16} /> Yeni Model Ekle
             </button>
@@ -243,12 +243,12 @@ export default function Products() {
       {/* SEARCH BAR */}
       <div className="glass-card rounded-2xl p-4 shadow-md flex items-center gap-3">
         <div className="flex-1 relative">
-          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#5A6685] dark:text-[#8892B5]">
+          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#2E3650] dark:text-[#8892B5]">
             <Search size={18} />
           </div>
           <input
             type="text"
-            className="w-full bg-[#FFFFFF] dark:bg-[#24326A] border border-[#DCE1F1] dark:border-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] placeholder-[#5A6685] rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm font-medium focus:outline-none focus:border-[#4457A5] transition-all shadow-xs"
+            className="w-full bg-[#C6CEE2] dark:bg-[#24326A] border border-[#8593B4] dark:border-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] placeholder-[#2E3650] rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm font-medium focus:outline-none focus:border-[#3B4C93] transition-all shadow-xs"
             placeholder="Ürün Ara (ID, Marka, Model, Hafıza)..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -260,54 +260,54 @@ export default function Products() {
       <div className="glass-card rounded-2xl shadow-md overflow-hidden flex flex-col">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs whitespace-nowrap">
-            <thead className="bg-[#F5F7FC] dark:bg-[#1B2755] text-[#5A6685] dark:text-[#8892B5] font-semibold uppercase tracking-wider border-b border-[#DCE1F1] dark:border-[#24326A] sticky top-0 z-10">
+            <thead className="bg-[#B5BFD8] dark:bg-[#1B2755] text-[#2E3650] dark:text-[#8892B5] font-semibold uppercase tracking-wider border-b border-[#8593B4] dark:border-[#24326A] sticky top-0 z-10">
               <tr>
                 <th className="px-6 py-4 w-12 text-center">
                   <input 
                     type="checkbox" 
-                    className="w-4 h-4 rounded border-[#DCE1F1] dark:border-[#3B4A85] text-[#4457A5] focus:ring-[#4457A5] bg-[#FFFFFF] dark:bg-[#24326A]"
+                    className="w-4 h-4 rounded border-[#8593B4] dark:border-[#3B4A85] text-[#3B4C93] focus:ring-[#3B4C93] bg-[#C6CEE2] dark:bg-[#24326A]"
                     checked={selectedRows.length === paginatedProducts.length && paginatedProducts.length > 0}
                     onChange={toggleSelectAll}
                   />
                 </th>
-                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-[#FFFFFF]/60 dark:hover:bg-[#24326A]/60 transition-colors" onClick={() => handleSort('item_code')}>
+                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-[#C6CEE2]/60 dark:hover:bg-[#24326A]/60 transition-colors" onClick={() => handleSort('item_code')}>
                   <div className="flex items-center gap-1.5 text-[#16204A] dark:text-[#F6F8FF]">
                     ÜRÜN KODU
-                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'item_code' ? 'text-[#8894D8]' : 'text-[#5A6685] opacity-40 group-hover:opacity-100'}`} />
+                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'item_code' ? 'text-[#8894D8]' : 'text-[#2E3650] opacity-40 group-hover:opacity-100'}`} />
                   </div>
                 </th>
-                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-[#FFFFFF]/60 dark:hover:bg-[#24326A]/60 transition-colors" onClick={() => handleSort('brand')}>
+                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-[#C6CEE2]/60 dark:hover:bg-[#24326A]/60 transition-colors" onClick={() => handleSort('brand')}>
                   <div className="flex items-center gap-1.5 text-[#16204A] dark:text-[#F6F8FF]">
                     MARKA
-                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'brand' ? 'text-[#8894D8]' : 'text-[#5A6685] opacity-40 group-hover:opacity-100'}`} />
+                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'brand' ? 'text-[#8894D8]' : 'text-[#2E3650] opacity-40 group-hover:opacity-100'}`} />
                   </div>
                 </th>
-                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-[#FFFFFF]/60 dark:hover:bg-[#24326A]/60 transition-colors" onClick={() => handleSort('model')}>
+                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-[#C6CEE2]/60 dark:hover:bg-[#24326A]/60 transition-colors" onClick={() => handleSort('model')}>
                   <div className="flex items-center gap-1.5 text-[#16204A] dark:text-[#F6F8FF]">
                     MODEL
-                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'model' ? 'text-[#8894D8]' : 'text-[#5A6685] opacity-40 group-hover:opacity-100'}`} />
+                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'model' ? 'text-[#8894D8]' : 'text-[#2E3650] opacity-40 group-hover:opacity-100'}`} />
                   </div>
                 </th>
-                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-[#FFFFFF]/60 dark:hover:bg-[#24326A]/60 transition-colors" onClick={() => handleSort('memory')}>
+                <th className="px-6 py-4 cursor-pointer select-none group hover:bg-[#C6CEE2]/60 dark:hover:bg-[#24326A]/60 transition-colors" onClick={() => handleSort('memory')}>
                   <div className="flex items-center gap-1.5 text-[#16204A] dark:text-[#F6F8FF]">
                     HAFIZA
-                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'memory' ? 'text-[#8894D8]' : 'text-[#5A6685] opacity-40 group-hover:opacity-100'}`} />
+                    <ArrowUpDown size={12} className={`transition-colors ${sortConfig.key === 'memory' ? 'text-[#8894D8]' : 'text-[#2E3650] opacity-40 group-hover:opacity-100'}`} />
                   </div>
                 </th>
                 <th className="px-6 py-4 text-center">İşlemler</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#DCE1F1] dark:divide-[#24326A]">
+            <tbody className="divide-y divide-[#8593B4] dark:divide-[#24326A]">
               {loading ? (
                 <tr>
-                  <td colSpan="6" className="px-6 py-8 text-center text-[#5A6685] dark:text-[#8892B5]">
+                  <td colSpan="6" className="px-6 py-8 text-center text-[#2E3650] dark:text-[#8892B5]">
                     <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-[#8894D8]" />
                     Yükleniyor...
                   </td>
                 </tr>
               ) : paginatedProducts.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="px-6 py-8 text-center text-[#5A6685] dark:text-[#8892B5]">
+                  <td colSpan="6" className="px-6 py-8 text-center text-[#2E3650] dark:text-[#8892B5]">
                     Kayıt bulunamadı.
                   </td>
                 </tr>
@@ -315,11 +315,11 @@ export default function Products() {
                 paginatedProducts.map((product) => {
                   const isChecked = selectedRows.includes(product.id);
                   return (
-                  <tr key={product.id} className={`hover:bg-[#FFFFFF]/70 dark:hover:bg-[#24326A]/70 transition-colors text-[#16204A] dark:text-[#F6F8FF] ${isChecked ? 'bg-blue-900/30 border-l-4 border-[#4457A5]' : ''}`}>
+                  <tr key={product.id} className={`hover:bg-[#C6CEE2]/70 dark:hover:bg-[#24326A]/70 transition-colors text-[#16204A] dark:text-[#F6F8FF] ${isChecked ? 'bg-blue-900/30 border-l-4 border-[#3B4C93]' : ''}`}>
                     <td className="px-6 py-3.5 text-center" onClick={(e) => e.stopPropagation()}>
                       <input 
                         type="checkbox" 
-                        className="w-4 h-4 rounded border-[#DCE1F1] dark:border-[#3B4A85] text-[#4457A5] focus:ring-[#4457A5] bg-[#FFFFFF] dark:bg-[#24326A]"
+                        className="w-4 h-4 rounded border-[#8593B4] dark:border-[#3B4A85] text-[#3B4C93] focus:ring-[#3B4C93] bg-[#C6CEE2] dark:bg-[#24326A]"
                         checked={isChecked}
                         onChange={(e) => toggleRowSelect(product.id, e)}
                       />
@@ -330,14 +330,14 @@ export default function Products() {
                       </span>
                     </td>
                     <td className="px-6 py-3.5 font-semibold text-[#16204A] dark:text-[#F6F8FF]">{product.brand || '-'}</td>
-                    <td className="px-6 py-3.5 text-[#4A5A9E] dark:text-slate-300">{product.model || '-'}</td>
-                    <td className="px-6 py-3.5 font-mono text-[#5A6685] dark:text-[#8892B5]">{product.memory || '-'}</td>
+                    <td className="px-6 py-3.5 text-[#3D4B86] dark:text-slate-300">{product.model || '-'}</td>
+                    <td className="px-6 py-3.5 font-mono text-[#2E3650] dark:text-[#8892B5]">{product.memory || '-'}</td>
                     <td className="px-6 py-3.5 text-center">
                       <div className="flex justify-center gap-2">
-                        <button onClick={(e) => { e.stopPropagation(); handleOpenModal(product); }} className="p-1.5 text-[#5A6685] dark:text-[#8892B5] hover:text-[#8894D8] hover:bg-[#FFFFFF] dark:hover:bg-[#24326A] rounded-lg transition-colors cursor-pointer" title="Düzenle">
+                        <button onClick={(e) => { e.stopPropagation(); handleOpenModal(product); }} className="p-1.5 text-[#2E3650] dark:text-[#8892B5] hover:text-[#8894D8] hover:bg-[#C6CEE2] dark:hover:bg-[#24326A] rounded-lg transition-colors cursor-pointer" title="Düzenle">
                           <Edit size={16} />
                         </button>
-                        <button onClick={(e) => { e.stopPropagation(); handleDelete(product.id); }} className="p-1.5 text-[#5A6685] dark:text-[#8892B5] hover:text-red-400 hover:bg-red-500/20 rounded-lg transition-colors cursor-pointer" title="Sil">
+                        <button onClick={(e) => { e.stopPropagation(); handleDelete(product.id); }} className="p-1.5 text-[#2E3650] dark:text-[#8892B5] hover:text-red-400 hover:bg-red-500/20 rounded-lg transition-colors cursor-pointer" title="Sil">
                           <Trash2 size={16} />
                         </button>
                       </div>
@@ -351,7 +351,7 @@ export default function Products() {
         </div>
         
         {/* Pagination Footer */}
-        <div className="flex flex-col sm:flex-row justify-between items-center px-6 py-4 bg-[#F5F7FC] dark:bg-[#1B2755] border-t border-[#DCE1F1] dark:border-[#24326A] gap-4 shrink-0 text-xs text-[#5A6685] dark:text-[#8892B5]">
+        <div className="flex flex-col sm:flex-row justify-between items-center px-6 py-4 bg-[#B5BFD8] dark:bg-[#1B2755] border-t border-[#8593B4] dark:border-[#24326A] gap-4 shrink-0 text-xs text-[#2E3650] dark:text-[#8892B5]">
           <span>
             Toplam <strong className="text-[#16204A] dark:text-[#F6F8FF]">{totalCount.toLocaleString('tr-TR')}</strong> kayıttan <strong className="text-[#16204A] dark:text-[#F6F8FF]">{products.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, totalCount)}</strong> arası gösteriliyor
           </span>
@@ -360,17 +360,17 @@ export default function Products() {
             <button
               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
               disabled={currentPage === 1 || products.length === 0}
-              className="px-3 py-1.5 bg-[#F5F7FC] dark:bg-[#16204A] border border-[#DCE1F1] dark:border-[#3B4A85] rounded-xl text-xs font-bold text-[#16204A] dark:text-[#F6F8FF] hover:bg-[#FFFFFF] dark:hover:bg-[#24326A] disabled:opacity-40 transition-all cursor-pointer"
+              className="px-3 py-1.5 bg-[#B5BFD8] dark:bg-[#16204A] border border-[#8593B4] dark:border-[#3B4A85] rounded-xl text-xs font-bold text-[#16204A] dark:text-[#F6F8FF] hover:bg-[#C6CEE2] dark:hover:bg-[#24326A] disabled:opacity-40 transition-all cursor-pointer"
             >
               Önceki
             </button>
-            <span className="text-xs font-bold px-3 py-1.5 bg-[#F5F7FC] dark:bg-[#16204A] border border-[#DCE1F1] dark:border-[#3B4A85] rounded-xl text-[#8894D8]">
+            <span className="text-xs font-bold px-3 py-1.5 bg-[#B5BFD8] dark:bg-[#16204A] border border-[#8593B4] dark:border-[#3B4A85] rounded-xl text-[#8894D8]">
               Sayfa {currentPage} / {totalPages}
             </span>
             <button
               onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
               disabled={currentPage >= totalPages || products.length === 0}
-              className="px-3 py-1.5 bg-[#F5F7FC] dark:bg-[#16204A] border border-[#DCE1F1] dark:border-[#3B4A85] rounded-xl text-xs font-bold text-[#16204A] dark:text-[#F6F8FF] hover:bg-[#FFFFFF] dark:hover:bg-[#24326A] disabled:opacity-40 transition-all cursor-pointer"
+              className="px-3 py-1.5 bg-[#B5BFD8] dark:bg-[#16204A] border border-[#8593B4] dark:border-[#3B4A85] rounded-xl text-xs font-bold text-[#16204A] dark:text-[#F6F8FF] hover:bg-[#C6CEE2] dark:hover:bg-[#24326A] disabled:opacity-40 transition-all cursor-pointer"
             >
               Sonraki
             </button>
@@ -381,7 +381,7 @@ export default function Products() {
       {/* Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-[99] p-4">
-          <div className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-md animate-in fade-in zoom-in duration-200">
+          <div className="bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-md animate-in fade-in zoom-in duration-200">
             <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 flex justify-between items-center">
               <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 {currentProduct ? 'Telefon Modelini Düzenle' : 'Yeni Telefon Modeli Ekle'}
@@ -484,7 +484,7 @@ export default function Products() {
       {/* Dışa Aktar Sütun Seçimi Modalı */}
       {isExportModalOpen && (
         <div className="fixed inset-0 bg-slate-900/80 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-sm p-6">
+          <div className="bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-sm p-6">
             <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-4">Sütun Seçimi</h2>
             <p className="text-sm text-slate-500 mb-4">Dışa aktarılacak Excel dosyasında hangi sütunların bulunmasını istediğinizi seçin.</p>
             

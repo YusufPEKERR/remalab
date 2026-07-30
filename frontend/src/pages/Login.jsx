@@ -16,7 +16,7 @@ const T = {
   ink: '#16204A',   // en koyu lacivert
   deep: '#1E2B5C',
   navy: '#2E3F78',
-  indigo: '#4457A5',  // birincil aksiyon rengi
+  indigo: '#3B4C93',  // birincil aksiyon rengi
   royal: '#5B6EC4',
   peri: '#8894D8',  // periwinkle
   lilac: '#A9B2E3',
@@ -24,14 +24,14 @@ const T = {
   pale: '#F1F3FB',
   teal: '#4FA890',  // yeşil-teal aksan
   tealSoft: '#7CC7B2',
-  muted: '#5A6685'
+  muted: '#2E3650'
 };
 
 /* Sayfa fonu: koyu indigodan açık lilaya diyagonal geçiş */
 const THEME_BG =
-  'linear-gradient(100deg,#16204A 0%,#24326A 17%,#3C4C90 36%,#6C7ABF 54%,#A9B2E3 70%,#DDE2F2 85%,#F5F7FC 100%)';
+  'linear-gradient(100deg,#16204A 0%,#24326A 17%,#3C4C90 36%,#6C7ABF 54%,#A9B2E3 70%,#8A98B8 85%,#B5BFD8 100%)';
 
-const DIAMOND_COLORS = [T.royal, T.peri, T.indigo, T.lilac, T.teal, T.tealSoft, '#FFFFFF', T.navy];
+const DIAMOND_COLORS = [T.royal, T.peri, T.indigo, T.lilac, T.teal, T.tealSoft, '#C6CEE2', T.navy];
 
 /* Deterministik PRNG — her render'da aynı mozaik çıksın diye */
 function mulberry(seed) {
@@ -186,7 +186,7 @@ export default function Login() {
           <div key={`bk${i}`} style={{
             position: 'absolute', left: `${b.x}%`, top: `${b.y}%`,
             width: b.s, height: b.s, borderRadius: '50%',
-            background: '#FFFFFF', opacity: b.o, filter: 'blur(8px)'
+            background: '#C6CEE2', opacity: b.o, filter: 'blur(8px)'
           }} />
         ))}
         {MOSAIC.map((d, i) => (
@@ -224,7 +224,7 @@ export default function Login() {
 
           {/* Başlıklar */}
           <div>
-            <h1 style={{ fontSize: 42, fontWeight: 900, lineHeight: 1.15, color: '#FFFFFF', letterSpacing: '-1.2px', margin: 0, textShadow: '0 6px 24px rgba(22,32,74,.45)' }}>
+            <h1 style={{ fontSize: 42, fontWeight: 900, lineHeight: 1.15, color: '#C6CEE2', letterSpacing: '-1.2px', margin: 0, textShadow: '0 6px 24px rgba(22,32,74,.45)' }}>
               ERP Yönetim Sistemi
             </h1>
 
@@ -262,7 +262,7 @@ export default function Login() {
             }}>
               {/* Maket üst navigasyon */}
               <div style={{ display: 'flex', alignItems: 'center', paddingBottom: 6, borderBottom: '1px solid rgba(255,255,255,.10)' }}>
-                <span style={{ fontSize: 10, fontWeight: 900, color: '#FFFFFF', letterSpacing: '0.05em' }}>ERP DASHBOARD</span>
+                <span style={{ fontSize: 10, fontWeight: 900, color: '#C6CEE2', letterSpacing: '0.05em' }}>ERP DASHBOARD</span>
                 <div style={{ display: 'flex', gap: 6, marginLeft: 'auto' }}>
                   <span style={{ fontSize: 8, background: T.teal, color: '#FFF', padding: '1px 6px', borderRadius: 4, fontWeight: 700 }}>+12.5%</span>
                 </div>
@@ -375,7 +375,7 @@ export default function Login() {
                 <item.icon size={16} color={T.lilac} />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: '#FFFFFF', lineHeight: 1.2 }}>{item.title}</span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#C6CEE2', lineHeight: 1.2 }}>{item.title}</span>
                 <span style={{ fontSize: 10, color: '#C3CAE6', lineHeight: 1.2 }}>{item.sub}</span>
               </div>
             </div>
@@ -494,7 +494,7 @@ export default function Login() {
               >
                 <div
                   style={{ width: 18, height: 18, borderRadius: 5, border: `2px solid ${rememberMe ? T.indigo : `${T.indigo}59`}`, background: rememberMe ? T.indigo : 'rgba(255,255,255,.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all .15s', cursor: 'pointer' }}>
-                  {rememberMe && <CheckCircle2 size={12} color="#FFFFFF" />}
+                  {rememberMe && <CheckCircle2 size={12} color="#C6CEE2" />}
                 </div>
                 <span style={{ fontSize: 13, color: T.deep, fontWeight: 500 }}>Beni Hatırla</span>
               </label>
@@ -507,7 +507,7 @@ export default function Login() {
 
             {/* Giriş butonu */}
             <button type="submit" disabled={loading}
-              style={{ width: '100%', height: 48, marginTop: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, background: `linear-gradient(135deg,${T.indigo} 0%,${T.navy} 100%)`, color: '#FFFFFF', fontWeight: 700, fontSize: 15, border: '1px solid rgba(255,255,255,.22)', borderRadius: 10, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? .85 : 1, boxShadow: '0 8px 24px rgba(46,63,120,.35)', transition: 'all .2s', fontFamily: 'inherit' }}
+              style={{ width: '100%', height: 48, marginTop: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, background: `linear-gradient(135deg,${T.indigo} 0%,${T.navy} 100%)`, color: '#C6CEE2', fontWeight: 700, fontSize: 15, border: '1px solid rgba(255,255,255,.22)', borderRadius: 10, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? .85 : 1, boxShadow: '0 8px 24px rgba(46,63,120,.35)', transition: 'all .2s', fontFamily: 'inherit' }}
               onMouseEnter={e => { if (!loading) { e.currentTarget.style.background = `linear-gradient(135deg,${T.royal} 0%,${T.indigo} 100%)`; e.currentTarget.style.boxShadow = '0 12px 30px rgba(46,63,120,.45)'; } }}
               onMouseLeave={e => { e.currentTarget.style.background = `linear-gradient(135deg,${T.indigo} 0%,${T.navy} 100%)`; e.currentTarget.style.boxShadow = '0 8px 24px rgba(46,63,120,.35)'; }}>
               {loading
@@ -550,7 +550,7 @@ export default function Login() {
             <button
               type="button"
               onClick={() => setShowForgotModal(false)}
-              style={{ width: '100%', height: 46, background: `linear-gradient(135deg,${T.indigo} 0%,${T.navy} 100%)`, color: '#FFFFFF', fontWeight: 700, fontSize: 14.5, border: '1px solid rgba(255,255,255,.22)', borderRadius: 10, cursor: 'pointer', boxShadow: '0 6px 18px rgba(46,63,120,.32)', transition: 'all .2s', fontFamily: 'inherit' }}
+              style={{ width: '100%', height: 46, background: `linear-gradient(135deg,${T.indigo} 0%,${T.navy} 100%)`, color: '#C6CEE2', fontWeight: 700, fontSize: 14.5, border: '1px solid rgba(255,255,255,.22)', borderRadius: 10, cursor: 'pointer', boxShadow: '0 6px 18px rgba(46,63,120,.32)', transition: 'all .2s', fontFamily: 'inherit' }}
               onMouseEnter={e => e.currentTarget.style.background = `linear-gradient(135deg,${T.royal} 0%,${T.indigo} 100%)`}
               onMouseLeave={e => e.currentTarget.style.background = `linear-gradient(135deg,${T.indigo} 0%,${T.navy} 100%)`}
             >

@@ -30,7 +30,7 @@ function Dropdown({ value, onChange, options, placeholder }) {
         <ChevronDown size={16} className="text-slate-400 shrink-0" />
       </button>
       {open && (
-        <div className="absolute left-0 top-full mt-1 w-full bg-white dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg max-h-52 overflow-y-auto z-50">
+        <div className="absolute left-0 top-full mt-1 w-full bg-[#C6CEE2] dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg max-h-52 overflow-y-auto z-50">
           {options.map(o => (
             <div
               key={o.value}
@@ -359,7 +359,7 @@ export default function Suppliers() {
     <div className="flex flex-col space-y-6 pb-12 text-[#16204A] dark:text-[#F6F8FF] max-w-[1600px] mx-auto animate-in fade-in duration-300">
 
       {/* ════════════════ HERO BANNER ════════════════ */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#EFF1FA] dark:from-[#101935] via-[#DDE2F2] dark:via-[#16204A] to-[#FFFFFF] dark:to-[#24326A] p-6 sm:p-8 text-[#1B2755] dark:text-white shadow-xl border border-[#DCE1F1] dark:border-[#24326A]">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#9FADC9] dark:from-[#101935] via-[#8A98B8] dark:via-[#16204A] to-[#C6CEE2] dark:to-[#24326A] p-6 sm:p-8 text-[#1B2755] dark:text-white shadow-xl border border-[#8593B4] dark:border-[#24326A]">
         {/* Ambient Grid Overlay */}
         <div className="absolute inset-0 bg-[linear-gradient(rgba(91, 110, 196,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(91, 110, 196,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none" />
@@ -372,14 +372,14 @@ export default function Suppliers() {
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1B2755] dark:text-white">
               Müşteriler & Müşteri Kayıtları
             </h1>
-            <p className="text-sm text-[#4A5A9E] dark:text-slate-300 leading-relaxed">
+            <p className="text-sm text-[#3D4B86] dark:text-slate-300 leading-relaxed">
               Müşteri iletişim ve cihaz kabul (IMEI, Seri No, Flow, MIO Entegrasyonu) kayıtlarını yönetin ve raporlayın.
             </p>
           </div>
 
           <div className="flex items-center gap-3 shrink-0 flex-wrap">
             <select
-              className="bg-[#FFFFFF] dark:bg-[#24326A] hover:bg-[#EFF1FA] dark:hover:bg-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] border border-[#DCE1F1] dark:border-[#3B4A85] px-4 py-2.5 rounded-xl text-xs font-bold transition-all focus:outline-none cursor-pointer"
+              className="bg-[#C6CEE2] dark:bg-[#24326A] hover:bg-[#9FADC9] dark:hover:bg-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] border border-[#8593B4] dark:border-[#3B4A85] px-4 py-2.5 rounded-xl text-xs font-bold transition-all focus:outline-none cursor-pointer"
               onChange={(e) => {
                 const val = e.target.value;
                 if (val === 'download_template') handleDownloadTemplate();
@@ -396,7 +396,7 @@ export default function Suppliers() {
 
             <button
               onClick={() => handleOpenModal()}
-              className="flex items-center gap-2 bg-[#4457A5] hover:bg-[#2E3F78] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+              className="flex items-center gap-2 bg-[#3B4C93] hover:bg-[#2E3F78] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
             >
               <Plus size={16} /> Yeni Müşteri Ekle
             </button>
@@ -414,7 +414,7 @@ export default function Suppliers() {
       {/* SEARCH BAR */}
       <div className="glass-card rounded-2xl p-4 shadow-md flex items-center gap-3">
         <div className="flex-1 relative">
-          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#5A6685] dark:text-[#8892B5]">
+          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#2E3650] dark:text-[#8892B5]">
             <Search size={18} />
           </div>
           <input
@@ -422,7 +422,7 @@ export default function Suppliers() {
             placeholder="Müşteri Ara (Müşteri Adı, Kod, E-posta, Firma)..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-[#FFFFFF] dark:bg-[#24326A] border border-[#DCE1F1] dark:border-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] placeholder-[#5A6685] rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm font-medium focus:outline-none focus:border-[#4457A5] transition-all shadow-xs"
+            className="w-full bg-[#C6CEE2] dark:bg-[#24326A] border border-[#8593B4] dark:border-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] placeholder-[#2E3650] rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm font-medium focus:outline-none focus:border-[#3B4C93] transition-all shadow-xs"
           />
         </div>
       </div>
@@ -431,7 +431,7 @@ export default function Suppliers() {
       <div className="glass-card rounded-2xl shadow-md overflow-hidden flex flex-col">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs whitespace-nowrap">
-            <thead className="bg-[#F5F7FC] dark:bg-[#1B2755] text-[#5A6685] dark:text-[#8892B5] font-semibold uppercase tracking-wider border-b border-[#DCE1F1] dark:border-[#24326A] sticky top-0 z-10 select-none">
+            <thead className="bg-[#B5BFD8] dark:bg-[#1B2755] text-[#2E3650] dark:text-[#8892B5] font-semibold uppercase tracking-wider border-b border-[#8593B4] dark:border-[#24326A] sticky top-0 z-10 select-none">
               <tr>
                 <th
                   className={`px-6 py-4 cursor-pointer transition-colors select-none ${sortField === 'customer_name' ? 'text-indigo-400 font-semibold' : 'hover:text-slate-200'}`}
@@ -556,13 +556,13 @@ export default function Suppliers() {
       {/* Ekle/Düzenle Modalı */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-50 dark:bg-[#131B3A]/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in duration-200">
+          <div className="bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in duration-200">
             <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 flex justify-between items-center bg-slate-50 dark:bg-[#232F63]">
               <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <Users size={20} className="text-indigo-400"/>
                 {currentCustomer ? 'Müşteri Düzenle' : 'Yeni Müşteri Ekle'}
               </h2>
-              <button type="button" onClick={handleCloseModal} className="text-slate-400 hover:text-slate-900 dark:text-white transition-colors bg-white dark:bg-[#1E2B5C] p-1.5 rounded-lg border border-slate-200 dark:border-slate-700">
+              <button type="button" onClick={handleCloseModal} className="text-slate-400 hover:text-slate-900 dark:text-white transition-colors bg-[#C6CEE2] dark:bg-[#1E2B5C] p-1.5 rounded-lg border border-slate-200 dark:border-slate-700">
                 <X size={18} />
               </button>
             </div>
@@ -644,7 +644,7 @@ export default function Suppliers() {
       {showBulkModal && (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => !bulkSaving && setShowBulkModal(false)}>
           <div
-            className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in duration-200"
+            className="bg-[#C6CEE2] dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in duration-200"
             onClick={e => e.stopPropagation()}
           >
             <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 flex justify-between items-center bg-slate-50 dark:bg-[#232F63]">
