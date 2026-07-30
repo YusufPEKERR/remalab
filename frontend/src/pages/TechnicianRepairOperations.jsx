@@ -128,7 +128,7 @@ const AddRepairModal = ({ onClose, onAdd, missionGroups, device }) => {
     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm">
       <div className="bg-white dark:bg-[#161B22] rounded-2xl shadow-2xl border border-slate-200 dark:border-[#30363D] max-w-2xl w-full mx-4 flex flex-col min-h-0">
         <div className="px-5 py-4 border-b border-slate-100 dark:border-[#30363D] flex items-center justify-between">
-          <h3 className="text-base font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+          <h3 className="text-base font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
             <Wrench size={18} className="text-slate-400" /> Teknik: Teklif Parçaları
           </h3>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors">
@@ -183,7 +183,7 @@ const AddRepairModal = ({ onClose, onAdd, missionGroups, device }) => {
             <button
               onClick={handleSubmit}
               disabled={!faultCode || !missionGroupCode || !warrantyCode || submitting}
-              className="px-6 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-bold transition-colors flex items-center justify-center gap-2 shrink-0"
+              className="px-6 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold transition-colors flex items-center justify-center gap-2 shrink-0"
             >
               <Plus size={16} />
               {submitting ? "EKLENİYOR..." : "EKLE"}
@@ -241,7 +241,7 @@ const StatusAdvanceModal = ({ repair, onClose, onAdvance }) => {
               <Play size={20} className="text-indigo-500" />
             </div>
             <div>
-              <h3 className="font-bold text-slate-800 dark:text-slate-100">Onarıma Devam Et</h3>
+              <h3 className="font-semibold text-slate-800 dark:text-slate-100">Onarıma Devam Et</h3>
               <p className="text-xs text-slate-500 mt-0.5">{repair.missionGroup} — {repair.id}</p>
             </div>
           </div>
@@ -293,7 +293,7 @@ const DOAReturnModal = ({ parts, onClose, onConfirm, submitting }) => {
             <Shield size={28} className="text-red-500" />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-red-600 dark:text-red-400">İade Güvenlik Kontrolü</h3>
+            <h3 className="text-lg font-semibold text-red-600 dark:text-red-400">İade Güvenlik Kontrolü</h3>
             <p className="text-sm text-red-500/80 dark:text-red-400/70 mt-0.5">Zero-Invoice Protection Aktif</p>
           </div>
         </div>
@@ -739,7 +739,7 @@ const TechnicianRepairOperations = () => {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-100 dark:bg-rose-500/20 border border-rose-200 dark:border-rose-400/30 text-rose-700 dark:text-rose-300 text-xs font-semibold tracking-wide">
               <Wrench size={13} className="text-rose-400" /> TEKNİK SERVİS VE ONARIM OPERASYONLARI
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0D1B3E] dark:text-white">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#0D1B3E] dark:text-white">
               Servis Onarımları & Teknisyen Operasyonları
             </h1>
             <p className="text-sm text-[#475569] dark:text-slate-300 leading-relaxed">
@@ -764,7 +764,7 @@ const TechnicianRepairOperations = () => {
               className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[#E2E8F0] dark:border-[#334155] bg-[#FFFFFF] dark:bg-[#1E293B] text-xs sm:text-sm text-[#0F172A] dark:text-[#FAFAFA] placeholder-[#64748B] focus:outline-none focus:border-[#2563EB] transition-all disabled:opacity-50 font-mono"
             />
           </div>
-          <button type="submit" disabled={isSearching} className="w-full md:w-auto px-6 py-2.5 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-40 text-white text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer">
+          <button type="submit" disabled={isSearching} className="w-full md:w-auto px-6 py-2.5 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-40 text-white text-xs font-semibold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer">
             <Search size={15} /> {isSearching ? "Sorgulanıyor..." : "Sorgula"}
           </button>
           {statusBadge && (
@@ -815,7 +815,7 @@ const TechnicianRepairOperations = () => {
                       <button
                         onClick={handleSaveDiagnosis}
                         disabled={savingDiagnosis || diagnosisDraft === (device.customerDiagnosis || "")}
-                        className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[10px] font-bold transition-colors"
+                        className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[10px] font-semibold transition-colors"
                       >
                         {savingDiagnosis ? "Kaydediliyor..." : "Kaydet"}
                       </button>
@@ -860,14 +860,14 @@ const TechnicianRepairOperations = () => {
                       <BatteryCharging size={14} className="text-indigo-500" />
                       <span className="text-[10px] font-bold text-indigo-500 dark:text-indigo-400 uppercase tracking-wider">Battery Cycle</span>
                     </div>
-                    <p className="text-xl font-black text-indigo-700 dark:text-indigo-300">{device.batteryCycle ?? "-"}</p>
+                    <p className="text-xl font-bold text-indigo-700 dark:text-indigo-300">{device.batteryCycle ?? "-"}</p>
                   </div>
                   <div className="flex-1 px-3 py-2.5 rounded-xl bg-teal-50 dark:bg-teal-500/10 border border-teal-200 dark:border-teal-500/30 text-center">
                     <div className="flex items-center justify-center gap-1.5 mb-1">
                       <Battery size={14} className="text-teal-500" />
                       <span className="text-[10px] font-bold text-teal-500 dark:text-teal-400 uppercase tracking-wider">Battery Health</span>
                     </div>
-                    <p className={`text-xl font-black ${device.batteryHealth == null ? 'text-slate-400 dark:text-slate-600' : device.batteryHealth >= 80 ? 'text-teal-700 dark:text-teal-300' : device.batteryHealth >= 60 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`}>{device.batteryHealth != null ? `${device.batteryHealth}%` : "-"}</p>
+                    <p className={`text-xl font-bold ${device.batteryHealth == null ? 'text-slate-400 dark:text-slate-600' : device.batteryHealth >= 80 ? 'text-teal-700 dark:text-teal-300' : device.batteryHealth >= 60 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`}>{device.batteryHealth != null ? `${device.batteryHealth}%` : "-"}</p>
                   </div>
                 </div>
               </div>
@@ -881,7 +881,7 @@ const TechnicianRepairOperations = () => {
       <div className="bg-white dark:bg-[#161B22] rounded-2xl border border-slate-200 dark:border-[#30363D] shadow-sm overflow-hidden flex-1 flex flex-col min-h-0">
         {/* Toolbar */}
         <div className="px-5 py-3 border-b border-slate-100 dark:border-[#30363D] flex items-center justify-between flex-wrap gap-2">
-          <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+          <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
             <Wrench size={16} className="text-slate-400" />
             Onarım Detay
             {repairs.length > 0 && <span className="text-[11px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md">{repairs.length} kayıt</span>}
@@ -893,7 +893,7 @@ const TechnicianRepairOperations = () => {
             <button onClick={() => setShowAdvanceModal(true)} disabled={!hasAccess || !selectedRepair} className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold transition-colors shadow-sm flex items-center gap-1.5">
               <Play size={14} /> Onarıma Devam Et
             </button>
-            <button onClick={handleReturnDevice} disabled={!hasAccess || !device} className="px-3.5 py-2 rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold transition-colors shadow-sm flex items-center gap-1.5">
+            <button onClick={handleReturnDevice} disabled={!hasAccess || !device} className="px-3.5 py-2 rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold transition-colors shadow-sm flex items-center gap-1.5">
               <AlertTriangle size={14} /> İade Edilecek
             </button>
           </div>
@@ -936,7 +936,7 @@ const TechnicianRepairOperations = () => {
           ) : (
             <table className="w-full text-sm">
               <thead className="bg-slate-50 dark:bg-[#0f1219] sticky top-0 z-10">
-                <tr className="text-[10px] font-bold text-slate-500 dark:text-slate-500 uppercase tracking-widest">
+                <tr className="text-[10px] font-semibold text-slate-500 dark:text-slate-500 uppercase tracking-widest">
                   <th className="text-left px-5 py-3">Görev Grubu</th>
                   <th className="text-left px-3 py-3">Teknisyen</th>
                   <th className="text-left px-3 py-3">Alt Statü</th>
@@ -978,7 +978,7 @@ const TechnicianRepairOperations = () => {
       {selectedGroup && (
         <div className="bg-white dark:bg-[#161B22] rounded-2xl border border-slate-200 dark:border-[#30363D] shadow-sm overflow-hidden">
           <div className="px-5 py-3 border-b border-slate-100 dark:border-[#30363D] flex items-center justify-between">
-            <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
               <Package size={16} className="text-slate-400" />
               Onarım Parçaları
               <span className="text-[11px] font-bold text-blue-500">— {selectedGroup.active.missionGroup}</span>
@@ -992,7 +992,7 @@ const TechnicianRepairOperations = () => {
             ) : (
               <table className="w-full text-sm">
                 <thead className="bg-slate-50 dark:bg-[#0f1219]">
-                  <tr className="text-[10px] font-bold text-slate-500 dark:text-slate-500 uppercase tracking-widest">
+                  <tr className="text-[10px] font-semibold text-slate-500 dark:text-slate-500 uppercase tracking-widest">
                     <th className="text-left px-5 py-2.5">Parça Kodu</th>
                     <th className="text-left px-3 py-2.5">Parça Kategorisi</th>
                     <th className="text-left px-3 py-2.5">Arıza Tespiti</th>

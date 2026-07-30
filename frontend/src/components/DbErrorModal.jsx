@@ -44,7 +44,7 @@ export default function DbErrorModal({ isOpen, errorMessage, onClose, onReconnec
               <AlertTriangle size={40} className="text-red-500" />
             </div>
             
-            <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-2">Veritabanı bağlantısı kurulamadı!</h2>
+            <h2 className="text-xl font-semibold text-slate-800 dark:text-slate-100 mb-2">Veritabanı bağlantısı kurulamadı!</h2>
             <p className="text-red-400 text-sm bg-red-500/10 p-3 rounded-lg border border-red-500/20 w-full mb-8">
               {errorMessage || "Sunucuyla iletişim kurulamıyor. Lütfen veritabanı ayarlarını kontrol edin."}
             </p>
@@ -73,7 +73,7 @@ export default function DbErrorModal({ isOpen, errorMessage, onClose, onReconnec
         ) : (
           /* --- SETTINGS VIEW --- */
           <div className="p-6">
-            <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-6 flex items-center gap-2">
+            <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-6 flex items-center gap-2">
               <Database size={20} className="text-blue-400"/>
               Veritabanı Ayarlarını Güncelle
             </h2>

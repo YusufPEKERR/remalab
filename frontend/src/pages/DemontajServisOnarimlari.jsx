@@ -202,7 +202,7 @@ const DemontajServisOnarimlari = () => {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-500/20 border border-emerald-200 dark:border-emerald-400/30 text-emerald-700 dark:text-emerald-300 text-xs font-semibold tracking-wide">
               <Wrench size={13} className="text-emerald-400" /> DEMONTAJ SERVİS ONARIMLARI
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0D1B3E] dark:text-white">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#0D1B3E] dark:text-white">
               Demontaj Servis Onarımları & Parça Demontajı
             </h1>
             <p className="text-sm text-[#475569] dark:text-slate-300 leading-relaxed">
@@ -227,7 +227,7 @@ const DemontajServisOnarimlari = () => {
               className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[#E2E8F0] dark:border-[#334155] bg-[#FFFFFF] dark:bg-[#1E293B] text-xs sm:text-sm text-[#0F172A] dark:text-[#FAFAFA] placeholder-[#64748B] focus:outline-none focus:border-[#2563EB] transition-all disabled:opacity-50 font-mono"
             />
           </div>
-          <button type="submit" disabled={isSearching} className="w-full md:w-auto px-6 py-2.5 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-40 text-white text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer">
+          <button type="submit" disabled={isSearching} className="w-full md:w-auto px-6 py-2.5 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-40 text-white text-xs font-semibold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer">
             <Search size={15} /> {isSearching ? "Sorgulanıyor..." : "Sorgula"}
           </button>
           {statusBadge && (
@@ -274,7 +274,7 @@ const DemontajServisOnarimlari = () => {
                       <button
                         onClick={handleSaveDiagnosis}
                         disabled={savingDiagnosis || diagnosisDraft === (device.customerDiagnosis || "")}
-                        className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[10px] font-bold transition-colors"
+                        className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[10px] font-semibold transition-colors"
                       >
                         {savingDiagnosis ? "Kaydediliyor..." : "Kaydet"}
                       </button>
@@ -300,14 +300,14 @@ const DemontajServisOnarimlari = () => {
                     <BatteryCharging size={14} className="text-indigo-500" />
                     <span className="text-[10px] font-bold text-indigo-500 dark:text-indigo-400 uppercase tracking-wider">Battery Cycle</span>
                   </div>
-                  <p className="text-xl font-black text-indigo-700 dark:text-indigo-300">{device.batteryCycle ?? "-"}</p>
+                  <p className="text-xl font-bold text-indigo-700 dark:text-indigo-300">{device.batteryCycle ?? "-"}</p>
                 </div>
                 <div className="flex-1 px-3 py-2.5 rounded-xl bg-teal-50 dark:bg-teal-500/10 border border-teal-200 dark:border-teal-500/30 text-center">
                   <div className="flex items-center justify-center gap-1.5 mb-1">
                     <Battery size={14} className="text-teal-500" />
                     <span className="text-[10px] font-bold text-teal-500 dark:text-teal-400 uppercase tracking-wider">Battery Health</span>
                   </div>
-                  <p className={`text-xl font-black ${device.batteryHealth == null ? 'text-slate-400 dark:text-slate-600' : device.batteryHealth >= 80 ? 'text-teal-700 dark:text-teal-300' : device.batteryHealth >= 60 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`}>{device.batteryHealth != null ? `${device.batteryHealth}%` : "-"}</p>
+                  <p className={`text-xl font-bold ${device.batteryHealth == null ? 'text-slate-400 dark:text-slate-600' : device.batteryHealth >= 80 ? 'text-teal-700 dark:text-teal-300' : device.batteryHealth >= 60 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`}>{device.batteryHealth != null ? `${device.batteryHealth}%` : "-"}</p>
                 </div>
               </div>
             </div>

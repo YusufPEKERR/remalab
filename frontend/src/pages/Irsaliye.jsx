@@ -378,7 +378,7 @@ export default function Irsaliye() {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-500/20 border border-emerald-200 dark:border-emerald-400/30 text-emerald-700 dark:text-emerald-300 text-xs font-semibold tracking-wide">
               <FileSpreadsheet size={13} className="text-emerald-400" /> İRSALİYE & STOK HAREKETLERİ
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0D1B3E] dark:text-white">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#0D1B3E] dark:text-white">
               İrsaliye İşlemleri
             </h1>
             <p className="text-sm text-[#475569] dark:text-slate-300 leading-relaxed">
@@ -396,7 +396,7 @@ export default function Irsaliye() {
 
             <button
               onClick={resetInboundForm}
-              className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+              className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold transition-all shadow-md cursor-pointer"
             >
               <Plus size={16} /> Stok Girişi Yap
             </button>
@@ -460,7 +460,7 @@ export default function Irsaliye() {
       <div className="bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#1E293B] rounded-2xl shadow-md flex-1 overflow-hidden flex flex-col">
         <div className="overflow-auto flex-1">
           <table className="w-full text-left text-xs whitespace-nowrap">
-            <thead className="bg-[#F8FAFC] dark:bg-[#162032] text-[#64748B] dark:text-[#94A3B8] font-bold uppercase tracking-wider border-b border-[#E2E8F0] dark:border-[#1E293B] sticky top-0 z-10">
+            <thead className="bg-[#F8FAFC] dark:bg-[#162032] text-[#64748B] dark:text-[#94A3B8] font-semibold uppercase tracking-wider border-b border-[#E2E8F0] dark:border-[#1E293B] sticky top-0 z-10">
               <tr>
                 <th className="px-6 py-4 w-12 text-center">
                   <input 
@@ -510,9 +510,9 @@ export default function Irsaliye() {
                           onChange={(e) => toggleRowSelect(mov.id, e)}
                         />
                       </td>
-                      <td className="px-6 py-3 font-bold text-[#0F172A] dark:text-[#FAFAFA]">{mov.part_name}</td>
+                      <td className="px-6 py-3 font-semibold text-[#0F172A] dark:text-[#FAFAFA]">{mov.part_name}</td>
                       <td className="px-6 py-3">{directionBadge(dir)}</td>
-                      <td className={`px-6 py-3 font-mono font-bold ${dir === 'out' ? 'text-red-400' : (dir === 'transfer' ? 'text-blue-400' : 'text-emerald-400')}`}>
+                      <td className={`px-6 py-3 font-mono font-semibold ${dir === 'out' ? 'text-red-400' : (dir === 'transfer' ? 'text-blue-400' : 'text-emerald-400')}`}>
                         {dir === 'out' ? '-' : '+'}{mov.quantity}
                       </td>
                       <td className="px-6 py-3 font-mono">{mov.unit_price ? `${mov.unit_price.toFixed(2)} TL` : '-'}</td>
@@ -558,7 +558,7 @@ export default function Irsaliye() {
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
           <div className="bg-white dark:bg-[#1e2330] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700/50 w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200 my-8 max-h-[90vh] flex flex-col">
             <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 flex justify-between items-center bg-slate-50 dark:bg-[#242a38] shrink-0">
-              <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2"><Plus size={18}/> Stok Girişi Yap</h2>
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2"><Plus size={18}/> Stok Girişi Yap</h2>
               <button onClick={() => setShowInboundModal(false)} className="text-slate-400 hover:text-slate-900 dark:text-white">&times;</button>
             </div>
             <form onSubmit={handleInbound} className="p-6 space-y-4 overflow-y-auto flex-1 min-h-0">
@@ -654,7 +654,7 @@ export default function Irsaliye() {
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
           <div className="bg-white dark:bg-[#1e2330] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700/50 w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200 my-8 max-h-[90vh] flex flex-col">
             <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 flex justify-between items-center bg-slate-50 dark:bg-[#242a38] shrink-0">
-              <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">Stok Çıkışı Yap</h2>
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">Stok Çıkışı Yap</h2>
               <button onClick={() => setShowOutboundModal(false)} className="text-slate-400 hover:text-slate-900 dark:text-white">&times;</button>
             </div>
             <form onSubmit={handleOutbound} className="p-6 space-y-4 overflow-y-auto flex-1 min-h-0">
@@ -739,7 +739,7 @@ export default function Irsaliye() {
       {isExportModalOpen && (
         <div className="fixed inset-0 bg-slate-900/80 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-sm p-6">
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4">Sütun Seçimi</h2>
+            <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-4">Sütun Seçimi</h2>
             <p className="text-sm text-slate-500 mb-4">Dışa aktarılacak Excel dosyasında hangi sütunların bulunmasını istediğinizi seçin.</p>
             
             <div className="space-y-3 mb-6 max-h-60 overflow-y-auto pr-2">

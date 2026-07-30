@@ -206,7 +206,7 @@ export default function Products() {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-100 dark:bg-cyan-500/20 border border-cyan-200 dark:border-cyan-400/30 text-cyan-700 dark:text-cyan-300 text-xs font-semibold tracking-wide">
               <FileSpreadsheet size={13} className="text-cyan-400" /> ÜRÜN VE MODEL YÖNETİMİ
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0D1B3E] dark:text-white">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#0D1B3E] dark:text-white">
               Telefon Modelleri (Ürünler)
             </h1>
             <p className="text-sm text-[#475569] dark:text-slate-300 leading-relaxed">
@@ -260,7 +260,7 @@ export default function Products() {
       <div className="bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#1E293B] rounded-2xl shadow-md overflow-hidden flex flex-col">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs whitespace-nowrap">
-            <thead className="bg-[#F8FAFC] dark:bg-[#162032] text-[#64748B] dark:text-[#94A3B8] font-bold uppercase tracking-wider border-b border-[#E2E8F0] dark:border-[#1E293B] sticky top-0 z-10">
+            <thead className="bg-[#F8FAFC] dark:bg-[#162032] text-[#64748B] dark:text-[#94A3B8] font-semibold uppercase tracking-wider border-b border-[#E2E8F0] dark:border-[#1E293B] sticky top-0 z-10">
               <tr>
                 <th className="px-6 py-4 w-12 text-center">
                   <input 
@@ -383,7 +383,7 @@ export default function Products() {
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-[99] p-4">
           <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-md animate-in fade-in zoom-in duration-200">
             <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 flex justify-between items-center">
-              <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 {currentProduct ? 'Telefon Modelini Düzenle' : 'Yeni Telefon Modeli Ekle'}
               </h2>
               <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-900 dark:text-white">
@@ -485,7 +485,7 @@ export default function Products() {
       {isExportModalOpen && (
         <div className="fixed inset-0 bg-slate-900/80 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-sm p-6">
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4">Sütun Seçimi</h2>
+            <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-4">Sütun Seçimi</h2>
             <p className="text-sm text-slate-500 mb-4">Dışa aktarılacak Excel dosyasında hangi sütunların bulunmasını istediğinizi seçin.</p>
             
             <div className="space-y-3 mb-6 max-h-60 overflow-y-auto pr-2">

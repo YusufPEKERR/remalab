@@ -88,7 +88,7 @@ export default function Depo() {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 dark:bg-blue-500/20 border border-blue-500/25 dark:border-blue-400/30 text-[#1D4ED8] dark:text-blue-300 text-xs font-semibold tracking-wide">
               <Package size={13} className="text-blue-400" /> DEPO YÖNETİM MODÜLÜ
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0D1B3E] dark:text-white">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#0D1B3E] dark:text-white">
               Depo Stok
             </h1>
             <p className="text-sm text-[#475569] dark:text-slate-300 leading-relaxed">
@@ -119,7 +119,7 @@ export default function Depo() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <Info size={18} className="text-[#60A5FA]" />
-            <h3 className="text-sm font-bold text-[#0F172A] dark:text-[#FAFAFA]">
+            <h3 className="text-sm font-semibold text-[#0F172A] dark:text-[#FAFAFA]">
               {occupancy.title}
             </h3>
             {selectedItem && (
@@ -185,7 +185,7 @@ export default function Depo() {
       <div className="bg-[#F8FAFC] dark:bg-[#0F172A] rounded-2xl border border-[#E2E8F0] dark:border-[#1E293B] shadow-md overflow-hidden flex flex-col">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs whitespace-nowrap">
-            <thead className="bg-[#F8FAFC] dark:bg-[#162032] text-[#64748B] dark:text-[#94A3B8] font-bold uppercase tracking-wider border-b border-[#E2E8F0] dark:border-[#1E293B]">
+            <thead className="bg-[#F8FAFC] dark:bg-[#162032] text-[#64748B] dark:text-[#94A3B8] font-semibold uppercase tracking-wider border-b border-[#E2E8F0] dark:border-[#1E293B]">
               <tr>
                 <th className="px-6 py-4">SON HAREKET TARİHİ</th>
                 <th className="px-6 py-4">İTEM KODU</th>
@@ -220,7 +220,7 @@ export default function Depo() {
                           {item.item_code}
                         </span>
                       </td>
-                      <td className="px-6 py-3.5 font-bold text-[#0F172A] dark:text-[#FAFAFA] text-sm">
+                      <td className="px-6 py-3.5 font-semibold text-[#0F172A] dark:text-[#FAFAFA] text-sm">
                         {item.part_name}
                       </td>
                       <td className="px-6 py-3.5">
@@ -229,7 +229,7 @@ export default function Depo() {
                           {item.location_name}
                         </span>
                       </td>
-                      <td className="px-6 py-3.5 font-mono font-bold text-sm">
+                      <td className="px-6 py-3.5 font-mono font-semibold text-sm">
                         <div className="flex items-center gap-2">
                           <span>{qty.toLocaleString('tr-TR')}</span>
                           {isLow && (

@@ -192,7 +192,7 @@ export default function ItemBOM() {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-100 dark:bg-teal-500/20 border border-teal-200 dark:border-teal-400/30 text-teal-700 dark:text-teal-300 text-xs font-semibold tracking-wide">
               <FileSpreadsheet size={13} className="text-teal-400" /> ÜRÜN VE REÇETE YÖNETİMİ
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0D1B3E] dark:text-white">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#0D1B3E] dark:text-white">
               Product BOM (Ürün Reçeteleri) Yönetimi
             </h1>
             <p className="text-sm text-[#475569] dark:text-slate-300 leading-relaxed">
@@ -293,7 +293,7 @@ export default function ItemBOM() {
 
         <div className="overflow-auto flex-1">
           <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs sticky top-0">
+            <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-semibold uppercase tracking-wider text-xs sticky top-0">
               <tr>
                 <th className="px-6 py-4">Cihaz Modeli</th>
                 <th className="px-6 py-4">Alt Parça Kodu (Bileşen)</th>
@@ -311,7 +311,7 @@ export default function ItemBOM() {
               ) : (
                 boms.map(bom => (
                   <tr key={bom.id} className="hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 transition-colors">
-                    <td className="px-6 py-4 font-bold text-blue-400">{bom.product_model}</td>
+                    <td className="px-6 py-4 font-semibold text-blue-400">{bom.product_model}</td>
                     <td className="px-6 py-4 font-mono">{bom.child_item_code}</td>
                     <td className="px-6 py-4">{bom.quantity}</td>
                     <td className="px-6 py-4">
@@ -419,7 +419,7 @@ export default function ItemBOM() {
         <div className="fixed inset-0 bg-slate-900/80 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-md">
             <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex justify-between">
-              <h2 className="text-lg font-bold text-slate-900 dark:text-white">{currentBom ? 'BOM Bileşenini Düzenle' : 'BOM Bileşeni Ekle'}</h2>
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-white">{currentBom ? 'BOM Bileşenini Düzenle' : 'BOM Bileşeni Ekle'}</h2>
               <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-900 dark:text-white"><X size={20} /></button>
             </div>
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
@@ -451,7 +451,7 @@ export default function ItemBOM() {
                   onChange={e => setFormData({...formData, quantity: parseInt(e.target.value)})} 
                 />
               </div>
-              <button type="submit" className="w-full flex items-center justify-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white py-2.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer mt-4">Kaydet</button>
+              <button type="submit" className="w-full flex items-center justify-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white py-2.5 rounded-xl text-xs font-semibold transition-all shadow-md cursor-pointer mt-4">Kaydet</button>
             </form>
           </div>
         </div>

@@ -150,7 +150,7 @@ export default function TestResultScreen({
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 dark:bg-blue-500/20 border border-blue-500/25 dark:border-blue-400/30 text-[#1D4ED8] dark:text-blue-300 text-xs font-semibold tracking-wide">
               <ClipboardCheck size={13} className="text-blue-400" /> KALİTE KONTROL VE TEST DEPARTMANI
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0D1B3E] dark:text-white">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#0D1B3E] dark:text-white">
               {title}
             </h1>
             <p className="text-sm text-[#475569] dark:text-slate-300 leading-relaxed">
@@ -165,7 +165,7 @@ export default function TestResultScreen({
         <div className="lg:col-span-1 bg-[#F8FAFC] dark:bg-[#0F172A] border border-emerald-500/40 rounded-2xl overflow-hidden flex flex-col shadow-md">
           <div className="bg-emerald-600/90 px-5 py-3.5 flex items-center gap-2 border-b border-emerald-500/40">
             <CheckCircle size={18} className="text-[#0D1B3E] dark:text-white" />
-            <h3 className="text-xs font-bold text-[#0D1B3E] dark:text-white uppercase tracking-wider">Test Başarılı (Onay)</h3>
+            <h3 className="text-xs font-semibold text-[#0D1B3E] dark:text-white uppercase tracking-wider">Test Başarılı (Onay)</h3>
           </div>
           <form onSubmit={handleSuccess} className="p-6 space-y-4">
             <p className="text-xs text-[#64748B] dark:text-[#94A3B8] leading-relaxed">
@@ -186,7 +186,7 @@ export default function TestResultScreen({
             <button
               type="submit"
               disabled={successLoading || !successImei.trim()}
-              className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white px-6 py-3 rounded-xl transition-all font-bold text-xs cursor-pointer flex items-center justify-center gap-2 shadow-md"
+              className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white px-6 py-3 rounded-xl transition-all font-semibold text-xs cursor-pointer flex items-center justify-center gap-2 shadow-md"
             >
               <CheckCircle size={16} /> {successLoading ? 'İşleniyor...' : 'Test Başarılı'}
             </button>
@@ -199,8 +199,8 @@ export default function TestResultScreen({
             <div className="p-1 bg-white/10 rounded-lg">
               <Undo2 size={16} className="text-[#0D1B3E] dark:text-white" />
             </div>
-            <h3 className="text-xs font-bold text-[#0D1B3E] dark:text-white uppercase tracking-wider">Test Başarısız (Geri Çevrim)</h3>
-            <span className="ml-auto text-[10px] font-extrabold text-rose-200 bg-white/10 px-2.5 py-0.5 rounded-full uppercase tracking-wider">Tekniğe Geri Gönder</span>
+            <h3 className="text-xs font-semibold text-[#0D1B3E] dark:text-white uppercase tracking-wider">Test Başarısız (Geri Çevrim)</h3>
+            <span className="ml-auto text-[10px] font-bold text-rose-200 bg-white/10 px-2.5 py-0.5 rounded-full uppercase tracking-wider">Tekniğe Geri Gönder</span>
           </div>
           <form onSubmit={handleFail} className="p-6 space-y-4">
             <p className="text-xs text-[#64748B] dark:text-[#94A3B8] border-l-2 border-rose-500/40 pl-3 leading-relaxed">
@@ -275,7 +275,7 @@ export default function TestResultScreen({
             <button
               type="submit"
               disabled={failLoading || !failImei.trim() || !description.trim() || selectedFaultIds.length === 0}
-              className="w-full bg-rose-600 hover:bg-rose-700 disabled:opacity-40 text-white px-6 py-3 rounded-xl transition-all font-bold text-xs cursor-pointer flex items-center justify-center gap-2 shadow-md"
+              className="w-full bg-rose-600 hover:bg-rose-700 disabled:opacity-40 text-white px-6 py-3 rounded-xl transition-all font-semibold text-xs cursor-pointer flex items-center justify-center gap-2 shadow-md"
             >
               <Undo2 size={16} /> {failLoading ? 'İşleniyor...' : 'Geri Çevir'}
             </button>

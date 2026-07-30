@@ -131,7 +131,7 @@ const AddTableModal = ({ onClose, onAdd }) => {
         <div className="border-b border-slate-200 dark:border-slate-700 px-6 py-4 flex items-center justify-between bg-slate-50 dark:bg-[#242a38]">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center"><Plus size={20} className="text-blue-500" /></div>
-            <h3 className="font-bold text-slate-800 dark:text-slate-100">Yeni Tablo Ekle</h3>
+            <h3 className="font-semibold text-slate-800 dark:text-slate-100">Yeni Tablo Ekle</h3>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700"><X size={18} className="text-slate-500" /></button>
         </div>
@@ -577,7 +577,7 @@ export default function SchemaMapper() {
       {/* ════════════════ TOOLBAR ════════════════ */}
       <div className="bg-[#F8FAFC] dark:bg-[#0F172A] border-b border-[#E2E8F0] dark:border-[#1E293B] px-5 py-3 flex items-center justify-between gap-3 flex-wrap shrink-0 z-20 shadow-md">
         <div className="flex items-center gap-2.5">
-          <h2 className="text-sm font-bold text-white flex items-center gap-2 mr-3 font-mono">
+          <h2 className="text-sm font-semibold text-white flex items-center gap-2 mr-3 font-mono">
             <Database size={17} className="text-blue-400" />
             SCHEMA MAPPER
           </h2>
@@ -588,10 +588,10 @@ export default function SchemaMapper() {
           <button onClick={() => { setConnectMode(!connectMode); setConnectSource(null); }} className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md transition-all cursor-pointer border ${connectMode ? 'bg-rose-500 text-white border-rose-500' : 'bg-[#FFFFFF] dark:bg-[#1E293B] text-[#0F172A] dark:text-[#FAFAFA] border-[#E2E8F0] dark:border-[#334155] hover:border-rose-400'}`}>
             <Link2 size={14} /> {connectMode ? 'Bağlama: AÇIK' : 'İlişki Bağla'}
           </button>
-          <button onClick={handleSaveMapping} className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-md cursor-pointer transition-all">
+          <button onClick={handleSaveMapping} className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold flex items-center gap-1.5 shadow-md cursor-pointer transition-all">
             <Save size={14} /> Kaydet
           </button>
-          <button onClick={handleOpenProjectGuide} title="Proje rehberini PDF olarak aç" className="px-3.5 py-2 rounded-xl bg-[#FFFFFF] dark:bg-[#1E293B] text-[#0F172A] dark:text-[#FAFAFA] border border-[#E2E8F0] dark:border-[#334155] text-xs font-bold flex items-center gap-1.5 shadow-md hover:border-blue-400 transition-all cursor-pointer">
+          <button onClick={handleOpenProjectGuide} title="Proje rehberini PDF olarak aç" className="px-3.5 py-2 rounded-xl bg-[#FFFFFF] dark:bg-[#1E293B] text-[#0F172A] dark:text-[#FAFAFA] border border-[#E2E8F0] dark:border-[#334155] text-xs font-semibold flex items-center gap-1.5 shadow-md hover:border-blue-400 transition-all cursor-pointer">
             <FileText size={14} /> Proje Rehberi
           </button>
         </div>
@@ -663,7 +663,7 @@ export default function SchemaMapper() {
             <div className="absolute inset-0 z-40 flex items-center justify-center pointer-events-none">
               <div className="bg-white dark:bg-[#1e2330] p-8 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 max-w-md text-center pointer-events-auto">
                 <Database size={48} className="text-slate-700 dark:text-slate-300 dark:text-slate-600 mx-auto mb-4" />
-                <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 mb-2">Veritabanı Şeması Bulunamadı</h3>
+                <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-2">Veritabanı Şeması Bulunamadı</h3>
                 <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">Herhangi bir tablo veya ilişki verisi okunamadı. Yeni bir tablo ekleyerek başlayabilirsiniz.</p>
                 <button onClick={() => setShowAddModal(true)} className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-lg shadow-blue-500/20">
                   <Plus size={16} className="inline mr-2" /> Yeni Tablo Ekle
@@ -742,7 +742,7 @@ export default function SchemaMapper() {
           {inspectorOpen && (selectedTable || selectedEdge) && (
             <div className="w-80 shrink-0 bg-white dark:bg-[#161B22] border-l border-slate-200 dark:border-[#30363D] flex flex-col overflow-hidden">
               <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-[#30363D] bg-slate-50/50 dark:bg-[#0f1219]/50">
-                <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-widest">Özellikler</h3>
+                <h3 className="text-xs font-semibold text-slate-800 dark:text-slate-200 uppercase tracking-widest">Özellikler</h3>
                 <button onClick={() => setInspectorOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"><X size={16} /></button>
               </div>
 
@@ -754,7 +754,7 @@ export default function SchemaMapper() {
                     <div>
                       <div className="flex items-center gap-2 mb-1">
                         <Table2 size={16} className="text-blue-500" />
-                        <h2 className="text-sm font-bold text-slate-800 dark:text-slate-200">{selectedTable.feName}</h2>
+                        <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-200">{selectedTable.feName}</h2>
                       </div>
                       <p className="text-[11px] font-mono text-slate-500 dark:text-slate-400 opacity-80 pl-6">db: {selectedTable.dbName}</p>
                     </div>
@@ -830,7 +830,7 @@ export default function SchemaMapper() {
             <div className="w-72 flex flex-col bg-white dark:bg-[#161B22] border border-slate-200 dark:border-[#30363D] rounded-2xl overflow-hidden shadow-sm shrink-0">
               <div className="px-4 py-3 border-b border-slate-100 dark:border-[#30363D] bg-slate-50/50 dark:bg-[#0f1219]/50 flex flex-col gap-3">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-widest flex items-center gap-2">
+                  <h3 className="text-xs font-semibold text-slate-800 dark:text-slate-200 uppercase tracking-widest flex items-center gap-2">
                     <Database size={14} className="text-blue-500" /> Tablolar
                   </h3>
                   <button 
@@ -912,7 +912,7 @@ export default function SchemaMapper() {
               <>
                 <div className="px-6 py-4 border-b border-slate-100 dark:border-[#30363D] bg-slate-50/50 dark:bg-[#0f1219]/50 flex items-center justify-between">
                   <div>
-                    <h2 className="text-lg font-bold text-slate-800 dark:text-slate-200">{selectedTable.feName}</h2>
+                    <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200">{selectedTable.feName}</h2>
                     <p className="text-xs text-slate-500 font-mono mt-1">Veritabanı Tablosu: {selectedTable.dbName}</p>
                   </div>
                   <div className="px-3 py-1 rounded-full bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400 text-xs font-bold">
@@ -925,10 +925,10 @@ export default function SchemaMapper() {
                     <table className="w-full text-left border-collapse">
                       <thead>
                         <tr className="bg-slate-50 dark:bg-[#0f1219] border-b border-slate-200 dark:border-[#30363D]">
-                          <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Uygulama Alanı (FE Name)</th>
-                          <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest w-24">Veri Tipi</th>
-                          <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest w-48">Veritabanı Tablosu</th>
-                          <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest w-48">Veritabanı Sütunu (DB Name)</th>
+                          <th className="px-4 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Uygulama Alanı (FE Name)</th>
+                          <th className="px-4 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-widest w-24">Veri Tipi</th>
+                          <th className="px-4 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-widest w-48">Veritabanı Tablosu</th>
+                          <th className="px-4 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-widest w-48">Veritabanı Sütunu (DB Name)</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 dark:divide-[#30363D]">

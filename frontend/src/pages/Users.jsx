@@ -494,7 +494,7 @@ export default function Users() {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-100 dark:bg-indigo-500/20 border border-indigo-200 dark:border-indigo-400/30 text-indigo-700 dark:text-indigo-300 text-xs font-semibold tracking-wide">
               <UsersIcon size={13} className="text-indigo-400" /> KULLANICI VE PERSONEL YÖNETİMİ
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0D1B3E] dark:text-white">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#0D1B3E] dark:text-white">
               Kullanıcılar & Personel Tanımları
             </h1>
             <p className="text-sm text-[#475569] dark:text-slate-300 leading-relaxed">
@@ -530,16 +530,16 @@ export default function Users() {
           <button onClick={() => setIsExportModalOpen(true)} className="flex items-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white px-4 py-2.5 rounded-xl shadow-md text-xs font-bold transition-all cursor-pointer">
             <Download size={15} /> {selectedRows.length > 0 ? `${selectedRows.length} Seçiliyi Aktar` : 'Excel Dışa Aktar'}
           </button>
-          <button onClick={handleAdd} className="flex items-center gap-2 bg-[#FFFFFF] dark:bg-[#1E293B] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] border border-[#E2E8F0] dark:border-[#334155] text-[#0F172A] dark:text-[#FAFAFA] px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer">
+          <button onClick={handleAdd} className="flex items-center gap-2 bg-[#FFFFFF] dark:bg-[#1E293B] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] border border-[#E2E8F0] dark:border-[#334155] text-[#0F172A] dark:text-[#FAFAFA] px-4 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer">
             <Plus size={15} className="text-emerald-400" /> Ekle
           </button>
-          <button onClick={handleEdit} disabled={!selectedUserId} className="flex items-center gap-2 bg-[#FFFFFF] dark:bg-[#1E293B] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] border border-[#E2E8F0] dark:border-[#334155] text-[#0F172A] dark:text-[#FAFAFA] px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer disabled:opacity-40">
+          <button onClick={handleEdit} disabled={!selectedUserId} className="flex items-center gap-2 bg-[#FFFFFF] dark:bg-[#1E293B] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] border border-[#E2E8F0] dark:border-[#334155] text-[#0F172A] dark:text-[#FAFAFA] px-4 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer disabled:opacity-40">
             <Edit size={15} className="text-blue-400" /> Düzenle
           </button>
-          <button onClick={handleResetPassword} disabled={!selectedUserId} className="flex items-center gap-2 bg-[#FFFFFF] dark:bg-[#1E293B] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] border border-[#E2E8F0] dark:border-[#334155] text-[#0F172A] dark:text-[#FAFAFA] px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer disabled:opacity-40">
+          <button onClick={handleResetPassword} disabled={!selectedUserId} className="flex items-center gap-2 bg-[#FFFFFF] dark:bg-[#1E293B] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] border border-[#E2E8F0] dark:border-[#334155] text-[#0F172A] dark:text-[#FAFAFA] px-4 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer disabled:opacity-40">
             <Key size={15} className="text-amber-400" /> Şifre
           </button>
-          <button onClick={handleDelete} disabled={!selectedUserId} className="flex items-center gap-2 bg-[#FFFFFF] dark:bg-[#1E293B] hover:bg-red-500/20 border border-[#E2E8F0] dark:border-[#334155] hover:border-red-500/30 text-[#0F172A] dark:text-[#FAFAFA] hover:text-red-400 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer disabled:opacity-40">
+          <button onClick={handleDelete} disabled={!selectedUserId} className="flex items-center gap-2 bg-[#FFFFFF] dark:bg-[#1E293B] hover:bg-red-500/20 border border-[#E2E8F0] dark:border-[#334155] hover:border-red-500/30 text-[#0F172A] dark:text-[#FAFAFA] hover:text-red-400 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer disabled:opacity-40">
             <Trash2 size={15} className={selectedUserId ? "text-red-400" : ""} /> Sil
           </button>
         </div>
@@ -549,7 +549,7 @@ export default function Users() {
       <div className="bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#1E293B] rounded-2xl shadow-md overflow-hidden flex flex-col">
         <div className="overflow-x-auto flex-1">
           <table className="w-full text-left text-xs whitespace-nowrap">
-            <thead className="bg-[#F8FAFC] dark:bg-[#162032] text-[#64748B] dark:text-[#94A3B8] font-bold border-b border-[#E2E8F0] dark:border-[#1E293B] sticky top-0 uppercase tracking-wider text-xs z-10 select-none">
+            <thead className="bg-[#F8FAFC] dark:bg-[#162032] text-[#64748B] dark:text-[#94A3B8] font-semibold border-b border-[#E2E8F0] dark:border-[#1E293B] sticky top-0 uppercase tracking-wider text-xs z-10 select-none">
               <tr>
                 <th className="px-6 py-4 w-12 text-center select-none">
                   <input 
@@ -847,7 +847,7 @@ export default function Users() {
         <div className="fixed inset-0 bg-slate-50 dark:bg-[#0f1219]/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
             <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 flex justify-between items-center bg-slate-50 dark:bg-[#242a38] shrink-0">
-              <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 {modalMode === 'add' ? <><Plus size={20} className="text-green-400"/> Yeni Kullanıcı</> : 
                  modalMode === 'password' ? <><Key size={20} className="text-yellow-400"/> Şifre Sıfırla</> : 
                  <><Edit size={20} className="text-blue-400"/> Kullanıcı Düzenle</>}
@@ -1167,7 +1167,7 @@ export default function Users() {
       {isExportModalOpen && (
         <div className="fixed inset-0 bg-slate-900/80 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-sm p-6">
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4">Sütun Seçimi</h2>
+            <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-4">Sütun Seçimi</h2>
             <p className="text-sm text-slate-500 mb-4">Dışa aktarılacak Excel dosyasında hangi sütunların bulunmasını istediğinizi seçin.</p>
             
             <div className="space-y-3 mb-6 max-h-60 overflow-y-auto pr-2">

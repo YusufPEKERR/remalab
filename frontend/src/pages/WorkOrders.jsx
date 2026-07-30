@@ -1313,7 +1313,7 @@ export default function WorkOrders() {
       <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden mt-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
         <div className="flex justify-between items-center p-6 bg-slate-50/50 dark:bg-[#242a38]/50 border-b border-slate-200 dark:border-slate-700/50">
           <div>
-            <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+            <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
               <Scan size={24} className="text-blue-500" />
               Malzeme Teslimat Ekranı
             </h3>
@@ -1333,7 +1333,7 @@ export default function WorkOrders() {
 
           <div className="border border-slate-200 dark:border-slate-700/50 rounded-xl overflow-hidden">
             <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs">
+              <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-semibold uppercase tracking-wider text-xs">
                 <tr>
                   <th className="px-6 py-4">Parça</th>
                   <th className="px-6 py-4 text-center">Gerekli</th>
@@ -1360,7 +1360,7 @@ export default function WorkOrders() {
                           <div className="text-xs text-slate-400 font-mono mt-0.5">{mr.item_code}</div>
                         </td>
                         <td className="px-6 py-4 text-center font-mono font-medium text-slate-500">{mr.required_quantity}</td>
-                        <td className={`px-6 py-4 text-center font-mono font-bold ${mr.issued_quantity > 0 ? 'text-emerald-500' : 'text-slate-400'}`}>
+                        <td className={`px-6 py-4 text-center font-mono font-semibold ${mr.issued_quantity > 0 ? 'text-emerald-500' : 'text-slate-400'}`}>
                           {mr.issued_quantity || 0}
                         </td>
                         <td className="px-6 py-4 text-center font-mono font-medium text-orange-500">{mr.fire_quantity || 0}</td>
@@ -1391,7 +1391,7 @@ export default function WorkOrders() {
               <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden">
                 <div className="flex justify-between items-center p-6 pb-4">
                   <div>
-                    <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                    <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                       <Layers size={20} className="text-teal-400" /> İş Emri {'1' + String(selectedProductionOrder.id).padStart(14, '0')} — {selectedProductionOrder.target_part_name || '-'}
                     </h3>
                     <p className="text-slate-400 text-sm mt-1">{selectedProductionOrder.target_part_code}</p>
@@ -1412,7 +1412,7 @@ export default function WorkOrders() {
                   <span className="text-xs text-slate-400">(bu iş emrinin reçetesinden otomatik oluşturulan, salt okunur)</span>
                 </div>
                 <table className="w-full text-left text-sm">
-                  <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs">
+                  <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-semibold uppercase tracking-wider text-xs">
                     <tr>
                       <th className="px-6 py-4">Parça</th>
                       <th className="px-6 py-4">Teknisyen</th>
@@ -1499,7 +1499,7 @@ export default function WorkOrders() {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-100 dark:bg-teal-500/20 border border-teal-200 dark:border-teal-400/30 text-teal-700 dark:text-teal-300 text-xs font-semibold tracking-wide">
               <ClipboardList size={13} className="text-teal-400" /> İŞ EMİRLERİ VE ÜRETİM
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0D1B3E] dark:text-white">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#0D1B3E] dark:text-white">
               İş Emirleri & Üretim Yönetimi
             </h1>
             <p className="text-sm text-[#475569] dark:text-slate-300 leading-relaxed">
@@ -1531,7 +1531,7 @@ export default function WorkOrders() {
         {/* --- YENİ İŞ EMRİ --- */}
         {activeTab === 'new' && (
           <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-sm">
-            <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2 mb-6">
+            <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2 mb-6">
               {editingOrder ? 'İş Emrini Düzenle' : 'Yeni İş Emri'}
             </h2>
 
@@ -1693,7 +1693,7 @@ export default function WorkOrders() {
         {activeTab === 'list' && (
           <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden">
             <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs">
+              <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-semibold uppercase tracking-wider text-xs">
                 <tr>
                   <th className="px-6 py-4">Servis Kaydı</th>
                   <th className="px-6 py-4">Teknisyen</th>
@@ -1761,7 +1761,7 @@ export default function WorkOrders() {
         {/* --- YARI MAMUL ÜRETİMİ --- */}
         {activeTab === 'production' && (
           <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-sm">
-            <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2 mb-2">
+            <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2 mb-2">
               <Factory size={20} className="text-orange-400" /> Yarı Mamul Üretimi
             </h2>
             <p className="text-slate-400 text-sm mb-6">Hammadde/parça tüketerek yeni bir parça stoku oluşturun. Seçilen lokasyondaki hammaddeler otomatik düşülür, üretilen parçanın stoku artırılır.</p>
@@ -1926,7 +1926,7 @@ export default function WorkOrders() {
         {/* --- HIZLI TEKRAR ÜRETİM --- */}
         {activeTab === 'recent_productions' && (
           <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300 flex flex-col h-full overflow-hidden">
-            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-2 flex items-center gap-2 shrink-0">
+            <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-2 flex items-center gap-2 shrink-0">
               <Repeat size={20} className="text-blue-400" /> Hızlı Tekrar Üretim (BOM)
             </h3>
             <p className="text-slate-400 text-sm mb-6 shrink-0">
@@ -1945,7 +1945,7 @@ export default function WorkOrders() {
 
             <div className="max-h-[480px] overflow-y-auto border border-slate-200 dark:border-slate-700/50 rounded-2xl">
               <table className="w-full text-left text-sm">
-                <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs sticky top-0 z-10">
+                <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-semibold uppercase tracking-wider text-xs sticky top-0 z-10">
                   <tr>
                     <th className="px-6 py-4">Üretilecek Parça Kodu</th>
                     <th className="px-6 py-4">Üretilecek Parça Adı</th>
@@ -2083,14 +2083,14 @@ export default function WorkOrders() {
         {activeTab === 'consumption' && (
           <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden">
             <div className="p-6 pb-4">
-              <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+              <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                 <Package size={20} className="text-purple-400" /> Malzeme Tüketimi
               </h2>
               <p className="text-slate-400 text-sm mt-1">Üretimde tüketilen malzemelerin toplu raporu (tüm üretim kayıtlarından derlenir).</p>
             </div>
             <div className="max-h-[480px] overflow-y-auto">
               <table className="w-full text-left text-sm">
-                <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs sticky top-0 z-10">
+                <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-semibold uppercase tracking-wider text-xs sticky top-0 z-10">
                   <tr>
                     <th className="px-6 py-4">Parça</th>
                     <th className="px-6 py-4">Ürün Kodu</th>
@@ -2148,14 +2148,14 @@ export default function WorkOrders() {
         {activeTab === 'production_report' && (
           <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden">
             <div className="p-6 pb-4">
-              <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+              <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                 <TrendingUp size={20} className="text-emerald-400" /> Üretim Raporu
               </h2>
               <p className="text-slate-400 text-sm mt-1">Geçmişte yapılan tüm yarı mamul üretimlerinin raporu.</p>
             </div>
             <div className="max-h-[480px] overflow-y-auto">
               <table className="w-full text-left text-sm">
-                <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs sticky top-0 z-10">
+                <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-semibold uppercase tracking-wider text-xs sticky top-0 z-10">
                   <tr>
                     <th className="px-6 py-4">ÜRETİM BARKODU</th>
                     <th className="px-6 py-4">ÜRETİLEN PARÇA</th>
@@ -2277,7 +2277,7 @@ export default function WorkOrders() {
           <div className="space-y-6">
             <div className="flex justify-between items-center">
               <div>
-                <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                   <Layers size={20} className="text-teal-400" /> Üretim İş Emirleri
                 </h2>
                 <p className="text-slate-400 text-sm mt-1">Bir reçeteye bağlı yarı mamul üretim iş emirleri. Servis kaydı gerektirmez.</p>
@@ -2293,7 +2293,7 @@ export default function WorkOrders() {
             {showProductionWOForm && (
               <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-sm">
                 <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Yeni Üretim İş Emri</h3>
+                  <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Yeni Üretim İş Emri</h3>
                   <button onClick={() => setShowProductionWOForm(false)} className="p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-[#2a3142] rounded-lg transition-colors">
                     <X size={18} />
                   </button>
@@ -2358,7 +2358,7 @@ export default function WorkOrders() {
             <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden flex flex-col">
               <div className="overflow-y-auto max-h-[480px]">
                 <table className="w-full text-left text-sm whitespace-nowrap">
-                  <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs sticky top-0 z-10">
+                  <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-semibold uppercase tracking-wider text-xs sticky top-0 z-10">
                     <tr>
                     <th className="px-6 py-4">Üretim Barkodu</th>
                     <th className="px-6 py-4">Üretilecek Parça</th>
@@ -2570,7 +2570,7 @@ export default function WorkOrders() {
             onClick={e => e.stopPropagation()}
           >
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Malzeme Teslim Et</h3>
+              <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Malzeme Teslim Et</h3>
               <button onClick={() => setIssueDialog(null)} className="p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-[#2a3142] rounded-lg transition-colors">
                 <X size={18} />
               </button>
@@ -2626,7 +2626,7 @@ export default function WorkOrders() {
             onClick={e => e.stopPropagation()}
           >
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Üretimi Tamamla</h3>
+              <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Üretimi Tamamla</h3>
               <button onClick={() => setCompleteDialog(null)} className="p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-[#2a3142] rounded-lg transition-colors">
                 <X size={18} />
               </button>
@@ -2679,7 +2679,7 @@ export default function WorkOrders() {
         <div className="fixed inset-0 bg-slate-900/80 flex items-center justify-center z-50 animate-in fade-in duration-200" style={{ overflowY: 'auto' }}>
           <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 shadow-2xl rounded-2xl w-full max-w-lg p-6 animate-in zoom-in-95 duration-200 my-8">
             <div className="flex justify-between items-center mb-2">
-              <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+              <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                 <RotateCcw className="text-amber-500" size={22} /> İade / Değişim İşlemi
               </h3>
               <button onClick={() => setReturnDialog(null)} className="p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-[#2a3142] rounded-lg transition-colors">
@@ -2820,7 +2820,7 @@ export default function WorkOrders() {
         <div className="fixed inset-0 bg-slate-900/80 flex items-center justify-center z-50 animate-in fade-in duration-200">
           <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 shadow-2xl rounded-2xl w-full max-w-lg p-6 animate-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+              <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                 <Info className="text-blue-500" size={22} /> Cihaz Detay Bilgisi
               </h3>
               <button onClick={() => setDetailDialog(null)} className="p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-[#2a3142] rounded-lg transition-colors">
@@ -2966,7 +2966,7 @@ export default function WorkOrders() {
             onClick={e => e.stopPropagation()}
           >
             <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 flex justify-between items-center bg-slate-50 dark:bg-[#242a38]">
-              <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+              <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                 <Zap className="text-orange-500" size={20} /> Hızlı Üretim Onayı
               </h3>
               <button onClick={() => !quickProduceSaving && handleCloseQuickProduceDialog()} className="p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-[#2a3142] rounded-lg transition-colors">
@@ -3085,7 +3085,7 @@ export default function WorkOrders() {
             onClick={e => e.stopPropagation()}
           >
             <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 flex justify-between items-center bg-slate-50 dark:bg-[#242a38]">
-              <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+              <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                 <PlusCircle className="text-indigo-500" size={20} /> Ekstra Parça Çıkışı Yap
               </h3>
               <button onClick={() => !extraPartSaving && setExtraPartDialog(null)} className="p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-[#2a3142] rounded-lg transition-colors">
@@ -3181,7 +3181,7 @@ export default function WorkOrders() {
             onClick={e => e.stopPropagation()}
           >
             <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 flex justify-between items-center bg-slate-50 dark:bg-[#242a38]">
-              <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+              <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                 <ArrowDownToLine className="text-teal-500" size={20} /> Ekstra Parça Girişi Yap
               </h3>
               <button onClick={() => !extraPartInSaving && setExtraPartInDialog(null)} className="p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-[#2a3142] rounded-lg transition-colors">
@@ -3272,7 +3272,7 @@ export default function WorkOrders() {
             onClick={e => e.stopPropagation()}
           >
             <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 flex justify-between items-center bg-slate-50 dark:bg-[#242a38]">
-              <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+              <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                 <RotateCcw className="text-orange-500" size={20} /> DOA Stoğa Geri Al
               </h3>
               <button onClick={() => !returnDoaSaving && setReturnDoaDialog(null)} className="p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-[#2a3142] rounded-lg transition-colors">
@@ -3367,7 +3367,7 @@ export default function WorkOrders() {
           <div className="bg-white dark:bg-[#1e2330] rounded-2xl w-full max-w-sm shadow-2xl border border-slate-200 dark:border-slate-700/50 overflow-hidden print:shadow-none print:border-none print:dark:bg-white">
             
             <div className="flex justify-between items-center p-5 border-b border-slate-200 dark:border-slate-700/50 bg-slate-50 dark:bg-[#242a38] print:hidden">
-              <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+              <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                 <Printer size={20} className="text-blue-500" />
                 {printBarcodeDialog.title || 'Barkod Yazdır'}
               </h3>
@@ -3379,7 +3379,7 @@ export default function WorkOrders() {
             {/* The Print Area */}
             <div className="p-8 flex flex-col items-center justify-center print:p-0 print:h-screen print:w-screen print:flex print:flex-col print:items-center print:justify-center">
               <div className="text-center mb-4 print:mb-2">
-                <h2 className="text-lg font-bold text-slate-800 print:text-black">{printBarcodeDialog.title || 'İş Emri'}</h2>
+                <h2 className="text-lg font-semibold text-slate-800 print:text-black">{printBarcodeDialog.title || 'İş Emri'}</h2>
                 <p className="text-sm text-slate-500 print:text-gray-700 font-medium">
                   {printBarcodeDialog.target_part_name || '-'}
                 </p>

@@ -258,7 +258,7 @@ export default function Raporlar() {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-pink-500/20 border border-pink-400/30 text-pink-300 text-xs font-semibold tracking-wide">
               <Download size={13} className="text-pink-400" /> RAPORLAMA VE ANALİZ MODÜLÜ
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0D1B3E] dark:text-white">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#0D1B3E] dark:text-white">
               Sistem Raporları
             </h1>
             <p className="text-sm text-[#475569] dark:text-slate-300 leading-relaxed">
@@ -330,7 +330,7 @@ export default function Raporlar() {
         <div className="bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#1E293B] rounded-2xl shadow-md flex-1 flex flex-col overflow-hidden">
             <div className="overflow-x-auto w-full">
               <table className="w-full text-left text-xs whitespace-nowrap">
-                <thead className="bg-[#F8FAFC] dark:bg-[#162032] text-[#64748B] dark:text-[#94A3B8] font-bold uppercase tracking-wider border-b border-[#E2E8F0] dark:border-[#1E293B] sticky top-0 z-10">
+                <thead className="bg-[#F8FAFC] dark:bg-[#162032] text-[#64748B] dark:text-[#94A3B8] font-semibold uppercase tracking-wider border-b border-[#E2E8F0] dark:border-[#1E293B] sticky top-0 z-10">
                   <tr>
                     <th className="px-6 py-4 w-12 text-center">
                       <input 
@@ -382,9 +382,9 @@ export default function Raporlar() {
                             {r.item_code}
                           </span>
                         </td>
-                        <td className="px-6 py-3.5 font-bold text-[#0F172A] dark:text-[#FAFAFA]">{r.part_name}</td>
+                        <td className="px-6 py-3.5 font-semibold text-[#0F172A] dark:text-[#FAFAFA]">{r.part_name}</td>
                         <td className="px-6 py-3.5">{r.location_name}</td>
-                        <td className="px-6 py-3.5 font-mono font-bold text-sm">{r.quantity}</td>
+                        <td className="px-6 py-3.5 font-mono font-semibold text-sm">{r.quantity}</td>
                         <td className="px-6 py-3.5">
                           <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${
                             isCritical ? 'bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400 border-red-200 dark:border-red-500/30' : 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30'
@@ -431,7 +431,7 @@ export default function Raporlar() {
         <div className="bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#1E293B] rounded-2xl shadow-md flex-1 flex flex-col overflow-hidden">
           <div className="overflow-x-auto w-full">
             <table className="w-full text-left text-xs whitespace-nowrap">
-              <thead className="bg-[#F8FAFC] dark:bg-[#162032] text-[#64748B] dark:text-[#94A3B8] font-bold uppercase tracking-wider border-b border-[#E2E8F0] dark:border-[#1E293B] sticky top-0 z-10">
+              <thead className="bg-[#F8FAFC] dark:bg-[#162032] text-[#64748B] dark:text-[#94A3B8] font-semibold uppercase tracking-wider border-b border-[#E2E8F0] dark:border-[#1E293B] sticky top-0 z-10">
                 <tr>
                   <th className="px-6 py-4 w-12 text-center">
                     <input 
@@ -481,9 +481,9 @@ export default function Raporlar() {
                           {r.item_code}
                         </span>
                       </td>
-                      <td className="px-6 py-3.5 font-bold text-[#0F172A] dark:text-[#FAFAFA]">{r.part_name}</td>
+                      <td className="px-6 py-3.5 font-semibold text-[#0F172A] dark:text-[#FAFAFA]">{r.part_name}</td>
                       <td className="px-6 py-3.5">{r.location_name}</td>
-                      <td className="px-6 py-3.5 font-mono font-bold text-sm text-red-400">{r.quantity}</td>
+                      <td className="px-6 py-3.5 font-mono font-semibold text-sm text-red-400">{r.quantity}</td>
                       <td className="px-6 py-3.5 font-mono text-[#64748B] dark:text-[#94A3B8]">{r.critical_limit}</td>
                       <td className="px-6 py-3.5">
                         <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-500/30 flex items-center gap-1.5 w-fit">
@@ -575,7 +575,7 @@ export default function Raporlar() {
           <div className="bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#1E293B] rounded-2xl shadow-md flex-1 flex flex-col overflow-hidden">
             <div className="overflow-x-auto w-full">
               <table className="w-full text-left text-xs whitespace-nowrap">
-                <thead className="bg-[#F8FAFC] dark:bg-[#162032] text-[#64748B] dark:text-[#94A3B8] font-bold uppercase tracking-wider border-b border-[#E2E8F0] dark:border-[#1E293B] sticky top-0 z-10">
+                <thead className="bg-[#F8FAFC] dark:bg-[#162032] text-[#64748B] dark:text-[#94A3B8] font-semibold uppercase tracking-wider border-b border-[#E2E8F0] dark:border-[#1E293B] sticky top-0 z-10">
                   <tr>
                     <th className="px-6 py-4 w-12 text-center">
                       <input 
@@ -630,8 +630,8 @@ export default function Raporlar() {
                             {r.item_code}
                           </span>
                         </td>
-                        <td className="px-6 py-3.5 font-bold text-[#0F172A] dark:text-[#FAFAFA]">{r.part_name}</td>
-                        <td className={`px-6 py-3.5 font-mono font-bold text-sm ${isOut ? 'text-red-400' : (isIn ? 'text-emerald-400' : 'text-blue-400')}`}>
+                        <td className="px-6 py-3.5 font-semibold text-[#0F172A] dark:text-[#FAFAFA]">{r.part_name}</td>
+                        <td className={`px-6 py-3.5 font-mono font-semibold text-sm ${isOut ? 'text-red-400' : (isIn ? 'text-emerald-400' : 'text-blue-400')}`}>
                           {isOut ? '-' : (isIn ? '+' : '')}{r.quantity}
                         </td>
                         <td className="px-6 py-3.5">{r.source_location || '-'}</td>
@@ -678,7 +678,7 @@ export default function Raporlar() {
       {isExportModalOpen && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center z-50 p-4">
           <div className="bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#1E293B] shadow-2xl rounded-2xl w-full max-w-sm p-6 text-[#0F172A] dark:text-[#FAFAFA]">
-            <h2 className="text-lg font-bold text-[#0F172A] dark:text-[#FAFAFA] mb-2">Excel Sütun Seçimi</h2>
+            <h2 className="text-lg font-semibold text-[#0F172A] dark:text-[#FAFAFA] mb-2">Excel Sütun Seçimi</h2>
             <p className="text-xs text-[#64748B] dark:text-[#94A3B8] mb-4">Dışa aktarılacak raporda yer almasını istediğiniz sütunları işaretleyin.</p>
             
             <div className="space-y-3 mb-6 max-h-60 overflow-y-auto pr-2">
@@ -713,7 +713,7 @@ export default function Raporlar() {
               <button 
                 onClick={executeExport}
                 disabled={!Object.values(activeTab === 'stok' ? selectedStockCols : (activeTab === 'transfers' ? selectedTransferCols : selectedCriticalCols)).some(Boolean)}
-                className="px-4 py-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer disabled:opacity-50"
+                className="px-4 py-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-xl text-xs font-semibold transition-all shadow-md cursor-pointer disabled:opacity-50"
               >
                 Dışa Aktar
               </button>

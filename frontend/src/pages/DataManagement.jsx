@@ -236,7 +236,7 @@ export default function DataManagement() {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 dark:bg-blue-500/20 border border-blue-500/25 dark:border-blue-400/30 text-[#1D4ED8] dark:text-blue-300 text-xs font-semibold tracking-wide">
               <Database size={13} className="text-blue-400" /> VERİ TABANI VE EXCEL YÖNETİMİ
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0D1B3E] dark:text-white">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#0D1B3E] dark:text-white">
               Veri Yönetimi & İçe / Dışa Aktarım
             </h1>
             <p className="text-sm text-[#475569] dark:text-slate-300 leading-relaxed">
@@ -361,7 +361,7 @@ export default function DataManagement() {
                 <div className="bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden shadow-sm">
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm whitespace-nowrap">
-                      <thead className="bg-white dark:bg-[#1e2330] text-slate-400 font-medium uppercase tracking-wider text-[11px]">
+                      <thead className="bg-white dark:bg-[#1e2330] text-slate-400 font-semibold uppercase tracking-wider text-[11px]">
                         <tr>
                           {selectedColumns.map(col => (
                             <th key={col} className="px-4 py-3">{selectedTable.friendlyNames[col] || col}</th>

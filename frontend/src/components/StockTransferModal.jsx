@@ -190,7 +190,7 @@ export default function StockTransferModal({ isOpen, onClose, onTransfer, locati
         
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 flex justify-between items-center bg-slate-50 dark:bg-[#242a38] rounded-t-2xl">
-          <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+          <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
             <ArrowRightLeft size={20} className="text-yellow-500"/> Stok Transferi
           </h2>
           <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors bg-white dark:bg-[#1e2330] p-1.5 rounded-lg border border-slate-200 dark:border-slate-700">

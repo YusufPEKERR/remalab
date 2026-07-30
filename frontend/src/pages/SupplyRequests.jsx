@@ -81,7 +81,7 @@ export default function SupplyRequests() {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-100 dark:bg-amber-500/20 border border-amber-200 dark:border-amber-400/30 text-amber-700 dark:text-amber-300 text-xs font-semibold tracking-wide">
               <PackageSearch size={13} className="text-amber-400" /> DEPO PARÇA TEDARİK İSTEKLERİ
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0D1B3E] dark:text-white">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#0D1B3E] dark:text-white">
               Tedarik İstekleri Paneli
             </h1>
             <p className="text-sm text-[#475569] dark:text-slate-300 leading-relaxed">
@@ -94,7 +94,7 @@ export default function SupplyRequests() {
       <div className="flex-1 space-y-6">
         <div className="bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#1E293B] rounded-2xl shadow-md overflow-hidden">
           <table className="w-full text-left text-xs whitespace-nowrap">
-            <thead className="bg-[#F8FAFC] dark:bg-[#162032] text-[#64748B] dark:text-[#94A3B8] font-bold uppercase tracking-wider border-b border-[#E2E8F0] dark:border-[#1E293B] sticky top-0 z-10 select-none">
+            <thead className="bg-[#F8FAFC] dark:bg-[#162032] text-[#64748B] dark:text-[#94A3B8] font-semibold uppercase tracking-wider border-b border-[#E2E8F0] dark:border-[#1E293B] sticky top-0 z-10 select-none">
               <tr>
                 <th className="px-6 py-4">Müşteri / Cihaz</th>
                 <th className="px-6 py-4">Parça</th>

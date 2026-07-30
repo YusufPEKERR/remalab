@@ -338,7 +338,7 @@ export default function MainLayout() {
                   className="w-full flex items-center justify-between px-3 py-2 mb-1.5 rounded-lg group outline-none transition-colors fast-transition hover:bg-[#EEF2F7]/80 dark:hover:bg-[#1C2541]/80"
                 >
                   <h3 
-                    className="text-[11px] font-extrabold uppercase tracking-widest transition-colors"
+                    className="text-[11px] font-semibold uppercase tracking-widest transition-colors"
                     style={{ color: groupColor }}
                   >
                     {group.title}
@@ -363,7 +363,7 @@ export default function MainLayout() {
                             href={item.path}
                             className={`flex items-center gap-3.5 px-3.5 py-3 rounded-xl text-sm font-bold transition-all fast-transition group relative ${
                               isActive 
-                                ? 'bg-[#EEF2F7] dark:bg-[#1C2541] text-[#0F172A] dark:text-white shadow-md border-l-4 font-extrabold'
+                                ? 'bg-[#EEF2F7] dark:bg-[#1C2541] text-[#0F172A] dark:text-white shadow-md border-l-4 font-bold'
                                 : 'text-[#475569] dark:text-[#CBD5E1] hover:text-[#0F172A] dark:hover:text-white hover:bg-[#EEF2F7]/60 dark:hover:bg-[#1C2541]/60'
                             }`}
                             style={{
@@ -465,7 +465,7 @@ export default function MainLayout() {
                 <div className="absolute right-0 mt-3 w-[calc(100vw-32px)] sm:w-[360px] bg-[#FFFFFF] dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155] shadow-2xl rounded-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 text-[#0F172A] dark:text-[#FAFAFA]">
                   <div className="p-4 border-b border-[#E2E8F0] dark:border-[#334155] bg-[#F1F5F9]/70 dark:bg-[#070E20]/70 flex flex-col gap-2">
                     <div className="flex items-center justify-between">
-                      <h3 className="font-bold text-[#0F172A] dark:text-[#FAFAFA]">Kritik Stok Bildirimleri</h3>
+                      <h3 className="font-semibold text-[#0F172A] dark:text-[#FAFAFA]">Kritik Stok Bildirimleri</h3>
                       {notifications.length > 0 && (
                         <div className="flex items-center gap-2">
                           <span className="bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400 text-xs font-bold px-2 py-0.5 rounded-md">{notifications.length} Uyarı</span>

@@ -152,7 +152,7 @@ const ServiceTransition = () => {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-100 dark:bg-amber-500/20 border border-amber-200 dark:border-amber-400/30 text-amber-700 dark:text-amber-300 text-xs font-semibold tracking-wide">
               <ScanLine size={13} className="text-amber-400" /> STATÜ GEÇİŞ İŞLEMLERİ
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0D1B3E] dark:text-white">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#0D1B3E] dark:text-white">
               Yedek Parça & Statü Geçiş İşlemleri
             </h1>
             <p className="text-sm text-[#475569] dark:text-slate-300 leading-relaxed">
@@ -178,7 +178,7 @@ const ServiceTransition = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-40 text-white px-8 py-3 rounded-xl transition-all shadow-md font-bold text-xs cursor-pointer whitespace-nowrap flex items-center justify-center gap-2"
+                className="bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-40 text-white px-8 py-3 rounded-xl transition-all shadow-md font-semibold text-xs cursor-pointer whitespace-nowrap flex items-center justify-center gap-2"
               >
                 <ScanLine size={16} /> {loading ? "Sorgulanıyor..." : "Sorgula"}
               </button>
@@ -191,7 +191,7 @@ const ServiceTransition = () => {
         <div className="bg-[#F8FAFC] dark:bg-[#0F172A] p-6 rounded-2xl border border-[#E2E8F0] dark:border-[#1E293B] shadow-md space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#E2E8F0] dark:border-[#1E293B] pb-4">
             <div>
-              <h3 className="text-base font-bold text-[#0F172A] dark:text-[#FAFAFA]">
+              <h3 className="text-base font-semibold text-[#0F172A] dark:text-[#FAFAFA]">
                 Cihaz: <span className="font-mono text-[#60A5FA]">{deviceInfo.imei}</span> {deviceInfo.model && <span className="text-[#64748B] dark:text-[#94A3B8]">({deviceInfo.model})</span>}
               </h3>
             </div>
@@ -216,7 +216,7 @@ const ServiceTransition = () => {
                       : "bg-red-600/90 hover:bg-red-600 border-red-500/40"
                   }`}
                 >
-                  <span className="flex items-center gap-1.5 font-extrabold text-sm">
+                  <span className="flex items-center gap-1.5 font-bold text-sm">
                     {t.target_statu_name} <ArrowRight size={15} />
                   </span>
                   <span className="text-[11px] opacity-80 font-mono">Hedef Statü Kodu: {t.target_statu_code}</span>

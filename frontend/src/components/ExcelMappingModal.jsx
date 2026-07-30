@@ -136,7 +136,7 @@ export default function ExcelMappingModal({
         
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 flex justify-between items-center bg-slate-50 dark:bg-[#242a38]">
-          <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+          <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
             <FileSpreadsheet size={20} className="text-green-500" />
             Excel İçe Aktarma ve Eşleştirme
           </h2>
@@ -181,8 +181,8 @@ export default function ExcelMappingModal({
                   <table className="w-full text-left text-sm">
                     <thead className="bg-slate-800/50 text-slate-400 border-b border-slate-200 dark:border-slate-700/50">
                       <tr>
-                        <th className="px-4 py-3 font-medium">Veritabanı Alanı</th>
-                        <th className="px-4 py-3 font-medium">Excel'deki Karşılığı</th>
+                        <th className="px-4 py-3 font-semibold">Veritabanı Alanı</th>
+                        <th className="px-4 py-3 font-semibold">Excel'deki Karşılığı</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-700/50">
@@ -221,7 +221,7 @@ export default function ExcelMappingModal({
                     <thead className="bg-slate-800/50 text-slate-400 border-b border-slate-200 dark:border-slate-700/50">
                       <tr>
                         {excelColumns.map(col => (
-                          <th key={col} className="px-4 py-3 font-medium">{col}</th>
+                          <th key={col} className="px-4 py-3 font-semibold">{col}</th>
                         ))}
                       </tr>
                     </thead>

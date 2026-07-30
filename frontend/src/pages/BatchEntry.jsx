@@ -750,7 +750,7 @@ export default function BatchEntry() {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-100 dark:bg-amber-500/20 border border-amber-200 dark:border-amber-400/30 text-amber-700 dark:text-amber-300 text-xs font-semibold tracking-wide">
               <Layers size={13} className="text-amber-400" /> TOPLU CİHAZ VE GİRİŞ KONTROL
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0D1B3E] dark:text-white">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#0D1B3E] dark:text-white">
               Batch Girişi Yönetimi
             </h1>
             <p className="text-sm text-[#475569] dark:text-slate-300 leading-relaxed">
@@ -921,7 +921,7 @@ export default function BatchEntry() {
         {/* Table */}
         <div className="overflow-auto flex-1">
           <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs sticky top-0 z-10">
+            <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-semibold uppercase tracking-wider text-xs sticky top-0 z-10">
               <tr>
                 <th className="px-4 py-4 text-center w-10">
                   <input
@@ -962,8 +962,8 @@ export default function BatchEntry() {
                     </td>
                     <td className="px-6 py-4 text-xs font-mono">{rec.document_date || '-'}</td>
                     <td className="px-6 py-4 font-semibold text-blue-400">{rec.document_number || rec.batch_no || '-'}</td>
-                    <td className="px-6 py-4 font-bold text-slate-800 dark:text-slate-100">{rec.customer_name || rec.account_name || '-'}</td>
-                    <td className="px-6 py-4 text-right font-mono font-bold text-slate-700 dark:text-slate-300">{rec.item_quantity || 0}</td>
+                    <td className="px-6 py-4 font-semibold text-slate-800 dark:text-slate-100">{rec.customer_name || rec.account_name || '-'}</td>
+                    <td className="px-6 py-4 text-right font-mono font-semibold text-slate-700 dark:text-slate-300">{rec.item_quantity || 0}</td>
                     <td className="px-6 py-4 text-xs">
                       <span className="text-slate-400">{rec.currency}</span>
                     </td>
@@ -1050,7 +1050,7 @@ export default function BatchEntry() {
           <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-4xl max-h-[92vh] overflow-hidden flex flex-col">
             {/* Modal Header */}
             <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center bg-white dark:bg-[#1e2330]">
-              <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <h2 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
                 <FileSpreadsheet size={20} className="text-blue-500" />
                 {editingRecord ? 'Batch Kaydını Düzenle & Excel Ön İzleme' : 'Yeni Batch Girişi'}
               </h2>
@@ -1060,7 +1060,7 @@ export default function BatchEntry() {
                   <button
                     type="button"
                     onClick={handleDownloadTemplate}
-                    className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-md shadow-emerald-500/20 cursor-pointer"
+                    className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all shadow-md shadow-emerald-500/20 cursor-pointer"
                   >
                     <Download size={14} /> Excel Şablonu İndir
                   </button>
@@ -1397,7 +1397,7 @@ export default function BatchEntry() {
                     </div>
                     <div className="overflow-x-auto max-h-80">
                       <table className="w-full text-left text-xs whitespace-nowrap border-collapse">
-                        <thead className="bg-slate-200/80 dark:bg-[#242a38] text-slate-700 dark:text-slate-200 uppercase tracking-wider sticky top-0 font-bold border-b border-slate-300 dark:border-slate-700 text-[11px]">
+                        <thead className="bg-slate-200/80 dark:bg-[#242a38] text-slate-700 dark:text-slate-200 uppercase tracking-wider sticky top-0 font-semibold border-b border-slate-300 dark:border-slate-700 text-[11px]">
                           <tr>
                             <th className="px-3.5 py-2.5 text-center w-10">#</th>
                             <th className="px-3.5 py-2.5">Müşteri Adı</th>
@@ -1420,17 +1420,17 @@ export default function BatchEntry() {
                             const hasErr = rowErrors.length > 0;
                             return (
                               <tr key={idx} className={`hover:bg-slate-100 dark:hover:bg-[#202636] transition-colors ${hasErr ? 'bg-rose-500/10' : 'bg-white dark:bg-[#1e2330]'}`}>
-                                <td className="px-3.5 py-2.5 text-center font-bold text-slate-400 font-mono">{idx + 1}</td>
-                                <td className={`px-3.5 py-2.5 font-bold ${!row.customer_name ? 'text-rose-700 dark:text-rose-400 font-bold bg-rose-100 dark:bg-rose-500/20 px-2 py-1 rounded' : 'text-slate-800 dark:text-slate-100'}`}>
+                                <td className="px-3.5 py-2.5 text-center font-semibold text-slate-400 font-mono">{idx + 1}</td>
+                                <td className={`px-3.5 py-2.5 font-semibold ${!row.customer_name ? 'text-rose-700 dark:text-rose-400 font-semibold bg-rose-100 dark:bg-rose-500/20 px-2 py-1 rounded' : 'text-slate-800 dark:text-slate-100'}`}>
                                   {row.customer_name || '<BOŞ>'}
                                 </td>
-                                <td className={`px-3.5 py-2.5 font-mono font-medium ${row.imei_number && (row.imei_number.length !== 15 || !/^\d+$/.test(row.imei_number)) ? 'text-rose-700 dark:text-rose-400 font-bold bg-rose-100 dark:bg-rose-500/20 px-2 py-1 rounded' : 'text-slate-700 dark:text-slate-200'}`}>
+                                <td className={`px-3.5 py-2.5 font-mono font-medium ${row.imei_number && (row.imei_number.length !== 15 || !/^\d+$/.test(row.imei_number)) ? 'text-rose-700 dark:text-rose-400 font-semibold bg-rose-100 dark:bg-rose-500/20 px-2 py-1 rounded' : 'text-slate-700 dark:text-slate-200'}`}>
                                   {row.imei_number || '-'}
                                 </td>
                                 <td className="px-3.5 py-2.5 font-mono text-slate-700 dark:text-slate-300">{row.serial_number || '-'}</td>
                                 <td className="px-3.5 py-2.5 font-mono text-slate-700 dark:text-slate-300">{row.internal_id || '-'}</td>
                                 <td className="px-3.5 py-2.5 font-mono text-slate-700 dark:text-slate-300">{row.batch_no || '-'}</td>
-                                <td className="px-3.5 py-2.5 font-bold text-blue-500 dark:text-blue-400">{row.model || '-'}</td>
+                                <td className="px-3.5 py-2.5 font-semibold text-blue-500 dark:text-blue-400">{row.model || '-'}</td>
                                 <td className="px-3.5 py-2.5 text-slate-700 dark:text-slate-300">{row.gb || '-'}</td>
                                 <td className="px-3.5 py-2.5 text-slate-700 dark:text-slate-300">{row.color || '-'}</td>
                                 <td className="px-3.5 py-2.5 text-slate-700 dark:text-slate-300">{row.screen_test || '-'}</td>

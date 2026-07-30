@@ -86,7 +86,7 @@ export default function SupplyRequestForm() {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 dark:bg-blue-500/20 border border-blue-500/25 dark:border-blue-400/30 text-[#1D4ED8] dark:text-blue-300 text-xs font-semibold tracking-wide">
               <PackagePlus size={13} className="text-blue-400" /> YEDEK PARÇA TEDARİK TALEBİ
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0D1B3E] dark:text-white">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#0D1B3E] dark:text-white">
               Tedarik Talepleri Formu
             </h1>
             <p className="text-sm text-[#475569] dark:text-slate-300 leading-relaxed">
@@ -100,7 +100,7 @@ export default function SupplyRequestForm() {
 
         {/* Talep Formu */}
         <div className="bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#1E293B] rounded-2xl p-6 shadow-md">
-          <h2 className="text-base font-bold text-[#0D1B3E] dark:text-white mb-5">Yeni Talep Oluştur</h2>
+          <h2 className="text-base font-semibold text-[#0D1B3E] dark:text-white mb-5">Yeni Talep Oluştur</h2>
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div>
@@ -148,11 +148,11 @@ export default function SupplyRequestForm() {
         {/* Talepler */}
         <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden">
           <div className="p-6 pb-4">
-            <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">Talepler</h2>
+            <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Talepler</h2>
             <p className="text-slate-400 text-sm mt-1">Sizin oluşturduğunuz tedarik talepleri ve güncel durumları.</p>
           </div>
           <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs">
+            <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-semibold uppercase tracking-wider text-xs">
               <tr>
                 <th className="px-6 py-4">Müşteri / Cihaz</th>
                 <th className="px-6 py-4">Parça</th>

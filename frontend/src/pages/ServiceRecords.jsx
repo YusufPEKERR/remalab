@@ -248,7 +248,7 @@ export default function ServiceRecords() {
 
             <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden">
               <table className="w-full text-left text-sm">
-                <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs">
+                <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-semibold uppercase tracking-wider text-xs">
                   <tr>
                     <th className="px-6 py-4">Teknisyen</th>
                     <th className="px-6 py-4">Cihaz</th>
@@ -309,7 +309,7 @@ export default function ServiceRecords() {
           <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-xl animate-in fade-in slide-in-from-bottom-4">
             <div className="flex justify-between items-center mb-6 border-b border-slate-200 dark:border-slate-700/50 pb-4">
               <div>
-                  <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                  <h2 className="text-xl font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                     <Smartphone className="text-blue-500" /> Cihaz ve Onarım Detayları
                   </h2>
                   <p className="text-slate-400 text-sm mt-1">IMEI: {imeiSearchResult.imei_number}</p>
@@ -402,7 +402,7 @@ export default function ServiceRecords() {
         ) : (
           <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-xl animate-in fade-in slide-in-from-bottom-4">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+              <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                 {editingRecord ? 'Servis Kaydını Düzenle' : 'Yeni Servis Kaydı'}
               </h2>
               <button onClick={() => setShowForm(false)} className="text-slate-400 hover:text-white p-1">

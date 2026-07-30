@@ -369,7 +369,7 @@ export default function Suppliers() {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-100 dark:bg-indigo-500/20 border border-indigo-200 dark:border-indigo-400/30 text-indigo-700 dark:text-indigo-300 text-xs font-semibold tracking-wide">
               <Users size={13} className="text-indigo-400" /> MÜŞTERİ VE FİRMA YÖNETİMİ
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0D1B3E] dark:text-white">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#0D1B3E] dark:text-white">
               Müşteriler & Müşteri Kayıtları
             </h1>
             <p className="text-sm text-[#475569] dark:text-slate-300 leading-relaxed">
@@ -431,7 +431,7 @@ export default function Suppliers() {
       <div className="bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#1E293B] rounded-2xl shadow-md overflow-hidden flex flex-col">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs whitespace-nowrap">
-            <thead className="bg-[#F8FAFC] dark:bg-[#162032] text-[#64748B] dark:text-[#94A3B8] font-bold uppercase tracking-wider border-b border-[#E2E8F0] dark:border-[#1E293B] sticky top-0 z-10 select-none">
+            <thead className="bg-[#F8FAFC] dark:bg-[#162032] text-[#64748B] dark:text-[#94A3B8] font-semibold uppercase tracking-wider border-b border-[#E2E8F0] dark:border-[#1E293B] sticky top-0 z-10 select-none">
               <tr>
                 <th
                   className={`px-6 py-4 cursor-pointer transition-colors select-none ${sortField === 'customer_name' ? 'text-indigo-400 font-semibold' : 'hover:text-slate-200'}`}
@@ -558,7 +558,7 @@ export default function Suppliers() {
         <div className="fixed inset-0 bg-slate-50 dark:bg-[#0f1219]/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in duration-200">
             <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 flex justify-between items-center bg-slate-50 dark:bg-[#242a38]">
-              <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <Users size={20} className="text-indigo-400"/>
                 {currentCustomer ? 'Müşteri Düzenle' : 'Yeni Müşteri Ekle'}
               </h2>
@@ -648,7 +648,7 @@ export default function Suppliers() {
             onClick={e => e.stopPropagation()}
           >
             <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 flex justify-between items-center bg-slate-50 dark:bg-[#242a38]">
-              <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+              <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                 <FileSpreadsheet size={20} className="text-teal-500" /> Toplu Müşteri / Cihaz Girişi
               </h2>
               <button onClick={() => !bulkSaving && setShowBulkModal(false)} className="text-slate-400 hover:text-slate-900 dark:text-white transition-colors">
@@ -662,7 +662,7 @@ export default function Suppliers() {
                   <div className="w-14 h-14 rounded-full bg-emerald-500/10 flex items-center justify-center mb-4">
                     <Check className="text-emerald-500" size={28} />
                   </div>
-                  <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-1">İçe Aktarma Tamamlandı</h3>
+                  <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-1">İçe Aktarma Tamamlandı</h3>
                   <p className="text-sm text-slate-500 dark:text-slate-400">{bulkSuccess.imported} müşteri kaydı başarıyla eklendi.</p>
                 </div>
               ) : (

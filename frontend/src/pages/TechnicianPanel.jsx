@@ -66,7 +66,7 @@ const TechnicianPanel = () => {
 
   return (
     <div className="p-6">
-      <h2 className="text-2xl font-bold mb-6 text-gray-800 dark:text-white">Teknisyen Paneli (Üretim Merkezi)</h2>
+      <h2 className="text-2xl font-semibold mb-6 text-gray-800 dark:text-white">Teknisyen Paneli (Üretim Merkezi)</h2>
       
       <form onSubmit={handleSearch} className="mb-8 max-w-xl">
         <div className="flex gap-4">

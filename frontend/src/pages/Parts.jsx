@@ -383,7 +383,7 @@ export default function Parts() {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-100 dark:bg-indigo-500/20 border border-indigo-200 dark:border-indigo-400/30 text-indigo-700 dark:text-indigo-300 text-xs font-semibold tracking-wide">
               <Package size={13} className="text-indigo-400" /> ENVANTER VE PARÇA KARTLARI
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0D1B3E] dark:text-white">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#0D1B3E] dark:text-white">
               Stok Kartları (Parçalar)
             </h1>
             <p className="text-sm text-[#475569] dark:text-slate-300 leading-relaxed">
@@ -410,7 +410,7 @@ export default function Parts() {
             {selectedOnCurrentPage.length > 1 && (
               <button
                 onClick={handleBulkDelete}
-                className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+                className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2.5 rounded-xl text-xs font-semibold transition-all shadow-md cursor-pointer"
               >
                 <Trash2 size={16} /> Seçilenleri Sil ({selectedOnCurrentPage.length})
               </button>
@@ -446,7 +446,7 @@ export default function Parts() {
       <div className="bg-[#F8FAFC] dark:bg-[#0F172A] rounded-2xl border border-[#E2E8F0] dark:border-[#1E293B] shadow-md overflow-hidden flex flex-col">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs whitespace-nowrap">
-            <thead className="bg-[#F8FAFC] dark:bg-[#162032] text-[#64748B] dark:text-[#94A3B8] font-bold uppercase tracking-wider border-b border-[#E2E8F0] dark:border-[#1E293B] sticky top-0 z-10">
+            <thead className="bg-[#F8FAFC] dark:bg-[#162032] text-[#64748B] dark:text-[#94A3B8] font-semibold uppercase tracking-wider border-b border-[#E2E8F0] dark:border-[#1E293B] sticky top-0 z-10">
               <tr>
                 <th className="px-6 py-4 w-12 text-center">
                   <input
@@ -529,7 +529,7 @@ export default function Parts() {
                       />
                     </td>
                     <td className="px-6 py-3.5 font-mono text-[#64748B] dark:text-[#94A3B8] text-[11px]">{part.id}</td>
-                    <td className="px-6 py-3.5 font-bold text-[#0F172A] dark:text-[#FAFAFA]">
+                    <td className="px-6 py-3.5 font-semibold text-[#0F172A] dark:text-[#FAFAFA]">
                       <span className="px-2.5 py-1 rounded-md bg-blue-50 dark:bg-blue-950/70 text-[#1D4ED8] dark:text-[#60A5FA] border border-blue-200 dark:border-blue-800/60 font-mono font-bold text-[11px]">
                         {part.item_code}
                       </span>
@@ -605,7 +605,7 @@ export default function Parts() {
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-[99] p-4">
           <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 flex justify-between items-center">
-              <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 {currentPart ? 'Parçayı Düzenle' : 'Yeni Stok Kartı Ekle'}
               </h2>
               <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-900 dark:text-white">

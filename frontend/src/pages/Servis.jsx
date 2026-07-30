@@ -60,7 +60,7 @@ function DataTable({ columns, rows = [], rowKeys, emptyLabel = 'Kayıt bulunamad
   return (
     <div className="overflow-hidden border border-[#E2E8F0] dark:border-[#1E293B] rounded-xl bg-[#F8FAFC] dark:bg-[#0F172A]">
       <table className="w-full text-xs text-left whitespace-nowrap">
-        <thead className="bg-[#F8FAFC] dark:bg-[#162032] text-[#64748B] dark:text-[#94A3B8] font-bold uppercase tracking-wider border-b border-[#E2E8F0] dark:border-[#1E293B]">
+        <thead className="bg-[#F8FAFC] dark:bg-[#162032] text-[#64748B] dark:text-[#94A3B8] font-semibold uppercase tracking-wider border-b border-[#E2E8F0] dark:border-[#1E293B]">
           <tr>
             {columns.map((col) => (
               <th key={col} className="px-4 py-3 border-b border-[#E2E8F0] dark:border-[#1E293B]">
@@ -152,7 +152,7 @@ export default function Servis() {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-100 dark:bg-rose-500/20 border border-rose-200 dark:border-rose-400/30 text-rose-700 dark:text-rose-300 text-xs font-semibold tracking-wide">
               <Cpu size={13} className="text-rose-400" /> SERVİS VE CİHAZ YÖNETİMİ
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0D1B3E] dark:text-white">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#0D1B3E] dark:text-white">
               Servis Cihaz Sorgulama
             </h1>
             <p className="text-sm text-[#475569] dark:text-slate-300 leading-relaxed">
@@ -177,7 +177,7 @@ export default function Servis() {
             <button
               type="submit"
               disabled={!imei.trim() || loading}
-              className="px-6 py-3 bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-50 text-white rounded-xl text-sm font-bold shadow-md transition-all cursor-pointer inline-flex items-center gap-2"
+              className="px-6 py-3 bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-50 text-white rounded-xl text-sm font-semibold shadow-md transition-all cursor-pointer inline-flex items-center gap-2"
             >
               {loading ? <RefreshCw size={16} className="animate-spin" /> : <Search size={16} />}
               {loading ? 'Aranıyor...' : 'Cihazı Sorgula'}
@@ -231,7 +231,7 @@ export default function Servis() {
             <div className="h-full flex overflow-hidden">
               <InfoPanel fields={fields} />
               <div className="flex-1 overflow-auto p-6 space-y-4">
-                <h3 className="text-sm font-bold text-[#0F172A] dark:text-[#FAFAFA] flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-[#0F172A] dark:text-[#FAFAFA] flex items-center gap-2">
                   <ClipboardCheck size={16} className="text-[#60A5FA]" /> Statü Geçmişi Kayıtları
                 </h3>
                 <DataTable columns={HISTORY_COLUMNS} rowKeys={HISTORY_ROW_KEYS} rows={statusHistory} />
@@ -243,7 +243,7 @@ export default function Servis() {
               <div className="flex-1 overflow-y-auto p-6 space-y-6">
                 <div>
                   <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-bold text-[#0F172A] dark:text-[#FAFAFA] flex items-center gap-2">
+                    <h3 className="text-sm font-semibold text-[#0F172A] dark:text-[#FAFAFA] flex items-center gap-2">
                       <Download size={16} className="text-[#60A5FA]" /> PhoneCheck Cihaz Test Verisi
                     </h3>
                     <span className="text-xs font-semibold text-[#64748B] dark:text-[#94A3B8]">Toplam: {phonecheckRows.length} Kayıt</span>
@@ -253,7 +253,7 @@ export default function Servis() {
 
                 <div>
                   <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-bold text-[#0F172A] dark:text-[#FAFAFA]">Tespit Edilen Parçalar</h3>
+                    <h3 className="text-sm font-semibold text-[#0F172A] dark:text-[#FAFAFA]">Tespit Edilen Parçalar</h3>
                     <span className="text-xs font-semibold text-[#64748B] dark:text-[#94A3B8]">Toplam: {detectedParts.length} Kayıt</span>
                   </div>
                   <DataTable columns={DETECTED_PART_COLUMNS} rowKeys={DETECTED_PART_ROW_KEYS} rows={detectedParts} />
@@ -266,7 +266,7 @@ export default function Servis() {
               <div className="flex-1 overflow-y-auto p-6 space-y-6">
                 <div>
                   <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-bold text-[#0F172A] dark:text-[#FAFAFA]">Alt Onarımlar</h3>
+                    <h3 className="text-sm font-semibold text-[#0F172A] dark:text-[#FAFAFA]">Alt Onarımlar</h3>
                     <span className="text-xs font-semibold text-[#64748B] dark:text-[#94A3B8]">Toplam: {repairRecords.length} Kayıt</span>
                   </div>
                   <DataTable columns={SUB_REPAIR_COLUMNS} rowKeys={SUB_REPAIR_ROW_KEYS} rows={repairRecords} />
@@ -274,7 +274,7 @@ export default function Servis() {
 
                 <div>
                   <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-bold text-[#0F172A] dark:text-[#FAFAFA]">Onarım Parça ve İşçilikleri</h3>
+                    <h3 className="text-sm font-semibold text-[#0F172A] dark:text-[#FAFAFA]">Onarım Parça ve İşçilikleri</h3>
                     <span className="text-xs font-semibold text-[#64748B] dark:text-[#94A3B8]">Toplam: {repairRecords.length} Kayıt</span>
                   </div>
                   <DataTable columns={REPAIR_PARTS_COLUMNS} rowKeys={REPAIR_PARTS_ROW_KEYS} rows={repairRecords} />

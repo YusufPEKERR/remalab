@@ -122,7 +122,7 @@ export default function StatuKontrol() {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-100 dark:bg-amber-500/20 border border-amber-200 dark:border-amber-400/30 text-amber-700 dark:text-amber-300 text-xs font-semibold tracking-wide">
               <Zap size={13} className="text-amber-400" /> MANUEL İDARİ STATÜ MÜDAHALESİ
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0D1B3E] dark:text-white">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#0D1B3E] dark:text-white">
               Statü Kontrol & Doğrudan Statü Değişimi
             </h1>
             <p className="text-sm text-[#475569] dark:text-slate-300 leading-relaxed">
@@ -152,7 +152,7 @@ export default function StatuKontrol() {
             <button
               type="submit"
               disabled={loading || !term.trim()}
-              className="bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-40 text-white px-8 py-3 rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer shrink-0"
+              className="bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-40 text-white px-8 py-3 rounded-xl text-xs font-semibold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer shrink-0"
             >
               <Search size={15} /> {loading ? "Sorgulanıyor..." : "Sorgula"}
             </button>
@@ -165,7 +165,7 @@ export default function StatuKontrol() {
         <div className="bg-[#F8FAFC] dark:bg-[#0F172A] p-6 rounded-2xl border border-[#E2E8F0] dark:border-[#1E293B] shadow-md space-y-6">
           <div className="flex items-center justify-between flex-wrap gap-4 p-4 rounded-xl bg-[#F8FAFC] dark:bg-[#162032] border border-[#E2E8F0] dark:border-[#1E293B]">
             <div>
-              <h3 className="text-base font-extrabold text-[#0F172A] dark:text-[#FAFAFA] font-mono tracking-wide">
+              <h3 className="text-base font-semibold text-[#0F172A] dark:text-[#FAFAFA] font-mono tracking-wide">
                 {device.imei_number}
               </h3>
               <p className="text-xs text-[#64748B] dark:text-[#94A3B8] mt-1 font-medium">
@@ -196,7 +196,7 @@ export default function StatuKontrol() {
             <button
               onClick={handleApply}
               disabled={applying || !targetCode || Number(targetCode) === device.statu_code}
-              className="w-full md:w-auto bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed text-white px-8 py-3 rounded-xl transition-all shadow-md text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shrink-0"
+              className="w-full md:w-auto bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed text-white px-8 py-3 rounded-xl transition-all shadow-md text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer shrink-0"
             >
               {device.statu_code} <ArrowRight size={15} /> {targetCode || "?"} {applying ? "Uygulanıyor..." : "Statüyü Uygula"}
             </button>

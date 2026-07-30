@@ -109,7 +109,7 @@ const CustomerApprovalDecision = () => {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-100 dark:bg-purple-500/20 border border-purple-200 dark:border-purple-400/30 text-purple-700 dark:text-purple-300 text-xs font-semibold tracking-wide">
               <ScanLine size={13} className="text-purple-400" /> MÜŞTERİ ONAY KARARLARI
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0D1B3E] dark:text-white">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#0D1B3E] dark:text-white">
               Müşteri Onayı Bekleyen Cihazlar
             </h1>
             <p className="text-sm text-[#475569] dark:text-slate-300 leading-relaxed">
@@ -120,7 +120,7 @@ const CustomerApprovalDecision = () => {
           <button
             onClick={loadItems}
             disabled={loading}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#FFFFFF] dark:bg-[#1E293B] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] text-[#0F172A] dark:text-[#FAFAFA] border border-[#E2E8F0] dark:border-[#334155] text-xs font-bold transition-all cursor-pointer disabled:opacity-40 shrink-0"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#FFFFFF] dark:bg-[#1E293B] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] text-[#0F172A] dark:text-[#FAFAFA] border border-[#E2E8F0] dark:border-[#334155] text-xs font-semibold transition-all cursor-pointer disabled:opacity-40 shrink-0"
           >
             <RefreshCw size={15} className={loading ? "animate-spin" : ""} /> Yenile
           </button>

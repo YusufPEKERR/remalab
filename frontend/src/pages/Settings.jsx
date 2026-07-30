@@ -127,7 +127,7 @@ export default function Settings() {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 dark:bg-blue-500/20 border border-blue-500/25 dark:border-blue-400/30 text-[#1D4ED8] dark:text-blue-300 text-xs font-semibold tracking-wide">
               <SettingsIcon size={13} className="text-blue-400" /> SİSTEM YAPILANDIRMASI
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0D1B3E] dark:text-white">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#0D1B3E] dark:text-white">
               Sistem Ayarları
             </h1>
             <p className="text-sm text-[#475569] dark:text-slate-300 leading-relaxed">
@@ -288,7 +288,7 @@ export default function Settings() {
               // DB FORM
               <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-xl animate-in fade-in slide-in-from-bottom-4">
                 <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                     {editingDb ? 'Bağlantıyı Düzenle' : 'Yeni Bağlantı Ekle'}
                   </h2>
                   <button onClick={() => setShowDbForm(false)} className="text-slate-400 hover:text-slate-900 dark:text-white p-1">

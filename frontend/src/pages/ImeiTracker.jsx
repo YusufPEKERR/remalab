@@ -404,7 +404,7 @@ export default function ImeiTracker() {
       {workOrderId && !repairData && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 shrink-0">
           <div className="bg-white dark:bg-[#1e2330] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm flex flex-col gap-4">
-            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+            <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
               <Plus className="text-emerald-500" size={20} /> Parça İhtiyacı Ekle
             </h3>
             <p className="text-sm text-slate-500">Cihaz için gerekli olan yeni bir yedek parça talebi oluşturun.</p>
@@ -441,7 +441,7 @@ export default function ImeiTracker() {
           </div>
 
           <div className="bg-white dark:bg-[#1e2330] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm flex flex-col gap-4">
-            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+            <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
               <Package className="text-blue-500" size={20} /> Depodan Parça Çıkışı Yap
             </h3>
             <p className="text-sm text-slate-500">Talep edilen bir parçayı depodan düşerek cihaza teslim edin.</p>
@@ -516,7 +516,7 @@ export default function ImeiTracker() {
       <div className="flex-1 overflow-y-auto pr-2 pb-6">
         <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden">
           <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-medium uppercase tracking-wider text-xs">
+            <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-semibold uppercase tracking-wider text-xs">
               <tr>
                 <th className="px-6 py-4">Parça Kategorisi</th>
                 <th className="px-6 py-4">Parça Kodu</th>
@@ -605,7 +605,7 @@ export default function ImeiTracker() {
         <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 shadow-2xl rounded-2xl w-full p-6 flex flex-col space-y-6 animate-in fade-in duration-250">
           {/* Header */}
           <div className="flex justify-between items-center pb-4 border-b border-slate-200 dark:border-slate-700/50">
-            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+            <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
               <Wrench className="text-blue-500 animate-pulse" size={20} /> Servis Onarımları / Teknisyen Atölye Ekranı
             </h3>
             <span className="text-xs font-semibold text-slate-400 bg-slate-100 dark:bg-[#242a38] px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800">
@@ -768,7 +768,7 @@ export default function ImeiTracker() {
                     type="button"
                     onClick={handleStartProductionStage}
                     disabled={selectedStageIdx === null}
-                    className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-bold transition-all shadow-lg shadow-amber-900/10 disabled:opacity-50"
+                    className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-semibold transition-all shadow-lg shadow-amber-900/10 disabled:opacity-50"
                   >
                     ÜRETİMİ BAŞLAT (Onarıma Başla)
                   </button>
@@ -776,14 +776,14 @@ export default function ImeiTracker() {
                     type="button"
                     onClick={handleFinishProductionStage}
                     disabled={selectedStageIdx === null}
-                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all shadow-lg shadow-emerald-900/10 disabled:opacity-50"
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition-all shadow-lg shadow-emerald-900/10 disabled:opacity-50"
                   >
                     ÜRETİMİ BİTİR (Onarımı Bitir)
                   </button>
                   <button
                     type="button"
                     onClick={handleAddRepairStage}
-                    className="px-3 py-2 bg-blue-600 hover:bg-blue-750 text-white rounded-lg text-xs font-bold transition-colors flex items-center gap-1"
+                    className="px-3 py-2 bg-blue-600 hover:bg-blue-750 text-white rounded-lg text-xs font-semibold transition-colors flex items-center gap-1"
                   >
                     + Aşama Ekle
                   </button>
@@ -810,7 +810,7 @@ export default function ImeiTracker() {
                         onClick={() => setSelectedStageIdx(idx)}
                         className={`cursor-pointer transition-colors ${selectedStageIdx === idx ? 'bg-blue-500/10 hover:bg-blue-500/15' : 'hover:bg-slate-100/50 dark:hover:bg-slate-800/30'}`}
                       >
-                        <td className="px-4 py-2 font-bold">
+                        <td className="px-4 py-2 font-semibold">
                           <input
                             type="text"
                             value={stage.group_name || ''}
@@ -988,7 +988,7 @@ export default function ImeiTracker() {
                 type="button"
                 disabled={diagSaving}
                 onClick={handleSaveRepairDetails}
-                className="px-8 py-2.5 text-sm font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl transition-all shadow-lg shadow-emerald-950/20 flex items-center gap-1.5"
+                className="px-8 py-2.5 text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl transition-all shadow-lg shadow-emerald-950/20 flex items-center gap-1.5"
               >
                 <Save size={16} /> {diagSaving ? 'Kaydediliyor...' : 'KAYDET'}
               </button>
@@ -1001,7 +1001,7 @@ export default function ImeiTracker() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 bg-slate-50 dark:bg-[#242a38]">
-              <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+              <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                 <RotateCcw className="text-amber-500" size={20} /> İade İşlemi
               </h3>
               <button onClick={() => setReturnPartDialog(null)} className="p-1.5 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors">
@@ -1097,7 +1097,7 @@ export default function ImeiTracker() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 bg-slate-50 dark:bg-[#242a38]">
-              <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+              <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                 <X className="text-red-500" size={20} /> İptal Et / Sil
               </h3>
               <button onClick={() => setCancelPartDialog(null)} className="p-1.5 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors">

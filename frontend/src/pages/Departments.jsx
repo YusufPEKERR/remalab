@@ -96,7 +96,7 @@ export default function Departments() {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-100 dark:bg-indigo-500/20 border border-indigo-200 dark:border-indigo-400/30 text-indigo-700 dark:text-indigo-300 text-xs font-semibold tracking-wide">
               <Building2 size={13} className="text-indigo-400" /> KURUMSAL ORGANİZASYON
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0D1B3E] dark:text-white">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#0D1B3E] dark:text-white">
               Departman Yönetimi & Görev Tanımları
             </h1>
             <p className="text-sm text-[#475569] dark:text-slate-300 leading-relaxed">
@@ -120,7 +120,7 @@ export default function Departments() {
 
             <div className="bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#1E293B] rounded-2xl shadow-md overflow-hidden">
               <table className="w-full text-left text-xs whitespace-nowrap">
-                <thead className="bg-[#F8FAFC] dark:bg-[#162032] text-[#64748B] dark:text-[#94A3B8] font-bold uppercase tracking-wider border-b border-[#E2E8F0] dark:border-[#1E293B] sticky top-0 z-10 select-none">
+                <thead className="bg-[#F8FAFC] dark:bg-[#162032] text-[#64748B] dark:text-[#94A3B8] font-semibold uppercase tracking-wider border-b border-[#E2E8F0] dark:border-[#1E293B] sticky top-0 z-10 select-none">
                   <tr>
                     <th className="px-6 py-4">Kod</th>
                     <th className="px-6 py-4">Kısa Ad</th>
@@ -169,7 +169,7 @@ export default function Departments() {
         ) : (
           <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-xl animate-in fade-in slide-in-from-bottom-4">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+              <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                 {editingMission ? 'Görevi Düzenle' : 'Yeni Görev Ekle'}
               </h2>
               <button onClick={() => setShowForm(false)} className="text-slate-400 hover:text-white p-1">

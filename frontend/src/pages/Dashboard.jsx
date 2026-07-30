@@ -143,7 +143,7 @@ export default function Dashboard() {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 dark:bg-blue-500/20 border border-blue-500/25 dark:border-blue-400/30 text-[#1D4ED8] dark:text-blue-300 text-xs font-semibold tracking-wide">
               <Zap size={13} className="animate-pulse text-blue-400" /> CANLI DEPO CANVASI
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0D1B3E] dark:text-white">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#0D1B3E] dark:text-white">
               Kontrol Paneline Hoş Geldiniz
             </h1>
             <p className="text-sm text-[#475569] dark:text-slate-300 leading-relaxed">
@@ -194,7 +194,7 @@ export default function Dashboard() {
               <div>
                 <span className="text-xs font-medium text-[#64748B] dark:text-slate-400 block mb-1">{card.title}</span>
                 <div className="flex items-baseline justify-between">
-                  <h3 className="text-2xl font-extrabold text-[#0F172A] dark:text-white tracking-tight">{card.value}</h3>
+                  <h3 className="text-2xl font-semibold text-[#0F172A] dark:text-white tracking-tight">{card.value}</h3>
                   <span className="text-[11px] text-[#2563EB] dark:text-blue-400 font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
                     Detay &rsaquo;
                   </span>
@@ -211,7 +211,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between mb-4 border-b border-[#E2E8F0] dark:border-[#1E293B] pb-3">
             <div className="flex items-center gap-2">
               <div className="w-2.5 h-2.5 rounded-full bg-[#2563EB]" />
-              <h3 className="text-base font-bold text-[#0F172A] dark:text-white">
+              <h3 className="text-base font-semibold text-[#0F172A] dark:text-white">
                 {cards.find(c => c.id === activeDetail)?.title} - Hızlı Detay Listesi
               </h3>
             </div>
@@ -225,7 +225,7 @@ export default function Dashboard() {
 
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs whitespace-nowrap">
-              <thead className="bg-[#F8FAFC] dark:bg-[#162032] text-[#64748B] dark:text-slate-400 font-bold uppercase tracking-wider border-b border-[#E2E8F0] dark:border-[#1E293B]">
+              <thead className="bg-[#F8FAFC] dark:bg-[#162032] text-[#64748B] dark:text-slate-400 font-semibold uppercase tracking-wider border-b border-[#E2E8F0] dark:border-[#1E293B]">
                 <tr>
                   <th className="px-4 py-3">Parça / Kayıt</th>
                   <th className="px-4 py-3">Kod</th>
@@ -244,7 +244,7 @@ export default function Dashboard() {
                       <td className="px-4 py-3 font-semibold text-[#0F172A] dark:text-white">{d.name}</td>
                       <td className="px-4 py-3 font-mono text-[#64748B] dark:text-slate-400">{d.code || '-'}</td>
                       <td className="px-4 py-3 font-medium text-[#334155] dark:text-slate-300">{d.loc || '-'}</td>
-                      <td className="px-4 py-3 font-bold">{d.qty || '-'}</td>
+                      <td className="px-4 py-3 font-semibold">{d.qty || '-'}</td>
                       <td className="px-4 py-3">
                         <span className={`px-2 py-0.5 rounded-md font-bold text-[10px] uppercase tracking-wide ${
                           d.status === 'Stokta' || d.status === 'Aktif' 
@@ -276,7 +276,7 @@ export default function Dashboard() {
           <div>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-[#E2E8F0] dark:border-[#1E293B]">
               <div>
-                <h3 className="text-base font-bold text-[#0F172A] dark:text-white flex items-center gap-2">
+                <h3 className="text-base font-semibold text-[#0F172A] dark:text-white flex items-center gap-2">
                   <Activity size={18} className="text-[#2563EB] dark:text-blue-400" /> Son Stok Hareketleri
                 </h3>
                 <p className="text-xs text-[#64748B] dark:text-slate-400 mt-0.5">Sistemde gerçekleşen son 6 malzeme transfer ve giriş-çıkış işlemi</p>
@@ -291,7 +291,7 @@ export default function Dashboard() {
 
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs whitespace-nowrap">
-                <thead className="bg-[#F8FAFC] dark:bg-[#162032] text-[#64748B] dark:text-slate-400 font-bold uppercase tracking-wider border-b border-[#E2E8F0] dark:border-[#1E293B]">
+                <thead className="bg-[#F8FAFC] dark:bg-[#162032] text-[#64748B] dark:text-slate-400 font-semibold uppercase tracking-wider border-b border-[#E2E8F0] dark:border-[#1E293B]">
                   <tr>
                     <th className="px-3.5 py-3 rounded-l-lg">ID</th>
                     <th className="px-3.5 py-3">Parça Adı</th>
@@ -309,8 +309,8 @@ export default function Dashboard() {
                       const isCikis = mov.type && mov.type.includes('Çıkış');
                       return (
                         <tr key={mov.id || i} className="hover:bg-[#EFF6FF]/60 dark:hover:bg-[#1E293B]/70 text-[#0F172A] dark:text-slate-200 transition-colors">
-                          <td className="px-3.5 py-3.5 font-mono text-[#64748B] dark:text-slate-400 font-bold">#{mov.id}</td>
-                          <td className="px-3.5 py-3.5 font-bold text-[#0F172A] dark:text-white max-w-[180px] truncate" title={mov.part_name}>{mov.part_name || '-'}</td>
+                          <td className="px-3.5 py-3.5 font-mono text-[#64748B] dark:text-slate-400 font-semibold">#{mov.id}</td>
+                          <td className="px-3.5 py-3.5 font-semibold text-[#0F172A] dark:text-white max-w-[180px] truncate" title={mov.part_name}>{mov.part_name || '-'}</td>
                           <td className="px-3.5 py-3.5 text-[#334155] dark:text-slate-300 font-medium">
                             {mov.source_location !== '-' && mov.target_location !== '-' 
                               ? `${mov.source_location} ➔ ${mov.target_location}` 
@@ -329,7 +329,7 @@ export default function Dashboard() {
                               {mov.type}
                             </span>
                           </td>
-                          <td className="px-3.5 py-3.5 font-extrabold text-[#0F172A] dark:text-white">{mov.quantity}</td>
+                          <td className="px-3.5 py-3.5 font-semibold text-[#0F172A] dark:text-white">{mov.quantity}</td>
                           <td className="px-3.5 py-3.5 text-[#64748B] dark:text-slate-400 font-mono text-[11px]">{mov.created_at}</td>
                           <td className="px-3.5 py-3.5">
                             <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/20 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-500/30">
@@ -362,7 +362,7 @@ export default function Dashboard() {
 
           {/* Quick Shortcuts Panel */}
           <div className="bg-white dark:bg-[#0F172A] rounded-2xl p-6 border border-[#E2E8F0] dark:border-[#1E293B] shadow-sm transition-colors">
-            <h3 className="text-base font-bold text-[#0F172A] dark:text-white mb-1 flex items-center gap-2">
+            <h3 className="text-base font-semibold text-[#0F172A] dark:text-white mb-1 flex items-center gap-2">
               <Zap size={18} className="text-[#2563EB] dark:text-blue-400" /> Hızlı Erişim Kısayolları
             </h3>
             <p className="text-xs text-[#64748B] dark:text-slate-400 mb-4">Sık kullanılan modüllere doğrudan erişin</p>
@@ -396,7 +396,7 @@ export default function Dashboard() {
           <div className="bg-white dark:bg-[#0F172A] rounded-2xl p-6 border border-[#E2E8F0] dark:border-[#1E293B] shadow-sm flex-1 flex flex-col justify-between transition-colors">
             <div>
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-base font-bold text-[#0F172A] dark:text-white flex items-center gap-2">
+                <h3 className="text-base font-semibold text-[#0F172A] dark:text-white flex items-center gap-2">
                   <TrendingUp size={18} className="text-emerald-500" /> Sistem Durumu
                 </h3>
                 <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/20 border border-emerald-200 dark:border-emerald-500/30 px-2 py-0.5 rounded-full">

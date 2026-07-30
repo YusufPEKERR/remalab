@@ -95,7 +95,7 @@ const ManualTestModal = ({ open, imei, stageName, fields, onClose, onSubmit, sav
         <div className="p-5 border-b border-slate-200 dark:border-slate-700/50 flex items-start gap-3">
           <ClipboardEdit size={20} className="text-amber-500 mt-0.5 shrink-0" />
           <div className="flex-1 min-w-0">
-            <h3 className="font-bold text-slate-900 dark:text-slate-100">Test Verisini Elle Doldur</h3>
+            <h3 className="font-semibold text-slate-900 dark:text-slate-100">Test Verisini Elle Doldur</h3>
             <p className="text-sm text-slate-400 mt-0.5">
               {imei} · {stageName} — Phonecheck'te bulunamadı
             </p>
@@ -418,7 +418,7 @@ const BatchStatuTransition = () => {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-100 dark:bg-amber-500/20 border border-amber-200 dark:border-amber-400/30 text-amber-700 dark:text-amber-300 text-xs font-semibold tracking-wide">
               <ScanLine size={13} className="text-amber-400" /> TOPLU STATÜ GEÇİŞ İŞLEMİ
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0D1B3E] dark:text-white flex items-center gap-3">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#0D1B3E] dark:text-white flex items-center gap-3">
               {transition.short_name}
             </h1>
             <p className="text-sm text-[#475569] dark:text-slate-300 leading-relaxed">
@@ -452,7 +452,7 @@ const BatchStatuTransition = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-40 text-white px-8 py-3 rounded-xl transition-all shadow-md font-bold text-xs cursor-pointer whitespace-nowrap flex items-center justify-center gap-2"
+                className="bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-40 text-white px-8 py-3 rounded-xl transition-all shadow-md font-semibold text-xs cursor-pointer whitespace-nowrap flex items-center justify-center gap-2"
               >
                 <ScanLine size={16} /> {loading ? "Sorgulanıyor..." : "Okut"}
               </button>
@@ -464,7 +464,7 @@ const BatchStatuTransition = () => {
       {deviceInfo && (
         <div className="bg-[#F8FAFC] dark:bg-[#0F172A] p-6 rounded-2xl border border-[#E2E8F0] dark:border-[#1E293B] shadow-md">
           <div className="flex items-center justify-between flex-wrap gap-3">
-            <h3 className="text-base font-bold text-[#0F172A] dark:text-[#FAFAFA]">
+            <h3 className="text-base font-semibold text-[#0F172A] dark:text-[#FAFAFA]">
               <span className="font-mono text-[#60A5FA]">{deviceInfo.imei}</span> <span className="text-[#64748B] dark:text-[#94A3B8] font-normal">· {deviceInfo.batchNo} · {deviceInfo.flow}</span>
             </h3>
             <span className="px-3 py-1 rounded-full text-xs font-bold border bg-blue-500/10 dark:bg-blue-500/20 text-blue-400 border-blue-500/30">

@@ -86,7 +86,7 @@ export default function Locations() {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 dark:bg-blue-500/20 border border-blue-500/25 dark:border-blue-400/30 text-[#1D4ED8] dark:text-blue-300 text-xs font-semibold tracking-wide">
               <MapPin size={13} className="text-blue-400" /> DEPO VE LOKASYON YÖNETİMİ
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0D1B3E] dark:text-white">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#0D1B3E] dark:text-white">
               Depolar & Lokasyon Tanımları
             </h1>
             <p className="text-sm text-[#475569] dark:text-slate-300 leading-relaxed">
@@ -130,7 +130,7 @@ export default function Locations() {
       <div className="bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#1E293B] rounded-2xl shadow-md overflow-hidden flex flex-col">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs whitespace-nowrap">
-            <thead className="bg-[#F8FAFC] dark:bg-[#162032] text-[#64748B] dark:text-[#94A3B8] font-bold uppercase tracking-wider border-b border-[#E2E8F0] dark:border-[#1E293B] sticky top-0 z-10">
+            <thead className="bg-[#F8FAFC] dark:bg-[#162032] text-[#64748B] dark:text-[#94A3B8] font-semibold uppercase tracking-wider border-b border-[#E2E8F0] dark:border-[#1E293B] sticky top-0 z-10">
               <tr>
                 <th className="px-6 py-4 w-32">LOKASYON ID</th>
                 <th className="px-6 py-4">LOKASYON ADI</th>
@@ -155,11 +155,11 @@ export default function Locations() {
                 filteredLocations.map((loc) => (
                   <tr key={loc.id} className="hover:bg-[#FFFFFF]/70 dark:hover:bg-[#1E293B]/70 transition-colors text-[#0F172A] dark:text-[#FAFAFA]">
                     <td className="px-6 py-3.5 font-mono text-[#64748B] dark:text-[#94A3B8] text-[11px]">{loc.id}</td>
-                    <td className="px-6 py-3.5 font-bold">
+                    <td className="px-6 py-3.5 font-semibold">
                       <div className="flex items-center gap-2">
                         {loc.name}
                         {loc.kind && (
-                          <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full border uppercase tracking-wider ${
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wider ${
                             loc.kind === 'good_stock' ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30' :
                             loc.kind === 'doa_stock' ? 'bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-500/30' :
                             loc.kind === 'repair_stock' ? 'bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-500/30' :
@@ -190,7 +190,7 @@ export default function Locations() {
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center z-50 p-4">
           <div className="bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#1E293B] shadow-2xl rounded-2xl w-full max-w-md overflow-hidden text-[#0F172A] dark:text-[#FAFAFA]">
             <div className="px-6 py-4 border-b border-[#E2E8F0] dark:border-[#1E293B] flex justify-between items-center bg-[#F8FAFC] dark:bg-[#162032]">
-              <h2 className="text-sm font-bold text-[#0F172A] dark:text-[#FAFAFA]">Yeni Lokasyon Ekle</h2>
+              <h2 className="text-sm font-semibold text-[#0F172A] dark:text-[#FAFAFA]">Yeni Lokasyon Ekle</h2>
               <button onClick={() => setIsModalOpen(false)} className="text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-[#FAFAFA] transition-colors cursor-pointer">
                 <X size={18} />
               </button>
@@ -221,7 +221,7 @@ export default function Locations() {
 
               <div className="pt-4 flex justify-end gap-3 border-t border-[#E2E8F0] dark:border-[#1E293B] mt-6">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 bg-[#FFFFFF] dark:bg-[#1E293B] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] text-[#0F172A] dark:text-[#FAFAFA] rounded-xl text-xs font-bold transition-all cursor-pointer">İptal</button>
-                <button type="submit" className="px-4 py-2 text-white bg-[#2563EB] hover:bg-[#1D4ED8] rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer">Kaydet</button>
+                <button type="submit" className="px-4 py-2 text-white bg-[#2563EB] hover:bg-[#1D4ED8] rounded-xl text-xs font-semibold transition-all shadow-md cursor-pointer">Kaydet</button>
               </div>
             </form>
           </div>
