@@ -304,22 +304,43 @@ export default function BatchEntry() {
       validRows.push(item);
     }
 
-    // Hatalı satırlar için nedenli Excel dökümü indir
+    // Tüm satırlar için durum açıklamalı Excel dökümü indir (Başarılı/Hatalı)
     if (invalidRows.length > 0) {
-      const dump = invalidRows.map(f => ({
-        satir: f.row,
-        customer_no: f.data.customer_no || '',
-        customer_name: f.data.customer_name || '',
-        batch_no: f.data.batch_no || '',
-        internal_id: f.data.internal_id || '',
-        imei_number: f.data.imei_number || '',
-        serial_number: f.data.serial_number || '',
-        model: f.data.model || '',
-        gb: f.data.gb || '',
-        color: f.data.color || '',
-        hata_nedeni: f.message
-      }));
-      await api.exportTableToExcel(dump, `Batch_Import_Hatalari_${invalidRows.length}.xlsx`);
+      const dump = [
+        ...invalidRows.map(f => ({
+          satir: f.row,
+          customer_no: f.data.customer_no || '',
+          customer_name: f.data.customer_name || '',
+          batch_no: f.data.batch_no || '',
+          internal_id: f.data.internal_id || '',
+          imei_number: f.data.imei_number || '',
+          serial_number: f.data.serial_number || '',
+          model: f.data.model || '',
+          gb: f.data.gb || '',
+          color: f.data.color || '',
+          islem_durumu: 'Başarısız',
+          hata_nedeni: f.message
+        })),
+        ...validRows.map(v => {
+          const origIdx = excelFileData.indexOf(v);
+          return {
+            satir: origIdx >= 0 ? origIdx + 1 : '-',
+            customer_no: v.customer_no || '',
+            customer_name: v.customer_name || '',
+            batch_no: v.batch_no || '',
+            internal_id: v.internal_id || '',
+            imei_number: v.imei_number || '',
+            serial_number: v.serial_number || '',
+            model: v.model || '',
+            gb: v.gb || '',
+            color: v.color || '',
+            islem_durumu: 'Başarılı',
+            hata_nedeni: 'Sisteme başarıyla giriş yapıldı'
+          };
+        })
+      ].sort((a, b) => (Number(a.satir) || 0) - (Number(b.satir) || 0));
+
+      await api.exportTableToExcel(dump, `Batch_Import_Raporu_${invalidRows.length}_Hata.xlsx`);
     }
 
     setImportValidRows(validRows);
@@ -431,6 +452,7 @@ export default function BatchEntry() {
       list = list.filter(b => 
         (b.document_number || b.batch_no || '').toLowerCase().includes(q) ||
         (b.account_name || b.customer_name || '').toLowerCase().includes(q) ||
+        (b.customer_no || '').toLowerCase().includes(q) ||
         (b.create_by || '').toLowerCase().includes(q)
       );
     }
@@ -1647,7 +1669,7 @@ export default function BatchEntry() {
                                     </div>
                                   ) : importPrepared ? (
                                     <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 text-[11px] font-semibold">
-                                      <CheckCircle size={14} /> Geçerli
+                                      <CheckCircle size={14} /> Sisteme başarıyla giriş yapıldı
                                     </span>
                                   ) : (
                                     <span className="text-[11px] text-slate-400">Kontrol bekliyor</span>
