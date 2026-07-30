@@ -7663,6 +7663,7 @@ class WebBridge(QObject):
             d = json.loads(data_json or "{}")
             imei = (d.get("imei_number") or "").strip()
             serial = (d.get("serial_number") or "").strip()
+            internal = (d.get("internal_id") or "").strip()
             batch_no = (d.get("batch_no") or "").strip()
 
             # 0) Cihaz Modeli Doğrulaması (Sistemde tanımlı olmayan modeller engellenir)
