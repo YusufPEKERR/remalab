@@ -847,8 +847,14 @@ export default function BatchEntry() {
         continue;
       }
 
-      const res = await api.importDefinedBatchEntry(item);
-      if (res.success && res.ok) createdCount++;
+      let res = await api.importDefinedBatchEntry(item);
+      // Eğer cihaz sistemde önceden tanımlı değilse yeni cihaz kaydı oluştur
+      if (res && res.success && res.ok === false && res.message && res.message.includes('sistemde tanımlı değil')) {
+        const createRes = await api.createBatchEntry(item);
+        res = { success: createRes.success, ok: createRes.success, message: createRes.message };
+      }
+
+      if (res.success && res.ok !== false) createdCount++;
       else failed.push({ row: rowNum, identifier, message: res.message || 'İçe aktarılamadı.', data: item });
     }
 
