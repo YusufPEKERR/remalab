@@ -7690,6 +7690,13 @@ class WebBridge(QObject):
                 return json.dumps({"success": True, "ok": False,
                                    "message": f"Cihaz ({ident}) sistemde tanımlı değil, içe aktarılmadı."}, ensure_ascii=False)
 
+            # 1b) Model verildiyse sistemde tanımlı geçerli bir model olmalı (örn. 'iPhone 19' reddedilir)
+            model_val = (d.get("model") or "").strip()
+            if model_val:
+                is_valid_m, m_err_msg = self._validate_product_model(db, model_val)
+                if not is_valid_m:
+                    return json.dumps({"success": True, "ok": False, "message": m_err_msg}, ensure_ascii=False)
+
             # 2) Batch numarası (verildiyse) sistemde tanımlı mı?
             if batch_no:
                 batch_exists = db.query(BatchEntry).filter(

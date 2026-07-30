@@ -836,6 +836,7 @@ export default function BatchEntry() {
     //    cihazları günceller; tanımlı olmayan IMEI/batch reddedilir.
     let createdCount = 0;
     const failed = [];
+    const seen = new Set(); // aynı cihazın (IMEI/Seri/Internal) bu import içinde tekrarını yakala
     for (let idx = 0; idx < rows.length; idx++) {
       const item = rows[idx];
       const rowNum = idx + 1;
@@ -847,14 +848,17 @@ export default function BatchEntry() {
         continue;
       }
 
-      let res = await api.importDefinedBatchEntry(item);
-      // Eğer cihaz sistemde önceden tanımlı değilse yeni cihaz kaydı oluştur
-      if (res && res.success && res.ok === false && res.message && res.message.includes('sistemde tanımlı değil')) {
-        const createRes = await api.createBatchEntry(item);
-        res = { success: createRes.success, ok: createRes.success, message: createRes.message };
+      // Aynı cihaz bu Excel'de birden fazla kez varsa ikinciyi reddet (tekrar/mükerrer)
+      const key = (item.imei_number || item.serial_number || item.internal_id).trim().toLowerCase();
+      if (seen.has(key)) {
+        failed.push({ row: rowNum, identifier, message: 'Bu cihaz aynı içe aktarmada zaten girildi (mükerrer satır).', data: item });
+        continue;
       }
+      seen.add(key);
 
-      if (res.success && res.ok !== false) createdCount++;
+      // Import SADECE sistemde tanımlı cihazları günceller; tanımsızları reddeder (yeni kayıt AÇMAZ).
+      const res = await api.importDefinedBatchEntry(item);
+      if (res.success && res.ok) createdCount++;
       else failed.push({ row: rowNum, identifier, message: res.message || 'İçe aktarılamadı.', data: item });
     }
 
