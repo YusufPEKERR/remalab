@@ -127,8 +127,8 @@ const AddTableModal = ({ onClose, onAdd }) => {
   const [feName, setFeName] = useState('');
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm">
-      <div className="bg-white dark:bg-[#1e2330] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 max-w-sm w-full mx-4 overflow-hidden">
-        <div className="border-b border-slate-200 dark:border-slate-700 px-6 py-4 flex items-center justify-between bg-slate-50 dark:bg-[#242a38]">
+      <div className="bg-white dark:bg-[#1E2B5C] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 max-w-sm w-full mx-4 overflow-hidden">
+        <div className="border-b border-slate-200 dark:border-slate-700 px-6 py-4 flex items-center justify-between bg-slate-50 dark:bg-[#232F63]">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center"><Plus size={20} className="text-blue-500" /></div>
             <h3 className="font-semibold text-slate-800 dark:text-slate-100">Yeni Tablo Ekle</h3>
@@ -138,11 +138,11 @@ const AddTableModal = ({ onClose, onAdd }) => {
         <div className="px-6 py-5 space-y-4">
           <div>
             <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">DB Tablo Adı *</label>
-            <input value={dbName} onChange={e => setDbName(e.target.value)} placeholder="Örn: ProductModel" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#161B22] text-sm text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 outline-none font-mono" />
+            <input value={dbName} onChange={e => setDbName(e.target.value)} placeholder="Örn: ProductModel" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1A2450] text-sm text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 outline-none font-mono" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">FE Alias (Opsiyonel)</label>
-            <input value={feName} onChange={e => setFeName(e.target.value)} placeholder="Otomatik: DB adı kullanılır" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#161B22] text-sm text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 outline-none" />
+            <input value={feName} onChange={e => setFeName(e.target.value)} placeholder="Otomatik: DB adı kullanılır" className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1A2450] text-sm text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 outline-none" />
           </div>
         </div>
         <div className="px-6 pb-5 flex gap-3">
@@ -575,39 +575,39 @@ export default function SchemaMapper() {
       {showAddModal && <AddTableModal onClose={() => setShowAddModal(false)} onAdd={handleAddTable} />}
 
       {/* ════════════════ TOOLBAR ════════════════ */}
-      <div className="bg-[#F8FAFC] dark:bg-[#0F172A] border-b border-[#E2E8F0] dark:border-[#1E293B] px-5 py-3 flex items-center justify-between gap-3 flex-wrap shrink-0 z-20 shadow-md">
+      <div className="bg-[#F5F7FC] dark:bg-[#16204A] border-b border-[#DCE1F1] dark:border-[#24326A] px-5 py-3 flex items-center justify-between gap-3 flex-wrap shrink-0 z-20 shadow-md">
         <div className="flex items-center gap-2.5">
           <h2 className="text-sm font-semibold text-white flex items-center gap-2 mr-3 font-mono">
             <Database size={17} className="text-blue-400" />
             SCHEMA MAPPER
           </h2>
 
-          <button onClick={() => setShowAddModal(true)} className="px-3.5 py-2 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold flex items-center gap-1.5 shadow-md cursor-pointer transition-all">
+          <button onClick={() => setShowAddModal(true)} className="px-3.5 py-2 rounded-xl bg-[#4457A5] hover:bg-[#2E3F78] text-white text-xs font-bold flex items-center gap-1.5 shadow-md cursor-pointer transition-all">
             <Plus size={14} /> Yeni Tablo
           </button>
-          <button onClick={() => { setConnectMode(!connectMode); setConnectSource(null); }} className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md transition-all cursor-pointer border ${connectMode ? 'bg-rose-500 text-white border-rose-500' : 'bg-[#FFFFFF] dark:bg-[#1E293B] text-[#0F172A] dark:text-[#FAFAFA] border-[#E2E8F0] dark:border-[#334155] hover:border-rose-400'}`}>
+          <button onClick={() => { setConnectMode(!connectMode); setConnectSource(null); }} className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md transition-all cursor-pointer border ${connectMode ? 'bg-rose-500 text-white border-rose-500' : 'bg-[#FFFFFF] dark:bg-[#24326A] text-[#16204A] dark:text-[#F6F8FF] border-[#DCE1F1] dark:border-[#3B4A85] hover:border-rose-400'}`}>
             <Link2 size={14} /> {connectMode ? 'Bağlama: AÇIK' : 'İlişki Bağla'}
           </button>
           <button onClick={handleSaveMapping} className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold flex items-center gap-1.5 shadow-md cursor-pointer transition-all">
             <Save size={14} /> Kaydet
           </button>
-          <button onClick={handleOpenProjectGuide} title="Proje rehberini PDF olarak aç" className="px-3.5 py-2 rounded-xl bg-[#FFFFFF] dark:bg-[#1E293B] text-[#0F172A] dark:text-[#FAFAFA] border border-[#E2E8F0] dark:border-[#334155] text-xs font-semibold flex items-center gap-1.5 shadow-md hover:border-blue-400 transition-all cursor-pointer">
+          <button onClick={handleOpenProjectGuide} title="Proje rehberini PDF olarak aç" className="px-3.5 py-2 rounded-xl bg-[#FFFFFF] dark:bg-[#24326A] text-[#16204A] dark:text-[#F6F8FF] border border-[#DCE1F1] dark:border-[#3B4A85] text-xs font-semibold flex items-center gap-1.5 shadow-md hover:border-blue-400 transition-all cursor-pointer">
             <FileText size={14} /> Proje Rehberi
           </button>
         </div>
 
         <div className="flex items-center gap-2">
           {/* TAB BUTTONS */}
-          <div className="flex items-center bg-slate-100 dark:bg-[#0f1219] p-1 rounded-xl mr-2">
+          <div className="flex items-center bg-slate-100 dark:bg-[#131B3A] p-1 rounded-xl mr-2">
             <button 
               onClick={() => setActiveTab('visual')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === 'visual' ? 'bg-white dark:bg-[#1e2330] text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === 'visual' ? 'bg-white dark:bg-[#1E2B5C] text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
             >
               <Map size={14} /> Görsel Şema
             </button>
             <button 
               onClick={() => setActiveTab('list')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === 'list' ? 'bg-white dark:bg-[#1e2330] text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === 'list' ? 'bg-white dark:bg-[#1E2B5C] text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
             >
               <List size={14} /> Liste Görünümü
             </button>
@@ -620,10 +620,10 @@ export default function SchemaMapper() {
               value={searchTerm} 
               onChange={handleSearchChange} 
               placeholder="Tablo ara veya 'tümü' yaz..." 
-              className="pl-8 pr-3 py-1.5 w-48 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#0f1219] text-xs text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-blue-500 outline-none transition-all" 
+              className="pl-8 pr-3 py-1.5 w-48 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#131B3A] text-xs text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-blue-500 outline-none transition-all" 
             />
             {filteredSearch.length > 0 && !["tüm tablolar", "tümü", "hepsi", "all", "*", "listele"].includes(searchTerm.trim().toLowerCase()) && (
-              <div className="absolute top-full left-0 mt-1 w-60 bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-30 overflow-hidden">
+              <div className="absolute top-full left-0 mt-1 w-60 bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-30 overflow-hidden">
                 {filteredSearch.map(t => (
                   <button key={t.id} onClick={() => handleSearchFocus(t.id)} className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors text-left">
                     <Table2 size={13} className="text-slate-400 shrink-0" />
@@ -653,7 +653,7 @@ export default function SchemaMapper() {
         <div className="flex flex-1 min-h-0 overflow-hidden relative">
           {/* Loading Overlay */}
           {isLoading && (
-            <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/50 dark:bg-[#0f1219]/50 backdrop-blur-sm">
+            <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/50 dark:bg-[#131B3A]/50 backdrop-blur-sm">
               <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
             </div>
           )}
@@ -661,7 +661,7 @@ export default function SchemaMapper() {
           {/* No Schema State */}
           {!isLoading && tables.length === 0 && (
             <div className="absolute inset-0 z-40 flex items-center justify-center pointer-events-none">
-              <div className="bg-white dark:bg-[#1e2330] p-8 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 max-w-md text-center pointer-events-auto">
+              <div className="bg-white dark:bg-[#1E2B5C] p-8 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 max-w-md text-center pointer-events-auto">
                 <Database size={48} className="text-slate-700 dark:text-slate-300 dark:text-slate-600 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-2">Veritabanı Şeması Bulunamadı</h3>
                 <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">Herhangi bir tablo veya ilişki verisi okunamadı. Yeni bir tablo ekleyerek başlayabilirsiniz.</p>
@@ -740,8 +740,8 @@ export default function SchemaMapper() {
 
           {/* ── INSPECTOR PANEL ─────────────────────────────── */}
           {inspectorOpen && (selectedTable || selectedEdge) && (
-            <div className="w-80 shrink-0 bg-white dark:bg-[#161B22] border-l border-slate-200 dark:border-[#30363D] flex flex-col overflow-hidden">
-              <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-[#30363D] bg-slate-50/50 dark:bg-[#0f1219]/50">
+            <div className="w-80 shrink-0 bg-white dark:bg-[#1A2450] border-l border-slate-200 dark:border-[#3A4A8C] flex flex-col overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-[#3A4A8C] bg-slate-50/50 dark:bg-[#131B3A]/50">
                 <h3 className="text-xs font-semibold text-slate-800 dark:text-slate-200 uppercase tracking-widest">Özellikler</h3>
                 <button onClick={() => setInspectorOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"><X size={16} /></button>
               </div>
@@ -764,7 +764,7 @@ export default function SchemaMapper() {
                       <h4 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Alanlar ({selectedTable.fields.length})</h4>
                       <div className="space-y-1">
                         {selectedTable.fields.map(f => (
-                          <div key={f.id} className="flex items-center justify-between px-2 py-1 rounded-lg bg-slate-50 dark:bg-[#0f1219]">
+                          <div key={f.id} className="flex items-center justify-between px-2 py-1 rounded-lg bg-slate-50 dark:bg-[#131B3A]">
                             <span className="text-[11px] font-mono text-slate-600 dark:text-slate-400">{f.dbName}</span>
                             <div className="flex items-center gap-1.5">
                               <ArrowRight size={10} className="text-slate-700 dark:text-slate-300" />
@@ -781,8 +781,8 @@ export default function SchemaMapper() {
                         <Code size={12} />
                         Canlı DTO Önizleme (JSON)
                       </h4>
-                      <div className="bg-[#F8FAFC] dark:bg-[#0d1117] rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-                        <div className="px-3 py-1.5 bg-[#F1F5F9] dark:bg-[#161B22] border-b border-slate-200 dark:border-slate-700 flex items-center gap-2">
+                      <div className="bg-[#F5F7FC] dark:bg-[#121A38] rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                        <div className="px-3 py-1.5 bg-[#EFF1FA] dark:bg-[#1A2450] border-b border-slate-200 dark:border-slate-700 flex items-center gap-2">
                           <div className="w-2 h-2 rounded-full bg-red-500"></div>
                           <div className="w-2 h-2 rounded-full bg-amber-500"></div>
                           <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
@@ -825,17 +825,17 @@ export default function SchemaMapper() {
         )}
       </div>
       ) : (
-        <div className="flex flex-1 min-h-0 bg-slate-50 dark:bg-[#0f1219] p-4 sm:p-6 gap-6 overflow-hidden">
+        <div className="flex flex-1 min-h-0 bg-slate-50 dark:bg-[#131B3A] p-4 sm:p-6 gap-6 overflow-hidden">
             {/* List View Left Sidebar (Tables) */}
-            <div className="w-72 flex flex-col bg-white dark:bg-[#161B22] border border-slate-200 dark:border-[#30363D] rounded-2xl overflow-hidden shadow-sm shrink-0">
-              <div className="px-4 py-3 border-b border-slate-100 dark:border-[#30363D] bg-slate-50/50 dark:bg-[#0f1219]/50 flex flex-col gap-3">
+            <div className="w-72 flex flex-col bg-white dark:bg-[#1A2450] border border-slate-200 dark:border-[#3A4A8C] rounded-2xl overflow-hidden shadow-sm shrink-0">
+              <div className="px-4 py-3 border-b border-slate-100 dark:border-[#3A4A8C] bg-slate-50/50 dark:bg-[#131B3A]/50 flex flex-col gap-3">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-semibold text-slate-800 dark:text-slate-200 uppercase tracking-widest flex items-center gap-2">
                     <Database size={14} className="text-blue-500" /> Tablolar
                   </h3>
                   <button 
                     onClick={() => setListSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
-                    className="p-1 rounded bg-slate-200 dark:bg-[#30363D] text-slate-600 dark:text-slate-400 hover:bg-slate-300 dark:hover:bg-[#404854] transition-colors"
+                    className="p-1 rounded bg-slate-200 dark:bg-[#3A4A8C] text-slate-600 dark:text-slate-400 hover:bg-slate-300 dark:hover:bg-[#4A5A9E] transition-colors"
                     title={listSortOrder === 'asc' ? 'A-Z Sıralı' : 'Z-A Sıralı'}
                   >
                     <ArrowUpDown size={12} />
@@ -846,7 +846,7 @@ export default function SchemaMapper() {
                   <select
                     value={listModuleFilter}
                     onChange={(e) => setListModuleFilter(e.target.value)}
-                    className="w-full pl-7 pr-2 py-1.5 bg-white dark:bg-[#161B22] border border-slate-200 dark:border-[#30363D] text-[11px] font-semibold rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 text-slate-700 dark:text-slate-300 appearance-none cursor-pointer"
+                    className="w-full pl-7 pr-2 py-1.5 bg-white dark:bg-[#1A2450] border border-slate-200 dark:border-[#3A4A8C] text-[11px] font-semibold rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 text-slate-700 dark:text-slate-300 appearance-none cursor-pointer"
                   >
                     {['Tümü', 'DEPO', 'ENVANTER', 'KULLANICI & AYARLAR', 'SİSTEM'].map(m => (
                       <option key={m} value={m}>{m}</option>
@@ -907,10 +907,10 @@ export default function SchemaMapper() {
             </div>
 
           {/* List View Right Content (Fields) */}
-          <div className="flex-1 flex flex-col bg-white dark:bg-[#161B22] border border-slate-200 dark:border-[#30363D] rounded-2xl overflow-hidden shadow-sm">
+          <div className="flex-1 flex flex-col bg-white dark:bg-[#1A2450] border border-slate-200 dark:border-[#3A4A8C] rounded-2xl overflow-hidden shadow-sm">
             {selectedTable ? (
               <>
-                <div className="px-6 py-4 border-b border-slate-100 dark:border-[#30363D] bg-slate-50/50 dark:bg-[#0f1219]/50 flex items-center justify-between">
+                <div className="px-6 py-4 border-b border-slate-100 dark:border-[#3A4A8C] bg-slate-50/50 dark:bg-[#131B3A]/50 flex items-center justify-between">
                   <div>
                     <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200">{selectedTable.feName}</h2>
                     <p className="text-xs text-slate-500 font-mono mt-1">Veritabanı Tablosu: {selectedTable.dbName}</p>
@@ -921,17 +921,17 @@ export default function SchemaMapper() {
                 </div>
                 
                 <div className="flex-1 overflow-y-auto p-6">
-                  <div className="rounded-xl border border-slate-200 dark:border-[#30363D] overflow-hidden">
+                  <div className="rounded-xl border border-slate-200 dark:border-[#3A4A8C] overflow-hidden">
                     <table className="w-full text-left border-collapse">
                       <thead>
-                        <tr className="bg-slate-50 dark:bg-[#0f1219] border-b border-slate-200 dark:border-[#30363D]">
+                        <tr className="bg-slate-50 dark:bg-[#131B3A] border-b border-slate-200 dark:border-[#3A4A8C]">
                           <th className="px-4 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Uygulama Alanı (FE Name)</th>
                           <th className="px-4 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-widest w-24">Veri Tipi</th>
                           <th className="px-4 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-widest w-48">Veritabanı Tablosu</th>
                           <th className="px-4 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-widest w-48">Veritabanı Sütunu (DB Name)</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-100 dark:divide-[#30363D]">
+                      <tbody className="divide-y divide-slate-100 dark:divide-[#3A4A8C]">
                         {selectedTable.fields.map(f => {
                           const currentDbTable = f.dbTable || selectedTable.dbName;
                           const targetTable = tables.find(t => t.dbName === currentDbTable) || selectedTable;
@@ -946,7 +946,7 @@ export default function SchemaMapper() {
                           }
 
                           return (
-                          <tr key={f.id} className="hover:bg-slate-50/50 dark:hover:bg-[#0f1219]/50 transition-colors">
+                          <tr key={f.id} className="hover:bg-slate-50/50 dark:hover:bg-[#131B3A]/50 transition-colors">
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-2">
                                 <span className="font-semibold text-sm text-slate-800 dark:text-slate-200">{f.feName}</span>
@@ -965,7 +965,7 @@ export default function SchemaMapper() {
                                 <select
                                   value={currentDbTable}
                                   onChange={(e) => handleDbTableChange(selectedTable.id, f.id, e.target.value)}
-                                  className="w-full pl-9 pr-8 py-2 rounded-lg border border-slate-200 dark:border-[#30363D] bg-white dark:bg-[#161B22] text-sm text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-blue-500 outline-none appearance-none cursor-pointer transition-colors"
+                                  className="w-full pl-9 pr-8 py-2 rounded-lg border border-slate-200 dark:border-[#3A4A8C] bg-white dark:bg-[#1A2450] text-sm text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-blue-500 outline-none appearance-none cursor-pointer transition-colors"
                                 >
                                   {tables.map(t => (
                                     <option key={t.id} value={t.dbName}>{t.feName || t.dbName} ({t.dbName})</option>
@@ -985,8 +985,8 @@ export default function SchemaMapper() {
                                 <select
                                   value={f.dbName || ''}
                                   onChange={(e) => handleDbNameChange(selectedTable.id, f.id, e.target.value)}
-                                  className={`w-full pl-9 pr-8 py-2 rounded-lg border bg-white dark:bg-[#161B22] text-sm text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-blue-500 outline-none appearance-none cursor-pointer transition-colors ${
-                                    isCrossTable && !hasEdge ? 'border-amber-200 dark:border-amber-500/30' : 'border-slate-200 dark:border-[#30363D]'
+                                  className={`w-full pl-9 pr-8 py-2 rounded-lg border bg-white dark:bg-[#1A2450] text-sm text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-blue-500 outline-none appearance-none cursor-pointer transition-colors ${
+                                    isCrossTable && !hasEdge ? 'border-amber-200 dark:border-amber-500/30' : 'border-slate-200 dark:border-[#3A4A8C]'
                                   }`}
                                 >
                                   <option value="" disabled>Seçiniz</option>

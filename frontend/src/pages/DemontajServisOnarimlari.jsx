@@ -188,13 +188,13 @@ const DemontajServisOnarimlari = () => {
   useEffect(() => { searchRef.current?.focus(); }, []);
 
   return (
-    <div className="flex flex-col space-y-6 pb-12 text-[#0F172A] dark:text-[#FAFAFA] max-w-[1600px] mx-auto animate-in fade-in duration-300">
+    <div className="flex flex-col space-y-6 pb-12 text-[#16204A] dark:text-[#F6F8FF] max-w-[1600px] mx-auto animate-in fade-in duration-300">
       <NotificationToast notification={notification} onClose={() => setNotification(null)} />
 
       {/* ════════════════ HERO BANNER ════════════════ */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#F1F5F9] dark:from-[#050A18] via-[#E2E9F5] dark:via-[#0F172A] to-[#FFFFFF] dark:to-[#1E293B] p-6 sm:p-8 text-[#0D1B3E] dark:text-white shadow-xl border border-[#E2E8F0] dark:border-[#1E293B]">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#EFF1FA] dark:from-[#101935] via-[#DDE2F2] dark:via-[#16204A] to-[#FFFFFF] dark:to-[#24326A] p-6 sm:p-8 text-[#1B2755] dark:text-white shadow-xl border border-[#DCE1F1] dark:border-[#24326A]">
         {/* Ambient Grid Overlay */}
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(16,185,129,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(16,185,129,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(63, 161, 135,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(63, 161, 135,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-600/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -202,10 +202,10 @@ const DemontajServisOnarimlari = () => {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-500/20 border border-emerald-200 dark:border-emerald-400/30 text-emerald-700 dark:text-emerald-300 text-xs font-semibold tracking-wide">
               <Wrench size={13} className="text-emerald-400" /> DEMONTAJ SERVİS ONARIMLARI
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#0D1B3E] dark:text-white">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1B2755] dark:text-white">
               Demontaj Servis Onarımları & Parça Demontajı
             </h1>
-            <p className="text-sm text-[#475569] dark:text-slate-300 leading-relaxed">
+            <p className="text-sm text-[#4A5A9E] dark:text-slate-300 leading-relaxed">
               Cihaz demontaj işlemlerini yapın, sökülen ve sağlam parçaları depolara ve DOA lokasyonlarına yönlendirin.
             </p>
           </div>
@@ -213,10 +213,10 @@ const DemontajServisOnarimlari = () => {
       </div>
 
       {/* SEARCH BAR */}
-      <div className="bg-[#F8FAFC] dark:bg-[#0F172A] rounded-2xl border border-[#E2E8F0] dark:border-[#1E293B] p-5 shadow-md">
+      <div className="glass-card rounded-2xl p-5 shadow-md">
         <form onSubmit={handleSearch} className="flex flex-col md:flex-row items-center gap-3">
           <div className="relative flex-1 w-full">
-            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#64748B] dark:text-[#94A3B8]" />
+            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#5A6685] dark:text-[#8892B5]" />
             <input
               ref={searchRef}
               type="text"
@@ -224,10 +224,10 @@ const DemontajServisOnarimlari = () => {
               onChange={e => setSearchTerm(e.target.value)}
               disabled={isSearching}
               placeholder="IMEI / Internal ID / Seri No okutunuz..."
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[#E2E8F0] dark:border-[#334155] bg-[#FFFFFF] dark:bg-[#1E293B] text-xs sm:text-sm text-[#0F172A] dark:text-[#FAFAFA] placeholder-[#64748B] focus:outline-none focus:border-[#2563EB] transition-all disabled:opacity-50 font-mono"
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[#DCE1F1] dark:border-[#3B4A85] bg-[#FFFFFF] dark:bg-[#24326A] text-xs sm:text-sm text-[#16204A] dark:text-[#F6F8FF] placeholder-[#5A6685] focus:outline-none focus:border-[#4457A5] transition-all disabled:opacity-50 font-mono"
             />
           </div>
-          <button type="submit" disabled={isSearching} className="w-full md:w-auto px-6 py-2.5 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-40 text-white text-xs font-semibold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer">
+          <button type="submit" disabled={isSearching} className="w-full md:w-auto px-6 py-2.5 rounded-xl bg-[#4457A5] hover:bg-[#2E3F78] disabled:opacity-40 text-white text-xs font-semibold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer">
             <Search size={15} /> {isSearching ? "Sorgulanıyor..." : "Sorgula"}
           </button>
           {statusBadge && (
@@ -256,7 +256,7 @@ const DemontajServisOnarimlari = () => {
               <div className="lg:col-span-8 grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">Akış Durumu (Flow)</label>
-                  <div className="px-3 py-2.5 bg-slate-50 dark:bg-[#0f1219] rounded-xl border border-slate-100 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300 leading-relaxed min-h-[56px]">
+                  <div className="px-3 py-2.5 bg-slate-50 dark:bg-[#131B3A] rounded-xl border border-slate-100 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300 leading-relaxed min-h-[56px]">
                     {device.customerRequest}
                   </div>
                 </div>
@@ -269,7 +269,7 @@ const DemontajServisOnarimlari = () => {
                         onChange={e => setDiagnosisDraft(e.target.value)}
                         rows={2}
                         placeholder="Arıza tespitini giriniz..."
-                        className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#161B22] text-xs text-slate-700 dark:text-slate-300 leading-relaxed min-h-[56px] resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                        className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1A2450] text-xs text-slate-700 dark:text-slate-300 leading-relaxed min-h-[56px] resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                       />
                       <button
                         onClick={handleSaveDiagnosis}
@@ -280,14 +280,14 @@ const DemontajServisOnarimlari = () => {
                       </button>
                     </div>
                   ) : (
-                    <div className="px-3 py-2.5 bg-slate-50 dark:bg-[#0f1219] rounded-xl border border-slate-100 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300 leading-relaxed min-h-[56px]">
+                    <div className="px-3 py-2.5 bg-slate-50 dark:bg-[#131B3A] rounded-xl border border-slate-100 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300 leading-relaxed min-h-[56px]">
                       {device.customerDiagnosis || <span className="italic text-slate-400">Belirtilmemiş</span>}
                     </div>
                   )}
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">Ürün Bilgisi</label>
-                  <div className="px-3 py-2.5 bg-slate-50 dark:bg-[#0f1219] rounded-xl border border-slate-100 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300 leading-relaxed min-h-[56px] font-semibold">
+                  <div className="px-3 py-2.5 bg-slate-50 dark:bg-[#131B3A] rounded-xl border border-slate-100 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300 leading-relaxed min-h-[56px] font-semibold">
                     {device.productInfo}
                     <span className="block text-[10px] font-normal text-slate-500 mt-1">{device.productCode}</span>
                   </div>
@@ -324,7 +324,7 @@ const DemontajServisOnarimlari = () => {
           showNotif={showNotif}
         />
       ) : (
-        <div className="flex-1 flex flex-col items-center justify-center text-slate-400 dark:text-slate-600 bg-white dark:bg-[#161B22] rounded-2xl border border-slate-200 dark:border-[#30363D] shadow-sm">
+        <div className="flex-1 flex flex-col items-center justify-center text-slate-400 dark:text-slate-600 bg-white dark:bg-[#1A2450] rounded-2xl border border-slate-200 dark:border-[#3A4A8C] shadow-sm">
           <Search size={48} strokeWidth={1} className="mb-4 opacity-40" />
           <p className="text-sm font-medium">Cihaz barkodunu okutarak başlayınız</p>
           <p className="text-xs mt-1">IMEI, Internal ID veya Seri No giriniz</p>

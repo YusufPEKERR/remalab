@@ -75,37 +75,37 @@ export default function Depo() {
   const occupancy = calculateOccupancy();
 
   return (
-    <div className="flex flex-col space-y-6 pb-12 text-[#0F172A] dark:text-[#FAFAFA] max-w-[1600px] mx-auto animate-in fade-in duration-300">
+    <div className="flex flex-col space-y-6 pb-12 text-[#16204A] dark:text-[#F6F8FF] max-w-[1600px] mx-auto animate-in fade-in duration-300">
 
       {/* ════════════════ HERO BANNER ════════════════ */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#F1F5F9] dark:from-[#070E20] via-[#E2E9F5] dark:via-[#0D1B3E] to-[#EFF6FF] dark:to-[#172554] p-6 sm:p-8 text-[#0D1B3E] dark:text-white shadow-xl border border-[#E2E8F0] dark:border-[#1E293B]">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#EFF1FA] dark:from-[#16204A] via-[#DDE2F2] dark:via-[#1B2755] to-[#EEF1FB] dark:to-[#16204A] p-6 sm:p-8 text-[#1B2755] dark:text-white shadow-xl border border-[#DCE1F1] dark:border-[#24326A]">
         {/* Ambient Grid Overlay */}
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(37,99,235,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(37,99,235,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(68, 87, 165,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(68, 87, 165,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 dark:bg-blue-500/20 border border-blue-500/25 dark:border-blue-400/30 text-[#1D4ED8] dark:text-blue-300 text-xs font-semibold tracking-wide">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 dark:bg-blue-500/20 border border-blue-500/25 dark:border-blue-400/30 text-[#2E3F78] dark:text-blue-300 text-xs font-semibold tracking-wide">
               <Package size={13} className="text-blue-400" /> DEPO YÖNETİM MODÜLÜ
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#0D1B3E] dark:text-white">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1B2755] dark:text-white">
               Depo Stok
             </h1>
-            <p className="text-sm text-[#475569] dark:text-slate-300 leading-relaxed">
+            <p className="text-sm text-[#4A5A9E] dark:text-slate-300 leading-relaxed">
               Depo lokasyonlarındaki stok miktarlarını, parça hareketlerini ve kritik sınırı canlı takip edin.
             </p>
           </div>
 
           <div className="flex items-center gap-3 shrink-0">
-            <div className="hidden md:flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 border border-white/15 backdrop-blur-md text-xs font-semibold text-[#0D1B3E] dark:text-white">
+            <div className="hidden md:flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 border border-white/15 backdrop-blur-md text-xs font-semibold text-[#1B2755] dark:text-white">
               <Layers size={15} className="text-blue-400" />
-              <span>Toplam <strong className="text-[#0D1B3E] dark:text-white font-bold">{totalRecords.toLocaleString('tr-TR')}</strong> Kalem Kayıt</span>
+              <span>Toplam <strong className="text-[#1B2755] dark:text-white font-bold">{totalRecords.toLocaleString('tr-TR')}</strong> Kalem Kayıt</span>
             </div>
 
             <button
               onClick={() => loadInventory()}
               disabled={loading}
-              className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-[#0D1B3E] dark:text-white transition-all backdrop-blur-md cursor-pointer"
+              className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-[#1B2755] dark:text-white transition-all backdrop-blur-md cursor-pointer"
               title="Listeyi Yenile"
             >
               <RefreshCw size={18} className={loading ? "animate-spin text-blue-400" : ""} />
@@ -115,26 +115,26 @@ export default function Depo() {
       </div>
 
       {/* ════════════════ STORAGE OCCUPANCY PROGRESS CARD ════════════════ */}
-      <div className="bg-[#F8FAFC] dark:bg-[#0F172A] p-6 rounded-2xl border border-[#E2E8F0] dark:border-[#1E293B] shadow-md space-y-4">
+      <div className="glass-card p-6 rounded-2xl shadow-md space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <Info size={18} className="text-[#60A5FA]" />
-            <h3 className="text-sm font-semibold text-[#0F172A] dark:text-[#FAFAFA]">
+            <Info size={18} className="text-[#8894D8]" />
+            <h3 className="text-sm font-semibold text-[#16204A] dark:text-[#F6F8FF]">
               {occupancy.title}
             </h3>
             {selectedItem && (
               <button 
                 onClick={() => setSelectedItem(null)}
-                className="text-[11px] text-[#60A5FA] hover:underline font-semibold ml-2"
+                className="text-[11px] text-[#8894D8] hover:underline font-semibold ml-2"
               >
                 (Seçimi Temizle)
               </button>
             )}
           </div>
 
-          <div className="flex items-center gap-3 text-xs font-semibold text-[#64748B] dark:text-[#94A3B8]">
+          <div className="flex items-center gap-3 text-xs font-semibold text-[#5A6685] dark:text-[#8892B5]">
             <span>
-              Miktar: <strong className="text-[#60A5FA] font-mono text-sm">{occupancy.currentQty.toLocaleString('tr-TR')}</strong> / {occupancy.maxCapacity.toLocaleString('tr-TR')} Adet
+              Miktar: <strong className="text-[#8894D8] font-mono text-sm">{occupancy.currentQty.toLocaleString('tr-TR')}</strong> / {occupancy.maxCapacity.toLocaleString('tr-TR')} Adet
             </span>
             <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
               occupancy.isCritical ? 'bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-500/30' : 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30'
@@ -144,12 +144,12 @@ export default function Depo() {
           </div>
         </div>
 
-        <div className="w-full bg-[#FFFFFF] dark:bg-[#1E293B] rounded-full h-3.5 border border-[#E2E8F0] dark:border-[#334155] overflow-hidden relative">
+        <div className="w-full bg-[#FFFFFF] dark:bg-[#24326A] rounded-full h-3.5 border border-[#DCE1F1] dark:border-[#3B4A85] overflow-hidden relative">
           <div
             className={`h-full rounded-full transition-all duration-500 ease-out shadow-xs ${
               occupancy.isCritical 
                 ? 'bg-gradient-to-r from-red-500 to-red-600' 
-                : 'bg-gradient-to-r from-[#2563EB] to-blue-400'
+                : 'bg-gradient-to-r from-[#4457A5] to-blue-400'
             }`}
             style={{ width: `${occupancy.percentage}%` }}
           />
@@ -157,14 +157,14 @@ export default function Depo() {
       </div>
 
       {/* ════════════════ SEARCH & FILTER BAR ════════════════ */}
-      <div className="bg-[#F8FAFC] dark:bg-[#0F172A] rounded-2xl p-4 border border-[#E2E8F0] dark:border-[#1E293B] shadow-md flex flex-col sm:flex-row items-center gap-3">
+      <div className="glass-card rounded-2xl p-4 shadow-md flex flex-col sm:flex-row items-center gap-3">
         <div className="flex-1 w-full relative">
-          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#64748B] dark:text-[#94A3B8]">
+          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#5A6685] dark:text-[#8892B5]">
             <Search size={18} />
           </div>
           <input
             type="text"
-            className="w-full bg-[#FFFFFF] dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155] text-[#0F172A] dark:text-[#FAFAFA] placeholder-[#64748B] rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm font-medium focus:outline-none focus:border-[#2563EB] transition-all shadow-xs"
+            className="w-full bg-[#FFFFFF] dark:bg-[#24326A] border border-[#DCE1F1] dark:border-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] placeholder-[#5A6685] rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm font-medium focus:outline-none focus:border-[#4457A5] transition-all shadow-xs"
             placeholder="Arama yapın (İtem Kodu, Parça Adı, Lokasyon)..."
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
@@ -174,7 +174,7 @@ export default function Depo() {
         {searchInput && (
           <button
             onClick={() => setSearchInput('')}
-            className="px-3 py-2 text-xs font-semibold text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-[#FAFAFA] bg-[#FFFFFF] dark:bg-[#1E293B] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] rounded-xl border border-[#E2E8F0] dark:border-[#334155] transition-colors"
+            className="px-3 py-2 text-xs font-semibold text-[#5A6685] dark:text-[#8892B5] hover:text-[#16204A] dark:hover:text-[#F6F8FF] bg-[#FFFFFF] dark:bg-[#24326A] hover:bg-[#EFF1FA] dark:hover:bg-[#3B4A85] rounded-xl border border-[#DCE1F1] dark:border-[#3B4A85] transition-colors"
           >
             Aramayı Temizle
           </button>
@@ -182,10 +182,10 @@ export default function Depo() {
       </div>
 
       {/* ════════════════ INVENTORY TABLE CONTAINER ════════════════ */}
-      <div className="bg-[#F8FAFC] dark:bg-[#0F172A] rounded-2xl border border-[#E2E8F0] dark:border-[#1E293B] shadow-md overflow-hidden flex flex-col">
+      <div className="glass-card rounded-2xl shadow-md overflow-hidden flex flex-col">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs whitespace-nowrap">
-            <thead className="bg-[#F8FAFC] dark:bg-[#162032] text-[#64748B] dark:text-[#94A3B8] font-semibold uppercase tracking-wider border-b border-[#E2E8F0] dark:border-[#1E293B]">
+            <thead className="bg-[#F5F7FC] dark:bg-[#1B2755] text-[#5A6685] dark:text-[#8892B5] font-semibold uppercase tracking-wider border-b border-[#DCE1F1] dark:border-[#24326A]">
               <tr>
                 <th className="px-6 py-4">SON HAREKET TARİHİ</th>
                 <th className="px-6 py-4">İTEM KODU</th>
@@ -194,7 +194,7 @@ export default function Depo() {
                 <th className="px-6 py-4">STOK MİKTARI</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#E2E8F0] dark:divide-[#1E293B]">
+            <tbody className="divide-y divide-[#DCE1F1] dark:divide-[#24326A]">
               {inventory.length > 0 ? (
                 inventory.map((item) => {
                   const isSelected = selectedItem?.id === item.id;
@@ -208,24 +208,24 @@ export default function Depo() {
                       onClick={() => setSelectedItem(isSelected ? null : item)}
                       className={`cursor-pointer transition-colors duration-150
                         ${isSelected 
-                          ? 'bg-blue-900/30 border-l-4 border-[#2563EB]' 
-                          : 'hover:bg-[#FFFFFF]/70 dark:hover:bg-[#1E293B]/70 border-l-4 border-transparent text-[#0F172A] dark:text-[#FAFAFA]'
+                          ? 'bg-blue-900/30 border-l-4 border-[#4457A5]' 
+                          : 'hover:bg-[#FFFFFF]/70 dark:hover:bg-[#24326A]/70 border-l-4 border-transparent text-[#16204A] dark:text-[#F6F8FF]'
                         }`}
                     >
-                      <td className="px-6 py-3.5 font-mono text-[#64748B] dark:text-[#94A3B8] text-[11px]">
+                      <td className="px-6 py-3.5 font-mono text-[#5A6685] dark:text-[#8892B5] text-[11px]">
                         {item.updated_at || '-'}
                       </td>
                       <td className="px-6 py-3.5">
-                        <span className="px-2.5 py-1 rounded-md bg-blue-50 dark:bg-blue-950/70 text-[#1D4ED8] dark:text-[#60A5FA] border border-blue-200 dark:border-blue-800/60 font-mono font-bold text-[11px]">
+                        <span className="px-2.5 py-1 rounded-md bg-blue-50 dark:bg-blue-950/70 text-[#2E3F78] dark:text-[#8894D8] border border-blue-200 dark:border-blue-800/60 font-mono font-bold text-[11px]">
                           {item.item_code}
                         </span>
                       </td>
-                      <td className="px-6 py-3.5 font-semibold text-[#0F172A] dark:text-[#FAFAFA] text-sm">
+                      <td className="px-6 py-3.5 font-semibold text-[#16204A] dark:text-[#F6F8FF] text-sm">
                         {item.part_name}
                       </td>
                       <td className="px-6 py-3.5">
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#FFFFFF] dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155] text-[#334155] dark:text-slate-200 font-semibold text-xs">
-                          <MapPin size={13} className="text-[#2563EB] dark:text-[#60A5FA]" />
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#FFFFFF] dark:bg-[#24326A] border border-[#DCE1F1] dark:border-[#3B4A85] text-[#3B4A85] dark:text-slate-200 font-semibold text-xs">
+                          <MapPin size={13} className="text-[#4457A5] dark:text-[#8894D8]" />
                           {item.location_name}
                         </span>
                       </td>
@@ -244,7 +244,7 @@ export default function Depo() {
                 })
               ) : (
                 <tr>
-                  <td colSpan="5" className="px-6 py-12 text-center text-[#64748B] dark:text-[#94A3B8]">
+                  <td colSpan="5" className="px-6 py-12 text-center text-[#5A6685] dark:text-[#8892B5]">
                     {loading ? 'Kayıtlar yükleniyor…' : 'Aradığınız kriterlere uygun stok bulunamadı.'}
                   </td>
                 </tr>
@@ -254,29 +254,29 @@ export default function Depo() {
         </div>
 
         {/* PAGINATION FOOTER */}
-        <div className="flex flex-col sm:flex-row justify-between items-center px-6 py-4 bg-[#F8FAFC] dark:bg-[#162032] border-t border-[#E2E8F0] dark:border-[#1E293B] gap-4 shrink-0">
-          <span className="text-xs text-[#64748B] dark:text-[#94A3B8] font-medium">
-            Toplam <strong className="text-[#0F172A] dark:text-[#FAFAFA]">{totalRecords.toLocaleString('tr-TR')}</strong> kayıttan{' '}
-            <strong className="text-[#0F172A] dark:text-[#FAFAFA]">{totalRecords === 0 ? 0 : indexOfFirstItem + 1}-{indexOfLastItem}</strong> arası gösteriliyor
+        <div className="flex flex-col sm:flex-row justify-between items-center px-6 py-4 bg-[#F5F7FC] dark:bg-[#1B2755] border-t border-[#DCE1F1] dark:border-[#24326A] gap-4 shrink-0">
+          <span className="text-xs text-[#5A6685] dark:text-[#8892B5] font-medium">
+            Toplam <strong className="text-[#16204A] dark:text-[#F6F8FF]">{totalRecords.toLocaleString('tr-TR')}</strong> kayıttan{' '}
+            <strong className="text-[#16204A] dark:text-[#F6F8FF]">{totalRecords === 0 ? 0 : indexOfFirstItem + 1}-{indexOfLastItem}</strong> arası gösteriliyor
           </span>
 
           <div className="flex items-center gap-2">
             <button
               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
               disabled={currentPage === 1 || totalRecords === 0}
-              className="inline-flex items-center gap-1 px-3 py-1.5 bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#334155] rounded-xl text-xs font-bold text-[#0F172A] dark:text-[#FAFAFA] hover:bg-[#FFFFFF] dark:hover:bg-[#1E293B] hover:border-blue-500 hover:text-[#60A5FA] disabled:opacity-40 transition-all cursor-pointer"
+              className="inline-flex items-center gap-1 px-3 py-1.5 bg-[#F5F7FC] dark:bg-[#16204A] border border-[#DCE1F1] dark:border-[#3B4A85] rounded-xl text-xs font-bold text-[#16204A] dark:text-[#F6F8FF] hover:bg-[#FFFFFF] dark:hover:bg-[#24326A] hover:border-blue-500 hover:text-[#8894D8] disabled:opacity-40 transition-all cursor-pointer"
             >
               <ChevronLeft size={14} /> Önceki
             </button>
 
-            <span className="text-xs font-bold px-3 py-1.5 bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#334155] rounded-xl text-[#60A5FA]">
+            <span className="text-xs font-bold px-3 py-1.5 bg-[#F5F7FC] dark:bg-[#16204A] border border-[#DCE1F1] dark:border-[#3B4A85] rounded-xl text-[#8894D8]">
               Sayfa {currentPage} / {totalPages}
             </span>
 
             <button
               onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
               disabled={currentPage >= totalPages || totalRecords === 0}
-              className="inline-flex items-center gap-1 px-3 py-1.5 bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#334155] rounded-xl text-xs font-bold text-[#0F172A] dark:text-[#FAFAFA] hover:bg-[#FFFFFF] dark:hover:bg-[#1E293B] hover:border-blue-500 hover:text-[#60A5FA] disabled:opacity-40 transition-all cursor-pointer"
+              className="inline-flex items-center gap-1 px-3 py-1.5 bg-[#F5F7FC] dark:bg-[#16204A] border border-[#DCE1F1] dark:border-[#3B4A85] rounded-xl text-xs font-bold text-[#16204A] dark:text-[#F6F8FF] hover:bg-[#FFFFFF] dark:hover:bg-[#24326A] hover:border-blue-500 hover:text-[#8894D8] disabled:opacity-40 transition-all cursor-pointer"
             >
               Sonraki <ChevronRight size={14} />
             </button>

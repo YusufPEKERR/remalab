@@ -238,8 +238,8 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, missio
     <div className="flex-1 flex flex-col gap-4 min-h-0">
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-4 min-h-0">
         {/* ── Sol Panel: Test: Sorun Tespit Edilen Parçalar ── */}
-        <div className="bg-white dark:bg-[#161B22] rounded-2xl border border-slate-200 dark:border-[#30363D] shadow-sm overflow-hidden flex flex-col min-h-0">
-          <div className="px-5 py-3 border-b border-slate-100 dark:border-[#30363D]">
+        <div className="bg-white dark:bg-[#1A2450] rounded-2xl border border-slate-200 dark:border-[#3A4A8C] shadow-sm overflow-hidden flex flex-col min-h-0">
+          <div className="px-5 py-3 border-b border-slate-100 dark:border-[#3A4A8C]">
             <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
               <Package size={16} className="text-slate-400" /> Test: Sorun Tespit Edilen Parçalar
             </h3>
@@ -254,14 +254,14 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, missio
               </div>
             ) : (
               <table className="w-full text-sm">
-                <thead className="bg-slate-50 dark:bg-[#0f1219] sticky top-0">
+                <thead className="bg-slate-50 dark:bg-[#131B3A] sticky top-0">
                   <tr className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">
                     <th className="text-left px-4 py-2.5">Semptom</th>
                     <th className="text-left px-3 py-2.5">Parça Kategorisi</th>
                     <th className="text-left px-3 py-2.5">Parça kodu</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-[#30363D]">
+                <tbody className="divide-y divide-slate-100 dark:divide-[#3A4A8C]">
                   {testDetectedParts.map(p => (
                     <tr key={p.id}>
                       <td className="px-4 py-2 text-xs text-slate-700 dark:text-slate-300">{p.symptomCode || "N/A"}</td>
@@ -279,13 +279,13 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, missio
         {/* overflow-hidden burada kasıtlı olarak yok: Parça Seçiniz açılır listesi bu panelin
             içinde absolute konumlanıyor, panelde overflow-hidden olursa liste kırpılır. Alttaki
             tablo zaten kendi overflow-auto'suna sahip, yuvarlak köşe için buna gerek yok. */}
-        <div className="bg-white dark:bg-[#161B22] rounded-2xl border border-slate-200 dark:border-[#30363D] shadow-sm flex flex-col min-h-0">
-          <div className="px-5 py-3 border-b border-slate-100 dark:border-[#30363D]">
+        <div className="bg-white dark:bg-[#1A2450] rounded-2xl border border-slate-200 dark:border-[#3A4A8C] shadow-sm flex flex-col min-h-0">
+          <div className="px-5 py-3 border-b border-slate-100 dark:border-[#3A4A8C]">
             <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
               <Wrench size={16} className="text-slate-400" /> Teknik: Teklif Parçaları
             </h3>
           </div>
-          <div className="px-4 py-3 border-b border-slate-100 dark:border-[#30363D] space-y-2">
+          <div className="px-4 py-3 border-b border-slate-100 dark:border-[#3A4A8C] space-y-2">
             {partsWarning && (
               <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 text-amber-700 dark:text-amber-400 text-xs">
                 <AlertTriangle size={14} className="shrink-0 mt-0.5" />
@@ -298,7 +298,7 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, missio
                 value={faultCode}
                 onChange={e => setFaultCode(e.target.value)}
                 disabled={!selectedItemCategory}
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#0f1219] text-slate-800 dark:text-slate-200 text-sm focus:ring-2 focus:ring-blue-500 outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#131B3A] text-slate-800 dark:text-slate-200 text-sm focus:ring-2 focus:ring-blue-500 outline-none disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <option value="">{selectedItemCategory ? "Arıza Tespiti seçiniz..." : "Önce parça seçiniz..."}</option>
                 {itemFaults.length > 0
@@ -309,7 +309,7 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, missio
                 value={missionGroupCode}
                 onChange={e => setMissionGroupCode(e.target.value)}
                 disabled={!selectedItemCategory}
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#0f1219] text-slate-800 dark:text-slate-200 text-sm focus:ring-2 focus:ring-blue-500 outline-none disabled:opacity-70 disabled:cursor-not-allowed"
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#131B3A] text-slate-800 dark:text-slate-200 text-sm focus:ring-2 focus:ring-blue-500 outline-none disabled:opacity-70 disabled:cursor-not-allowed"
               >
                 <option value="">{selectedItemCategory ? "Onarım Takımı seçiniz..." : "Önce parça seçiniz..."}</option>
                 {filteredMissionGroups.map(mg => <option key={mg.code} value={mg.code}>{mg.short_name} ({mg.code})</option>)}
@@ -318,7 +318,7 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, missio
                 value={warrantyCode}
                 onChange={e => setWarrantyCode(e.target.value)}
                 disabled={!isRmaFlow}
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#0f1219] text-slate-800 dark:text-slate-200 text-sm focus:ring-2 focus:ring-blue-500 outline-none disabled:opacity-70 disabled:cursor-not-allowed"
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#131B3A] text-slate-800 dark:text-slate-200 text-sm focus:ring-2 focus:ring-blue-500 outline-none disabled:opacity-70 disabled:cursor-not-allowed"
               >
                 <option value="">Ücretli/Ücretsiz Onarım seçiniz...</option>
                 {warranties.map(w => <option key={w.code} value={w.code}>{w.short_name}</option>)}
@@ -328,7 +328,7 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, missio
               <input
                 type="text" value={description} onChange={e => setDescription(e.target.value)}
                 placeholder="Açıklama..."
-                className="flex-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#0f1219] text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 outline-none"
+                className="flex-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#131B3A] text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 outline-none"
               />
               {editingRepairId && (
                 <button
@@ -356,7 +356,7 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, missio
               </div>
             ) : (
               <table className="w-full text-sm">
-                <thead className="bg-slate-50 dark:bg-[#0f1219] sticky top-0">
+                <thead className="bg-slate-50 dark:bg-[#131B3A] sticky top-0">
                   <tr className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">
                     <th className="text-left px-4 py-2.5">Parça kodu</th>
                     <th className="text-left px-3 py-2.5">Onarım Takımı</th>
@@ -366,7 +366,7 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, missio
                     <th className="text-center px-3 py-2.5">İşlemler</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-[#30363D]">
+                <tbody className="divide-y divide-slate-100 dark:divide-[#3A4A8C]">
                   {repairs.map(r => (
                     <tr key={r.id} className={r.isCancelled ? "opacity-50" : (editingRepairId === r.id ? "bg-indigo-50/50 dark:bg-indigo-500/10" : "")}>
                       <td className="px-4 py-2 text-xs font-mono text-slate-700 dark:text-slate-300">{r.partItemCode || "N/A"}</td>
@@ -413,7 +413,7 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, missio
       </div>
 
       {/* ── Onarım Takımları + Karar ── */}
-      <div className="bg-white dark:bg-[#161B22] rounded-2xl border border-slate-200 dark:border-[#30363D] shadow-sm overflow-hidden px-5 py-4">
+      <div className="bg-white dark:bg-[#1A2450] rounded-2xl border border-slate-200 dark:border-[#3A4A8C] shadow-sm overflow-hidden px-5 py-4">
         <div className="flex flex-col sm:flex-row sm:items-center gap-4">
           <div className="flex-1">
             <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Onarım Takımları</label>

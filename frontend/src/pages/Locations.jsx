@@ -73,30 +73,30 @@ export default function Locations() {
   }, [uniqueLocations, searchTerm]);
 
   return (
-    <div className="flex flex-col space-y-6 pb-12 text-[#0F172A] dark:text-[#FAFAFA] max-w-[1600px] mx-auto animate-in fade-in duration-300">
+    <div className="flex flex-col space-y-6 pb-12 text-[#16204A] dark:text-[#F6F8FF] max-w-[1600px] mx-auto animate-in fade-in duration-300">
       
       {/* ════════════════ HERO BANNER ════════════════ */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#F1F5F9] dark:from-[#050A18] via-[#E2E9F5] dark:via-[#0F172A] to-[#FFFFFF] dark:to-[#1E293B] p-6 sm:p-8 text-[#0D1B3E] dark:text-white shadow-xl border border-[#E2E8F0] dark:border-[#1E293B]">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#EFF1FA] dark:from-[#101935] via-[#DDE2F2] dark:via-[#16204A] to-[#FFFFFF] dark:to-[#24326A] p-6 sm:p-8 text-[#1B2755] dark:text-white shadow-xl border border-[#DCE1F1] dark:border-[#24326A]">
         {/* Ambient Grid Overlay */}
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(59,130,246,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(59,130,246,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(91, 110, 196,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(91, 110, 196,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 dark:bg-blue-500/20 border border-blue-500/25 dark:border-blue-400/30 text-[#1D4ED8] dark:text-blue-300 text-xs font-semibold tracking-wide">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 dark:bg-blue-500/20 border border-blue-500/25 dark:border-blue-400/30 text-[#2E3F78] dark:text-blue-300 text-xs font-semibold tracking-wide">
               <MapPin size={13} className="text-blue-400" /> DEPO VE LOKASYON YÖNETİMİ
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#0D1B3E] dark:text-white">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1B2755] dark:text-white">
               Depolar & Lokasyon Tanımları
             </h1>
-            <p className="text-sm text-[#475569] dark:text-slate-300 leading-relaxed">
+            <p className="text-sm text-[#4A5A9E] dark:text-slate-300 leading-relaxed">
               Depo raf ve depolama lokasyonlarını ekleyin, gruplayın ve yetkili alanları yapılandırın.
             </p>
           </div>
 
           <button 
             onClick={() => setIsModalOpen(true)}
-            className="flex items-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer shrink-0"
+            className="flex items-center gap-2 bg-[#4457A5] hover:bg-[#2E3F78] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer shrink-0"
           >
             <Plus size={16} /> Yeni Lokasyon Ekle
           </button>
@@ -111,9 +111,9 @@ export default function Locations() {
       )}
 
       {/* SEARCH BAR */}
-      <div className="bg-[#F8FAFC] dark:bg-[#0F172A] rounded-2xl p-4 border border-[#E2E8F0] dark:border-[#1E293B] shadow-md flex items-center gap-3">
+      <div className="glass-card rounded-2xl p-4 shadow-md flex items-center gap-3">
         <div className="flex-1 relative">
-          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#64748B] dark:text-[#94A3B8]">
+          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#5A6685] dark:text-[#8892B5]">
             <Search size={18} />
           </div>
           <input 
@@ -121,40 +121,40 @@ export default function Locations() {
             placeholder="Lokasyon Ara (ID veya Lokasyon Adı)..." 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-[#FFFFFF] dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155] text-[#0F172A] dark:text-[#FAFAFA] placeholder-[#64748B] rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm font-medium focus:outline-none focus:border-[#2563EB] transition-all shadow-xs"
+            className="w-full bg-[#FFFFFF] dark:bg-[#24326A] border border-[#DCE1F1] dark:border-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] placeholder-[#5A6685] rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm font-medium focus:outline-none focus:border-[#4457A5] transition-all shadow-xs"
           />
         </div>
       </div>
 
       {/* TABLE */}
-      <div className="bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#1E293B] rounded-2xl shadow-md overflow-hidden flex flex-col">
+      <div className="glass-card rounded-2xl shadow-md overflow-hidden flex flex-col">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs whitespace-nowrap">
-            <thead className="bg-[#F8FAFC] dark:bg-[#162032] text-[#64748B] dark:text-[#94A3B8] font-semibold uppercase tracking-wider border-b border-[#E2E8F0] dark:border-[#1E293B] sticky top-0 z-10">
+            <thead className="bg-[#F5F7FC] dark:bg-[#1B2755] text-[#5A6685] dark:text-[#8892B5] font-semibold uppercase tracking-wider border-b border-[#DCE1F1] dark:border-[#24326A] sticky top-0 z-10">
               <tr>
                 <th className="px-6 py-4 w-32">LOKASYON ID</th>
                 <th className="px-6 py-4">LOKASYON ADI</th>
                 <th className="px-6 py-4">AÇIKLAMA</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#E2E8F0] dark:divide-[#1E293B]">
+            <tbody className="divide-y divide-[#DCE1F1] dark:divide-[#24326A]">
               {loading ? (
                 <tr>
-                  <td colSpan="3" className="px-6 py-8 text-center text-[#64748B] dark:text-[#94A3B8]">
-                    <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-[#60A5FA]" />
+                  <td colSpan="3" className="px-6 py-8 text-center text-[#5A6685] dark:text-[#8892B5]">
+                    <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-[#8894D8]" />
                     Yükleniyor...
                   </td>
                 </tr>
               ) : filteredLocations.length === 0 ? (
                 <tr>
-                  <td colSpan="3" className="px-6 py-8 text-center text-[#64748B] dark:text-[#94A3B8]">
+                  <td colSpan="3" className="px-6 py-8 text-center text-[#5A6685] dark:text-[#8892B5]">
                     Kayıt bulunamadı.
                   </td>
                 </tr>
               ) : (
                 filteredLocations.map((loc) => (
-                  <tr key={loc.id} className="hover:bg-[#FFFFFF]/70 dark:hover:bg-[#1E293B]/70 transition-colors text-[#0F172A] dark:text-[#FAFAFA]">
-                    <td className="px-6 py-3.5 font-mono text-[#64748B] dark:text-[#94A3B8] text-[11px]">{loc.id}</td>
+                  <tr key={loc.id} className="hover:bg-[#FFFFFF]/70 dark:hover:bg-[#24326A]/70 transition-colors text-[#16204A] dark:text-[#F6F8FF]">
+                    <td className="px-6 py-3.5 font-mono text-[#5A6685] dark:text-[#8892B5] text-[11px]">{loc.id}</td>
                     <td className="px-6 py-3.5 font-semibold">
                       <div className="flex items-center gap-2">
                         {loc.name}
@@ -176,7 +176,7 @@ export default function Locations() {
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-3.5 text-[#64748B] dark:text-[#94A3B8]">{loc.description || '-'}</td>
+                    <td className="px-6 py-3.5 text-[#5A6685] dark:text-[#8892B5]">{loc.description || '-'}</td>
                   </tr>
                 ))
               )}
@@ -188,40 +188,40 @@ export default function Locations() {
       {/* MODAL */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#1E293B] shadow-2xl rounded-2xl w-full max-w-md overflow-hidden text-[#0F172A] dark:text-[#FAFAFA]">
-            <div className="px-6 py-4 border-b border-[#E2E8F0] dark:border-[#1E293B] flex justify-between items-center bg-[#F8FAFC] dark:bg-[#162032]">
-              <h2 className="text-sm font-semibold text-[#0F172A] dark:text-[#FAFAFA]">Yeni Lokasyon Ekle</h2>
-              <button onClick={() => setIsModalOpen(false)} className="text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-[#FAFAFA] transition-colors cursor-pointer">
+          <div className="glass-modal shadow-2xl rounded-2xl w-full max-w-md overflow-hidden text-[#16204A] dark:text-[#F6F8FF]">
+            <div className="px-6 py-4 border-b border-[#DCE1F1] dark:border-[#24326A] flex justify-between items-center bg-[#F5F7FC] dark:bg-[#1B2755]">
+              <h2 className="text-sm font-semibold text-[#16204A] dark:text-[#F6F8FF]">Yeni Lokasyon Ekle</h2>
+              <button onClick={() => setIsModalOpen(false)} className="text-[#5A6685] dark:text-[#8892B5] hover:text-[#16204A] dark:hover:text-[#F6F8FF] transition-colors cursor-pointer">
                 <X size={18} />
               </button>
             </div>
 
             <form onSubmit={handleAdd} className="p-6 space-y-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-[#64748B] dark:text-[#94A3B8]">Lokasyon Adı <span className="text-red-400">*</span></label>
+                <label className="text-xs font-bold text-[#5A6685] dark:text-[#8892B5]">Lokasyon Adı <span className="text-red-400">*</span></label>
                 <input
                   type="text" required
                   placeholder="Örn: A-01-01"
-                  className="w-full px-3.5 py-2.5 bg-[#FFFFFF] dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155] rounded-xl text-xs text-[#0F172A] dark:text-[#FAFAFA] placeholder-[#64748B] focus:outline-none focus:border-[#2563EB]"
+                  className="w-full px-3.5 py-2.5 bg-[#FFFFFF] dark:bg-[#24326A] border border-[#DCE1F1] dark:border-[#3B4A85] rounded-xl text-xs text-[#16204A] dark:text-[#F6F8FF] placeholder-[#5A6685] focus:outline-none focus:border-[#4457A5]"
                   value={newLocationName}
                   onChange={e => setNewLocationName(e.target.value)}
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-[#64748B] dark:text-[#94A3B8]">Açıklama (Opsiyonel)</label>
+                <label className="text-xs font-bold text-[#5A6685] dark:text-[#8892B5]">Açıklama (Opsiyonel)</label>
                 <input
                   type="text"
                   placeholder="Örn: Yedek parçalar için raf"
-                  className="w-full px-3.5 py-2.5 bg-[#FFFFFF] dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155] rounded-xl text-xs text-[#0F172A] dark:text-[#FAFAFA] placeholder-[#64748B] focus:outline-none focus:border-[#2563EB]"
+                  className="w-full px-3.5 py-2.5 bg-[#FFFFFF] dark:bg-[#24326A] border border-[#DCE1F1] dark:border-[#3B4A85] rounded-xl text-xs text-[#16204A] dark:text-[#F6F8FF] placeholder-[#5A6685] focus:outline-none focus:border-[#4457A5]"
                   value={newLocationDesc}
                   onChange={e => setNewLocationDesc(e.target.value)}
                 />
               </div>
 
-              <div className="pt-4 flex justify-end gap-3 border-t border-[#E2E8F0] dark:border-[#1E293B] mt-6">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 bg-[#FFFFFF] dark:bg-[#1E293B] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] text-[#0F172A] dark:text-[#FAFAFA] rounded-xl text-xs font-bold transition-all cursor-pointer">İptal</button>
-                <button type="submit" className="px-4 py-2 text-white bg-[#2563EB] hover:bg-[#1D4ED8] rounded-xl text-xs font-semibold transition-all shadow-md cursor-pointer">Kaydet</button>
+              <div className="pt-4 flex justify-end gap-3 border-t border-[#DCE1F1] dark:border-[#24326A] mt-6">
+                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 bg-[#FFFFFF] dark:bg-[#24326A] hover:bg-[#EFF1FA] dark:hover:bg-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] rounded-xl text-xs font-bold transition-all cursor-pointer">İptal</button>
+                <button type="submit" className="px-4 py-2 text-white bg-[#4457A5] hover:bg-[#2E3F78] rounded-xl text-xs font-semibold transition-all shadow-md cursor-pointer">Kaydet</button>
               </div>
             </form>
           </div>

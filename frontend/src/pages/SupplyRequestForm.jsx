@@ -73,23 +73,23 @@ export default function SupplyRequestForm() {
   };
 
   return (
-    <div className="flex flex-col space-y-6 pb-12 text-[#0F172A] dark:text-[#FAFAFA] max-w-[1600px] mx-auto animate-in fade-in duration-300">
+    <div className="flex flex-col space-y-6 pb-12 text-[#16204A] dark:text-[#F6F8FF] max-w-[1600px] mx-auto animate-in fade-in duration-300">
 
       {/* ════════════════ HERO BANNER ════════════════ */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#F1F5F9] dark:from-[#050A18] via-[#E2E9F5] dark:via-[#0F172A] to-[#FFFFFF] dark:to-[#1E293B] p-6 sm:p-8 text-[#0D1B3E] dark:text-white shadow-xl border border-[#E2E8F0] dark:border-[#1E293B]">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#EFF1FA] dark:from-[#101935] via-[#DDE2F2] dark:via-[#16204A] to-[#FFFFFF] dark:to-[#24326A] p-6 sm:p-8 text-[#1B2755] dark:text-white shadow-xl border border-[#DCE1F1] dark:border-[#24326A]">
         {/* Ambient Grid Overlay */}
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(37,99,235,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(37,99,235,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(68, 87, 165,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(68, 87, 165,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 dark:bg-blue-500/20 border border-blue-500/25 dark:border-blue-400/30 text-[#1D4ED8] dark:text-blue-300 text-xs font-semibold tracking-wide">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 dark:bg-blue-500/20 border border-blue-500/25 dark:border-blue-400/30 text-[#2E3F78] dark:text-blue-300 text-xs font-semibold tracking-wide">
               <PackagePlus size={13} className="text-blue-400" /> YEDEK PARÇA TEDARİK TALEBİ
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#0D1B3E] dark:text-white">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1B2755] dark:text-white">
               Tedarik Talepleri Formu
             </h1>
-            <p className="text-sm text-[#475569] dark:text-slate-300 leading-relaxed">
+            <p className="text-sm text-[#4A5A9E] dark:text-slate-300 leading-relaxed">
               Bir iş emri için depodan veya dış tedarikçiden temin edilmesi gereken parça taleplerini oluşturun.
             </p>
           </div>
@@ -99,13 +99,13 @@ export default function SupplyRequestForm() {
       <div className="flex-1 space-y-6">
 
         {/* Talep Formu */}
-        <div className="bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#1E293B] rounded-2xl p-6 shadow-md">
-          <h2 className="text-base font-semibold text-[#0D1B3E] dark:text-white mb-5">Yeni Talep Oluştur</h2>
+        <div className="glass-card rounded-2xl p-6 shadow-md">
+          <h2 className="text-base font-semibold text-[#1B2755] dark:text-white mb-5">Yeni Talep Oluştur</h2>
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div>
-                <label className="block text-xs font-bold text-[#64748B] dark:text-[#94A3B8] uppercase tracking-wider mb-2">İş Emri <span className="text-rose-400">*</span></label>
-                <select required className="w-full bg-[#FFFFFF] dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155] text-[#0F172A] dark:text-[#FAFAFA] rounded-xl px-4 py-2.5 text-xs sm:text-sm focus:outline-none focus:border-[#2563EB]" value={formData.work_order_id} onChange={e => setFormData({ ...formData, work_order_id: e.target.value })}>
+                <label className="block text-xs font-bold text-[#5A6685] dark:text-[#8892B5] uppercase tracking-wider mb-2">İş Emri <span className="text-rose-400">*</span></label>
+                <select required className="w-full bg-[#FFFFFF] dark:bg-[#24326A] border border-[#DCE1F1] dark:border-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] rounded-xl px-4 py-2.5 text-xs sm:text-sm focus:outline-none focus:border-[#4457A5]" value={formData.work_order_id} onChange={e => setFormData({ ...formData, work_order_id: e.target.value })}>
                   <option value="">İş emri seçiniz...</option>
                   {workOrders.map(wo => (
                     <option key={wo.id} value={wo.id}>
@@ -116,7 +116,7 @@ export default function SupplyRequestForm() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-400 mb-1.5">Parça <span className="text-red-400">*</span></label>
-                <select required className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={formData.part_id} onChange={e => setFormData({ ...formData, part_id: e.target.value })}>
+                <select required className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={formData.part_id} onChange={e => setFormData({ ...formData, part_id: e.target.value })}>
                   <option value="">Parça seçiniz...</option>
                   {parts.map(p => (
                     <option key={p.id} value={p.id}>{p.brand} {p.model} {p.color} {p.part_category} {p.item_code ? `- ${p.item_code}` : ''}</option>
@@ -128,13 +128,13 @@ export default function SupplyRequestForm() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div>
                 <label className="block text-sm font-medium text-slate-400 mb-1.5">Miktar</label>
-                <input type="number" min="1" className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={formData.quantity} onChange={e => setFormData({ ...formData, quantity: e.target.value })} />
+                <input type="number" min="1" className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={formData.quantity} onChange={e => setFormData({ ...formData, quantity: e.target.value })} />
               </div>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-slate-400 mb-1.5">Not <span className="text-red-400">*</span></label>
-              <textarea required rows={2} placeholder="Talep için not giriniz..." className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 resize-none" value={formData.notes} onChange={e => setFormData({ ...formData, notes: e.target.value })} />
+              <textarea required rows={2} placeholder="Talep için not giriniz..." className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 resize-none" value={formData.notes} onChange={e => setFormData({ ...formData, notes: e.target.value })} />
             </div>
 
             <div className="flex justify-end pt-2">
@@ -146,13 +146,13 @@ export default function SupplyRequestForm() {
         </div>
 
         {/* Talepler */}
-        <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden">
+        <div className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl overflow-hidden">
           <div className="p-6 pb-4">
             <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Talepler</h2>
             <p className="text-slate-400 text-sm mt-1">Sizin oluşturduğunuz tedarik talepleri ve güncel durumları.</p>
           </div>
           <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-semibold uppercase tracking-wider text-xs">
+            <thead className="bg-slate-50 dark:bg-[#232F63] text-slate-400 font-semibold uppercase tracking-wider text-xs">
               <tr>
                 <th className="px-6 py-4">Müşteri / Cihaz</th>
                 <th className="px-6 py-4">Parça</th>
@@ -174,7 +174,7 @@ export default function SupplyRequestForm() {
                 </tr>
               ) : (
                 requests.map(row => (
-                  <tr key={row.id} className="hover:bg-slate-100 dark:bg-[#2a3142] transition-colors text-slate-700 dark:text-slate-300">
+                  <tr key={row.id} className="hover:bg-slate-100 dark:bg-[#2E3F78] transition-colors text-slate-700 dark:text-slate-300">
                     <td className="px-6 py-4">
                       <div className="font-medium text-slate-800 dark:text-slate-200">{row.customer_name || '-'}</div>
                       <div className="text-xs text-slate-400">{row.device_brand} {row.device_model}</div>

@@ -179,12 +179,12 @@ export default function ItemBOM() {
   };
 
   return (
-    <div className="flex flex-col space-y-6 pb-12 text-[#0F172A] dark:text-[#FAFAFA] max-w-[1600px] mx-auto animate-in fade-in duration-300">
+    <div className="flex flex-col space-y-6 pb-12 text-[#16204A] dark:text-[#F6F8FF] max-w-[1600px] mx-auto animate-in fade-in duration-300">
       
       {/* ════════════════ HERO BANNER ════════════════ */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#F1F5F9] dark:from-[#050A18] via-[#E2E9F5] dark:via-[#0F172A] to-[#FFFFFF] dark:to-[#1E293B] p-6 sm:p-8 text-[#0D1B3E] dark:text-white shadow-xl border border-[#E2E8F0] dark:border-[#1E293B]">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#EFF1FA] dark:from-[#101935] via-[#DDE2F2] dark:via-[#16204A] to-[#FFFFFF] dark:to-[#24326A] p-6 sm:p-8 text-[#1B2755] dark:text-white shadow-xl border border-[#DCE1F1] dark:border-[#24326A]">
         {/* Ambient Grid Overlay */}
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(20,184,166,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(20,184,166,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(47, 140, 134,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(47, 140, 134,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-teal-600/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -192,10 +192,10 @@ export default function ItemBOM() {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-100 dark:bg-teal-500/20 border border-teal-200 dark:border-teal-400/30 text-teal-700 dark:text-teal-300 text-xs font-semibold tracking-wide">
               <FileSpreadsheet size={13} className="text-teal-400" /> ÜRÜN VE REÇETE YÖNETİMİ
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#0D1B3E] dark:text-white">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1B2755] dark:text-white">
               Product BOM (Ürün Reçeteleri) Yönetimi
             </h1>
-            <p className="text-sm text-[#475569] dark:text-slate-300 leading-relaxed">
+            <p className="text-sm text-[#4A5A9E] dark:text-slate-300 leading-relaxed">
               Cihaz modellerine ait alt parça (BOM) bileşen tanımlarını ve miktar reçetelerini yönetin.
             </p>
           </div>
@@ -204,20 +204,20 @@ export default function ItemBOM() {
             <div className="relative">
               <select
                 onChange={handleExcelAction}
-                className="appearance-none bg-[#FFFFFF] dark:bg-[#1E293B] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] text-[#0F172A] dark:text-[#FAFAFA] border border-[#E2E8F0] dark:border-[#334155] rounded-xl px-4 py-2.5 pr-9 text-xs font-bold transition-all cursor-pointer focus:outline-none focus:border-[#2563EB]"
+                className="appearance-none bg-[#FFFFFF] dark:bg-[#24326A] hover:bg-[#EFF1FA] dark:hover:bg-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] border border-[#DCE1F1] dark:border-[#3B4A85] rounded-xl px-4 py-2.5 pr-9 text-xs font-bold transition-all cursor-pointer focus:outline-none focus:border-[#4457A5]"
               >
                 <option value="">Excel İşlemleri...</option>
                 <option value="download_template">Boş Şablon İndir</option>
                 <option value="export">Tümünü Dışa Aktar</option>
                 <option value="import">Excel'den İçe Aktar</option>
               </select>
-              <div className="absolute inset-y-0 right-0 flex items-center px-2.5 pointer-events-none text-[#64748B] dark:text-[#94A3B8]">
+              <div className="absolute inset-y-0 right-0 flex items-center px-2.5 pointer-events-none text-[#5A6685] dark:text-[#8892B5]">
                 <FileSpreadsheet size={15} />
               </div>
             </div>
             <button 
               onClick={() => handleOpenModal(null)} 
-              className="flex items-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+              className="flex items-center gap-2 bg-[#4457A5] hover:bg-[#2E3F78] text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
             >
               <Plus size={16} /> Yeni Bileşen Ekle
             </button>
@@ -226,9 +226,9 @@ export default function ItemBOM() {
       </div>
 
       {/* CONTAINER */}
-      <div className="bg-[#F8FAFC] dark:bg-[#0F172A] rounded-2xl border border-[#E2E8F0] dark:border-[#1E293B] shadow-md overflow-hidden flex flex-col">
+      <div className="glass-card rounded-2xl shadow-md overflow-hidden flex flex-col">
         {/* Filter Bar */}
-        <div className="p-4 border-b border-[#E2E8F0] dark:border-[#1E293B] bg-[#F8FAFC] dark:bg-[#162032] flex flex-wrap items-center gap-3">
+        <div className="p-4 border-b border-[#DCE1F1] dark:border-[#24326A] bg-[#F5F7FC] dark:bg-[#1B2755] flex flex-wrap items-center gap-3">
           {/* General Search Input */}
           <div className="relative flex-1 min-w-[240px]">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -237,7 +237,7 @@ export default function ItemBOM() {
               value={searchTerm}
               onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
               placeholder="Model, bileşen kodu veya adı ile ara..."
-              className="w-full pl-9 pr-8 py-2 bg-white dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 shadow-sm"
+              className="w-full pl-9 pr-8 py-2 bg-white dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 shadow-sm"
             />
             {searchTerm && (
               <button 
@@ -265,7 +265,7 @@ export default function ItemBOM() {
             <select
               value={selectedStatus}
               onChange={(e) => { setSelectedStatus(e.target.value); setCurrentPage(1); }}
-              className="w-full px-3 py-2 bg-white dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 shadow-sm cursor-pointer"
+              className="w-full px-3 py-2 bg-white dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 shadow-sm cursor-pointer"
             >
               <option value="Tümü">Durum: Tümü</option>
               <option value="Aktif">Aktif</option>
@@ -293,7 +293,7 @@ export default function ItemBOM() {
 
         <div className="overflow-auto flex-1">
           <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-slate-50 dark:bg-[#242a38] text-slate-400 font-semibold uppercase tracking-wider text-xs sticky top-0">
+            <thead className="bg-slate-50 dark:bg-[#232F63] text-slate-400 font-semibold uppercase tracking-wider text-xs sticky top-0">
               <tr>
                 <th className="px-6 py-4">Cihaz Modeli</th>
                 <th className="px-6 py-4">Alt Parça Kodu (Bileşen)</th>
@@ -310,7 +310,7 @@ export default function ItemBOM() {
                 <tr><td colSpan="6" className="px-6 py-8 text-center text-slate-500">Kayıt bulunamadı.</td></tr>
               ) : (
                 boms.map(bom => (
-                  <tr key={bom.id} className="hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 transition-colors">
+                  <tr key={bom.id} className="hover:bg-slate-100 dark:hover:bg-[#2E3F78] text-slate-700 dark:text-slate-300 transition-colors">
                     <td className="px-6 py-4 font-semibold text-blue-400">{bom.product_model}</td>
                     <td className="px-6 py-4 font-mono">{bom.child_item_code}</td>
                     <td className="px-6 py-4">{bom.quantity}</td>
@@ -345,13 +345,13 @@ export default function ItemBOM() {
         </div>
 
         {/* Pagination Footer */}
-        <div className="bg-slate-50 dark:bg-[#242a38] border-t border-slate-200 dark:border-slate-700/50 px-6 py-4 flex items-center justify-between text-slate-400 text-sm">
+        <div className="bg-slate-50 dark:bg-[#232F63] border-t border-slate-200 dark:border-slate-700/50 px-6 py-4 flex items-center justify-between text-slate-400 text-sm">
           <div className="flex items-center gap-2">
             <span>Sayfa Başına:</span>
             <select
               value={itemsPerPage}
               onChange={(e) => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }}
-              className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-slate-500"
+              className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-slate-500"
             >
               <option value={10}>10</option>
               <option value={20}>20</option>
@@ -367,7 +367,7 @@ export default function ItemBOM() {
             <button
               onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
               disabled={currentPage === 1}
-              className="px-3 py-1.5 bg-white dark:bg-[#1e2330] hover:bg-slate-100 dark:hover:bg-[#2a3142] disabled:opacity-50 disabled:cursor-not-allowed border border-slate-200 dark:border-slate-700 rounded-lg transition-colors text-slate-700 dark:text-slate-300"
+              className="px-3 py-1.5 bg-white dark:bg-[#1E2B5C] hover:bg-slate-100 dark:hover:bg-[#2E3F78] disabled:opacity-50 disabled:cursor-not-allowed border border-slate-200 dark:border-slate-700 rounded-lg transition-colors text-slate-700 dark:text-slate-300"
             >
               ← Önceki
             </button>
@@ -398,7 +398,7 @@ export default function ItemBOM() {
                     setPageInput(String(currentPage));
                   }
                 }}
-                className="w-16 bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-center text-slate-800 dark:text-slate-200 focus:outline-none focus:border-slate-500 font-semibold"
+                className="w-16 bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-center text-slate-800 dark:text-slate-200 focus:outline-none focus:border-slate-500 font-semibold"
               />
               <span>/ {totalPages}</span>
               <span className="text-xs text-slate-500 ml-1">({boms.length} Kayıt)</span>
@@ -407,7 +407,7 @@ export default function ItemBOM() {
             <button
               onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
               disabled={currentPage === totalPages}
-              className="px-3 py-1.5 bg-white dark:bg-[#1e2330] hover:bg-slate-100 dark:hover:bg-[#2a3142] disabled:opacity-50 disabled:cursor-not-allowed border border-slate-200 dark:border-slate-700 rounded-lg transition-colors text-slate-700 dark:text-slate-300"
+              className="px-3 py-1.5 bg-white dark:bg-[#1E2B5C] hover:bg-slate-100 dark:hover:bg-[#2E3F78] disabled:opacity-50 disabled:cursor-not-allowed border border-slate-200 dark:border-slate-700 rounded-lg transition-colors text-slate-700 dark:text-slate-300"
             >
               Sonraki →
             </button>
@@ -417,7 +417,7 @@ export default function ItemBOM() {
 
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-900/80 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-md">
+          <div className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-md">
             <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex justify-between">
               <h2 className="text-lg font-semibold text-slate-900 dark:text-white">{currentBom ? 'BOM Bileşenini Düzenle' : 'BOM Bileşeni Ekle'}</h2>
               <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-900 dark:text-white"><X size={20} /></button>
@@ -446,12 +446,12 @@ export default function ItemBOM() {
                   required 
                   type="number" 
                   min="1" 
-                  className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white" 
+                  className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-white" 
                   value={formData.quantity} 
                   onChange={e => setFormData({...formData, quantity: parseInt(e.target.value)})} 
                 />
               </div>
-              <button type="submit" className="w-full flex items-center justify-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white py-2.5 rounded-xl text-xs font-semibold transition-all shadow-md cursor-pointer mt-4">Kaydet</button>
+              <button type="submit" className="w-full flex items-center justify-center gap-2 bg-[#4457A5] hover:bg-[#2E3F78] text-white py-2.5 rounded-xl text-xs font-semibold transition-all shadow-md cursor-pointer mt-4">Kaydet</button>
             </form>
           </div>
         </div>

@@ -200,15 +200,15 @@ export default function MainLayout() {
   // Department & Module Specific Unique Color Palette Configurations (Richer, Slightly Darker Tones)
   const getGroupTitleColor = (title) => {
     switch (title) {
-      case 'GENEL BAKIŞ': return '#3B82F6';
-      case 'DEPO': return '#D97706'; // Rich Darker Amber/Yellow for Depo!
-      case 'ENVANTER': return '#9333EA';
-      case 'YEDEK PARÇA PERSONELİ': return '#EA580C';
-      case 'TEST PERSONELİ': return '#0284C7';
-      case 'DEMONTAJ TEKNİSYENİ': return '#059669';
-      case 'ARA TEST': return '#C026D3';
-      case 'KULLANICI & AYARLAR': return '#E11D48';
-      default: return '#3B82F6';
+      case 'GENEL BAKIŞ': return '#5B6EC4';
+      case 'DEPO': return '#C1801C'; // Rich Darker Amber/Yellow for Depo!
+      case 'ENVANTER': return '#8A44C4';
+      case 'YEDEK PARÇA PERSONELİ': return '#CE6320';
+      case 'TEST PERSONELİ': return '#3A76B8';
+      case 'DEMONTAJ TEKNİSYENİ': return '#3B8B76';
+      case 'ARA TEST': return '#A83EAE';
+      case 'KULLANICI & AYARLAR': return '#C2445F';
+      default: return '#5B6EC4';
     }
   };
 
@@ -216,80 +216,80 @@ export default function MainLayout() {
     switch (itemPath) {
       // GENEL BAKIŞ
       case '/dashboard':
-        return { color: '#2563EB' }; // Rich Royal Blue
+        return { color: '#4457A5' }; // Rich Royal Blue
       case '/statu-kontrol':
-        return { color: '#0891B2' }; // Darker Cyan
+        return { color: '#2C8CA8' }; // Darker Cyan
       
       // DEPO - Unique Rich Dark Amber/Yellow for Depo!
       case '/depo':
-        return { color: '#D97706' }; // Rich Amber Yellow
+        return { color: '#C1801C' }; // Rich Amber Yellow
       case '/servis':
-        return { color: '#E11D48' }; // Darker Rose
+        return { color: '#C2445F' }; // Darker Rose
       case '/irsaliye':
-        return { color: '#059669' }; // Darker Emerald Green
+        return { color: '#3B8B76' }; // Darker Emerald Green
       case '/work-orders':
-        return { color: '#0284C7' }; // Darker Sky Blue
+        return { color: '#3A76B8' }; // Darker Sky Blue
       case '/technician-repair':
-        return { color: '#DC2626' }; // Darker Crimson Red
+        return { color: '#C0392F' }; // Darker Crimson Red
       case '/raporlar':
-        return { color: '#DB2777' }; // Darker Magenta
+        return { color: '#B93E86' }; // Darker Magenta
 
       // ENVANTER
       case '/parts':
-        return { color: '#4F46E5' }; // Darker Indigo
+        return { color: '#5B4FB0' }; // Darker Indigo
       case '/products':
-        return { color: '#7C3AED' }; // Darker Violet
+        return { color: '#7A54C0' }; // Darker Violet
       case '/suppliers':
-        return { color: '#0D9488' }; // Darker Teal
+        return { color: '#2F8C86' }; // Darker Teal
       case '/locations':
-        return { color: '#65A30D' }; // Darker Lime
+        return { color: '#6E9B33' }; // Darker Lime
 
       // YEDEK PARÇA PERSONELİ
       case '/statu-gecis/SPA_P/100_101':
       case '/statu-gecis/SPA_P/101_102':
       case '/statu-gecis/SPA_P/126_127':
-        return { color: '#EA580C' };
+        return { color: '#CE6320' };
 
       // TEST PERSONELİ
       case '/statu-gecis/QAC/102_103':
       case '/statu-gecis/QAC/103_104':
       case '/statu-gecis/QAC/124_125':
       case '/statu-gecis/QAC/125_126':
-        return { color: '#0284C7' };
+        return { color: '#3A76B8' };
 
       // DEMONTAJ TEKNİSYENİ
       case '/servis-onarimlari-demontaj':
       case '/statu-gecis/TEC_DISMANTLE/104_105':
       case '/statu-gecis/TEC_DISMANTLE/105_106':
       case '/statu-gecis/TEC_DISMANTLE/105_109':
-        return { color: '#059669' };
+        return { color: '#3B8B76' };
 
       // ARA TEST
       case '/musteri-onayi':
       case '/statu-gecis/MNG1_AS/107_136':
       case '/statu-gecis/MNG1_AS/138_124':
-        return { color: '#9333EA' };
+        return { color: '#8A44C4' };
 
       // KULLANICI & AYARLAR
       case '/users':
-        return { color: '#EA580C' };
+        return { color: '#CE6320' };
       case '/batch-entry':
-        return { color: '#059669' };
+        return { color: '#3B8B76' };
       case '/part-categories':
-        return { color: '#7C3AED' };
+        return { color: '#7A54C0' };
       case '/item-bom':
-        return { color: '#0284C7' };
+        return { color: '#3A76B8' };
       case '/settings':
-        return { color: '#475569' };
+        return { color: '#4A5A9E' };
       case '/data-management':
-        return { color: '#0891B2' };
+        return { color: '#2C8CA8' };
       case '/departments':
-        return { color: '#E11D48' };
+        return { color: '#C2445F' };
       case '/schema-mapper':
-        return { color: '#9333EA' };
+        return { color: '#8A44C4' };
 
       default:
-        return { color: '#2563EB' };
+        return { color: '#4457A5' };
     }
   };
 
@@ -298,35 +298,35 @@ export default function MainLayout() {
   );
 
   return (
-    <div className="flex h-screen bg-[#F1F5F9] dark:bg-[#050A18] text-[#0F172A] dark:text-[#FAFAFA] overflow-hidden">
+    <div className="app-shell flex h-screen text-[#16204A] dark:text-[#F6F8FF] overflow-hidden">
       {/* Mobile Sidebar Backdrop Overlay */}
       {isMobileOpen && (
         <div 
-          className="fixed inset-0 bg-[#F1F5F9]/80 dark:bg-[#050A18]/80 backdrop-blur-sm z-40 lg:hidden"
+          className="fixed inset-0 bg-[#EFF1FA]/80 dark:bg-[#101935]/80 backdrop-blur-sm z-40 lg:hidden"
           onClick={() => setIsMobileOpen(false)}
         />
       )}
 
-      {/* Sidebar - High Contrast Crisp Deep Indigo: #0B132B */}
+      {/* Sidebar - Tema2 cam panel (giris ekraniyla ayni yuzey) */}
       <aside className={`
-        fixed inset-y-0 left-0 w-64 bg-[#FFFFFF] dark:bg-[#0B132B] text-[#0F172A] dark:text-[#FAFAFA] flex flex-col border-r border-[#E2E8F0] dark:border-[#2A3A5E] z-50
+        app-sidebar fixed inset-y-0 left-0 w-64 text-[#16204A] dark:text-[#F6F8FF] flex flex-col z-50
         transition-transform duration-300 transform lg:translate-x-0 lg:static lg:inset-auto shadow-2xl
         ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
         {/* Mobile Close Button */}
         <button 
           onClick={() => setIsMobileOpen(false)}
-          className="absolute top-4 right-4 p-1.5 rounded-lg bg-[#EEF2F7] dark:bg-[#1C2541] border border-[#E2E8F0] dark:border-[#2A3A5E] text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-[#FAFAFA] lg:hidden"
+          className="absolute top-4 right-4 p-1.5 rounded-lg bg-[#ECEFF9] dark:bg-[#24326A] border border-[#DCE1F1] dark:border-[#35468A] text-[#5A6685] dark:text-[#8892B5] hover:text-[#16204A] dark:hover:text-[#F6F8FF] lg:hidden"
         >
           <X size={16} />
         </button>
 
-        <div className="flex items-center justify-center pb-6 pt-10 border-b border-[#E2E8F0]/80 dark:border-[#2A3A5E]/80">
+        <div className="flex items-center justify-center pb-6 pt-10 border-b border-[#DCE1F1]/80 dark:border-[#35468A]/80">
           <img src="/logo.png" alt="Remalab Logo" className="h-36 w-full object-contain drop-shadow-md scale-110 dark:hidden" />
           <img src="/karanlık-mod.png" alt="Remalab Logo" className="h-36 w-full object-contain drop-shadow-md scale-110 hidden dark:block" />
         </div>
         
-        <div className="flex-1 overflow-y-auto py-6 space-y-5 scrollbar-thin scrollbar-thumb-[#2A3A5E] scrollbar-track-transparent">
+        <div className="flex-1 overflow-y-auto py-6 space-y-5 scrollbar-thin scrollbar-thumb-[#35468A] scrollbar-track-transparent">
           {filteredGroups.map((group, idx) => {
             const isOpen = openGroups[group.title];
             const groupColor = getGroupTitleColor(group.title);
@@ -335,7 +335,7 @@ export default function MainLayout() {
               <div key={idx} className="px-3">
                 <button 
                   onClick={() => toggleGroup(group.title)}
-                  className="w-full flex items-center justify-between px-3 py-2 mb-1.5 rounded-lg group outline-none transition-colors fast-transition hover:bg-[#EEF2F7]/80 dark:hover:bg-[#1C2541]/80"
+                  className="w-full flex items-center justify-between px-3 py-2 mb-1.5 rounded-lg group outline-none transition-colors fast-transition hover:bg-[#ECEFF9]/80 dark:hover:bg-[#24326A]/80"
                 >
                   <h3 
                     className="text-[11px] font-semibold uppercase tracking-widest transition-colors"
@@ -363,8 +363,8 @@ export default function MainLayout() {
                             href={item.path}
                             className={`flex items-center gap-3.5 px-3.5 py-3 rounded-xl text-sm font-bold transition-all fast-transition group relative ${
                               isActive 
-                                ? 'bg-[#EEF2F7] dark:bg-[#1C2541] text-[#0F172A] dark:text-white shadow-md border-l-4 font-bold'
-                                : 'text-[#475569] dark:text-[#CBD5E1] hover:text-[#0F172A] dark:hover:text-white hover:bg-[#EEF2F7]/60 dark:hover:bg-[#1C2541]/60'
+                                ? 'bg-[#ECEFF9] dark:bg-[#24326A] text-[#16204A] dark:text-white shadow-md border-l-4 font-bold'
+                                : 'text-[#4A5A9E] dark:text-[#C3CAE6] hover:text-[#16204A] dark:hover:text-white hover:bg-[#ECEFF9]/60 dark:hover:bg-[#24326A]/60'
                             }`}
                             style={{
                               borderLeftColor: isActive ? itemCfg.color : 'transparent',
@@ -396,10 +396,10 @@ export default function MainLayout() {
           })}
         </div>
         
-        <div className="p-4 border-t border-[#E2E8F0] dark:border-[#1F2937]">
+        <div className="p-4 border-t border-[#DCE1F1] dark:border-[#2A3872]">
           <button 
             onClick={handleLogout}
-            className="flex items-center gap-3 px-3 py-2.5 w-full rounded-xl text-sm font-medium text-[#DC2626] dark:text-[#F87171] hover:bg-[#DC2626]/15 dark:hover:bg-[#F87171]/15 hover:text-red-300 transition-colors"
+            className="flex items-center gap-3 px-3 py-2.5 w-full rounded-xl text-sm font-medium text-[#C0392F] dark:text-[#F87171] hover:bg-[#C0392F]/15 dark:hover:bg-[#F87171]/15 hover:text-red-300 transition-colors"
           >
             <LogOut size={18} />
             Çıkış Yap
@@ -409,13 +409,13 @@ export default function MainLayout() {
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Header / Üst Bar - Ultra Dark Charcoal Navy: #030712 */}
-        <header className="h-16 bg-[#FFFFFF] dark:bg-[#030712] border-b border-[#E2E8F0] dark:border-[#1F2937] flex items-center justify-between px-6 shadow-sm z-30 shrink-0 text-[#0F172A] dark:text-[#F9FAFB]">
+        {/* Header / Üst Bar - Ultra Dark Charcoal Navy: #0E1630 */}
+        <header className="app-header h-16 flex items-center justify-between px-6 shadow-sm z-30 shrink-0 text-[#16204A] dark:text-[#F7F8FC]">
           <div className="flex items-center gap-3">
             {/* Mobile Hamburger Button */}
             <button
               onClick={() => setIsMobileOpen(true)}
-              className="p-2 -ml-2 text-[#64748B] dark:text-[#9CA3AF] hover:text-[#0F172A] dark:hover:text-[#F9FAFB] transition-colors lg:hidden rounded-xl bg-[#F8FAFC] dark:bg-[#0B1120] border border-[#E2E8F0] dark:border-[#1F2937]"
+              className="p-2 -ml-2 text-[#5A6685] dark:text-[#9AA3C6] hover:text-[#16204A] dark:hover:text-[#F7F8FC] transition-colors lg:hidden rounded-xl bg-[#F5F7FC] dark:bg-[#16204A] border border-[#DCE1F1] dark:border-[#2A3872]"
               title="Menüyü Aç"
             >
               <Menu size={20} />
@@ -424,9 +424,9 @@ export default function MainLayout() {
 
           <div className="flex items-center gap-3">
             {/* Date/Time Widget (Next to Theme Toggle) */}
-            <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-[#F8FAFC] dark:bg-[#0B1120] rounded-lg border border-[#E2E8F0] dark:border-[#1F2937]">
-              <span className="text-[11px] font-medium text-[#64748B] dark:text-[#9CA3AF]">⏱ SON GÜNCELLEME:</span>
-              <span className="text-xs font-bold text-[#0F172A] dark:text-[#F9FAFB] font-mono tracking-wider">
+            <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-[#F5F7FC] dark:bg-[#16204A] rounded-lg border border-[#DCE1F1] dark:border-[#2A3872]">
+              <span className="text-[11px] font-medium text-[#5A6685] dark:text-[#9AA3C6]">⏱ SON GÜNCELLEME:</span>
+              <span className="text-xs font-bold text-[#16204A] dark:text-[#F7F8FC] font-mono tracking-wider">
                 {currentTime.toLocaleDateString('tr-TR', { day: '2-digit', month: 'short', year: 'numeric' })} - {currentTime.toLocaleTimeString('tr-TR')}
               </span>
             </div>
@@ -434,7 +434,7 @@ export default function MainLayout() {
             {/* Refresh Page Button */}
             <button
               onClick={() => window.location.reload()}
-              className="p-2 text-[#64748B] dark:text-[#9CA3AF] hover:text-[#2563EB] transition-colors bg-[#F8FAFC] dark:bg-[#0B1120] rounded-xl border border-[#E2E8F0] dark:border-[#1F2937] hover:border-[#2563EB] cursor-pointer"
+              className="p-2 text-[#5A6685] dark:text-[#9AA3C6] hover:text-[#4457A5] transition-colors bg-[#F5F7FC] dark:bg-[#16204A] rounded-xl border border-[#DCE1F1] dark:border-[#2A3872] hover:border-[#4457A5] cursor-pointer"
               title="Sayfayı Yenile"
             >
               <RefreshCw size={18} />
@@ -443,7 +443,7 @@ export default function MainLayout() {
             {/* Theme Toggle Button */}
             <button
               onClick={toggleTheme}
-              className="p-2 text-[#64748B] dark:text-[#9CA3AF] hover:text-[#60A5FA] transition-colors bg-[#F8FAFC] dark:bg-[#0B1120] rounded-xl border border-[#E2E8F0] dark:border-[#1F2937] hover:border-[#60A5FA] cursor-pointer"
+              className="p-2 text-[#5A6685] dark:text-[#9AA3C6] hover:text-[#8894D8] transition-colors bg-[#F5F7FC] dark:bg-[#16204A] rounded-xl border border-[#DCE1F1] dark:border-[#2A3872] hover:border-[#8894D8] cursor-pointer"
               title={theme === 'dark' ? 'Açık Tema' : 'Koyu Tema'}
             >
               {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
@@ -452,20 +452,20 @@ export default function MainLayout() {
             <div className="relative" ref={notifRef}>
               <button 
                 onClick={() => setShowNotifications(!showNotifications)}
-                className="p-2 text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-[#FAFAFA] transition-colors relative bg-[#FFFFFF] dark:bg-[#1E293B] rounded-xl border border-[#334155]" 
+                className="p-2 text-[#5A6685] dark:text-[#8892B5] hover:text-[#16204A] dark:hover:text-[#F6F8FF] transition-colors relative bg-[#FFFFFF] dark:bg-[#24326A] rounded-xl border border-[#3B4A85]" 
                 title="Bildirimler"
               >
                 <Bell size={18} />
                 {notifications.length > 0 && (
-                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#EF4444] rounded-full border border-[#F1F5F9] dark:border-[#070E20] animate-pulse"></span>
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#EF4444] rounded-full border border-[#EFF1FA] dark:border-[#16204A] animate-pulse"></span>
                 )}
               </button>
 
               {showNotifications && (
-                <div className="absolute right-0 mt-3 w-[calc(100vw-32px)] sm:w-[360px] bg-[#FFFFFF] dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155] shadow-2xl rounded-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 text-[#0F172A] dark:text-[#FAFAFA]">
-                  <div className="p-4 border-b border-[#E2E8F0] dark:border-[#334155] bg-[#F1F5F9]/70 dark:bg-[#070E20]/70 flex flex-col gap-2">
+                <div className="glass-card absolute right-0 mt-3 w-[calc(100vw-32px)] sm:w-[360px] shadow-2xl rounded-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 text-[#16204A] dark:text-[#F6F8FF]">
+                  <div className="p-4 border-b border-[#DCE1F1] dark:border-[#3B4A85] bg-[#EFF1FA]/70 dark:bg-[#16204A]/70 flex flex-col gap-2">
                     <div className="flex items-center justify-between">
-                      <h3 className="font-semibold text-[#0F172A] dark:text-[#FAFAFA]">Kritik Stok Bildirimleri</h3>
+                      <h3 className="font-semibold text-[#16204A] dark:text-[#F6F8FF]">Kritik Stok Bildirimleri</h3>
                       {notifications.length > 0 && (
                         <div className="flex items-center gap-2">
                           <span className="bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400 text-xs font-bold px-2 py-0.5 rounded-md">{notifications.length} Uyarı</span>
@@ -488,9 +488,9 @@ export default function MainLayout() {
                       )}
                     </div>
                   </div>
-                  <div className="max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-[#334155] scrollbar-track-transparent">
+                  <div className="max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-[#3B4A85] scrollbar-track-transparent">
                     {notifications.length > 0 ? (
-                      <div className="divide-y divide-[#E2E8F0] dark:divide-[#334155]">
+                      <div className="divide-y divide-[#DCE1F1] dark:divide-[#3B4A85]">
                         {notifications.map((notif, idx) => {
                           const notifKey = String(notif.id);
                           
@@ -506,7 +506,7 @@ export default function MainLayout() {
                           return (
                           <div 
                             key={idx} 
-                            className="p-4 hover:bg-[#F1F5F9]/60 dark:hover:bg-[#070E20]/60 transition-colors cursor-pointer" 
+                            className="p-4 hover:bg-[#EFF1FA]/60 dark:hover:bg-[#16204A]/60 transition-colors cursor-pointer" 
                             onClick={() => {
                               markAsRead();
                               setShowNotifications(false); 
@@ -518,10 +518,10 @@ export default function MainLayout() {
                                 <AlertTriangle size={18} className={notif.status === 'Tükendi' ? "text-red-400" : "text-amber-400"} />
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-[#0F172A] dark:text-[#FAFAFA] mb-1 leading-snug line-clamp-2" title={notif.part_name}>{notif.part_name}</p>
-                                <p className="text-xs text-[#64748B] dark:text-[#94A3B8] mb-1">Lokasyon: <strong className="text-[#0F172A] dark:text-[#FAFAFA]">{notif.location_name}</strong></p>
+                                <p className="text-sm font-medium text-[#16204A] dark:text-[#F6F8FF] mb-1 leading-snug line-clamp-2" title={notif.part_name}>{notif.part_name}</p>
+                                <p className="text-xs text-[#5A6685] dark:text-[#8892B5] mb-1">Lokasyon: <strong className="text-[#16204A] dark:text-[#F6F8FF]">{notif.location_name}</strong></p>
                                 <div className="flex items-center justify-between mt-2">
-                                  <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-[#F1F5F9] dark:bg-[#070E20] text-[#0F172A] dark:text-[#FAFAFA] border border-[#E2E8F0] dark:border-[#334155]">Stok: {notif.quantity}</span>
+                                  <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-[#EFF1FA] dark:bg-[#16204A] text-[#16204A] dark:text-[#F6F8FF] border border-[#DCE1F1] dark:border-[#3B4A85]">Stok: {notif.quantity}</span>
                                   <span className={`text-[10px] font-bold uppercase tracking-wider ${notif.status === 'Tükendi' ? 'text-red-400' : 'text-amber-400'}`}>
                                     {notif.status === 'Tükendi' ? 'STOK TÜKENDİ' : 'KRİTİK SEVİYE'}
                                   </span>
@@ -532,9 +532,9 @@ export default function MainLayout() {
                         )})}
                       </div>
                     ) : (
-                      <div className="p-8 text-center text-[#64748B] dark:text-[#94A3B8] flex flex-col items-center">
+                      <div className="p-8 text-center text-[#5A6685] dark:text-[#8892B5] flex flex-col items-center">
                         <CheckCircle size={36} className="mb-3 text-emerald-500/60" />
-                        <p className="text-sm font-medium text-[#0F172A] dark:text-[#FAFAFA]">Harika! Tüm stoklar güvende.</p>
+                        <p className="text-sm font-medium text-[#16204A] dark:text-[#F6F8FF]">Harika! Tüm stoklar güvende.</p>
                         <p className="text-xs mt-1">Şu an için kritik seviyede ürün yok.</p>
                       </div>
                     )}
@@ -542,20 +542,20 @@ export default function MainLayout() {
                 </div>
               )}
             </div>
-            <div className="flex items-center gap-3 border-l border-[#E2E8F0] dark:border-[#334155] pl-4">
-              <div className="w-10 h-10 rounded-xl bg-[#2563EB]/10 dark:bg-[#2563EB]/20 border border-[#2563EB]/25 dark:border-[#2563EB]/40 flex items-center justify-center text-[#2563EB] dark:text-[#60A5FA] font-bold uppercase shadow-sm">
+            <div className="flex items-center gap-3 border-l border-[#DCE1F1] dark:border-[#3B4A85] pl-4">
+              <div className="w-10 h-10 rounded-xl bg-[#4457A5]/10 dark:bg-[#4457A5]/20 border border-[#4457A5]/25 dark:border-[#4457A5]/40 flex items-center justify-center text-[#4457A5] dark:text-[#8894D8] font-bold uppercase shadow-sm">
                 {user && user.username ? user.username.charAt(0) : 'U'}
               </div>
               <div className="hidden md:block">
-                <p className="text-sm font-semibold text-[#0F172A] dark:text-[#FAFAFA] leading-none">{(user && user.username) ? user.username : 'Misafir'}</p>
-                <p className="text-xs text-[#64748B] dark:text-[#94A3B8] mt-1">{(user && user.role) ? user.role : 'Guest'}</p>
+                <p className="text-sm font-semibold text-[#16204A] dark:text-[#F6F8FF] leading-none">{(user && user.username) ? user.username : 'Misafir'}</p>
+                <p className="text-xs text-[#5A6685] dark:text-[#8892B5] mt-1">{(user && user.role) ? user.role : 'Guest'}</p>
               </div>
             </div>
           </div>
         </header>
 
         {/* Page Content (Outlet renders child routes) */}
-        <main className="flex-1 overflow-y-auto p-3 sm:p-6 bg-[#F1F5F9] dark:bg-[#070E20]">
+        <main className="flex-1 overflow-y-auto p-3 sm:p-6 bg-transparent">
           <div className="min-h-full max-w-[1600px] mx-auto">
             <Outlet />
           </div>

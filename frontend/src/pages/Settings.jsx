@@ -114,23 +114,23 @@ export default function Settings() {
   };
 
   return (
-    <div className="flex flex-col space-y-6 pb-12 text-[#0F172A] dark:text-[#FAFAFA] max-w-[1600px] mx-auto animate-in fade-in duration-300">
+    <div className="flex flex-col space-y-6 pb-12 text-[#16204A] dark:text-[#F6F8FF] max-w-[1600px] mx-auto animate-in fade-in duration-300">
       
       {/* ════════════════ HERO BANNER ════════════════ */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#F1F5F9] dark:from-[#050A18] via-[#E2E9F5] dark:via-[#0F172A] to-[#FFFFFF] dark:to-[#1E293B] p-6 sm:p-8 text-[#0D1B3E] dark:text-white shadow-xl border border-[#E2E8F0] dark:border-[#1E293B]">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#EFF1FA] dark:from-[#101935] via-[#DDE2F2] dark:via-[#16204A] to-[#FFFFFF] dark:to-[#24326A] p-6 sm:p-8 text-[#1B2755] dark:text-white shadow-xl border border-[#DCE1F1] dark:border-[#24326A]">
         {/* Ambient Grid Overlay */}
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(59,130,246,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(59,130,246,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(91, 110, 196,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(91, 110, 196,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 dark:bg-blue-500/20 border border-blue-500/25 dark:border-blue-400/30 text-[#1D4ED8] dark:text-blue-300 text-xs font-semibold tracking-wide">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 dark:bg-blue-500/20 border border-blue-500/25 dark:border-blue-400/30 text-[#2E3F78] dark:text-blue-300 text-xs font-semibold tracking-wide">
               <SettingsIcon size={13} className="text-blue-400" /> SİSTEM YAPILANDIRMASI
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#0D1B3E] dark:text-white">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1B2755] dark:text-white">
               Sistem Ayarları
             </h1>
-            <p className="text-sm text-[#475569] dark:text-slate-300 leading-relaxed">
+            <p className="text-sm text-[#4A5A9E] dark:text-slate-300 leading-relaxed">
               Uygulama dilini, veritabanı bağlantılarını ve lokal depolama klasörlerini yönetin.
             </p>
           </div>
@@ -138,11 +138,11 @@ export default function Settings() {
       </div>
 
       {/* TABS CONTAINER */}
-      <div className="bg-[#F8FAFC] dark:bg-[#0F172A] p-2 rounded-2xl border border-[#E2E8F0] dark:border-[#1E293B] shadow-md flex items-center gap-2 overflow-x-auto">
+      <div className="glass-card p-2 rounded-2xl shadow-md flex items-center gap-2 overflow-x-auto">
         <button
           onClick={() => setActiveTab('general')}
           className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-            activeTab === 'general' ? 'bg-[#2563EB] text-white shadow-md' : 'text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-[#FAFAFA] hover:bg-[#FFFFFF] dark:hover:bg-[#1E293B]'
+            activeTab === 'general' ? 'bg-[#4457A5] text-white shadow-md' : 'text-[#5A6685] dark:text-[#8892B5] hover:text-[#16204A] dark:hover:text-[#F6F8FF] hover:bg-[#FFFFFF] dark:hover:bg-[#24326A]'
           }`}
         >
           <SettingsIcon size={16} /> Genel Ayarlar
@@ -150,7 +150,7 @@ export default function Settings() {
         <button
           onClick={() => setActiveTab('database')}
           className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-            activeTab === 'database' ? 'bg-[#2563EB] text-white shadow-md' : 'text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-[#FAFAFA] hover:bg-[#FFFFFF] dark:hover:bg-[#1E293B]'
+            activeTab === 'database' ? 'bg-[#4457A5] text-white shadow-md' : 'text-[#5A6685] dark:text-[#8892B5] hover:text-[#16204A] dark:hover:text-[#F6F8FF] hover:bg-[#FFFFFF] dark:hover:bg-[#24326A]'
           }`}
         >
           <Server size={16} /> Veritabanı Bağlantıları
@@ -158,7 +158,7 @@ export default function Settings() {
         <button
           onClick={() => setActiveTab('local')}
           className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-            activeTab === 'local' ? 'bg-[#2563EB] text-white shadow-md' : 'text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-[#FAFAFA] hover:bg-[#FFFFFF] dark:hover:bg-[#1E293B]'
+            activeTab === 'local' ? 'bg-[#4457A5] text-white shadow-md' : 'text-[#5A6685] dark:text-[#8892B5] hover:text-[#16204A] dark:hover:text-[#F6F8FF] hover:bg-[#FFFFFF] dark:hover:bg-[#24326A]'
           }`}
         >
           <HardDrive size={16} /> Lokal DB / Klasörler
@@ -170,12 +170,12 @@ export default function Settings() {
         
         {/* --- GENERAL TAB --- */}
         {activeTab === 'general' && (
-          <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-sm">
+          <div className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-sm">
             <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-6 flex items-center gap-2">
               <Globe className="text-blue-400" size={20} />
               Dil Ayarları
             </h2>
-            <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-[#242a38] rounded-xl border border-slate-200 dark:border-slate-700/50">
+            <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-[#232F63] rounded-xl border border-slate-200 dark:border-slate-700/50">
               <div>
                 <h3 className="text-slate-800 dark:text-slate-200 font-medium">Uygulama Dili</h3>
                 <p className="text-slate-400 text-sm mt-1">Arayüzde kullanılacak dili seçin</p>
@@ -183,7 +183,7 @@ export default function Settings() {
               <select
                 value={language}
                 onChange={(e) => setLanguage(e.target.value)}
-                className="bg-white dark:bg-[#1e2330] border border-slate-300 dark:border-slate-600 text-slate-800 dark:text-slate-200 rounded-lg px-4 py-2.5 focus:outline-none focus:border-blue-500 font-medium"
+                className="bg-white dark:bg-[#1E2B5C] border border-slate-300 dark:border-slate-600 text-slate-800 dark:text-slate-200 rounded-lg px-4 py-2.5 focus:outline-none focus:border-blue-500 font-medium"
               >
                 <option value="tr">🇹🇷 Türkçe</option>
                 <option value="en">🇬🇧 English</option>
@@ -197,7 +197,7 @@ export default function Settings() {
                   Geliştirici Ayarları
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase tracking-wider">Admin</span>
                 </h2>
-                <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-[#242a38] rounded-xl border border-slate-200 dark:border-slate-700/50">
+                <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-[#232F63] rounded-xl border border-slate-200 dark:border-slate-700/50">
                   <div>
                     <h3 className="text-slate-800 dark:text-slate-200 font-medium">Dev Mode</h3>
                     <p className="text-slate-400 text-sm mt-1">
@@ -241,7 +241,7 @@ export default function Settings() {
                   {connections.map(conn => {
                     const cfg = dbTypeConfig[conn.db_type] || dbTypeConfig.postgresql;
                     return (
-                      <div key={conn.id} className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-5 flex gap-5 hover:border-slate-500 transition-colors group relative overflow-hidden">
+                      <div key={conn.id} className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-5 flex gap-5 hover:border-slate-500 transition-colors group relative overflow-hidden">
                         {conn.active && (
                           <div className="absolute top-0 right-0 bg-blue-600 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl uppercase tracking-wider">
                             Aktif
@@ -267,7 +267,7 @@ export default function Settings() {
                         </div>
 
                         <div className="flex flex-col gap-2 shrink-0 justify-center">
-                          <button onClick={() => alert("Bağlantı test ediliyor...")} className="px-3 py-1.5 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 rounded-lg text-xs font-medium border border-slate-300 dark:border-slate-600 transition-colors flex items-center gap-1.5">
+                          <button onClick={() => alert("Bağlantı test ediliyor...")} className="px-3 py-1.5 bg-slate-50 dark:bg-[#232F63] hover:bg-slate-100 dark:hover:bg-[#2E3F78] text-slate-700 dark:text-slate-300 rounded-lg text-xs font-medium border border-slate-300 dark:border-slate-600 transition-colors flex items-center gap-1.5">
                             <PlugZap size={14} /> Test
                           </button>
                           <div className="flex gap-2">
@@ -286,7 +286,7 @@ export default function Settings() {
               </>
             ) : (
               // DB FORM
-              <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-xl animate-in fade-in slide-in-from-bottom-4">
+              <div className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-6 shadow-xl animate-in fade-in slide-in-from-bottom-4">
                 <div className="flex justify-between items-center mb-6">
                   <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                     {editingDb ? 'Bağlantıyı Düzenle' : 'Yeni Bağlantı Ekle'}
@@ -300,11 +300,11 @@ export default function Settings() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div>
                       <label className="block text-sm font-medium text-slate-400 mb-1.5">Bağlantı Adı</label>
-                      <input type="text" required className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={dbFormData.name} onChange={e => setDbFormData({...dbFormData, name: e.target.value})} placeholder="├ûrn: Ana Veritabanı"/>
+                      <input type="text" required className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={dbFormData.name} onChange={e => setDbFormData({...dbFormData, name: e.target.value})} placeholder="├ûrn: Ana Veritabanı"/>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-slate-400 mb-1.5">Veritabanı Türü</label>
-                      <select className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={dbFormData.db_type} onChange={e => setDbFormData({...dbFormData, db_type: e.target.value})}>
+                      <select className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={dbFormData.db_type} onChange={e => setDbFormData({...dbFormData, db_type: e.target.value})}>
                         <option value="postgresql">🐘 PostgreSQL</option>
                         <option value="mysql">🐬 MySQL</option>
                         <option value="mssql">🗄️ SQL Server</option>
@@ -315,32 +315,32 @@ export default function Settings() {
                   <div className="grid grid-cols-[2fr_1fr] gap-5">
                     <div>
                       <label className="block text-sm font-medium text-slate-400 mb-1.5">Sunucu (Host)</label>
-                      <input type="text" required className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={dbFormData.host} onChange={e => setDbFormData({...dbFormData, host: e.target.value})} placeholder="localhost"/>
+                      <input type="text" required className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={dbFormData.host} onChange={e => setDbFormData({...dbFormData, host: e.target.value})} placeholder="localhost"/>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-slate-400 mb-1.5">Port</label>
-                      <input type="number" required className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={dbFormData.port} onChange={e => setDbFormData({...dbFormData, port: Number(e.target.value)})} />
+                      <input type="number" required className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={dbFormData.port} onChange={e => setDbFormData({...dbFormData, port: Number(e.target.value)})} />
                     </div>
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-slate-400 mb-1.5">Veritabanı Adı (Database)</label>
-                    <input type="text" required className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={dbFormData.database} onChange={e => setDbFormData({...dbFormData, database: e.target.value})} placeholder="remalab_db"/>
+                    <input type="text" required className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={dbFormData.database} onChange={e => setDbFormData({...dbFormData, database: e.target.value})} placeholder="remalab_db"/>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div>
                       <label className="block text-sm font-medium text-slate-400 mb-1.5">Kullanıcı Adı</label>
-                      <input type="text" required className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={dbFormData.username} onChange={e => setDbFormData({...dbFormData, username: e.target.value})} placeholder="postgres"/>
+                      <input type="text" required className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={dbFormData.username} onChange={e => setDbFormData({...dbFormData, username: e.target.value})} placeholder="postgres"/>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-slate-400 mb-1.5">┼Şifre</label>
-                      <input type="password" required className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={dbFormData.password} onChange={e => setDbFormData({...dbFormData, password: e.target.value})} placeholder="ÔÇóÔÇóÔÇóÔÇóÔÇóÔÇóÔÇóÔÇó"/>
+                      <input type="password" required className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" value={dbFormData.password} onChange={e => setDbFormData({...dbFormData, password: e.target.value})} placeholder="ÔÇóÔÇóÔÇóÔÇóÔÇóÔÇóÔÇóÔÇó"/>
                     </div>
                   </div>
 
                   <div className="flex justify-end gap-3 pt-6 border-t border-slate-200 dark:border-slate-700/50 mt-6">
-                    <button type="button" onClick={() => setShowDbForm(false)} className="px-5 py-2.5 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors border border-slate-300 dark:border-slate-600">─░ptal</button>
+                    <button type="button" onClick={() => setShowDbForm(false)} className="px-5 py-2.5 bg-slate-50 dark:bg-[#232F63] hover:bg-slate-100 dark:hover:bg-[#2E3F78] text-slate-700 dark:text-slate-300 rounded-xl font-medium transition-colors border border-slate-300 dark:border-slate-600">─░ptal</button>
                     <button type="button" onClick={() => alert("Test Ediliyor...")} className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors shadow-lg shadow-indigo-900/20 flex items-center gap-2"><PlugZap size={18}/> Test Et</button>
                     <button type="submit" className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors shadow-lg shadow-blue-900/20 flex items-center gap-2"><Save size={18}/> Kaydet</button>
                   </div>
@@ -362,7 +362,7 @@ export default function Settings() {
                   <p className="text-slate-400 text-sm mt-1">SQLite veritabanı veya SQL betik dosyalarını yönetin.</p>
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={async () => { const res = await api.addLocalFile(); if(res.success) fetchLocalData(); else if(res.message !== "Seçim iptal edildi") alert(res.message); }} className="flex items-center gap-2 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-600 px-4 py-2 rounded-xl transition-all font-medium text-sm">
+                  <button onClick={async () => { const res = await api.addLocalFile(); if(res.success) fetchLocalData(); else if(res.message !== "Seçim iptal edildi") alert(res.message); }} className="flex items-center gap-2 bg-slate-50 dark:bg-[#232F63] hover:bg-slate-100 dark:hover:bg-[#2E3F78] text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-600 px-4 py-2 rounded-xl transition-all font-medium text-sm">
                     Var Olanı Ekle
                   </button>
                   <button onClick={async () => { const res = await api.createLocalFile(); if(res.success) fetchLocalData(); else if(res.message !== "─░şlem iptal edildi") alert(res.message); }} className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl transition-all shadow-lg shadow-purple-900/20 font-medium text-sm">
@@ -373,7 +373,7 @@ export default function Settings() {
 
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                 {localFiles.map(file => (
-                  <div key={file.id} className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-5 flex gap-4 hover:border-slate-500 transition-colors">
+                  <div key={file.id} className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-5 flex gap-4 hover:border-slate-500 transition-colors">
                     <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl shrink-0 ${file.type === 'sql' ? 'bg-green-500/10 text-green-400' : 'bg-purple-500/10 text-purple-400'}`}>
                       {file.type === 'sql' ? '­şô£' : '­şùä´©Å'}
                     </div>
@@ -405,7 +405,7 @@ export default function Settings() {
                   <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2"><FolderOpen size={20} className="text-orange-400"/> Veri Klasörleri</h2>
                   <p className="text-slate-400 text-sm mt-1">Yedekleme veya dışa aktarım klasörlerini buradan yönetin.</p>
                 </div>
-                <button onClick={async () => { const res = await api.addDataFolder(); if(res.success) fetchLocalData(); else if(res.message !== "Seçim iptal edildi") alert(res.message); }} className="flex items-center gap-2 bg-slate-50 dark:bg-[#242a38] hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-600 px-4 py-2 rounded-xl transition-all font-medium text-sm">
+                <button onClick={async () => { const res = await api.addDataFolder(); if(res.success) fetchLocalData(); else if(res.message !== "Seçim iptal edildi") alert(res.message); }} className="flex items-center gap-2 bg-slate-50 dark:bg-[#232F63] hover:bg-slate-100 dark:hover:bg-[#2E3F78] text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-600 px-4 py-2 rounded-xl transition-all font-medium text-sm">
                   <Plus size={16} /> Klasör Ekle
                 </button>
               </div>
@@ -414,7 +414,7 @@ export default function Settings() {
                 {dataFolders.map(folder => {
                   const isBackup = folder.type === 'backup';
                   return (
-                    <div key={folder.id} className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-4 flex gap-4 hover:border-slate-500 transition-colors items-center">
+                    <div key={folder.id} className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700/50 rounded-2xl p-4 flex gap-4 hover:border-slate-500 transition-colors items-center">
                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0 ${isBackup ? 'bg-green-500/10 text-green-400' : 'bg-orange-500/10 text-orange-400'}`}>
                         {isBackup ? '­şÆ╝' : '­şôü'}
                       </div>

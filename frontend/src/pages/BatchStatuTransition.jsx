@@ -91,7 +91,7 @@ const ManualTestModal = ({ open, imei, stageName, fields, onClose, onSubmit, sav
 
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white dark:bg-[#1e2330] w-full max-w-lg rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-2xl max-h-[90vh] flex flex-col">
+      <div className="bg-white dark:bg-[#1E2B5C] w-full max-w-lg rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-2xl max-h-[90vh] flex flex-col">
         <div className="p-5 border-b border-slate-200 dark:border-slate-700/50 flex items-start gap-3">
           <ClipboardEdit size={20} className="text-amber-500 mt-0.5 shrink-0" />
           <div className="flex-1 min-w-0">
@@ -116,7 +116,7 @@ const ManualTestModal = ({ open, imei, stageName, fields, onClose, onSubmit, sav
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder="Cihazın neden Phonecheck'te bulunmadığını açıklayın (zorunlu)"
-              className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 resize-none"
+              className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 resize-none"
             />
             {reasonEmpty && (
               <p className="text-xs text-red-500 mt-1">Bu alan zorunludur, boş bırakılamaz.</p>
@@ -134,7 +134,7 @@ const ManualTestModal = ({ open, imei, stageName, fields, onClose, onSubmit, sav
                   <select
                     value={values[f] || ""}
                     onChange={(e) => setValues((p) => ({ ...p, [f]: e.target.value }))}
-                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                    className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
                   >
                     <option value="">Seçiniz...</option>
                     <option value="Yes">Evet — test başarılı</option>
@@ -144,7 +144,7 @@ const ManualTestModal = ({ open, imei, stageName, fields, onClose, onSubmit, sav
                   <select
                     value={values[f] || ""}
                     onChange={(e) => setValues((p) => ({ ...p, [f]: e.target.value }))}
-                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                    className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
                   >
                     <option value="">Model seçiniz...</option>
                     {modelOptions.map((m) => (
@@ -155,7 +155,7 @@ const ManualTestModal = ({ open, imei, stageName, fields, onClose, onSubmit, sav
                   <select
                     value={values[f] || ""}
                     onChange={(e) => setValues((p) => ({ ...p, [f]: e.target.value }))}
-                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                    className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
                   >
                     <option value="">Hafıza seçiniz...</option>
                     {MEMORY_OPTIONS.map((g) => (
@@ -167,7 +167,7 @@ const ManualTestModal = ({ open, imei, stageName, fields, onClose, onSubmit, sav
                     type="text"
                     value={values[f] || ""}
                     onChange={(e) => setValues((p) => ({ ...p, [f]: e.target.value }))}
-                    className="w-full bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                    className="w-full bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
                   />
                 )}
               </div>
@@ -386,7 +386,7 @@ const BatchStatuTransition = () => {
 
   if (!transition) {
     return (
-      <div className="bg-white dark:bg-[#1e2330] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm flex flex-col items-center justify-center gap-3 py-16 text-slate-500">
+      <div className="bg-white dark:bg-[#1E2B5C] p-6 rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm flex flex-col items-center justify-center gap-3 py-16 text-slate-500">
         <AlertTriangle size={32} className="text-slate-700 dark:text-slate-300 dark:text-slate-600" />
         <p className="text-sm">Bu statü geçişi bulunamadı veya artık aktif değil.</p>
       </div>
@@ -394,7 +394,7 @@ const BatchStatuTransition = () => {
   }
 
   return (
-    <div className="flex flex-col space-y-6 pb-12 text-[#0F172A] dark:text-[#FAFAFA] max-w-[1600px] mx-auto animate-in fade-in duration-300 relative">
+    <div className="flex flex-col space-y-6 pb-12 text-[#16204A] dark:text-[#F6F8FF] max-w-[1600px] mx-auto animate-in fade-in duration-300 relative">
       <NotificationToast notification={notification} onClose={() => setNotification(null)} />
 
       <ManualTestModal
@@ -408,7 +408,7 @@ const BatchStatuTransition = () => {
       />
 
       {/* ════════════════ HERO BANNER ════════════════ */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#F1F5F9] dark:from-[#050A18] via-[#E2E9F5] dark:via-[#0F172A] to-[#FFFFFF] dark:to-[#1E293B] p-6 sm:p-8 text-[#0D1B3E] dark:text-white shadow-xl border border-[#E2E8F0] dark:border-[#1E293B]">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#EFF1FA] dark:from-[#101935] via-[#DDE2F2] dark:via-[#16204A] to-[#FFFFFF] dark:to-[#24326A] p-6 sm:p-8 text-[#1B2755] dark:text-white shadow-xl border border-[#DCE1F1] dark:border-[#24326A]">
         {/* Ambient Grid Overlay */}
         <div className="absolute inset-0 bg-[linear-gradient(rgba(245,158,11,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(245,158,11,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-amber-600/10 rounded-full blur-3xl pointer-events-none" />
@@ -418,16 +418,16 @@ const BatchStatuTransition = () => {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-100 dark:bg-amber-500/20 border border-amber-200 dark:border-amber-400/30 text-amber-700 dark:text-amber-300 text-xs font-semibold tracking-wide">
               <ScanLine size={13} className="text-amber-400" /> TOPLU STATÜ GEÇİŞ İŞLEMİ
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#0D1B3E] dark:text-white flex items-center gap-3">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1B2755] dark:text-white flex items-center gap-3">
               {transition.short_name}
             </h1>
-            <p className="text-sm text-[#475569] dark:text-slate-300 leading-relaxed">
+            <p className="text-sm text-[#4A5A9E] dark:text-slate-300 leading-relaxed">
               IMEI, seri numarası, internal ID veya parti numarasını okutun. Parti statü {transition.parent_statu} değilse işlem reddedilir.
             </p>
           </div>
 
           <div className="shrink-0">
-            <span className="px-4 py-2 rounded-xl text-xs font-bold border bg-blue-500/10 dark:bg-blue-500/20 text-[#60A5FA] border-blue-500/30 flex items-center gap-2 shadow-md">
+            <span className="px-4 py-2 rounded-xl text-xs font-bold border bg-blue-500/10 dark:bg-blue-500/20 text-[#8894D8] border-blue-500/30 flex items-center gap-2 shadow-md">
               {transition.parent_statu} <ArrowRight size={14} /> {transition.child_statu}
             </span>
           </div>
@@ -435,16 +435,16 @@ const BatchStatuTransition = () => {
       </div>
 
       {/* OKUTMA INPUT KARTI */}
-      <div className="bg-[#F8FAFC] dark:bg-[#0F172A] p-6 rounded-2xl border border-[#E2E8F0] dark:border-[#1E293B] shadow-md">
+      <div className="glass-card p-6 rounded-2xl shadow-md">
         <form onSubmit={handleScan} className="flex flex-col gap-4">
           <div>
-            <label className="block text-xs font-bold text-[#64748B] dark:text-[#94A3B8] uppercase tracking-wider mb-2">IMEI / Seri Numara / Internal ID / Batch No Okutun</label>
+            <label className="block text-xs font-bold text-[#5A6685] dark:text-[#8892B5] uppercase tracking-wider mb-2">IMEI / Seri Numara / Internal ID / Batch No Okutun</label>
             <div className="flex flex-col sm:flex-row gap-3">
               <input
                 ref={inputRef}
                 type="text"
                 placeholder="Barkod / IMEI okutunuz..."
-                className="flex-1 bg-[#FFFFFF] dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155] text-[#0F172A] dark:text-[#FAFAFA] placeholder-[#64748B] rounded-xl px-4 py-3 text-xs sm:text-sm font-mono font-medium focus:outline-none focus:border-[#2563EB] disabled:opacity-50 transition-all shadow-xs"
+                className="flex-1 bg-[#FFFFFF] dark:bg-[#24326A] border border-[#DCE1F1] dark:border-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] placeholder-[#5A6685] rounded-xl px-4 py-3 text-xs sm:text-sm font-mono font-medium focus:outline-none focus:border-[#4457A5] disabled:opacity-50 transition-all shadow-xs"
                 value={term}
                 onChange={(e) => setTerm(e.target.value)}
                 disabled={loading}
@@ -452,7 +452,7 @@ const BatchStatuTransition = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="bg-[#2563EB] hover:bg-[#1D4ED8] disabled:opacity-40 text-white px-8 py-3 rounded-xl transition-all shadow-md font-semibold text-xs cursor-pointer whitespace-nowrap flex items-center justify-center gap-2"
+                className="bg-[#4457A5] hover:bg-[#2E3F78] disabled:opacity-40 text-white px-8 py-3 rounded-xl transition-all shadow-md font-semibold text-xs cursor-pointer whitespace-nowrap flex items-center justify-center gap-2"
               >
                 <ScanLine size={16} /> {loading ? "Sorgulanıyor..." : "Okut"}
               </button>
@@ -462,10 +462,10 @@ const BatchStatuTransition = () => {
       </div>
 
       {deviceInfo && (
-        <div className="bg-[#F8FAFC] dark:bg-[#0F172A] p-6 rounded-2xl border border-[#E2E8F0] dark:border-[#1E293B] shadow-md">
+        <div className="glass-card p-6 rounded-2xl shadow-md">
           <div className="flex items-center justify-between flex-wrap gap-3">
-            <h3 className="text-base font-semibold text-[#0F172A] dark:text-[#FAFAFA]">
-              <span className="font-mono text-[#60A5FA]">{deviceInfo.imei}</span> <span className="text-[#64748B] dark:text-[#94A3B8] font-normal">· {deviceInfo.batchNo} · {deviceInfo.flow}</span>
+            <h3 className="text-base font-semibold text-[#16204A] dark:text-[#F6F8FF]">
+              <span className="font-mono text-[#8894D8]">{deviceInfo.imei}</span> <span className="text-[#5A6685] dark:text-[#8892B5] font-normal">· {deviceInfo.batchNo} · {deviceInfo.flow}</span>
             </h3>
             <span className="px-3 py-1 rounded-full text-xs font-bold border bg-blue-500/10 dark:bg-blue-500/20 text-blue-400 border-blue-500/30">
               Statü: {deviceInfo.statuCode}{deviceInfo.statuName ? ` — ${deviceInfo.statuName}` : ""}
@@ -475,14 +475,14 @@ const BatchStatuTransition = () => {
       )}
 
       {/* İŞLEM GEÇMİŞİ LOG */}
-      <div className="bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#1E293B] rounded-2xl p-6 shadow-md flex-1 min-h-[300px]">
-        <h4 className="text-xs font-bold text-[#64748B] dark:text-[#94A3B8] uppercase tracking-wider mb-4 flex items-center gap-2">
+      <div className="glass-card rounded-2xl p-6 shadow-md flex-1 min-h-[300px]">
+        <h4 className="text-xs font-bold text-[#5A6685] dark:text-[#8892B5] uppercase tracking-wider mb-4 flex items-center gap-2">
           <History size={16} /> İşlem Geçmişi (Log)
         </h4>
 
         {log.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-3 py-16 text-[#64748B]">
-            <ScanLine size={32} className="text-[#334155]" />
+          <div className="flex flex-col items-center justify-center gap-3 py-16 text-[#5A6685]">
+            <ScanLine size={32} className="text-[#3B4A85]" />
             <p className="text-xs font-semibold">Henüz bir okutma yapılmadı.</p>
           </div>
         ) : (

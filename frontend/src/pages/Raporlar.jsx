@@ -245,12 +245,12 @@ export default function Raporlar() {
   }, [activeTab, locations, selectedLocation]);
 
   return (
-    <div className="flex flex-col space-y-6 pb-12 text-[#0F172A] dark:text-[#FAFAFA] max-w-[1600px] mx-auto animate-in fade-in duration-300">
+    <div className="flex flex-col space-y-6 pb-12 text-[#16204A] dark:text-[#F6F8FF] max-w-[1600px] mx-auto animate-in fade-in duration-300">
 
       {/* ════════════════ HERO BANNER ════════════════ */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#F1F5F9] dark:from-[#050A18] via-[#E2E9F5] dark:via-[#0F172A] to-[#FFFFFF] dark:to-[#1E293B] p-6 sm:p-8 text-[#0D1B3E] dark:text-white shadow-xl border border-[#E2E8F0] dark:border-[#1E293B]">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#EFF1FA] dark:from-[#101935] via-[#DDE2F2] dark:via-[#16204A] to-[#FFFFFF] dark:to-[#24326A] p-6 sm:p-8 text-[#1B2755] dark:text-white shadow-xl border border-[#DCE1F1] dark:border-[#24326A]">
         {/* Ambient Grid Overlay */}
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(236,72,153,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(236,72,153,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(185, 62, 134,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(185, 62, 134,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-pink-600/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -258,32 +258,32 @@ export default function Raporlar() {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-pink-500/20 border border-pink-400/30 text-pink-300 text-xs font-semibold tracking-wide">
               <Download size={13} className="text-pink-400" /> RAPORLAMA VE ANALİZ MODÜLÜ
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#0D1B3E] dark:text-white">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1B2755] dark:text-white">
               Sistem Raporları
             </h1>
-            <p className="text-sm text-[#475569] dark:text-slate-300 leading-relaxed">
+            <p className="text-sm text-[#4A5A9E] dark:text-slate-300 leading-relaxed">
               Stok seviyelerini, kritik stok durumlarını ve transfer hareketlerini tarih aralığına ve depoya göre raporlayın.
             </p>
           </div>
 
           <div className="flex items-center gap-3 shrink-0 flex-wrap">
-            <div className="flex items-center gap-2 px-3.5 py-2 bg-[#FFFFFF] dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155] rounded-xl text-xs font-bold text-[#64748B] dark:text-[#94A3B8]">
+            <div className="flex items-center gap-2 px-3.5 py-2 bg-[#FFFFFF] dark:bg-[#24326A] border border-[#DCE1F1] dark:border-[#3B4A85] rounded-xl text-xs font-bold text-[#5A6685] dark:text-[#8892B5]">
               <span>Depo:</span>
               <select
                 value={selectedLocation}
                 onChange={(e) => setSelectedLocation(e.target.value)}
-                className="bg-transparent text-[#0F172A] dark:text-[#FAFAFA] font-bold focus:outline-none cursor-pointer"
+                className="bg-transparent text-[#16204A] dark:text-[#F6F8FF] font-bold focus:outline-none cursor-pointer"
               >
-                {activeTab !== 'critical' && <option value="" className="bg-[#F8FAFC] dark:bg-[#0F172A]">Tüm Depolar</option>}
+                {activeTab !== 'critical' && <option value="" className="bg-[#F5F7FC] dark:bg-[#16204A]">Tüm Depolar</option>}
                 {locations.filter(loc => activeTab === 'critical' ? loc.kind === 'good_stock' : true).map(loc => (
-                  <option key={loc.id} value={loc.name} className="bg-[#F8FAFC] dark:bg-[#0F172A]">{loc.name}</option>
+                  <option key={loc.id} value={loc.name} className="bg-[#F5F7FC] dark:bg-[#16204A]">{loc.name}</option>
                 ))}
               </select>
             </div>
 
             <button 
               onClick={() => setIsExportModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+              className="flex items-center gap-2 px-4 py-2.5 bg-[#4457A5] hover:bg-[#2E3F78] text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
             >
               <Download size={16} /> {selectedRows.length > 0 ? `${selectedRows.length} Seçiliyi Dışa Aktar` : "Excel Dışa Aktar"}
             </button>
@@ -292,13 +292,13 @@ export default function Raporlar() {
       </div>
 
       {/* ════════════════ TAB BUTTONS ════════════════ */}
-      <div className="flex space-x-2 bg-[#F8FAFC] dark:bg-[#0F172A] p-1.5 rounded-2xl border border-[#E2E8F0] dark:border-[#1E293B] shadow-md shrink-0 self-start overflow-x-auto">
+      <div className="glass-card flex space-x-2 p-1.5 rounded-2xl shadow-md shrink-0 self-start overflow-x-auto">
         <button
           onClick={() => setActiveTab('stok')}
           className={`whitespace-nowrap px-6 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
             activeTab === 'stok' 
-              ? 'bg-[#2563EB] text-white shadow-md' 
-              : 'text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-[#FAFAFA] hover:bg-[#FFFFFF] dark:hover:bg-[#1E293B]'
+              ? 'bg-[#4457A5] text-white shadow-md' 
+              : 'text-[#5A6685] dark:text-[#8892B5] hover:text-[#16204A] dark:hover:text-[#F6F8FF] hover:bg-[#FFFFFF] dark:hover:bg-[#24326A]'
           }`}
         >
           Stok Raporu
@@ -308,7 +308,7 @@ export default function Raporlar() {
           className={`whitespace-nowrap px-6 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
             activeTab === 'critical' 
               ? 'bg-red-600 text-white shadow-md' 
-              : 'text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-[#FAFAFA] hover:bg-[#FFFFFF] dark:hover:bg-[#1E293B]'
+              : 'text-[#5A6685] dark:text-[#8892B5] hover:text-[#16204A] dark:hover:text-[#F6F8FF] hover:bg-[#FFFFFF] dark:hover:bg-[#24326A]'
           }`}
         >
           Kritik Stok Raporu
@@ -318,7 +318,7 @@ export default function Raporlar() {
           className={`whitespace-nowrap px-6 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
             activeTab === 'transfers' 
               ? 'bg-amber-600 text-white shadow-md' 
-              : 'text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-[#FAFAFA] hover:bg-[#FFFFFF] dark:hover:bg-[#1E293B]'
+              : 'text-[#5A6685] dark:text-[#8892B5] hover:text-[#16204A] dark:hover:text-[#F6F8FF] hover:bg-[#FFFFFF] dark:hover:bg-[#24326A]'
           }`}
         >
           Transfer Hareketleri
@@ -327,15 +327,15 @@ export default function Raporlar() {
 
       {activeTab === 'stok' && (
         /* Table Stok */
-        <div className="bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#1E293B] rounded-2xl shadow-md flex-1 flex flex-col overflow-hidden">
+        <div className="glass-card rounded-2xl shadow-md flex-1 flex flex-col overflow-hidden">
             <div className="overflow-x-auto w-full">
               <table className="w-full text-left text-xs whitespace-nowrap">
-                <thead className="bg-[#F8FAFC] dark:bg-[#162032] text-[#64748B] dark:text-[#94A3B8] font-semibold uppercase tracking-wider border-b border-[#E2E8F0] dark:border-[#1E293B] sticky top-0 z-10">
+                <thead className="bg-[#F5F7FC] dark:bg-[#1B2755] text-[#5A6685] dark:text-[#8892B5] font-semibold uppercase tracking-wider border-b border-[#DCE1F1] dark:border-[#24326A] sticky top-0 z-10">
                   <tr>
                     <th className="px-6 py-4 w-12 text-center">
                       <input 
                         type="checkbox" 
-                        className="w-4 h-4 rounded border-[#E2E8F0] dark:border-[#334155] text-[#2563EB] focus:ring-[#2563EB] bg-[#FFFFFF] dark:bg-[#1E293B]"
+                        className="w-4 h-4 rounded border-[#DCE1F1] dark:border-[#3B4A85] text-[#4457A5] focus:ring-[#4457A5] bg-[#FFFFFF] dark:bg-[#24326A]"
                         checked={selectedRows.length === filteredStockReports.length && filteredStockReports.length > 0}
                         onChange={toggleSelectAll}
                       />
@@ -348,17 +348,17 @@ export default function Raporlar() {
                     <th className="px-6 py-4">KRİTİK DURUMU</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#E2E8F0] dark:divide-[#1E293B]">
+                <tbody className="divide-y divide-[#DCE1F1] dark:divide-[#24326A]">
                   {loading ? (
                     <tr>
-                      <td colSpan="7" className="px-6 py-8 text-center text-[#64748B] dark:text-[#94A3B8]">
-                        <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-[#60A5FA]" />
+                      <td colSpan="7" className="px-6 py-8 text-center text-[#5A6685] dark:text-[#8892B5]">
+                        <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-[#8894D8]" />
                         Yükleniyor...
                       </td>
                     </tr>
                   ) : filteredStockReports.length === 0 ? (
                     <tr>
-                      <td colSpan="7" className="px-6 py-8 text-center text-[#64748B] dark:text-[#94A3B8]">
+                      <td colSpan="7" className="px-6 py-8 text-center text-[#5A6685] dark:text-[#8892B5]">
                         Kayıt bulunamadı.
                       </td>
                     </tr>
@@ -367,22 +367,22 @@ export default function Raporlar() {
                       const isChecked = selectedRows.includes(r.id);
                       const isCritical = r.location_kind === 'good_stock' && r.quantity <= r.critical_limit;
                       return (
-                      <tr key={r.id} className={`hover:bg-[#FFFFFF]/70 dark:hover:bg-[#1E293B]/70 transition-colors text-[#0F172A] dark:text-[#FAFAFA] ${isChecked ? 'bg-blue-900/30 border-l-4 border-[#2563EB]' : ''}`}>
+                      <tr key={r.id} className={`hover:bg-[#FFFFFF]/70 dark:hover:bg-[#24326A]/70 transition-colors text-[#16204A] dark:text-[#F6F8FF] ${isChecked ? 'bg-blue-900/30 border-l-4 border-[#4457A5]' : ''}`}>
                         <td className="px-6 py-3.5 text-center" onClick={(e) => e.stopPropagation()}>
                           <input 
                             type="checkbox" 
-                            className="w-4 h-4 rounded border-[#E2E8F0] dark:border-[#334155] text-[#2563EB] focus:ring-[#2563EB] bg-[#FFFFFF] dark:bg-[#1E293B]"
+                            className="w-4 h-4 rounded border-[#DCE1F1] dark:border-[#3B4A85] text-[#4457A5] focus:ring-[#4457A5] bg-[#FFFFFF] dark:bg-[#24326A]"
                             checked={isChecked}
                             onChange={(e) => toggleRowSelect(r.id, e)}
                           />
                         </td>
-                        <td className="px-6 py-3.5 font-mono text-[#64748B] dark:text-[#94A3B8] text-[11px]">{r.updated_at || r.date || '-'}</td>
+                        <td className="px-6 py-3.5 font-mono text-[#5A6685] dark:text-[#8892B5] text-[11px]">{r.updated_at || r.date || '-'}</td>
                         <td className="px-6 py-3.5">
-                          <span className="px-2.5 py-1 rounded-md bg-blue-50 dark:bg-blue-950/70 text-[#1D4ED8] dark:text-[#60A5FA] border border-blue-200 dark:border-blue-800/60 font-mono font-bold text-[11px]">
+                          <span className="px-2.5 py-1 rounded-md bg-blue-50 dark:bg-blue-950/70 text-[#2E3F78] dark:text-[#8894D8] border border-blue-200 dark:border-blue-800/60 font-mono font-bold text-[11px]">
                             {r.item_code}
                           </span>
                         </td>
-                        <td className="px-6 py-3.5 font-semibold text-[#0F172A] dark:text-[#FAFAFA]">{r.part_name}</td>
+                        <td className="px-6 py-3.5 font-semibold text-[#16204A] dark:text-[#F6F8FF]">{r.part_name}</td>
                         <td className="px-6 py-3.5">{r.location_name}</td>
                         <td className="px-6 py-3.5 font-mono font-semibold text-sm">{r.quantity}</td>
                         <td className="px-6 py-3.5">
@@ -401,25 +401,25 @@ export default function Raporlar() {
             </div>
 
             {/* Pagination Footer */}
-            <div className="flex justify-between items-center px-6 py-4 bg-[#F8FAFC] dark:bg-[#162032] border-t border-[#E2E8F0] dark:border-[#1E293B] shrink-0 text-xs text-[#64748B] dark:text-[#94A3B8]">
+            <div className="flex justify-between items-center px-6 py-4 bg-[#F5F7FC] dark:bg-[#1B2755] border-t border-[#DCE1F1] dark:border-[#24326A] shrink-0 text-xs text-[#5A6685] dark:text-[#8892B5]">
               <span>
-                Toplam <strong className="text-[#0F172A] dark:text-[#FAFAFA]">{activeDataList.length}</strong> kayıttan <strong className="text-[#0F172A] dark:text-[#FAFAFA]">{activeDataList.length === 0 ? 0 : indexOfFirstItem + 1}-{Math.min(indexOfLastItem, activeDataList.length)}</strong> arası gösteriliyor
+                Toplam <strong className="text-[#16204A] dark:text-[#F6F8FF]">{activeDataList.length}</strong> kayıttan <strong className="text-[#16204A] dark:text-[#F6F8FF]">{activeDataList.length === 0 ? 0 : indexOfFirstItem + 1}-{Math.min(indexOfLastItem, activeDataList.length)}</strong> arası gösteriliyor
               </span>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                   disabled={currentPage === 1 || activeDataList.length === 0}
-                  className="px-3 py-1.5 bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#334155] rounded-xl text-xs font-bold text-[#0F172A] dark:text-[#FAFAFA] hover:bg-[#FFFFFF] dark:hover:bg-[#1E293B] disabled:opacity-40 transition-all cursor-pointer"
+                  className="px-3 py-1.5 bg-[#F5F7FC] dark:bg-[#16204A] border border-[#DCE1F1] dark:border-[#3B4A85] rounded-xl text-xs font-bold text-[#16204A] dark:text-[#F6F8FF] hover:bg-[#FFFFFF] dark:hover:bg-[#24326A] disabled:opacity-40 transition-all cursor-pointer"
                 >
                   Önceki
                 </button>
-                <span className="text-xs font-bold px-3 py-1.5 bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#334155] rounded-xl text-[#60A5FA]">
+                <span className="text-xs font-bold px-3 py-1.5 bg-[#F5F7FC] dark:bg-[#16204A] border border-[#DCE1F1] dark:border-[#3B4A85] rounded-xl text-[#8894D8]">
                   Sayfa {currentPage} / {totalPages}
                 </span>
                 <button
                   onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                   disabled={currentPage >= totalPages || activeDataList.length === 0}
-                  className="px-3 py-1.5 bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#334155] rounded-xl text-xs font-bold text-[#0F172A] dark:text-[#FAFAFA] hover:bg-[#FFFFFF] dark:hover:bg-[#1E293B] disabled:opacity-40 transition-all cursor-pointer"
+                  className="px-3 py-1.5 bg-[#F5F7FC] dark:bg-[#16204A] border border-[#DCE1F1] dark:border-[#3B4A85] rounded-xl text-xs font-bold text-[#16204A] dark:text-[#F6F8FF] hover:bg-[#FFFFFF] dark:hover:bg-[#24326A] disabled:opacity-40 transition-all cursor-pointer"
                 >
                   Sonraki
                 </button>
@@ -428,15 +428,15 @@ export default function Raporlar() {
           </div>
         )}
       {activeTab === 'critical' && (
-        <div className="bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#1E293B] rounded-2xl shadow-md flex-1 flex flex-col overflow-hidden">
+        <div className="glass-card rounded-2xl shadow-md flex-1 flex flex-col overflow-hidden">
           <div className="overflow-x-auto w-full">
             <table className="w-full text-left text-xs whitespace-nowrap">
-              <thead className="bg-[#F8FAFC] dark:bg-[#162032] text-[#64748B] dark:text-[#94A3B8] font-semibold uppercase tracking-wider border-b border-[#E2E8F0] dark:border-[#1E293B] sticky top-0 z-10">
+              <thead className="bg-[#F5F7FC] dark:bg-[#1B2755] text-[#5A6685] dark:text-[#8892B5] font-semibold uppercase tracking-wider border-b border-[#DCE1F1] dark:border-[#24326A] sticky top-0 z-10">
                 <tr>
                   <th className="px-6 py-4 w-12 text-center">
                     <input 
                       type="checkbox" 
-                      className="w-4 h-4 rounded border-[#E2E8F0] dark:border-[#334155] text-[#2563EB] focus:ring-[#2563EB] bg-[#FFFFFF] dark:bg-[#1E293B]"
+                      className="w-4 h-4 rounded border-[#DCE1F1] dark:border-[#3B4A85] text-[#4457A5] focus:ring-[#4457A5] bg-[#FFFFFF] dark:bg-[#24326A]"
                       checked={selectedRows.length === filteredCriticalReports.length && filteredCriticalReports.length > 0}
                       onChange={toggleSelectAll}
                     />
@@ -449,17 +449,17 @@ export default function Raporlar() {
                   <th className="px-6 py-4">DURUM</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#E2E8F0] dark:divide-[#1E293B]">
+              <tbody className="divide-y divide-[#DCE1F1] dark:divide-[#24326A]">
                 {loading ? (
                   <tr>
-                    <td colSpan="7" className="px-6 py-8 text-center text-[#64748B] dark:text-[#94A3B8]">
-                      <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-[#60A5FA]" />
+                    <td colSpan="7" className="px-6 py-8 text-center text-[#5A6685] dark:text-[#8892B5]">
+                      <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-[#8894D8]" />
                       Yükleniyor...
                     </td>
                   </tr>
                 ) : filteredCriticalReports.length === 0 ? (
                   <tr>
-                    <td colSpan="7" className="px-6 py-8 text-center text-[#64748B] dark:text-[#94A3B8]">
+                    <td colSpan="7" className="px-6 py-8 text-center text-[#5A6685] dark:text-[#8892B5]">
                       Kritik stok seviyesinde parça bulunamadı.
                     </td>
                   </tr>
@@ -467,24 +467,24 @@ export default function Raporlar() {
                   paginatedReports.map((r) => {
                     const isChecked = selectedRows.includes(r.id);
                     return (
-                    <tr key={r.id} className={`hover:bg-[#FFFFFF]/70 dark:hover:bg-[#1E293B]/70 transition-colors text-[#0F172A] dark:text-[#FAFAFA] ${isChecked ? 'bg-blue-900/30 border-l-4 border-[#2563EB]' : ''}`}>
+                    <tr key={r.id} className={`hover:bg-[#FFFFFF]/70 dark:hover:bg-[#24326A]/70 transition-colors text-[#16204A] dark:text-[#F6F8FF] ${isChecked ? 'bg-blue-900/30 border-l-4 border-[#4457A5]' : ''}`}>
                       <td className="px-6 py-3.5 text-center" onClick={(e) => e.stopPropagation()}>
                         <input 
                           type="checkbox" 
-                          className="w-4 h-4 rounded border-[#E2E8F0] dark:border-[#334155] text-[#2563EB] focus:ring-[#2563EB] bg-[#FFFFFF] dark:bg-[#1E293B]"
+                          className="w-4 h-4 rounded border-[#DCE1F1] dark:border-[#3B4A85] text-[#4457A5] focus:ring-[#4457A5] bg-[#FFFFFF] dark:bg-[#24326A]"
                           checked={isChecked}
                           onChange={(e) => toggleRowSelect(r.id, e)}
                         />
                       </td>
                       <td className="px-6 py-3.5">
-                        <span className="px-2.5 py-1 rounded-md bg-blue-50 dark:bg-blue-950/70 text-[#1D4ED8] dark:text-[#60A5FA] border border-blue-200 dark:border-blue-800/60 font-mono font-bold text-[11px]">
+                        <span className="px-2.5 py-1 rounded-md bg-blue-50 dark:bg-blue-950/70 text-[#2E3F78] dark:text-[#8894D8] border border-blue-200 dark:border-blue-800/60 font-mono font-bold text-[11px]">
                           {r.item_code}
                         </span>
                       </td>
-                      <td className="px-6 py-3.5 font-semibold text-[#0F172A] dark:text-[#FAFAFA]">{r.part_name}</td>
+                      <td className="px-6 py-3.5 font-semibold text-[#16204A] dark:text-[#F6F8FF]">{r.part_name}</td>
                       <td className="px-6 py-3.5">{r.location_name}</td>
                       <td className="px-6 py-3.5 font-mono font-semibold text-sm text-red-400">{r.quantity}</td>
-                      <td className="px-6 py-3.5 font-mono text-[#64748B] dark:text-[#94A3B8]">{r.critical_limit}</td>
+                      <td className="px-6 py-3.5 font-mono text-[#5A6685] dark:text-[#8892B5]">{r.critical_limit}</td>
                       <td className="px-6 py-3.5">
                         <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-500/30 flex items-center gap-1.5 w-fit">
                           <AlertTriangle size={12} /> KRİTİK SEVİYE
@@ -498,25 +498,25 @@ export default function Raporlar() {
             </table>
           </div>
 
-          <div className="flex justify-between items-center px-6 py-4 bg-[#F8FAFC] dark:bg-[#162032] border-t border-[#E2E8F0] dark:border-[#1E293B] shrink-0 text-xs text-[#64748B] dark:text-[#94A3B8]">
+          <div className="flex justify-between items-center px-6 py-4 bg-[#F5F7FC] dark:bg-[#1B2755] border-t border-[#DCE1F1] dark:border-[#24326A] shrink-0 text-xs text-[#5A6685] dark:text-[#8892B5]">
             <span>
-              Toplam <strong className="text-[#0F172A] dark:text-[#FAFAFA]">{activeDataList.length}</strong> kayıttan <strong className="text-[#0F172A] dark:text-[#FAFAFA]">{activeDataList.length === 0 ? 0 : indexOfFirstItem + 1}-{Math.min(indexOfLastItem, activeDataList.length)}</strong> arası gösteriliyor
+              Toplam <strong className="text-[#16204A] dark:text-[#F6F8FF]">{activeDataList.length}</strong> kayıttan <strong className="text-[#16204A] dark:text-[#F6F8FF]">{activeDataList.length === 0 ? 0 : indexOfFirstItem + 1}-{Math.min(indexOfLastItem, activeDataList.length)}</strong> arası gösteriliyor
             </span>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={currentPage === 1 || activeDataList.length === 0}
-                className="px-3 py-1.5 bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#334155] rounded-xl text-xs font-bold text-[#0F172A] dark:text-[#FAFAFA] hover:bg-[#FFFFFF] dark:hover:bg-[#1E293B] disabled:opacity-40 transition-all cursor-pointer"
+                className="px-3 py-1.5 bg-[#F5F7FC] dark:bg-[#16204A] border border-[#DCE1F1] dark:border-[#3B4A85] rounded-xl text-xs font-bold text-[#16204A] dark:text-[#F6F8FF] hover:bg-[#FFFFFF] dark:hover:bg-[#24326A] disabled:opacity-40 transition-all cursor-pointer"
               >
                 Önceki
               </button>
-              <span className="text-xs font-bold px-3 py-1.5 bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#334155] rounded-xl text-[#60A5FA]">
+              <span className="text-xs font-bold px-3 py-1.5 bg-[#F5F7FC] dark:bg-[#16204A] border border-[#DCE1F1] dark:border-[#3B4A85] rounded-xl text-[#8894D8]">
                 Sayfa {currentPage} / {totalPages}
               </span>
               <button
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage >= totalPages || activeDataList.length === 0}
-                className="px-3 py-1.5 bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#334155] rounded-xl text-xs font-bold text-[#0F172A] dark:text-[#FAFAFA] hover:bg-[#FFFFFF] dark:hover:bg-[#1E293B] disabled:opacity-40 transition-all cursor-pointer"
+                className="px-3 py-1.5 bg-[#F5F7FC] dark:bg-[#16204A] border border-[#DCE1F1] dark:border-[#3B4A85] rounded-xl text-xs font-bold text-[#16204A] dark:text-[#F6F8FF] hover:bg-[#FFFFFF] dark:hover:bg-[#24326A] disabled:opacity-40 transition-all cursor-pointer"
               >
                 Sonraki
               </button>
@@ -528,34 +528,34 @@ export default function Raporlar() {
       {activeTab === 'transfers' && (
         <div className="space-y-4">
           {/* Toolbar Transfers */}
-          <div className="bg-[#F8FAFC] dark:bg-[#0F172A] p-4 rounded-2xl border border-[#E2E8F0] dark:border-[#1E293B] shadow-md flex flex-col gap-4">
-            <div className="flex gap-2 border-b border-[#E2E8F0] dark:border-[#1E293B] pb-3">
-               <span className="text-xs font-bold text-[#64748B] dark:text-[#94A3B8] self-center mr-2">Hızlı Filtre:</span>
-               <button onClick={() => setQuickFilter('today')} className="text-xs px-3 py-1.5 bg-[#FFFFFF] dark:bg-[#1E293B] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] text-[#0F172A] dark:text-[#FAFAFA] rounded-xl border border-[#E2E8F0] dark:border-[#334155] transition-colors font-semibold cursor-pointer">Bugün</button>
-               <button onClick={() => setQuickFilter('yesterday')} className="text-xs px-3 py-1.5 bg-[#FFFFFF] dark:bg-[#1E293B] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] text-[#0F172A] dark:text-[#FAFAFA] rounded-xl border border-[#E2E8F0] dark:border-[#334155] transition-colors font-semibold cursor-pointer">Dün</button>
-               <button onClick={() => setQuickFilter('week')} className="text-xs px-3 py-1.5 bg-[#FFFFFF] dark:bg-[#1E293B] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] text-[#0F172A] dark:text-[#FAFAFA] rounded-xl border border-[#E2E8F0] dark:border-[#334155] transition-colors font-semibold cursor-pointer">Son 1 Hafta</button>
-               <button onClick={() => setQuickFilter('month')} className="text-xs px-3 py-1.5 bg-[#FFFFFF] dark:bg-[#1E293B] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] text-[#0F172A] dark:text-[#FAFAFA] rounded-xl border border-[#E2E8F0] dark:border-[#334155] transition-colors font-semibold cursor-pointer">Son 1 Ay</button>
+          <div className="glass-card p-4 rounded-2xl shadow-md flex flex-col gap-4">
+            <div className="flex gap-2 border-b border-[#DCE1F1] dark:border-[#24326A] pb-3">
+               <span className="text-xs font-bold text-[#5A6685] dark:text-[#8892B5] self-center mr-2">Hızlı Filtre:</span>
+               <button onClick={() => setQuickFilter('today')} className="text-xs px-3 py-1.5 bg-[#FFFFFF] dark:bg-[#24326A] hover:bg-[#EFF1FA] dark:hover:bg-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] rounded-xl border border-[#DCE1F1] dark:border-[#3B4A85] transition-colors font-semibold cursor-pointer">Bugün</button>
+               <button onClick={() => setQuickFilter('yesterday')} className="text-xs px-3 py-1.5 bg-[#FFFFFF] dark:bg-[#24326A] hover:bg-[#EFF1FA] dark:hover:bg-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] rounded-xl border border-[#DCE1F1] dark:border-[#3B4A85] transition-colors font-semibold cursor-pointer">Dün</button>
+               <button onClick={() => setQuickFilter('week')} className="text-xs px-3 py-1.5 bg-[#FFFFFF] dark:bg-[#24326A] hover:bg-[#EFF1FA] dark:hover:bg-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] rounded-xl border border-[#DCE1F1] dark:border-[#3B4A85] transition-colors font-semibold cursor-pointer">Son 1 Hafta</button>
+               <button onClick={() => setQuickFilter('month')} className="text-xs px-3 py-1.5 bg-[#FFFFFF] dark:bg-[#24326A] hover:bg-[#EFF1FA] dark:hover:bg-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] rounded-xl border border-[#DCE1F1] dark:border-[#3B4A85] transition-colors font-semibold cursor-pointer">Son 1 Ay</button>
             </div>
             
             <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
               <div className="flex items-center gap-3 flex-wrap">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-[#64748B] dark:text-[#94A3B8]">Başlangıç:</span>
+                  <span className="text-xs font-bold text-[#5A6685] dark:text-[#8892B5]">Başlangıç:</span>
                   <input 
                     type="date" 
                     style={{ colorScheme: 'dark' }}
-                    className="bg-[#FFFFFF] dark:bg-[#1E293B] text-[#0F172A] dark:text-[#FAFAFA] border border-[#E2E8F0] dark:border-[#334155] rounded-xl px-3 py-2 text-xs font-mono focus:outline-none focus:border-[#2563EB]"
+                    className="bg-[#FFFFFF] dark:bg-[#24326A] text-[#16204A] dark:text-[#F6F8FF] border border-[#DCE1F1] dark:border-[#3B4A85] rounded-xl px-3 py-2 text-xs font-mono focus:outline-none focus:border-[#4457A5]"
                     value={startDate.split('T')[0] || ''}
                     onChange={(e) => setStartDate(`${e.target.value}T${startDate.split('T')[1] || '00:00'}`)}
                   />
                 </div>
                 
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-[#64748B] dark:text-[#94A3B8]">Bitiş:</span>
+                  <span className="text-xs font-bold text-[#5A6685] dark:text-[#8892B5]">Bitiş:</span>
                   <input 
                     type="date" 
                     style={{ colorScheme: 'dark' }}
-                    className="bg-[#FFFFFF] dark:bg-[#1E293B] text-[#0F172A] dark:text-[#FAFAFA] border border-[#E2E8F0] dark:border-[#334155] rounded-xl px-3 py-2 text-xs font-mono focus:outline-none focus:border-[#2563EB]"
+                    className="bg-[#FFFFFF] dark:bg-[#24326A] text-[#16204A] dark:text-[#F6F8FF] border border-[#DCE1F1] dark:border-[#3B4A85] rounded-xl px-3 py-2 text-xs font-mono focus:outline-none focus:border-[#4457A5]"
                     value={endDate.split('T')[0] || ''}
                     onChange={(e) => setEndDate(`${e.target.value}T${endDate.split('T')[1] || '23:59'}`)}
                   />
@@ -563,7 +563,7 @@ export default function Raporlar() {
 
                 <button 
                   onClick={() => fetchReports(false)}
-                  className="flex items-center gap-2 px-4 py-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+                  className="flex items-center gap-2 px-4 py-2 bg-[#4457A5] hover:bg-[#2E3F78] text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
                 >
                   <Filter size={15} /> Filtrele
                 </button>
@@ -572,15 +572,15 @@ export default function Raporlar() {
           </div>
 
           {/* Table Transfers */}
-          <div className="bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#1E293B] rounded-2xl shadow-md flex-1 flex flex-col overflow-hidden">
+          <div className="glass-card rounded-2xl shadow-md flex-1 flex flex-col overflow-hidden">
             <div className="overflow-x-auto w-full">
               <table className="w-full text-left text-xs whitespace-nowrap">
-                <thead className="bg-[#F8FAFC] dark:bg-[#162032] text-[#64748B] dark:text-[#94A3B8] font-semibold uppercase tracking-wider border-b border-[#E2E8F0] dark:border-[#1E293B] sticky top-0 z-10">
+                <thead className="bg-[#F5F7FC] dark:bg-[#1B2755] text-[#5A6685] dark:text-[#8892B5] font-semibold uppercase tracking-wider border-b border-[#DCE1F1] dark:border-[#24326A] sticky top-0 z-10">
                   <tr>
                     <th className="px-6 py-4 w-12 text-center">
                       <input 
                         type="checkbox" 
-                        className="w-4 h-4 rounded border-[#E2E8F0] dark:border-[#334155] text-[#2563EB] focus:ring-[#2563EB] bg-[#FFFFFF] dark:bg-[#1E293B]"
+                        className="w-4 h-4 rounded border-[#DCE1F1] dark:border-[#3B4A85] text-[#4457A5] focus:ring-[#4457A5] bg-[#FFFFFF] dark:bg-[#24326A]"
                         checked={selectedRows.length === filteredTransferReports.length && filteredTransferReports.length > 0}
                         onChange={toggleSelectAll}
                       />
@@ -595,17 +595,17 @@ export default function Raporlar() {
                     <th className="px-6 py-4">TÜR</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#E2E8F0] dark:divide-[#1E293B]">
+                <tbody className="divide-y divide-[#DCE1F1] dark:divide-[#24326A]">
                   {loading ? (
                     <tr>
-                      <td colSpan="9" className="px-6 py-8 text-center text-[#64748B] dark:text-[#94A3B8]">
-                        <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-[#60A5FA]" />
+                      <td colSpan="9" className="px-6 py-8 text-center text-[#5A6685] dark:text-[#8892B5]">
+                        <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-[#8894D8]" />
                         Yükleniyor...
                       </td>
                     </tr>
                   ) : filteredTransferReports.length === 0 ? (
                     <tr>
-                      <td colSpan="9" className="px-6 py-8 text-center text-[#64748B] dark:text-[#94A3B8]">
+                      <td colSpan="9" className="px-6 py-8 text-center text-[#5A6685] dark:text-[#8892B5]">
                         Transfer hareketi bulunamadı.
                       </td>
                     </tr>
@@ -615,29 +615,29 @@ export default function Raporlar() {
                       const isOut = (r.type || '').includes('Çıkış') || (r.type || '').includes('Satış') || (r.type || '').includes('Servis Kullanımı') || (r.type || '').includes('Outbound') || (r.type || '').includes('Fire') || (r.type || '').includes('Teknik Servis');
                       const isIn = (r.type || '').includes('Giriş') || (r.type || '').includes('Yeni Alım') || (r.type || '').includes('İade') || (r.type || '').includes('Return') || (r.type || '').includes('İptal') || (r.type || '').includes('Inbound');
                       return (
-                      <tr key={r.id} className={`hover:bg-[#FFFFFF]/70 dark:hover:bg-[#1E293B]/70 transition-colors text-[#0F172A] dark:text-[#FAFAFA] ${isChecked ? 'bg-blue-900/30 border-l-4 border-[#2563EB]' : ''}`}>
+                      <tr key={r.id} className={`hover:bg-[#FFFFFF]/70 dark:hover:bg-[#24326A]/70 transition-colors text-[#16204A] dark:text-[#F6F8FF] ${isChecked ? 'bg-blue-900/30 border-l-4 border-[#4457A5]' : ''}`}>
                         <td className="px-6 py-3.5 text-center" onClick={(e) => e.stopPropagation()}>
                           <input 
                             type="checkbox" 
-                            className="w-4 h-4 rounded border-[#E2E8F0] dark:border-[#334155] text-[#2563EB] focus:ring-[#2563EB] bg-[#FFFFFF] dark:bg-[#1E293B]"
+                            className="w-4 h-4 rounded border-[#DCE1F1] dark:border-[#3B4A85] text-[#4457A5] focus:ring-[#4457A5] bg-[#FFFFFF] dark:bg-[#24326A]"
                             checked={isChecked}
                             onChange={(e) => toggleRowSelect(r.id, e)}
                           />
                         </td>
-                        <td className="px-6 py-3.5 font-mono text-[#64748B] dark:text-[#94A3B8] text-[11px]">{r.date || '-'}</td>
+                        <td className="px-6 py-3.5 font-mono text-[#5A6685] dark:text-[#8892B5] text-[11px]">{r.date || '-'}</td>
                         <td className="px-6 py-3.5">
-                          <span className="px-2.5 py-1 rounded-md bg-blue-50 dark:bg-blue-950/70 text-[#1D4ED8] dark:text-[#60A5FA] border border-blue-200 dark:border-blue-800/60 font-mono font-bold text-[11px]">
+                          <span className="px-2.5 py-1 rounded-md bg-blue-50 dark:bg-blue-950/70 text-[#2E3F78] dark:text-[#8894D8] border border-blue-200 dark:border-blue-800/60 font-mono font-bold text-[11px]">
                             {r.item_code}
                           </span>
                         </td>
-                        <td className="px-6 py-3.5 font-semibold text-[#0F172A] dark:text-[#FAFAFA]">{r.part_name}</td>
+                        <td className="px-6 py-3.5 font-semibold text-[#16204A] dark:text-[#F6F8FF]">{r.part_name}</td>
                         <td className={`px-6 py-3.5 font-mono font-semibold text-sm ${isOut ? 'text-red-400' : (isIn ? 'text-emerald-400' : 'text-blue-400')}`}>
                           {isOut ? '-' : (isIn ? '+' : '')}{r.quantity}
                         </td>
                         <td className="px-6 py-3.5">{r.source_location || '-'}</td>
                         <td className="px-6 py-3.5">{r.target_location || '-'}</td>
                         <td className="px-6 py-3.5">{r.user || '-'}</td>
-                        <td className="px-6 py-3.5 text-[#64748B] dark:text-[#94A3B8]">{r.type || '-'}</td>
+                        <td className="px-6 py-3.5 text-[#5A6685] dark:text-[#8892B5]">{r.type || '-'}</td>
                       </tr>
                     );
                   })
@@ -646,25 +646,25 @@ export default function Raporlar() {
               </table>
             </div>
 
-            <div className="flex justify-between items-center px-6 py-4 bg-[#F8FAFC] dark:bg-[#162032] border-t border-[#E2E8F0] dark:border-[#1E293B] shrink-0 text-xs text-[#64748B] dark:text-[#94A3B8]">
+            <div className="flex justify-between items-center px-6 py-4 bg-[#F5F7FC] dark:bg-[#1B2755] border-t border-[#DCE1F1] dark:border-[#24326A] shrink-0 text-xs text-[#5A6685] dark:text-[#8892B5]">
               <span>
-                Toplam <strong className="text-[#0F172A] dark:text-[#FAFAFA]">{activeDataList.length}</strong> kayıttan <strong className="text-[#0F172A] dark:text-[#FAFAFA]">{activeDataList.length === 0 ? 0 : indexOfFirstItem + 1}-{Math.min(indexOfLastItem, activeDataList.length)}</strong> arası gösteriliyor
+                Toplam <strong className="text-[#16204A] dark:text-[#F6F8FF]">{activeDataList.length}</strong> kayıttan <strong className="text-[#16204A] dark:text-[#F6F8FF]">{activeDataList.length === 0 ? 0 : indexOfFirstItem + 1}-{Math.min(indexOfLastItem, activeDataList.length)}</strong> arası gösteriliyor
               </span>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                   disabled={currentPage === 1 || activeDataList.length === 0}
-                  className="px-3 py-1.5 bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#334155] rounded-xl text-xs font-bold text-[#0F172A] dark:text-[#FAFAFA] hover:bg-[#FFFFFF] dark:hover:bg-[#1E293B] disabled:opacity-40 transition-all cursor-pointer"
+                  className="px-3 py-1.5 bg-[#F5F7FC] dark:bg-[#16204A] border border-[#DCE1F1] dark:border-[#3B4A85] rounded-xl text-xs font-bold text-[#16204A] dark:text-[#F6F8FF] hover:bg-[#FFFFFF] dark:hover:bg-[#24326A] disabled:opacity-40 transition-all cursor-pointer"
                 >
                   Önceki
                 </button>
-                <span className="text-xs font-bold px-3 py-1.5 bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#334155] rounded-xl text-[#60A5FA]">
+                <span className="text-xs font-bold px-3 py-1.5 bg-[#F5F7FC] dark:bg-[#16204A] border border-[#DCE1F1] dark:border-[#3B4A85] rounded-xl text-[#8894D8]">
                   Sayfa {currentPage} / {totalPages}
                 </span>
                 <button
                   onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                   disabled={currentPage >= totalPages || activeDataList.length === 0}
-                  className="px-3 py-1.5 bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#334155] rounded-xl text-xs font-bold text-[#0F172A] dark:text-[#FAFAFA] hover:bg-[#FFFFFF] dark:hover:bg-[#1E293B] disabled:opacity-40 transition-all cursor-pointer"
+                  className="px-3 py-1.5 bg-[#F5F7FC] dark:bg-[#16204A] border border-[#DCE1F1] dark:border-[#3B4A85] rounded-xl text-xs font-bold text-[#16204A] dark:text-[#F6F8FF] hover:bg-[#FFFFFF] dark:hover:bg-[#24326A] disabled:opacity-40 transition-all cursor-pointer"
                 >
                   Sonraki
                 </button>
@@ -677,13 +677,13 @@ export default function Raporlar() {
       {/* Dışa Aktar Sütun Seçimi Modalı */}
       {isExportModalOpen && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#1E293B] shadow-2xl rounded-2xl w-full max-w-sm p-6 text-[#0F172A] dark:text-[#FAFAFA]">
-            <h2 className="text-lg font-semibold text-[#0F172A] dark:text-[#FAFAFA] mb-2">Excel Sütun Seçimi</h2>
-            <p className="text-xs text-[#64748B] dark:text-[#94A3B8] mb-4">Dışa aktarılacak raporda yer almasını istediğiniz sütunları işaretleyin.</p>
+          <div className="glass-modal shadow-2xl rounded-2xl w-full max-w-sm p-6 text-[#16204A] dark:text-[#F6F8FF]">
+            <h2 className="text-lg font-semibold text-[#16204A] dark:text-[#F6F8FF] mb-2">Excel Sütun Seçimi</h2>
+            <p className="text-xs text-[#5A6685] dark:text-[#8892B5] mb-4">Dışa aktarılacak raporda yer almasını istediğiniz sütunları işaretleyin.</p>
             
             <div className="space-y-3 mb-6 max-h-60 overflow-y-auto pr-2">
               {Object.keys(activeTab === 'stok' ? selectedStockCols : (activeTab === 'transfers' ? selectedTransferCols : selectedCriticalCols)).map((col) => (
-                <label key={col} className="flex items-center gap-3 cursor-pointer text-xs font-medium text-[#0F172A] dark:text-[#FAFAFA]">
+                <label key={col} className="flex items-center gap-3 cursor-pointer text-xs font-medium text-[#16204A] dark:text-[#F6F8FF]">
                   <input 
                     type="checkbox" 
                     checked={activeTab === 'stok' ? selectedStockCols[col] : (activeTab === 'transfers' ? selectedTransferCols[col] : selectedCriticalCols[col])}
@@ -696,7 +696,7 @@ export default function Raporlar() {
                         setSelectedCriticalCols(prev => ({...prev, [col]: e.target.checked}));
                       }
                     }}
-                    className="w-4 h-4 rounded border-[#E2E8F0] dark:border-[#334155] text-[#2563EB] focus:ring-[#2563EB] bg-[#FFFFFF] dark:bg-[#1E293B]"
+                    className="w-4 h-4 rounded border-[#DCE1F1] dark:border-[#3B4A85] text-[#4457A5] focus:ring-[#4457A5] bg-[#FFFFFF] dark:bg-[#24326A]"
                   />
                   <span>{col}</span>
                 </label>
@@ -706,14 +706,14 @@ export default function Raporlar() {
             <div className="flex justify-end gap-3 mt-6">
               <button 
                 onClick={() => setIsExportModalOpen(false)}
-                className="px-4 py-2 bg-[#FFFFFF] dark:bg-[#1E293B] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] text-[#0F172A] dark:text-[#FAFAFA] rounded-xl text-xs font-bold transition-all cursor-pointer"
+                className="px-4 py-2 bg-[#FFFFFF] dark:bg-[#24326A] hover:bg-[#EFF1FA] dark:hover:bg-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] rounded-xl text-xs font-bold transition-all cursor-pointer"
               >
                 İptal
               </button>
               <button 
                 onClick={executeExport}
                 disabled={!Object.values(activeTab === 'stok' ? selectedStockCols : (activeTab === 'transfers' ? selectedTransferCols : selectedCriticalCols)).some(Boolean)}
-                className="px-4 py-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-xl text-xs font-semibold transition-all shadow-md cursor-pointer disabled:opacity-50"
+                className="px-4 py-2 bg-[#4457A5] hover:bg-[#2E3F78] text-white rounded-xl text-xs font-semibold transition-all shadow-md cursor-pointer disabled:opacity-50"
               >
                 Dışa Aktar
               </button>

@@ -39,7 +39,7 @@ export default function PartSupplyMenu({ position, currentStatus, onDeliver, onM
       />
       <div
         style={{ position: 'fixed', top, left }}
-        className="z-[100] w-64 bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-xl overflow-hidden py-1.5 animate-menu-in select-none"
+        className="z-[100] w-64 bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-xl overflow-hidden py-1.5 animate-menu-in select-none"
       >
         {items.map(item => (
           <button

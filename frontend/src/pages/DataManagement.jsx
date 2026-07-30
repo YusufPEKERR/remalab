@@ -223,30 +223,30 @@ export default function DataManagement() {
   };
 
   return (
-    <div className="flex flex-col space-y-6 pb-12 text-[#0F172A] dark:text-[#FAFAFA] max-w-[1600px] mx-auto animate-in fade-in duration-300">
+    <div className="flex flex-col space-y-6 pb-12 text-[#16204A] dark:text-[#F6F8FF] max-w-[1600px] mx-auto animate-in fade-in duration-300">
       
       {/* ════════════════ HERO BANNER ════════════════ */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#F1F5F9] dark:from-[#050A18] via-[#E2E9F5] dark:via-[#0F172A] to-[#FFFFFF] dark:to-[#1E293B] p-6 sm:p-8 text-[#0D1B3E] dark:text-white shadow-xl border border-[#E2E8F0] dark:border-[#1E293B]">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#EFF1FA] dark:from-[#101935] via-[#DDE2F2] dark:via-[#16204A] to-[#FFFFFF] dark:to-[#24326A] p-6 sm:p-8 text-[#1B2755] dark:text-white shadow-xl border border-[#DCE1F1] dark:border-[#24326A]">
         {/* Ambient Grid Overlay */}
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(37,99,235,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(37,99,235,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(68, 87, 165,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(68, 87, 165,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 dark:bg-blue-500/20 border border-blue-500/25 dark:border-blue-400/30 text-[#1D4ED8] dark:text-blue-300 text-xs font-semibold tracking-wide">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 dark:bg-blue-500/20 border border-blue-500/25 dark:border-blue-400/30 text-[#2E3F78] dark:text-blue-300 text-xs font-semibold tracking-wide">
               <Database size={13} className="text-blue-400" /> VERİ TABANI VE EXCEL YÖNETİMİ
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#0D1B3E] dark:text-white">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1B2755] dark:text-white">
               Veri Yönetimi & İçe / Dışa Aktarım
             </h1>
-            <p className="text-sm text-[#475569] dark:text-slate-300 leading-relaxed">
+            <p className="text-sm text-[#4A5A9E] dark:text-slate-300 leading-relaxed">
               Sistemdeki tüm veritabanı tablolarını yönetin, Excel formatında dışa aktarın ve toplu veri yükleyin.
             </p>
           </div>
         </div>
       </div>
 
-      <div className="flex-1 bg-[#F8FAFC] dark:bg-[#0F172A] p-6 rounded-2xl border border-[#E2E8F0] dark:border-[#1E293B] shadow-md overflow-y-auto">
+      <div className="glass-card flex-1 p-6 rounded-2xl shadow-md overflow-y-auto">
         <div className="max-w-3xl space-y-8">
           
           <div className="flex items-start gap-3 bg-amber-500/10 border border-amber-500/20 text-amber-400 p-4 rounded-xl">
@@ -262,7 +262,7 @@ export default function DataManagement() {
             <select 
               value={selectedTableId}
               onChange={(e) => setSelectedTableId(e.target.value)}
-              className="w-full max-w-md bg-slate-50 dark:bg-[#242a38] text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 font-medium"
+              className="w-full max-w-md bg-slate-50 dark:bg-[#232F63] text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 font-medium"
             >
               <option value="">İşlem yapılacak tabloyu seçin...</option>
               <option value="__ALL__">Tüm Tablolar</option>
@@ -274,7 +274,7 @@ export default function DataManagement() {
 
           {selectedTableId === '__ALL__' ? (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
-              <div className="bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 p-6 rounded-xl text-center">
+              <div className="bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 p-6 rounded-xl text-center">
                 <Database size={48} className="mx-auto text-indigo-500 mb-4 opacity-50" />
                 <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-200 mb-2">Tüm Tablolar Dışa Aktarılacak</h3>
                 <p className="text-slate-500 dark:text-slate-400">Veritabanındaki toplam {tables.length} tablonun tamamı, tek bir Excel dosyasında ayrı ayrı sayfalar (sheet) halinde bilgisayarınıza indirilecektir.</p>
@@ -295,10 +295,10 @@ export default function DataManagement() {
                 <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200">2. Tablo Sütunları</h3>
                 <div className="flex flex-wrap gap-3">
                   {selectedTable.columns.map(col => (
-                    <label key={col} className="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-lg text-sm cursor-pointer hover:bg-slate-100 dark:hover:bg-[#2a3142] transition-colors">
+                    <label key={col} className="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-lg text-sm cursor-pointer hover:bg-slate-100 dark:hover:bg-[#2E3F78] transition-colors">
                       <input 
                         type="checkbox" 
-                        className="rounded border-slate-300 dark:border-slate-600 bg-[#FFFFFF] dark:bg-[#0f1219] text-blue-500 focus:ring-blue-500/50"
+                        className="rounded border-slate-300 dark:border-slate-600 bg-[#FFFFFF] dark:bg-[#131B3A] text-blue-500 focus:ring-blue-500/50"
                         checked={selectedColumns.includes(col)}
                         onChange={() => toggleColumn(col)}
                       />
@@ -335,7 +335,7 @@ export default function DataManagement() {
                     <button 
                       onClick={handleDownloadTemplate}
                       disabled={loading || selectedColumns.length === 0}
-                      className="px-4 py-2 bg-white dark:bg-[#242a38] border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 rounded-xl hover:bg-slate-50 dark:hover:bg-[#2a3142] text-sm font-medium flex items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                      className="px-4 py-2 bg-white dark:bg-[#232F63] border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 rounded-xl hover:bg-slate-50 dark:hover:bg-[#2E3F78] text-sm font-medium flex items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
                       title="Seçili sütun başlıklarını içeren boş şablon indir"
                     >
                       <FileSpreadsheet size={16} className="text-emerald-500" /> Şablon
@@ -358,10 +358,10 @@ export default function DataManagement() {
                     </button>
                   </div>
                 </div>
-                <div className="bg-slate-50 dark:bg-[#242a38] border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden shadow-sm">
+                <div className="bg-slate-50 dark:bg-[#232F63] border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden shadow-sm">
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm whitespace-nowrap">
-                      <thead className="bg-white dark:bg-[#1e2330] text-slate-400 font-semibold uppercase tracking-wider text-[11px]">
+                      <thead className="bg-white dark:bg-[#1E2B5C] text-slate-400 font-semibold uppercase tracking-wider text-[11px]">
                         <tr>
                           {selectedColumns.map(col => (
                             <th key={col} className="px-4 py-3">{selectedTable.friendlyNames[col] || col}</th>
@@ -390,7 +390,7 @@ export default function DataManagement() {
                           </tr>
                         ) : (
                           previewData.map((row, idx) => (
-                            <tr key={idx} className="hover:bg-slate-100 dark:hover:bg-[#2a3142] text-slate-700 dark:text-slate-300 transition-colors">
+                            <tr key={idx} className="hover:bg-slate-100 dark:hover:bg-[#2E3F78] text-slate-700 dark:text-slate-300 transition-colors">
                               {selectedColumns.map(col => {
                                 const isEditing = editingCell?.rowIndex === idx && editingCell?.colName === col;
                                 return (
@@ -406,7 +406,7 @@ export default function DataManagement() {
                                         onChange={(e) => setEditingValue(e.target.value)}
                                         onBlur={handleInputSubmit}
                                         onKeyDown={handleKeyDown}
-                                        className="bg-[#F1F5F9] dark:bg-[#0f1219] text-blue-400 border border-blue-500/50 rounded px-2 py-1 w-full focus:outline-none"
+                                        className="bg-[#EFF1FA] dark:bg-[#131B3A] text-blue-400 border border-blue-500/50 rounded px-2 py-1 w-full focus:outline-none"
                                       />
                                     ) : (
                                       row[col] || '-'

@@ -365,12 +365,12 @@ export default function Irsaliye() {
   };
 
   return (
-    <div className="flex flex-col space-y-6 pb-12 text-[#0F172A] dark:text-[#FAFAFA] max-w-[1600px] mx-auto animate-in fade-in duration-300">
+    <div className="flex flex-col space-y-6 pb-12 text-[#16204A] dark:text-[#F6F8FF] max-w-[1600px] mx-auto animate-in fade-in duration-300">
       
       {/* ════════════════ HERO BANNER ════════════════ */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#F1F5F9] dark:from-[#050A18] via-[#E2E9F5] dark:via-[#0F172A] to-[#FFFFFF] dark:to-[#1E293B] p-6 sm:p-8 text-[#0D1B3E] dark:text-white shadow-xl border border-[#E2E8F0] dark:border-[#1E293B]">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#EFF1FA] dark:from-[#101935] via-[#DDE2F2] dark:via-[#16204A] to-[#FFFFFF] dark:to-[#24326A] p-6 sm:p-8 text-[#1B2755] dark:text-white shadow-xl border border-[#DCE1F1] dark:border-[#24326A]">
         {/* Ambient Grid Overlay */}
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(16,185,129,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(16,185,129,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(63, 161, 135,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(63, 161, 135,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-600/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -378,10 +378,10 @@ export default function Irsaliye() {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-500/20 border border-emerald-200 dark:border-emerald-400/30 text-emerald-700 dark:text-emerald-300 text-xs font-semibold tracking-wide">
               <FileSpreadsheet size={13} className="text-emerald-400" /> İRSALİYE & STOK HAREKETLERİ
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#0D1B3E] dark:text-white">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1B2755] dark:text-white">
               İrsaliye İşlemleri
             </h1>
-            <p className="text-sm text-[#475569] dark:text-slate-300 leading-relaxed">
+            <p className="text-sm text-[#4A5A9E] dark:text-slate-300 leading-relaxed">
               Stok giriş, çıkış ve transfer irsaliye hareketlerini canlı takip edin ve Excel ile veri aktarımı gerçekleştirin.
             </p>
           </div>
@@ -435,14 +435,14 @@ export default function Irsaliye() {
             <div className="relative">
               <select
                 onChange={handleExcelAction}
-                className="appearance-none bg-[#FFFFFF] dark:bg-[#1E293B] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] text-[#0F172A] dark:text-[#FAFAFA] border border-[#E2E8F0] dark:border-[#334155] rounded-xl px-4 py-2.5 pr-9 text-xs font-bold transition-all cursor-pointer focus:outline-none focus:border-[#2563EB]"
+                className="appearance-none bg-[#FFFFFF] dark:bg-[#24326A] hover:bg-[#EFF1FA] dark:hover:bg-[#3B4A85] text-[#16204A] dark:text-[#F6F8FF] border border-[#DCE1F1] dark:border-[#3B4A85] rounded-xl px-4 py-2.5 pr-9 text-xs font-bold transition-all cursor-pointer focus:outline-none focus:border-[#4457A5]"
               >
                 <option value="">Excel İşlemleri...</option>
                 <option value="template">Şablon İndir</option>
                 <option value="export">{selectedRows.length > 0 ? `${selectedRows.length} Seçiliyi Dışa Aktar` : 'Tümünü Dışa Aktar'}</option>
                 <option value="import_in">Giriş İçe Aktar</option>
               </select>
-              <div className="absolute inset-y-0 right-0 flex items-center px-2.5 pointer-events-none text-[#64748B] dark:text-[#94A3B8]">
+              <div className="absolute inset-y-0 right-0 flex items-center px-2.5 pointer-events-none text-[#5A6685] dark:text-[#8892B5]">
                 <FileSpreadsheet size={15} />
               </div>
             </div>
@@ -457,15 +457,15 @@ export default function Irsaliye() {
       )}
 
       {/* Table */}
-      <div className="bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#1E293B] rounded-2xl shadow-md flex-1 overflow-hidden flex flex-col">
+      <div className="glass-card rounded-2xl shadow-md flex-1 overflow-hidden flex flex-col">
         <div className="overflow-auto flex-1">
           <table className="w-full text-left text-xs whitespace-nowrap">
-            <thead className="bg-[#F8FAFC] dark:bg-[#162032] text-[#64748B] dark:text-[#94A3B8] font-semibold uppercase tracking-wider border-b border-[#E2E8F0] dark:border-[#1E293B] sticky top-0 z-10">
+            <thead className="bg-[#F5F7FC] dark:bg-[#1B2755] text-[#5A6685] dark:text-[#8892B5] font-semibold uppercase tracking-wider border-b border-[#DCE1F1] dark:border-[#24326A] sticky top-0 z-10">
               <tr>
                 <th className="px-6 py-4 w-12 text-center">
                   <input 
                     type="checkbox" 
-                    className="w-4 h-4 rounded border-[#E2E8F0] dark:border-[#334155] text-[#2563EB] focus:ring-[#2563EB] bg-[#FFFFFF] dark:bg-[#1E293B]"
+                    className="w-4 h-4 rounded border-[#DCE1F1] dark:border-[#3B4A85] text-[#4457A5] focus:ring-[#4457A5] bg-[#FFFFFF] dark:bg-[#24326A]"
                     checked={selectedRows.length === movements.length && movements.length > 0}
                     onChange={toggleSelectAll}
                   />
@@ -482,17 +482,17 @@ export default function Irsaliye() {
                 <th className="px-6 py-4">AÇIKLAMA</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#E2E8F0] dark:divide-[#1E293B]">
+            <tbody className="divide-y divide-[#DCE1F1] dark:divide-[#24326A]">
               {loading ? (
                 <tr>
-                  <td colSpan={11} className="px-6 py-8 text-center text-[#64748B] dark:text-[#94A3B8]">
-                    <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-[#60A5FA]" />
+                  <td colSpan={11} className="px-6 py-8 text-center text-[#5A6685] dark:text-[#8892B5]">
+                    <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-[#8894D8]" />
                     Yükleniyor...
                   </td>
                 </tr>
               ) : movements.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="px-6 py-8 text-center text-[#64748B] dark:text-[#94A3B8]">
+                  <td colSpan={11} className="px-6 py-8 text-center text-[#5A6685] dark:text-[#8892B5]">
                     Kayıt bulunamadı.
                   </td>
                 </tr>
@@ -501,16 +501,16 @@ export default function Irsaliye() {
                   const dir = getDirection(mov);
                   const isChecked = selectedRows.includes(mov.id);
                   return (
-                    <tr key={`${mov.id}-${index}`} className={`hover:bg-[#FFFFFF]/70 dark:hover:bg-[#1E293B]/70 transition-colors text-[#0F172A] dark:text-[#FAFAFA] ${isChecked ? 'bg-blue-900/30 border-l-4 border-[#2563EB]' : ''}`}>
+                    <tr key={`${mov.id}-${index}`} className={`hover:bg-[#FFFFFF]/70 dark:hover:bg-[#24326A]/70 transition-colors text-[#16204A] dark:text-[#F6F8FF] ${isChecked ? 'bg-blue-900/30 border-l-4 border-[#4457A5]' : ''}`}>
                       <td className="px-6 py-3 text-center" onClick={(e) => e.stopPropagation()}>
                         <input 
                           type="checkbox" 
-                          className="w-4 h-4 rounded border-[#E2E8F0] dark:border-[#334155] text-[#2563EB] focus:ring-[#2563EB] bg-[#FFFFFF] dark:bg-[#1E293B]"
+                          className="w-4 h-4 rounded border-[#DCE1F1] dark:border-[#3B4A85] text-[#4457A5] focus:ring-[#4457A5] bg-[#FFFFFF] dark:bg-[#24326A]"
                           checked={isChecked}
                           onChange={(e) => toggleRowSelect(mov.id, e)}
                         />
                       </td>
-                      <td className="px-6 py-3 font-semibold text-[#0F172A] dark:text-[#FAFAFA]">{mov.part_name}</td>
+                      <td className="px-6 py-3 font-semibold text-[#16204A] dark:text-[#F6F8FF]">{mov.part_name}</td>
                       <td className="px-6 py-3">{directionBadge(dir)}</td>
                       <td className={`px-6 py-3 font-mono font-semibold ${dir === 'out' ? 'text-red-400' : (dir === 'transfer' ? 'text-blue-400' : 'text-emerald-400')}`}>
                         {dir === 'out' ? '-' : '+'}{mov.quantity}
@@ -518,10 +518,10 @@ export default function Irsaliye() {
                       <td className="px-6 py-3 font-mono">{mov.unit_price ? `${mov.unit_price.toFixed(2)} TL` : '-'}</td>
                       <td className="px-6 py-3">{dir === 'in' ? 'Dışarı (Tedarikçi)' : mov.source_location}</td>
                       <td className="px-6 py-3">{dir === 'out' ? 'Dışarı' : mov.target_location}</td>
-                      <td className="px-6 py-3 text-[#64748B] dark:text-[#94A3B8] font-mono text-[11px]">{mov.created_at}</td>
+                      <td className="px-6 py-3 text-[#5A6685] dark:text-[#8892B5] font-mono text-[11px]">{mov.created_at}</td>
                       <td className="px-6 py-3">{mov.created_by}</td>
                       <td className="px-6 py-3">{mov.type}</td>
-                      <td className="px-6 py-3 text-[#64748B] dark:text-[#94A3B8]">{mov.description || '-'}</td>
+                      <td className="px-6 py-3 text-[#5A6685] dark:text-[#8892B5]">{mov.description || '-'}</td>
                     </tr>
                   );
                 })
@@ -530,22 +530,22 @@ export default function Irsaliye() {
           </table>
         </div>
         
-        <div className="flex justify-between items-center px-6 py-4 bg-[#F8FAFC] dark:bg-[#162032] border-t border-[#E2E8F0] dark:border-[#1E293B] shrink-0 text-xs text-[#64748B] dark:text-[#94A3B8]">
+        <div className="flex justify-between items-center px-6 py-4 bg-[#F5F7FC] dark:bg-[#1B2755] border-t border-[#DCE1F1] dark:border-[#24326A] shrink-0 text-xs text-[#5A6685] dark:text-[#8892B5]">
           <span>
-            Toplam <strong className="text-[#0F172A] dark:text-[#FAFAFA]">{movements.length}</strong> kayıttan <strong className="text-[#0F172A] dark:text-[#FAFAFA]">{movements.length === 0 ? 0 : indexOfFirstItem + 1}-{Math.min(indexOfLastItem, movements.length)}</strong> arası gösteriliyor
+            Toplam <strong className="text-[#16204A] dark:text-[#F6F8FF]">{movements.length}</strong> kayıttan <strong className="text-[#16204A] dark:text-[#F6F8FF]">{movements.length === 0 ? 0 : indexOfFirstItem + 1}-{Math.min(indexOfLastItem, movements.length)}</strong> arası gösteriliyor
           </span>
           <div className="flex gap-2">
             <button
               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
               disabled={currentPage === 1 || movements.length === 0}
-              className="px-3 py-1.5 bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#334155] rounded-xl text-xs font-bold text-[#0F172A] dark:text-[#FAFAFA] hover:bg-[#FFFFFF] dark:hover:bg-[#1E293B] disabled:opacity-40 transition-all cursor-pointer"
+              className="px-3 py-1.5 bg-[#F5F7FC] dark:bg-[#16204A] border border-[#DCE1F1] dark:border-[#3B4A85] rounded-xl text-xs font-bold text-[#16204A] dark:text-[#F6F8FF] hover:bg-[#FFFFFF] dark:hover:bg-[#24326A] disabled:opacity-40 transition-all cursor-pointer"
             >
               Önceki
             </button>
             <button
               onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
               disabled={currentPage >= totalPages || movements.length === 0}
-              className="px-3 py-1.5 bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#334155] rounded-xl text-xs font-bold text-[#0F172A] dark:text-[#FAFAFA] hover:bg-[#FFFFFF] dark:hover:bg-[#1E293B] disabled:opacity-40 transition-all cursor-pointer"
+              className="px-3 py-1.5 bg-[#F5F7FC] dark:bg-[#16204A] border border-[#DCE1F1] dark:border-[#3B4A85] rounded-xl text-xs font-bold text-[#16204A] dark:text-[#F6F8FF] hover:bg-[#FFFFFF] dark:hover:bg-[#24326A] disabled:opacity-40 transition-all cursor-pointer"
             >
               Sonraki
             </button>
@@ -556,8 +556,8 @@ export default function Irsaliye() {
       {/* INBOUND MODAL */}
       {showInboundModal && (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white dark:bg-[#1e2330] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700/50 w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200 my-8 max-h-[90vh] flex flex-col">
-            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 flex justify-between items-center bg-slate-50 dark:bg-[#242a38] shrink-0">
+          <div className="bg-white dark:bg-[#1E2B5C] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700/50 w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200 my-8 max-h-[90vh] flex flex-col">
+            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 flex justify-between items-center bg-slate-50 dark:bg-[#232F63] shrink-0">
               <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2"><Plus size={18}/> Stok Girişi Yap</h2>
               <button onClick={() => setShowInboundModal(false)} className="text-slate-400 hover:text-slate-900 dark:text-white">&times;</button>
             </div>
@@ -568,8 +568,8 @@ export default function Irsaliye() {
                   <span className="bg-slate-800 px-1.5 py-0.5 rounded text-xs">📄</span> Barkod (okutun ve Enter'a basın)
                 </label>
                 <div className="flex gap-2">
-                  <input type="text" placeholder="Barkodu okutun veya manuel girin..." className="flex-1 px-4 py-2 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={inboundBarcode} onChange={(e) => setInboundBarcode(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleBarcodeSearch())} />
-                  <button type="button" onClick={handleBarcodeSearch} className="px-4 bg-slate-100 dark:bg-[#2a3142] hover:bg-blue-600 border border-slate-300 dark:border-slate-600 rounded-lg text-white transition-colors"><Search size={18} /></button>
+                  <input type="text" placeholder="Barkodu okutun veya manuel girin..." className="flex-1 px-4 py-2 bg-slate-50 dark:bg-[#131B3A] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={inboundBarcode} onChange={(e) => setInboundBarcode(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleBarcodeSearch())} />
+                  <button type="button" onClick={handleBarcodeSearch} className="px-4 bg-slate-100 dark:bg-[#2E3F78] hover:bg-blue-600 border border-slate-300 dark:border-slate-600 rounded-lg text-white transition-colors"><Search size={18} /></button>
                 </div>
               </div>
 
@@ -599,7 +599,7 @@ export default function Irsaliye() {
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Giriş Tipi</label>
-                <select required className="w-full px-3 py-2 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.type} onChange={(e) => {
+                <select required className="w-full px-3 py-2 bg-slate-50 dark:bg-[#131B3A] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.type} onChange={(e) => {
                   const type = e.target.value;
                   setFormData(prev => ({
                     ...prev,
@@ -617,12 +617,12 @@ export default function Irsaliye() {
               <div className="flex gap-4">
                 <div className="flex-1">
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Miktar</label>
-                  <input type="number" required min="1" className="w-full px-3 py-2 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.qty} onChange={(e) => setFormData({...formData, qty: e.target.value})} />
+                  <input type="number" required min="1" className="w-full px-3 py-2 bg-slate-50 dark:bg-[#131B3A] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.qty} onChange={(e) => setFormData({...formData, qty: e.target.value})} />
                 </div>
                 <div className="flex-1">
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Birim Fiyat</label>
                   <div className="relative">
-                    <input type="number" step="0.01" className="w-full px-3 py-2 pr-8 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.price} onChange={(e) => setFormData({...formData, price: e.target.value})} />
+                    <input type="number" step="0.01" className="w-full px-3 py-2 pr-8 bg-slate-50 dark:bg-[#131B3A] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.price} onChange={(e) => setFormData({...formData, price: e.target.value})} />
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">TL</span>
                   </div>
                 </div>
@@ -631,7 +631,7 @@ export default function Irsaliye() {
               <div className="flex gap-4">
                 <div className="flex-1">
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">İşlemi Yapan (Kim) <span className="text-red-500">*</span></label>
-                  <select required className="w-full px-3 py-2 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.who || ''} onChange={(e) => setFormData({...formData, who: e.target.value})}>
+                  <select required className="w-full px-3 py-2 bg-slate-50 dark:bg-[#131B3A] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.who || ''} onChange={(e) => setFormData({...formData, who: e.target.value})}>
                     <option value="">Seçiniz...</option>
                     {users.map(u => <option key={u.id} value={u.username}>{u.username}</option>)}
                   </select>
@@ -652,8 +652,8 @@ export default function Irsaliye() {
       {/* OUTBOUND MODAL */}
       {showOutboundModal && (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white dark:bg-[#1e2330] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700/50 w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200 my-8 max-h-[90vh] flex flex-col">
-            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 flex justify-between items-center bg-slate-50 dark:bg-[#242a38] shrink-0">
+          <div className="bg-white dark:bg-[#1E2B5C] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700/50 w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200 my-8 max-h-[90vh] flex flex-col">
+            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700/50 flex justify-between items-center bg-slate-50 dark:bg-[#232F63] shrink-0">
               <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">Stok Çıkışı Yap</h2>
               <button onClick={() => setShowOutboundModal(false)} className="text-slate-400 hover:text-slate-900 dark:text-white">&times;</button>
             </div>
@@ -664,8 +664,8 @@ export default function Irsaliye() {
                   <span className="bg-slate-800 px-1.5 py-0.5 rounded text-xs">📄</span> Barkod (okutun ve Enter'a basın)
                 </label>
                 <div className="flex gap-2">
-                  <input type="text" placeholder="Barkodu okutun veya manuel girin..." className="flex-1 px-4 py-2 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={outboundBarcode} onChange={(e) => setOutboundBarcode(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleOutboundBarcodeSearch())} />
-                  <button type="button" onClick={handleOutboundBarcodeSearch} className="px-4 bg-slate-100 dark:bg-[#2a3142] hover:bg-blue-600 border border-slate-200 dark:border-slate-600 rounded-lg text-white transition-colors"><Search size={18} /></button>
+                  <input type="text" placeholder="Barkodu okutun veya manuel girin..." className="flex-1 px-4 py-2 bg-slate-50 dark:bg-[#131B3A] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={outboundBarcode} onChange={(e) => setOutboundBarcode(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleOutboundBarcodeSearch())} />
+                  <button type="button" onClick={handleOutboundBarcodeSearch} className="px-4 bg-slate-100 dark:bg-[#2E3F78] hover:bg-blue-600 border border-slate-200 dark:border-slate-600 rounded-lg text-white transition-colors"><Search size={18} /></button>
                 </div>
               </div>
 
@@ -690,11 +690,11 @@ export default function Irsaliye() {
               <div className="flex gap-4">
                 <div className="flex-1">
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Miktar</label>
-                  <input type="number" required min="1" className="w-full px-3 py-2 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.qty} onChange={(e) => setFormData({...formData, qty: e.target.value})} />
+                  <input type="number" required min="1" className="w-full px-3 py-2 bg-slate-50 dark:bg-[#131B3A] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.qty} onChange={(e) => setFormData({...formData, qty: e.target.value})} />
                 </div>
                 <div className="flex-1">
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Çıkış Tipi</label>
-                  <select required className="w-full px-3 py-2 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.type} onChange={(e) => setFormData({...formData, type: e.target.value})}>
+                  <select required className="w-full px-3 py-2 bg-slate-50 dark:bg-[#131B3A] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.type} onChange={(e) => setFormData({...formData, type: e.target.value})}>
                     <option value="Teknik Servis">Teknik Servis</option>
                     <option value="Müşteri Satışı">Müşteri Satışı</option>
                     <option value="Tedarikçiye İade">Tedarikçiye İade</option>
@@ -706,14 +706,14 @@ export default function Irsaliye() {
               <div className="flex gap-4">
                 <div className="flex-1">
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">İşlemi Yapan (Kim) <span className="text-red-500">*</span></label>
-                  <select required className="w-full px-3 py-2 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.who || ''} onChange={(e) => setFormData({...formData, who: e.target.value})}>
+                  <select required className="w-full px-3 py-2 bg-slate-50 dark:bg-[#131B3A] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.who || ''} onChange={(e) => setFormData({...formData, who: e.target.value})}>
                     <option value="">Seçiniz...</option>
                     {users.map(u => <option key={u.id} value={u.username}>{u.username}</option>)}
                   </select>
                 </div>
                 <div className="flex-1">
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Açıklama</label>
-                  <input type="text" placeholder="İsteğe bağlı açıklama..." className="w-full px-3 py-2 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} />
+                  <input type="text" placeholder="İsteğe bağlı açıklama..." className="w-full px-3 py-2 bg-slate-50 dark:bg-[#131B3A] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} />
                 </div>
               </div>
 
@@ -738,7 +738,7 @@ export default function Irsaliye() {
       {/* Dışa Aktar Sütun Seçimi Modalı */}
       {isExportModalOpen && (
         <div className="fixed inset-0 bg-slate-900/80 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-sm p-6">
+          <div className="bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl w-full max-w-sm p-6">
             <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-4">Sütun Seçimi</h2>
             <p className="text-sm text-slate-500 mb-4">Dışa aktarılacak Excel dosyasında hangi sütunların bulunmasını istediğinizi seçin.</p>
             

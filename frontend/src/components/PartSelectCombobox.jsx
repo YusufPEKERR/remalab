@@ -61,7 +61,7 @@ export default function PartSelectCombobox({ parts = [], value, onChange, placeh
       {/* Selected Box / Combobox Trigger */}
       <div
         onClick={() => !disabled && setIsOpen(!isOpen)}
-        className={`w-full px-3 py-2 bg-slate-50 dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm flex items-center justify-between transition-colors shadow-sm select-none ${disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer hover:border-blue-500'}`}
+        className={`w-full px-3 py-2 bg-slate-50 dark:bg-[#131B3A] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm flex items-center justify-between transition-colors shadow-sm select-none ${disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer hover:border-blue-500'}`}
       >
         <span className="truncate font-medium">
           {selectedPart ? formatPartLabel(selectedPart) : <span className="text-slate-400">{placeholder}</span>}
@@ -86,9 +86,9 @@ export default function PartSelectCombobox({ parts = [], value, onChange, placeh
 
       {/* Dropdown Menu */}
       {isOpen && !disabled && (
-        <div className="absolute left-0 right-0 mt-1 bg-white dark:bg-[#1e2330] border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl z-[150] overflow-hidden animate-menu-in">
+        <div className="absolute left-0 right-0 mt-1 bg-white dark:bg-[#1E2B5C] border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl z-[150] overflow-hidden animate-menu-in">
           {/* Search Box inside dropdown */}
-          <div className="p-2 border-b border-slate-100 dark:border-slate-700/50 bg-slate-50 dark:bg-[#242a38]">
+          <div className="p-2 border-b border-slate-100 dark:border-slate-700/50 bg-slate-50 dark:bg-[#232F63]">
             <div className="relative">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
@@ -97,7 +97,7 @@ export default function PartSelectCombobox({ parts = [], value, onChange, placeh
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Parça kodu, marka, model ara..."
-                className="w-full pl-8 pr-3 py-1.5 bg-white dark:bg-[#0f1219] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-md text-xs focus:outline-none focus:border-blue-500"
+                className="w-full pl-8 pr-3 py-1.5 bg-white dark:bg-[#131B3A] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-md text-xs focus:outline-none focus:border-blue-500"
               />
             </div>
           </div>
@@ -119,7 +119,7 @@ export default function PartSelectCombobox({ parts = [], value, onChange, placeh
                     className={`w-full text-left px-3.5 py-2 text-xs flex items-center justify-between transition-colors fast-transition ${
                       isSelected
                         ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 font-semibold'
-                        : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#2a3142]'
+                        : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#2E3F78]'
                     }`}
                   >
                     <div className="truncate pr-2">
