@@ -238,7 +238,7 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, missio
     <div className="flex-1 flex flex-col gap-4 min-h-0">
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-4 min-h-0">
         {/* ── Sol Panel: Test: Sorun Tespit Edilen Parçalar ── */}
-        <div className="bg-white dark:bg-[#1A2450] rounded-2xl border border-slate-200 dark:border-[#3A4A8C] shadow-sm overflow-hidden flex flex-col min-h-0">
+        <div className="bg-[#C6CEE2] dark:bg-[#1A2450] rounded-2xl border border-slate-200 dark:border-[#3A4A8C] shadow-sm overflow-hidden flex flex-col min-h-0">
           <div className="px-5 py-3 border-b border-slate-100 dark:border-[#3A4A8C]">
             <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
               <Package size={16} className="text-slate-400" /> Test: Sorun Tespit Edilen Parçalar
@@ -279,7 +279,7 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, missio
         {/* overflow-hidden burada kasıtlı olarak yok: Parça Seçiniz açılır listesi bu panelin
             içinde absolute konumlanıyor, panelde overflow-hidden olursa liste kırpılır. Alttaki
             tablo zaten kendi overflow-auto'suna sahip, yuvarlak köşe için buna gerek yok. */}
-        <div className="bg-white dark:bg-[#1A2450] rounded-2xl border border-slate-200 dark:border-[#3A4A8C] shadow-sm flex flex-col min-h-0">
+        <div className="bg-[#C6CEE2] dark:bg-[#1A2450] rounded-2xl border border-slate-200 dark:border-[#3A4A8C] shadow-sm flex flex-col min-h-0">
           <div className="px-5 py-3 border-b border-slate-100 dark:border-[#3A4A8C]">
             <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
               <Wrench size={16} className="text-slate-400" /> Teknik: Teklif Parçaları
@@ -413,7 +413,7 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, missio
       </div>
 
       {/* ── Onarım Takımları + Karar ── */}
-      <div className="bg-white dark:bg-[#1A2450] rounded-2xl border border-slate-200 dark:border-[#3A4A8C] shadow-sm overflow-hidden px-5 py-4">
+      <div className="bg-[#C6CEE2] dark:bg-[#1A2450] rounded-2xl border border-slate-200 dark:border-[#3A4A8C] shadow-sm overflow-hidden px-5 py-4">
         <div className="flex flex-col sm:flex-row sm:items-center gap-4">
           <div className="flex-1">
             <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Onarım Takımları</label>

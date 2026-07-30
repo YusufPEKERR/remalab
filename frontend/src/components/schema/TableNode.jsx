@@ -172,7 +172,7 @@ const TableNode = memo(function TableNode({
         </div>
 
         {/* ── Field Rows ───────────────────────── */}
-        <div className="bg-white dark:bg-[#1A2450]">
+        <div className="bg-[#C6CEE2] dark:bg-[#1A2450]">
           {table.fields.map((field, i) => (
             <FieldRow
               key={field.id}

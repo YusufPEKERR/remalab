@@ -7610,6 +7610,13 @@ class WebBridge(QObject):
         yoksa None döner. Hem create_batch_entry (gerçek kayıt) hem de
         validate_batch_entry (içe aktarma öncesi dry-run) tarafından kullanılır."""
         from models.batch_entry import BatchEntry
+
+        # 0) Cihaz Modeli Doğrulaması (Sistemde tanımlı olmayan modelleri engeller)
+        model_val = (d.get("model") or "").strip()
+        is_valid_m, m_err_msg = self._validate_product_model(db, model_val)
+        if not is_valid_m:
+            return m_err_msg
+
         batch_no = (d.get("batch_no") or "").strip()
         customer_name = (d.get("customer_name") or "").strip()
 
@@ -7669,8 +7676,14 @@ class WebBridge(QObject):
             d = json.loads(data_json or "{}")
             imei = (d.get("imei_number") or "").strip()
             serial = (d.get("serial_number") or "").strip()
-            internal = (d.get("internal_id") or "").strip()
             batch_no = (d.get("batch_no") or "").strip()
+
+            # 0) Cihaz Modeli Doğrulaması (Sistemde tanımlı olmayan modeller engellenir)
+            model_val = (d.get("model") or "").strip()
+            if model_val:
+                is_valid_m, m_err_msg = self._validate_product_model(db, model_val)
+                if not is_valid_m:
+                    return json.dumps({"success": True, "ok": False, "message": m_err_msg}, ensure_ascii=False)
 
             # 1) Cihaz (IMEI/Seri/Internal ID) batch_entries'te tanımlı mı?
             conds = []
