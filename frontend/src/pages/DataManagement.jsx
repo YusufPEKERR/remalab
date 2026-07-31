@@ -298,7 +298,7 @@ export default function DataManagement() {
                     <label key={col} className="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-lg text-sm cursor-pointer hover:bg-slate-100 dark:hover:bg-[#1e222d] transition-colors">
                       <input 
                         type="checkbox" 
-                        className="rounded border-slate-300 dark:border-slate-600 bg-[#FFFFFF] dark:bg-[#131B3A] text-blue-500 focus:ring-blue-500/50"
+                        className="rounded border-slate-300 dark:border-slate-600 bg-[#FFFFFF] dark:bg-[#12141c] text-blue-500 focus:ring-blue-500/50"
                         checked={selectedColumns.includes(col)}
                         onChange={() => toggleColumn(col)}
                       />
@@ -406,7 +406,7 @@ export default function DataManagement() {
                                         onChange={(e) => setEditingValue(e.target.value)}
                                         onBlur={handleInputSubmit}
                                         onKeyDown={handleKeyDown}
-                                        className="bg-[#EFF1FA] dark:bg-[#131B3A] text-blue-400 border border-blue-500/50 rounded px-2 py-1 w-full focus:outline-none"
+                                        className="bg-[#EFF1FA] dark:bg-[#12141c] text-blue-400 border border-blue-500/50 rounded px-2 py-1 w-full focus:outline-none"
                                       />
                                     ) : (
                                       row[col] || '-'

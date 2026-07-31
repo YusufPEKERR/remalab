@@ -618,19 +618,19 @@ export default function ImeiTracker() {
             
             {/* 1. Device Summary Fields */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="bg-slate-50 dark:bg-[#1A2450] p-4 rounded-xl border border-slate-200/50 dark:border-slate-800">
+              <div className="bg-slate-50 dark:bg-[#181a24] p-4 rounded-xl border border-slate-200/50 dark:border-slate-800">
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Imei / Internal Id / Seri No</label>
                 <div className="font-mono font-bold text-sm text-slate-800 dark:text-slate-100">{imei || '-'}</div>
               </div>
-              <div className="bg-slate-50 dark:bg-[#1A2450] p-4 rounded-xl border border-slate-200/50 dark:border-slate-800">
+              <div className="bg-slate-50 dark:bg-[#181a24] p-4 rounded-xl border border-slate-200/50 dark:border-slate-800">
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Müşteri talebi</label>
                 <div className="font-semibold text-sm text-slate-850 dark:text-slate-100">{repairData.customer_complaint || '-'}</div>
               </div>
-              <div className="bg-slate-50 dark:bg-[#1A2450] p-4 rounded-xl border border-slate-200/50 dark:border-slate-800">
+              <div className="bg-slate-50 dark:bg-[#181a24] p-4 rounded-xl border border-slate-200/50 dark:border-slate-800">
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Müşteri Arıza Tespiti</label>
                 <div className="font-semibold text-sm text-slate-850 dark:text-slate-100">{repairData.preliminary_diagnosis || '-'}</div>
               </div>
-              <div className="bg-slate-50 dark:bg-[#1A2450] p-4 rounded-xl border border-slate-200/50 dark:border-slate-800">
+              <div className="bg-slate-50 dark:bg-[#181a24] p-4 rounded-xl border border-slate-200/50 dark:border-slate-800">
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Ürün Bilgisi</label>
                 <div className="font-bold text-sm text-blue-600 dark:text-blue-400">
                   {repairData.brand} {repairData.model} {repairData.color} {repairData.memory ? `(${repairData.memory})` : ''}
@@ -645,13 +645,13 @@ export default function ImeiTracker() {
               <div className="lg:col-span-2 space-y-4">
                 <div className="space-y-2">
                   <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Müşteri Notları / Şikayet Detayı</label>
-                  <div className="w-full bg-slate-50 dark:bg-[#1A2450] border border-slate-200 dark:border-slate-800 rounded-xl p-4 text-xs font-mono text-slate-700 dark:text-slate-300 min-h-[90px] leading-relaxed uppercase">
+                  <div className="w-full bg-slate-50 dark:bg-[#181a24] border border-slate-200 dark:border-slate-800 rounded-xl p-4 text-xs font-mono text-slate-700 dark:text-slate-300 min-h-[90px] leading-relaxed uppercase">
                     {((repairData.customer_complaint || '') + ' ' + (repairData.preliminary_diagnosis || '')).toUpperCase() || '-'}
                   </div>
                 </div>
 
                 {/* Integrated Part Adder inside Workshop view */}
-                <div className="bg-slate-50 dark:bg-[#1A2450] p-4 rounded-xl border border-slate-200/50 dark:border-slate-800 space-y-3">
+                <div className="bg-slate-50 dark:bg-[#181a24] p-4 rounded-xl border border-slate-200/50 dark:border-slate-800 space-y-3">
                   <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Yedek Parça İhtiyacı Ekle</h4>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
                     <div className="md:col-span-2">
@@ -685,7 +685,7 @@ export default function ImeiTracker() {
               </div>
 
               {/* Right Column: Status & Battery Diagnostics */}
-              <div className="space-y-4 bg-slate-50 dark:bg-[#1A2450] p-4 rounded-xl border border-slate-200/50 dark:border-slate-800">
+              <div className="space-y-4 bg-slate-50 dark:bg-[#181a24] p-4 rounded-xl border border-slate-200/50 dark:border-slate-800">
                 <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-200 dark:border-slate-850 pb-2 mb-3">Tanı & Cihaz Sağlık Kartları</h4>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-center text-xs font-bold">
@@ -750,7 +750,7 @@ export default function ImeiTracker() {
 
             {/* 2. Onarım Detay / Aşamalar Tablosu */}
             <div className="space-y-3">
-              <div className="flex justify-between items-center bg-slate-50 dark:bg-[#1A2450] p-4 rounded-xl border border-slate-200/50 dark:border-slate-800">
+              <div className="flex justify-between items-center bg-slate-50 dark:bg-[#181a24] p-4 rounded-xl border border-slate-200/50 dark:border-slate-800">
                 <div className="flex items-center gap-3">
                   <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider flex items-center gap-2">
                     <Layers size={16} className="text-blue-500" /> Onarım Detay / Aşamalar
@@ -790,7 +790,7 @@ export default function ImeiTracker() {
                 </div>
               </div>
               
-              <div className="bg-slate-50 dark:bg-[#1A2450] border border-slate-200 dark:border-slate-800/80 rounded-xl overflow-hidden">
+              <div className="bg-slate-50 dark:bg-[#181a24] border border-slate-200 dark:border-slate-800/80 rounded-xl overflow-hidden">
                 <table className="w-full text-left text-xs">
                   <thead className="bg-slate-100 dark:bg-[#12141c] text-slate-400 font-semibold uppercase tracking-wider text-[10px] border-b border-slate-200 dark:border-slate-800">
                     <tr>
@@ -887,7 +887,7 @@ export default function ImeiTracker() {
                 <Package size={16} /> Parça ve İşlemleri (Gerçek Veriler)
               </h4>
               
-              <div className="bg-slate-50 dark:bg-[#1A2450] border border-slate-200 dark:border-slate-800/80 rounded-xl overflow-hidden">
+              <div className="bg-slate-50 dark:bg-[#181a24] border border-slate-200 dark:border-slate-800/80 rounded-xl overflow-hidden">
                 <table className="w-full text-left text-xs">
                   <thead className="bg-slate-100 dark:bg-[#12141c] text-slate-400 font-semibold uppercase tracking-wider text-[10px] border-b border-slate-200 dark:border-slate-800">
                     <tr>
@@ -979,7 +979,7 @@ export default function ImeiTracker() {
           <div className="flex justify-between items-center pt-4 border-t border-slate-200 dark:border-slate-700/50 bg-slate-50 dark:bg-[#181a24] px-6 py-4 rounded-xl mt-6">
             <div className="flex items-center gap-2">
               <span className="text-xs text-slate-400 uppercase tracking-wider font-semibold">Toplam Fiyat:</span>
-              <span className="text-sm font-mono font-bold text-slate-800 dark:text-slate-100 bg-slate-250 dark:bg-[#1A2450] px-2.5 py-1 rounded">
+              <span className="text-sm font-mono font-bold text-slate-800 dark:text-slate-100 bg-slate-250 dark:bg-[#181a24] px-2.5 py-1 rounded">
                 {calculateTotalPrice()} ₺
               </span>
             </div>

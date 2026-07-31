@@ -403,7 +403,7 @@ export default function MainLayout() {
           })}
         </div>
         
-        <div className="p-4 border-t border-[#DCE1F1] dark:border-[#2A3872]">
+        <div className="p-4 border-t border-[#DCE1F1] dark:border-[#1e222d]">
           <button 
             onClick={handleLogout}
             className="flex items-center gap-3 px-3 py-2.5 w-full rounded-xl text-sm font-medium text-[#C0392F] dark:text-[#F87171] hover:bg-[#C0392F]/15 dark:hover:bg-[#F87171]/15 hover:text-red-300 transition-colors"
@@ -422,7 +422,7 @@ export default function MainLayout() {
             {/* Mobile Hamburger Button */}
             <button
               onClick={() => setIsMobileOpen(true)}
-              className="p-2 -ml-2 text-[#5A6685] dark:text-[#9AA3C6] hover:text-[#12141c] dark:hover:text-[#F7F8FC] transition-colors lg:hidden rounded-xl bg-[#F5F7FC] dark:bg-[#12141c] border border-[#DCE1F1] dark:border-[#2A3872]"
+              className="p-2 -ml-2 text-[#5A6685] dark:text-[#9AA3C6] hover:text-[#12141c] dark:hover:text-[#F7F8FC] transition-colors lg:hidden rounded-xl bg-[#F5F7FC] dark:bg-[#12141c] border border-[#DCE1F1] dark:border-[#1e222d]"
               title="Menüyü Aç"
             >
               <Menu size={20} />

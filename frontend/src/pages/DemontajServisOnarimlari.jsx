@@ -256,7 +256,7 @@ const DemontajServisOnarimlari = () => {
               <div className="lg:col-span-8 grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">Akış Durumu (Flow)</label>
-                  <div className="px-3 py-2.5 bg-slate-50 dark:bg-[#131B3A] rounded-xl border border-slate-100 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300 leading-relaxed min-h-[56px]">
+                  <div className="px-3 py-2.5 bg-slate-50 dark:bg-[#12141c] rounded-xl border border-slate-100 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300 leading-relaxed min-h-[56px]">
                     {device.customerRequest}
                   </div>
                 </div>
@@ -269,7 +269,7 @@ const DemontajServisOnarimlari = () => {
                         onChange={e => setDiagnosisDraft(e.target.value)}
                         rows={2}
                         placeholder="Arıza tespitini giriniz..."
-                        className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1A2450] text-xs text-slate-700 dark:text-slate-300 leading-relaxed min-h-[56px] resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                        className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#181a24] text-xs text-slate-700 dark:text-slate-300 leading-relaxed min-h-[56px] resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                       />
                       <button
                         onClick={handleSaveDiagnosis}
@@ -280,14 +280,14 @@ const DemontajServisOnarimlari = () => {
                       </button>
                     </div>
                   ) : (
-                    <div className="px-3 py-2.5 bg-slate-50 dark:bg-[#131B3A] rounded-xl border border-slate-100 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300 leading-relaxed min-h-[56px]">
+                    <div className="px-3 py-2.5 bg-slate-50 dark:bg-[#12141c] rounded-xl border border-slate-100 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300 leading-relaxed min-h-[56px]">
                       {device.customerDiagnosis || <span className="italic text-slate-400">Belirtilmemiş</span>}
                     </div>
                   )}
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">Ürün Bilgisi</label>
-                  <div className="px-3 py-2.5 bg-slate-50 dark:bg-[#131B3A] rounded-xl border border-slate-100 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300 leading-relaxed min-h-[56px] font-semibold">
+                  <div className="px-3 py-2.5 bg-slate-50 dark:bg-[#12141c] rounded-xl border border-slate-100 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300 leading-relaxed min-h-[56px] font-semibold">
                     {device.productInfo}
                     <span className="block text-[10px] font-normal text-slate-500 mt-1">{device.productCode}</span>
                   </div>
@@ -324,7 +324,7 @@ const DemontajServisOnarimlari = () => {
           showNotif={showNotif}
         />
       ) : (
-        <div className="flex-1 flex flex-col items-center justify-center text-slate-400 dark:text-slate-600 bg-white dark:bg-[#1A2450] rounded-2xl border border-slate-200 dark:border-[#3A4A8C] shadow-sm">
+        <div className="flex-1 flex flex-col items-center justify-center text-slate-400 dark:text-slate-600 bg-white dark:bg-[#181a24] rounded-2xl border border-slate-200 dark:border-[#1e222d] shadow-sm">
           <Search size={48} strokeWidth={1} className="mb-4 opacity-40" />
           <p className="text-sm font-medium">Cihaz barkodunu okutarak başlayınız</p>
           <p className="text-xs mt-1">IMEI, Internal ID veya Seri No giriniz</p>

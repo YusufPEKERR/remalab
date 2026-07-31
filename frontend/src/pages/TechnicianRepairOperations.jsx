@@ -126,8 +126,8 @@ const AddRepairModal = ({ onClose, onAdd, missionGroups, device }) => {
 
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm">
-      <div className="bg-white dark:bg-[#1A2450] rounded-2xl shadow-2xl border border-slate-200 dark:border-[#3A4A8C] max-w-2xl w-full mx-4 flex flex-col min-h-0">
-        <div className="px-5 py-4 border-b border-slate-100 dark:border-[#3A4A8C] flex flex-wrap items-center justify-between">
+      <div className="bg-white dark:bg-[#181a24] rounded-2xl shadow-2xl border border-slate-200 dark:border-[#1e222d] max-w-2xl w-full mx-4 flex flex-col min-h-0">
+        <div className="px-5 py-4 border-b border-slate-100 dark:border-[#1e222d] flex flex-wrap items-center justify-between">
           <h3 className="text-base font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
             <Wrench size={18} className="text-slate-400" /> Teknik: Teklif Parçaları
           </h3>
@@ -148,7 +148,7 @@ const AddRepairModal = ({ onClose, onAdd, missionGroups, device }) => {
               value={faultCode}
               onChange={e => setFaultCode(e.target.value)}
               disabled={!selectedItemCategory}
-              className="w-full px-3 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#131B3A] text-slate-800 dark:text-slate-200 text-sm focus:ring-2 focus:ring-blue-500 outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full px-3 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#12141c] text-slate-800 dark:text-slate-200 text-sm focus:ring-2 focus:ring-blue-500 outline-none disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <option value="">{selectedItemCategory ? "Arıza Tespiti seçiniz..." : "Önce parça seçiniz..."}</option>
               {itemFaults.length > 0
@@ -159,7 +159,7 @@ const AddRepairModal = ({ onClose, onAdd, missionGroups, device }) => {
               value={missionGroupCode}
               onChange={e => setMissionGroupCode(e.target.value)}
               disabled={!selectedItemCategory}
-              className="w-full px-3 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#131B3A] text-slate-800 dark:text-slate-200 text-sm focus:ring-2 focus:ring-blue-500 outline-none disabled:opacity-70 disabled:cursor-not-allowed"
+              className="w-full px-3 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#12141c] text-slate-800 dark:text-slate-200 text-sm focus:ring-2 focus:ring-blue-500 outline-none disabled:opacity-70 disabled:cursor-not-allowed"
             >
               <option value="">{selectedItemCategory ? "Onarım Takımı seçiniz..." : "Önce parça seçiniz..."}</option>
               {filteredMissionGroups.map(mg => <option key={mg.code} value={mg.code}>{mg.short_name} ({mg.code})</option>)}
@@ -168,7 +168,7 @@ const AddRepairModal = ({ onClose, onAdd, missionGroups, device }) => {
               value={warrantyCode}
               onChange={e => setWarrantyCode(e.target.value)}
               disabled={!isRmaFlow}
-              className="w-full px-3 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#131B3A] text-slate-800 dark:text-slate-200 text-sm focus:ring-2 focus:ring-blue-500 outline-none disabled:opacity-70 disabled:cursor-not-allowed"
+              className="w-full px-3 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#12141c] text-slate-800 dark:text-slate-200 text-sm focus:ring-2 focus:ring-blue-500 outline-none disabled:opacity-70 disabled:cursor-not-allowed"
             >
               <option value="">Ücretli/Ücretsiz Onarım seçiniz...</option>
               {warranties.map(w => <option key={w.code} value={w.code}>{w.short_name}</option>)}
@@ -178,7 +178,7 @@ const AddRepairModal = ({ onClose, onAdd, missionGroups, device }) => {
             <input
               type="text" value={description} onChange={e => setDescription(e.target.value)}
               placeholder="Açıklama..."
-              className="flex-1 px-3 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#131B3A] text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 outline-none"
+              className="flex-1 px-3 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#12141c] text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 outline-none"
             />
             <button
               onClick={handleSubmit}
@@ -314,7 +314,7 @@ const DOAReturnModal = ({ parts, onClose, onConfirm, submitting }) => {
             onChange={e => setReturnReason(e.target.value)}
             rows="2"
             placeholder="İade nedenini yazınız..."
-            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1A2450] text-slate-800 dark:text-slate-200 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all placeholder:text-slate-400 resize-none"
+            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#181a24] text-slate-800 dark:text-slate-200 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all placeholder:text-slate-400 resize-none"
           />
         </div>
 
@@ -327,7 +327,7 @@ const DOAReturnModal = ({ parts, onClose, onConfirm, submitting }) => {
           ) : (
             <div className="space-y-3">
               {outParts.map(p => (
-                <div key={p.id} className="border border-slate-200 dark:border-slate-700 rounded-xl p-4 bg-slate-50 dark:bg-[#1A2450]">
+                <div key={p.id} className="border border-slate-200 dark:border-slate-700 rounded-xl p-4 bg-slate-50 dark:bg-[#181a24]">
                   <div className="flex flex-wrap items-center justify-between mb-3">
                     <div>
                       <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">{p.name}</p>
@@ -816,7 +816,7 @@ const TechnicianRepairOperations = () => {
               <div className="lg:col-span-8 grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">Akış Durumu (Flow)</label>
-                  <div className="px-3 py-2.5 bg-slate-50 dark:bg-[#131B3A] rounded-xl border border-slate-100 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300 leading-relaxed min-h-[56px]">
+                  <div className="px-3 py-2.5 bg-slate-50 dark:bg-[#12141c] rounded-xl border border-slate-100 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300 leading-relaxed min-h-[56px]">
                     {device.customerRequest}
                   </div>
                 </div>
@@ -829,7 +829,7 @@ const TechnicianRepairOperations = () => {
                         onChange={e => setDiagnosisDraft(e.target.value)}
                         rows={2}
                         placeholder="Arıza tespitini giriniz..."
-                        className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1A2450] text-xs text-slate-700 dark:text-slate-300 leading-relaxed min-h-[56px] resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                        className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#181a24] text-xs text-slate-700 dark:text-slate-300 leading-relaxed min-h-[56px] resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                       />
                       <button
                         onClick={handleSaveDiagnosis}
@@ -840,14 +840,14 @@ const TechnicianRepairOperations = () => {
                       </button>
                     </div>
                   ) : (
-                    <div className="px-3 py-2.5 bg-slate-50 dark:bg-[#131B3A] rounded-xl border border-slate-100 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300 leading-relaxed min-h-[56px]">
+                    <div className="px-3 py-2.5 bg-slate-50 dark:bg-[#12141c] rounded-xl border border-slate-100 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300 leading-relaxed min-h-[56px]">
                       {device.customerDiagnosis || <span className="italic text-slate-400">Belirtilmemiş</span>}
                     </div>
                   )}
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">Ürün Bilgisi</label>
-                  <div className="px-3 py-2.5 bg-slate-50 dark:bg-[#131B3A] rounded-xl border border-slate-100 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300 leading-relaxed min-h-[56px] font-semibold">
+                  <div className="px-3 py-2.5 bg-slate-50 dark:bg-[#12141c] rounded-xl border border-slate-100 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300 leading-relaxed min-h-[56px] font-semibold">
                     {device.productInfo}
                     <span className="block text-[10px] font-normal text-slate-500 mt-1">{device.productCode}</span>
                   </div>
@@ -897,9 +897,9 @@ const TechnicianRepairOperations = () => {
       {/* ═══════════════════════════════════════════════════════════
            SECTION 2: ORTA PANEL — Onarım Detay Grid
          ═══════════════════════════════════════════════════════════ */}
-      <div className="bg-white dark:bg-[#1A2450] rounded-2xl border border-slate-200 dark:border-[#3A4A8C] shadow-sm overflow-hidden flex-1 flex flex-col min-h-0">
+      <div className="bg-white dark:bg-[#12141c] rounded-2xl border border-slate-200 dark:border-[#1e222d] shadow-sm overflow-hidden flex-1 flex flex-col min-h-0">
         {/* Toolbar */}
-        <div className="px-5 py-3 border-b border-slate-100 dark:border-[#3A4A8C] flex flex-wrap items-center justify-between flex-wrap gap-2">
+        <div className="px-5 py-3 border-b border-slate-100 dark:border-[#1e222d] flex flex-wrap items-center justify-between flex-wrap gap-2">
           <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
             <Wrench size={16} className="text-slate-400" />
             Onarım Detay
@@ -920,12 +920,12 @@ const TechnicianRepairOperations = () => {
 
         {/* Repair Navigation Tabs */}
         {groupedRepairs.length > 0 && (
-          <div className="px-5 py-2 border-b border-slate-100 dark:border-[#3A4A8C] flex items-center gap-2 overflow-x-auto">
+          <div className="px-5 py-2 border-b border-slate-100 dark:border-[#1e222d] flex items-center gap-2 overflow-x-auto">
             <button onClick={() => setSelectedRepairIdx(Math.max(0, selectedRepairIdx - 1))} disabled={selectedRepairIdx === 0} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 transition-colors shrink-0">
               <ChevronLeft size={16} className="text-slate-500" />
             </button>
             {groupedRepairs.map((g, i) => (
-              <button key={g.key} onClick={() => setSelectedRepairIdx(i)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap border flex items-center gap-1.5 ${i === selectedRepairIdx ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-500/20' : 'bg-white dark:bg-[#131B3A] text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-500/50'}`}>
+              <button key={g.key} onClick={() => setSelectedRepairIdx(i)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap border flex items-center gap-1.5 ${i === selectedRepairIdx ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-500/20' : 'bg-white dark:bg-[#12141c] text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-500/50'}`}>
                 {g.active.missionGroup}
                 {g.items.length > 1 && (
                   <span className={`px-1.5 rounded-full text-[10px] font-bold ${i === selectedRepairIdx ? 'bg-white/20' : 'bg-slate-100 dark:bg-slate-800'}`}>×{g.items.length}</span>
@@ -954,7 +954,7 @@ const TechnicianRepairOperations = () => {
             </div>
           ) : (
             <table className="w-full text-sm">
-              <thead className="bg-slate-50 dark:bg-[#131B3A] sticky top-0 z-10">
+              <thead className="bg-slate-50 dark:bg-[#12141c] sticky top-0 z-10">
                 <tr className="text-[10px] font-semibold text-slate-500 dark:text-slate-500 uppercase tracking-widest">
                   <th className="text-left px-5 py-3">Görev Grubu</th>
                   <th className="text-left px-3 py-3">Teknisyen</th>
@@ -962,7 +962,7 @@ const TechnicianRepairOperations = () => {
                   <th className="text-center px-3 py-3">Ücret</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-[#3A4A8C]">
+              <tbody className="divide-y divide-slate-100 dark:divide-[#1e222d]">
                 {groupedRepairs.map((g, i) => (
                   <tr key={g.key} onClick={() => setSelectedRepairIdx(i)} className={`cursor-pointer transition-colors ${i === selectedRepairIdx ? 'bg-blue-50 dark:bg-blue-500/5 border-l-[3px] border-l-blue-500' : 'hover:bg-slate-50 dark:hover:bg-[#12141c] border-l-[3px] border-l-transparent'}`}>
                     <td className="px-5 py-3 text-xs font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
@@ -995,8 +995,8 @@ const TechnicianRepairOperations = () => {
            SECTION 3: ALT ORTA PANEL — Onarım Parçaları
          ═══════════════════════════════════════════════════════════ */}
       {selectedGroup && (
-        <div className="bg-white dark:bg-[#1A2450] rounded-2xl border border-slate-200 dark:border-[#3A4A8C] shadow-sm overflow-hidden">
-          <div className="px-5 py-3 border-b border-slate-100 dark:border-[#3A4A8C] flex flex-wrap items-center justify-between">
+        <div className="bg-white dark:bg-[#12141c] rounded-2xl border border-slate-200 dark:border-[#1e222d] shadow-sm overflow-hidden">
+          <div className="px-5 py-3 border-b border-slate-100 dark:border-[#1e222d] flex flex-wrap items-center justify-between">
             <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
               <Package size={16} className="text-slate-400" />
               Onarım Parçaları
@@ -1010,7 +1010,7 @@ const TechnicianRepairOperations = () => {
               </div>
             ) : (
               <table className="w-full text-sm">
-                <thead className="bg-slate-50 dark:bg-[#131B3A]">
+                <thead className="bg-slate-50 dark:bg-[#12141c]">
                   <tr className="text-[10px] font-semibold text-slate-500 dark:text-slate-500 uppercase tracking-widest">
                     <th className="text-left px-5 py-2.5">Parça Kodu</th>
                     <th className="text-left px-3 py-2.5">Parça Kategorisi</th>
@@ -1022,7 +1022,7 @@ const TechnicianRepairOperations = () => {
                     {selectedGroup.items.length > 1 && <th className="text-left px-3 py-2.5">Durum</th>}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-[#3A4A8C]">
+                <tbody className="divide-y divide-slate-100 dark:divide-[#1e222d]">
                   {selectedGroup.items.map(r => (
                     <tr key={r.id} className={`hover:bg-slate-50 dark:hover:bg-[#12141c] transition-colors ${r.isCancelled ? "opacity-50" : ""}`}>
                       <td className="px-5 py-2.5 text-xs font-mono font-semibold text-slate-700 dark:text-slate-300">{r.partItemCode || "N/A"}</td>
@@ -1090,7 +1090,7 @@ const TechnicianRepairOperations = () => {
            SECTION 4: ALT PANEL — Teknisyen Notları & Chip Kodu
          ═══════════════════════════════════════════════════════════ */}
       {device && (
-        <div className="bg-white dark:bg-[#1A2450] rounded-2xl border border-slate-200 dark:border-[#3A4A8C] shadow-sm overflow-hidden">
+        <div className="bg-white dark:bg-[#12141c] rounded-2xl border border-slate-200 dark:border-[#1e222d] shadow-sm overflow-hidden">
           <div className="px-5 py-4 grid grid-cols-1 lg:grid-cols-12 gap-4">
             <div className="lg:col-span-9">
               <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">Açıklama (Teknisyen Notu)</label>
@@ -1099,7 +1099,7 @@ const TechnicianRepairOperations = () => {
                 onChange={e => setTechNotes(e.target.value)}
                 disabled={!hasAccess}
                 placeholder="Yapılan işlemlerle ilgili detaylı notlarınızı buraya giriniz..."
-                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#131B3A] text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all resize-none h-20 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#12141c] text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all resize-none h-20 disabled:opacity-50 disabled:cursor-not-allowed"
               />
             </div>
             <div className="lg:col-span-3">
@@ -1110,7 +1110,7 @@ const TechnicianRepairOperations = () => {
                 onChange={e => setChipCode(e.target.value)}
                 disabled={!hasAccess}
                 placeholder="Anakart / Baseband Chip Kodu"
-                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#131B3A] text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed font-mono"
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#12141c] text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed font-mono"
               />
               <p className="text-[10px] text-slate-400 mt-1.5">Anakart / Security çip tanımlayıcısı</p>
             </div>
