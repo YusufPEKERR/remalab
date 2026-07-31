@@ -10,20 +10,20 @@ echo ===================================================
 echo.
 
 rem 1. En Son Python Komutunu Tespit Et veya Kur
-set "PY_CMD="
-python --version >nul 2>&1 && set "PY_CMD=python"
-if not defined PY_CMD py -3 --version >nul 2>&1 && set "PY_CMD=py -3"
+set PY_CMD=
+python --version >nul 2>&1 && set PY_CMD=python
+if not defined PY_CMD py -3 --version >nul 2>&1 && set PY_CMD=py -3
 
-rem Dinamik Klasör Arama (Python 3.13, 3.12, 3.11 vb. en güncel hangisi varsa)
+rem Dinamik Klasor Arama (Python 3.13, 3.12, 3.11 vb.)
 if not defined PY_CMD (
-    for /d %%D in ("%LOCALAPPDATA%\Programs\Python\Python3*") do if exist "%%D\python.exe" set "PY_CMD="%%D\python.exe""
-    for /d %%D in ("C:\Program Files\Python3*") do if exist "%%D\python.exe" set "PY_CMD="%%D\python.exe""
-    for /d %%D in ("C:\Python3*") do if exist "%%D\python.exe" set "PY_CMD="%%D\python.exe""
+    for /d %%D in ("%LOCALAPPDATA%\Programs\Python\Python3*") do if exist "%%D\python.exe" set PY_CMD="%%D\python.exe"
+    for /d %%D in ("C:\Program Files\Python3*") do if exist "%%D\python.exe" set PY_CMD="%%D\python.exe"
+    for /d %%D in ("C:\Python3*") do if exist "%%D\python.exe" set PY_CMD="%%D\python.exe"
 )
 
 if not defined PY_CMD (
     echo [WARNING] Python sisteminizde yuklu degil.
-    echo [INFO] En son resmi Python 3 surumu otomatik olarak indirilip kuruluyor...
+    echo [INFO] En son resmi Python 3 surumu otomatik indirilip kuruluyor...
     
     where winget >nul 2>&1
     if %errorlevel% equ 0 (
@@ -35,17 +35,16 @@ if not defined PY_CMD (
     )
     
     echo [INFO] Python kuruldu. Yeniden tespit ediliyor...
-    python --version >nul 2>&1 && set "PY_CMD=python"
-    if not defined PY_CMD py -3 --version >nul 2>&1 && set "PY_CMD=py -3"
-    for /d %%D in ("%LOCALAPPDATA%\Programs\Python\Python3*") do if exist "%%D\python.exe" set "PY_CMD="%%D\python.exe""
-    for /d %%D in ("C:\Program Files\Python3*") do if exist "%%D\python.exe" set "PY_CMD="%%D\python.exe""
+    python --version >nul 2>&1 && set PY_CMD=python
+    if not defined PY_CMD py -3 --version >nul 2>&1 && set PY_CMD=py -3
+    for /d %%D in ("%LOCALAPPDATA%\Programs\Python\Python3*") do if exist "%%D\python.exe" set PY_CMD="%%D\python.exe"
+    for /d %%D in ("C:\Program Files\Python3*") do if exist "%%D\python.exe" set PY_CMD="%%D\python.exe"
 )
 
 if not defined PY_CMD (
     echo.
     echo ===================================================
-    echo   [HATA] Python kurulumu tamamlanamadi veya PATH'e eklenemedi!
-    echo   Lutfen bilgisayarinizi yeniden baslatip tekrar deneyin.
+    echo   [HATA] Python bulunamadi! Lutfen Python 3 kurun.
     echo ===================================================
     echo.
     pause
@@ -54,7 +53,7 @@ if not defined PY_CMD (
 
 echo [INFO] Kullanilan Python: %PY_CMD%
 
-rem 2. Python Sanal Ortamı (.venv) Kontrolü
+rem 2. Python Sanal Ortami (.venv) Kontrolu
 echo [INFO] Python sanal ortami (.venv) kontrol ediliyor...
 if not exist .venv\Scripts\python.exe (
     echo [WARNING] .venv bulunamadi. Sanal ortam olusturuluyor...
@@ -76,7 +75,7 @@ if not exist .venv\Scripts\python.exe (
     )
 )
 
-rem 3. Node.js ve Frontend Derleme Kontrolü
+rem 3. Node.js ve Frontend Derleme Kontrolu
 if not exist frontend\dist (
     node --version >nul 2>&1
     if %errorlevel% neq 0 (
