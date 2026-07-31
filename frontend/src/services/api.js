@@ -511,6 +511,17 @@ export const api = {
         });
     },
 
+    getAppVersion: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_app_version) {
+                backend.get_app_version((res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true, data: { version: "v1.0.0" } });
+            }
+        });
+    },
+
     adminSetBatchEntryStatu: async (imei, targetStatuCode) => {
         const backend = await getBackend();
         return new Promise((resolve) => {

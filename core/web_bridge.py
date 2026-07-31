@@ -10518,3 +10518,17 @@ class WebBridge(QObject):
             return json.dumps({"success": False, "message": str(e)}, ensure_ascii=False)
         finally:
             db.close()
+
+    @Slot(result=str)
+    def get_app_version(self):
+        """Mevcut uygulamanın sürüm bilgilerini (version.json) döndürür."""
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        vfile = os.path.join(base_dir, "version.json")
+        if os.path.exists(vfile):
+            try:
+                with open(vfile, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    return json.dumps({"success": True, "data": data}, ensure_ascii=False)
+            except Exception as e:
+                return json.dumps({"success": False, "message": str(e)})
+        return json.dumps({"success": True, "data": {"version": "v1.0.0", "app_name": "RemaLab WMS"}}, ensure_ascii=False)
