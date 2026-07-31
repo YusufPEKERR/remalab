@@ -65,7 +65,6 @@ dist/
 .antigravity/
 # Node
 node_modules/
-frontend/dist/
 
 # SQLite DB
 *.db
