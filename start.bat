@@ -9,23 +9,27 @@ echo   RemaLab WMS Headless Sunucu Launcher
 echo ===================================================
 echo.
 
-rem 1. Python Komutunu Tespit Et veya Kur
+rem 1. En Son Python Komutunu Tespit Et veya Kur
 set "PY_CMD="
 python --version >nul 2>&1 && set "PY_CMD=python"
 if not defined PY_CMD py -3 --version >nul 2>&1 && set "PY_CMD=py -3"
-if not defined PY_CMD if exist "%LOCALAPPDATA%\Programs\Python\Python312\python.exe" set "PY_CMD="%LOCALAPPDATA%\Programs\Python\Python312\python.exe""
-if not defined PY_CMD if exist "C:\Program Files\Python312\python.exe" set "PY_CMD="C:\Program Files\Python312\python.exe""
-if not defined PY_CMD if exist "C:\Python312\python.exe" set "PY_CMD="C:\Python312\python.exe""
+
+rem Dinamik Klasör Arama (Python 3.13, 3.12, 3.11 vb. en güncel hangisi varsa)
+if not defined PY_CMD (
+    for /d %%D in ("%LOCALAPPDATA%\Programs\Python\Python3*") do if exist "%%D\python.exe" set "PY_CMD="%%D\python.exe""
+    for /d %%D in ("C:\Program Files\Python3*") do if exist "%%D\python.exe" set "PY_CMD="%%D\python.exe""
+    for /d %%D in ("C:\Python3*") do if exist "%%D\python.exe" set "PY_CMD="%%D\python.exe""
+)
 
 if not defined PY_CMD (
     echo [WARNING] Python sisteminizde yuklu degil.
-    echo [INFO] Python 3.12 otomatik olarak indirilip kuruluyor...
+    echo [INFO] En son resmi Python 3 surumu otomatik olarak indirilip kuruluyor...
     
     where winget >nul 2>&1
     if %errorlevel% equ 0 (
-        winget install --id Python.Python.3.12 --silent --override "/passive InstallAllUsers=1 PrependPath=1"
+        winget install --id Python.Python.3 --silent --override "/passive InstallAllUsers=1 PrependPath=1"
     ) else (
-        powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://www.python.org/ftp/python/3.12.2/python-3.12.2-amd64.exe' -OutFile 'python_installer.exe'"
+        powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://www.python.org/ftp/python/3.13.2/python-3.13.2-amd64.exe' -OutFile 'python_installer.exe'"
         python_installer.exe /passive InstallAllUsers=1 PrependPath=1
         del /f /q python_installer.exe
     )
@@ -33,8 +37,8 @@ if not defined PY_CMD (
     echo [INFO] Python kuruldu. Yeniden tespit ediliyor...
     python --version >nul 2>&1 && set "PY_CMD=python"
     if not defined PY_CMD py -3 --version >nul 2>&1 && set "PY_CMD=py -3"
-    if not defined PY_CMD if exist "%LOCALAPPDATA%\Programs\Python\Python312\python.exe" set "PY_CMD="%LOCALAPPDATA%\Programs\Python\Python312\python.exe""
-    if not defined PY_CMD if exist "C:\Program Files\Python312\python.exe" set "PY_CMD="C:\Program Files\Python312\python.exe""
+    for /d %%D in ("%LOCALAPPDATA%\Programs\Python\Python3*") do if exist "%%D\python.exe" set "PY_CMD="%%D\python.exe""
+    for /d %%D in ("C:\Program Files\Python3*") do if exist "%%D\python.exe" set "PY_CMD="%%D\python.exe""
 )
 
 if not defined PY_CMD (
