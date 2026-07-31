@@ -40,52 +40,48 @@ class WebSocketTransport(QWebChannelAbstractTransport):
 
 
 class CustomRequestHandler(http.server.SimpleHTTPRequestHandler):
-    # Varsayılan HTTP/1.0 (keep-alive yok) her varlık (JS/CSS/görsel) için ayrı bir
-    # TCP bağlantısı açtırıyordu - sayfa başına onlarca kısa ömürlü bağlantı anlamına
-    # geliyordu. HTTP/1.1 ile tarayıcı aynı bağlantıyı varlıklar arasında yeniden kullanır.
     protocol_version = "HTTP/1.1"
+
+    def handle(self):
+        # Socket zaman aşımını 5 saniye olarak ayarla ki atıl kalmış TCP bağlantıları
+        # sunucu thread'lerini sonsuza kadar tıkamasın (port 80 kilitlenmelerini önler)
+        try:
+            self.request.settimeout(5.0)
+            super().handle()
+        except (Exception, socket.timeout, ConnectionResetError, BrokenPipeError):
+            pass
 
     def translate_path(self, path):
         if path.startswith('/api_cache/'):
-            # Serve from the top-level api_cache directory
             base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
             cache_dir = os.path.join(base_dir, 'api_cache')
             rel_path = path[len('/api_cache/'):]
             return os.path.join(cache_dir, rel_path)
-        # QtWebEngine, React Router ile client-side (pushState) gezinilen SPA
-        # rotalarında (ör. /statu-gecis/MNG1_AS/...) sekme ikonunu <link> etiketini
-        # dikkate almadan geçerli URL'ye göre yeniden arar (ör. /statu-gecis/MNG1_AS/
-        # favicon.svg) - bu, gerçek bir dosya olmadığından 404'e düşer. Kök favicon'a
-        # yönlendirilir.
         if path.endswith('/favicon.svg') and path != '/favicon.svg':
             path = '/favicon.svg'
         return super().translate_path(path)
 
     def do_GET(self):
-        # SPA (React Router) Fallback: İstenen rota fiziksel bir dosya değilse index.html sun
         target_file = self.translate_path(self.path)
         if not os.path.exists(target_file) and not self.path.startswith(('/assets/', '/api_cache/')) and '.' not in os.path.basename(self.path):
             self.path = '/index.html'
         super().do_GET()
 
     def end_headers(self):
+        # Statik sunucu cevaplarına Connection: close ekle ki tarayıcı TCP bağlantılarını
+        # serbest bıraksın ve sunucu thread'leri saatler sonra bile kilitlenmesin
+        self.send_header("Connection", "close")
         if self.path.startswith('/api_cache/'):
             self.send_header('Cache-Control', 'no-store')
         elif self.path.startswith('/assets/'):
-            # Vite build çıktısındaki /assets/*.js|css dosya adları içerik hash'i
-            # taşır (ör. index-B8be4loj.js) - içerik değişirse dosya adı da değişir,
-            # bu yüzden sonsuza kadar önbelleklenmeleri güvenlidir.
             self.send_header('Cache-Control', 'public, max-age=31536000, immutable')
         super().end_headers()
 
 
 class _ThreadingHTTPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     daemon_threads = True
-    # HTTP/1.1 keep-alive ile bağlantılar istekler arasında açık kalabildiğinden,
-    # tek thread'li TCPServer aynı anda gelen ikinci bir varlık isteğini önceki
-    # bağlantı kapanana kadar bekletirdi - ThreadingMixIn, tarayıcının paralel
-    # açtığı bağlantıların hepsine eşzamanlı cevap verilmesini sağlar.
     allow_reuse_address = True
+    request_queue_size = 128  # Bağlantı kuyruğu kapasitesi 5 -> 128 (yüksek trafikte kilitlenmeyi önler)
 
 
 def _start_static_server(directory, preferred_port=5175):
