@@ -181,7 +181,7 @@ export default function MainLayout() {
       colorTheme: 'purple',
       items: [
         { name: 'Müşteri onayı bekleyecek', icon: Repeat, path: '/musteri-onayi' },
-        { name: 'Üretim Kaydını Görüntüle (107>136)', icon: Repeat, path: '/statu-gecis/MNG1_AS/107_136' },
+        { name: 'Müşteri Onay/Red Geldi', icon: Repeat, path: '/statu-gecis/MNG1_AS/107_136' },
         { name: 'Ara Test Yap (138>124)', icon: Repeat, path: '/statu-gecis/MNG1_AS/138_124' }
       ]
     },

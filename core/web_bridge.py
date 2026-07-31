@@ -7643,6 +7643,22 @@ class WebBridge(QObject):
         if not is_valid_m:
             return m_err_msg
 
+        # 0b) Kapasite (GB/TB) mükerrer girişi engelleme.
+        #     'model' alanı zaten bir kapasite içeriyorsa (örn. "iPhone 13 mini 128GB")
+        #     ve ayrıca 'gb' alanı da doldurulmuşsa, ekranda/kayıtta "iPhone 13 mini
+        #     128GB 128GB" gibi ürün ailesinde bulunmayan geçersiz bir kombinasyon oluşur.
+        #     Kelime bazlı fuzzy eşleşme aynı kelimenin tekrarını yakalamadığından burada
+        #     açıkça reddediyoruz. Kapasite YA modelde YA da GB alanında olmalı, ikisinde
+        #     birden değil.
+        import re as _re
+        gb_val = (d.get("gb") or "").strip()
+        model_caps = _re.findall(r"\d+\s*(?:gb|tb)\b", model_val.lower())
+        if gb_val and model_caps:
+            return (f"Kapasite modelde zaten belirtilmiş ('{model_caps[0].upper().replace(' ', '')}'). "
+                    f"GB alanına ikinci kez kapasite girildiğinde '{model_val} {gb_val}' gibi "
+                    f"ürün ailesinde tanımlı olmayan geçersiz bir kayıt oluşur. "
+                    f"Lütfen ya modeldeki kapasiteyi kaldırın ya da GB seçimini boş bırakın.")
+
         batch_no = (d.get("batch_no") or "").strip()
         customer_name = (d.get("customer_name") or "").strip()
 
@@ -9800,7 +9816,36 @@ class WebBridge(QObject):
             )
             db.add(rec)
             db.commit()
-            return json.dumps({"success": True, "id": str(rec.id)})
+
+            # Karar sonrası yeniden onarım: Cihaz demontaj kararını (Müşteri Onayı / Üretime
+            # Aktar) geçip Üretim aşamasına (109) alındıktan sonra teknisyen YENİ bir onarım
+            # eklerse, bu onarımın da müşteri onayına veya üretime yönlendirilebilmesi için
+            # cihazı Demontaj karar aşamasına (105 - Awaiting production planning acceptance)
+            # geri çekeriz. Böylece Servis Onarım ekranında "Müşteri Onayına Gönder / Üretime
+            # Aktar" kararı yeniden görünür ve submit_dismantle_decision tekrar çalıştırılabilir.
+            # Sadece karar SONRASI statüden (109) geri çekilir; normal ilk demontaj (104/105)
+            # sırasında eklenen onarımlar statüyü değiştirmez. Geçiş yalnızca state machine'in
+            # izin verdiği durumda (109->105) uygulanır.
+            REOPEN_DECISION_FROM = {109}
+            RESET_TARGET_STATU = 105
+            reopened = False
+            try:
+                from services.state_machine_service import StateMachineService
+                from models.batch_entry import BatchEntry
+                be_ref = self._resolve_batch_entry_by_ref(db, device_ref)
+                if be_ref and be_ref["statu_code"] is not None:
+                    cur = int(be_ref["statu_code"])
+                    if cur in REOPEN_DECISION_FROM and StateMachineService(db).validate_transition(cur, RESET_TARGET_STATU):
+                        be = db.query(BatchEntry).filter(BatchEntry.id == int(be_ref["id"])).first()
+                        if be:
+                            be.statu_code = RESET_TARGET_STATU
+                            db.commit()
+                            reopened = True
+            except Exception as reopen_err:
+                db.rollback()
+                print(f"[WebBridge] add_repair_record statü geri çekme hatası: {reopen_err}")
+
+            return json.dumps({"success": True, "id": str(rec.id), "reopened_for_decision": reopened})
         except Exception as e:
             db.rollback()
             return json.dumps({"success": False, "message": str(e)})

@@ -609,15 +609,24 @@ export default function BatchEntry() {
     const term = String(value || '').trim();
     if (term.length < 2) return;
 
-    // 1) Sistemdeki mevcut kayıtlardan otomatik doldurma (batch_no + müşteri dahil)
+    // 1) Sistemdeki mevcut kayıtlardan otomatik doldurma (batch_no + müşteri dahil).
+    //    ÖNEMLİ: Backend kısmi (ILIKE %term%) eşleşme de yapabildiğinden, YENİ batch
+    //    girişinde henüz tamamlanmamış bir IMEI/Seri yazılırken alakasız bir kayıt
+    //    kısmen eşleşip formu (batch_no/müşteri dahil) ele geçirebiliyordu. Bu yüzden
+    //    otomatik doldurmayı SADECE yazılan değer, bulunan kaydın AYNI alanına birebir
+    //    (tam) eşitse uygula. Önek/kısmi eşleşmeler formu değiştirmez.
     const res = await api.lookupBatchEntry(term);
     if (res.success && res.found && res.data) {
-      setFormData(prev => ({
-        ...res.data,
-        [fieldKey]: value
-      }));
-      setAutoFilledMessage(`Kayıtlı cihaz bulundu! "${term}" eşleşmesine göre tüm bilgiler otomatik dolduruldu.`);
-      setTimeout(() => setAutoFilledMessage(''), 6000);
+      const matchedValue = String(res.data[fieldKey] || '').trim().toLowerCase();
+      const isExactMatch = matchedValue !== '' && matchedValue === term.toLowerCase();
+      if (isExactMatch) {
+        setFormData(prev => ({
+          ...res.data,
+          [fieldKey]: value
+        }));
+        setAutoFilledMessage(`Kayıtlı cihaz bulundu! "${term}" eşleşmesine göre tüm bilgiler otomatik dolduruldu.`);
+        setTimeout(() => setAutoFilledMessage(''), 6000);
+      }
     }
 
     // 2) IMEI/Seri okutulduysa cihaz teknik bilgilerini PhoneCheck'ten çek.
@@ -724,6 +733,18 @@ export default function BatchEntry() {
 
     if (!imei && !serial && !internal && !batchNo) {
       alert("Hata: Servis bilgilerinden (IMEI, Seri No, Internal ID veya Batch No) en az bir tanesini girmelisiniz.");
+      return;
+    }
+
+    // Kapasite mükerrer girişi: model alanı zaten kapasite içeriyorsa (örn. "iPhone 13 mini 128GB")
+    // GB alanı da doldurulamaz — aksi halde "... 128GB 128GB" gibi ürün ailesinde olmayan kayıt oluşur.
+    const modelVal = (formData.model || '').trim();
+    const gbVal = (formData.gb || '').trim();
+    const modelCap = modelVal.toLowerCase().match(/\d+\s*(?:gb|tb)\b/);
+    if (gbVal && modelCap) {
+      alert(`Kapasite modelde zaten belirtilmiş ("${modelCap[0].toUpperCase().replace(/\s/g, '')}"). ` +
+        `GB alanına ikinci kez kapasite girildiğinde "${modelVal} ${gbVal}" gibi ürün ailesinde ` +
+        `tanımlı olmayan geçersiz bir kayıt oluşur. Lütfen ya modeldeki kapasiteyi kaldırın ya da GB seçimini boş bırakın.`);
       return;
     }
 

@@ -158,6 +158,20 @@ const DemontajServisOnarimlari = () => {
     if (refreshed && refreshed.success) {
       setRepairs((refreshed.repairs || []).map(r => ({ ...r, technician: "", parts: [] })));
     }
+    // Onarım eklendikten sonra cihazın statüsü backend'de değişmiş olabilir (örn. Üretim
+    // aşamasındaki bir cihaza yeni onarım eklenince statü 105'e geri çekilir ve "Müşteri
+    // Onayına Gönder / Üretime Aktar" kararı yeniden görünür). Statüyü de tazeleyip
+    // ekrandaki karar butonunun anlık güncellenmesini sağlıyoruz.
+    try {
+      const statusRes = await api.lookupBatchEntry(device.imei);
+      if (statusRes && statusRes.success && statusRes.found && statusRes.data) {
+        const newCode = (statusRes.data.statu_code !== null && statusRes.data.statu_code !== undefined)
+          ? Number(statusRes.data.statu_code) : null;
+        setDevice(prev => (prev && newCode !== null && newCode !== prev.serviceStatus
+          ? { ...prev, serviceStatus: newCode }
+          : prev));
+      }
+    } catch (_e) { /* statü tazeleme başarısızsa mevcut statü korunur */ }
     return refreshed;
   }, [device]);
 
