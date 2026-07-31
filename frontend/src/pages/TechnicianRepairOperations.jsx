@@ -2,7 +2,7 @@ import React, { useState, useCallback, useRef, useEffect, useMemo } from "react"
 import {
   Search, Plus, Play, AlertTriangle, Shield, Battery,
   BatteryCharging, Cpu, X, ChevronLeft, ChevronRight, Wrench,
-  CheckCircle, Clock, Package, ArrowRightLeft, Info
+  CheckCircle, Clock, Package, ArrowRightLeft, Info, AlertCircle
 } from "lucide-react";
 import { api } from "../services/api";
 import PartSelectCombobox from "../components/PartSelectCombobox";
@@ -199,38 +199,19 @@ const AddRepairModal = ({ onClose, onAdd, missionGroups, device }) => {
 const StatusAdvanceModal = ({ repair, onClose, onAdvance }) => {
   if (!repair) return null;
   const current = repair.statusCode;
-  const nextOptions = [];
-  // warehouse.repair_result_type'daki gerçek statülere göre kurulmuş akış.
-  // 1002 (Tamamlandı) ve 1003 (İptal Edildi) terminal statülerdir — ileri geçiş yok.
+  let rawOptions = [];
+  // Ekrandan SADECE:
+  // 1. Teknisyene Atama (1001)
+  // 2. Onarıma Devam Etme (1001)
+  // 3. Onarımı Tamamlama (1002 - ana toolbar butonundan yapılır)
+  // aşamaları yapılabilmelidir. Diğer karmaşık ara statüler kaldırıldı.
   if (current === 1000) {
-    nextOptions.push({ code: 1001, label: "Teknisyene Ata" });
+    rawOptions.push({ code: 1001, label: "Teknisyene Ata" });
+  } else if (current !== 1002 && current !== 1003) {
+    rawOptions.push({ code: 1001, label: "Onarıma Devam Et" });
   }
-  if (current === 1001) {
-    nextOptions.push({ code: 1002, label: "Tamamla" });
-    nextOptions.push({ code: 1008, label: "Parça Bekleniyor" });
-    nextOptions.push({ code: 1004, label: "Yüksek Seviye Onarıma Gönder" });
-    nextOptions.push({ code: 1006, label: "Teste Gönder" });
-    nextOptions.push({ code: 1005, label: "Müşteri Onayına Sun" });
-    nextOptions.push({ code: 1003, label: "İptal Et" });
-  }
-  if (current === 1008) {
-    nextOptions.push({ code: 1001, label: "Parça Geldi - Devam Et" });
-  }
-  if (current === 1004) {
-    nextOptions.push({ code: 1001, label: "Üst Seviye Onarım Bitti - Devam Et" });
-  }
-  if (current === 1006) {
-    nextOptions.push({ code: 1002, label: "Test Başarılı - Tamamla" });
-    nextOptions.push({ code: 1007, label: "Test Başarısız" });
-  }
-  if (current === 1007) {
-    nextOptions.push({ code: 1001, label: "Tekrar Onarıma Al" });
-    nextOptions.push({ code: 1003, label: "İptal Et" });
-  }
-  if (current === 1005) {
-    nextOptions.push({ code: 1002, label: "Onay Geldi - Tamamla" });
-    nextOptions.push({ code: 1003, label: "Onay Reddedildi - İptal Et" });
-  }
+
+  const nextOptions = rawOptions;
 
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm">
@@ -892,13 +873,38 @@ const TechnicianRepairOperations = () => {
             {repairs.length > 0 && <span className="text-[11px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md">{repairs.length} kayıt</span>}
           </h3>
           <div className="flex items-center gap-2">
-            <button onClick={() => setShowAddModal(true)} disabled={!hasAccess || !device} className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold transition-colors shadow-sm flex items-center gap-1.5">
+            <button onClick={() => setShowAddModal(true)} disabled={!hasAccess || !device} className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold transition-colors shadow-sm flex items-center gap-1.5 cursor-pointer">
               <Plus size={14} /> Onarım Ekle
             </button>
-            <button onClick={() => setShowAdvanceModal(true)} disabled={!hasAccess || !selectedRepair} className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold transition-colors shadow-sm flex items-center gap-1.5">
-              <Play size={14} /> Onarıma Devam Et
-            </button>
-            <button onClick={handleReturnDevice} disabled={!hasAccess || !device} className="px-3.5 py-2 rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold transition-colors shadow-sm flex items-center gap-1.5">
+            {selectedRepair && selectedRepair.statusCode === 1000 && (
+              <button
+                onClick={() => handleAdvanceStatus(selectedRepair.id, 1001)}
+                disabled={!hasAccess}
+                className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold transition-colors shadow-sm flex items-center gap-1.5 cursor-pointer"
+              >
+                <Play size={14} /> Teknisyene Ata
+              </button>
+            )}
+            {selectedRepair && selectedRepair.statusCode === 1001 && (
+              <button
+                disabled={true}
+                className="px-3.5 py-2 rounded-xl bg-indigo-600/30 text-indigo-300 dark:text-indigo-400 border border-indigo-500/20 text-xs font-bold transition-colors shadow-sm flex items-center gap-1.5 cursor-default"
+                title="Cihaz şu an teknisyende / onarım aşamasında"
+              >
+                <Play size={14} /> Onarım Devam Ediyor
+              </button>
+            )}
+            {selectedRepair && selectedRepair.statusCode !== 1002 && selectedRepair.statusCode !== 1003 && (
+              <button
+                onClick={() => handleAdvanceStatus(selectedRepair.id, 1002)}
+                disabled={!hasAccess || (selectedGroup?.items || []).filter(r => !r.isCancelled).some(r => r.partItemCode && !r.isStoksuz && !r.isDelivered)}
+                className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold transition-colors shadow-sm flex items-center gap-1.5 cursor-pointer"
+                title={(selectedGroup?.items || []).filter(r => !r.isCancelled).some(r => r.partItemCode && !r.isStoksuz && !r.isDelivered) ? "Depodan parça teslimatı yapılmadan onarım tamamlanamaz" : "Onarımı tamamla"}
+              >
+                <CheckCircle size={14} /> Onarımı Tamamla
+              </button>
+            )}
+            <button onClick={handleReturnDevice} disabled={!hasAccess || !device} className="px-3.5 py-2 rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold transition-colors shadow-sm flex items-center gap-1.5 cursor-pointer">
               <AlertTriangle size={14} /> İade Edilecek
             </button>
           </div>
@@ -1020,12 +1026,18 @@ const TechnicianRepairOperations = () => {
                         </button>
                       </td>
                       <td className="px-3 py-2.5">
-                        {r.supplyStatusCode ? (
-                          <span className="inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold border bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-500/30">
-                            {supplyStatuses.find(s => s.code === r.supplyStatusCode)?.short_name || r.supplyStatusCode}
+                        {r.isStoksuz ? (
+                          <span className="inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold border bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700">
+                            Stok Takipsiz / Hizmet
+                          </span>
+                        ) : r.isDelivered ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30">
+                            <CheckCircle size={12} /> Depodan Teslim Edildi
                           </span>
                         ) : (
-                          <span className="text-xs text-slate-400">-</span>
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-500/30">
+                            <AlertCircle size={12} /> Depo Çıkışı Bekliyor
+                          </span>
                         )}
                       </td>
                       <td className="px-3 py-2.5">

@@ -7673,6 +7673,22 @@ class WebBridge(QObject):
         if not is_valid_m:
             return m_err_msg
 
+        # 0b) Kapasite (GB/TB) mükerrer girişi engelleme.
+        #     'model' alanı zaten bir kapasite içeriyorsa (örn. "iPhone 13 mini 128GB")
+        #     ve ayrıca 'gb' alanı da doldurulmuşsa, ekranda/kayıtta "iPhone 13 mini
+        #     128GB 128GB" gibi ürün ailesinde bulunmayan geçersiz bir kombinasyon oluşur.
+        #     Kelime bazlı fuzzy eşleşme aynı kelimenin tekrarını yakalamadığından burada
+        #     açıkça reddediyoruz. Kapasite YA modelde YA da GB alanında olmalı, ikisinde
+        #     birden değil.
+        import re as _re
+        gb_val = (d.get("gb") or "").strip()
+        model_caps = _re.findall(r"\d+\s*(?:gb|tb)\b", model_val.lower())
+        if gb_val and model_caps:
+            return (f"Kapasite modelde zaten belirtilmiş ('{model_caps[0].upper().replace(' ', '')}'). "
+                    f"GB alanına ikinci kez kapasite girildiğinde '{model_val} {gb_val}' gibi "
+                    f"ürün ailesinde tanımlı olmayan geçersiz bir kayıt oluşur. "
+                    f"Lütfen ya modeldeki kapasiteyi kaldırın ya da GB seçimini boş bırakın.")
+
         batch_no = (d.get("batch_no") or "").strip()
         customer_name = (d.get("customer_name") or "").strip()
 
@@ -9449,7 +9465,14 @@ class WebBridge(QObject):
                     "location": "OUT" if r["status"] == "Teslim Edildi" else "-",
                 } for r in part_rows]
 
-                repair_refs = [str(wo["id"])]
+                repair_refs = [str(wo["id"]), str(sr["id"])]
+                if sr["imei_number"]:
+                    repair_refs.append(str(sr["imei_number"]).strip())
+                if sr["imei_serial"]:
+                    repair_refs.append(str(sr["imei_serial"]).strip())
+                be_row_sr = db.execute(text("SELECT service_id FROM warehouse.batch_entries WHERE LOWER(TRIM(imei_number)) = LOWER(:t) LIMIT 1"), {"t": term}).mappings().first()
+                if be_row_sr and be_row_sr["service_id"]:
+                    repair_refs.append(str(be_row_sr["service_id"]))
                 device_info = {
                     "imei": sr["imei_number"] or sr["imei_serial"] or term,
                     "productInfo": " ".join(filter(None, [sr["brand"], sr["model"], sr["color"], sr["memory"]])) or "-",
@@ -9492,8 +9515,8 @@ class WebBridge(QObject):
                 SELECT rr.id, rr.department_mission, rr.notes, rr.repair_result_type_code, rr.warranty_code,
                        rr.part_item_code, rr.item_fault_code, rr.operation_type_code, rr.supply_status_code,
                        rrt.short_name AS result_name, rrt.is_cancelled, rrt.is_success,
-                       mg.short_name AS mission_group_name,
-                       it.short_name AS part_name, it.item_category AS item_category,
+                       it.short_name AS part_name, pp.item_category AS item_category,
+                       pp.stock_tracking_type, pp.id AS part_id,
                        fault.short_name AS fault_name,
                        opt.short_name AS operation_type_name,
                        sup.short_name AS supply_status_name
@@ -9501,6 +9524,7 @@ class WebBridge(QObject):
                 LEFT JOIN warehouse.repair_result_type rrt ON rrt.code = rr.repair_result_type_code
                 LEFT JOIN organization.mission_groups mg ON mg.code = rr.department_mission
                 LEFT JOIN warehouse.item it ON it.code = rr.part_item_code
+                LEFT JOIN warehouse.parts pp ON pp.item_code = rr.part_item_code
                 LEFT JOIN warehouse.item_fault fault ON fault.code = rr.item_fault_code
                 LEFT JOIN warehouse.repair_item_operation_type opt ON opt.code = rr.operation_type_code
                 LEFT JOIN warehouse.item_supply_status sup ON sup.code = rr.supply_status_code
@@ -9508,25 +9532,42 @@ class WebBridge(QObject):
                 ORDER BY rr.created_at DESC
             """), {"refs": repair_refs}).mappings().all()
 
-            repairs = [{
-                "id": str(r["id"]),
-                "missionGroupCode": r["department_mission"] or "",
-                "missionGroup": r["mission_group_name"] or r["department_mission"] or "-",
-                "statusCode": r["repair_result_type_code"],
-                "statusName": r["result_name"] or str(r["repair_result_type_code"]),
-                "isCancelled": bool(r["is_cancelled"]),
-                "chargeType": "FREE" if r["warranty_code"] == "IW" else "PAID",
-                "partItemCode": r["part_item_code"] or "",
-                "partName": r["part_name"] or "",
-                "itemCategory": r["item_category"] or "",
-                "faultCode": r["item_fault_code"] or "",
-                "faultName": r["fault_name"] or r["item_fault_code"] or "",
-                "operationTypeCode": r["operation_type_code"] or "",
-                "operationTypeName": r["operation_type_name"] or "",
-                "supplyStatusCode": r["supply_status_code"] or "",
-                "supplyStatusName": r["supply_status_name"] or "",
-                "notes": r["notes"] or "",
-            } for r in repair_rows]
+            repair_loc_id = _get_system_location_id(db, "repair_stock")
+            repairs = []
+            for r in repair_rows:
+                tracking_type = (r["stock_tracking_type"] or "Stok Takipli").strip() if r["part_item_code"] else "Stoksuz"
+                is_stoksuz = tracking_type in ("Stok Takipsiz", "Stoksuz", "Servis Hizmeti", "Yazılım/Hizmet") or not r["part_item_code"]
+                
+                is_delivered = is_stoksuz
+                if not is_stoksuz:
+                    # Depocu Parça Teslim ekranından parça çıkışını yapıp supply_status_code = 'Teslim Edildi' yapmadığı sürece teslim edilmiş SAYILMAZ.
+                    if (r["supply_status_code"] or "").strip().lower() in ("teslim edildi", "teslim", "completed"):
+                        is_delivered = True
+                    else:
+                        is_delivered = False
+
+                repairs.append({
+                    "id": str(r["id"]),
+                    "missionGroupCode": r["department_mission"] or "",
+                    "missionGroup": r["mission_group_name"] or r["department_mission"] or "-",
+                    "statusCode": r["repair_result_type_code"],
+                    "statusName": r["result_name"] or str(r["repair_result_type_code"]),
+                    "isCancelled": bool(r["is_cancelled"]),
+                    "chargeType": "FREE" if r["warranty_code"] == "IW" else "PAID",
+                    "partItemCode": r["part_item_code"] or "",
+                    "partName": r["part_name"] or "",
+                    "itemCategory": r["item_category"] or "",
+                    "stockTrackingType": tracking_type,
+                    "isStoksuz": is_stoksuz,
+                    "isDelivered": is_delivered,
+                    "faultCode": r["item_fault_code"] or "",
+                    "faultName": r["fault_name"] or r["item_fault_code"] or "",
+                    "operationTypeCode": r["operation_type_code"] or "",
+                    "operationTypeName": r["operation_type_name"] or "",
+                    "supplyStatusCode": r["supply_status_code"] or "",
+                    "supplyStatusName": r["supply_status_name"] or "",
+                    "notes": r["notes"] or "",
+                })
 
             if not (sr and wo) and not repairs and not found_batch_entry:
                 return json.dumps({"success": False, "message": "Bu cihaza ait bir iş emri veya onarım kaydı bulunamadı."})
@@ -9855,7 +9896,36 @@ class WebBridge(QObject):
             )
             db.add(rec)
             db.commit()
-            return json.dumps({"success": True, "id": str(rec.id)})
+
+            # Karar sonrası yeniden onarım: Cihaz demontaj kararını (Müşteri Onayı / Üretime
+            # Aktar) geçip Üretim aşamasına (109) alındıktan sonra teknisyen YENİ bir onarım
+            # eklerse, bu onarımın da müşteri onayına veya üretime yönlendirilebilmesi için
+            # cihazı Demontaj karar aşamasına (105 - Awaiting production planning acceptance)
+            # geri çekeriz. Böylece Servis Onarım ekranında "Müşteri Onayına Gönder / Üretime
+            # Aktar" kararı yeniden görünür ve submit_dismantle_decision tekrar çalıştırılabilir.
+            # Sadece karar SONRASI statüden (109) geri çekilir; normal ilk demontaj (104/105)
+            # sırasında eklenen onarımlar statüyü değiştirmez. Geçiş yalnızca state machine'in
+            # izin verdiği durumda (109->105) uygulanır.
+            REOPEN_DECISION_FROM = {109}
+            RESET_TARGET_STATU = 105
+            reopened = False
+            try:
+                from services.state_machine_service import StateMachineService
+                from models.batch_entry import BatchEntry
+                be_ref = self._resolve_batch_entry_by_ref(db, device_ref)
+                if be_ref and be_ref["statu_code"] is not None:
+                    cur = int(be_ref["statu_code"])
+                    if cur in REOPEN_DECISION_FROM and StateMachineService(db).validate_transition(cur, RESET_TARGET_STATU):
+                        be = db.query(BatchEntry).filter(BatchEntry.id == int(be_ref["id"])).first()
+                        if be:
+                            be.statu_code = RESET_TARGET_STATU
+                            db.commit()
+                            reopened = True
+            except Exception as reopen_err:
+                db.rollback()
+                print(f"[WebBridge] add_repair_record statü geri çekme hatası: {reopen_err}")
+
+            return json.dumps({"success": True, "id": str(rec.id), "reopened_for_decision": reopened})
         except Exception as e:
             db.rollback()
             return json.dumps({"success": False, "message": str(e)})
@@ -10012,6 +10082,7 @@ class WebBridge(QObject):
         Kodlar warehouse.repair_result_type tablosundaki gerçek anlamlarıyla kullanılır
         (1000 Teknisyene Atanacak ... 1003 Onarım İptal Edildi ... 1002 Onarım Tamamlandı vb.)."""
         from models.repair_record import RepairRecord
+        from sqlalchemy import text
         db = SessionLocal()
         try:
             rec = db.query(RepairRecord).filter(RepairRecord.id == repair_id).first()
@@ -10024,12 +10095,30 @@ class WebBridge(QObject):
                 if required and required not in user_missions:
                     return json.dumps({"success": False, "message": f"Bu işlem için '{required}' yetkisi gerekiyor."})
 
-            rec.repair_result_type_code = int(new_status_code)
+            target_code = int(new_status_code)
+
+            # Onarım Tamamlandı (1002) yapılıyorsa stok takipli parçanın depodan teslimatı yapılmış mı kontrol et
+            if target_code == 1002 and rec.part_item_code:
+                part_row = db.execute(text("SELECT id, name, stock_tracking_type FROM warehouse.parts WHERE item_code = :c LIMIT 1"), {"c": rec.part_item_code.strip()}).mappings().first()
+                if part_row:
+                    tracking_type = (part_row["stock_tracking_type"] or "Stok Takipli").strip()
+                    is_stoksuz = tracking_type in ("Stok Takipsiz", "Stoksuz", "Servis Hizmeti", "Yazılım/Hizmet")
+                    
+                    if not is_stoksuz:
+                        # Parçanın bu cihazdaki supply_status_code değeri 'Teslim Edildi' mi?
+                        is_delivered = (rec.supply_status_code or "").strip().lower() in ("teslim edildi", "teslim", "1002", "completed")
+                        if not is_delivered:
+                            return json.dumps({
+                                "success": False, 
+                                "message": f"Bu onarım tamamlanamaz! Eklenen '{part_row['name']}' ({rec.part_item_code}) parçası henüz depodan teknisyene teslim edilmemiş (Good Stock'tan çıkışı yapılmamış)."
+                            }, ensure_ascii=False)
+
+            rec.repair_result_type_code = target_code
             db.commit()
             return json.dumps({"success": True})
         except Exception as e:
             db.rollback()
-            return json.dumps({"success": False, "message": str(e)})
+            return json.dumps({"success": False, "message": str(e)}, ensure_ascii=False)
         finally:
             db.close()
 
@@ -10343,17 +10432,42 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    @Slot(str, str, str, result=str)
-    def get_deliverable_parts_for_device(self, brand, model, color=""):
-        """Parça Teslim ekranı için cihazın Marka, Model ve Rengine göre teslim edilebilecek parçaları getirir."""
+    @Slot(str, str, str, str, result=str)
+    def get_deliverable_parts_for_device(self, brand, model, color="", imei_or_serial=""):
+        """Parça Teslim ekranı için SADECE cihaza/onarıma teknisyen tarafından eklenmiş olan parçaları ve Good Stock miktarlarını getirir."""
         from sqlalchemy import text
         db = SessionLocal()
         try:
             brand_clean = (brand or "").strip()
             model_clean = (model or "").strip()
             color_clean = (color or "").strip()
+            imei_clean = (imei_or_serial or "").strip()
 
-            if not model_clean and not brand_clean:
+            # 1) Cihazın aktif onarım kayıtlarındaki eklenmiş parça kodlarını (part_item_code) bul
+            added_part_codes = []
+            if imei_clean:
+                be_row = db.execute(text("""
+                    SELECT service_id FROM warehouse.batch_entries
+                    WHERE LOWER(TRIM(imei_number)) = LOWER(:t) OR LOWER(TRIM(serial_number)) = LOWER(:t) OR LOWER(TRIM(internal_id)) = LOWER(:t)
+                    ORDER BY id DESC LIMIT 1
+                """), {"t": imei_clean}).mappings().first()
+
+                refs = [imei_clean]
+                if be_row and be_row["service_id"]:
+                    refs.append(str(be_row["service_id"]))
+
+                repair_part_rows = db.execute(text("""
+                    SELECT DISTINCT rr.part_item_code
+                    FROM warehouse.repair_records rr
+                    LEFT JOIN warehouse.repair_result_type rrt ON rrt.code = rr.repair_result_type_code
+                    WHERE rr.service_record_id = ANY(:refs)
+                      AND (rrt.is_cancelled IS NOT TRUE)
+                      AND rr.part_item_code IS NOT NULL
+                      AND TRIM(rr.part_item_code) <> ''
+                """), {"refs": refs}).fetchall()
+                added_part_codes = [r[0].strip() for r in repair_part_rows if r[0]]
+
+            if not added_part_codes:
                 return json.dumps({"success": True, "parts": []}, ensure_ascii=False)
 
             # Apple parçaları katalogda kısaltılmış kodla tutuluyor (bkz. _derive_apple_part_codes).
@@ -10369,8 +10483,12 @@ class WebBridge(QObject):
                     p.color,
                     p.item_category,
                     p.part_category,
+<<<<<<< HEAD
+                    p.stock_tracking_type,
+=======
                     mg.code AS repair_team_code,
                     mg.short_name AS repair_team_name,
+>>>>>>> 945bd72e048005ccb223558d1a692457558cdf1e
                     (
                         SELECT COALESCE(SUM(s.quantity), 0)
                         FROM warehouse.stock s
@@ -10378,6 +10496,10 @@ class WebBridge(QObject):
                         WHERE s.part_id = p.id AND l.kind = 'good_stock'
                     ) AS good_stock_qty
                 FROM warehouse.parts p
+<<<<<<< HEAD
+                WHERE p.item_code = ANY(:codes)
+                ORDER BY 
+=======
                 -- Parça kategorisini Onarım Takımı'na çevirir (bkz. get_mission_for_item_category
                 -- ile aynı öncelik kuralı: birden fazla eşleşme varsa L1/L2/L3REPAIR gibi genel
                 -- kodlar yerine kategoriye özel uzman takım (TEC_CAMERA, TEC_BATTERY vb.) tercih edilir).
@@ -10403,28 +10525,32 @@ class WebBridge(QObject):
                     OR (:model = '' AND :brand != '' AND LOWER(TRIM(p.brand)) = LOWER(TRIM(:brand)))
                 )
                 ORDER BY
+>>>>>>> 945bd72e048005ccb223558d1a692457558cdf1e
                     (
                         SELECT COALESCE(SUM(s.quantity), 0)
                         FROM warehouse.stock s
                         JOIN warehouse.locations l ON l.id = s.location_id
                         WHERE s.part_id = p.id AND l.kind = 'good_stock'
                     ) DESC,
-                    CASE WHEN :color != '' AND LOWER(TRIM(p.color)) = LOWER(TRIM(:color)) THEN 0 ELSE 1 END,
-                    p.item_category,
                     p.name
-                LIMIT 150
             """)
 
+<<<<<<< HEAD
+            rows = db.execute(sql, {"codes": added_part_codes}).mappings().all()
+=======
             rows = db.execute(sql, {
                 "brand": brand_clean,
                 "model": model_clean,
                 "color": color_clean,
                 "apple_codes": apple_codes
             }).mappings().all()
+>>>>>>> 945bd72e048005ccb223558d1a692457558cdf1e
 
             parts = []
             for r in rows:
                 qty = int(r["good_stock_qty"] or 0)
+                tracking_type = (r["stock_tracking_type"] or "Stok Takipli").strip()
+                is_stoksuz = tracking_type in ("Stok Takipsiz", "Stoksuz", "Servis Hizmeti", "Yazılım/Hizmet")
                 parts.append({
                     "id": str(r["id"]),
                     "itemCode": r["item_code"] or "",
@@ -10437,7 +10563,9 @@ class WebBridge(QObject):
                     "repairTeamCode": r["repair_team_code"] or "",
                     "repairTeamName": r["repair_team_name"] or "Genel",
                     "goodStockQty": qty,
-                    "isAvailable": qty > 0
+                    "stockTrackingType": tracking_type,
+                    "isStoksuz": is_stoksuz,
+                    "isAvailable": is_stoksuz or (qty > 0)
                 })
 
             return json.dumps({"success": True, "parts": parts}, ensure_ascii=False)
@@ -10462,8 +10590,49 @@ class WebBridge(QObject):
             part_row = db.execute(text("SELECT id, name FROM warehouse.parts WHERE item_code = :c LIMIT 1"), {"c": code}).mappings().first()
             if not part_row:
                 return json.dumps({"success": False, "message": "Parça bulunamadı."})
-
             part_id = part_row["id"]
+
+            # 1) Teknisyen Ataması Kontrolü (repair_result_type_code = 1001 olmalıdır)
+            be_row = db.execute(text("""
+                SELECT service_id FROM warehouse.batch_entries
+                WHERE LOWER(TRIM(imei_number)) = LOWER(:t) OR LOWER(TRIM(serial_number)) = LOWER(:t) OR LOWER(TRIM(internal_id)) = LOWER(:t)
+                ORDER BY id DESC LIMIT 1
+            """), {"t": imei}).mappings().first()
+
+            refs = [imei]
+            if be_row and be_row["service_id"]:
+                refs.append(str(be_row["service_id"]))
+
+            sr_row = db.execute(text("""
+                SELECT id FROM warehouse.service_records
+                WHERE LOWER(TRIM(imei_number)) = LOWER(:t) OR LOWER(TRIM(imei_serial)) = LOWER(:t)
+                ORDER BY id DESC LIMIT 1
+            """), {"t": imei}).mappings().first()
+            if sr_row and sr_row["id"]:
+                refs.append(str(sr_row["id"]))
+
+            assigned_repair = db.execute(text("""
+                SELECT 1 FROM warehouse.repair_records
+                WHERE service_record_id = ANY(:refs)
+                  AND LOWER(TRIM(part_item_code)) = LOWER(TRIM(:code))
+                  AND repair_result_type_code = 1001
+                LIMIT 1
+            """), {"refs": refs, "code": code}).first()
+
+            completed_repair = db.execute(text("""
+                SELECT 1 FROM warehouse.repair_records
+                WHERE service_record_id = ANY(:refs)
+                  AND LOWER(TRIM(part_item_code)) = LOWER(TRIM(:code))
+                  AND (repair_result_type_code = 1002 OR LOWER(TRIM(supply_status_code)) IN ('teslim edildi', 'teslim', '1002', 'completed'))
+                LIMIT 1
+            """), {"refs": refs, "code": code}).first()
+
+            if not assigned_repair:
+                return json.dumps({
+                    "success": False,
+                    "message": "Parça teslimatı yapılamaz! Bu parça/onarım henüz teknisyene atanmamış (Statü '1001 - Teknisyene Atandı' olmalıdır)."
+                }, ensure_ascii=False)
+
             good_loc_id = _get_system_location_id(db, "good_stock")
             repair_loc_id = _get_system_location_id(db, "repair_stock")
 
@@ -10496,17 +10665,51 @@ class WebBridge(QObject):
                 from models.stock_movement import StockMovement
                 mov = StockMovement(
                     part_id=part_id,
-                    part_code=code,
                     source_location_id=good_loc_id,
                     target_location_id=repair_loc_id,
                     quantity=1,
-                    movement_type="İç Transfer",
-                    note=f"Parça Teslim - IMEI: {imei}",
-                    created_by=user
+                    type="İç Transfer",
+                    movement_kind="PARCA_TESLIM",
+                    description=f"Parça Teslim - IMEI: {imei}",
+                    created_by=user,
+                    technician=user
                 )
                 db.add(mov)
+
+                # Cihaza ait aktif onarım kaydında Depo Durumu 'Teslim Edildi' (1002/TESLIM) olarak güncelle
+                refs = [imei]
+
+                be_row = db.execute(text("""
+                    SELECT service_id FROM warehouse.batch_entries
+                    WHERE LOWER(TRIM(imei_number)) = LOWER(:t) OR LOWER(TRIM(serial_number)) = LOWER(:t) OR LOWER(TRIM(internal_id)) = LOWER(:t)
+                    ORDER BY id DESC LIMIT 1
+                """), {"t": imei}).mappings().first()
+                if be_row and be_row["service_id"]:
+                    refs.append(str(be_row["service_id"]))
+
+                sr_row = db.execute(text("""
+                    SELECT id FROM warehouse.service_records
+                    WHERE LOWER(TRIM(imei_number)) = LOWER(:t) OR LOWER(TRIM(imei_serial)) = LOWER(:t)
+                    ORDER BY id DESC LIMIT 1
+                """), {"t": imei}).mappings().first()
+                if sr_row and sr_row["id"]:
+                    refs.append(str(sr_row["id"]))
+                    wo_row = db.execute(text("""
+                        SELECT id FROM warehouse.work_orders
+                        WHERE service_record_id = :sr_id
+                        ORDER BY id DESC LIMIT 1
+                    """), {"sr_id": sr_row["id"]}).mappings().first()
+                    if wo_row and wo_row["id"]:
+                        refs.append(str(wo_row["id"]))
+
+                db.execute(text("""
+                    UPDATE warehouse.repair_records
+                    SET supply_status_code = 'Teslim Edildi', supply_requested_by = :user, supply_requested_at = NOW()
+                    WHERE service_record_id = ANY(:refs) AND LOWER(TRIM(part_item_code)) = LOWER(TRIM(:code))
+                """), {"refs": refs, "code": code, "user": user})
+
             except Exception as mov_err:
-                print(f"[WARN] StockMovement kaydedilemedi: {mov_err}")
+                print(f"[WARN] StockMovement / RepairRecord güncelleme hatası: {mov_err}")
 
             db.commit()
             return json.dumps({
