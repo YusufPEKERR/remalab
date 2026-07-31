@@ -18,23 +18,28 @@ from core.main_window import WebSocketTransport, CustomRequestHandler, _Threadin
 # Windows konsolunda Ctrl+C'nin Qt event loop'u tarafindan kilitlenmesini engeller
 signal.signal(signal.SIGINT, signal.SIG_DFL)
 
-def _start_frontend_http_server(directory, preferred_port=5175):
-    """dist/ klasörünü tüm ağda (0.0.0.0:5175) web tarayıcıları için servis eder."""
+def _start_frontend_http_server(directory, preferred_port=80):
+    """dist/ klasörünü tüm ağda (0.0.0.0) web tarayıcıları için servis eder (Port 80 öncelikli)."""
     handler = functools.partial(CustomRequestHandler, directory=directory)
-    for port in range(preferred_port, preferred_port + 20):
+    ports_to_try = [preferred_port, 5175, 5176, 5177]
+    for port in ports_to_try:
         try:
             httpd = _ThreadingHTTPServer(("0.0.0.0", port), handler)
             thread = threading.Thread(target=httpd.serve_forever, daemon=True)
             thread.start()
-            print(f"[INFO] Frontend Web Sunucusu http://0.0.0.0:{port} adresinde baslatildi.")
-            return httpd
+            if port == 80:
+                print(f"[INFO] Frontend Web Sunucusu http://0.0.0.0 (Port 80) adresinde baslatildi.")
+            else:
+                print(f"[INFO] Frontend Web Sunucusu http://0.0.0.0:{port} adresinde baslatildi.")
+            return httpd, port
         except OSError:
             continue
     httpd = _ThreadingHTTPServer(("0.0.0.0", 0), handler)
     thread = threading.Thread(target=httpd.serve_forever, daemon=True)
     thread.start()
-    print("[INFO] Frontend Web Sunucusu rastgele bir portta baslatildi.")
-    return httpd
+    actual_port = httpd.server_address[1]
+    print(f"[INFO] Frontend Web Sunucusu http://0.0.0.0:{actual_port} adresinde baslatildi.")
+    return httpd, actual_port
 
 class HeadlessServer(QObject):
     """Penceresiz (headless) sunucu modu için arka plan servislerini yönetir."""
@@ -71,7 +76,7 @@ class HeadlessServer(QObject):
                 print("[WARN] Frontend dist klasoru bulunamadi ve sunucuda npm bulunamadi.")
 
         if os.path.exists(dist_dir):
-            self.http_server = _start_frontend_http_server(dist_dir, 5175)
+            self.http_server, self.http_port = _start_frontend_http_server(dist_dir, 80)
         else:
             print("[WARN] Frontend dist klasoru bulunamadi! Web sunucusu baslatilamadi.")
 
@@ -125,9 +130,10 @@ def main():
     # Konsol tuş dinleyicisini başlat (R = Restart, Q = Quit)
     threading.Thread(target=_console_key_listener, args=(app,), daemon=True).start()
     
+    port_str = f":{server.http_port}" if getattr(server, 'http_port', 80) != 80 else ""
     print("\n===================================================")
     print("[SUCCESS] RemaLab Sunucusu basariyla calisiyor.")
-    print("  -> Frontend Arayuzu: http://localhost:5175 veya http://<SUNUCU-IP>:5175")
+    print(f"  -> Frontend Arayuzu: http://localhost{port_str} veya http://<SUNUCU-IP>{port_str}")
     print("  -> WebSocket Servisi: ws://<SUNUCU-IP>:5174")
     print("===================================================")
     print("  [R] -> Sunucuyu Aninda Yeniden Baslat (Restart)")
