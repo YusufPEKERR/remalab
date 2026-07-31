@@ -3001,7 +3001,7 @@ export default function WorkOrders() {
                   autoFocus
                   min="1"
                   disabled={quickProduceSuccess}
-                  className="w-full bg-slate-50 dark:bg-[#131B3A] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-orange-500 disabled:opacity-60"
+                  className="w-full bg-slate-50 dark:bg-[#12141c] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-orange-500 disabled:opacity-60"
                   value={quickProduceQty}
                   onChange={e => setQuickProduceQty(e.target.value)}
                 />
@@ -3117,7 +3117,7 @@ export default function WorkOrders() {
                 <div>
                   <label className="block text-sm font-medium text-slate-400 mb-1.5">Çıkış Yapılacak Depo / Lokasyon</label>
                   <select
-                    className="w-full bg-slate-50 dark:bg-[#131B3A] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500"
+                    className="w-full bg-slate-50 dark:bg-[#12141c] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500"
                     value={extraPartLocationId}
                     onChange={e => setExtraPartLocationId(e.target.value)}
                   >
@@ -3144,7 +3144,7 @@ export default function WorkOrders() {
                 <input
                   type="number"
                   min="1"
-                  className="w-full bg-slate-50 dark:bg-[#131B3A] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-slate-50 dark:bg-[#12141c] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500"
                   value={extraPartQty}
                   onChange={e => setExtraPartQty(e.target.value)}
                 />
@@ -3212,7 +3212,7 @@ export default function WorkOrders() {
               <div>
                 <label className="block text-sm font-medium text-slate-400 mb-1.5">Giriş Yapılacak Depo / Lokasyon</label>
                 <select
-                  className="w-full bg-slate-50 dark:bg-[#131B3A] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-teal-500"
+                  className="w-full bg-slate-50 dark:bg-[#12141c] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-teal-500"
                   value={extraPartInLocationId}
                   onChange={e => setExtraPartInLocationId(e.target.value)}
                 >
@@ -3228,7 +3228,7 @@ export default function WorkOrders() {
                 <input
                   type="number"
                   min="1"
-                  className="w-full bg-slate-50 dark:bg-[#131B3A] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-teal-500"
+                  className="w-full bg-slate-50 dark:bg-[#12141c] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-teal-500"
                   value={extraPartInQty}
                   onChange={e => setExtraPartInQty(e.target.value)}
                 />
@@ -3300,7 +3300,7 @@ export default function WorkOrders() {
                     <div>
                       <label className="block text-sm font-medium text-slate-400 mb-1.5">Kaynak Depo / Lokasyon</label>
                       <select
-                        className="w-full bg-slate-50 dark:bg-[#131B3A] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500"
+                        className="w-full bg-slate-50 dark:bg-[#12141c] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500"
                         value={returnDoaLocationId}
                         onChange={e => setReturnDoaLocationId(e.target.value)}
                       >
@@ -3320,7 +3320,7 @@ export default function WorkOrders() {
               ) : (
                 <div>
                   <label className="block text-sm font-medium text-slate-400 mb-1.5">Parça</label>
-                  <div className="px-4 py-2.5 bg-slate-50 dark:bg-[#131B3A] border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200">
+                  <div className="px-4 py-2.5 bg-slate-50 dark:bg-[#12141c] border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200">
                     {returnDoaDialog.data.part_name}
                   </div>
                 </div>
@@ -3332,7 +3332,7 @@ export default function WorkOrders() {
                   type="number"
                   min="1"
                   max={returnDoaDialog.type === 'wop' ? returnDoaDialog.data.quantity : undefined}
-                  className="w-full bg-slate-50 dark:bg-[#131B3A] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-teal-500"
+                  className="w-full bg-slate-50 dark:bg-[#12141c] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-teal-500"
                   value={returnDoaQty}
                   onChange={e => setReturnDoaQty(e.target.value)}
                 />

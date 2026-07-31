@@ -568,7 +568,7 @@ export default function Irsaliye() {
                   <span className="bg-slate-800 px-1.5 py-0.5 rounded text-xs">📄</span> Barkod (okutun ve Enter'a basın)
                 </label>
                 <div className="flex gap-2">
-                  <input type="text" placeholder="Barkodu okutun veya manuel girin..." className="flex-1 px-4 py-2 bg-slate-50 dark:bg-[#131B3A] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={inboundBarcode} onChange={(e) => setInboundBarcode(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleBarcodeSearch())} />
+                  <input type="text" placeholder="Barkodu okutun veya manuel girin..." className="flex-1 px-4 py-2 bg-slate-50 dark:bg-[#12141c] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={inboundBarcode} onChange={(e) => setInboundBarcode(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleBarcodeSearch())} />
                   <button type="button" onClick={handleBarcodeSearch} className="px-4 bg-slate-100 dark:bg-[#1e222d] hover:bg-blue-600 border border-slate-300 dark:border-slate-600 rounded-lg text-white transition-colors"><Search size={18} /></button>
                 </div>
               </div>
@@ -599,7 +599,7 @@ export default function Irsaliye() {
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Giriş Tipi</label>
-                <select required className="w-full px-3 py-2 bg-slate-50 dark:bg-[#131B3A] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.type} onChange={(e) => {
+                <select required className="w-full px-3 py-2 bg-slate-50 dark:bg-[#12141c] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.type} onChange={(e) => {
                   const type = e.target.value;
                   setFormData(prev => ({
                     ...prev,
@@ -617,12 +617,12 @@ export default function Irsaliye() {
               <div className="flex gap-4">
                 <div className="flex-1">
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Miktar</label>
-                  <input type="number" required min="1" className="w-full px-3 py-2 bg-slate-50 dark:bg-[#131B3A] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.qty} onChange={(e) => setFormData({...formData, qty: e.target.value})} />
+                  <input type="number" required min="1" className="w-full px-3 py-2 bg-slate-50 dark:bg-[#12141c] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.qty} onChange={(e) => setFormData({...formData, qty: e.target.value})} />
                 </div>
                 <div className="flex-1">
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Birim Fiyat</label>
                   <div className="relative">
-                    <input type="number" step="0.01" className="w-full px-3 py-2 pr-8 bg-slate-50 dark:bg-[#131B3A] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.price} onChange={(e) => setFormData({...formData, price: e.target.value})} />
+                    <input type="number" step="0.01" className="w-full px-3 py-2 pr-8 bg-slate-50 dark:bg-[#12141c] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.price} onChange={(e) => setFormData({...formData, price: e.target.value})} />
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">TL</span>
                   </div>
                 </div>
@@ -631,7 +631,7 @@ export default function Irsaliye() {
               <div className="flex gap-4">
                 <div className="flex-1">
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">İşlemi Yapan (Kim) <span className="text-red-500">*</span></label>
-                  <select required className="w-full px-3 py-2 bg-slate-50 dark:bg-[#131B3A] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.who || ''} onChange={(e) => setFormData({...formData, who: e.target.value})}>
+                  <select required className="w-full px-3 py-2 bg-slate-50 dark:bg-[#12141c] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.who || ''} onChange={(e) => setFormData({...formData, who: e.target.value})}>
                     <option value="">Seçiniz...</option>
                     {users.map(u => <option key={u.id} value={u.username}>{u.username}</option>)}
                   </select>
@@ -664,7 +664,7 @@ export default function Irsaliye() {
                   <span className="bg-slate-800 px-1.5 py-0.5 rounded text-xs">📄</span> Barkod (okutun ve Enter'a basın)
                 </label>
                 <div className="flex gap-2">
-                  <input type="text" placeholder="Barkodu okutun veya manuel girin..." className="flex-1 px-4 py-2 bg-slate-50 dark:bg-[#131B3A] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={outboundBarcode} onChange={(e) => setOutboundBarcode(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleOutboundBarcodeSearch())} />
+                  <input type="text" placeholder="Barkodu okutun veya manuel girin..." className="flex-1 px-4 py-2 bg-slate-50 dark:bg-[#12141c] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={outboundBarcode} onChange={(e) => setOutboundBarcode(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleOutboundBarcodeSearch())} />
                   <button type="button" onClick={handleOutboundBarcodeSearch} className="px-4 bg-slate-100 dark:bg-[#1e222d] hover:bg-blue-600 border border-slate-200 dark:border-slate-600 rounded-lg text-white transition-colors"><Search size={18} /></button>
                 </div>
               </div>
@@ -690,11 +690,11 @@ export default function Irsaliye() {
               <div className="flex gap-4">
                 <div className="flex-1">
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Miktar</label>
-                  <input type="number" required min="1" className="w-full px-3 py-2 bg-slate-50 dark:bg-[#131B3A] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.qty} onChange={(e) => setFormData({...formData, qty: e.target.value})} />
+                  <input type="number" required min="1" className="w-full px-3 py-2 bg-slate-50 dark:bg-[#12141c] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.qty} onChange={(e) => setFormData({...formData, qty: e.target.value})} />
                 </div>
                 <div className="flex-1">
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Çıkış Tipi</label>
-                  <select required className="w-full px-3 py-2 bg-slate-50 dark:bg-[#131B3A] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.type} onChange={(e) => setFormData({...formData, type: e.target.value})}>
+                  <select required className="w-full px-3 py-2 bg-slate-50 dark:bg-[#12141c] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.type} onChange={(e) => setFormData({...formData, type: e.target.value})}>
                     <option value="Teknik Servis">Teknik Servis</option>
                     <option value="Müşteri Satışı">Müşteri Satışı</option>
                     <option value="Tedarikçiye İade">Tedarikçiye İade</option>
@@ -706,14 +706,14 @@ export default function Irsaliye() {
               <div className="flex gap-4">
                 <div className="flex-1">
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">İşlemi Yapan (Kim) <span className="text-red-500">*</span></label>
-                  <select required className="w-full px-3 py-2 bg-slate-50 dark:bg-[#131B3A] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.who || ''} onChange={(e) => setFormData({...formData, who: e.target.value})}>
+                  <select required className="w-full px-3 py-2 bg-slate-50 dark:bg-[#12141c] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.who || ''} onChange={(e) => setFormData({...formData, who: e.target.value})}>
                     <option value="">Seçiniz...</option>
                     {users.map(u => <option key={u.id} value={u.username}>{u.username}</option>)}
                   </select>
                 </div>
                 <div className="flex-1">
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Açıklama</label>
-                  <input type="text" placeholder="İsteğe bağlı açıklama..." className="w-full px-3 py-2 bg-slate-50 dark:bg-[#131B3A] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} />
+                  <input type="text" placeholder="İsteğe bağlı açıklama..." className="w-full px-3 py-2 bg-slate-50 dark:bg-[#12141c] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} />
                 </div>
               </div>
 

@@ -46,7 +46,7 @@ const FieldRow = memo(function FieldRow({ field, tableId, tableDbName, index, co
   return (
     <div
       onClick={handleClick}
-      className={`flex items-center gap-1.5 px-3 h-8 border-t border-slate-100 dark:border-[#2A3872] group/row transition-colors ${
+      className={`flex items-center gap-1.5 px-3 h-8 border-t border-slate-100 dark:border-[#1e222d] group/row transition-colors ${
         connectMode ? 'cursor-crosshair hover:bg-blue-50 dark:hover:bg-blue-500/10' : ''
       }`}
     >
@@ -133,7 +133,7 @@ const TableNode = memo(function TableNode({
       <div className={`rounded-xl overflow-hidden shadow-lg border-2 ${
         isSelected
           ? 'border-blue-500 dark:border-blue-400 shadow-blue-500/20 dark:shadow-blue-500/10 ring-2 ring-blue-500/20'
-          : 'border-slate-200 dark:border-[#3A4A8C] shadow-slate-200/50 dark:shadow-black/20 hover:border-slate-300 dark:hover:border-slate-600'
+          : 'border-slate-200 dark:border-[#1e222d] shadow-slate-200/50 dark:shadow-black/20 hover:border-slate-300 dark:hover:border-slate-600'
       }`}>
         {/* ── Header ───────────────────────────── */}
         <div
@@ -172,7 +172,7 @@ const TableNode = memo(function TableNode({
         </div>
 
         {/* ── Field Rows ───────────────────────── */}
-        <div className="bg-[#C6CEE2] dark:bg-[#1A2450]">
+        <div className="bg-[#C6CEE2] dark:bg-[#181a24]">
           {table.fields.map((field, i) => (
             <FieldRow
               key={field.id}

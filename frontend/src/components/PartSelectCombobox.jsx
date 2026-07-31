@@ -61,7 +61,7 @@ export default function PartSelectCombobox({ parts = [], value, onChange, placeh
       {/* Selected Box / Combobox Trigger */}
       <div
         onClick={() => !disabled && setIsOpen(!isOpen)}
-        className={`w-full px-3 py-2 bg-slate-50 dark:bg-[#131B3A] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm flex flex-wrap items-center justify-between transition-colors shadow-sm select-none ${disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer hover:border-blue-500'}`}
+        className={`w-full px-3 py-2 bg-slate-50 dark:bg-[#12141c] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm flex flex-wrap items-center justify-between transition-colors shadow-sm select-none ${disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer hover:border-blue-500'}`}
       >
         <span className="truncate font-medium">
           {selectedPart ? formatPartLabel(selectedPart) : <span className="text-slate-400">{placeholder}</span>}
@@ -97,7 +97,7 @@ export default function PartSelectCombobox({ parts = [], value, onChange, placeh
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Parça kodu, marka, model ara..."
-                className="w-full pl-8 pr-3 py-1.5 bg-white dark:bg-[#131B3A] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-md text-xs focus:outline-none focus:border-blue-500"
+                className="w-full pl-8 pr-3 py-1.5 bg-white dark:bg-[#12141c] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-md text-xs focus:outline-none focus:border-blue-500"
               />
             </div>
           </div>

@@ -940,8 +940,8 @@ export default function BatchEntry() {
 
       {/* ════ EXCEL İÇE AKTARMA SONUÇ KUTUSU ════ */}
       {importResult && (
-        <div className="rounded-2xl border border-[#E2E8F0] dark:border-[#1E293B] bg-white dark:bg-[#111827] shadow-md overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-3 border-b border-[#E2E8F0] dark:border-[#1E293B] bg-[#F8FAFC] dark:bg-[#0F172A]">
+        <div className="rounded-2xl border border-[#E2E8F0] dark:border-[#1e222d] bg-white dark:bg-[#111827] shadow-md overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-3 border-b border-[#E2E8F0] dark:border-[#1e222d] bg-[#F8FAFC] dark:bg-[#0F172A]">
             <div className="flex items-center gap-3 text-sm font-bold">
               <span className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
                 <CheckCircle size={16} /> {importResult.created} tanımlı cihaz güncellendi
@@ -967,7 +967,7 @@ export default function BatchEntry() {
                   Hatalı satırların dökümü indirildi: <span className="font-mono text-slate-700 dark:text-slate-300">{importResult.dumpPath}</span>
                 </p>
               )}
-              <div className="overflow-x-auto max-h-72 rounded-xl border border-[#E2E8F0] dark:border-[#1E293B]">
+              <div className="overflow-x-auto max-h-72 rounded-xl border border-[#E2E8F0] dark:border-[#1e222d]">
                 <table className="w-full text-left text-xs whitespace-nowrap">
                   <thead className="bg-slate-100 dark:bg-[#1a202c] text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[10px] sticky top-0">
                     <tr>
@@ -976,7 +976,7 @@ export default function BatchEntry() {
                       <th className="px-4 py-2.5 whitespace-normal min-w-[320px]">Hata Nedeni</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#E2E8F0] dark:divide-[#1E293B]">
+                  <tbody className="divide-y divide-[#E2E8F0] dark:divide-[#1e222d]">
                     {importResult.failed.map((f, i) => (
                       <tr key={i} className="bg-rose-500/5">
                         <td className="px-4 py-2.5 font-mono font-semibold text-rose-700 dark:text-rose-300">{f.row}</td>
@@ -1598,7 +1598,7 @@ export default function BatchEntry() {
                   )}
 
                   {/* EXCEL ÖN İZLEMESİ TABLOSU */}
-                  <div className="bg-slate-50 dark:bg-[#1A2450] rounded-xl border border-slate-200 dark:border-slate-700/60 overflow-hidden shadow-sm">
+                  <div className="bg-slate-50 dark:bg-[#181a24] rounded-xl border border-slate-200 dark:border-slate-700/60 overflow-hidden shadow-sm">
                     <div className="px-4 py-3 bg-slate-100 dark:bg-[#24316A] border-b border-slate-200 dark:border-slate-700 flex justify-between items-center text-xs font-bold text-slate-800 dark:text-slate-100">
                       <span className="flex items-center gap-2 text-sm">
                         <Table size={16} className="text-blue-400" /> Excel Veri Ön İzlemesi ({excelFileData?.length || 0} Kayıt)
