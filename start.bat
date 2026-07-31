@@ -1,5 +1,5 @@
 @echo off
-title RemaLab WMS Auto-Setup Launcher
+title RemaLab WMS Launcher
 cd /d "%~dp0"
 
 echo [INFO] Python sanal ortami (.venv) kontrol ediliyor...
@@ -11,15 +11,13 @@ if not exist .venv\Scripts\python.exe (
         pause
         exit /b
     )
-)
-
-echo [INFO] Python paketleri kontrol ediliyor / yukleniyor...
-.venv\Scripts\python.exe -m pip install --upgrade pip
-.venv\Scripts\pip.exe install -r requirements.txt
-if %errorlevel% neq 0 (
-    echo [ERROR] Python kutuphaneleri yuklenirken hata olustu!
-    pause
-    exit /b
+    echo [INFO] Python paketleri yukleniyor...
+    .venv\Scripts\pip.exe install -r requirements.txt
+    if %errorlevel% neq 0 (
+        echo [ERROR] Python kutuphaneleri yuklenirken hata olustu!
+        pause
+        exit /b
+    )
 )
 
 echo [INFO] React modulleri (node_modules) kontrol ediliyor...
@@ -30,7 +28,7 @@ if not exist frontend\node_modules (
     cd ..
 )
 
-echo [INFO] Uygulama baslatiliyor...
+echo [INFO] RemaLab WMS baslatiliyor...
 .venv\Scripts\python.exe main.py
 
 if %errorlevel% neq 0 (
