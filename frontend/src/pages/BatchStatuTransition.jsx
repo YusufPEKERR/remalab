@@ -66,6 +66,14 @@ const MANUAL_FIELD_LABELS = {
 // Batch Girişi'ndeki GB_OPTIONS ile aynı - kalıcı bir referans tablosu yok.
 const MEMORY_OPTIONS = ['16GB', '32GB', '64GB', '128GB', '256GB', '512GB', '1TB', '2TB'];
 
+// Üretime teslim statü geçişindeki "Test Verisini Elle Doldur" modalinde gösterilmeyecek
+// alanlar. Model / Hafıza / Seri Numarası / Renk / Cihaz Notu bu ekrandan kaldırıldı;
+// backend manual_fields içinde gönderse bile bunlar filtrelenir.
+const HIDDEN_MANUAL_FIELDS = ['model', 'memory', 'serial', 'color', 'notes'];
+
+// "Test Verisini Elle Doldur" modalindeki Grade alanı için geçerli kalite dereceleri.
+const GRADE_OPTIONS = ['A', 'B', 'C', 'C++', 'C+', 'C-', 'C-P', 'D', 'D+'];
+
 // ─── PHONECHECK MANUEL DOLDURMA MODALI ───
 const ManualTestModal = ({ open, imei, stageName, fields, onClose, onSubmit, saving }) => {
   const [reason, setReason] = useState("");
@@ -124,7 +132,7 @@ const ManualTestModal = ({ open, imei, stageName, fields, onClose, onSubmit, sav
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {(fields || []).map((f) => (
+            {(fields || []).filter((f) => !HIDDEN_MANUAL_FIELDS.includes(f)).map((f) => (
               <div key={f} className={f === "notes" ? "col-span-2" : ""}>
                 <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
                   {MANUAL_FIELD_LABELS[f] || f}
@@ -159,6 +167,17 @@ const ManualTestModal = ({ open, imei, stageName, fields, onClose, onSubmit, sav
                   >
                     <option value="">Hafıza seçiniz...</option>
                     {MEMORY_OPTIONS.map((g) => (
+                      <option key={g} value={g}>{g}</option>
+                    ))}
+                  </select>
+                ) : f === "grade" ? (
+                  <select
+                    value={values[f] || ""}
+                    onChange={(e) => setValues((p) => ({ ...p, [f]: e.target.value }))}
+                    className="w-full bg-slate-50 dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="">Grade seçiniz...</option>
+                    {GRADE_OPTIONS.map((g) => (
                       <option key={g} value={g}>{g}</option>
                     ))}
                   </select>

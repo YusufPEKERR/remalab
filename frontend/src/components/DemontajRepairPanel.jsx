@@ -14,7 +14,7 @@ function getCurrentUser() {
 // ─── DEMONTAJ TEKNİSYENİ ÖZEL PANELİ ─────────────────────────────────
 // Eski "Remalab Lifecycle Management Suite" masaüstü uygulamasının "Demontaj" ekranına
 // (bkz. proje geçmişi) benzer, TEC_DISMANTLE rolüne özel Servis Onarımları görünümü.
-export default function DemontajRepairPanel({ device, repairs, hasAccess, missionGroups, onRefresh, showNotif }) {
+export default function DemontajRepairPanel({ device, repairs, hasAccess, statusAllowsParts = true, statusLabel = "", missionGroups, onRefresh, showNotif }) {
   const [parts, setParts] = useState([]);
   const [partsWarning, setPartsWarning] = useState(null);
   const [itemFaults, setItemFaults] = useState([]);
@@ -138,6 +138,10 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, missio
 
   const handleAddRow = useCallback(async () => {
     if (!device || !faultCode || !missionGroupCode || adding) return;
+    if (!statusAllowsParts) {
+      showNotif("warning", "Statü Uygun Değil", "Bu cihaz Demontaj aşamasında olmadığı için parça eklenemez/güncellenemez.");
+      return;
+    }
     setAdding(true);
     const selectedPart = parts.find(p => String(p.id) === String(selectedPartId));
     const username = getCurrentUser()?.username;
@@ -161,7 +165,7 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, missio
     const wasEditing = !!editingRepairId;
     resetToolbar();
     showNotif("success", wasEditing ? "Onarım Güncellendi" : "Parça Eklendi", selectedPart ? (selectedPart.name || selectedPart.item_code) : "Onarım kaydı işlendi.");
-  }, [device, missionGroupCode, faultCode, warrantyCode, description, selectedPartId, parts, adding, editingRepairId, onRefresh, showNotif, resetToolbar]);
+  }, [device, missionGroupCode, faultCode, warrantyCode, description, selectedPartId, parts, adding, editingRepairId, statusAllowsParts, onRefresh, showNotif, resetToolbar]);
 
   // Teklif Parçaları listesindeki bir satırın Düzenle butonu: toolbar'ı (Parça/Arıza
   // Tespiti/Onarım Takımı/Ücret Tipi/Açıklama) satırın mevcut değerleriyle doldurur,
@@ -286,6 +290,14 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, missio
             </h3>
           </div>
           <div className="px-4 py-3 border-b border-slate-100 dark:border-[#1e222d] space-y-2">
+            {!statusAllowsParts && (
+              <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 text-rose-700 dark:text-rose-400 text-xs">
+                <Ban size={14} className="shrink-0 mt-0.5" />
+                <span>
+                  Cihaz Demontaj aşamasında değil{statusLabel ? ` (mevcut statü: ${statusLabel})` : ""} — bu statüde parça eklenemez veya güncellenemez.
+                </span>
+              </div>
+            )}
             {partsWarning && (
               <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 text-amber-700 dark:text-amber-400 text-xs">
                 <AlertTriangle size={14} className="shrink-0 mt-0.5" />
@@ -341,7 +353,7 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, missio
               )}
               <button
                 onClick={handleAddRow}
-                disabled={!hasAccess || !faultCode || !missionGroupCode || !warrantyCode || adding}
+                disabled={!hasAccess || !statusAllowsParts || !faultCode || !missionGroupCode || !warrantyCode || adding}
                 className={`px-4 py-2 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold transition-colors flex items-center gap-1.5 shrink-0 ${editingRepairId ? "bg-indigo-600 hover:bg-indigo-700" : "bg-blue-600 hover:bg-blue-700"}`}
               >
                 {editingRepairId ? <Pencil size={14} /> : <Plus size={14} />}
@@ -385,9 +397,9 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, missio
                         <div className="flex items-center justify-center gap-2">
                           <button
                             type="button"
-                            onClick={() => hasAccess && !r.isCancelled && handleEditRow(r)}
-                            disabled={!hasAccess || r.isCancelled}
-                            title="Düzenle"
+                            onClick={() => hasAccess && statusAllowsParts && !r.isCancelled && handleEditRow(r)}
+                            disabled={!hasAccess || !statusAllowsParts || r.isCancelled}
+                            title={statusAllowsParts ? "Düzenle" : "Cihaz Demontaj aşamasında değil"}
                             className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                           >
                             <Pencil size={14} />

@@ -158,6 +158,20 @@ const DemontajServisOnarimlari = () => {
     if (refreshed && refreshed.success) {
       setRepairs((refreshed.repairs || []).map(r => ({ ...r, technician: "", parts: [] })));
     }
+    // Onarım eklendikten sonra cihazın statüsü backend'de değişmiş olabilir (örn. Üretim
+    // aşamasındaki bir cihaza yeni onarım eklenince statü 105'e geri çekilir ve "Müşteri
+    // Onayına Gönder / Üretime Aktar" kararı yeniden görünür). Statüyü de tazeleyip
+    // ekrandaki karar butonunun anlık güncellenmesini sağlıyoruz.
+    try {
+      const statusRes = await api.lookupBatchEntry(device.imei);
+      if (statusRes && statusRes.success && statusRes.found && statusRes.data) {
+        const newCode = (statusRes.data.statu_code !== null && statusRes.data.statu_code !== undefined)
+          ? Number(statusRes.data.statu_code) : null;
+        setDevice(prev => (prev && newCode !== null && newCode !== prev.serviceStatus
+          ? { ...prev, serviceStatus: newCode }
+          : prev));
+      }
+    } catch (_e) { /* statü tazeleme başarısızsa mevcut statü korunur */ }
     return refreshed;
   }, [device]);
 
@@ -169,6 +183,12 @@ const DemontajServisOnarimlari = () => {
     : null;
   const requiredMission = currentStatuInfo?.mission || "";
   const hasAccess = isAdminUser || !requiredMission || userMissions.includes(requiredMission);
+
+  // Parça ekleme yalnızca cihaz gerçekten Demontaj aşamasındaysa yapılabilir: uygun statü,
+  // gerekli mission'ı TEC_DISMANTLE olan statüdür. Cihaz başka bir statüye (ör. Üretime
+  // Aktarıldı / Müşteri Onayı) geçtiyse ya da hiç statü/iş emri yoksa parça eklenemez —
+  // admin dahil (bu, kullanıcı yetkisinden bağımsız bir statü kuralıdır, hasAccess'ten ayrıdır).
+  const statusAllowsParts = (currentStatuInfo?.mission || "").trim().toUpperCase() === "TEC_DISMANTLE";
 
   const isTestTechnician = userMissions.some(m => m === "QAC" || m.startsWith("QAC_"));
   const canEditDiagnosis = isAdminUser || (hasAccess && isTestTechnician);
@@ -319,6 +339,8 @@ const DemontajServisOnarimlari = () => {
           device={device}
           repairs={repairs}
           hasAccess={hasAccess}
+          statusAllowsParts={statusAllowsParts}
+          statusLabel={currentStatuInfo ? `${currentStatuInfo.short_name} (${device.serviceStatus})` : (device.serviceStatus != null ? String(device.serviceStatus) : "Bağlı iş emri/statü yok")}
           missionGroups={missionGroups}
           onRefresh={refreshRepairs}
           showNotif={showNotif}
