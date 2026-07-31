@@ -9,10 +9,16 @@ echo   RemaLab WMS Headless Sunucu Launcher
 echo ===================================================
 echo.
 
-rem 1. Python Kontrolü & Otomatik Kurulum
-python --version >nul 2>&1
-if %errorlevel% neq 0 (
-    echo [WARNING] Python sisteminizde bulunamadi veya PATH'e ekli degil.
+rem 1. Python Komutunu Tespit Et veya Kur
+set "PY_CMD="
+python --version >nul 2>&1 && set "PY_CMD=python"
+if not defined PY_CMD py -3 --version >nul 2>&1 && set "PY_CMD=py -3"
+if not defined PY_CMD if exist "%LOCALAPPDATA%\Programs\Python\Python312\python.exe" set "PY_CMD="%LOCALAPPDATA%\Programs\Python\Python312\python.exe""
+if not defined PY_CMD if exist "C:\Program Files\Python312\python.exe" set "PY_CMD="C:\Program Files\Python312\python.exe""
+if not defined PY_CMD if exist "C:\Python312\python.exe" set "PY_CMD="C:\Python312\python.exe""
+
+if not defined PY_CMD (
+    echo [WARNING] Python sisteminizde yuklu degil.
     echo [INFO] Python 3.12 otomatik olarak indirilip kuruluyor...
     
     where winget >nul 2>&1
@@ -24,28 +30,45 @@ if %errorlevel% neq 0 (
         del /f /q python_installer.exe
     )
     
-    echo.
-    echo [INFO] Python kuruldu. PATH ortami guncelleniyor...
-    set "PATH=%LOCALAPPDATA%\Programs\Python\Python312;%LOCALAPPDATA%\Programs\Python\Python312\Scripts;C:\Program Files\Python312;C:\Program Files\Python312\Scripts;%PATH%"
+    echo [INFO] Python kuruldu. Yeniden tespit ediliyor...
+    python --version >nul 2>&1 && set "PY_CMD=python"
+    if not defined PY_CMD py -3 --version >nul 2>&1 && set "PY_CMD=py -3"
+    if not defined PY_CMD if exist "%LOCALAPPDATA%\Programs\Python\Python312\python.exe" set "PY_CMD="%LOCALAPPDATA%\Programs\Python\Python312\python.exe""
+    if not defined PY_CMD if exist "C:\Program Files\Python312\python.exe" set "PY_CMD="C:\Program Files\Python312\python.exe""
 )
+
+if not defined PY_CMD (
+    echo.
+    echo ===================================================
+    echo   [HATA] Python kurulumu tamamlanamadi veya PATH'e eklenemedi!
+    echo   Lutfen bilgisayarinizi yeniden baslatip tekrar deneyin.
+    echo ===================================================
+    echo.
+    pause
+    exit /b 1
+)
+
+echo [INFO] Kullanilan Python: %PY_CMD%
 
 rem 2. Python Sanal Ortamı (.venv) Kontrolü
 echo [INFO] Python sanal ortami (.venv) kontrol ediliyor...
 if not exist .venv\Scripts\python.exe (
     echo [WARNING] .venv bulunamadi. Sanal ortam olusturuluyor...
-    python -m venv .venv
+    %PY_CMD% -m venv .venv
     if %errorlevel% neq 0 (
-        echo [ERROR] Sanal ortam olusturulamadi! Lutfen Python kurulumunu kontrol edin.
+        echo.
+        echo [HATA] Sanal ortam olusturulamadi!
         pause
-        exit /b
+        exit /b 1
     )
     echo [INFO] Python paketleri yukleniyor (requirements.txt)...
     .venv\Scripts\python.exe -m pip install --upgrade pip >nul 2>&1
     .venv\Scripts\pip.exe install -r requirements.txt
     if %errorlevel% neq 0 (
-        echo [ERROR] Python kutuphaneleri yuklenirken hata olustu!
+        echo.
+        echo [HATA] Python kutuphaneleri yuklenirken hata olustu!
         pause
-        exit /b
+        exit /b 1
     )
 )
 
@@ -54,7 +77,7 @@ if not exist frontend\dist (
     node --version >nul 2>&1
     if %errorlevel% neq 0 (
         echo [WARNING] Node.js bulunamadi ve frontend/dist derlemesi eksik.
-        echo [INFO] Node.js otomatik olarak indirilip kuruluyor...
+        echo [INFO] Node.js otomatik kuruluyor...
         where winget >nul 2>&1
         if %errorlevel% equ 0 (
             winget install --id OpenJS.NodeJS.LTS --silent
@@ -94,5 +117,5 @@ if errorlevel 2 goto EXIT_APP
 if errorlevel 1 goto START_SERVER
 
 :EXIT_APP
-echo Sunucu kapatildi.
-exit /b
+echo Sunucu kapatildi. Kapatmak icin bir tusa basin...
+pause
