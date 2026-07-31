@@ -10482,13 +10482,9 @@ class WebBridge(QObject):
                     p.model,
                     p.color,
                     p.item_category,
-                    p.part_category,
-<<<<<<< HEAD
                     p.stock_tracking_type,
-=======
                     mg.code AS repair_team_code,
                     mg.short_name AS repair_team_name,
->>>>>>> 945bd72e048005ccb223558d1a692457558cdf1e
                     (
                         SELECT COALESCE(SUM(s.quantity), 0)
                         FROM warehouse.stock s
@@ -10496,13 +10492,6 @@ class WebBridge(QObject):
                         WHERE s.part_id = p.id AND l.kind = 'good_stock'
                     ) AS good_stock_qty
                 FROM warehouse.parts p
-<<<<<<< HEAD
-                WHERE p.item_code = ANY(:codes)
-                ORDER BY 
-=======
-                -- Parça kategorisini Onarım Takımı'na çevirir (bkz. get_mission_for_item_category
-                -- ile aynı öncelik kuralı: birden fazla eşleşme varsa L1/L2/L3REPAIR gibi genel
-                -- kodlar yerine kategoriye özel uzman takım (TEC_CAMERA, TEC_BATTERY vb.) tercih edilir).
                 LEFT JOIN LATERAL (
                     SELECT
                         CASE WHEN UPPER(LEFT(icm.mission, 4)) = 'TEC_' THEN SUBSTRING(icm.mission FROM 5) ELSE icm.mission END AS bare_code
@@ -10512,20 +10501,8 @@ class WebBridge(QObject):
                     LIMIT 1
                 ) team_map ON true
                 LEFT JOIN organization.mission_groups mg ON mg.code = team_map.bare_code
-                WHERE (
-                    -- Model biliniyorsa: parça o modele ait olmalı (marka da biliniyorsa ek olarak eşleşmeli).
-                    -- Sadece markaya bakmak, örn. Samsung için binlerce alakasız modelin parçasını döndürüyordu.
-                    (:model != '' AND (
-                        p.model = ANY(:apple_codes)
-                        OR (p.model IS NOT NULL AND TRIM(p.model) != '' AND LOWER(TRIM(p.model)) LIKE LOWER(CONCAT('%', TRIM(:model), '%')))
-                        OR (p.model IS NOT NULL AND TRIM(p.model) != '' AND LOWER(TRIM(:model)) LIKE LOWER(CONCAT('%', TRIM(p.model), '%')))
-                        OR (p.name IS NOT NULL AND TRIM(p.name) != '' AND LOWER(TRIM(p.name)) LIKE LOWER(CONCAT('%', TRIM(:model), '%')))
-                    ) AND (:brand = '' OR LOWER(TRIM(p.brand)) = LOWER(TRIM(:brand))))
-                    -- Model bilinmiyorsa (sadece marka verildiyse) markaya göre daralt.
-                    OR (:model = '' AND :brand != '' AND LOWER(TRIM(p.brand)) = LOWER(TRIM(:brand)))
-                )
-                ORDER BY
->>>>>>> 945bd72e048005ccb223558d1a692457558cdf1e
+                WHERE p.item_code = ANY(:codes)
+                ORDER BY 
                     (
                         SELECT COALESCE(SUM(s.quantity), 0)
                         FROM warehouse.stock s
@@ -10535,16 +10512,7 @@ class WebBridge(QObject):
                     p.name
             """)
 
-<<<<<<< HEAD
             rows = db.execute(sql, {"codes": added_part_codes}).mappings().all()
-=======
-            rows = db.execute(sql, {
-                "brand": brand_clean,
-                "model": model_clean,
-                "color": color_clean,
-                "apple_codes": apple_codes
-            }).mappings().all()
->>>>>>> 945bd72e048005ccb223558d1a692457558cdf1e
 
             parts = []
             for r in rows:
