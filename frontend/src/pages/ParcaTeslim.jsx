@@ -55,10 +55,10 @@ export default function ParcaTeslim() {
     return s ? s.short_name : (code != null ? String(code) : "-");
   };
 
-  // Cihaza Uygun Teslim Edilebilir Parçaları Getir
-  const fetchDeliverableParts = async (brand, model, color) => {
+  // Cihaza Eklenmiş / Teslim Edilebilir Parçaları Getir
+  const fetchDeliverableParts = async (brand, model, color, imeiOrSerial) => {
     try {
-      const res = await api.getDeliverablePartsForDevice(brand, model, color);
+      const res = await api.getDeliverablePartsForDevice(brand, model, color, imeiOrSerial);
       if (res && res.success) {
         const partsList = res.parts || [];
         setDeliverableParts(partsList);
@@ -95,8 +95,8 @@ export default function ParcaTeslim() {
       const devData = devRes.data;
       setDevice(devData);
 
-      // 2) Cihazın Marka, Model ve Rengine göre teslim edilebilecek parçaları getir
-      await fetchDeliverableParts(devData.brand, devData.model, devData.color);
+      // 2) Cihaza eklenmiş parçaları getir
+      await fetchDeliverableParts(devData.brand, devData.model, devData.color, devData.imei_number || devData.serial_number || query);
 
     } catch (err) {
       console.error('Arama hatası:', err);
@@ -363,9 +363,11 @@ export default function ParcaTeslim() {
             <div className="space-y-2 overflow-y-auto max-h-72 pr-1">
               {filteredParts.length === 0 ? (
                 <div className="text-center py-8 text-slate-400 space-y-1">
-                  <Package size={32} className="mx-auto text-slate-300 dark:text-slate-700 mb-2" />
-                  <p className="text-xs font-semibold">Bu cihaza uygun teslim edilebilir parça bulunamadı.</p>
-                  <p className="text-[11px] text-slate-400">Cihazın marka/model bilgisine uygun parçaları envanterden kontrol edin.</p>
+                  <Package size={32} className="mx-auto text-amber-400 dark:text-amber-500 mb-2" />
+                  <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">Bu cihaza eklenmiş/talep edilmiş parça bulunmamaktadır.</p>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 max-w-xs mx-auto">
+                    Depodan parça çıkışı yapılabilmesi için teknisyenin önce onarım ekranından cihaza parça eklemiş olması gereklidir.
+                  </p>
                 </div>
               ) : (
                 filteredParts.map((p) => {

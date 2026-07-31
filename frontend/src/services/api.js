@@ -489,11 +489,11 @@ export const api = {
         });
     },
 
-    getDeliverablePartsForDevice: async (brand, model, color) => {
+    getDeliverablePartsForDevice: async (brand, model, color, imeiOrSerial) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
             if (backend.get_deliverable_parts_for_device) {
-                backend.get_deliverable_parts_for_device(brand || '', model || '', color || '', (res) => resolve(JSON.parse(res)));
+                backend.get_deliverable_parts_for_device(brand || '', model || '', color || '', String(imeiOrSerial || ''), (res) => resolve(JSON.parse(res)));
             } else {
                 resolve({ success: true, parts: [] });
             }
