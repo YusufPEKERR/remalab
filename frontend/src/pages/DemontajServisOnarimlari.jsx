@@ -170,6 +170,12 @@ const DemontajServisOnarimlari = () => {
   const requiredMission = currentStatuInfo?.mission || "";
   const hasAccess = isAdminUser || !requiredMission || userMissions.includes(requiredMission);
 
+  // Parça ekleme yalnızca cihaz gerçekten Demontaj aşamasındaysa yapılabilir: uygun statü,
+  // gerekli mission'ı TEC_DISMANTLE olan statüdür. Cihaz başka bir statüye (ör. Üretime
+  // Aktarıldı / Müşteri Onayı) geçtiyse ya da hiç statü/iş emri yoksa parça eklenemez —
+  // admin dahil (bu, kullanıcı yetkisinden bağımsız bir statü kuralıdır, hasAccess'ten ayrıdır).
+  const statusAllowsParts = (currentStatuInfo?.mission || "").trim().toUpperCase() === "TEC_DISMANTLE";
+
   const isTestTechnician = userMissions.some(m => m === "QAC" || m.startsWith("QAC_"));
   const canEditDiagnosis = isAdminUser || (hasAccess && isTestTechnician);
 
@@ -319,6 +325,8 @@ const DemontajServisOnarimlari = () => {
           device={device}
           repairs={repairs}
           hasAccess={hasAccess}
+          statusAllowsParts={statusAllowsParts}
+          statusLabel={currentStatuInfo ? `${currentStatuInfo.short_name} (${device.serviceStatus})` : (device.serviceStatus != null ? String(device.serviceStatus) : "Bağlı iş emri/statü yok")}
           missionGroups={missionGroups}
           onRefresh={refreshRepairs}
           showNotif={showNotif}
