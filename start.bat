@@ -39,6 +39,14 @@ echo [INFO] RemaLab WMS Sunucusu baslatiliyor...
 echo.
 .venv\Scripts\python.exe server.py
 
+rem 42 kodu R tusuna basildiginda verilir - dogrudan aninda yeniden baslat
+if %errorlevel% equ 42 (
+    echo.
+    echo [INFO] Yeniden baslatma istegi alindi, sunucu baslatiliyor...
+    timeout /t 1 /nobreak >nul
+    goto START_SERVER
+)
+
 echo.
 echo ===================================================
 echo   Sunucu durduruldu veya kapandi.

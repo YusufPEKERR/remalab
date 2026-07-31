@@ -3,8 +3,10 @@ import os
 import json
 import threading
 import functools
+import signal
+import time
 
-from PySide6.QtCore import QCoreApplication, QObject
+from PySide6.QtCore import QCoreApplication, QObject, QTimer
 from PySide6.QtWebChannel import QWebChannel
 from PySide6.QtWebSockets import QWebSocketServer
 from PySide6.QtNetwork import QHostAddress
@@ -12,6 +14,9 @@ from PySide6.QtNetwork import QHostAddress
 from config.database import init_database_schema, register_db_error_listener
 from core.web_bridge import WebBridge
 from core.main_window import WebSocketTransport, CustomRequestHandler, _ThreadingHTTPServer
+
+# Windows konsolunda Ctrl+C'nin Qt event loop'u tarafindan kilitlenmesini engeller
+signal.signal(signal.SIGINT, signal.SIG_DFL)
 
 def _start_frontend_http_server(directory, preferred_port=5175):
     """dist/ klasörünü tüm ağda (0.0.0.0:5175) web tarayıcıları için servis eder."""
@@ -76,6 +81,25 @@ class HeadlessServer(QObject):
     def stop(self):
         print("[INFO] RemaLab Headless Sunucusu durduruluyor...")
 
+def _console_key_listener(app):
+    """Windows konsolunda 'R' (restart), 'Q' (quit) tuşlarını anlık dinler."""
+    try:
+        import msvcrt
+        while True:
+            if msvcrt.kbhit():
+                key = msvcrt.getch()
+                if key in (b'r', b'R'):
+                    print("\n[RESTART] 'R' tusuna basildi. Sunucu yeniden baslatiliyor...")
+                    app.exit(42)
+                    break
+                elif key in (b'q', b'Q'):
+                    print("\n[EXIT] 'Q' tusuna basildi. Sunucu kapatiliyor...")
+                    app.exit(0)
+                    break
+            time.sleep(0.15)
+    except Exception:
+        pass
+
 def main():
     print("[INFO] Veritabani semasi kontrol ediliyor...")
     try:
@@ -88,11 +112,25 @@ def main():
     app = QCoreApplication(sys.argv)
     server = HeadlessServer()
     app.aboutToQuit.connect(server.stop)
+
+    # Qt event loop'un Python sinyallerini (SIGINT / Ctrl+C) islemesi icin periyodik timer
+    timer = QTimer()
+    timer.start(500)
+    timer.timeout.connect(lambda: None)
+
+    # Konsol tuş dinleyicisini başlat (R = Restart, Q = Quit)
+    threading.Thread(target=_console_key_listener, args=(app,), daemon=True).start()
     
+    print("\n===================================================")
     print("[SUCCESS] RemaLab Sunucusu basariyla calisiyor.")
     print("  -> Frontend Arayuzu: http://localhost:5175 veya http://<SUNUCU-IP>:5175")
     print("  -> WebSocket Servisi: ws://<SUNUCU-IP>:5174")
-    print("Kapatmak icin CTRL+C yapabilirsiniz.")
+    print("===================================================")
+    print("  [R] -> Sunucuyu Aninda Yeniden Baslat (Restart)")
+    print("  [Q] -> Sunucuyu Kapat (Quit)")
+    print("  [CTRL+C] -> Sunucuyu Durdur")
+    print("===================================================\n")
+    
     sys.exit(app.exec())
 
 if __name__ == "__main__":
