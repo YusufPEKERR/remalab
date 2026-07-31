@@ -641,20 +641,6 @@ const TechnicianRepairOperations = () => {
     }
   }, [repairs, showNotif]);
 
-  // ── Update Supply Status (Depo Durum) ─────────────────────────
-  // warehouse.repair_records.supply_status_code'a kalıcı olarak yazar (warehouse.item_supply_status.code).
-  const handleUpdateSupplyStatus = useCallback(async (repairId, supplyStatusCode) => {
-    const prevRepairs = repairs;
-    const supplyStatusName = supplyStatuses.find(s => s.code === supplyStatusCode)?.short_name || "";
-    setRepairs(prev => prev.map(r => r.id === repairId ? { ...r, supplyStatusCode, supplyStatusName } : r));
-
-    const res = await api.updateRepairSupplyStatus(repairId, supplyStatusCode, getCurrentUser()?.username);
-    if (!res || !res.success) {
-      setRepairs(prevRepairs);
-      showNotif("error", "Depo Durum Güncellenemedi", res?.message || "İşlem başarısız oldu.");
-    }
-  }, [repairs, supplyStatuses, showNotif]);
-
   // ── Görev grubuna göre gruplama ──────────────────────────────
   // Aynı görev grubuna (ör. Batarya) ait birden fazla onarım kaydı olabilir - özellikle
   // bir onarım iptal edilip aynı departmana yeniden eklendiğinde (eski kayıt silinmez,
@@ -1038,10 +1024,6 @@ const TechnicianRepairOperations = () => {
                           <span className="inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold border bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-500/30">
                             {supplyStatuses.find(s => s.code === r.supplyStatusCode)?.short_name || r.supplyStatusCode}
                           </span>
-                        ) : !r.supplyStatusCode && r.partItemCode && (partStock[r.partItemCode] || 0) > 0 ? (
-                          <div className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
-                            Depodan parça talep edilebilir
-                          </div>
                         ) : (
                           <span className="text-xs text-slate-400">-</span>
                         )}
@@ -1052,19 +1034,9 @@ const TechnicianRepairOperations = () => {
                         ) : partStock[r.partItemCode] === undefined ? (
                           <span className="text-xs text-slate-400">…</span>
                         ) : (
-                          <div className="flex items-center gap-2">
-                            <span className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold border ${partStock[r.partItemCode] > 0 ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30" : "bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border-red-200 dark:border-red-500/30"}`}>
-                              {partStock[r.partItemCode] > 0 ? `${partStock[r.partItemCode]} adet stokta` : "Stokta yok"}
-                            </span>
-                            <button
-                              onClick={() => hasAccess && !r.isCancelled && !r.supplyStatusCode && handleUpdateSupplyStatus(r.id, "Sipariş Edildi")}
-                              disabled={!hasAccess || r.isCancelled || !!r.supplyStatusCode}
-                              className="px-2 py-1 rounded-md text-[10px] font-bold bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                              title={r.supplyStatusCode ? "Bu parça için zaten talep oluşturuldu - yeniden talep etmek için Onarım Ekle'den yeni kayıt açın" : "Bu parçayı sipariş et"}
-                            >
-                              {r.supplyStatusCode ? (supplyStatuses.find(s => s.code === r.supplyStatusCode)?.short_name || r.supplyStatusCode) : "Talep Et"}
-                            </button>
-                          </div>
+                          <span className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold border ${partStock[r.partItemCode] > 0 ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30" : "bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border-red-200 dark:border-red-500/30"}`}>
+                            {partStock[r.partItemCode] > 0 ? `${partStock[r.partItemCode]} adet stokta` : "Stokta yok"}
+                          </span>
                         )}
                       </td>
                       <td className="px-3 py-2.5 text-xs text-slate-500 dark:text-slate-400">{r.notes || "N/A"}</td>

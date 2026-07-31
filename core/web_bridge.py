@@ -121,6 +121,36 @@ def _get_system_location_id(db, kind):
     return loc.id if loc else None
 
 
+def _derive_apple_part_codes(model_text):
+    """iPhone modelini (örn. 'iPhone 15 Pro Max') parça kataloğundaki kısaltılmış
+    kodlara ('iP15PM') çevirir. warehouse.parts.model alanı Apple parçalarında
+    'iPhone 15' değil 'iP15' formatını kullanıyor - düz metin (LIKE) eşleştirmesi
+    bu yüzden hiçbir zaman tutmuyordu ve Parça Teslim ekranı iPhone cihazlarda hep
+    boş kalıyordu. Eşleşme yoksa boş liste döner (çağıran taraf genel LIKE'a düşer)."""
+    import re
+    if not model_text:
+        return []
+    t = re.sub(r'\s+', ' ', model_text.strip().lower())
+
+    m = re.match(r'^iphone\s*(xs\s*max|xs|xr|x)\b', t)
+    if m:
+        key = re.sub(r'\s+', ' ', m.group(1))
+        return [{'x': 'iPX', 'xr': 'iPXR', 'xs': 'iPXS', 'xs max': 'iPXSM'}.get(key, '')]
+
+    m = re.match(r'^iphone\s*se\s*(\d)?', t)
+    if m:
+        return [f"iPSE{m.group(1) or ''}"]
+
+    m = re.match(r'^iphone\s*(\d+)\s*(pro\s*max|pro|plus|mini|e)?', t)
+    if m:
+        num = m.group(1)
+        qualifier = (m.group(2) or '').strip()
+        suffix = {'': '', 'plus': 'P', 'pro': 'PR', 'pro max': 'PM', 'mini': 'M', 'e': 'e'}.get(qualifier, '')
+        return [f'iP{num}{suffix}']
+
+    return []
+
+
 def _build_part_display_name(brand, model, color, part_category, name, item_code):
     """Parça için kullanıcıya gösterilecek ismi (marka+model+renk+kategori, yoksa
     ad, o da yoksa item_code) üretir. get_stock_status ile aynı öncelik sırasını kullanır."""
@@ -10296,8 +10326,11 @@ class WebBridge(QObject):
             if not model_clean and not brand_clean:
                 return json.dumps({"success": True, "parts": []}, ensure_ascii=False)
 
+            # Apple parçaları katalogda kısaltılmış kodla tutuluyor (bkz. _derive_apple_part_codes).
+            apple_codes = _derive_apple_part_codes(model_clean) or ["__NONE__"]
+
             sql = text("""
-                SELECT 
+                SELECT
                     p.id,
                     p.item_code,
                     p.name,
@@ -10306,6 +10339,8 @@ class WebBridge(QObject):
                     p.color,
                     p.item_category,
                     p.part_category,
+                    mg.code AS repair_team_code,
+                    mg.short_name AS repair_team_name,
                     (
                         SELECT COALESCE(SUM(s.quantity), 0)
                         FROM warehouse.stock s
@@ -10313,15 +10348,31 @@ class WebBridge(QObject):
                         WHERE s.part_id = p.id AND l.kind = 'good_stock'
                     ) AS good_stock_qty
                 FROM warehouse.parts p
+                -- Parça kategorisini Onarım Takımı'na çevirir (bkz. get_mission_for_item_category
+                -- ile aynı öncelik kuralı: birden fazla eşleşme varsa L1/L2/L3REPAIR gibi genel
+                -- kodlar yerine kategoriye özel uzman takım (TEC_CAMERA, TEC_BATTERY vb.) tercih edilir).
+                LEFT JOIN LATERAL (
+                    SELECT
+                        CASE WHEN UPPER(LEFT(icm.mission, 4)) = 'TEC_' THEN SUBSTRING(icm.mission FROM 5) ELSE icm.mission END AS bare_code
+                    FROM warehouse.item_category_mission icm
+                    WHERE LOWER(TRIM(icm.item_category)) = LOWER(TRIM(p.item_category)) AND icm.enabled = TRUE
+                    ORDER BY (CASE WHEN UPPER(icm.mission) IN ('TEC_L1REPAIR', 'TEC_L2REPAIR', 'TEC_L3REPAIR') THEN 1 ELSE 0 END) ASC
+                    LIMIT 1
+                ) team_map ON true
+                LEFT JOIN organization.mission_groups mg ON mg.code = team_map.bare_code
                 WHERE (
-                    (:brand != '' AND LOWER(TRIM(p.brand)) = LOWER(TRIM(:brand)))
-                    OR (:model != '' AND (
-                        LOWER(TRIM(p.model)) LIKE LOWER(CONCAT('%', TRIM(:model), '%'))
-                        OR LOWER(TRIM(:model)) LIKE LOWER(CONCAT('%', TRIM(p.model), '%'))
-                        OR LOWER(TRIM(p.name)) LIKE LOWER(CONCAT('%', TRIM(:model), '%'))
-                    ))
+                    -- Model biliniyorsa: parça o modele ait olmalı (marka da biliniyorsa ek olarak eşleşmeli).
+                    -- Sadece markaya bakmak, örn. Samsung için binlerce alakasız modelin parçasını döndürüyordu.
+                    (:model != '' AND (
+                        p.model = ANY(:apple_codes)
+                        OR (p.model IS NOT NULL AND TRIM(p.model) != '' AND LOWER(TRIM(p.model)) LIKE LOWER(CONCAT('%', TRIM(:model), '%')))
+                        OR (p.model IS NOT NULL AND TRIM(p.model) != '' AND LOWER(TRIM(:model)) LIKE LOWER(CONCAT('%', TRIM(p.model), '%')))
+                        OR (p.name IS NOT NULL AND TRIM(p.name) != '' AND LOWER(TRIM(p.name)) LIKE LOWER(CONCAT('%', TRIM(:model), '%')))
+                    ) AND (:brand = '' OR LOWER(TRIM(p.brand)) = LOWER(TRIM(:brand))))
+                    -- Model bilinmiyorsa (sadece marka verildiyse) markaya göre daralt.
+                    OR (:model = '' AND :brand != '' AND LOWER(TRIM(p.brand)) = LOWER(TRIM(:brand)))
                 )
-                ORDER BY 
+                ORDER BY
                     (
                         SELECT COALESCE(SUM(s.quantity), 0)
                         FROM warehouse.stock s
@@ -10337,7 +10388,8 @@ class WebBridge(QObject):
             rows = db.execute(sql, {
                 "brand": brand_clean,
                 "model": model_clean,
-                "color": color_clean
+                "color": color_clean,
+                "apple_codes": apple_codes
             }).mappings().all()
 
             parts = []
@@ -10352,6 +10404,8 @@ class WebBridge(QObject):
                     "color": r["color"] or "",
                     "itemCategory": r["item_category"] or "",
                     "partCategory": r["part_category"] or "",
+                    "repairTeamCode": r["repair_team_code"] or "",
+                    "repairTeamName": r["repair_team_name"] or "Genel",
                     "goodStockQty": qty,
                     "isAvailable": qty > 0
                 })
