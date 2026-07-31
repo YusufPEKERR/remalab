@@ -284,6 +284,49 @@ class WebBridge(QObject):
             logging.error(f"[WebBridge] get_schema_introspection hatası: {e}")
             return json.dumps({'tables': [], 'edges': []})
 
+    @Slot(str, str, str, result=str)
+    def drop_schema_table(self, table_name, confirm_name, username):
+        """Schema Mapper > Görsel Şema'da seçili tabloyu warehouse şemasından KALICI
+        olarak siler (DROP TABLE - tablo ve içindeki TÜM veri kaybolur, geri alınamaz).
+        Çok yıkıcı bir işlem olduğundan: (1) sadece admin/developer çalıştırabilir,
+        (2) confirm_name, table_name ile birebir eşleşmelidir (frontend'in 'tablo
+        adını yazarak onayla' modalıyla eşleşir - burada da tekrar doğrulanır, frontend
+        bypass edilse bile korunur), (3) tablo gerçekten warehouse şemasında var mı
+        introspection ile doğrulanır (rastgele/keyfi SQL çalıştırılmaz), (4) başka
+        tablolardan FK ile referans alınıyorsa Postgres DROP'u reddeder, CASCADE
+        kullanılmaz - bu durumda hata olduğu gibi kullanıcıya gösterilir."""
+        from sqlalchemy import inspect, MetaData, Table
+        db = SessionLocal()
+        try:
+            table_name = (table_name or "").strip()
+            confirm_name = (confirm_name or "").strip()
+            if not table_name:
+                return json.dumps({"success": False, "message": "Tablo adı boş olamaz."})
+            if table_name != confirm_name:
+                return json.dumps({"success": False, "message": "Onay için yazılan tablo adı eşleşmiyor."})
+
+            user_missions, is_admin = self._get_user_missions(db, username)
+            if not is_admin:
+                return json.dumps({"success": False, "message": "Bu işlem sadece Admin/Developer tarafından yapılabilir."})
+
+            engine = db.get_bind()
+            inspector = inspect(engine)
+            real_tables = inspector.get_table_names(schema="warehouse")
+            if table_name not in real_tables:
+                return json.dumps({"success": False, "message": f"'{table_name}' warehouse şemasında bulunamadı."})
+
+            meta = MetaData(schema="warehouse")
+            tbl = Table(table_name, meta, autoload_with=engine)
+            tbl.drop(engine)
+
+            self._schema_cache = None
+            print(f"[WebBridge] UYARI: '{username}' kullanıcısı warehouse.{table_name} tablosunu SİLDİ (DROP TABLE).")
+            return json.dumps({"success": True, "message": f"'{table_name}' tablosu kalıcı olarak silindi."}, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": f"Tablo silinemedi: {str(e)}"})
+        finally:
+            db.close()
+
     def _find_reference_excel_file(self):
         """Proje kök dizininde MioCreate referans veri dosyasını arar.
         Hem eski isimlendirmeyi ('...dosya...') hem de mevcut 'MioCreate.xlsx' adını destekler."""

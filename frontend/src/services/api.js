@@ -42,6 +42,9 @@ const getMockBackend = () => ({
     delete_part: (id, cb) => {
         setTimeout(() => cb(JSON.stringify({ success: false, message: 'Veritabanı bağlantısı yok.' })), 300);
     },
+    drop_schema_table: (tableName, confirmName, username, cb) => {
+        setTimeout(() => cb(JSON.stringify({ success: false, message: 'Veritabanı bağlantısı yok.' })), 300);
+    },
     get_dev_mode: (cb) => {
         setTimeout(() => cb(JSON.stringify({ success: true, dev_mode: false })), 200);
     },
@@ -104,6 +107,13 @@ export const api = {
         const backend = await getBackend();
         return new Promise((resolve) => {
             backend.get_schema_introspection((res) => resolve(res));
+        });
+    },
+
+    dropSchemaTable: async (tableName, confirmName, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.drop_schema_table(tableName, confirmName, username, (res) => resolve(JSON.parse(res)));
         });
     },
 

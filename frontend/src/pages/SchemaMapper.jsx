@@ -3,6 +3,14 @@ import {
   Plus, Link2, Save, Search, X, Maximize2, ZoomIn, ZoomOut, AlertTriangle, ArrowUpDown, Filter,
   Database, Code, ArrowRight, Trash2, Info, CheckCircle, Table2, Map, List, ChevronRight, FileText
 } from 'lucide-react';
+
+function getCurrentUser() {
+  try {
+    return JSON.parse(localStorage.getItem("user") || sessionStorage.getItem("user") || "null");
+  } catch (_e) {
+    return null;
+  }
+}
 import useCanvasPanZoom from '../hooks/useCanvasPanZoom';
 import { api } from '../services/api';
 import TableNode, { getPortPosition } from '../components/schema/TableNode';
@@ -155,6 +163,57 @@ const AddTableModal = ({ onClose, onAdd }) => {
 };
 
 // ═══════════════════════════════════════════════════════════════════
+// DELETE TABLE MODAL (type-to-confirm)
+// ═══════════════════════════════════════════════════════════════════
+const DeleteTableModal = ({ table, onClose, onConfirm, isDeleting }) => {
+  const [typedName, setTypedName] = useState('');
+  const matches = typedName.trim() === table.dbName;
+  return (
+    <div className="fixed inset-0 z-[95] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm">
+      <div className="bg-white dark:bg-[#12141c] rounded-2xl shadow-2xl border border-rose-200 dark:border-rose-500/30 max-w-sm w-full mx-4 overflow-hidden">
+        <div className="border-b border-rose-200 dark:border-rose-500/30 px-6 py-4 flex flex-wrap items-center justify-between bg-rose-50 dark:bg-rose-500/10">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center"><AlertTriangle size={20} className="text-rose-500" /></div>
+            <h3 className="font-semibold text-rose-700 dark:text-rose-400">Tablo Sil</h3>
+          </div>
+          <button onClick={onClose} disabled={isDeleting} className="p-1.5 rounded-lg hover:bg-rose-100 dark:hover:bg-rose-500/20 disabled:opacity-40"><X size={18} className="text-rose-400" /></button>
+        </div>
+        <div className="px-6 py-5 space-y-4">
+          <p className="text-sm text-slate-600 dark:text-slate-300">
+            <span className="font-mono font-bold text-rose-600 dark:text-rose-400">"{table.dbName}"</span> tablosu ve içindeki TÜM veriler
+            veritabanından kalıcı olarak silinecek.
+          </p>
+          <p className="text-xs font-bold text-rose-600 dark:text-rose-400">Bu işlem GERİ ALINAMAZ.</p>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
+              Onaylamak için tablo adını yazın: <span className="font-mono text-rose-500">{table.dbName}</span>
+            </label>
+            <input
+              autoFocus
+              value={typedName}
+              onChange={e => setTypedName(e.target.value)}
+              disabled={isDeleting}
+              placeholder={table.dbName}
+              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1A2450] text-sm text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-rose-500 outline-none font-mono disabled:opacity-50"
+            />
+          </div>
+        </div>
+        <div className="px-6 pb-5 flex gap-3">
+          <button onClick={onClose} disabled={isDeleting} className="flex-1 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-sm font-semibold text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 disabled:opacity-50">İptal</button>
+          <button
+            disabled={!matches || isDeleting}
+            onClick={onConfirm}
+            className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold shadow-lg shadow-rose-500/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            <Trash2 size={14} /> {isDeleting ? 'Siliniyor...' : 'Kalıcı Olarak Sil'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════════
 export default function SchemaMapper() {
@@ -169,6 +228,8 @@ export default function SchemaMapper() {
   const [connectSource, setConnectSource] = useState(null); // { tableId, fieldId }
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null); // table object pending delete confirmation
+  const [isDeletingTable, setIsDeletingTable] = useState(false);
   const [notif, setNotif] = useState(null);
   const [inspectorOpen, setInspectorOpen] = useState(true);
   const [listSortOrder, setListSortOrder] = useState('asc'); // 'asc' | 'desc'
@@ -423,6 +484,46 @@ export default function SchemaMapper() {
     showNotif('Bağlantı silindi.');
   }, [edges, showNotif]);
 
+  // ── Delete Table (Del key -> type-to-confirm modal -> backend DROP) ──
+  const confirmDeleteTable = useCallback(async () => {
+    if (!deleteTarget) return;
+    setIsDeletingTable(true);
+    try {
+      const username = getCurrentUser()?.username;
+      const res = await api.dropSchemaTable(deleteTarget.dbName, deleteTarget.dbName, username);
+      if (!res || !res.success) {
+        showNotif(res?.message || 'Tablo silinemedi.', 'warning');
+        return;
+      }
+      setTables(prev => prev.filter(t => t.id !== deleteTarget.id));
+      setEdges(prev => prev.filter(e => e.sourceTableId !== deleteTarget.id && e.targetTableId !== deleteTarget.id));
+      setSelectedTableId(null);
+      setDeleteTarget(null);
+      showNotif(`"${deleteTarget.dbName}" tablosu kalıcı olarak silindi.`);
+    } catch (e) {
+      showNotif('Tablo silinirken beklenmeyen hata oluştu.', 'warning');
+    } finally {
+      setIsDeletingTable(false);
+    }
+  }, [deleteTarget, showNotif]);
+
+  // ── Delete key -> open confirmation modal for selected table ─────
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key !== 'Delete' && e.key !== 'Backspace') return;
+      if (!selectedTableId || deleteTarget || showAddModal) return;
+      const tag = document.activeElement?.tagName;
+      const isEditable = tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement?.isContentEditable;
+      if (isEditable) return;
+      const t = tables.find(t => t.id === selectedTableId);
+      if (!t) return;
+      e.preventDefault();
+      setDeleteTarget(t);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [selectedTableId, deleteTarget, showAddModal, tables]);
+
   // ── Save Mapping ──────────────────────────────────────────
   const handleSaveMapping = useCallback(() => {
     const mapping = {
@@ -573,6 +674,14 @@ export default function SchemaMapper() {
     <div className="flex flex-col h-[calc(100vh-112px)]">
       <Toast notif={notif} onClose={() => setNotif(null)} />
       {showAddModal && <AddTableModal onClose={() => setShowAddModal(false)} onAdd={handleAddTable} />}
+      {deleteTarget && (
+        <DeleteTableModal
+          table={deleteTarget}
+          isDeleting={isDeletingTable}
+          onClose={() => !isDeletingTable && setDeleteTarget(null)}
+          onConfirm={confirmDeleteTable}
+        />
+      )}
 
       {/* ════════════════ TOOLBAR ════════════════ */}
       <div className="bg-[#F5F7FC] dark:bg-[#12141c] border-b border-[#DCE1F1] dark:border-[#1e222d] px-5 py-3 flex flex-wrap items-center justify-between gap-3 flex-wrap shrink-0 z-20 shadow-md">
@@ -793,6 +902,13 @@ export default function SchemaMapper() {
                         </pre>
                       </div>
                     </div>
+
+                    <button
+                      onClick={() => setDeleteTarget(selectedTable)}
+                      className="w-full py-2 rounded-xl bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 text-red-600 dark:text-red-400 text-xs font-bold flex items-center justify-center gap-2 border border-red-200 dark:border-red-500/30 transition-colors"
+                    >
+                      <Trash2 size={14} /> Tabloyu Sil
+                    </button>
                   </div>
               )}
 
