@@ -489,6 +489,28 @@ export const api = {
         });
     },
 
+    getDeliverablePartsForDevice: async (brand, model, color) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_deliverable_parts_for_device) {
+                backend.get_deliverable_parts_for_device(brand || '', model || '', color || '', (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true, parts: [] });
+            }
+        });
+    },
+
+    deliverPartToDevice: async (imeiOrSerial, itemCode, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.deliver_part_to_device) {
+                backend.deliver_part_to_device(String(imeiOrSerial || ''), String(itemCode || ''), String(username || ''), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false, message: "Backend servis alanı eksik." });
+            }
+        });
+    },
+
     adminSetBatchEntryStatu: async (imei, targetStatuCode) => {
         const backend = await getBackend();
         return new Promise((resolve) => {

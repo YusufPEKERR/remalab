@@ -10282,3 +10282,155 @@ class WebBridge(QObject):
             return json.dumps({"success": False, "message": str(e)})
         finally:
             db.close()
+
+    @Slot(str, str, str, result=str)
+    def get_deliverable_parts_for_device(self, brand, model, color=""):
+        """Parça Teslim ekranı için cihazın Marka, Model ve Rengine göre teslim edilebilecek parçaları getirir."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            brand_clean = (brand or "").strip()
+            model_clean = (model or "").strip()
+            color_clean = (color or "").strip()
+
+            if not model_clean and not brand_clean:
+                return json.dumps({"success": True, "parts": []}, ensure_ascii=False)
+
+            sql = text("""
+                SELECT 
+                    p.id,
+                    p.item_code,
+                    p.name,
+                    p.brand,
+                    p.model,
+                    p.color,
+                    p.item_category,
+                    p.part_category,
+                    (
+                        SELECT COALESCE(SUM(s.quantity), 0)
+                        FROM warehouse.stock s
+                        JOIN warehouse.locations l ON l.id = s.location_id
+                        WHERE s.part_id = p.id AND l.kind = 'good_stock'
+                    ) AS good_stock_qty
+                FROM warehouse.parts p
+                WHERE (
+                    (:brand != '' AND LOWER(TRIM(p.brand)) = LOWER(TRIM(:brand)))
+                    OR (:model != '' AND (
+                        LOWER(TRIM(p.model)) LIKE LOWER(CONCAT('%', TRIM(:model), '%'))
+                        OR LOWER(TRIM(:model)) LIKE LOWER(CONCAT('%', TRIM(p.model), '%'))
+                        OR LOWER(TRIM(p.name)) LIKE LOWER(CONCAT('%', TRIM(:model), '%'))
+                    ))
+                )
+                ORDER BY 
+                    (
+                        SELECT COALESCE(SUM(s.quantity), 0)
+                        FROM warehouse.stock s
+                        JOIN warehouse.locations l ON l.id = s.location_id
+                        WHERE s.part_id = p.id AND l.kind = 'good_stock'
+                    ) DESC,
+                    CASE WHEN :color != '' AND LOWER(TRIM(p.color)) = LOWER(TRIM(:color)) THEN 0 ELSE 1 END,
+                    p.item_category,
+                    p.name
+                LIMIT 150
+            """)
+
+            rows = db.execute(sql, {
+                "brand": brand_clean,
+                "model": model_clean,
+                "color": color_clean
+            }).mappings().all()
+
+            parts = []
+            for r in rows:
+                qty = int(r["good_stock_qty"] or 0)
+                parts.append({
+                    "id": str(r["id"]),
+                    "itemCode": r["item_code"] or "",
+                    "partName": r["name"] or "",
+                    "brand": r["brand"] or "",
+                    "model": r["model"] or "",
+                    "color": r["color"] or "",
+                    "itemCategory": r["item_category"] or "",
+                    "partCategory": r["part_category"] or "",
+                    "goodStockQty": qty,
+                    "isAvailable": qty > 0
+                })
+
+            return json.dumps({"success": True, "parts": parts}, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)}, ensure_ascii=False)
+        finally:
+            db.close()
+
+    @Slot(str, str, str, result=str)
+    def deliver_part_to_device(self, imei_or_serial, item_code, username=""):
+        """Parça Teslim ekranında seçilen parçayı Good Stock'tan düşüp Repair Stock'a aktarır."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            code = (item_code or "").strip()
+            imei = (imei_or_serial or "").strip()
+            user = (username or "").strip() or "Sistem"
+
+            if not code:
+                return json.dumps({"success": False, "message": "Parça kodu seçilmelidir."})
+
+            part_row = db.execute(text("SELECT id, name FROM warehouse.parts WHERE item_code = :c LIMIT 1"), {"c": code}).mappings().first()
+            if not part_row:
+                return json.dumps({"success": False, "message": "Parça bulunamadı."})
+
+            part_id = part_row["id"]
+            good_loc_id = _get_system_location_id(db, "good_stock")
+            repair_loc_id = _get_system_location_id(db, "repair_stock")
+
+            stock_row = db.execute(text("""
+                SELECT id, quantity FROM warehouse.stock 
+                WHERE part_id = :pid AND location_id = :loc_id 
+                LIMIT 1
+            """), {"pid": part_id, "loc_id": good_loc_id}).mappings().first()
+
+            current_qty = stock_row["quantity"] if stock_row else 0
+            if current_qty < 1:
+                return json.dumps({"success": False, "message": f"'{part_row['name']}' ({code}) Good Stock'ta tükenmiş!"})
+
+            # Good Stock -1
+            db.execute(text("""
+                UPDATE warehouse.stock SET quantity = GREATEST(0, quantity - 1) 
+                WHERE id = :sid
+            """), {"sid": stock_row["id"]})
+
+            # Repair Stock +1
+            from models.stock import Stock
+            r_stock = db.query(Stock).filter(Stock.part_id == part_id, Stock.location_id == repair_loc_id).first()
+            if r_stock:
+                r_stock.quantity += 1
+            else:
+                db.add(Stock(part_id=part_id, location_id=repair_loc_id, quantity=1))
+
+            # Stock Movement kaydı (Audit Log)
+            try:
+                from models.stock_movement import StockMovement
+                mov = StockMovement(
+                    part_id=part_id,
+                    part_code=code,
+                    source_location_id=good_loc_id,
+                    target_location_id=repair_loc_id,
+                    quantity=1,
+                    movement_type="İç Transfer",
+                    note=f"Parça Teslim - IMEI: {imei}",
+                    created_by=user
+                )
+                db.add(mov)
+            except Exception as mov_err:
+                print(f"[WARN] StockMovement kaydedilemedi: {mov_err}")
+
+            db.commit()
+            return json.dumps({
+                "success": True, 
+                "message": f"'{part_row['name']}' ({code}) başarıyla teslim edildi (Repair Stock'a aktarıldı)."
+            }, ensure_ascii=False)
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)}, ensure_ascii=False)
+        finally:
+            db.close()
