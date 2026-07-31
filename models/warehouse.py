@@ -24,19 +24,4 @@ class Warehouse(Base):
     short_name = Column(String(255), nullable=False)
     full_name = Column(String(500), nullable=True)
     description = Column(String(1000), nullable=True)
-    cost_center_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("organization.cost_centers.id"),
-        nullable=True,
-    )
-    branch_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("organization.branches.id"),
-        nullable=True,
-    )
     is_default = Column(Boolean, nullable=False, default=False)
-
-    # İlişkiler
-    cost_center_rel = relationship("CostCenter", back_populates="warehouses")
-    branch_rel = relationship("Branch", back_populates="warehouses")
-    stock_places = relationship("StockPlace", back_populates="warehouse_rel")

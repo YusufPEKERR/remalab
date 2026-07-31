@@ -33,8 +33,3 @@ class Customer(Base):
     payment_method = Column(String(255), nullable=True)
     invoice_delivery_method = Column(String(100), nullable=True)
     shipment_method = Column(String(255), nullable=True)
-
-    # İlişkiler
-    target_service_prices = relationship(
-        "CustomerTargetServicePrice", back_populates="customer_rel"
-    )
