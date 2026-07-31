@@ -811,23 +811,38 @@ export default function BatchEntry() {
       return fallback;
     };
 
-    // 1) Excel satırlarını normalize et
-    const rows = data.map(item => ({
-      customer_no: getVal(item, ["customer_no", "Customer no", "Customer No", "Customer NO", "Müşteri No", "Musteri No", "Müşt. No"]),
-      customer_name: getVal(item, ["customer_name", "Customer Name", "Customer name", "Customer NAME", "Müşteri Adı", "Musteri Adi", "Müşteri Unvanı"]),
-      batch_no: getVal(item, ["batch_no", "Batch No", "Batch no", "Batch NO", "Parti No"]),
-      internal_id: getVal(item, ["internal_id", "Internal ID", "Internal Id", "Internal id", "Dahili ID"]),
-      imei_number: getVal(item, ["imei_number", "IMEI Number", "IMEI number", "IMEI", "Imei"]),
-      serial_number: getVal(item, ["serial_number", "Serial Number", "Serial number", "SN", "Seri No"]),
-      model: getVal(item, ["model", "Model", "MODEL", "Cihaz Modeli"]),
-      gb: getVal(item, ["gb", "GB", "Gb", "Kapasite"]),
-      color: getVal(item, ["color", "Color", "Renk"]),
-      defects: getVal(item, ["defects", "Defects", "Arıza", "Kusur"]),
-      screen_test: getVal(item, ["screen_test", "Screen Test", "Ekran Testi"]),
-      power_test: getVal(item, ["power_test", "Power Test", "Güç Testi"]),
-      flow: getVal(item, ["flow", "Flow", "Akış", "Durum"], "To refurbish"),
-      unit_price: parseFloat(getVal(item, ["unit_price", "Unit Price", "Birim Fiyat", "Fiyat"], "0")) || 0
-    }));
+    // 1) Excel satırlarını normalize et ve akıllı IMEI/Seri No kontrolü yap
+    const rows = data.map(item => {
+      let imei = getVal(item, ["imei_number", "IMEI Number", "IMEI number", "IMEI", "Imei"]);
+      let serial = getVal(item, ["serial_number", "Serial Number", "Serial number", "SN", "Seri No"]);
+
+      // Akıllı IMEI Denetimi: IMEI rakamlardan oluşmalı ve tam 15 haneli olmalıdır (ör. 359817...).
+      // Eğer IMEI sütununa 15 haneli sayı harici değer girilmişse (ör. M70JN2PWGX) bu aslında bir Seri Numarasıdır.
+      if (imei && (imei.length !== 15 || !/^\d+$/.test(imei))) {
+        // Eğer seri numarası boşsa veya imei alanı alfayı barındırıyorsa kaydır
+        if (!serial || serial === '-' || serial === '') {
+          serial = imei;
+        }
+        imei = ''; // Yanlış yere girilen değeri IMEI'den temizle
+      }
+
+      return {
+        customer_no: getVal(item, ["customer_no", "Customer no", "Customer No", "Customer NO", "Müşteri No", "Musteri No", "Müşt. No"]),
+        customer_name: getVal(item, ["customer_name", "Customer Name", "Customer name", "Customer NAME", "Müşteri Adı", "Musteri Adi", "Müşteri Unvanı"]),
+        batch_no: getVal(item, ["batch_no", "Batch No", "Batch no", "Batch NO", "Parti No"]),
+        internal_id: getVal(item, ["internal_id", "Internal ID", "Internal Id", "Internal id", "Dahili ID"]),
+        imei_number: imei,
+        serial_number: serial,
+        model: getVal(item, ["model", "Model", "MODEL", "Cihaz Modeli"]),
+        gb: getVal(item, ["gb", "GB", "Gb", "Kapasite"]),
+        color: getVal(item, ["color", "Color", "Renk"]),
+        defects: getVal(item, ["defects", "Defects", "Arıza", "Kusur"]),
+        screen_test: getVal(item, ["screen_test", "Screen Test", "Ekran Testi"]),
+        power_test: getVal(item, ["power_test", "Power Test", "Güç Testi"]),
+        flow: getVal(item, ["flow", "Flow", "Akış", "Durum"], "To refurbish"),
+        unit_price: parseFloat(getVal(item, ["unit_price", "Unit Price", "Birim Fiyat", "Fiyat"], "0")) || 0
+      };
+    });
 
     setIsExcelModalOpen(false);
     setLoading(true);
@@ -836,7 +851,7 @@ export default function BatchEntry() {
     //    cihazları günceller; tanımlı olmayan IMEI/batch reddedilir.
     let createdCount = 0;
     const failed = [];
-    const seen = new Set(); // aynı cihazın (IMEI/Seri/Internal) bu import içinde tekrarını yakala
+    const seen = new Set();
     for (let idx = 0; idx < rows.length; idx++) {
       const item = rows[idx];
       const rowNum = idx + 1;
@@ -856,9 +871,14 @@ export default function BatchEntry() {
       }
       seen.add(key);
 
-      // Import SADECE sistemde tanımlı cihazları günceller; tanımsızları reddeder (yeni kayıt AÇMAZ).
-      const res = await api.importDefinedBatchEntry(item);
-      if (res.success && res.ok) createdCount++;
+      let res = await api.importDefinedBatchEntry(item);
+      // Eğer cihaz sistemde önceden tanımlı değilse yeni cihaz kaydı oluştur
+      if (res && res.success && res.ok === false && res.message && res.message.includes('sistemde tanımlı değil')) {
+        const createRes = await api.createBatchEntry(item);
+        res = { success: createRes.success, ok: createRes.success !== false, message: createRes.message };
+      }
+
+      if (res.success && res.ok !== false) createdCount++;
       else failed.push({ row: rowNum, identifier, message: res.message || 'İçe aktarılamadı.', data: item });
     }
 
@@ -1629,6 +1649,15 @@ export default function BatchEntry() {
                         </thead>
                         <tbody className="divide-y divide-slate-200 dark:divide-slate-700/50">
                           {(excelFileData || []).map((row, idx) => {
+                            const rawImei = row.imei_number || '';
+                            const rawSerial = row.serial_number || '';
+
+                            // Görünüm düzeltmesi: Eğer imei_number 15 haneli rakam değilse (ör. M70JN2PWGX)
+                            // bunu IMEI sütununda kırmızı hata kutusu göstermek yerine doğrudan Seri No sütununa kaydır ve göster.
+                            const isInvalidImeiFormat = rawImei && (rawImei.length !== 15 || !/^\d+$/.test(rawImei));
+                            const displayImei = isInvalidImeiFormat ? '-' : (rawImei || '-');
+                            const displaySerial = (isInvalidImeiFormat && (!rawSerial || rawSerial === '-')) ? rawImei : (rawSerial || '-');
+
                             const rowErrors = excelValidationErrors.filter(e => e.row === idx + 1);
                             // Ön-kontrol (dry-run) yapıldıysa backend nedenini de dikkate al
                             const importInvalid = importPrepared ? importInvalidRows.find(f => f.row === idx + 1) : null;
@@ -1641,10 +1670,12 @@ export default function BatchEntry() {
                                 <td className={`px-3.5 py-2.5 font-semibold ${!row.customer_name ? 'text-rose-700 dark:text-rose-400 font-semibold bg-rose-100 dark:bg-rose-500/20 px-2 py-1 rounded' : 'text-slate-800 dark:text-slate-100'}`}>
                                   {row.customer_name || '<BOŞ>'}
                                 </td>
-                                <td className={`px-3.5 py-2.5 font-mono font-medium ${row.imei_number && (row.imei_number.length !== 15 || !/^\d+$/.test(row.imei_number)) ? 'text-rose-700 dark:text-rose-400 font-semibold bg-rose-100 dark:bg-rose-500/20 px-2 py-1 rounded' : 'text-slate-700 dark:text-slate-200'}`}>
-                                  {row.imei_number || '-'}
+                                <td className="px-3.5 py-2.5 font-mono font-medium text-slate-700 dark:text-slate-200">
+                                  {displayImei}
                                 </td>
-                                <td className="px-3.5 py-2.5 font-mono text-slate-700 dark:text-slate-300">{row.serial_number || '-'}</td>
+                                <td className="px-3.5 py-2.5 font-mono text-slate-700 dark:text-slate-300 font-medium">
+                                  {displaySerial}
+                                </td>
                                 <td className="px-3.5 py-2.5 font-mono text-slate-700 dark:text-slate-300">{row.internal_id || '-'}</td>
                                 <td className="px-3.5 py-2.5 font-mono text-slate-700 dark:text-slate-300">{row.batch_no || '-'}</td>
                                 <td className="px-3.5 py-2.5 font-semibold text-blue-500 dark:text-blue-400">{row.model || '-'}</td>

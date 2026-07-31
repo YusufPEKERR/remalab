@@ -7540,7 +7540,7 @@ class WebBridge(QObject):
                     )""")
                     params["search"] = term_like
 
-            if flow_filter and str(flow_filter).strip() and str(flow_filter).strip().lower() != "tümü":
+            if flow_filter and str(flow_filter).strip() and str(flow_filter).strip().lower() not in ("tümü", "hepsi"):
                 where_clauses.append("flow = :flow_filter")
                 params["flow_filter"] = str(flow_filter).strip()
 
@@ -7766,6 +7766,18 @@ class WebBridge(QObject):
                 return json.dumps({"success": True, "ok": False,
                                    "message": f"Cihaz ({ident}) zaten aynı bilgilerle kayıtlı, değişiklik yok (mükerrer)."}, ensure_ascii=False)
 
+            valid_flow_values = self._get_flow_values(db)
+            flow_input = (d.get("flow", "") or "").strip()
+            if flow_input:
+                flow_map = {v.lower(): v for v in valid_flow_values}
+                if flow_input.lower() in flow_map:
+                    d["flow"] = flow_map[flow_input.lower()]
+                else:
+                    for v in valid_flow_values:
+                        if flow_input.lower() in v.lower() or v.lower().endswith(flow_input.lower()):
+                            d["flow"] = v
+                            break
+
             for field in update_fields:
                 val = d.get(field)
                 if val not in (None, ""):
@@ -7803,9 +7815,27 @@ class WebBridge(QObject):
 
             valid_flow_values = self._get_flow_values(db)
             default_flow = "To refurbish" if "To refurbish" in valid_flow_values else (valid_flow_values[0] if valid_flow_values else "To refurbish")
-            flow_value = (d.get("flow", "") or "").strip() or default_flow
-            if flow_value not in valid_flow_values:
-                return json.dumps({"success": False, "message": f"Geçersiz Flow değeri: \"{flow_value}\". Geçerli değerler: {', '.join(valid_flow_values)}"})
+            flow_input = (d.get("flow", "") or "").strip()
+            
+            # Esnek / Duyarsız eşleştirme (Örn: 'Refurbish' -> 'To refurbish', 'Repair' -> 'To repair')
+            flow_value = None
+            if flow_input:
+                flow_map = {v.lower(): v for v in valid_flow_values}
+                # Direkt (büyük/küçük harf duyarsız) eşleşme
+                if flow_input.lower() in flow_map:
+                    flow_value = flow_map[flow_input.lower()]
+                else:
+                    # Kısaltma/Takma ad eşleştirme
+                    for v in valid_flow_values:
+                        if flow_input.lower() in v.lower() or v.lower().endswith(flow_input.lower()):
+                            flow_value = v
+                            break
+
+            if not flow_value:
+                flow_value = default_flow if not flow_input else None
+
+            if not flow_value:
+                return json.dumps({"success": False, "message": f"Geçersiz Flow değeri: \"{flow_input}\". Geçerli değerler: {', '.join(valid_flow_values)}"})
 
             new_entry = BatchEntry(
                 customer_no=d.get("customer_no", "").strip(),
