@@ -55,8 +55,9 @@ class HeadlessServer(QObject):
             QWebSocketServer.NonSecureMode,
             self
         )
+        self.websocket_server.setMaxPendingConnections(200)
         if self.websocket_server.listen(QHostAddress.Any, 5174):
-            print("[INFO] WebSocket Arka Plan Sunucusu 5174 portunda baslatildi.")
+            print("[INFO] WebSocket Arka Plan Sunucusu 5174 portunda (100+ Eşzamanlı Kullanıcı Kapasiteli) baslatildi.")
             self.websocket_server.newConnection.connect(self.on_new_websocket_connection)
         else:
             print("[ERROR] WebSocket sunucusu baslatilamadi!")

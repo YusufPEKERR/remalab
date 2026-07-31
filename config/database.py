@@ -24,11 +24,11 @@ def _get_connect_args():
     """Ortak bağlantı parametrelerini döndürür."""
     return {
         "connect_timeout": 5,
-        "options": "-c statement_timeout=10000",
+        "options": "-c statement_timeout=15000",
         "keepalives": 1,
-        "keepalives_idle": 3,
-        "keepalives_interval": 1,
-        "keepalives_count": 3,
+        "keepalives_idle": 5,
+        "keepalives_interval": 2,
+        "keepalives_count": 5,
     }
 
 
@@ -47,10 +47,10 @@ def _create_engine_instance():
     return create_engine(
         _build_database_url(),
         pool_pre_ping=True,
-        pool_timeout=5,
-        pool_recycle=180,
-        pool_size=15,
-        max_overflow=20,
+        pool_timeout=10,
+        pool_recycle=120,
+        pool_size=40,
+        max_overflow=60,
         connect_args=_get_connect_args(),
     )
 

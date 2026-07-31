@@ -81,7 +81,7 @@ class CustomRequestHandler(http.server.SimpleHTTPRequestHandler):
 class _ThreadingHTTPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     daemon_threads = True
     allow_reuse_address = True
-    request_queue_size = 128  # Bağlantı kuyruğu kapasitesi 5 -> 128 (yüksek trafikte kilitlenmeyi önler)
+    request_queue_size = 512  # 100+ Eşzamanlı Kullanıcı için Soket Bağlantı Kuyruğu Kapasitesi (512)
 
 
 def _start_static_server(directory, preferred_port=5175):
