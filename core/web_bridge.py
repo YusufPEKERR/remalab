@@ -9433,7 +9433,7 @@ class WebBridge(QObject):
                        rr.part_item_code, rr.item_fault_code, rr.operation_type_code, rr.supply_status_code,
                        rrt.short_name AS result_name, rrt.is_cancelled, rrt.is_success,
                        mg.short_name AS mission_group_name,
-                       it.short_name AS part_name, it.item_category AS item_category,
+                       it.short_name AS part_name, pp.item_category AS item_category,
                        fault.short_name AS fault_name,
                        opt.short_name AS operation_type_name,
                        sup.short_name AS supply_status_name
@@ -9441,6 +9441,11 @@ class WebBridge(QObject):
                 LEFT JOIN warehouse.repair_result_type rrt ON rrt.code = rr.repair_result_type_code
                 LEFT JOIN organization.mission_groups mg ON mg.code = rr.department_mission
                 LEFT JOIN warehouse.item it ON it.code = rr.part_item_code
+                -- itemCategory, Demontaj ekranındaki 'Üretime Aktar'/'Müşteri Onayı' butonunun
+                -- canlı önizlemesini besler; bu yüzden mutlaka submit_dismantle_decision'ın
+                -- KARARINDA kullandığı kaynakla (warehouse.parts) BİREBİR aynı olmalı — aksi
+                -- halde etiket (yeşil/mor) gerçek statü geçişiyle (109/106) çelişebilir.
+                LEFT JOIN warehouse.parts pp ON pp.item_code = rr.part_item_code
                 LEFT JOIN warehouse.item_fault fault ON fault.code = rr.item_fault_code
                 LEFT JOIN warehouse.repair_item_operation_type opt ON opt.code = rr.operation_type_code
                 LEFT JOIN warehouse.item_supply_status sup ON sup.code = rr.supply_status_code
