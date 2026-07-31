@@ -1,5 +1,5 @@
 @echo off
-title RemaLab WMS Launcher
+title RemaLab WMS Headless Server Launcher
 cd /d "%~dp0"
 
 echo [INFO] Python sanal ortami (.venv) kontrol ediliyor...
@@ -28,11 +28,11 @@ if not exist frontend\node_modules (
     cd ..
 )
 
-echo [INFO] RemaLab WMS baslatiliyor...
-.venv\Scripts\python.exe main.py
+echo [INFO] RemaLab WMS Headless Sunucusu baslatiliyor (Arayuzsuz Sunucu Modu)...
+.venv\Scripts\python.exe server.py
 
 if %errorlevel% neq 0 (
     echo.
-    echo [ERROR] Uygulama %errorlevel% koduyla sonlandi.
+    echo [ERROR] Sunucu %errorlevel% koduyla sonlandi.
     pause
 )
