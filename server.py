@@ -61,10 +61,14 @@ class HeadlessServer(QObject):
         dist_dir = os.path.join(base_dir, "frontend", "dist")
 
         if not os.path.exists(dist_dir):
-            print("[INFO] Frontend dist klasoru bulunamadi, otomatik derleniyor...")
-            import subprocess
-            frontend_dir = os.path.join(base_dir, "frontend")
-            subprocess.run("npm run build", shell=True, cwd=frontend_dir)
+            import shutil
+            if shutil.which("npm"):
+                print("[INFO] Frontend dist klasoru bulunamadi, otomatik derleniyor...")
+                import subprocess
+                frontend_dir = os.path.join(base_dir, "frontend")
+                subprocess.run("npm run build", shell=True, cwd=frontend_dir)
+            else:
+                print("[WARN] Frontend dist klasoru bulunamadi ve sunucuda npm bulunamadi.")
 
         if os.path.exists(dist_dir):
             self.http_server = _start_frontend_http_server(dist_dir, 5175)
