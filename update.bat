@@ -55,30 +55,68 @@ if %errorlevel% equ 0 (
         if defined EXTRACTED (
             echo [SUCCESS] Dosyalar Private GitHub deposundan basariyla guncellendi.
         ) else (
-            echo [ERROR] ZIP paketinin icerigi okunamadi! Token yetkisini kontrol edin.
+            echo.
+            echo ===================================================
+            echo   [HATA] ZIP paketinin icerigi okunamadi! Token yetkisini kontrol edin.
+            echo ===================================================
+            echo.
             pause
-            exit /b
+            exit /b 1
         )
     ) else (
-        echo [ERROR] Guncelleme paketi indirilemedi! Lutfen .env dosyasina GH_TOKEN ekleyin.
+        echo.
+        echo ===================================================
+        echo   [HATA] Guncelleme paketi indirilemedi! Lutfen .env dosyasina GH_TOKEN ekleyin veya internet baglantinizi kontrol edin.
+        echo ===================================================
+        echo.
         pause
-        exit /b
+        exit /b 1
     )
 )
 
 echo.
 echo [2/4] Python bagimliliklari kontrol ediliyor...
-if exist .venv\Scripts\python.exe (
+if exist .venv\Scripts\pip.exe (
     .venv\Scripts\pip.exe install -r requirements.txt
 ) else (
     pip install -r requirements.txt
+)
+if %errorlevel% neq 0 (
+    echo.
+    echo ===================================================
+    echo   [HATA] Python kutuphaneleri yuklenirken hata olustu!
+    echo ===================================================
+    echo.
+    pause
+    exit /b 1
 )
 
 echo.
 echo [3/4] React Frontend arayuzu yeniden derleniyor...
 cd frontend
 call npm install
+if %errorlevel% neq 0 (
+    echo.
+    echo ===================================================
+    echo   [HATA] npm install basarisiz oldu!
+    echo ===================================================
+    echo.
+    cd ..
+    pause
+    exit /b 1
+)
+
 call npm run build
+if %errorlevel% neq 0 (
+    echo.
+    echo ===================================================
+    echo   [HATA] React frontend derlemesi (npm run build) basarisiz oldu!
+    echo ===================================================
+    echo.
+    cd ..
+    pause
+    exit /b 1
+)
 cd ..
 
 echo.
@@ -105,5 +143,5 @@ call start.bat
 exit /b
 
 :EXIT_UPDATE
-echo Guncelleme bitti.
+echo Guncelleme bitti. Kapatmak icin bir tusa basin...
 pause
