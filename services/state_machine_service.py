@@ -2,7 +2,6 @@ from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
 from models.service_statu_map import ServiceStatuMap
 from models.service_statu import ServiceStatu
-from models.service_test_result_type import ServiceTestResultType
 
 class StateMachineService:
     def __init__(self, db: Session):

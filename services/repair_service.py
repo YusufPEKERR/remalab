@@ -1,7 +1,6 @@
 from typing import List
 from sqlalchemy.orm import Session
 from models.item_category_mission import ItemCategoryMission
-from models.product_family_mission import ProductFamilyMission
 from models.repair_record import RepairRecord
 
 EXPERT_MISSIONS = {

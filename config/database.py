@@ -112,15 +112,12 @@ def init_database_schema():
     from models.item_category_mission import ItemCategoryMission
     from models.item_labour import ItemLabour
     from models.item_fault import ItemFault
-    from models.symptom import Symptom
     from models.item_supply_status import ItemSupplyStatus
     from models.item import Item
     from models.product_family import ProductFamily
     from models.product_category import ProductCategory
     from models.brand import Brand
     from models.product_model import ProductModel
-    from models.product_node import ProductNode
-    from models.item_bom_node import ItemBomNode
     from models.product_bom_node import ProductBomNode
     
     # --- Modül 3 (Service State Machine) ---
@@ -128,32 +125,22 @@ def init_database_schema():
     from models.service_statu_map import ServiceStatuMap
     from models.service_request_type import ServiceRequestType
     from models.service_request_item_category import ServiceRequestItemCategory
-    from models.service_test_type import ServiceTestType
-    from models.service_test_result_type import ServiceTestResultType
-    from models.service_result_type import ServiceResultType
 
     # --- Modül 4 (Repair and Warranty) ---
     from models.repair_result_type import RepairResultType
     from models.repair_item_operation_type import RepairItemOperationType
     from models.repair_item_warranty import RepairItemWarranty
-    from models.product_family_mission import ProductFamilyMission
     from models.repair_record import RepairRecord
     from models.test_detected_part import TestDetectedPart
     from models.test_result_fault import TestResultFault
     from models.phonecheck_test_result import PhonecheckTestResult
     from models.service_repair import ServiceRepair
 
-    from models.cost_center import CostCenter
-    from models.branch import Branch
     from models.warehouse import Warehouse
-    from models.stock_place import StockPlace
-    from models.contact_type import ContactType
     from models.customer import Customer
-    from models.customer_target_service_price import CustomerTargetServicePrice
     from models.mission_group import MissionGroup
     from models.mission_workgroup import MissionWorkgroup
     from models.mission import Mission
-    from models.staff import Staff
 
     try:
         # organization şemasını oluştur (yoksa)

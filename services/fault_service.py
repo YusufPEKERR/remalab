@@ -1,6 +1,5 @@
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
-from models.symptom import Symptom
 from models.item_fault import ItemFault
 
 class FaultService:

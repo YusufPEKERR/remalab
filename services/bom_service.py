@@ -1,6 +1,5 @@
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
-from models.item_bom_node import ItemBomNode
 from models.product_bom_node import ProductBomNode
 
 class BomService:
