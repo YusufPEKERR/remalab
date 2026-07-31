@@ -32,7 +32,7 @@ if %errorlevel% equ 0 (
     
     if defined GH_TOKEN (
         echo [INFO] GitHub Token (.env GH_TOKEN) ile yetkilendiriliyor...
-        powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; $headers = @{ 'Authorization' = 'Bearer %GH_TOKEN%' ; 'User-Agent' = 'RemaLab-WMS' }; Invoke-WebRequest -Headers $headers -Uri 'https://api.github.com/repos/YusufPEKERR/remalab/zipball/main' -OutFile 'latest_update.zip'"
+        powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Headers @{ Authorization = 'token %GH_TOKEN%' } -Uri 'https://api.github.com/repos/YusufPEKERR/remalab/zipball/main' -OutFile 'latest_update.zip'"
     ) else (
         echo [INFO] Token bulunamadi, direkt indiriliyor...
         powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://github.com/YusufPEKERR/remalab/archive/refs/heads/main.zip' -OutFile 'latest_update.zip'"
@@ -60,7 +60,7 @@ if %errorlevel% equ 0 (
             exit /b
         )
     ) else (
-        echo [ERROR] Guncelleme paketi indirilemedi! Lutfen .env dosyasina GH_TOKEN ekleyin veya Git kurun.
+        echo [ERROR] Guncelleme paketi indirilemedi! Lutfen .env dosyasina GH_TOKEN ekleyin.
         pause
         exit /b
     )
