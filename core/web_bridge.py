@@ -10067,6 +10067,21 @@ class WebBridge(QObject):
                 )
             target_statu_code = 109 if all_approved else 106
 
+            # Cihaz zaten hedef statüdeyse (örn. Müşteri Onayına gönderilmiş 106'da bir cihaza
+            # yeni onarım eklenip karar tekrar verilirse hedef yine 106 olur) idempotent kabul
+            # edilir; aksi halde execute_batch_entry_statu_transition geçersiz 106->106 geçişi
+            # deneyip "bu okutmaya uygun statü değil" hatası verirdi. Cihaz zaten doğru statüde,
+            # eklenen yeni onarım da aynı müşteri onayı kapsamına dahil olur.
+            if int(entry["statu_code"]) == int(target_statu_code):
+                return json.dumps({
+                    "success": True,
+                    "new_statu_code": target_statu_code,
+                    "decision": "URETIME_AKTAR" if all_approved else "MUSTERI_ONAYI",
+                    "message": ("Cihaz zaten Üretim aşamasında; yeni onarım bu kapsama eklendi."
+                                if all_approved else
+                                "Cihaz zaten Müşteri Onayı kapsamında; yeni onarım da bu onaya dahil edildi.")
+                }, ensure_ascii=False)
+
             result_json = self.execute_batch_entry_statu_transition(str(entry["id"]), int(entry["statu_code"]), int(target_statu_code))
             result = json.loads(result_json)
             result["decision"] = "URETIME_AKTAR" if all_approved else "MUSTERI_ONAYI"
@@ -10103,15 +10118,37 @@ class WebBridge(QObject):
                 if part_row:
                     tracking_type = (part_row["stock_tracking_type"] or "Stok Takipli").strip()
                     is_stoksuz = tracking_type in ("Stok Takipsiz", "Stoksuz", "Servis Hizmeti", "Yazılım/Hizmet")
-                    
+
                     if not is_stoksuz:
                         # Parçanın bu cihazdaki supply_status_code değeri 'Teslim Edildi' mi?
                         is_delivered = (rec.supply_status_code or "").strip().lower() in ("teslim edildi", "teslim", "1002", "completed")
                         if not is_delivered:
                             return json.dumps({
-                                "success": False, 
+                                "success": False,
                                 "message": f"Bu onarım tamamlanamaz! Eklenen '{part_row['name']}' ({rec.part_item_code}) parçası henüz depodan teknisyene teslim edilmemiş (Good Stock'tan çıkışı yapılmamış)."
                             }, ensure_ascii=False)
+
+            # Müşteri onayı olmadan tamamlama engeli: Onarım "Teknisyene Atandı" (1001) aşamasından
+            # doğrudan "Onarım Tamamlandı" (1002) yapılmaya çalışılıyorsa ve cihazın Flow'u müşteri
+            # onayı gerektiriyorsa (To refurbish / To RMA HARİÇ), önce "Müşteri Onayına Sun" (1005)
+            # adımından geçilmelidir. Onay gelince 1005 -> 1002 ("Onay Geldi - Tamamla") ya da test
+            # başarılıysa 1006 -> 1002 ile tamamlanabilir.
+            if target_code == 1002 and rec.repair_result_type_code == 1001:
+                ref = str(rec.service_record_id or "")
+                be_row = db.execute(text("""
+                    SELECT flow FROM warehouse.batch_entries
+                    WHERE service_id::text = :ref
+                       OR LOWER(TRIM(imei_number)) = LOWER(:ref)
+                       OR LOWER(TRIM(serial_number)) = LOWER(:ref)
+                       OR LOWER(TRIM(internal_id)) = LOWER(:ref)
+                    ORDER BY id DESC LIMIT 1
+                """), {"ref": ref}).first()
+                flow = ((be_row[0] if be_row else "") or "").strip().lower()
+                NO_APPROVAL_FLOWS = {"to refurbish", "to rma"}
+                if flow and flow not in NO_APPROVAL_FLOWS:
+                    return json.dumps({"success": False, "message":
+                        "Bu onarım müşteri onayı alınmadan tamamlanamaz. Önce 'Müşteri Onayına Sun' "
+                        "adımından geçip onay alınmalı, ardından 'Onay Geldi - Tamamla' ile kapatılmalıdır."})
 
             rec.repair_result_type_code = target_code
             db.commit()
