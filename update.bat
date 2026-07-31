@@ -8,13 +8,38 @@ echo   RemaLab WMS Sunucu Guncelleme Sihirbazi
 echo ===================================================
 echo.
 
-echo [1/4] GitHub'dan en son kodlar cekiliyor (git pull)...
-git pull origin main
-if %errorlevel% neq 0 (
-    echo.
-    echo [ERROR] Git pull yapilamadi! Lutfen yetkilerinizi kontrol edin.
-    pause
-    exit /b
+rem Git kurulu mu kontrol et
+where git >nul 2>nul
+if %errorlevel% equ 0 (
+    echo [1/4] Git bulundu, GitHub'dan en son kodlar cekiliyor (git pull)...
+    git pull origin main
+    if %errorlevel% neq 0 (
+        echo [WARN] Git pull sirasinda hata olustu, ZIP indirme yontemine geciliyor...
+        goto DOWNLOAD_ZIP
+    )
+) else (
+    :DOWNLOAD_ZIP
+    echo [1/4] Git bulunamadi. GitHub'dan en son ZIP paketi indiriliyor...
+    powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://github.com/YusufPEKERR/remalab/archive/refs/heads/main.zip' -OutFile 'latest_update.zip'"
+    
+    if exist latest_update.zip (
+        echo [INFO] ZIP paketi aciliyor ve dosyalar guncelleniyor...
+        powershell -Command "Expand-Archive -Path 'latest_update.zip' -DestinationPath 'temp_update' -Force"
+        if exist temp_update\remalab-main (
+            xcopy /s /e /y "temp_update\remalab-main\*" "." >nul
+            rmdir /s /q temp_update
+            del /f /q latest_update.zip
+            echo [SUCCESS] Dosyalar ZIP paketinden basariyla guncellendi.
+        ) else (
+            echo [ERROR] ZIP icerigi cikartilamadi!
+            pause
+            exit /b
+        )
+    ) else (
+        echo [ERROR] Guncelleme paketi indirilemedi! Lutfen internet baglantinizi kontrol edin.
+        pause
+        exit /b
+    )
 )
 
 echo.
