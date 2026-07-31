@@ -86,6 +86,16 @@ export default function MainLayout() {
     }
   };
 
+  const [appVersion, setAppVersion] = useState("v1.0.0");
+
+  useEffect(() => {
+    api.getAppVersion().then(res => {
+      if (res && res.success && res.data?.version) {
+        setAppVersion(res.data.version);
+      }
+    });
+  }, []);
+
   useEffect(() => {
     const fetchUser = () => {
       const storedUser = localStorage.getItem('user') || sessionStorage.getItem('user');
@@ -403,14 +413,18 @@ export default function MainLayout() {
           })}
         </div>
         
-        <div className="p-4 border-t border-[#DCE1F1] dark:border-[#1e222d]">
+        <div className="p-4 border-t border-[#DCE1F1] dark:border-[#1e222d] flex flex-col gap-2">
           <button 
             onClick={handleLogout}
-            className="flex items-center gap-3 px-3 py-2.5 w-full rounded-xl text-sm font-medium text-[#C0392F] dark:text-[#F87171] hover:bg-[#C0392F]/15 dark:hover:bg-[#F87171]/15 hover:text-red-300 transition-colors"
+            className="flex items-center gap-3 px-3 py-2.5 w-full rounded-xl text-sm font-medium text-[#C0392F] dark:text-[#F87171] hover:bg-[#C0392F]/15 dark:hover:bg-[#F87171]/15 hover:text-red-300 transition-colors cursor-pointer"
           >
             <LogOut size={18} />
             Çıkış Yap
           </button>
+          <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 dark:text-slate-500 pt-1 px-1">
+            <span>RemaLab WMS</span>
+            <span className="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-[#00b2ff] font-bold border border-blue-500/20">{appVersion}</span>
+          </div>
         </div>
       </aside>
 

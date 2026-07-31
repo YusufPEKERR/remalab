@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Scan, Info, Layers, Package, Search, RefreshCw, CheckCircle, AlertCircle, User, Filter, Tag } from 'lucide-react';
+import { Scan, Info, Layers, Package, Search, RefreshCw, CheckCircle, AlertCircle } from 'lucide-react';
 import { api } from '../services/api';
 
 function getCurrentUser() {
@@ -18,16 +18,15 @@ export default function ParcaTeslim() {
 
   // Batch Girişi'nden (warehouse.batch_entries) gelen cihaz bilgisi
   const [device, setDevice] = useState(null);
-  
+
   // Cihazın Marka, Model ve Rengine göre teslim edilebilecek parçalar
   const [deliverableParts, setDeliverableParts] = useState([]);
   const [selectedPartCode, setSelectedPartCode] = useState(null);
-  const [stockQty, setStockQty] = useState(null);
   const [serviceStatuList, setServiceStatuList] = useState([]);
-  
+
   // Filtreleme & Arama State'leri
   const [searchFilter, setSearchFilter] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('Hepsi');
+  const [teamFilter, setTeamFilter] = useState('Hepsi');
 
   const [submitting, setSubmitting] = useState(false);
   const inputRef = useRef(null);
@@ -41,14 +40,6 @@ export default function ParcaTeslim() {
   }, []);
 
   const selectedPart = deliverableParts.find(p => p.itemCode === selectedPartCode) || null;
-
-  // Seçili parçanın Good Stock'taki miktarını güncelle
-  useEffect(() => {
-    if (!selectedPart?.itemCode) { setStockQty(null); return; }
-    api.getStockByItemCode(selectedPart.itemCode).then(res => {
-      if (res && res.success) setStockQty(res.quantity);
-    });
-  }, [selectedPart?.itemCode]);
 
   const statuName = (code) => {
     const s = serviceStatuList.find(x => x.code === code);
@@ -67,9 +58,12 @@ export default function ParcaTeslim() {
           const firstInStock = partsList.find(p => p.isAvailable) || partsList[0];
           setSelectedPartCode(firstInStock.itemCode);
         }
+      } else {
+        setError(res?.message || 'Teslim edilebilir parçalar alınamadı.');
       }
     } catch (err) {
       console.error('Teslim edilebilir parçaları alma hatası:', err);
+      setError('Teslim edilebilir parçalar alınırken hata oluştu.');
     }
   };
 
@@ -134,7 +128,7 @@ export default function ParcaTeslim() {
       }
 
       setSuccessMsg(res.message || `'${selectedPart.partName}' (${selectedPart.itemCode}) teslim edildi.`);
-      
+
       // Parça listesindeki stok miktarını yerel olarak güncelle (-1)
       setDeliverableParts(prev => prev.map(p => {
         if (p.itemCode === selectedPart.itemCode) {
@@ -143,10 +137,6 @@ export default function ParcaTeslim() {
         }
         return p;
       }));
-
-      // Güncel Good Stock miktarını çek
-      setStockQty(prev => prev !== null ? Math.max(0, prev - 1) : null);
-
     } catch (err) {
       setError('Parça teslimatı sırasında beklenmeyen hata: ' + err.message);
     } finally {
@@ -155,19 +145,22 @@ export default function ParcaTeslim() {
     }
   };
 
-  const phoneInfo = device ? [device.brand, device.model, device.gb, device.color].filter(Boolean).join(' ') || '-' : '-';
+  const phoneInfo = device ? [device.model, device.gb, device.color].filter(Boolean).join(' ') || '-' : '-';
 
-  // Kategoriler Listesi (Filtreleme için)
-  const categories = ['Hepsi', ...new Set(deliverableParts.map(p => p.itemCategory).filter(Boolean))];
+  // Onarım Takımları Listesi (Filtreleme için - warehouse.item_category_mission üzerinden
+  // parça kategorisinin bağlı olduğu Onarım Takımı, organization.mission_groups.short_name)
+  const teams = ['Hepsi', ...new Set(deliverableParts.map(p => p.repairTeamName).filter(Boolean))].sort(
+    (a, b) => a === 'Hepsi' ? -1 : b === 'Hepsi' ? 1 : a.localeCompare(b, 'tr')
+  );
 
   // Filtrelenmiş Parçalar
   const filteredParts = deliverableParts.filter(p => {
-    const matchesCat = categoryFilter === 'Hepsi' || p.itemCategory === categoryFilter;
-    const matchesSearch = !searchFilter.trim() || 
+    const matchesTeam = teamFilter === 'Hepsi' || p.repairTeamName === teamFilter;
+    const matchesSearch = !searchFilter.trim() ||
       (p.partName || '').toLowerCase().includes(searchFilter.toLowerCase()) ||
       (p.itemCode || '').toLowerCase().includes(searchFilter.toLowerCase()) ||
-      (p.itemCategory || '').toLowerCase().includes(searchFilter.toLowerCase());
-    return matchesCat && matchesSearch;
+      (p.repairTeamName || '').toLowerCase().includes(searchFilter.toLowerCase());
+    return matchesTeam && matchesSearch;
   });
 
   return (
@@ -236,7 +229,7 @@ export default function ParcaTeslim() {
                 <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{device.imei_number || device.serial_number}</span>
               </div>
               <div className="flex justify-between items-center py-1">
-                <span className="text-slate-500 dark:text-slate-400">Marka / Model:</span>
+                <span className="text-slate-500 dark:text-slate-400">Telefon Bilgisi:</span>
                 <span className="font-semibold text-slate-800 dark:text-slate-200">{phoneInfo}</span>
               </div>
               <div className="flex justify-between items-center py-1">
@@ -290,8 +283,8 @@ export default function ParcaTeslim() {
                     <span className="font-mono font-bold text-blue-600 dark:text-[#00b2ff]">{selectedPart.itemCode}</span>
                   </div>
                   <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-                    <span>Kategori / Renk:</span>
-                    <span className="font-medium text-slate-700 dark:text-slate-300">{selectedPart.itemCategory || "-"} {selectedPart.color ? `(${selectedPart.color})` : ''}</span>
+                    <span>Onarım Takımı / Renk:</span>
+                    <span className="font-medium text-slate-700 dark:text-slate-300">{selectedPart.repairTeamName || "-"} {selectedPart.color ? `(${selectedPart.color})` : ''}</span>
                   </div>
                   <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-200/60 dark:border-slate-800">
                     <span>Good Stock Miktarı:</span>
@@ -340,19 +333,19 @@ export default function ParcaTeslim() {
                 />
               </div>
 
-              {categories.length > 1 && (
+              {teams.length > 1 && (
                 <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-thin">
-                  {categories.map(cat => (
+                  {teams.map(team => (
                     <button
-                      key={cat}
-                      onClick={() => setCategoryFilter(cat)}
+                      key={team}
+                      onClick={() => setTeamFilter(team)}
                       className={`px-2.5 py-1 rounded-md text-[11px] font-bold whitespace-nowrap transition-colors cursor-pointer ${
-                        categoryFilter === cat
+                        teamFilter === team
                           ? 'bg-blue-600 text-white shadow-xs'
                           : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
                       }`}
                     >
-                      {cat}
+                      {team}
                     </button>
                   ))}
                 </div>
@@ -372,7 +365,7 @@ export default function ParcaTeslim() {
               ) : (
                 filteredParts.map((p) => {
                   const isSelected = selectedPartCode === p.itemCode;
-                  const isColorMatch = device?.color && p.color && 
+                  const isColorMatch = device?.color && p.color &&
                     p.color.toLowerCase().trim() === device.color.toLowerCase().trim();
 
                   return (
@@ -402,7 +395,7 @@ export default function ParcaTeslim() {
                         </div>
 
                         <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-2">
-                          <span>{p.itemCategory || 'Genel'}</span>
+                          <span>{p.repairTeamName || 'Genel'}</span>
                           {p.color && <span className="px-1.5 py-0.2 bg-slate-200 dark:bg-slate-800 rounded font-semibold text-slate-700 dark:text-slate-300">{p.color}</span>}
                         </div>
                       </div>
