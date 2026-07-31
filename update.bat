@@ -10,38 +10,41 @@ echo.
 
 rem .env dosyasından GH_TOKEN oku
 set GH_TOKEN=
-if exist .env (
-    for /f "usebackq tokens=1,* delims==" %%a in (".env") do (
-        if "%%a"=="GH_TOKEN" set GH_TOKEN=%%b
-        if "%%a"=="GITHUB_TOKEN" set GH_TOKEN=%%b
-    )
+if not exist .env goto CHECK_GIT
+for /f "usebackq tokens=1,* delims==" %%a in (".env") do (
+    if "%%a"=="GH_TOKEN" set "GH_TOKEN=%%b"
+    if "%%a"=="GITHUB_TOKEN" set "GH_TOKEN=%%b"
 )
 
+:CHECK_GIT
 rem Git var mı kontrol et
 where git >nul 2>nul
-if %errorlevel% equ 0 (
-    echo [1/4] Git bulundu, GitHub'dan en son kodlar cekiliyor (git pull)...
-    git pull origin main
-    if %errorlevel% equ 0 goto AFTER_DOWNLOAD
-    echo [WARN] Git pull yapilamadi, Private GitHub API yontemine geciliyor...
-)
+if %errorlevel% neq 0 goto DOWNLOAD_ZIP
+
+echo [1/4] Git bulundu, GitHub'dan en son kodlar cekiliyor (git pull)...
+git pull origin main
+if %errorlevel% equ 0 goto AFTER_DOWNLOAD
+echo [WARN] Git pull yapilamadi, Private GitHub API yontemine geciliyor...
 
 :DOWNLOAD_ZIP
 echo [1/4] Private GitHub deposundan en son paket indiriliyor...
 
-if defined GH_TOKEN (
-    echo [INFO] GitHub Token (.env GH_TOKEN) ile yetkilendiriliyor...
-    powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Headers @{ Authorization = 'token %GH_TOKEN%' } -Uri 'https://api.github.com/repos/YusufPEKERR/remalab/zipball/main' -OutFile 'latest_update.zip'"
-) else (
-    echo [INFO] Token bulunamadi, direkt indiriliyor...
-    powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://github.com/YusufPEKERR/remalab/archive/refs/heads/main.zip' -OutFile 'latest_update.zip'"
-)
+if defined GH_TOKEN goto WITH_TOKEN
 
+echo [INFO] Token bulunamadi, direkt indiriliyor...
+powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://github.com/YusufPEKERR/remalab/archive/refs/heads/main.zip' -OutFile 'latest_update.zip'"
+goto DO_UNZIP
+
+:WITH_TOKEN
+echo [INFO] GitHub Token (.env GH_TOKEN) ile yetkilendiriliyor...
+powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Headers @{ Authorization = 'token %GH_TOKEN%' } -Uri 'https://api.github.com/repos/YusufPEKERR/remalab/zipball/main' -OutFile 'latest_update.zip'"
+
+:DO_UNZIP
 if not exist latest_update.zip (
     echo.
     echo ===================================================
     echo   [HATA] Guncelleme paketi indirilemedi!
-    echo   Lutfen .env dosyasina GH_TOKEN ekleyin veya internet baglantinizi kontrol edin.
+    echo   Lutfen .env dosyasina GH_TOKEN ekleyin.
     echo ===================================================
     echo.
     pause
@@ -81,29 +84,23 @@ if exist .venv\Scripts\pip.exe (
 ) else (
     pip install -r requirements.txt
 )
-if %errorlevel% neq 0 (
-    echo.
-    echo ===================================================
-    echo   [HATA] Python kutuphaneleri yuklenirken hata olustu!
-    echo ===================================================
-    echo.
-    pause
-    exit /b 1
-)
 
 echo.
 echo [3/4] React Frontend arayuzu kontrol ediliyor...
 where npm >nul 2>nul
-if %errorlevel% equ 0 (
-    echo [INFO] Node.js/npm bulundu, frontend derleniyor...
-    cd frontend
-    call npm install
-    call npm run build
-    cd ..
-) else (
-    echo [INFO] Sunucuda npm bulunamadi. GitHub deposundaki hazir derlenmis (dist) arayuz kullaniliyor.
-)
+if %errorlevel% neq 0 goto NO_NPM
 
+echo [INFO] Node.js/npm bulundu, frontend derleniyor...
+cd frontend
+call npm install
+call npm run build
+cd ..
+goto FINISHED
+
+:NO_NPM
+echo [INFO] Sunucuda npm bulunamadi. Hazir derlenmis (dist) arayuz kullaniliyor.
+
+:FINISHED
 echo.
 echo ===================================================
 echo   GUNCELLEME BASARIYLA TAMAMLANDI!
