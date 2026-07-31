@@ -2,6 +2,13 @@
 title RemaLab WMS Headless Server Launcher
 cd /d "%~dp0"
 
+:START_SERVER
+cls
+echo ===================================================
+echo   RemaLab WMS Headless Sunucu Launcher
+echo ===================================================
+echo.
+
 echo [INFO] Python sanal ortami (.venv) kontrol ediliyor...
 if not exist .venv\Scripts\python.exe (
     echo [WARNING] .venv bulunamadi. Sanal ortam olusturuluyor...
@@ -28,11 +35,20 @@ if not exist frontend\node_modules (
     cd ..
 )
 
-echo [INFO] RemaLab WMS Headless Sunucusu baslatiliyor (Arayuzsuz Sunucu Modu)...
+echo [INFO] RemaLab WMS Sunucusu baslatiliyor...
+echo.
 .venv\Scripts\python.exe server.py
 
-if %errorlevel% neq 0 (
-    echo.
-    echo [ERROR] Sunucu %errorlevel% koduyla sonlandi.
-    pause
-)
+echo.
+echo ===================================================
+echo   Sunucu durduruldu veya kapandi.
+echo   [R] Yeniden Baslat (Restart)
+echo   [Q] Cikis (Exit)
+echo ===================================================
+choice /c RQ /m "Seciminiz [R/Q]:"
+if errorlevel 2 goto EXIT_APP
+if errorlevel 1 goto START_SERVER
+
+:EXIT_APP
+echo Sunucu kapatildi.
+exit /b
