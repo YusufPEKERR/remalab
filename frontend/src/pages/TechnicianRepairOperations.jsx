@@ -477,8 +477,8 @@ const TechnicianRepairOperations = () => {
         serviceStatusText: batchStatusCode == null ? (repairLink?.device?.statusText || "") : "",
         workOrderId: repairLink ? repairLink.work_order_id : null,
         faultTags: [],
-        batteryCycle: null,
-        batteryHealth: null,
+        batteryCycle: repairLink?.battery_cycle ?? d.battery_cycle ?? null,
+        batteryHealth: repairLink?.battery_health ?? d.battery_health_percentage ?? null,
       };
 
       setDevice(realDevice);
@@ -552,7 +552,25 @@ const TechnicianRepairOperations = () => {
       return false;
     }
 
-    await refreshRepairs();
+    const refreshed = await refreshRepairs();
+
+    // Yeni eklenen onarım grubunu listede otomatik seçili duruma getir
+    if (refreshed && refreshed.success && refreshed.repairs) {
+      const updatedRepairs = refreshed.repairs;
+      const groups = [];
+      const map = new Map();
+      for (const r of updatedRepairs) {
+        const key = r.missionGroupCode || r.missionGroup;
+        if (!map.has(key)) {
+          map.set(key, true);
+          groups.push(key);
+        }
+      }
+      const targetIdx = groups.indexOf(missionGroupCode);
+      if (targetIdx !== -1) {
+        setSelectedRepairIdx(targetIdx);
+      }
+    }
 
     const groupLabel = missionGroups.find(mg => mg.code === missionGroupCode)?.short_name || missionGroupCode;
     showNotif("success", "Onarım Eklendi", `${groupLabel} başarıyla eklendi.`);
@@ -846,14 +864,14 @@ const TechnicianRepairOperations = () => {
                       <BatteryCharging size={14} className="text-indigo-500" />
                       <span className="text-[10px] font-bold text-indigo-500 dark:text-indigo-400 uppercase tracking-wider">Battery Cycle</span>
                     </div>
-                    <p className="text-xl font-bold text-indigo-700 dark:text-indigo-300">{device.batteryCycle ?? "-"}</p>
+                    <p className="text-xl font-bold text-indigo-700 dark:text-indigo-300">{(device.batteryCycle !== null && device.batteryCycle !== undefined && device.batteryCycle !== "") ? String(device.batteryCycle) : "-"}</p>
                   </div>
                   <div className="flex-1 px-3 py-2.5 rounded-xl bg-teal-50 dark:bg-teal-500/10 border border-teal-200 dark:border-teal-500/30 text-center">
                     <div className="flex items-center justify-center gap-1.5 mb-1">
                       <Battery size={14} className="text-teal-500" />
                       <span className="text-[10px] font-bold text-teal-500 dark:text-teal-400 uppercase tracking-wider">Battery Health</span>
                     </div>
-                    <p className={`text-xl font-bold ${device.batteryHealth == null ? 'text-slate-400 dark:text-slate-600' : device.batteryHealth >= 80 ? 'text-teal-700 dark:text-teal-300' : device.batteryHealth >= 60 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`}>{device.batteryHealth != null ? `${device.batteryHealth}%` : "-"}</p>
+                    <p className={`text-xl font-bold ${(device.batteryHealth === null || device.batteryHealth === undefined || device.batteryHealth === "") ? 'text-slate-400 dark:text-slate-600' : Number(device.batteryHealth) >= 80 ? 'text-teal-700 dark:text-teal-300' : Number(device.batteryHealth) >= 60 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`}>{(device.batteryHealth !== null && device.batteryHealth !== undefined && device.batteryHealth !== "") ? `${device.batteryHealth}%` : "-"}</p>
                   </div>
                 </div>
               </div>
@@ -1011,7 +1029,6 @@ const TechnicianRepairOperations = () => {
                     <th className="text-left px-3 py-2.5">Depo Durum</th>
                     <th className="text-left px-3 py-2.5">Depo Parça</th>
                     <th className="text-left px-3 py-2.5">Açıklama</th>
-                    {selectedGroup.items.length > 1 && <th className="text-left px-3 py-2.5">Durum</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-[#1e222d]">
@@ -1052,15 +1069,6 @@ const TechnicianRepairOperations = () => {
                         )}
                       </td>
                       <td className="px-3 py-2.5 text-xs text-slate-500 dark:text-slate-400">{r.notes || "N/A"}</td>
-                      {selectedGroup.items.length > 1 && (
-                        <td className="px-3 py-2.5">
-                          {r.isCancelled ? (
-                            <span className="inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold border bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border-red-200 dark:border-red-500/30">İptal Edildi</span>
-                          ) : (
-                            <StatusBadge code={r.statusCode} />
-                          )}
-                        </td>
-                      )}
                     </tr>
                   ))}
                 </tbody>

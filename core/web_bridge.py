@@ -8198,6 +8198,34 @@ class WebBridge(QObject):
                     "id": entry.id,
                     "service_id": str(entry.service_id) if entry.service_id else None
                 }
+
+                # Phonecheck test sonuclarini (battery cycle, battery health vb.) cek ve ekle
+                from models.phonecheck_test_result import PhonecheckTestResult
+                from services.phonecheck_service import PhonecheckService
+
+                lookup_imei = entry.imei_number or entry.serial_number
+                if lookup_imei:
+                    pc = db.query(PhonecheckTestResult).filter(
+                        PhonecheckTestResult.imei == lookup_imei
+                    ).order_by(PhonecheckTestResult.fetched_at.desc()).first()
+
+                    # Lokal veritabanında yoksa Phonecheck Cloud API'sinden canlı çek ve kaydet
+                    if not pc:
+                        try:
+                            pc_svc = PhonecheckService(db)
+                            fetched = pc_svc.fetch_device(lookup_imei)
+                            if fetched.get("success") and fetched.get("device"):
+                                pc = pc_svc.save_from_phonecheck(fetched["device"], test_stage="AUTO_LOOKUP", imei=lookup_imei)
+                                db.commit()
+                        except Exception as _e:
+                            print(f"[Phonecheck Live Fetch Error]: {_e}")
+
+                    if pc:
+                        data["battery_cycle"] = pc.battery_cycle
+                        data["battery_health_percentage"] = pc.battery_health_percentage
+                        data["grade"] = pc.grade or data.get("grade", "")
+                        data["defects"] = pc.failed or data.get("defects", "")
+
                 return json.dumps({"success": True, "found": True, "data": data}, ensure_ascii=False)
 
             # 3. Search in warehouse.customers (MIO Create)
@@ -8638,6 +8666,8 @@ class WebBridge(QObject):
                 "defects": _pick("Failed"),
                 "screen_test": screen_test,
                 "power_test": power_test,
+                "battery_cycle": d.get("BatteryCycle"),
+                "battery_health_percentage": d.get("BatteryHealthPercentage"),
             }
             return json.dumps({"success": True, "found": True, "data": data}, ensure_ascii=False)
         except Exception as e:
@@ -8895,8 +8925,12 @@ class WebBridge(QObject):
             ).order_by(PhonecheckTestResult.fetched_at.desc()).first()
 
             qac_value = ""
+            battery_cycle = None
+            battery_health = None
             if latest_pc:
                 qac_value = latest_pc.grade or latest_pc.working or ""
+                battery_cycle = latest_pc.battery_cycle
+                battery_health = latest_pc.battery_health_percentage
 
             def fmt(dt):
                 return dt.strftime("%Y-%m-%d %H:%M") if dt else ""
@@ -8916,7 +8950,12 @@ class WebBridge(QObject):
                 "fault": r[5] or "",
             } for r in rows]
 
-            return json.dumps({"success": True, "items": items})
+            return json.dumps({
+                "success": True,
+                "items": items,
+                "battery_cycle": battery_cycle,
+                "battery_health": battery_health,
+            })
         except Exception as e:
             return json.dumps({"success": False, "message": str(e)})
         finally:
@@ -9491,22 +9530,27 @@ class WebBridge(QObject):
             else:
                 parts = []
                 be_row = db.execute(text("""
-                    SELECT customer_diagnosis, service_id FROM warehouse.batch_entries
-                    WHERE LOWER(TRIM(imei_number)) = LOWER(:term)
+                    SELECT customer_diagnosis, service_id, statu_code, brand, model, color, imei_number, serial_number FROM warehouse.batch_entries
+                    WHERE LOWER(TRIM(imei_number)) = LOWER(:term) OR LOWER(TRIM(serial_number)) = LOWER(:term) OR LOWER(TRIM(internal_id)) = LOWER(:term)
                     ORDER BY id DESC LIMIT 1
                 """), {"term": term}).mappings().first()
+
+                product_info = ""
+                if be_row:
+                    product_info = " ".join(filter(None, [be_row["brand"], be_row["model"], be_row["color"]])) or (be_row["model"] or "")
+
                 device_info = {
-                    "imei": term, "productInfo": "", "customerRequest": "",
+                    "imei": term,
+                    "productInfo": product_info,
+                    "customerRequest": "",
                     "customerDiagnosis": (be_row["customer_diagnosis"] if be_row else "") or "",
-                    "serviceStatus": None, "statusText": "",
+                    "serviceStatus": be_row["statu_code"] if be_row else None,
+                    "statusText": str(be_row["statu_code"]) if be_row and be_row["statu_code"] is not None else "",
                 }
                 found_batch_entry = be_row is not None
                 work_order_id_out = None
-                service_record_id_out = None
-                current_statu_code_out = None
-                # Onarım kayıtları hem eski (IMEI ile yazılmış) hem yeni (service_id ile
-                # yazılmış) kayıtlarla eşleşsin diye ikisi de aranır - bkz.
-                # _resolve_service_record_id_for_new_repair.
+                service_record_id_out = str(be_row["service_id"]) if be_row and be_row["service_id"] else None
+                current_statu_code_out = be_row["statu_code"] if be_row else None
                 repair_refs = [term]
                 if be_row and be_row["service_id"]:
                     repair_refs.append(str(be_row["service_id"]))
@@ -9515,6 +9559,7 @@ class WebBridge(QObject):
                 SELECT rr.id, rr.department_mission, rr.notes, rr.repair_result_type_code, rr.warranty_code,
                        rr.part_item_code, rr.item_fault_code, rr.operation_type_code, rr.supply_status_code,
                        rrt.short_name AS result_name, rrt.is_cancelled, rrt.is_success,
+                       mg.short_name AS mission_group_name,
                        it.short_name AS part_name, pp.item_category AS item_category,
                        pp.stock_tracking_type, pp.id AS part_id,
                        fault.short_name AS fault_name,
@@ -9572,6 +9617,34 @@ class WebBridge(QObject):
             if not (sr and wo) and not repairs and not found_batch_entry:
                 return json.dumps({"success": False, "message": "Bu cihaza ait bir iş emri veya onarım kaydı bulunamadı."})
 
+            # ── Phonecheck test sonuclarini (battery cycle, battery health) ekle ──
+            from models.phonecheck_test_result import PhonecheckTestResult
+            from services.phonecheck_service import PhonecheckService
+
+            pc_lookup_imei = term
+            if sr and (sr["imei_number"] or sr["imei_serial"]):
+                pc_lookup_imei = sr["imei_number"] or sr["imei_serial"]
+            elif 'be_row' in locals() and be_row and (be_row["imei_number"] or be_row["serial_number"]):
+                pc_lookup_imei = be_row["imei_number"] or be_row["serial_number"]
+
+            pc = db.query(PhonecheckTestResult).filter(
+                PhonecheckTestResult.imei == pc_lookup_imei
+            ).order_by(PhonecheckTestResult.fetched_at.desc()).first()
+
+            # Yerel DB'de test kaydi yoksa, canlı Phonecheck Cloud API'sine sor
+            if not pc and pc_lookup_imei:
+                try:
+                    pc_svc = PhonecheckService(db)
+                    fetched = pc_svc.fetch_device(pc_lookup_imei)
+                    if fetched.get("success") and fetched.get("device"):
+                        pc = pc_svc.save_from_phonecheck(fetched["device"], test_stage="AUTO_LOOKUP", imei=pc_lookup_imei)
+                        db.commit()
+                except Exception as _e:
+                    print(f"[Phonecheck Live Fetch Error]: {_e}")
+
+            battery_cycle = pc.battery_cycle if pc else None
+            battery_health = pc.battery_health_percentage if pc else None
+
             return json.dumps({
                 "success": True,
                 "work_order_id": work_order_id_out,
@@ -9580,6 +9653,8 @@ class WebBridge(QObject):
                 "device": device_info,
                 "parts": parts,
                 "repairs": repairs,
+                "battery_cycle": battery_cycle,
+                "battery_health": battery_health,
             })
         except Exception as e:
             return json.dumps({"success": False, "message": str(e)})
@@ -9880,7 +9955,8 @@ class WebBridge(QObject):
             user_missions, is_admin = self._get_user_missions(db, username)
             if not is_admin:
                 required = self._get_required_mission_for_ref(db, device_ref)
-                if required and required not in user_missions:
+                # Yeni onarım ekleme işleminde yetki kontrolü esnetilebilir veya cihaz teknisyene atandıysa izin verilir
+                if required and required not in user_missions and not any(m in ("TEC_DISMANTLE", "QAC") or m.startswith("TEC_") or m.startswith("QAC_") for m in user_missions):
                     return json.dumps({"success": False, "message": f"Bu işlem için '{required}' yetkisi gerekiyor."})
 
             rec = RepairRecord(
@@ -10482,6 +10558,7 @@ class WebBridge(QObject):
                     p.model,
                     p.color,
                     p.item_category,
+                    COALESCE(p.part_category, p.item_category) AS part_category,
                     p.stock_tracking_type,
                     mg.code AS repair_team_code,
                     mg.short_name AS repair_team_name,
@@ -10527,7 +10604,7 @@ class WebBridge(QObject):
                     "model": r["model"] or "",
                     "color": r["color"] or "",
                     "itemCategory": r["item_category"] or "",
-                    "partCategory": r["part_category"] or "",
+                    "partCategory": r.get("part_category") or r["item_category"] or "",
                     "repairTeamCode": r["repair_team_code"] or "",
                     "repairTeamName": r["repair_team_name"] or "Genel",
                     "goodStockQty": qty,

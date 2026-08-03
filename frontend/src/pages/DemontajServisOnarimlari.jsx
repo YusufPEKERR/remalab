@@ -111,8 +111,8 @@ const DemontajServisOnarimlari = () => {
         serviceStatus: batchStatusCode,
         serviceStatusText: batchStatusCode == null ? (repairLink?.device?.statusText || "") : "",
         workOrderId: repairLink ? repairLink.work_order_id : null,
-        batteryCycle: null,
-        batteryHealth: null,
+        batteryCycle: repairLink?.battery_cycle ?? d.battery_cycle ?? null,
+        batteryHealth: repairLink?.battery_health ?? d.battery_health_percentage ?? null,
       };
 
       setDevice(realDevice);
