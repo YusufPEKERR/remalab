@@ -2272,6 +2272,39 @@ export const api = {
         });
     },
 
+    getRepairPoolByDepartment: async (departmentCode) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_repair_pool_by_department) {
+                backend.get_repair_pool_by_department(String(departmentCode), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false, message: "Backend eksik (get_repair_pool_by_department)" });
+            }
+        });
+    },
+
+    getDepartmentTechnicians: async (departmentCode) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_department_technicians) {
+                backend.get_department_technicians(String(departmentCode), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false, message: "Backend eksik (get_department_technicians)" });
+            }
+        });
+    },
+
+    assignRepairToTechnician: async (departmentCode, imeiOrTerm, technicianUsername) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.assign_repair_to_technician) {
+                backend.assign_repair_to_technician(String(departmentCode), String(imeiOrTerm), String(technicianUsername), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false, message: "Backend eksik (assign_repair_to_technician)" });
+            }
+        });
+    },
+
     executeDeviceReturn: async (workOrderId, returnReason, dispositions, username) => {
         const backend = await getBackend();
         return new Promise((resolve) => {

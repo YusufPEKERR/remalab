@@ -28,6 +28,7 @@ export default function MainLayout() {
     'TEST PERSONELİ': true,
     'DEMONTAJ TEKNİSYENİ': true,
     'ÜRETİM TEKNİSYENİ': true,
+    'ONARIM HAVUZU': true,
     'ARA TEST': true,
     'KULLANICI & AYARLAR': true
   };
@@ -190,6 +191,19 @@ export default function MainLayout() {
       colorTheme: 'red',
       items: [
         { name: 'Üretim Kaydını Görüntüle', icon: Wrench, path: '/technician-repair' }
+      ]
+    },
+    {
+      title: 'ONARIM HAVUZU',
+      colorTheme: 'indigo',
+      items: [
+        { name: 'Batarya Onarımı', icon: Wrench, path: '/onarim-havuzu/BATTERY' },
+        { name: 'Kamera Onarımı', icon: Wrench, path: '/onarim-havuzu/CAMERA' },
+        { name: 'Ekran Onarımı', icon: Wrench, path: '/onarim-havuzu/DISPLAY' },
+        { name: 'Kasa Onarımı', icon: Wrench, path: '/onarim-havuzu/CASE' },
+        { name: 'L1 Onarımı', icon: Wrench, path: '/onarim-havuzu/L1REPAIR' },
+        { name: 'L2 Onarımı', icon: Wrench, path: '/onarim-havuzu/L2REPAIR' },
+        { name: 'L3 Onarımı', icon: Wrench, path: '/onarim-havuzu/L3REPAIR' },
       ]
     },
     {

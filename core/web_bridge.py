@@ -9800,8 +9800,13 @@ class WebBridge(QObject):
                 LEFT JOIN warehouse.item_supply_status sup ON sup.code = rr.supply_status_code
                 LEFT JOIN warehouse.users au ON au.username = rr.assigned_technician
                 WHERE rr.service_record_id = ANY(:refs)
+                   OR EXISTS (
+                       SELECT 1 FROM warehouse.batch_entries be
+                       WHERE (be.service_id IS NOT NULL AND strpos(rr.service_record_id, be.service_id::text) > 0)
+                         AND (LOWER(TRIM(be.imei_number)) = LOWER(:term) OR LOWER(TRIM(be.serial_number)) = LOWER(:term) OR LOWER(TRIM(be.internal_id)) = LOWER(:term))
+                   )
                 ORDER BY rr.created_at DESC
-            """), {"refs": repair_refs}).mappings().all()
+            """), {"refs": repair_refs, "term": term}).mappings().all()
 
             repair_loc_id = _get_system_location_id(db, "repair_stock")
             repairs = []
@@ -9896,6 +9901,210 @@ class WebBridge(QObject):
                 "battery_cycle": battery_cycle,
                 "battery_health": battery_health,
             })
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
+    def get_department_technicians(self, department_code):
+        """Belirtilen departmanda (BATTERY, DISPLAY, CAMERA, CASE, L1REPAIR, L2REPAIR, L3REPAIR)
+        görevli teknisyenleri (warehouse.users) döndürür."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            dept = (department_code or "").strip().upper()
+            if not dept:
+                return json.dumps({"success": False, "message": "Departman koda boş olamaz."})
+
+            rows = db.execute(text("""
+                SELECT username, fullname, role, gorev
+                FROM warehouse.users
+                WHERE (
+                    UPPER(COALESCE(gorev, '')) LIKE :pattern1 OR
+                    UPPER(COALESCE(gorev, '')) LIKE :pattern2 OR
+                    UPPER(COALESCE(role, '')) LIKE :pattern1
+                )
+                ORDER BY fullname ASC
+            """), {
+                "pattern1": f"%{dept}%",
+                "pattern2": f"%TEC_{dept}%"
+            }).mappings().all()
+
+            items = [{
+                "username": r["username"],
+                "fullname": r["fullname"] or r["username"],
+                "role": r["role"] or "",
+                "gorev": r["gorev"] or "",
+            } for r in rows]
+
+            return json.dumps({"success": True, "technicians": items}, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, str, result=str)
+    def assign_repair_to_technician(self, department_code, imei_or_term, technician_username):
+        """Teknisyen adının altındaki okutma kutusundan IMEI/Seri okutulduğunda:
+        O departmana ait en eski 'Teknisyene Atanacak' (1000) durumundaki onarım kaydını
+        veya belirtilen IMEI'li kaydı bulur, teknisyene atar (1001 - Teknisyene Atandı)."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            dept = (department_code or "").strip().upper()
+            term = (imei_or_term or "").strip()
+            tech = (technician_username or "").strip()
+
+            if not dept or not term or not tech:
+                return json.dumps({"success": False, "message": "Departman, IMEI ve Teknisyen bilgileri zorunludur."})
+
+            # Teknisyen varlığını doğrula
+            tech_user = db.execute(text("SELECT username, fullname FROM warehouse.users WHERE username = :u"), {"u": tech}).mappings().first()
+            if not tech_user:
+                return json.dumps({"success": False, "message": f"'{tech}' kullanıcısı bulunamadı."})
+
+            # İlgili departmanda bu IMEI'ye ait onarım kaydını bul
+            repair = db.execute(text("""
+                SELECT rr.id, rr.repair_result_type_code, rr.service_record_id
+                FROM warehouse.repair_records rr
+                WHERE UPPER(TRIM(rr.department_mission)) = :dept
+                  AND (
+                    LOWER(TRIM(rr.service_record_id)) = LOWER(:term) OR
+                    EXISTS (
+                        SELECT 1 FROM warehouse.batch_entries be 
+                        WHERE (be.service_id IS NOT NULL AND strpos(rr.service_record_id, be.service_id::text) > 0)
+                          AND (LOWER(TRIM(be.imei_number)) = LOWER(:term) OR LOWER(TRIM(be.serial_number)) = LOWER(:term) OR LOWER(TRIM(be.internal_id)) = LOWER(:term))
+                    )
+                  )
+                ORDER BY rr.created_at ASC LIMIT 1
+            """), {"dept": dept, "term": term}).mappings().first()
+
+            if not repair:
+                return json.dumps({"success": False, "message": f"'{term}' IMEI/cihazı için {dept} departmanında onarım kaydı bulunamadı."})
+
+            # Statüyü Teknisyene Atandı (1001) yap ve notes / supply_requested_by alanına teknisyeni işle
+            db.execute(text("""
+                UPDATE warehouse.repair_records
+                SET repair_result_type_code = 1001,
+                    supply_requested_by = :tech,
+                    updated_at = NOW()
+                WHERE id = :rid
+            """), {"tech": tech, "rid": repair["id"]})
+            db.commit()
+
+            tech_name = tech_user["fullname"] or tech_user["username"]
+            return json.dumps({
+                "success": True,
+                "message": f"Onarım kaydı başarıyla {tech_name} üzerine atandı (1001).",
+                "assignedTo": tech,
+                "assignedToName": tech_name
+            }, ensure_ascii=False)
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
+    def get_repair_pool_by_department(self, department_code):
+        """Onarım Havuzu ekranı için belirtilen departmana (department_code: BATTERY, DISPLAY vb.)
+        ait tüm aktif ve tamamlanmış onarım kayıtlarını sisteme giriş tarihine göre (en eskiden en yeniye)
+        cihaz/batch detaylarıyla döndürür."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            dept = (department_code or "").strip().upper()
+            if not dept:
+                return json.dumps({"success": False, "message": "Departman kodu boş olamaz."})
+
+            rows = db.execute(text("""
+                SELECT 
+                    rr.id AS repair_id,
+                    rr.service_record_id,
+                    rr.department_mission,
+                    rr.repair_result_type_code,
+                    rrt.short_name AS status_name,
+                    rrt.is_cancelled,
+                    rrt.is_success,
+                    rr.operation_type_code,
+                    opt.short_name AS operation_type_name,
+                    rr.warranty_code,
+                    rr.item_category,
+                    rr.part_item_code,
+                    pp.name AS part_name,
+                    rr.item_fault_code,
+                    fault.short_name AS fault_name,
+                    rr.supply_status_code,
+                    sup.short_name AS supply_status_name,
+                    rr.supply_requested_by AS assigned_technician,
+                    u.fullname AS assigned_technician_name,
+                    rr.notes,
+                    rr.created_at,
+                    rr.updated_at,
+                    be.imei_number,
+                    be.serial_number,
+                    be.internal_id,
+                    be.batch_no,
+                    be.model,
+                    be.gb,
+                    be.color,
+                    be.customer_name,
+                    be.statu_code AS batch_status_code
+                FROM warehouse.repair_records rr
+                LEFT JOIN warehouse.repair_result_type rrt ON rrt.code = rr.repair_result_type_code
+                LEFT JOIN warehouse.parts pp ON pp.item_code = rr.part_item_code
+                LEFT JOIN warehouse.item_fault fault ON fault.code = rr.item_fault_code
+                LEFT JOIN warehouse.repair_item_operation_type opt ON opt.code = rr.operation_type_code
+                LEFT JOIN warehouse.item_supply_status sup ON sup.code = rr.supply_status_code
+                LEFT JOIN warehouse.users u ON u.username = rr.supply_requested_by
+                LEFT JOIN warehouse.batch_entries be ON LOWER(TRIM(be.imei_number)) = LOWER(TRIM(rr.service_record_id))
+                    OR LOWER(TRIM(be.serial_number)) = LOWER(TRIM(rr.service_record_id))
+                    OR LOWER(TRIM(be.internal_id)) = LOWER(TRIM(rr.service_record_id))
+                    OR (be.service_id IS NOT NULL AND strpos(rr.service_record_id, be.service_id::text) > 0)
+                WHERE UPPER(TRIM(rr.department_mission)) = :dept
+                ORDER BY rr.created_at ASC
+            """), {"dept": dept}).mappings().all()
+
+            def fmt(dt):
+                return dt.strftime("%Y-%m-%d %H:%M") if dt else ""
+
+            items = []
+            for r in rows:
+                product_info = " ".join(filter(None, [r["model"], r["gb"], r["color"]])) or "-"
+                items.append({
+                    "repairId": str(r["repair_id"]),
+                    "serviceRecordId": r["service_record_id"] or "",
+                    "departmentMission": r["department_mission"] or "",
+                    "statusCode": r["repair_result_type_code"],
+                    "statusName": r["status_name"] or str(r["repair_result_type_code"]),
+                    "isCancelled": bool(r["is_cancelled"]),
+                    "isSuccess": bool(r["is_success"]),
+                    "operationTypeCode": r["operation_type_code"] or "",
+                    "operationTypeName": r["operation_type_name"] or "",
+                    "warrantyCode": r["warranty_code"] or "",
+                    "itemCategory": r["item_category"] or "",
+                    "partItemCode": r["part_item_code"] or "",
+                    "partName": r["part_name"] or "",
+                    "itemFaultCode": r["item_fault_code"] or "",
+                    "faultName": r["fault_name"] or r["item_fault_code"] or "",
+                    "supplyStatusCode": r["supply_status_code"] or "",
+                    "supplyStatusName": r["supply_status_name"] or "",
+                    "assignedTechnician": r["assigned_technician"] or "",
+                    "assignedTechnicianName": r["assigned_technician_name"] or r["assigned_technician"] or "",
+                    "notes": r["notes"] or "",
+                    "createdAt": fmt(r["created_at"]),
+                    "updatedAt": fmt(r["updated_at"]),
+                    "imei": r["imei_number"] or r["service_record_id"] or "-",
+                    "serialNo": r["serial_number"] or "",
+                    "internalId": r["internal_id"] or "",
+                    "batchNo": r["batch_no"] or "",
+                    "productInfo": product_info,
+                    "customerName": r["customer_name"] or "",
+                    "batchStatusCode": r["batch_status_code"],
+                })
+
+            return json.dumps({"success": True, "items": items}, ensure_ascii=False)
         except Exception as e:
             return json.dumps({"success": False, "message": str(e)})
         finally:

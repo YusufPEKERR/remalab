@@ -40,6 +40,7 @@ const AraTestSonuc = lazy(() => import('./pages/AraTestSonuc'));
 const SonTestSonuc = lazy(() => import('./pages/SonTestSonuc'));
 const StatuKontrol = lazy(() => import('./pages/StatuKontrol'));
 const ParcaTeslim = lazy(() => import('./pages/ParcaTeslim'));
+const DepartmentRepairPool = lazy(() => import('./pages/DepartmentRepairPool'));
 
 function RouteLoading() {
   return (
@@ -102,6 +103,7 @@ function App() {
               <Route path="/musteri-onayi" element={<CustomerApprovalDecision />} />
               <Route path="/technician-panel" element={<TechnicianPanel />} />
               <Route path="/technician-repair" element={<TechnicianRepairOperations />} />
+              <Route path="/onarim-havuzu/:deptCode" element={<DepartmentRepairPool />} />
               <Route path="/servis-onarimlari-demontaj" element={<DemontajServisOnarimlari />} />
               <Route path="/schema-mapper" element={<SchemaMapper />} />
             </Route>
