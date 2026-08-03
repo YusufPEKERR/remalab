@@ -27,12 +27,22 @@ python3 -m pip install PyQt6 PyQt6-WebEngine pyinstaller
 echo "🧹 Temizlik yapılıyor..."
 rm -rf build dist
 
-# PyInstaller ile .app bundle derle (Launch Services hatası vermemesi için isim ERPWebApp olarak belirlendi)
-echo "🚀 PyInstaller ile .app paketleniyor..."
+# PyInstaller ile .app bundle derle (Intel A1708 ve Apple Silicon için Universal2 / x86_64 mimarisi)
+echo "🚀 PyInstaller ile Intel (A1708) & Apple Silicon Uyumlu .app Paketlepiniyor..."
 python3 -m PyInstaller --noconfirm \
             --onedir \
             --windowed \
             --name="ERPWebApp" \
+            --target-architecture universal2 \
+            --collect-all PyQt6 \
+            --collect-all PyQt6_WebEngine \
+            --add-data "sites.json:." \
+            --add-data "logo.png:." \
+            main.py || python3 -m PyInstaller --noconfirm \
+            --onedir \
+            --windowed \
+            --name="ERPWebApp" \
+            --target-architecture x86_64 \
             --collect-all PyQt6 \
             --collect-all PyQt6_WebEngine \
             --add-data "sites.json:." \
