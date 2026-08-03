@@ -33,10 +33,10 @@ jobs:
           chmod +x build_mac_app.sh
           ./build_mac_app.sh
 
-      - name: Zip .app bundle for artifact upload
+      - name: Archive .app bundle using Apple ditto
         run: |
           cd mac/dist
-          zip -r ../../ERP_Web_App_macOS.zip "ERP Web App.app"
+          ditto -c -k --sequesterRsrc --keepParent "ERP Web App.app" "../../ERP_Web_App_macOS.zip"
 
       - name: Upload macOS App Artifact
         uses: actions/upload-artifact@v4
