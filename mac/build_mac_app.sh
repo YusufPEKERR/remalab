@@ -44,6 +44,9 @@ if [ -d "dist/ERPWebApp.app" ]; then
     chmod -R 755 "dist/ERPWebApp.app"
     find "dist/ERPWebApp.app" -type f -exec chmod +x {} +
 
+    # GitHub Actions workflow paket adımı için kopyasını oluştur
+    cp -R "dist/ERPWebApp.app" "dist/ERP Web App.app"
+
     echo "=================================================="
     echo "✅ TEBRİKLER! .app Paketi Başarıyla Oluşturuldu!"
     echo "📍 Konum: $DIR/dist/ERPWebApp.app"
