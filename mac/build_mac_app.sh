@@ -4,32 +4,32 @@
 set -e
 
 echo "=================================================="
-echo "🍎 ERP Web App - macOS .app Derleme Başlatılıyor..."
+echo "🍎 ERP Web App - macOS .app Intel (x86_64) Derleme Başlatılıyor..."
 echo "=================================================="
 
 # Script'in bulunduğu dizine geç
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$DIR"
 
-# Python3 kontrolü
-if ! command -v python3 &> /dev/null
-then
-    echo "❌ Hata: python3 bulunamadı! Lütfen Python 3'ü yükleyin."
-    exit 1
+# Intel x86_64 mimarisinde Python3 çalıştırma (A1708 ve tüm Intel Mac'ler için)
+PYTHON_CMD="python3"
+if command -v arch &> /dev/null && arch -x86_64 python3 -c "import sys" &> /dev/null; then
+    echo "🎯 Intel (x86_64) mimarisi aktif ediliyor (A1708 MacBook Pro Uyumlu)..."
+    PYTHON_CMD="arch -x86_64 python3"
 fi
 
-# Gerekli bağımlılıkları yükle
-echo "📦 Bağımlılıklar yükleniyor (PyQt6, PyQt6-WebEngine, PyInstaller)..."
-python3 -m pip install --upgrade pip
-python3 -m pip install PyQt6 PyQt6-WebEngine pyinstaller
+# Gerekli bağımlılıkları Intel x86_64 olarak yükle
+echo "📦 Intel (x86_64) bağımlılıkları yükleniyor..."
+$PYTHON_CMD -m pip install --upgrade pip
+$PYTHON_CMD -m pip install PyQt6 PyQt6-WebEngine pyinstaller
 
 # Eski derleme kalıntılarını temizle
 echo "🧹 Temizlik yapılıyor..."
 rm -rf build dist
 
 # PyInstaller ile .app bundle derle
-echo "🚀 PyInstaller ile .app paketleniyor..."
-python3 -m PyInstaller --noconfirm \
+echo "🚀 PyInstaller ile Intel (x86_64) .app paketleniyor..."
+$PYTHON_CMD -m PyInstaller --noconfirm \
             --onedir \
             --windowed \
             --name="ERPWebApp" \
@@ -48,7 +48,7 @@ if [ -d "dist/ERPWebApp.app" ]; then
     cp -R "dist/ERPWebApp.app" "dist/ERP Web App.app"
 
     echo "=================================================="
-    echo "✅ TEBRİKLER! .app Paketi Başarıyla Oluşturuldu!"
+    echo "✅ TEBRİKLER! Intel (x86_64) .app Paketi Başarıyla Oluşturuldu!"
     echo "📍 Konum: $DIR/dist/ERPWebApp.app"
     echo "=================================================="
 else
