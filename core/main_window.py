@@ -63,8 +63,9 @@ class CustomRequestHandler(http.server.SimpleHTTPRequestHandler):
 
     def do_GET(self):
         target_file = self.translate_path(self.path)
-        if not os.path.exists(target_file) and not self.path.startswith(('/assets/', '/api_cache/')) and '.' not in os.path.basename(self.path):
-            self.path = '/index.html'
+        if not os.path.exists(target_file) and not self.path.startswith('/api_cache/'):
+            if not self.path.startswith('/assets/'):
+                self.path = '/index.html'
         super().do_GET()
 
     def end_headers(self):

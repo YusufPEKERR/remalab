@@ -99,6 +99,21 @@ const DemontajServisOnarimlari = () => {
         repairLink = null;
       }
 
+      // Müşteri Arıza Tespiti'ni PhoneCheck'ten (başarısız/Failed testler) çek. Kayıtlı bir
+      // tespit varsa o korunur; yoksa PhoneCheck sonucu kullanılır.
+      // Müşteri Arıza Tespiti, Notes ve batarya bilgileri yerel phonecheck_test_results
+      // tablosundaki EN GÜNCEL kayıttan çekilir (canlı API'ye gidilmez).
+      let phonecheckDefects = "", phonecheckNotes = "", pcBatteryCycle = null, pcBatteryHealth = null;
+      try {
+        const pcs = await api.getPhonecheckStoredByImei(imei);
+        if (pcs && pcs.success && pcs.found && pcs.data) {
+          phonecheckDefects = (pcs.data.failed || "").trim();
+          phonecheckNotes = (pcs.data.notes || "").trim();
+          pcBatteryCycle = pcs.data.battery_cycle ?? null;
+          pcBatteryHealth = pcs.data.battery_health_percentage ?? null;
+        }
+      } catch (_e) { /* Kayıt yoksa mevcut/boş değerler kullanılır */ }
+
       const realDevice = {
         imei,
         internalId: d.internal_id || "",
@@ -107,12 +122,15 @@ const DemontajServisOnarimlari = () => {
         productInfo: productInfo || "-",
         productCode: d.batch_no || "",
         customerRequest: d.flow || "Belirtilmemiş",
-        customerDiagnosis: repairLink?.device?.customerDiagnosis || "",
+        // Öncelik: kayıtlı tespit → canlı PhoneCheck (Failed) → Batch girişinde PhoneCheck'ten
+        // çekilip saklanan defects. Böylece cihaz PhoneCheck'te canlı bulunmasa da tespit görünür.
+        customerDiagnosis: repairLink?.device?.customerDiagnosis || phonecheckDefects || (d.defects || ""),
+        phonecheckNotes: phonecheckNotes || "",
         serviceStatus: batchStatusCode,
         serviceStatusText: batchStatusCode == null ? (repairLink?.device?.statusText || "") : "",
         workOrderId: repairLink ? repairLink.work_order_id : null,
-        batteryCycle: repairLink?.battery_cycle ?? d.battery_cycle ?? null,
-        batteryHealth: repairLink?.battery_health ?? d.battery_health_percentage ?? null,
+        batteryCycle: pcBatteryCycle ?? repairLink?.battery_cycle ?? d.battery_cycle ?? null,
+        batteryHealth: pcBatteryHealth ?? repairLink?.battery_health ?? d.battery_health_percentage ?? null,
       };
 
       setDevice(realDevice);
@@ -307,6 +325,12 @@ const DemontajServisOnarimlari = () => {
                       {device.customerDiagnosis || <span className="italic text-slate-400">Belirtilmemiş</span>}
                     </div>
                   )}
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">Notes</label>
+                  <div className="px-3 py-2.5 bg-slate-50 dark:bg-[#12141c] rounded-xl border border-slate-100 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300 leading-relaxed min-h-[56px]">
+                    {device.phonecheckNotes || <span className="italic text-slate-400">Not yok</span>}
+                  </div>
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">Ürün Bilgisi</label>

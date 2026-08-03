@@ -8676,6 +8676,7 @@ class WebBridge(QObject):
                 "color": _pick("Color"),
                 "grade": _pick("Grade"),
                 "defects": _pick("Failed"),
+                "notes": _pick("Notes"),
                 "screen_test": screen_test,
                 "power_test": power_test,
                 "battery_cycle": d.get("BatteryCycle"),
@@ -9068,6 +9069,61 @@ class WebBridge(QObject):
                 })
 
             return json.dumps({"success": True, "items": items})
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
+    def get_phonecheck_stored_by_imei(self, term):
+        """Cihaza ait EN GÜNCEL phonecheck_test_results kaydını (yerel tablo) TÜM alanlarıyla
+        döner. Canlı Phonecheck API'sine GİTMEZ; test aşamasında kaydedilmiş verileri kullanır.
+        Servis Onarımları / Teknisyen ekranlarındaki Müşteri Arıza Tespiti, Notes ve batarya
+        bilgileri bu kayıttan doldurulur."""
+        from models.phonecheck_test_result import PhonecheckTestResult
+        db = SessionLocal()
+        try:
+            term = (term or "").strip()
+            if not term:
+                return json.dumps({"success": False, "message": "IMEI boş olamaz."})
+
+            entry = self._find_batch_entry_by_term(db, term)
+            lookup_imei = ((entry.imei_number or entry.serial_number) if entry else None) or term
+            lookup_imei = lookup_imei.strip()
+
+            r = (db.query(PhonecheckTestResult)
+                 .filter(PhonecheckTestResult.imei == lookup_imei)
+                 .order_by(PhonecheckTestResult.fetched_at.desc())
+                 .first())
+            if not r:
+                return json.dumps({"success": True, "found": False, "data": None})
+
+            data = {
+                "imei": r.imei or "",
+                "test_stage": r.test_stage or "",
+                "test_type": r.test_type or "",
+                "test_start_time": r.test_start_time or "",
+                "test_end_time": r.test_end_time or "",
+                "station_id": r.station_id or "",
+                "working": r.working or "",
+                "passed": r.passed or "",
+                "failed": r.failed or "",
+                "pending": r.pending or "",
+                "model": r.model or "",
+                "memory": r.memory or "",
+                "serial": r.serial or "",
+                "color": r.color or "",
+                "grade": r.grade or "",
+                "version": r.version or "",
+                "notes": r.notes or "",
+                "battery_cycle": r.battery_cycle,
+                "battery_health_percentage": r.battery_health_percentage,
+                "grading_results": r.grading_results or "",
+                "fetched_at": r.fetched_at.strftime("%Y-%m-%d %H:%M") if r.fetched_at else "",
+                "is_manual": bool(r.is_manual),
+                "manual_reason": r.manual_reason or "",
+            }
+            return json.dumps({"success": True, "found": True, "data": data}, ensure_ascii=False)
         except Exception as e:
             return json.dumps({"success": False, "message": str(e)})
         finally:
@@ -10239,6 +10295,21 @@ class WebBridge(QObject):
                 )
             target_statu_code = 109 if all_approved else 106
 
+            # Cihaz zaten hedef statüdeyse (örn. Müşteri Onayına gönderilmiş 106'da bir cihaza
+            # yeni onarım eklenip karar tekrar verilirse hedef yine 106 olur) idempotent kabul
+            # edilir; aksi halde execute_batch_entry_statu_transition geçersiz 106->106 geçişi
+            # deneyip "bu okutmaya uygun statü değil" hatası verirdi. Cihaz zaten doğru statüde,
+            # eklenen yeni onarım da aynı müşteri onayı kapsamına dahil olur.
+            if int(entry["statu_code"]) == int(target_statu_code):
+                return json.dumps({
+                    "success": True,
+                    "new_statu_code": target_statu_code,
+                    "decision": "URETIME_AKTAR" if all_approved else "MUSTERI_ONAYI",
+                    "message": ("Cihaz zaten Üretim aşamasında; yeni onarım bu kapsama eklendi."
+                                if all_approved else
+                                "Cihaz zaten Müşteri Onayı kapsamında; yeni onarım da bu onaya dahil edildi.")
+                }, ensure_ascii=False)
+
             result_json = self.execute_batch_entry_statu_transition(str(entry["id"]), int(entry["statu_code"]), int(target_statu_code))
             result = json.loads(result_json)
             result["decision"] = "URETIME_AKTAR" if all_approved else "MUSTERI_ONAYI"
@@ -10292,9 +10363,31 @@ class WebBridge(QObject):
                         is_delivered = (rec.supply_status_code or "").strip().lower() in ("stoktan çıktı", "teslim edildi", "teslim", "1002", "completed")
                         if not is_delivered:
                             return json.dumps({
-                                "success": False, 
+                                "success": False,
                                 "message": f"Bu onarım tamamlanamaz! Eklenen '{part_row['name']}' ({rec.part_item_code}) parçası henüz depodan teknisyene teslim edilmemiş (Good Stock'tan çıkışı yapılmamış)."
                             }, ensure_ascii=False)
+
+            # Müşteri onayı olmadan tamamlama engeli: Onarım "Teknisyene Atandı" (1001) aşamasından
+            # doğrudan "Onarım Tamamlandı" (1002) yapılmaya çalışılıyorsa ve cihazın Flow'u müşteri
+            # onayı gerektiriyorsa (To refurbish / To RMA HARİÇ), önce "Müşteri Onayına Sun" (1005)
+            # adımından geçilmelidir. Onay gelince 1005 -> 1002 ("Onay Geldi - Tamamla") ya da test
+            # başarılıysa 1006 -> 1002 ile tamamlanabilir.
+            if target_code == 1002 and rec.repair_result_type_code == 1001:
+                ref = str(rec.service_record_id or "")
+                be_row = db.execute(text("""
+                    SELECT flow FROM warehouse.batch_entries
+                    WHERE service_id::text = :ref
+                       OR LOWER(TRIM(imei_number)) = LOWER(:ref)
+                       OR LOWER(TRIM(serial_number)) = LOWER(:ref)
+                       OR LOWER(TRIM(internal_id)) = LOWER(:ref)
+                    ORDER BY id DESC LIMIT 1
+                """), {"ref": ref}).first()
+                flow = ((be_row[0] if be_row else "") or "").strip().lower()
+                NO_APPROVAL_FLOWS = {"to refurbish", "to rma"}
+                if flow and flow not in NO_APPROVAL_FLOWS:
+                    return json.dumps({"success": False, "message":
+                        "Bu onarım müşteri onayı alınmadan tamamlanamaz. Önce 'Müşteri Onayına Sun' "
+                        "adımından geçip onay alınmalı, ardından 'Onay Geldi - Tamamla' ile kapatılmalıdır."})
 
             rec.repair_result_type_code = target_code
             db.commit()
