@@ -5,9 +5,6 @@ import uuid
 import shutil
 import traceback
 
-# Chromium performans ve güvenli çalıştırma bayrakları
-os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--no-sandbox --disable-dev-shm-usage"
-
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QDialog, QToolBar, QComboBox, QLineEdit,
     QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QStatusBar, QMessageBox,
@@ -79,21 +76,18 @@ class AddEditSiteDialog(QDialog):
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(14)
 
-        # Site Adı
         layout.addWidget(QLabel("Site Adı (Ör: ERP Paneli, Google):"))
         self.name_input = QLineEdit()
         self.name_input.setPlaceholderText("Örn: ERP Sistemi")
         self.name_input.setText(self.site_data.get("name", ""))
         layout.addWidget(self.name_input)
 
-        # Site URL
         layout.addWidget(QLabel("Site Adresi (URL):"))
         self.url_input = QLineEdit()
         self.url_input.setPlaceholderText("https://example.com")
         self.url_input.setText(self.site_data.get("url", ""))
         layout.addWidget(self.url_input)
 
-        # Butonlar
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
 
@@ -428,11 +422,30 @@ class WebAppWindow(QMainWindow):
         self.sites_data = {"default_site_id": "", "sites": []}
         self.current_site_url = ""
 
-        self.load_sites_config()
-        self.init_ui()
-        self.apply_performance_settings()
-        self.setup_shortcuts()
-        self.load_initial_site()
+        try:
+            self.load_sites_config()
+        except Exception as e:
+            print(f"Config load error: {e}")
+
+        try:
+            self.init_ui()
+        except Exception as e:
+            print(f"UI init error: {e}")
+
+        try:
+            self.apply_performance_settings()
+        except Exception as e:
+            print(f"Performance settings error: {e}")
+
+        try:
+            self.setup_shortcuts()
+        except Exception as e:
+            print(f"Shortcuts setup error: {e}")
+
+        try:
+            self.load_initial_site()
+        except Exception as e:
+            print(f"Initial site load error: {e}")
 
     def apply_performance_settings(self):
         """Maksimum web işleme hızı için Chromium & QtWebEngine performans ayarları."""
@@ -446,15 +459,18 @@ class WebAppWindow(QMainWindow):
         except Exception as e:
             print(f"Profile setting warning: {e}")
 
-        settings = self.browser.settings()
-        settings.setAttribute(QWebEngineSettings.WebAttribute.Accelerated2dCanvasEnabled, True)
-        settings.setAttribute(QWebEngineSettings.WebAttribute.WebGLEnabled, True)
-        settings.setAttribute(QWebEngineSettings.WebAttribute.JavascriptEnabled, True)
-        settings.setAttribute(QWebEngineSettings.WebAttribute.LocalStorageEnabled, True)
-        settings.setAttribute(QWebEngineSettings.WebAttribute.ScrollAnimatorEnabled, True)
-        settings.setAttribute(QWebEngineSettings.WebAttribute.DnsPrefetchEnabled, True)
-        settings.setAttribute(QWebEngineSettings.WebAttribute.AutoLoadImages, True)
-        settings.setAttribute(QWebEngineSettings.WebAttribute.FullScreenSupportEnabled, True)
+        try:
+            settings = self.browser.settings()
+            if hasattr(QWebEngineSettings, 'WebAttribute'):
+                attr_cls = QWebEngineSettings.WebAttribute
+            else:
+                attr_cls = QWebEngineSettings.Attribute
+
+            settings.setAttribute(attr_cls.JavascriptEnabled, True)
+            settings.setAttribute(attr_cls.LocalStorageEnabled, True)
+            settings.setAttribute(attr_cls.AutoLoadImages, True)
+        except Exception as e:
+            print(f"Settings error: {e}")
 
     def setup_shortcuts(self):
         """macOS ve Cross-Platform Klavye Kısayolları."""
