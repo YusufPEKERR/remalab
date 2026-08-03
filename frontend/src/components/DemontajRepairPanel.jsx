@@ -30,6 +30,7 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
   const [description, setDescription] = useState("");
   const [adding, setAdding] = useState(false);
   const [deciding, setDeciding] = useState(false);
+  const [returningDgd, setReturningDgd] = useState(false);
   const [editingRepairId, setEditingRepairId] = useState(null);
   const [deletingRepairId, setDeletingRepairId] = useState(null);
   const editingRepairIdRef = useRef(null);
@@ -267,6 +268,23 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
       showNotif("error", "İşlem Başarısız", res?.message || "Statü güncellenemedi.");
     }
   }, [device, hasRepairs, deciding, onRefresh, showNotif]);
+
+  // Cihaz onarılamayıp müşteriye iade edilecekse: aktif DGD işçilik satırlarını (Flow'a göre
+  // otomatik eklenen, henüz DGDDEC'e dönüşmemiş) tek bir DGDDEC (iade işçiliği) satırına
+  // dönüştürür - bkz. WebBridge.apply_dgd_return.
+  const hasActiveDgd = activeRepairs.some(r => r.itemCategory === "DGD" && r.partItemCode !== "DGDDEC");
+  const handleApplyDgdReturn = useCallback(async () => {
+    if (!device?.imei || !hasActiveDgd || returningDgd) return;
+    setReturningDgd(true);
+    const res = await api.applyDgdReturn(device.workOrderId || device.imei, getCurrentUser()?.username);
+    setReturningDgd(false);
+    if (res && res.success) {
+      showNotif("success", "DGD İade Edildi", `${res.converted_count || 1} işçilik kaydı DGDDEC'e dönüştürüldü.`);
+      await onRefresh();
+    } else {
+      showNotif("error", "İade Edilemedi", res?.message || "İşlem başarısız oldu.");
+    }
+  }, [device, hasActiveDgd, returningDgd, onRefresh, showNotif]);
 
   return (
     <div className="flex-1 flex flex-col gap-4 min-h-0">
@@ -529,6 +547,17 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
               })}
             </div>
           </div>
+          {hasActiveDgd && (
+            <button
+              onClick={handleApplyDgdReturn}
+              disabled={!hasAccess || returningDgd}
+              title="Aktif DGD işçiliğini DGDDEC (iade işçiliği) koduna dönüştürür"
+              className="px-5 py-3 rounded-xl border-2 border-amber-500 text-amber-600 dark:text-amber-400 text-sm font-semibold transition-colors shadow-lg disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 shrink-0 hover:bg-amber-50 dark:hover:bg-amber-500/10"
+            >
+              <Ban size={16} />
+              {returningDgd ? "İşleniyor..." : "İade Et"}
+            </button>
+          )}
           <button
             onClick={handleSubmitDecision}
             disabled={!hasAccess || !hasRepairs || deciding}

@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import { useLocation } from "react-router-dom";
 import {
   Search, Plus, Play, AlertTriangle, Shield, Battery,
   BatteryCharging, Cpu, X, ChevronLeft, ChevronRight, Wrench,
@@ -553,6 +554,7 @@ const NotificationToast = ({ notification, onClose }) => {
 // ═══ MAIN COMPONENT ═══════════════════════════════════════════════════
 // ═══════════════════════════════════════════════════════════════════════
 const TechnicianRepairOperations = () => {
+  const location = useLocation();
   // ── State ───────────────────────────────────────────────────
   const [searchTerm, setSearchTerm] = useState("");
   const [device, setDevice] = useState(null);
@@ -612,11 +614,6 @@ const TechnicianRepairOperations = () => {
   }, []);
 
   // ── Search Handler ───────────────────────────────────────────
-  // 1) Cihaz kimliği (IMEI/Internal ID/Seri No/model/flow) Batch Girişi'nden
-  //    (lookup_batch_entry → warehouse.batch_entries) gelir — gerçek veri burada.
-  // 2) Aynı IMEI için bağlı bir Servis Kaydı + SERVICE iş emri varsa
-  //    (get_repair_operations_by_imei → service_records/work_orders) onarım
-  //    kayıtları/parçalar/statü oradan eklenir. Yoksa sadece kimlik gösterilir.
   const handleSearch = useCallback(async (e) => {
     e.preventDefault();
     const term = searchTerm.trim();
@@ -636,8 +633,6 @@ const TechnicianRepairOperations = () => {
       const d = batchRes.data;
       const imei = d.imei_number || term;
       const productInfo = [d.model, d.gb, d.color].filter(Boolean).join(" ");
-      // Cihazın gerçek anlık statüsü Batch Girişi'ndeki statu_code'dur (ör. 109 =
-      // Üretim Aşamasında) — bağlı bir servis iş emri bulunup bulunmamasından bağımsızdır.
       const batchStatusCode = (d.statu_code !== null && d.statu_code !== undefined) ? Number(d.statu_code) : null;
 
       let repairLink = null;
@@ -676,7 +671,6 @@ const TechnicianRepairOperations = () => {
         customerDiagnosis: repairLink?.device?.customerDiagnosis || phonecheckDefects || (d.defects || ""),
         phonecheckNotes: phonecheckNotes || "",
         serviceStatus: batchStatusCode,
-        // Batch'te statü kodu yoksa, bağlı iş emrinin eski metin statüsü (Beklemede vb.) fallback olarak gösterilir.
         serviceStatusText: batchStatusCode == null ? (repairLink?.device?.statusText || "") : "",
         workOrderId: repairLink ? repairLink.work_order_id : null,
         faultTags: [],
@@ -695,8 +689,6 @@ const TechnicianRepairOperations = () => {
       setDeviceParts(repairLink?.parts || []);
       setSelectedRepairIdx(0);
 
-      // Statüye/role göre kilitleme artık burada değil, render sırasında `hasAccess`
-      // türetilmiş değeriyle yapılıyor — cihaz ve onarımlar her zaman gösterilir.
       if (repairLink) {
         // technician: Onarım Detay grid'indeki "Teknisyen" sütununun okuduğu alan.
         // Eskiden sabit "" yazılıyordu, bu yüzden atama yapılmış olsa bile sütun

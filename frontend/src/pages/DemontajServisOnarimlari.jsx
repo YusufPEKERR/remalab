@@ -91,6 +91,17 @@ const DemontajServisOnarimlari = () => {
       const productInfo = [d.model, d.gb, d.color].filter(Boolean).join(" ");
       const batchStatusCode = (d.statu_code !== null && d.statu_code !== undefined) ? Number(d.statu_code) : null;
 
+      // Cihazın Flow'una göre DGD işçilik kodunu otomatik ekler (idempotent - zaten eklenmişse
+      // tekrar eklemez). Arama akışını bloklamaz, hata olursa sessizce yutulur.
+      try {
+        const dgdRes = await api.openDeviceForDismantle(imei, getCurrentUser()?.username);
+        if (dgdRes && dgdRes.attached) {
+          showNotif("info", "DGD İşçiliği Eklendi", `"${dgdRes.dgd_item_code}" işçilik kodu Flow'a göre otomatik eklendi.`);
+        }
+      } catch (_e) {
+        /* auto-attach hatası arama sonucunu etkilemez */
+      }
+
       let repairLink = null;
       try {
         const repairRes = await api.getRepairOperationsByImei(imei);

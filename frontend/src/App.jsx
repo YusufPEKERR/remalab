@@ -23,6 +23,8 @@ const WorkOrders = lazy(() => import('./pages/WorkOrders'));
 const Raporlar = lazy(() => import('./pages/Raporlar'));
 const Settings = lazy(() => import('./pages/Settings'));
 const Departments = lazy(() => import('./pages/Departments'));
+const FlowDgdMapping = lazy(() => import('./pages/FlowDgdMapping'));
+const CustomerPriceMatrix = lazy(() => import('./pages/CustomerPriceMatrix'));
 const ServiceRecords = lazy(() => import('./pages/ServiceRecords'));
 const BatchEntry = lazy(() => import('./pages/BatchEntry'));
 const DataManagement = lazy(() => import('./pages/DataManagement'));
@@ -38,6 +40,7 @@ const AraTestSonuc = lazy(() => import('./pages/AraTestSonuc'));
 const SonTestSonuc = lazy(() => import('./pages/SonTestSonuc'));
 const StatuKontrol = lazy(() => import('./pages/StatuKontrol'));
 const ParcaTeslim = lazy(() => import('./pages/ParcaTeslim'));
+const DepartmentRepairPool = lazy(() => import('./pages/DepartmentRepairPool'));
 
 function RouteLoading() {
   return (
@@ -85,6 +88,8 @@ function App() {
               <Route path="/batch-entry" element={<BatchEntry />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/departments" element={<Departments />} />
+              <Route path="/flow-dgd-mapping" element={<FlowDgdMapping />} />
+              <Route path="/customer-price-matrix" element={<CustomerPriceMatrix />} />
               <Route path="/service-records" element={<ServiceRecords />} />
               <Route path="/data-management" element={<DataManagement />} />
 
@@ -98,6 +103,7 @@ function App() {
               <Route path="/musteri-onayi" element={<CustomerApprovalDecision />} />
               <Route path="/technician-panel" element={<TechnicianPanel />} />
               <Route path="/technician-repair" element={<TechnicianRepairOperations />} />
+              <Route path="/onarim-havuzu/:deptCode" element={<DepartmentRepairPool />} />
               <Route path="/servis-onarimlari-demontaj" element={<DemontajServisOnarimlari />} />
               <Route path="/schema-mapper" element={<SchemaMapper />} />
             </Route>

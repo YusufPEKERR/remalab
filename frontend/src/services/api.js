@@ -567,6 +567,83 @@ export const api = {
         });
     },
 
+    getFlowDgdMappings: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_flow_dgd_mappings((res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    createFlowDgdMapping: async (flowCode, dgdItemCode) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.create_flow_dgd_mapping(String(flowCode || ''), String(dgdItemCode || ''), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    updateFlowDgdMapping: async (id, flowCode, dgdItemCode) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.update_flow_dgd_mapping(String(id), String(flowCode || ''), String(dgdItemCode || ''), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    deleteFlowDgdMapping: async (id) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.delete_flow_dgd_mapping(String(id), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    openDeviceForDismantle: async (imei, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.open_device_for_dismantle(String(imei || ''), String(username || ''), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    applyDgdReturn: async (deviceRef, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.apply_dgd_return(String(deviceRef || ''), String(username || ''), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    getPriceMatrixCustomers: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_price_matrix_customers((res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    getPriceMatrixItems: async (search) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_price_matrix_items(String(search || ''), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    getPriceMatrix: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_price_matrix((res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    savePriceMatrixBatch: async (rows, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.save_price_matrix_batch(JSON.stringify(rows || []), String(username || ''), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    getEffectivePrice: async (itemCode, customerCode) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_effective_price(String(itemCode || ''), String(customerCode || ''), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
     updateCustomerDiagnosis: async (workOrderId, diagnosisText, username) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
@@ -2192,6 +2269,39 @@ export const api = {
         const backend = await getBackend();
         return new Promise((resolve) => {
             backend.get_repair_operations_by_imei(String(imei), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    getRepairPoolByDepartment: async (departmentCode) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_repair_pool_by_department) {
+                backend.get_repair_pool_by_department(String(departmentCode), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false, message: "Backend eksik (get_repair_pool_by_department)" });
+            }
+        });
+    },
+
+    getDepartmentTechnicians: async (departmentCode) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_department_technicians) {
+                backend.get_department_technicians(String(departmentCode), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false, message: "Backend eksik (get_department_technicians)" });
+            }
+        });
+    },
+
+    assignRepairToTechnician: async (departmentCode, imeiOrTerm, technicianUsername) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.assign_repair_to_technician) {
+                backend.assign_repair_to_technician(String(departmentCode), String(imeiOrTerm), String(technicianUsername), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false, message: "Backend eksik (assign_repair_to_technician)" });
+            }
         });
     },
 
