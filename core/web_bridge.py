@@ -10894,6 +10894,195 @@ class WebBridge(QObject):
             db.close()
 
     @Slot(str, str, str, result=str)
+    def quick_complete_repair(self, device_ref, mission_group_code, username):
+        """Hızlı Onarım Bitiş ekranı: bir cihaz okutulduğunda, verilen GÖREV GRUBUNDAKİ
+        uygun onarımları tek seferde 1002 (Tamamlandı) yapar.
+
+        KISMİ KAPATMA: kayıtlar TEK TEK değerlendirilir. Şartları sağlayanlar kapanır,
+        sağlamayanlar OLDUĞU GİBİ bırakılır ve sebebi ayrı satır olarak döner. Hepsi
+        ya da hiçbiri DEĞİLDİR - bir cihazda 3 kayıt varsa ve 2'si hazırsa o 2'si kapanır.
+
+        Şartlar yeniden yazılmaz; update_repair_status ile AYNI yardımcı kullanılır
+        (_repair_completion_blocker): teknisyen ataması + parça depodan çıkışı +
+        müşteri onayı. Böylece bu ekran müşteri onayını atlayamaz.
+
+        Zaten tamamlanmış (1002) ve iptal edilmiş (1003) kayıtlara dokunulmaz."""
+        from models.repair_record import RepairRecord
+        from sqlalchemy import text
+
+        db = SessionLocal()
+        try:
+            ref = (device_ref or "").strip()
+            grup = (mission_group_code or "").strip()
+            if not ref:
+                return json.dumps({"success": False, "message": "IMEI / Seri No / Internal ID boş olamaz."}, ensure_ascii=False)
+            if not grup:
+                return json.dumps({"success": False, "message": "Görev grubu belirtilmedi."}, ensure_ascii=False)
+
+            # Cihazı bul. Onarım kayıtları service_id ya da ham IMEI ile yazılmış
+            # olabiliyor (bkz. _resolve_service_record_id_for_new_repair), ikisi de aranır.
+            be = db.execute(text("""
+                SELECT id, imei_number, serial_number, internal_id, service_id, model
+                FROM warehouse.batch_entries
+                WHERE LOWER(TRIM(imei_number)) = LOWER(:t)
+                   OR LOWER(TRIM(serial_number)) = LOWER(:t)
+                   OR LOWER(TRIM(internal_id)) = LOWER(:t)
+                ORDER BY id DESC LIMIT 1
+            """), {"t": ref}).mappings().first()
+
+            refs = [ref]
+            imei = ref
+            if be:
+                imei = (be["imei_number"] or be["serial_number"] or ref).strip()
+                if be["service_id"]:
+                    refs.append(str(be["service_id"]))
+                if be["imei_number"]:
+                    refs.append(str(be["imei_number"]).strip())
+
+            # Yetki: kullanıcının bu GÖREV GRUBUNA bağlı bir görevi olmalı. Yoksa bir
+            # batarya teknisyeni kamera onarımlarını kapatabilirdi.
+            user_missions, is_admin = self._get_user_missions(db, username)
+            if not is_admin:
+                yetkili = db.execute(text("""
+                    SELECT 1 FROM organization.missions m
+                    JOIN organization.mission_groups g ON g.id = m.mission_group_id
+                    WHERE g.code = :grup AND m.code = ANY(:kodlar) LIMIT 1
+                """), {"grup": grup, "kodlar": list(user_missions or [])}).first()
+                if not yetkili:
+                    return json.dumps({
+                        "success": False,
+                        "message": f"Bu işlem için '{grup}' görev grubuna bağlı bir yetkiniz yok."
+                    }, ensure_ascii=False)
+
+            kayitlar = db.query(RepairRecord).filter(
+                RepairRecord.service_record_id.in_(refs),
+                RepairRecord.department_mission == grup,
+                ~RepairRecord.repair_result_type_code.in_([1002, 1003]),
+            ).all()
+
+            if not kayitlar:
+                return json.dumps({
+                    "success": False,
+                    "imei": imei,
+                    "message": f"Bu cihazda '{grup}' için açık onarım yok."
+                }, ensure_ascii=False)
+
+            sonuclar = []
+            kapanan = 0
+            for rec in kayitlar:
+                engel = self._repair_completion_blocker(db, rec)
+                if engel:
+                    sonuclar.append({
+                        "repairId": str(rec.id),
+                        "partItemCode": rec.part_item_code or "",
+                        "completed": False,
+                        "message": engel,
+                    })
+                    continue
+                rec.repair_result_type_code = 1002
+                kapanan += 1
+                sonuclar.append({
+                    "repairId": str(rec.id),
+                    "partItemCode": rec.part_item_code or "",
+                    "technician": rec.assigned_technician or "",
+                    "completed": True,
+                    "message": "Onarım tamamlandı.",
+                })
+
+            # Tek commit: kısmi kapatma yapiliyor ama yazma atomik olmali.
+            db.commit()
+
+            return json.dumps({
+                "success": True,
+                "imei": imei,
+                "missionGroup": grup,
+                "total": len(kayitlar),
+                "completed": kapanan,
+                "skipped": len(kayitlar) - kapanan,
+                "results": sonuclar,
+            }, ensure_ascii=False)
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)}, ensure_ascii=False)
+        finally:
+            db.close()
+
+    # Qt slotu DEĞİLDİR - açık bir DB oturumu alan dahili yardımcı.
+    def _repair_completion_blocker(self, db, rec):
+        """Bir onarım kaydının 1002 (Tamamlandı) yapılmasını ENGELLEYEN sebebi döner;
+        engel yoksa None.
+
+        Üç kural birden aranır:
+          1) Kayıt bir teknisyene ATANMIŞ olmalı,
+          2) Parça stok takipliyse depodan çıkmış ('Stoktan Çıktı') olmalı - stok
+             takipsiz parçada bu şart ARANMAZ (bkz. _is_part_stock_tracked, takip tipi
+             parts'ta boşsa part_categories'e düşülür),
+          3) 1001'den doğrudan 1002'ye geçiliyorsa ve cihazın Flow'u müşteri onayı
+             gerektiriyorsa (To refurbish / To RMA hariç) önce onay adımından
+             geçilmiş olmalı.
+
+        Bu yardımcıyı hem update_repair_status hem quick_complete_repair çağırır.
+        Kural iki yerde ayrı yazılırsa zamanla ayrışır ve aynı onarım bir ekrandan
+        kapanıp diğerinden kapanmaz."""
+        from sqlalchemy import text
+
+        # 1) Teknisyen ataması
+        if not (rec.assigned_technician or "").strip():
+            return ("Bu onarım tamamlanamaz! Kayıt henüz bir teknisyene atanmamış. "
+                    "Önce 'Teknisyene Ata' ile atama yapın.")
+
+        # 2) Parça depodan çıkmış mı
+        if rec.part_item_code:
+            part_row = db.execute(
+                text("SELECT id, name FROM warehouse.parts WHERE item_code = :c LIMIT 1"),
+                {"c": rec.part_item_code.strip()},
+            ).mappings().first()
+            if part_row and self._is_part_stock_tracked(db, rec.part_item_code):
+                # 'stoktan çıktı' warehouse.item_supply_status'taki GEÇERLİ koddur;
+                # 'teslim edildi' o tabloda yok, eski kayıtlar için kabul edilir.
+                is_delivered = (rec.supply_status_code or "").strip().lower() in (
+                    "stoktan çıktı", "teslim edildi", "teslim", "1002", "completed")
+                if not is_delivered:
+                    return (f"Bu onarım tamamlanamaz! Eklenen '{part_row['name']}' "
+                            f"({rec.part_item_code}) parçası henüz depodan teknisyene "
+                            f"teslim edilmemiş (Good Stock'tan çıkışı yapılmamış).")
+
+        # 3) Müşteri onayı
+        if rec.repair_result_type_code == 1001:
+            ref = str(rec.service_record_id or "")
+            be_row = db.execute(text("""
+                SELECT flow FROM warehouse.batch_entries
+                WHERE service_id::text = :ref
+                   OR LOWER(TRIM(imei_number)) = LOWER(:ref)
+                   OR LOWER(TRIM(serial_number)) = LOWER(:ref)
+                   OR LOWER(TRIM(internal_id)) = LOWER(:ref)
+                ORDER BY id DESC LIMIT 1
+            """), {"ref": ref}).first()
+            ham_flow = ((be_row[0] if be_row else "") or "").strip()
+
+            # batch_entries.flow bazen KODU ("To refurbish") bazen KISA ADI ("Refurbish")
+            # tutuyor - canli veride 7644 kayit kisa ad, 33 kayit kod. Karsilastirma
+            # kanonik KOD uzerinden yapilmali; ham metinle yapilirsa "Refurbish" akisindaki
+            # cihazlar musteri onayi gerektiriyor sanilip HIC tamamlanamiyor.
+            flow = ham_flow.lower()
+            if ham_flow:
+                srt = db.execute(text("""
+                    SELECT code FROM warehouse.service_request_type
+                    WHERE LOWER(TRIM(code)) = LOWER(:f) OR LOWER(TRIM(short_name)) = LOWER(:f)
+                    LIMIT 1
+                """), {"f": ham_flow}).first()
+                if srt and srt[0]:
+                    flow = srt[0].strip().lower()
+
+            NO_APPROVAL_FLOWS = {"to refurbish", "to rma"}
+            if flow and flow not in NO_APPROVAL_FLOWS:
+                return ("Bu onarım müşteri onayı alınmadan tamamlanamaz. Önce "
+                        "'Müşteri Onayına Sun' adımından geçip onay alınmalı, ardından "
+                        "'Onay Geldi - Tamamla' ile kapatılmalıdır.")
+
+        return None
+
+    @Slot(str, str, str, result=str)
     def update_repair_status(self, repair_id, new_status_code, username):
         """Bir alt onarım kaydının statüsünü (repair_result_type_code) günceller.
         Kodlar warehouse.repair_result_type tablosundaki gerçek anlamlarıyla kullanılır
@@ -10914,54 +11103,14 @@ class WebBridge(QObject):
 
             target_code = int(new_status_code)
 
-            # Onarım Tamamlandı (1002) icin iki sart birden aranir:
-            #   1) Kayit bir teknisyene ATANMIS olmali,
-            #   2) Parca stok takipliyse depodan teslim edilmis ('Stoktan Çıktı') olmali;
-            #      stok takipsiz parcada bu sart aranmaz.
+            # Tamamlama sartlari TEK YERDE toplandi (_repair_completion_blocker).
+            # Hizli Onarim Bitis ekrani da ayni yardimciyi cagirir - kural iki yerde
+            # ayri yazilirsa zamanla ayrisir ve ayni onarim bir ekrandan kapanip
+            # digerinden kapanmaz.
             if target_code == 1002:
-                if not (rec.assigned_technician or "").strip():
-                    return json.dumps({
-                        "success": False,
-                        "message": "Bu onarım tamamlanamaz! Kayıt henüz bir teknisyene atanmamış. Önce 'Teknisyene Ata' ile atama yapın."
-                    }, ensure_ascii=False)
-
-            if target_code == 1002 and rec.part_item_code:
-                part_row = db.execute(text("SELECT id, name FROM warehouse.parts WHERE item_code = :c LIMIT 1"), {"c": rec.part_item_code.strip()}).mappings().first()
-                if part_row:
-                    # Takip tipi parts'ta bossa part_categories'e dusulur (bkz. _is_part_stock_tracked);
-                    # eskiden burada sadece parts.stock_tracking_type okunuyordu, kategoriye bakilmiyordu.
-                    if self._is_part_stock_tracked(db, rec.part_item_code):
-                        # Parçanın bu cihazdaki supply_status_code değeri 'Teslim Edildi' mi?
-                        # 'stoktan çıktı' geçerli koddur (warehouse.item_supply_status);
-                        # 'teslim edildi' o tabloda yok, eski kayıtlar için kabul edilir.
-                        is_delivered = (rec.supply_status_code or "").strip().lower() in ("stoktan çıktı", "teslim edildi", "teslim", "1002", "completed")
-                        if not is_delivered:
-                            return json.dumps({
-                                "success": False,
-                                "message": f"Bu onarım tamamlanamaz! Eklenen '{part_row['name']}' ({rec.part_item_code}) parçası henüz depodan teknisyene teslim edilmemiş (Good Stock'tan çıkışı yapılmamış)."
-                            }, ensure_ascii=False)
-
-            # Müşteri onayı olmadan tamamlama engeli: Onarım "Teknisyene Atandı" (1001) aşamasından
-            # doğrudan "Onarım Tamamlandı" (1002) yapılmaya çalışılıyorsa ve cihazın Flow'u müşteri
-            # onayı gerektiriyorsa (To refurbish / To RMA HARİÇ), önce "Müşteri Onayına Sun" (1005)
-            # adımından geçilmelidir. Onay gelince 1005 -> 1002 ("Onay Geldi - Tamamla") ya da test
-            # başarılıysa 1006 -> 1002 ile tamamlanabilir.
-            if target_code == 1002 and rec.repair_result_type_code == 1001:
-                ref = str(rec.service_record_id or "")
-                be_row = db.execute(text("""
-                    SELECT flow FROM warehouse.batch_entries
-                    WHERE service_id::text = :ref
-                       OR LOWER(TRIM(imei_number)) = LOWER(:ref)
-                       OR LOWER(TRIM(serial_number)) = LOWER(:ref)
-                       OR LOWER(TRIM(internal_id)) = LOWER(:ref)
-                    ORDER BY id DESC LIMIT 1
-                """), {"ref": ref}).first()
-                flow = ((be_row[0] if be_row else "") or "").strip().lower()
-                NO_APPROVAL_FLOWS = {"to refurbish", "to rma"}
-                if flow and flow not in NO_APPROVAL_FLOWS:
-                    return json.dumps({"success": False, "message":
-                        "Bu onarım müşteri onayı alınmadan tamamlanamaz. Önce 'Müşteri Onayına Sun' "
-                        "adımından geçip onay alınmalı, ardından 'Onay Geldi - Tamamla' ile kapatılmalıdır."})
+                engel = self._repair_completion_blocker(db, rec)
+                if engel:
+                    return json.dumps({"success": False, "message": engel}, ensure_ascii=False)
 
             rec.repair_result_type_code = target_code
             db.commit()

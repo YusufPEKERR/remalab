@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RemaLab WMS — Hızlı Onarım Bitir</title>
+<style>
+  :root {
+    --bg:#0f1219; --panel:#161b26; --panel2:#1c2230; --text:#e6e9ef; --muted:#9aa4b2;
+    --border:#2a3242; --accent:#4c8dff; --accent2:#7c5cff; --code:#0b0e14; --th:#212b36;
+    --green:#3ddc84; --warn:#ffb454;
+  }
+  * { box-sizing:border-box; }
+  html { scroll-behavior:smooth; }
+  body { margin:0; background:var(--bg); color:var(--text);
+    font:16px/1.7 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; }
+  .wrap { max-width:1080px; margin:0 auto; padding:48px 28px 120px; }
+  h1,h2,h3,h4 { line-height:1.25; font-weight:700; scroll-margin-top:20px; }
+  h1 { font-size:2.1rem; margin:.2em 0 .6em;
+    background:linear-gradient(90deg,var(--accent),var(--accent2));
+    -webkit-background-clip:text; background-clip:text; color:transparent; }
+  h2 { font-size:1.5rem; margin-top:2.2em; padding-bottom:.35em; border-bottom:1px solid var(--border); }
+  h3 { font-size:1.2rem; margin-top:1.8em; color:#cdd6e4; }
+  h4 { font-size:1.03rem; margin-top:1.4em; color:#cdd6e4; }
+  a { color:var(--accent); text-decoration:none; }
+  a:hover { text-decoration:underline; }
+  p, li { color:var(--text); }
+  blockquote { margin:1.2em 0; padding:.6em 1.1em; border-left:4px solid var(--accent);
+    background:var(--panel); border-radius:0 8px 8px 0; color:#c9d2df; }
+  blockquote p { margin:.4em 0; }
+  code { font-family:"JetBrains Mono",Consolas,Menlo,monospace; font-size:.88em;
+    background:var(--panel2); padding:.15em .45em; border-radius:5px; color:#ffd9a0; }
+  pre { background:var(--code); border:1px solid var(--border); border-radius:10px;
+    padding:16px 18px; overflow-x:auto; }
+  pre code { background:none; padding:0; color:#c8e1ff; font-size:.85em; line-height:1.6; }
+  table { border-collapse:collapse; width:100%; margin:1.2em 0; font-size:.92rem;
+    display:block; overflow-x:auto; }
+  th,td { border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top; }
+  th { background:var(--th); color:#fff; font-weight:600; white-space:nowrap; }
+  tr:nth-child(even) td { background:var(--panel); }
+  tr:hover td { background:var(--panel2); }
+  hr { border:none; border-top:1px solid var(--border); margin:2.6em 0; }
+  ul,ol { padding-left:1.4em; }
+  li { margin:.25em 0; }
+  .headerbar { display:flex; align-items:center; gap:14px; margin-bottom:8px; }
+  .badge { display:inline-block; font-size:.72rem; letter-spacing:.08em; text-transform:uppercase;
+    background:var(--panel2); color:var(--muted); border:1px solid var(--border);
+    padding:4px 10px; border-radius:999px; }
+  .toc { background:var(--panel); border:1px solid var(--border); border-radius:12px;
+    padding:14px 20px; margin:1.4em 0 2.4em; }
+  .toc > ul { margin:.3em 0; }
+  .toc .toctitle { font-weight:700; color:#fff; font-size:1rem; }
+  ::selection { background:rgba(76,141,255,.35); }
+  .headerlink { opacity:0; margin-left:.4em; font-size:.8em; }
+  h2:hover .headerlink, h3:hover .headerlink { opacity:.6; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="headerbar">
+    <span class="badge">RemaLab WMS</span>
+    <span class="badge">Hızlı Onarım Bitir</span>
+  </div>
+  <h1 id="hzl-onarm-bitir-analiz-ve-tasarm-notu">Hızlı Onarım Bitir — Analiz ve Tasarım Notu<a class="headerlink" href="#hzl-onarm-bitir-analiz-ve-tasarm-notu" title="Permanent link">#</a></h1>
+<blockquote>
+<p><strong>Durum: KARARLAR ALINDI — kod yazılmadı.</strong> Açık soruların 5'i yanıtlandı, 1'i
+beklemede. Onay verilmeden hiçbir değişiklik yapılmayacaktır.</p>
+<p>Oluşturma: 3 Ağustos 2026 · Son güncelleme: 3 Ağustos 2026 (kararlar işlendi)</p>
+</blockquote>
+<hr />
+<h2 id="1-kaynak">1. Kaynak<a class="headerlink" href="#1-kaynak" title="Permanent link">#</a></h2>
+<p>İstek iki görselle iletildi.</p>
+<h3 id="11-el-yazs-not">1.1 El yazısı not<a class="headerlink" href="#11-el-yazs-not" title="Permanent link">#</a></h3>
+<pre><code>• BATARYA  ──┐
+○ KAMERA   ──┴──►  HIZLI ONARIM BİTİR
++ EKRAN
++ KASA
++ L1
++ L2
++ L3
+   ─────────────────────────────────────────────
+   → Bu iki departman için teknisyen aldı ve
+     parçalar stoktan çıktı ise, bu ekranda
+     otomatik olarak onarım tamamlandı yapılacaktır.
+</code></pre>
+<h3 id="12-eski-uygulamadan-ekran-goruntusu">1.2 Eski uygulamadan ekran görüntüsü<a class="headerlink" href="#12-eski-uygulamadan-ekran-goruntusu" title="Permanent link">#</a></h3>
+<p><code>Remalab Teknoloji Lifecycle Management Suite V5 [5.1.1.85]</code> → <strong>Araçlar</strong> menüsü →
+<strong>"BATTERY Onarımı Hızlı Bitiş"</strong> penceresi:</p>
+<table>
+<thead>
+<tr>
+<th>Alan</th>
+<th>Tip</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>IMEI / Seri Numara / Internal ID:</code></td>
+<td>tek satır giriş (barkod okutma)</td>
+</tr>
+<tr>
+<td><code>İşlem Durumu</code></td>
+<td>büyük, salt okunur log alanı</td>
+</tr>
+</tbody>
+</table>
+<p>Başka hiçbir buton yok. Akış: <strong>barkod okut → işlem kendiliğinden çalışsın → sonucu
+log alanına yaz.</strong> Pencere başlığındaki <code>BATTERY</code> sabit değil, departman adı; eski
+uygulamada her departman için ayrı pencere vardı.</p>
+<hr />
+<h2 id="2-alnan-kararlar">2. Alınan kararlar<a class="headerlink" href="#2-alnan-kararlar" title="Permanent link">#</a></h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Soru</th>
+<th><strong>Karar</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Kapsam: iki departman mı, listenin tamamı mı?</td>
+<td><strong>Sadece 2 departman: BATARYA ve KAMERA</strong></td>
+</tr>
+<tr>
+<td>2</td>
+<td>"L5" mi "L3" mü?</td>
+<td><strong>L3</strong> (<code>L3REPAIR</code>) — zaten tanımlı, bu iş için kapsam dışı</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>BATTERY</code>/<code>CAMERA</code>/<code>CASE</code> grupları tanımlanacak mı?</td>
+<td><strong>Gerek yok — zaten tanımlılar</strong> (aşağıdaki düzeltmeye bakınız)</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Aynı departmanda birden fazla onarım varsa hepsi kapansın mı?</td>
+<td><strong>Hayır, hepsi kapanmasın</strong></td>
+</tr>
+<tr>
+<td>5</td>
+<td>Stok takipsiz parça tek başına yeterli mi?</td>
+<td><strong>Beklemede</strong> — öğrenilip bildirilecek</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Tek ekran + seçici mi, departman başına ayrı mı?</td>
+<td><strong>Ayrı ekranlar</strong></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Düzeltme (#3):</strong> Bu belgenin ilk sürümünde "<code>BATTERY</code>, <code>CAMERA</code>, <code>CASE</code> görev
+grubu olarak tanımlı değil" yazıyordu. <strong>Bu yanlıştı</strong> — sorgu çıktısı kırpıldığı
+için ilk satırlar görülmemişti. Sistemde <strong>17 görev grubu</strong> var ve üçü de mevcut:
+<code>BATTERY</code> (Batarya Onarımı), <code>CAMERA</code> (Kamera Onarımı), <code>CASE</code> (Kasa Onarımı).
+İlgili görevler de doğru gruplara bağlı: <code>TEC_BATTERY</code>, <code>TEC_TL_BATTERY</code>,
+<code>TEC_CAMERA</code>, <code>TEC_TL_CAMERA</code>, <code>QAC_CAMERA</code>, <code>TEC_CASE</code>, <code>TEC_TL_CASE</code>, <code>QAC_CASE</code>.
+Yapılacak bir tanımlama yok.</p>
+</blockquote>
+<hr />
+<h2 id="3-istenen-davrans">3. İstenen davranış<a class="headerlink" href="#3-istenen-davrans" title="Permanent link">#</a></h2>
+<p>Bir cihaz barkodu okutulduğunda, ekranın ait olduğu departmandaki onarım kayıtları
+için şu iki şart sağlanıyorsa onarım <strong>otomatik olarak "Tamamlandı" (1002)</strong> yapılır:</p>
+<ol>
+<li>Onarım bir <strong>teknisyene atanmış</strong> olmalı,</li>
+<li>Onarıma ait <strong>parçalar stoktan çıkmış</strong> olmalı.</li>
+</ol>
+<p>Şartlar sağlanmıyorsa o kayıt kapatılmaz ve sebebi <code>İşlem Durumu</code> alanına yazılır.</p>
+<hr />
+<h2 id="4-mevcut-sistemde-ne-var">4. Mevcut sistemde ne var<a class="headerlink" href="#4-mevcut-sistemde-ne-var" title="Permanent link">#</a></h2>
+<p><strong>İş kuralı zaten yazılmış ve çalışıyor.</strong> <code>WebBridge.update_repair_status</code> içinde,
+hedef statü 1002 olduğunda tam olarak bu iki şart aranıyor:</p>
+<table>
+<thead>
+<tr>
+<th>Şart</th>
+<th>Davranış</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Teknisyen ataması</td>
+<td>Atama yoksa: <em>"Kayıt henüz bir teknisyene atanmamış"</em></td>
+</tr>
+<tr>
+<td>Parça stoktan çıkmış</td>
+<td>Stok takipliyse <code>supply_status_code = 'Stoktan Çıktı'</code> şartı; stok takipsiz parçada bu şart aranmaz</td>
+</tr>
+</tbody>
+</table>
+<p>Stok takibi tipi <code>parts.stock_tracking_type</code> boşsa <code>part_categories</code>'e düşülür
+(<code>_is_part_stock_tracked</code>).</p>
+<p>Arayüzde de aynı iki şart <code>TechnicianRepairOperations.jsx</code> içindeki
+<code>completeBlockReason</code> ile "Onarımı Tamamla" butonunu önden kilitliyor.</p>
+<p><strong>Eksik olan iş kuralı değil, hızlı çalışan bir giriş ekranı.</strong></p>
+<hr />
+<h2 id="5-kapsam">5. Kapsam<a class="headerlink" href="#5-kapsam" title="Permanent link">#</a></h2>
+<p>Karar #1 gereği yalnızca iki departman:</p>
+<table>
+<thead>
+<tr>
+<th>Departman</th>
+<th>Görev grubu kodu</th>
+<th><code>mission_groups</code>'ta</th>
+<th><code>repair_records</code>'ta kullanım</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>BATARYA</td>
+<td><code>BATTERY</code></td>
+<td>✅ Batarya Onarımı</td>
+<td>18 kayıt</td>
+</tr>
+<tr>
+<td>KAMERA</td>
+<td><code>CAMERA</code></td>
+<td>✅ Kamera Onarımı</td>
+<td>7 kayıt</td>
+</tr>
+</tbody>
+</table>
+<p>El yazısındaki diğer departmanlar (EKRAN, KASA, L1, L2, L3) <strong>bu iş için kapsam
+dışı</strong> — mevcut "Üretim Kaydını Görüntüle" ekranından tamamlanmaya devam edecekler.</p>
+<hr />
+<h2 id="6-tasarm">6. Tasarım<a class="headerlink" href="#6-tasarm" title="Permanent link">#</a></h2>
+<h3 id="61-ekranlar">6.1 Ekranlar<a class="headerlink" href="#61-ekranlar" title="Permanent link">#</a></h3>
+<p>Karar #6 gereği <strong>departman başına ayrı ekran</strong>, eski uygulamadaki gibi. İki yeni
+menü öğesi:</p>
+<pre><code>ÜRETİM TEKNİSYENİ
+  ├─ Üretim Kaydını Görüntüle          (mevcut)
+  ├─ BATARYA Onarımı Hızlı Bitiş       (yeni)
+  └─ KAMERA Onarımı Hızlı Bitiş        (yeni)
+</code></pre>
+<p>Rota: <code>/hizli-onarim-bitir/BATTERY</code> ve <code>/hizli-onarim-bitir/CAMERA</code>.</p>
+<blockquote>
+<p>Ekranlar ayrı <strong>görünecek</strong> ama tek bir React bileşeni görev grubunu rotadan
+okuyacak. Aynı kodu iki kez yazmak, ileride biri düzeltilip diğeri unutulduğunda
+sessiz tutarsızlık üretir.</p>
+</blockquote>
+<pre><code>┌─ BATARYA Onarımı Hızlı Bitiş ───────────────────────┐
+│  IMEI / Seri Numara / Internal ID:                  │
+│  [___________________________________]  (otofokus)  │
+│                                                     │
+│  İşlem Durumu                                       │
+│  ┌───────────────────────────────────────────────┐  │
+│  │ 12:04:11  358964586438090                     │  │
+│  │           ✓ iP15Bat · Ahmet Y. → Tamamlandı   │  │
+│  │ 12:04:18  358964586438090                     │  │
+│  │           ✗ iP15BGBLC · parça depodan çıkmamış│  │
+│  │ 12:04:29  359817438156253                     │  │
+│  │           ✗ BATARYA için açık onarım yok      │  │
+│  └───────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────┘
+</code></pre>
+<p>Barkod okutulur → Enter → sonuç log'a eklenir → kutu temizlenir, odak kutuda kalır.
+Buton yok; art arda okutmaya uygun. Log satırları renk kodlu, eskiler silinmez.</p>
+<h3 id="62-ksmi-kapatma-karar-4">6.2 Kısmi kapatma (karar #4)<a class="headerlink" href="#62-ksmi-kapatma-karar-4" title="Permanent link">#</a></h3>
+<p>Bir cihazda aynı departmanda birden fazla onarım kaydı olabilir. Karar gereği
+<strong>hepsi birden kapatılmaz</strong>; her kayıt <strong>tek tek</strong> değerlendirilir:</p>
+<ul>
+<li>Şartları sağlayan kayıtlar → 1002 yapılır,</li>
+<li>Sağlamayanlar → <strong>olduğu gibi bırakılır</strong>, sebebi log'a yazılır.</li>
+</ul>
+<p>Yani bir cihazda 3 kayıt varsa ve 2'si hazırsa, o 2'si kapanır, 3'üncü açık kalır.
+Log her kayıt için ayrı satır gösterir ki operatör neyin kaldığını görsün.</p>
+<h3 id="63-backend">6.3 Backend<a class="headerlink" href="#63-backend" title="Permanent link">#</a></h3>
+<pre><code>quick_complete_repair(device_ref, mission_group_code, username) -&gt; JSON
+</code></pre>
+<ol>
+<li>Cihazı bul (IMEI / seri no / internal ID).</li>
+<li>O cihazın verilen görev grubundaki <strong>iptal edilmemiş ve tamamlanmamış</strong> kayıtları al.</li>
+<li>Kayıt yoksa: <em>"Bu cihazda &lt;departman&gt; için açık onarım yok."</em></li>
+<li><strong>Her kayıt için ayrı ayrı</strong> mevcut 1002 şartlarını uygula.</li>
+<li>Uygun olanları 1002 yap, olmayanları atla; her kayıt için sonuç satırı dön.</li>
+</ol>
+<blockquote>
+<p><strong>Kural tekrarı yapılmamalı.</strong> <code>update_repair_status</code>'taki 1002 kontrolleri ortak
+bir yardımcıya çıkarılıp iki yerden de çağrılmalı. İki yerde ayrı yazılırsa zamanla
+birbirinden ayrışır — bu projede aynı hata daha önce depo listesi ile teslim
+kontrolü arasında yaşandı.</p>
+</blockquote>
+<h3 id="64-yetki">6.4 Yetki<a class="headerlink" href="#64-yetki" title="Permanent link">#</a></h3>
+<p>Mevcut desen korunur: <code>_get_user_missions</code> + cihazın statüsünün gerektirdiği görev.
+Ek olarak operatörün <strong>o departmana</strong> yetkisi kontrol edilmeli — yoksa bir batarya
+teknisyeni kamera onarımlarını kapatabilir. Kontrol <code>mission_groups</code> → <code>missions</code>
+bağı üzerinden yapılır (<code>TEC_BATTERY</code> → <code>BATTERY</code>).</p>
+<hr />
+<h2 id="7-kalan-ack-konu">7. Kalan açık konu<a class="headerlink" href="#7-kalan-ack-konu" title="Permanent link">#</a></h2>
+<p><strong>Soru #5 — stok takipsiz parçalar.</strong> Mevcut kural, stok takipsiz parçada "stoktan
+çıktı" şartını aramıyor; yani böyle bir parça tek başına onarımın tamamlanmasına
+engel olmuyor (ESMA #2 gereği). Hızlı Bitiş ekranının da aynı davranması bekleniyor
+ama bu teyit edilmedi.</p>
+<p><strong>Teyit gelene kadar varsayım:</strong> mevcut davranış aynen korunur. Farklı olması
+gerekiyorsa hem bu ekran hem <code>update_repair_status</code> birlikte değişmeli — ikisi ayrı
+davranırsa aynı onarım bir ekrandan kapanıp diğerinden kapanmaz.</p>
+<hr />
+<h2 id="8-yaplacaklar-onay-sonras">8. Yapılacaklar (onay sonrası)<a class="headerlink" href="#8-yaplacaklar-onay-sonras" title="Permanent link">#</a></h2>
+<ul>
+<li>[ ] 1002 şartlarının ortak yardımcıya çıkarılması (kural tekrarını önlemek için)</li>
+<li>[ ] <code>quick_complete_repair</code> metodu — kayıt bazlı kısmi kapatma</li>
+<li>[ ] Departman bazlı yetki kontrolü</li>
+<li>[ ] <code>HizliOnarimBitir</code> bileşeni (görev grubunu rotadan okur)</li>
+<li>[ ] İki rota + iki menü öğesi (BATARYA, KAMERA)</li>
+<li>[ ] Soru #5'in yanıtına göre stok takipsiz davranışının teyidi</li>
+</ul>
+<p>~~Görev gruplarının tanımlanması~~ — gerekmiyor, zaten tanımlılar.</p>
+</div>
+</body>
+</html>

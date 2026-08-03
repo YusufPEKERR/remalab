@@ -34,6 +34,7 @@ const BatchStatuTransition = lazy(() => import('./pages/BatchStatuTransition'));
 const TechnicianPanel = lazy(() => import('./pages/TechnicianPanel'));
 const TechnicianRepairOperations = lazy(() => import('./pages/TechnicianRepairOperations'));
 const DemontajServisOnarimlari = lazy(() => import('./pages/DemontajServisOnarimlari'));
+const HizliOnarimBitir = lazy(() => import('./pages/HizliOnarimBitir'));
 const SchemaMapper = lazy(() => import('./pages/SchemaMapper'));
 const CustomerApprovalDecision = lazy(() => import('./pages/CustomerApprovalDecision'));
 const AraTestSonuc = lazy(() => import('./pages/AraTestSonuc'));
@@ -105,6 +106,8 @@ function App() {
               <Route path="/technician-repair" element={<TechnicianRepairOperations />} />
               <Route path="/onarim-havuzu/:deptCode" element={<DepartmentRepairPool />} />
               <Route path="/servis-onarimlari-demontaj" element={<DemontajServisOnarimlari />} />
+              {/* Menüde departman başına ayrı görünür, tek bileşen görev grubunu rotadan okur. */}
+              <Route path="/hizli-onarim-bitir/:missionGroup" element={<HizliOnarimBitir />} />
               <Route path="/schema-mapper" element={<SchemaMapper />} />
             </Route>
           </Routes>

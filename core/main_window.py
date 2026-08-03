@@ -51,23 +51,6 @@ class CustomRequestHandler(http.server.SimpleHTTPRequestHandler):
         except (Exception, socket.timeout, ConnectionResetError, BrokenPipeError):
             pass
 
-    def end_headers(self):
-        # index.html ASLA onbellege alinmamali. Statik sunucu sabit bir portta calisiyor
-        # (localStorage origin tutarliligi icin), yani origin restart'lar arasinda ayni
-        # kaliyor ve QtWebEngine'in KALICI disk onbellegi devrede. Cache-Control
-        # gondermezsek QtWebEngine index.html'i sezgisel olarak onbellekten servis edip
-        # ESKI hash'li bundle'lari yukluyor; yeni derleme yapilmis olsa bile ekranda
-        # hicbir sey degismiyor (bu hata canli olarak yasandi).
-        # /assets/ altindaki dosyalarin adinda hash var, icerik degisince ad da degisir -
-        # onlar guvenle uzun sure onbelleklenebilir.
-        if self.path.startswith('/assets/'):
-            self.send_header('Cache-Control', 'public, max-age=31536000, immutable')
-        else:
-            self.send_header('Cache-Control', 'no-store, no-cache, must-revalidate')
-            self.send_header('Pragma', 'no-cache')
-            self.send_header('Expires', '0')
-        super().end_headers()
-
     def translate_path(self, path):
         if path.startswith('/api_cache/'):
             base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -92,7 +75,16 @@ class CustomRequestHandler(http.server.SimpleHTTPRequestHandler):
         if self.path.startswith('/api_cache/'):
             self.send_header('Cache-Control', 'no-store')
         elif self.path.startswith('/assets/'):
+            # Dosya adinda hash var, icerik degisince ad da degisir - guvenle onbelleklenir.
             self.send_header('Cache-Control', 'public, max-age=31536000, immutable')
+        else:
+            # index.html ve diger sabit adresli dosyalar ASLA onbellege alinmamali.
+            # Bunlar hash'siz, sabit URL'de duruyor; onbellekten servis edilirse ESKI
+            # hash'li bundle'lara isaret eden eski bir index.html yuklenir ve yeni
+            # derleme yapilmis olsa bile ekranda hicbir sey degismez.
+            self.send_header('Cache-Control', 'no-store, no-cache, must-revalidate')
+            self.send_header('Pragma', 'no-cache')
+            self.send_header('Expires', '0')
         super().end_headers()
 
 
