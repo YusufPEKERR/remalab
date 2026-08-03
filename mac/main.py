@@ -2,6 +2,7 @@ import sys
 import os
 import json
 import uuid
+import shutil
 import urllib.parse
 
 # macOS ve Chromium Donanım İvmelendirmesi / Maksimum Performans Bayrakları (GPU & Skia Render)
@@ -157,6 +158,11 @@ class SettingsDialog(QDialog):
 
     def save_data(self):
         try:
+            # Ensure parent dir exists
+            parent_dir = os.path.dirname(self.json_path)
+            if parent_dir and not os.path.exists(parent_dir):
+                os.makedirs(parent_dir, exist_ok=True)
+
             with open(self.json_path, "w", encoding="utf-8") as f:
                 json.dump(self.sites_data, f, ensure_ascii=False, indent=2)
             self.sites_updated.emit()
@@ -424,9 +430,31 @@ class CustomWebPage(QWebEnginePage):
 class WebAppWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.app_dir = os.path.dirname(os.path.abspath(__file__))
-        self.sites_file = os.path.join(self.app_dir, "sites.json")
-        self.logo_file = os.path.join(self.app_dir, "logo.png")
+        
+        # Path resolution handling for PyInstaller .app bundle & standalone mode
+        if getattr(sys, 'frozen', False):
+            # Running as bundled macOS .app (PyInstaller)
+            bundle_dir = getattr(sys, '_MEIPASS', os.path.dirname(sys.executable))
+            
+            # Application Support directory for persistent user sites.json
+            user_config_dir = os.path.expanduser("~/Library/Application Support/ERPWebApp")
+            os.makedirs(user_config_dir, exist_ok=True)
+            self.sites_file = os.path.join(user_config_dir, "sites.json")
+
+            # Copy bundled initial sites.json if first run
+            if not os.path.exists(self.sites_file):
+                bundled_sites = os.path.join(bundle_dir, "sites.json")
+                if os.path.exists(bundled_sites):
+                    try:
+                        shutil.copy2(bundled_sites, self.sites_file)
+                    except Exception as e:
+                        print(f"Initial sites.json copy error: {e}")
+
+            self.logo_file = os.path.join(bundle_dir, "logo.png")
+        else:
+            self.app_dir = os.path.dirname(os.path.abspath(__file__))
+            self.sites_file = os.path.join(self.app_dir, "sites.json")
+            self.logo_file = os.path.join(self.app_dir, "logo.png")
 
         self.sites_data = {"default_site_id": "", "sites": []}
         self.current_site_url = ""
@@ -462,15 +490,21 @@ class WebAppWindow(QMainWindow):
         self.shortcut_f5 = QShortcut(QKeySequence(Qt.Key.Key_F5), self)
         self.shortcut_f5.activated.connect(self.navigate_reload)
 
+        self.shortcut_mac_reload = QShortcut(QKeySequence("Meta+R"), self)
+        self.shortcut_mac_reload.activated.connect(self.navigate_reload)
+
         self.shortcut_reload = QShortcut(QKeySequence.StandardKey.Refresh, self)
         self.shortcut_reload.activated.connect(self.navigate_reload)
 
-        # Ayarlar (Cmd+Shift+S veya Ctrl+Shift+S)
+        # Ayarlar (Cmd+Shift+S, Cmd+Comma veya Ctrl+Shift+S)
         self.shortcut_settings = QShortcut(QKeySequence("Ctrl+Shift+S"), self)
         self.shortcut_settings.activated.connect(self.open_settings)
 
         self.shortcut_mac_settings = QShortcut(QKeySequence("Meta+Shift+S"), self)
         self.shortcut_mac_settings.activated.connect(self.open_settings)
+
+        self.shortcut_mac_preferences = QShortcut(QKeySequence("Meta+,"), self)
+        self.shortcut_mac_preferences.activated.connect(self.open_settings)
 
     def toggle_fullscreen(self):
         """Tam ekran modunu açar / kapatır."""
@@ -504,13 +538,17 @@ class WebAppWindow(QMainWindow):
     def save_sites_config(self):
         """sites.json dosyasını kaydeder."""
         try:
+            parent_dir = os.path.dirname(self.sites_file)
+            if parent_dir and not os.path.exists(parent_dir):
+                os.makedirs(parent_dir, exist_ok=True)
+
             with open(self.sites_file, "w", encoding="utf-8") as f:
                 json.dump(self.sites_data, f, ensure_ascii=False, indent=2)
         except Exception as e:
             print(f"Yapılandırma kaydetme hatası: {e}")
 
     def init_ui(self):
-        self.setWindowTitle("Web Uygulama Yöneticisi")
+        self.setWindowTitle("ERP Web App")
         self.resize(1280, 800)
 
         # Varsayılan ikon ayarla (logo.png varsa yükle)
@@ -579,12 +617,11 @@ class WebAppWindow(QMainWindow):
             }
         """)
 
-        # ToolBar (Navigasyon Çubuğu Varsayılan Olarak Gizli)
+        # ToolBar
         toolbar = QToolBar("Navigasyon")
         toolbar.setMovable(False)
         toolbar.setIconSize(QSize(18, 18))
         self.addToolBar(toolbar)
-        toolbar.setVisible(False)
 
         # Geri Butonu
         self.back_btn = QToolButton(self)
@@ -603,7 +640,7 @@ class WebAppWindow(QMainWindow):
         # Yenile Butonu
         self.reload_btn = QToolButton(self)
         self.reload_btn.setText("🔄 Yenile")
-        self.reload_btn.setToolTip("Sayfayı Yenile")
+        self.reload_btn.setToolTip("Sayfayı Yenile (⌘+R)")
         self.reload_btn.clicked.connect(self.navigate_reload)
         toolbar.addWidget(self.reload_btn)
 
@@ -631,7 +668,7 @@ class WebAppWindow(QMainWindow):
         # Ayarlar Butonu
         self.settings_btn = QToolButton(self)
         self.settings_btn.setText("⚙️ Ayarlar")
-        self.settings_btn.setToolTip("Web Sitelerini Yönet & Ayarlar")
+        self.settings_btn.setToolTip("Web Sitelerini Yönet & Ayarlar (⌘+,)")
         self.settings_btn.clicked.connect(self.open_settings)
         toolbar.addWidget(self.settings_btn)
 
@@ -648,7 +685,7 @@ class WebAppWindow(QMainWindow):
         self.browser.titleChanged.connect(self.update_title)
         self.browser.iconChanged.connect(self.on_site_icon_changed)
 
-        # Status Bar (Gizlendi)
+        # Status Bar
         self.status_bar = QStatusBar(self)
         self.setStatusBar(self.status_bar)
         self.status_bar.hide()
@@ -741,7 +778,7 @@ class WebAppWindow(QMainWindow):
     def update_title(self, title):
         """Sayfa başlığı değiştiğinde pencere başlığını günceller."""
         if title:
-            self.setWindowTitle(f"{title} - Web Masaüstü Uygulaması")
+            self.setWindowTitle(f"{title} - ERP Web App")
 
     def on_site_icon_changed(self, icon):
         """Site yüklendiğinde sitenin logosunu hem pencereye hem macOS Dock'a uygular."""
@@ -765,11 +802,16 @@ class WebAppWindow(QMainWindow):
 
 def main():
     app = QApplication(sys.argv)
-    app.setApplicationName("Web App Wrapper")
+    app.setApplicationName("ERP Web App")
 
     # macOS ikonu hazırlama
-    app_dir = os.path.dirname(os.path.abspath(__file__))
-    logo_file = os.path.join(app_dir, "logo.png")
+    if getattr(sys, 'frozen', False):
+        bundle_dir = getattr(sys, '_MEIPASS', os.path.dirname(sys.executable))
+        logo_file = os.path.join(bundle_dir, "logo.png")
+    else:
+        app_dir = os.path.dirname(os.path.abspath(__file__))
+        logo_file = os.path.join(app_dir, "logo.png")
+
     if os.path.exists(logo_file):
         app.setWindowIcon(QIcon(logo_file))
 
