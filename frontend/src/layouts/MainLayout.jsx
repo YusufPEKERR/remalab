@@ -175,8 +175,14 @@ export default function MainLayout() {
       items: [
         { name: 'Üretime Aktar', icon: Wrench, path: '/servis-onarimlari-demontaj' },
         { name: 'Teknik departmana kabul et (104>105)', icon: Cog, path: '/statu-gecis/TEC_DISMANTLE/104_105' },
-        { name: 'Müşteri onayına gönder (105>106)', icon: Cog, path: '/statu-gecis/TEC_DISMANTLE/105_106' },
-        { name: 'Üretime Aktar (105>109)', icon: Cog, path: '/statu-gecis/TEC_DISMANTLE/105_109' }
+        { name: 'Müşteri onayına gönder (105>106)', icon: Cog, path: '/statu-gecis/TEC_DISMANTLE/105_106' }
+        // "Üretime Aktar (105>109)" toplu statü geçişi menüden KALDIRILDI: aynı işi
+        // yukarıdaki "Üretime Aktar" ekranındaki karar butonu yapıyor
+        // (submit_dismantle_decision, eklenen parçalara göre 109 ya da 106 seçiyor).
+        // İki ayrı yolun olması hem isim karışıklığı yaratıyordu hem de toplu geçiş
+        // müşteri onayı kontrolünü atlayıp doğrudan 109'a taşıyabiliyordu.
+        // Sayfa (BatchStatuTransition) SİLİNMEDİ - başka 9 menü öğesi aynı bileşeni
+        // kullanıyor; sadece bu giriş kaldırıldı.
       ]
     },
     {
@@ -283,7 +289,7 @@ export default function MainLayout() {
       case '/servis-onarimlari-demontaj':
       case '/statu-gecis/TEC_DISMANTLE/104_105':
       case '/statu-gecis/TEC_DISMANTLE/105_106':
-      case '/statu-gecis/TEC_DISMANTLE/105_109':
+        // 105_109 buradan da kaldirildi - menude artik yok (bkz. menuGroups).
         return { color: '#3B8B76' };
 
       // ARA TEST

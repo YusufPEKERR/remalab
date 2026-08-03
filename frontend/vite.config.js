@@ -44,6 +44,10 @@ export default defineConfig({
     }
   },
   build: {
+    // Her derlemede dist/ temizlenir. Eski hash'li bundle'lar diskte kalirsa,
+    // onbellekten gelen eski bir index.html onlari sorunsuzca yukleyebiliyor ve
+    // yeni surum hic gorunmuyor. Temizlenince boyle bir kayit hic olmaz.
+    emptyOutDir: true,
     rollupOptions: {
       output: {
         // React/router ve ikon kütüphanesi uygulama koduna göre çok daha az
