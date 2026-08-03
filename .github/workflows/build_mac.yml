@@ -16,7 +16,8 @@ jobs:
       matrix:
         include:
           # Intel Mac'ler (örn. A1708 MacBook Pro) için native x86_64 runner
-          - runner: macos-13
+          # (macos-13 Aralık 2025'te kaldırıldı, güncel Intel etiketi macos-15-intel)
+          - runner: macos-15-intel
             arch: x86_64
           # Apple Silicon Mac'ler için native arm64 runner
           - runner: macos-14
