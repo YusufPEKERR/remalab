@@ -8636,6 +8636,7 @@ class WebBridge(QObject):
                 "color": _pick("Color"),
                 "grade": _pick("Grade"),
                 "defects": _pick("Failed"),
+                "notes": _pick("Notes"),
                 "screen_test": screen_test,
                 "power_test": power_test,
             }
@@ -9002,6 +9003,61 @@ class WebBridge(QObject):
             } for r in rows]
 
             return json.dumps({"success": True, "items": items})
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
+    def get_phonecheck_stored_by_imei(self, term):
+        """Cihaza ait EN GÜNCEL phonecheck_test_results kaydını (yerel tablo) TÜM alanlarıyla
+        döner. Canlı Phonecheck API'sine GİTMEZ; test aşamasında kaydedilmiş verileri kullanır.
+        Servis Onarımları / Teknisyen ekranlarındaki Müşteri Arıza Tespiti, Notes ve batarya
+        bilgileri bu kayıttan doldurulur."""
+        from models.phonecheck_test_result import PhonecheckTestResult
+        db = SessionLocal()
+        try:
+            term = (term or "").strip()
+            if not term:
+                return json.dumps({"success": False, "message": "IMEI boş olamaz."})
+
+            entry = self._find_batch_entry_by_term(db, term)
+            lookup_imei = ((entry.imei_number or entry.serial_number) if entry else None) or term
+            lookup_imei = lookup_imei.strip()
+
+            r = (db.query(PhonecheckTestResult)
+                 .filter(PhonecheckTestResult.imei == lookup_imei)
+                 .order_by(PhonecheckTestResult.fetched_at.desc())
+                 .first())
+            if not r:
+                return json.dumps({"success": True, "found": False, "data": None})
+
+            data = {
+                "imei": r.imei or "",
+                "test_stage": r.test_stage or "",
+                "test_type": r.test_type or "",
+                "test_start_time": r.test_start_time or "",
+                "test_end_time": r.test_end_time or "",
+                "station_id": r.station_id or "",
+                "working": r.working or "",
+                "passed": r.passed or "",
+                "failed": r.failed or "",
+                "pending": r.pending or "",
+                "model": r.model or "",
+                "memory": r.memory or "",
+                "serial": r.serial or "",
+                "color": r.color or "",
+                "grade": r.grade or "",
+                "version": r.version or "",
+                "notes": r.notes or "",
+                "battery_cycle": r.battery_cycle,
+                "battery_health_percentage": r.battery_health_percentage,
+                "grading_results": r.grading_results or "",
+                "fetched_at": r.fetched_at.strftime("%Y-%m-%d %H:%M") if r.fetched_at else "",
+                "is_manual": bool(r.is_manual),
+                "manual_reason": r.manual_reason or "",
+            }
+            return json.dumps({"success": True, "found": True, "data": data}, ensure_ascii=False)
         except Exception as e:
             return json.dumps({"success": False, "message": str(e)})
         finally:

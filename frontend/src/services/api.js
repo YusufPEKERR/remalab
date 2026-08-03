@@ -1873,6 +1873,18 @@ export const api = {
         });
     },
 
+    // Yerel phonecheck_test_results tablosundan en güncel kaydı (tüm alanlar) çeker — canlı API'ye gitmez.
+    getPhonecheckStoredByImei: async (term) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_phonecheck_stored_by_imei) {
+                backend.get_phonecheck_stored_by_imei(String(term), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false, found: false, message: "Backend eksik (get_phonecheck_stored_by_imei)" });
+            }
+        });
+    },
+
     exportAllTablesToExcel: async (filename) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
