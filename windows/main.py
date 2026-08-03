@@ -318,9 +318,6 @@ class SettingsDialog(QDialog):
 
         self.refresh_list()
 
-
-        self.refresh_list()
-
     def refresh_list(self):
         self.list_widget.clear()
         default_id = self.sites_data.get("default_site_id", "")

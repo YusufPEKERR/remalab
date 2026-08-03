@@ -19,7 +19,7 @@ if exist dist rmdir /s /q dist
 
 echo.
 echo [3/3] Building executable with PyInstaller...
-python -m PyInstaller --noconfirm --onedir --windowed --name="ERPWebApp" --icon="logo.png" --add-data "sites.json;." --add-data "logo.png;." main.py
+python -m PyInstaller --noconfirm --onedir --windowed --name="ERPWebApp" --add-data "sites.json;." --add-data "logo.png;." main.py
 
 echo.
 if exist "dist\ERPWebApp\ERPWebApp.exe" (
