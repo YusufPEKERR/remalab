@@ -34,9 +34,8 @@ python3 -m PyInstaller --noconfirm \
             --windowed \
             --name="ERP Web App" \
             --icon="logo.png" \
-            --collect-all PyQt6 \
-            --collect-all PyQt6.QtWebEngineWidgets \
-            --collect-all PyQt6.QtWebEngineCore \
+            --hidden-import="PyQt6.QtWebEngineWidgets" \
+            --hidden-import="PyQt6.QtWebEngineCore" \
             --add-data "sites.json:." \
             --add-data "logo.png:." \
             main.py
