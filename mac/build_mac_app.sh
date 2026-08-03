@@ -11,37 +11,29 @@ echo "=================================================="
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$DIR"
 
-# Intel x86_64 Homebrew / Python tespiti (A1708 MacBook Pro Uyumlu)
-PYTHON_CMD="python3"
-
-if [ -f "/usr/local/bin/python3" ]; then
-    echo "🎯 Intel (x86_64) Python3 tespit edildi: /usr/local/bin/python3"
-    PYTHON_CMD="/usr/local/bin/python3"
-elif [ -f "/usr/local/bin/brew" ]; then
-    echo "📦 Intel (x86_64) Homebrew üzerinden Intel Python kuruluyor..."
-    /usr/local/bin/brew install python@3.11 || true
-    if [ -f "/usr/local/bin/python3" ]; then
-        PYTHON_CMD="/usr/local/bin/python3"
-    fi
+# Python3 kontrolü
+if ! command -v python3 &> /dev/null
+then
+    echo "❌ Hata: python3 bulunamadı! Lütfen Python 3'ü yükleyin."
+    exit 1
 fi
 
-echo "🚀 Kullanılan Python Mimarisi: $($PYTHON_CMD -c 'import platform; print(platform.machine())')"
-
-# Gerekli bağımlılıkları Intel x86_64 olarak yükle
-echo "📦 Intel (x86_64) bağımlılıkları yükleniyor..."
-$PYTHON_CMD -m pip install --upgrade pip
-$PYTHON_CMD -m pip install PyQt6 PyQt6-WebEngine pyinstaller
+# Gerekli bağımlılıkları Intel x86_64 (A1708 MacBook Pro Uyumlu) olarak indir ve kur
+echo "📦 Intel (x86_64) tekerlekleri indiriliyor (A1708 MacBook Pro Uyumlu)..."
+python3 -m pip install --upgrade pip
+python3 -m pip install PyQt6 PyQt6-WebEngine pyinstaller
 
 # Eski derleme kalıntılarını temizle
 echo "🧹 Temizlik yapılıyor..."
 rm -rf build dist
 
-# PyInstaller ile .app bundle derle
+# PyInstaller ile .app bundle derle (Intel x86_64 ikili dosyalarını paketler)
 echo "🚀 PyInstaller ile Intel (x86_64) .app paketleniyor..."
-$PYTHON_CMD -m PyInstaller --noconfirm \
+python3 -m PyInstaller --noconfirm \
             --onedir \
             --windowed \
             --name="ERPWebApp" \
+            --target-architecture x86_64 \
             --collect-all PyQt6 \
             --collect-all PyQt6_WebEngine \
             --add-data "sites.json:." \
