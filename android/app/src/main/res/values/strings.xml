@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ERP Web App</string>
+    <string name="title_settings">⚙️ Web Sitesi Yöneticisi &amp; Ayarlar</string>
+    <string name="subtitle_settings">Uygulamada kayıtlı web sitelerinizi yönetin ve varsayılan siteyi seçin.</string>
+    <string name="add_site">➕ Yeni Site Ekle</string>
+    <string name="edit_site">✏️ Düzenle</string>
+    <string name="set_default">⭐ Varsayılan Yap</string>
+    <string name="delete_site">🗑️ Sil</string>
+    <string name="site_name_label">Site Adı (Ör: ERP Paneli, Google):</string>
+    <string name="site_url_label">Site Adresi (URL):</string>
+    <string name="cancel">İptal</string>
+    <string name="save">Kaydet</string>
+    <string name="close">Kapat</string>
+    <string name="default_tag">⭐ [Varsayılan]</string>
+</resources>

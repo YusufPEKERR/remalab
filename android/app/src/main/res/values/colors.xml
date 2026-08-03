@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="bg_main">#12131C</color>
+    <color name="bg_surface">#171824</color>
+    <color name="bg_card">#1E2030</color>
+    <color name="bg_input">#1A1B28</color>
+
+    <color name="primary">#6366F1</color>
+    <color name="primary_dark">#4F46E5</color>
+    <color name="accent_amber">#F59E0B</color>
+    <color name="danger">#EF4444</color>
+
+    <color name="text_primary">#F3F4F6</color>
+    <color name="text_secondary">#9CA3AF</color>
+    <color name="border_color">#2D3045</color>
+
+    <color name="black">#000000</color>
+    <color name="white">#FFFFFF</color>
+</resources>

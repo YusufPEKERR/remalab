@@ -1,73 +1,22 @@
-# Virtual Environment
-venv/
-.venv/
-ENV/
-env/
-
-# Python cache
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-
-# Local database file config caches
-local_databases.json
-db_connections.json
-.env
-
-# Project SQLite copied databases inside database/
-database/
-
-# IDE / Editor configuration files
-.vscode/
-.idea/
-# Virtual Environment
-venv/
-.venv/
-ENV/
-env/
-
-# Python cache
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-
-# Local database file config caches
-local_databases.json
-db_connections.json
-.env
-
-# Project SQLite copied databases inside database/
-database/
-
-# IDE / Editor configuration files
-.vscode/
-.idea/
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-
-. s e s s i o n  
-site/
-
-# PyInstaller build outputs
+# Gradle & Android build outputs and portable tools
+.tools/
+.gradle/
 build/
+app/build/
+*.apk
+*.aar
+local.properties
+*.log
+
+# Python / PyInstaller outputs
+__pycache__/
+*.pyc
+*.pyo
 dist/
 *.spec
 
-# Session & IDE files
-.session
-.session.bak
-
-.antigravity/
-# Node
-node_modules/
-frontend/dist/
-
-# SQLite DB
-*.db
-*.sqlite
-
+# IDE / System
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

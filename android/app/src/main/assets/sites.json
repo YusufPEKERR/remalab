@@ -1,0 +1,15 @@
+{
+  "default_site_id": "1",
+  "sites": [
+    {
+      "id": "1",
+      "name": "ERP Paneli",
+      "url": "http://10.0.2.2:5173"
+    },
+    {
+      "id": "2",
+      "name": "Google",
+      "url": "https://www.google.com"
+    }
+  ]
+}
