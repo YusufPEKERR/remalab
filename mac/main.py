@@ -5,13 +5,12 @@ import uuid
 import shutil
 import urllib.parse
 
-# macOS ve Chromium Donanım İvmelendirmesi / Maksimum Performans Bayrakları (GPU & Skia Render)
+# macOS donanım ivmelendirmesi güvenli varsayılanları
 os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = (
     "--enable-gpu-rasterization "
-    "--enable-zero-copy "
     "--ignore-gpu-blocklist "
-    "--enable-features=UseSkiaRenderer,CanvasOopRasterization "
-    "--enable-smooth-scrolling"
+    "--enable-smooth-scrolling "
+    "--no-sandbox"
 )
 
 from PyQt6.QtWidgets import (
@@ -269,7 +268,6 @@ class SettingsDialog(QDialog):
         main_layout.setContentsMargins(20, 20, 20, 20)
         main_layout.setSpacing(14)
 
-        # Header Title
         header_title = QLabel("🌐 Kayıtlı Web Siteleri")
         header_title.setObjectName("headerTitle")
         header_subtitle = QLabel("Uygulamada kayıtlı web sitelerinizi yönetin ve varsayılan siteyi seçin.")
@@ -281,12 +279,10 @@ class SettingsDialog(QDialog):
         content_layout = QHBoxLayout()
         content_layout.setSpacing(14)
 
-        # Liste
         self.list_widget = QListWidget()
         self.list_widget.doubleClicked.connect(self.edit_site)
         content_layout.addWidget(self.list_widget, stretch=3)
 
-        # Butonlar Paneli
         btn_panel = QVBoxLayout()
         btn_panel.setSpacing(10)
 
@@ -314,7 +310,6 @@ class SettingsDialog(QDialog):
 
         main_layout.addLayout(content_layout)
 
-        # Kapat Butonu
         bottom_layout = QHBoxLayout()
         bottom_layout.addStretch()
         close_btn = QPushButton("Kapat")
@@ -357,7 +352,6 @@ class SettingsDialog(QDialog):
             new_site = dialog.result_data
             self.sites_data.setdefault("sites", []).append(new_site)
 
-            # İlk eklenen siteyse varsayılan yap
             if not self.sites_data.get("default_site_id"):
                 self.sites_data["default_site_id"] = new_site["id"]
 
@@ -392,7 +386,6 @@ class SettingsDialog(QDialog):
             site_id = site["id"]
             self.sites_data["sites"].pop(index)
 
-            # Silinen site varsayılansa ilk kalan siteyi varsayılan yap
             if self.sites_data.get("default_site_id") == site_id:
                 if self.sites_data["sites"]:
                     self.sites_data["default_site_id"] = self.sites_data["sites"][0]["id"]
@@ -415,25 +408,16 @@ class SettingsDialog(QDialog):
 
 class CustomWebPage(QWebEnginePage):
     """macOS Uygun User-Agent & Gelişmiş Web Engine Sayfası"""
-    def __init__(self, profile, parent=None):
-        super().__init__(profile, parent)
-
-    def userAgentForUrl(self, url):
-        return (
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/126.0.0.0 Safari/537.36"
-        )
+    def __init__(self, parent=None):
+        super().__init__(parent)
 
 
 class WebAppWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         
-        # Path resolution handling for PyInstaller .app bundle & standalone mode
         if getattr(sys, 'frozen', False):
             bundle_dir = getattr(sys, '_MEIPASS', os.path.dirname(sys.executable))
-            
             user_config_dir = os.path.expanduser("~/Library/Application Support/ERPWebApp")
             os.makedirs(user_config_dir, exist_ok=True)
             self.sites_file = os.path.join(user_config_dir, "sites.json")
@@ -475,14 +459,12 @@ class WebAppWindow(QMainWindow):
 
     def setup_shortcuts(self):
         """macOS ve Cross-Platform Klavye Kısayolları."""
-        # Tam Ekran (F11 veya Cmd+Ctrl+F)
         self.shortcut_f11 = QShortcut(QKeySequence(Qt.Key.Key_F11), self)
         self.shortcut_f11.activated.connect(self.toggle_fullscreen)
 
         self.shortcut_mac_fullscreen = QShortcut(QKeySequence("Ctrl+Meta+F"), self)
         self.shortcut_mac_fullscreen.activated.connect(self.toggle_fullscreen)
 
-        # Yenile (F5, Cmd+R veya Ctrl+R)
         self.shortcut_f5 = QShortcut(QKeySequence(Qt.Key.Key_F5), self)
         self.shortcut_f5.activated.connect(self.navigate_reload)
 
@@ -492,7 +474,6 @@ class WebAppWindow(QMainWindow):
         self.shortcut_reload = QShortcut(QKeySequence.StandardKey.Refresh, self)
         self.shortcut_reload.activated.connect(self.navigate_reload)
 
-        # Ayarlar (Cmd+Shift+S, Cmd+Comma veya Ctrl+Shift+S)
         self.shortcut_settings = QShortcut(QKeySequence("Ctrl+Shift+S"), self)
         self.shortcut_settings.activated.connect(self.open_settings)
 
@@ -518,12 +499,11 @@ class WebAppWindow(QMainWindow):
             except Exception as e:
                 print(f"Yapılandırma yükleme hatası: {e}")
 
-        # Eğer hiç site yoksa varsayılan site ekle
         if not self.sites_data.get("sites"):
             default_site = {
                 "id": "1",
-                "name": "Google",
-                "url": "https://www.google.com"
+                "name": "ERP",
+                "url": "http://10.200.246.238"
             }
             self.sites_data = {
                 "default_site_id": "1",
@@ -669,8 +649,7 @@ class WebAppWindow(QMainWindow):
 
         # Web Engine View
         self.browser = QWebEngineView(self)
-        profile = QWebEngineProfile.defaultProfile()
-        self.web_page = CustomWebPage(profile, self.browser)
+        self.web_page = CustomWebPage(self.browser)
         self.browser.setPage(self.web_page)
 
         self.setCentralWidget(self.browser)
@@ -721,7 +700,7 @@ class WebAppWindow(QMainWindow):
                 return site
         if sites:
             return sites[0]
-        return {"name": "Google", "url": "https://www.google.com"}
+        return {"name": "ERP", "url": "http://10.200.246.238"}
 
     def load_initial_site(self):
         """Varsayılan web sitesini yükler."""
@@ -729,7 +708,6 @@ class WebAppWindow(QMainWindow):
         if default_site:
             self.load_site_url(default_site["url"])
 
-            # Combobox'ta varsayılan siteyi seç
             for index in range(self.site_combo.count()):
                 site = self.site_combo.itemData(index)
                 if site and site.get("id") == default_site.get("id"):
@@ -796,13 +774,14 @@ class WebAppWindow(QMainWindow):
 
 
 def main():
-    # macOS QtWebEngine OpenGL Context Fix
-    QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
-    
+    try:
+        QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
+    except Exception as e:
+        print(f"OpenGL Context attribute set warning: {e}")
+
     app = QApplication(sys.argv)
     app.setApplicationName("ERP Web App")
 
-    # macOS ikonu hazırlama
     if getattr(sys, 'frozen', False):
         bundle_dir = getattr(sys, '_MEIPASS', os.path.dirname(sys.executable))
         logo_file = os.path.join(bundle_dir, "logo.png")
