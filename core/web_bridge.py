@@ -2651,6 +2651,94 @@ class WebBridge(QObject):
         finally:
             db.close()
 
+    # --- FLOW -> DGD İŞÇİLİK KODU EŞLEŞMESİ ---
+
+    @Slot(result=str)
+    def get_flow_dgd_mappings(self):
+        """warehouse.flow_dgd_mapping'deki tüm Flow -> DGD işçilik kodu eşleşmelerini döner."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            rows = db.execute(text("""
+                SELECT id, flow_code, dgd_item_code, enabled
+                FROM warehouse.flow_dgd_mapping ORDER BY flow_code
+            """)).mappings().all()
+            items = [{"id": str(r["id"]), "flow_code": r["flow_code"], "dgd_item_code": r["dgd_item_code"], "enabled": bool(r["enabled"])} for r in rows]
+            return json.dumps({"success": True, "mappings": items}, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, result=str)
+    def create_flow_dgd_mapping(self, flow_code, dgd_item_code):
+        """Yeni bir Flow -> DGD işçilik kodu eşleşmesi (warehouse.flow_dgd_mapping) ekler."""
+        import uuid
+        from models.flow_dgd_mapping import FlowDgdMapping
+        db = SessionLocal()
+        try:
+            flow_code = (flow_code or "").strip()
+            dgd_item_code = (dgd_item_code or "").strip()
+            if not flow_code or not dgd_item_code:
+                return json.dumps({"success": False, "message": "Flow ve DGD kodu zorunludur."})
+
+            rec = FlowDgdMapping(id=uuid.uuid4(), flow_code=flow_code, dgd_item_code=dgd_item_code, enabled=True)
+            db.add(rec)
+            db.commit()
+            return json.dumps({"success": True, "id": str(rec.id)})
+        except Exception as e:
+            db.rollback()
+            if "unique" in str(e).lower() or "duplicate" in str(e).lower():
+                return json.dumps({"success": False, "message": f"Bu Flow için zaten bir DGD kodu tanımlı: {flow_code}"})
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, str, result=str)
+    def update_flow_dgd_mapping(self, mapping_id, flow_code, dgd_item_code):
+        """Var olan bir Flow -> DGD işçilik kodu eşleşmesini günceller."""
+        from models.flow_dgd_mapping import FlowDgdMapping
+        db = SessionLocal()
+        try:
+            rec = db.query(FlowDgdMapping).filter(FlowDgdMapping.id == mapping_id).first()
+            if not rec:
+                return json.dumps({"success": False, "message": "Eşleşme bulunamadı."})
+
+            flow_code = (flow_code or "").strip()
+            dgd_item_code = (dgd_item_code or "").strip()
+            if not flow_code or not dgd_item_code:
+                return json.dumps({"success": False, "message": "Flow ve DGD kodu zorunludur."})
+
+            rec.flow_code = flow_code
+            rec.dgd_item_code = dgd_item_code
+            db.commit()
+            return json.dumps({"success": True})
+        except Exception as e:
+            db.rollback()
+            if "unique" in str(e).lower() or "duplicate" in str(e).lower():
+                return json.dumps({"success": False, "message": f"Bu Flow için zaten bir DGD kodu tanımlı: {flow_code}"})
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
+    def delete_flow_dgd_mapping(self, mapping_id):
+        """Bir Flow -> DGD işçilik kodu eşleşmesini siler."""
+        from models.flow_dgd_mapping import FlowDgdMapping
+        db = SessionLocal()
+        try:
+            rec = db.query(FlowDgdMapping).filter(FlowDgdMapping.id == mapping_id).first()
+            if not rec:
+                return json.dumps({"success": False, "message": "Eşleşme bulunamadı."})
+            db.delete(rec)
+            db.commit()
+            return json.dumps({"success": True})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
     # --- PARÇA KATEGORİSİ MODÜLÜ ---
     @Slot(result=str)
     def get_part_categories(self):
@@ -10156,6 +10244,283 @@ class WebBridge(QObject):
             return json.dumps({"success": True, "id": str(rec.id), "reopened_for_decision": reopened})
         except Exception as e:
             db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, result=str)
+    def open_device_for_dismantle(self, imei, username):
+        """Demontaj ekranında bir cihaz açıldığında çağrılır. Cihazın batch_entries.flow
+        değerine göre warehouse.flow_dgd_mapping'den ilgili DGD işçilik kodunu bulur ve
+        (henüz eklenmemişse) cihaza otomatik bir onarım kaydı (warehouse.repair_records,
+        part_item_code=<dgd_kodu>, department_mission='DISMANTLE') ekler. İdempotenttir -
+        aynı cihaz tekrar açıldığında zaten aktif bir DGD satırı varsa tekrar eklemez.
+        add_repair_record'daki 'karar sonrası statü geri çekme' side-effect'i BİLEREK
+        kullanılmıyor - bu otomatik/sessiz bir atama, kullanıcının bilinçli bir 'yeni onarım
+        ekledim' aksiyonu değil."""
+        import uuid
+        from sqlalchemy import text
+        from models.repair_record import RepairRecord
+        db = SessionLocal()
+        try:
+            imei = (imei or "").strip()
+            if not imei:
+                return json.dumps({"success": False, "message": "IMEI boş olamaz."})
+
+            entry = self._resolve_batch_entry_by_ref(db, imei)
+            if not entry:
+                return json.dumps({"success": True, "attached": False})
+
+            flow = (db.execute(text("SELECT flow FROM warehouse.batch_entries WHERE id = :id"), {"id": entry["id"]}).scalar() or "").strip()
+            if not flow:
+                return json.dumps({"success": True, "attached": False})
+
+            mapping = db.execute(text("""
+                SELECT dgd_item_code FROM warehouse.flow_dgd_mapping
+                WHERE LOWER(TRIM(flow_code)) = LOWER(:flow) AND enabled = TRUE
+                LIMIT 1
+            """), {"flow": flow}).mappings().first()
+            if not mapping:
+                return json.dumps({"success": True, "attached": False, "message": f"'{flow}' akışı için tanımlı DGD kodu yok."})
+            dgd_item_code = mapping["dgd_item_code"]
+
+            repair_refs = [imei]
+            if entry["service_id"]:
+                repair_refs.append(str(entry["service_id"]))
+
+            existing = db.execute(text("""
+                SELECT rr.id FROM warehouse.repair_records rr
+                LEFT JOIN warehouse.repair_result_type rrt ON rrt.code = rr.repair_result_type_code
+                WHERE rr.service_record_id = ANY(:refs) AND rr.part_item_code = :code
+                  AND COALESCE(rrt.is_cancelled, FALSE) = FALSE
+                LIMIT 1
+            """), {"refs": repair_refs, "code": dgd_item_code}).mappings().first()
+            if existing:
+                return json.dumps({"success": True, "attached": False, "already_present": True})
+
+            user_missions, is_admin = self._get_user_missions(db, username)
+            if not is_admin:
+                required = self._get_required_mission_for_ref(db, imei)
+                if required and required not in user_missions:
+                    return json.dumps({"success": False, "message": f"Bu işlem için '{required}' yetkisi gerekiyor."})
+
+            rec = RepairRecord(
+                id=uuid.uuid4(),
+                service_record_id=self._resolve_service_record_id_for_new_repair(db, imei),
+                department_mission="DISMANTLE",
+                repair_result_type_code=1000,
+                warranty_code="OOW",
+                part_item_code=dgd_item_code,
+                notes="Flow otomatik DGD ataması",
+            )
+            db.add(rec)
+            db.commit()
+            return json.dumps({"success": True, "attached": True, "dgd_item_code": dgd_item_code})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, result=str)
+    def apply_dgd_return(self, device_ref, username):
+        """Demontaj ekranındaki 'İade Et' aksiyonu: cihazın aktif DGD işçilik satırlarını
+        (part_item_code, warehouse.parts.item_category='DGD', 'DGDDEC' hariç) iptal eder
+        (repair_result_type_code=1003, mevcut 'İptal Et' konvansiyonuyla aynı - satır asla
+        silinmez/üzerine yazılmaz) ve yerine tek bir DGDDEC (iade işçiliği) satırı ekler."""
+        import uuid
+        from sqlalchemy import text
+        from models.repair_record import RepairRecord
+        db = SessionLocal()
+        try:
+            device_ref = (device_ref or "").strip()
+            if not device_ref:
+                return json.dumps({"success": False, "message": "Cihaz bulunamadı."})
+
+            user_missions, is_admin = self._get_user_missions(db, username)
+            if not is_admin:
+                required = self._get_required_mission_for_ref(db, device_ref)
+                if required and required not in user_missions:
+                    return json.dumps({"success": False, "message": f"Bu işlem için '{required}' yetkisi gerekiyor."})
+
+            repair_refs = [device_ref]
+            entry = self._resolve_batch_entry_by_ref(db, device_ref)
+            if entry and entry["service_id"]:
+                repair_refs.append(str(entry["service_id"]))
+
+            active_dgd_rows = db.execute(text("""
+                SELECT rr.id, rr.warranty_code
+                FROM warehouse.repair_records rr
+                JOIN warehouse.parts p ON p.item_code = rr.part_item_code
+                LEFT JOIN warehouse.repair_result_type rrt ON rrt.code = rr.repair_result_type_code
+                WHERE rr.service_record_id = ANY(:refs) AND p.item_category = 'DGD'
+                  AND rr.part_item_code != 'DGDDEC'
+                  AND COALESCE(rrt.is_cancelled, FALSE) = FALSE
+            """), {"refs": repair_refs}).mappings().all()
+            if not active_dgd_rows:
+                return json.dumps({"success": False, "message": "İade edilecek aktif bir DGD işçilik kaydı yok."})
+
+            for row in active_dgd_rows:
+                db.execute(text("""
+                    UPDATE warehouse.repair_records SET repair_result_type_code = 1003 WHERE id = :id
+                """), {"id": row["id"]})
+
+            warranty_code = active_dgd_rows[0]["warranty_code"] or "OOW"
+            rec = RepairRecord(
+                id=uuid.uuid4(),
+                service_record_id=self._resolve_service_record_id_for_new_repair(db, device_ref),
+                department_mission="DISMANTLE",
+                repair_result_type_code=1000,
+                warranty_code=warranty_code,
+                part_item_code="DGDDEC",
+                notes="DGD → DGDDEC iade dönüşümü",
+            )
+            db.add(rec)
+            db.commit()
+            return json.dumps({"success": True, "converted_count": len(active_dgd_rows)})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    # --- MÜŞTERİ FİYAT MATRİSİ ---
+
+    @Slot(result=str)
+    def get_price_matrix_customers(self):
+        """Fiyat matrisinin sütunlarını oluşturan müşteri listesini döner. warehouse.customers,
+        uygulamanın gerçek 'Müşteriler' ekranının okuyup yazdığı canlı tablodur (organization.customers
+        yalnızca Excel'den beslenen, kullanıcı tarafından düzenlenmeyen bir referans kopyasıdır)."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            rows = db.execute(text("""
+                SELECT code, short_name, currency FROM warehouse.customers
+                WHERE code IS NOT NULL ORDER BY short_name
+            """)).mappings().all()
+            items = [{"code": r["code"], "short_name": r["short_name"] or r["code"], "currency": r["currency"] or ""} for r in rows]
+            return json.dumps({"success": True, "customers": items}, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
+    def get_price_matrix_items(self, search=""):
+        """Fiyat matrisinin satırlarını oluşturan item_code listesini döner (fiziksel parçalar
+        + DGD işçilik kodları), her satırda türetilmiş bir 'İşçilik'/'Parça' etiketiyle."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            search = (search or "").strip()
+            clause = ""
+            params = {}
+            if search:
+                clause = "WHERE item_code ILIKE :s OR name ILIKE :s"
+                params["s"] = f"%{search}%"
+            rows = db.execute(text(f"""
+                SELECT item_code, name,
+                       CASE WHEN item_category = 'DGD' THEN 'İşçilik' ELSE 'Parça' END AS item_type
+                FROM warehouse.parts
+                {clause}
+                ORDER BY item_type, item_code
+            """), params).mappings().all()
+            items = [{"item_code": r["item_code"], "name": r["name"] or "", "item_type": r["item_type"]} for r in rows if r["item_code"]]
+            return json.dumps({"success": True, "items": items}, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(result=str)
+    def get_price_matrix(self):
+        """warehouse.customer_item_prices'taki tüm (item_code, customer_code, price) satırlarını
+        döner - frontend bunu {item_code: {customer_code: price}} pivot haritasına çevirir."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            rows = db.execute(text("""
+                SELECT item_code, customer_code, price FROM warehouse.customer_item_prices
+            """)).mappings().all()
+            items = [{"item_code": r["item_code"], "customer_code": r["customer_code"], "price": float(r["price"])} for r in rows]
+            return json.dumps({"success": True, "prices": items}, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, result=str)
+    def save_price_matrix_batch(self, rows_json, username):
+        """Fiyat matrisi ızgarasındaki tüm 'kirli' (değiştirilmiş) hücreleri TEK bir transaction
+        içinde kaydeder. rows_json: [{item_code, customer_code, price}] - price null/boşsa o
+        hücre matristen SİLİNİR (warehouse.item.satis'e geri düşülür), doluysa upsert edilir."""
+        import uuid
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            try:
+                rows = json.loads(rows_json) if rows_json else []
+            except (TypeError, ValueError):
+                return json.dumps({"success": False, "message": "Geçersiz veri formatı."})
+
+            updated_count = 0
+            deleted_count = 0
+            for row in rows:
+                item_code = (row.get("item_code") or "").strip()
+                customer_code = (row.get("customer_code") or "").strip()
+                price = row.get("price", None)
+                if not item_code or not customer_code:
+                    continue
+                if price is None or price == "":
+                    result = db.execute(text("""
+                        DELETE FROM warehouse.customer_item_prices
+                        WHERE item_code = :item_code AND customer_code = :customer_code
+                    """), {"item_code": item_code, "customer_code": customer_code})
+                    deleted_count += result.rowcount
+                else:
+                    db.execute(text("""
+                        INSERT INTO warehouse.customer_item_prices (id, item_code, customer_code, price, updated_by, updated_at)
+                        VALUES (:id, :item_code, :customer_code, :price, :username, now())
+                        ON CONFLICT (item_code, customer_code)
+                        DO UPDATE SET price = EXCLUDED.price, updated_by = EXCLUDED.updated_by, updated_at = now()
+                    """), {"id": str(uuid.uuid4()), "item_code": item_code, "customer_code": customer_code, "price": float(price), "username": username or None})
+                    updated_count += 1
+
+            db.commit()
+            return json.dumps({"success": True, "updated_count": updated_count, "deleted_count": deleted_count})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, result=str)
+    def get_effective_price(self, item_code, customer_code):
+        """item_code x customer_code için geçerli fiyatı döner: önce customer_item_prices'tan,
+        yoksa warehouse.item.satis'ten (global varsayılan). Şu an sadece lookup Slot'u olarak
+        var - herhangi bir fatura/maliyet hesaplamasına bağlanması kasıtlı olarak kapsam dışı."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            item_code = (item_code or "").strip()
+            customer_code = (customer_code or "").strip()
+            if not item_code:
+                return json.dumps({"success": False, "message": "item_code zorunludur."})
+
+            if customer_code:
+                row = db.execute(text("""
+                    SELECT price FROM warehouse.customer_item_prices
+                    WHERE item_code = :item_code AND customer_code = :customer_code
+                """), {"item_code": item_code, "customer_code": customer_code}).mappings().first()
+                if row:
+                    return json.dumps({"success": True, "price": float(row["price"]), "source": "matrix"})
+
+            default_price = db.execute(text("SELECT satis FROM warehouse.item WHERE code = :code"), {"code": item_code}).scalar()
+            if default_price is not None:
+                return json.dumps({"success": True, "price": float(default_price), "source": "item_default"})
+
+            return json.dumps({"success": True, "price": None, "source": "none"})
+        except Exception as e:
             return json.dumps({"success": False, "message": str(e)})
         finally:
             db.close()

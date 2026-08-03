@@ -4,7 +4,7 @@ import {
   LogOut, LayoutDashboard, Users, Package, Settings, Bell,
   Warehouse, FileText, BarChart2, Box, Truck, MapPin,
   CheckCircle, Search, AlertTriangle, Zap, RefreshCw, Sun, Moon, Database, Building2, Wrench, ClipboardList, PackagePlus, Tags, ChevronDown, ChevronRight, Menu, X, Layers, FileSpreadsheet,
-  Boxes, ClipboardCheck, Cog, Repeat
+  Boxes, ClipboardCheck, Cog, Repeat, DollarSign
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useTheme } from '../context/ThemeContext';
@@ -212,6 +212,8 @@ export default function MainLayout() {
         { name: 'Ayarlar', icon: Settings, path: '/settings' },
         { name: 'Veri Yönetimi', icon: Database, path: '/data-management' },
         { name: 'Departman Yönetimi', icon: Building2, path: '/departments' },
+        { name: 'Flow → DGD Eşleşmesi', icon: Wrench, path: '/flow-dgd-mapping' },
+        { name: 'Müşteri Fiyat Matrisi', icon: DollarSign, path: '/customer-price-matrix' },
         { name: 'Schema Mapper', icon: Database, path: '/schema-mapper' }
       ]
     }
@@ -313,6 +315,10 @@ export default function MainLayout() {
         return { color: '#2C8CA8' };
       case '/departments':
         return { color: '#C2445F' };
+      case '/flow-dgd-mapping':
+        return { color: '#B27B2F' };
+      case '/customer-price-matrix':
+        return { color: '#2FA36E' };
       case '/schema-mapper':
         return { color: '#8A44C4' };
 

@@ -23,6 +23,8 @@ const WorkOrders = lazy(() => import('./pages/WorkOrders'));
 const Raporlar = lazy(() => import('./pages/Raporlar'));
 const Settings = lazy(() => import('./pages/Settings'));
 const Departments = lazy(() => import('./pages/Departments'));
+const FlowDgdMapping = lazy(() => import('./pages/FlowDgdMapping'));
+const CustomerPriceMatrix = lazy(() => import('./pages/CustomerPriceMatrix'));
 const ServiceRecords = lazy(() => import('./pages/ServiceRecords'));
 const BatchEntry = lazy(() => import('./pages/BatchEntry'));
 const DataManagement = lazy(() => import('./pages/DataManagement'));
@@ -85,6 +87,8 @@ function App() {
               <Route path="/batch-entry" element={<BatchEntry />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/departments" element={<Departments />} />
+              <Route path="/flow-dgd-mapping" element={<FlowDgdMapping />} />
+              <Route path="/customer-price-matrix" element={<CustomerPriceMatrix />} />
               <Route path="/service-records" element={<ServiceRecords />} />
               <Route path="/data-management" element={<DataManagement />} />
 
