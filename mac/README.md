@@ -52,7 +52,7 @@ chmod +x build_mac_app.sh
 ./build_mac_app.sh
 ```
 
-Bu işlem bittiğinde `dist/` klasörü içinde **`ERP Web App.app`** masaüstü uygulamanız hazır olacaktır. Uygulamayı doğrudan tıklayarak açabilir veya `/Applications` (Uygulamalar) klasörünüze taşıyabilirsiniz.
+Bu işlem bittiğinde `dist/` klasörü içinde **`ERPWebApp.app`** masaüstü uygulamanız hazır olacaktır (isimde boşluk kullanılmaz; boşluklu isim macOS'ta LaunchServices Error -10661'e yol açar). Uygulamayı doğrudan tıklayarak açabilir veya `/Applications` (Uygulamalar) klasörünüze taşıyabilirsiniz.
 
 ---
 

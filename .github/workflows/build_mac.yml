@@ -11,7 +11,17 @@ on:
 
 jobs:
   build-mac:
-    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Intel Mac'ler (örn. A1708 MacBook Pro) için native x86_64 runner
+          - runner: macos-13
+            arch: x86_64
+          # Apple Silicon Mac'ler için native arm64 runner
+          - runner: macos-14
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
 
     steps:
       - name: Check out repository
@@ -36,11 +46,11 @@ jobs:
       - name: Archive .app bundle using Apple ditto
         run: |
           cd mac/dist
-          ditto -c -k --sequesterRsrc --keepParent "ERP Web App.app" "../../ERP_Web_App_macOS.zip"
+          ditto -c -k --sequesterRsrc --keepParent "ERPWebApp.app" "../../ERP_Web_App_macOS_${{ matrix.arch }}.zip"
 
       - name: Upload macOS App Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ERP-Web-App-macOS
-          path: ERP_Web_App_macOS.zip
+          name: ERP-Web-App-macOS-${{ matrix.arch }}
+          path: ERP_Web_App_macOS_${{ matrix.arch }}.zip
           retention-days: 30

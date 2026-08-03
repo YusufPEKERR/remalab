@@ -71,10 +71,6 @@ if [ -d "dist/ERPWebApp.app" ]; then
     echo "🔏 Ad-hoc code signing uygulanıyor..."
     codesign --force --deep --sign - "dist/ERPWebApp.app" || echo "⚠️ Code signing uyarısı (yoksayılabilir)"
 
-    # GitHub Actions workflow paket adımı için kopyasını oluştur
-    cp -R "dist/ERPWebApp.app" "dist/ERP Web App.app"
-    codesign --force --deep --sign - "dist/ERP Web App.app" || echo "⚠️ Code signing uyarısı (yoksayılabilir)"
-
     echo "=================================================="
     echo "✅ TEBRİKLER! $NATIVE_ARCH .app Paketi Başarıyla Oluşturuldu!"
     echo "📍 Konum: $DIR/dist/ERPWebApp.app"
