@@ -4,15 +4,9 @@ import json
 import uuid
 import shutil
 import traceback
-import urllib.parse
 
-# macOS donanım ivmelendirmesi güvenli varsayılanları
-os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = (
-    "--enable-gpu-rasterization "
-    "--ignore-gpu-blocklist "
-    "--enable-smooth-scrolling "
-    "--no-sandbox"
-)
+# Chromium performans ve güvenli çalıştırma bayrakları
+os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--no-sandbox --disable-dev-shm-usage"
 
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QDialog, QToolBar, QComboBox, QLineEdit,
@@ -20,9 +14,9 @@ from PyQt6.QtWidgets import (
     QListWidget, QListWidgetItem, QLabel, QToolButton
 )
 from PyQt6.QtCore import QUrl, Qt, QSize, pyqtSignal
-from PyQt6.QtGui import QIcon, QPixmap, QKeySequence, QShortcut
+from PyQt6.QtGui import QIcon, QKeySequence, QShortcut
 from PyQt6.QtWebEngineWidgets import QWebEngineView
-from PyQt6.QtWebEngineCore import QWebEnginePage, QWebEngineProfile, QWebEngineSettings
+from PyQt6.QtWebEngineCore import QWebEngineProfile, QWebEngineSettings
 
 
 class AddEditSiteDialog(QDialog):
@@ -407,12 +401,6 @@ class SettingsDialog(QDialog):
         self.refresh_list()
 
 
-class CustomWebPage(QWebEnginePage):
-    """macOS Uygun User-Agent & Gelişmiş Web Engine Sayfası"""
-    def __init__(self, parent=None):
-        super().__init__(parent)
-
-
 class WebAppWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -448,6 +436,16 @@ class WebAppWindow(QMainWindow):
 
     def apply_performance_settings(self):
         """Maksimum web işleme hızı için Chromium & QtWebEngine performans ayarları."""
+        try:
+            profile = QWebEngineProfile.defaultProfile()
+            profile.setHttpUserAgent(
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/126.0.0.0 Safari/537.36"
+            )
+        except Exception as e:
+            print(f"Profile setting warning: {e}")
+
         settings = self.browser.settings()
         settings.setAttribute(QWebEngineSettings.WebAttribute.Accelerated2dCanvasEnabled, True)
         settings.setAttribute(QWebEngineSettings.WebAttribute.WebGLEnabled, True)
@@ -650,9 +648,6 @@ class WebAppWindow(QMainWindow):
 
         # Web Engine View
         self.browser = QWebEngineView(self)
-        self.web_page = CustomWebPage(self.browser)
-        self.browser.setPage(self.web_page)
-
         self.setCentralWidget(self.browser)
 
         # Sinyal Bağlantıları
@@ -776,11 +771,6 @@ class WebAppWindow(QMainWindow):
 
 def main():
     try:
-        try:
-            QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
-        except Exception:
-            pass
-
         app = QApplication(sys.argv)
         app.setApplicationName("ERP Web App")
 

@@ -33,6 +33,8 @@ python3 -m PyInstaller --noconfirm \
             --onedir \
             --windowed \
             --name="ERP Web App" \
+            --collect-all PyQt6 \
+            --collect-all PyQt6_WebEngine \
             --add-data "sites.json:." \
             --add-data "logo.png:." \
             main.py
