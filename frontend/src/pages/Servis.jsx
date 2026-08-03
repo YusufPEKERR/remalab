@@ -31,8 +31,71 @@ const INFO_FIELDS = [
 
 const HISTORY_COLUMNS = ['Date', 'StaffName', 'Type', 'Text'];
 const HISTORY_ROW_KEYS = ['date', 'staffName', 'type', 'text'];
-const PHONECHECK_COLUMNS = ['DeviceUpdatedD', 'Grade', 'PartInfoRemark', 'Parts', 'StationID', 'Version', 'BatteryCycle'];
-const PHONECHECK_ROW_KEYS = ['deviceUpdatedD', 'grade', 'partInfoRemark', 'parts', 'stationID', 'version', 'batteryCycle'];
+const PHONECHECK_COLUMNS = ['DeviceUpdatedD', 'Grade', 'Kritik Parçalar', 'Parts', 'Failed', 'PartInfoRemark', 'StationID', 'Version', 'BatteryCycle'];
+const PHONECHECK_ROW_KEYS = ['deviceUpdatedD', 'grade', 'criticalParts', 'parts', 'failed', 'partInfoRemark', 'stationID', 'version', 'batteryCycle'];
+
+// ─── KRİTİK PARÇA ORİJİNALLİK ROZETLERİ ──────────────────────────────
+// Kaynak: Phonecheck "Parts" alanı (bkz. phonecheck_service.parse_critical_parts).
+// Takip edilen 3 parça: Ana Kamera, Batarya / Pil, Eski Pil.
+//   yeşil = Orijinal (Genuine)   kırmızı = Orijinal Değil (Not Genuine)
+//   gri   = Belirtilmemiş / Veri Yok
+// Gri, "orijinal değil" ile aynı şey DEĞİLDİR: Phonecheck bazı parçaları hiç
+// değerlendirmeden boş bırakıyor, eski kayıtlarda ise Parts verisi hiç yok.
+const CRITICAL_PART_TONES = {
+  genuine: 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-500/40',
+  not_genuine: 'bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-300 dark:border-rose-500/40',
+  unknown: 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-300 dark:border-slate-600',
+};
+
+// "Parts" sütunu: Phonecheck'in bildirdiği TÜM parçaların özeti. Eskiden bu sütun
+// yanlışlıkla başarısız testleri (Failed) gösteriyordu; Failed artık kendi sütununda.
+// Rozette genel Remarks + parça sayısı var, tam liste tooltip'te.
+function PartsSummary({ remark, all }) {
+  const list = all || [];
+  if (list.length === 0) {
+    return <span className="text-[#5A6685] dark:text-[#8892B5]">{remark || '-'}</span>;
+  }
+  const notGenuine = list.filter((p) => p.status === 'not_genuine');
+  // Renk parça listesinden türetilir, Remarks metnine güvenilmez: aralarında
+  // tutarsızlık olursa gerçek parça durumu belirleyicidir.
+  const tone = notGenuine.length > 0
+    ? CRITICAL_PART_TONES.not_genuine
+    : list.some((p) => p.status === 'genuine')
+      ? CRITICAL_PART_TONES.genuine
+      : CRITICAL_PART_TONES.unknown;
+  const baslik = list.map((p) => `${p.name}: ${p.statusLabel}`).join('\n');
+  const ozet = notGenuine.length > 0
+    ? `${notGenuine.length} parça orijinal değil`
+    : (remark || 'Orijinal');
+  return (
+    <span
+      title={baslik}
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border whitespace-nowrap ${tone}`}
+    >
+      {ozet} · {list.length} parça
+    </span>
+  );
+}
+
+function CriticalPartsChips({ items }) {
+  if (!items || items.length === 0) return <span className="text-[#5A6685] dark:text-[#8892B5]">-</span>;
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      {items.map((p) => (
+        <span
+          key={p.key}
+          title={`${p.label}: ${p.statusLabel}`
+            + (p.sourceName ? ` (Phonecheck: ${p.sourceName})` : ' (Phonecheck çıktısında bu parça yok)')
+            + (p.reason ? ` — ${p.reason}` : '')}
+          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border whitespace-nowrap ${CRITICAL_PART_TONES[p.status] || CRITICAL_PART_TONES.unknown}`}
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70" />
+          {p.label}
+        </span>
+      ))}
+    </div>
+  );
+}
 const DETECTED_PART_COLUMNS = ['Id', 'name', 'Status', 'FactorySerial', 'notice', 'CurrentSerial', 'Test'];
 const DETECTED_PART_ROW_KEYS = ['id', 'name', 'status', 'factorySerial', 'notice', 'currentSerial', 'test'];
 const SUB_REPAIR_COLUMNS = ['MissionGroup', 'RepairStatu', 'TEC', 'RepairStartTime', 'RepairFinishTime', 'QAC', 'TestResult'];
@@ -248,7 +311,18 @@ export default function Servis() {
                     </h3>
                     <span className="text-xs font-semibold text-[#5A6685] dark:text-[#8892B5]">Toplam: {phonecheckRows.length} Kayıt</span>
                   </div>
-                  <DataTable columns={PHONECHECK_COLUMNS} rowKeys={PHONECHECK_ROW_KEYS} rows={phonecheckRows} />
+                  {/* criticalParts backend'den dizi gelir; DataTable hücreyi olduğu gibi
+                      bastığı için rozetlere burada, render sırasında çevriliyor
+                      (state'te JSX tutulmuyor). */}
+                  <DataTable
+                    columns={PHONECHECK_COLUMNS}
+                    rowKeys={PHONECHECK_ROW_KEYS}
+                    rows={phonecheckRows.map((r, i) => ({
+                      ...r,
+                      criticalParts: <CriticalPartsChips key={`c${i}`} items={r.criticalParts} />,
+                      parts: <PartsSummary key={`p${i}`} remark={r.partsRemark} all={r.parts} />,
+                    }))}
+                  />
                 </div>
 
                 <div>

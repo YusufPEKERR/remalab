@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Plus, Package, Wrench, CheckCircle, AlertTriangle, Pencil, Ban, X } from "lucide-react";
+import { Plus, Package, Wrench, CheckCircle, AlertTriangle, Pencil, Ban, X, User } from "lucide-react";
 import { api } from "../services/api";
 import PartSelectCombobox from "./PartSelectCombobox";
 
@@ -35,6 +35,14 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
   const editingRepairIdRef = useRef(null);
   const pendingEditRef = useRef(null); // { faultCode, missionGroupCode, warrantyCode }
   useEffect(() => { editingRepairIdRef.current = editingRepairId; }, [editingRepairId]);
+
+  // Tablodan tıklanarak seçilen satır. "PARÇA EKLE" bu satırın onarımını hedef alır.
+  const [selectedRepairId, setSelectedRepairId] = useState(null);
+  // Seçili onarıma parça ekleme modu: { code, name }. Doluyken Onarım Takımı sabitlenir,
+  // eklenen parça YENİ onarım açmaz, aynı görev grubuna ikinci bir satır olarak yazılır.
+  const [addToGroup, setAddToGroup] = useState(null);
+  const addToGroupRef = useRef(null);
+  useEffect(() => { addToGroupRef.current = addToGroup; }, [addToGroup]);
 
   // Ücret tipi (Ücretli/Ücretsiz Onarım) referans listesi (cihazdan bağımsız) mount'ta bir kez çekilir.
   useEffect(() => {
@@ -98,7 +106,12 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
   // isterse bu daraltılmış listeden başka birini seçebilir. Düzenleme modunda otomatik öneri
   // devre dışı bırakılır, satırın mevcut takımı korunur.
   useEffect(() => {
-    if (!selectedItemCategory) { setAvailableMissionCodes([]); setMissionGroupCode(""); return; }
+    if (!selectedItemCategory) {
+      setAvailableMissionCodes([]);
+      // Parça ekleme modunda grup seçili onarımdan gelir; parça temizlense de korunur.
+      if (!addToGroupRef.current) setMissionGroupCode("");
+      return;
+    }
     api.getMissionsForItemCategory(selectedItemCategory).then(res => {
       setAvailableMissionCodes(res && res.success ? (res.mission_codes || []) : []);
     });
@@ -107,6 +120,9 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
       setMissionGroupCode(pending.missionGroupCode);
       if (pending.warrantyCode !== undefined) setWarrantyCode(pending.warrantyCode);
       pendingEditRef.current = null;
+    } else if (addToGroupRef.current) {
+      // Kategoriye göre otomatik takım önerisi bu modda devre dışı - grup sabit.
+      setMissionGroupCode(addToGroupRef.current.code);
     } else if (!editingRepairIdRef.current) {
       setMissionGroupCode("");
       api.getMissionForItemCategory(selectedItemCategory).then(res => {
@@ -133,8 +149,22 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
   const resetToolbar = useCallback(() => {
     setSelectedPartId(""); setFaultCode(""); setMissionGroupCode(""); setDescription("");
     setEditingRepairId(null);
+    setAddToGroup(null);
+    addToGroupRef.current = null; // effect'i beklemeden temizle, aksi halde bir sonraki
+                                  // kategori değişiminde eski grup geri yazılırdı
     if (isRmaFlow) setWarrantyCode("");
   }, [isRmaFlow]);
+
+  // "PARÇA EKLE": seçili satırın onarımına ek parça girme moduna geçer.
+  const selectedRepair = repairs.find(r => r.id === selectedRepairId) || null;
+  const handleStartAddPart = useCallback(() => {
+    if (!selectedRepair || selectedRepair.isCancelled) return;
+    resetToolbar();
+    const grp = { code: selectedRepair.missionGroupCode || "", name: selectedRepair.missionGroup || selectedRepair.missionGroupCode || "" };
+    setAddToGroup(grp);
+    addToGroupRef.current = grp;
+    setMissionGroupCode(grp.code);
+  }, [selectedRepair, resetToolbar]);
 
   const handleAddRow = useCallback(async () => {
     if (!device || !faultCode || !missionGroupCode || adding) return;
@@ -298,6 +328,17 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
                 </span>
               </div>
             )}
+            {addToGroup && (
+              <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 text-blue-700 dark:text-blue-400 text-xs">
+                <Package size={14} className="shrink-0 mt-0.5" />
+                <span className="flex-1">
+                  <strong>{addToGroup.name || addToGroup.code}</strong> onarımına parça ekleniyor — yeni bir onarım açılmaz, parça bu onarımın altına yazılır.
+                </span>
+                <button onClick={resetToolbar} type="button" className="shrink-0 font-bold underline underline-offset-2 hover:opacity-70">
+                  Vazgeç
+                </button>
+              </div>
+            )}
             {partsWarning && (
               <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 text-amber-700 dark:text-amber-400 text-xs">
                 <AlertTriangle size={14} className="shrink-0 mt-0.5" />
@@ -317,15 +358,23 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
                   ? itemFaults.map(f => <option key={f.code} value={f.code}>{f.short_name}</option>)
                   : selectedItemCategory && <option value="N/A">N/A</option>}
               </select>
-              <select
-                value={missionGroupCode}
-                onChange={e => setMissionGroupCode(e.target.value)}
-                disabled={!selectedItemCategory}
-                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#12141c] text-slate-800 dark:text-slate-200 text-sm focus:ring-2 focus:ring-blue-500 outline-none disabled:opacity-70 disabled:cursor-not-allowed"
-              >
-                <option value="">{selectedItemCategory ? "Onarım Takımı seçiniz..." : "Önce parça seçiniz..."}</option>
-                {filteredMissionGroups.map(mg => <option key={mg.code} value={mg.code}>{mg.short_name} ({mg.code})</option>)}
-              </select>
+              {addToGroup ? (
+                <div className="w-full px-3 py-2 rounded-lg border border-blue-200 dark:border-blue-500/30 bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 text-sm font-semibold flex items-center gap-2">
+                  <Wrench size={14} className="shrink-0" />
+                  <span className="truncate">{addToGroup.name || addToGroup.code}</span>
+                  <span className="ml-auto text-[10px] font-bold uppercase tracking-widest opacity-70 shrink-0">Sabit</span>
+                </div>
+              ) : (
+                <select
+                  value={missionGroupCode}
+                  onChange={e => setMissionGroupCode(e.target.value)}
+                  disabled={!selectedItemCategory}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#12141c] text-slate-800 dark:text-slate-200 text-sm focus:ring-2 focus:ring-blue-500 outline-none disabled:opacity-70 disabled:cursor-not-allowed"
+                >
+                  <option value="">{selectedItemCategory ? "Onarım Takımı seçiniz..." : "Önce parça seçiniz..."}</option>
+                  {filteredMissionGroups.map(mg => <option key={mg.code} value={mg.code}>{mg.short_name} ({mg.code})</option>)}
+                </select>
+              )}
               <select
                 value={warrantyCode}
                 onChange={e => setWarrantyCode(e.target.value)}
@@ -357,8 +406,23 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
                 className={`px-4 py-2 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold transition-colors flex items-center gap-1.5 shrink-0 ${editingRepairId ? "bg-indigo-600 hover:bg-indigo-700" : "bg-blue-600 hover:bg-blue-700"}`}
               >
                 {editingRepairId ? <Pencil size={14} /> : <Plus size={14} />}
-                {adding ? "Kaydediliyor..." : editingRepairId ? "GÜNCELLE" : "EKLE"}
+                {adding ? "Kaydediliyor..." : editingRepairId ? "GÜNCELLE" : addToGroup ? "PARÇA EKLE" : "EKLE"}
               </button>
+              {/* Yeni onarım açmadan, tablodan seçilen onarıma ek parça satırı ekler.
+                  Düzenleme sürerken kapalıdır - iki mod aynı toolbar'ı kullanıyor. */}
+              {!addToGroup && (
+                <button
+                  onClick={handleStartAddPart}
+                  type="button"
+                  disabled={!hasAccess || !statusAllowsParts || !!editingRepairId || !selectedRepair || selectedRepair.isCancelled}
+                  title={selectedRepair
+                    ? `'${selectedRepair.missionGroup}' onarımına yeni bir parça ekler`
+                    : "Önce alttaki tablodan bir onarım satırı seçin"}
+                  className="px-4 py-2 rounded-lg border border-blue-200 dark:border-blue-500/30 bg-white dark:bg-[#12141c] text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold transition-colors flex items-center gap-1.5 shrink-0"
+                >
+                  <Package size={14} /> PARÇA EKLE
+                </button>
+              )}
             </div>
           </div>
           <div className="flex-1 overflow-auto rounded-b-2xl">
@@ -372,6 +436,7 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
                   <tr className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">
                     <th className="text-left px-4 py-2.5">Parça kodu</th>
                     <th className="text-left px-3 py-2.5">Onarım Takımı</th>
+                    <th className="text-left px-3 py-2.5">Teknisyen</th>
                     <th className="text-left px-3 py-2.5">Ücret Tipi</th>
                     <th className="text-left px-3 py-2.5">Arıza Tespiti</th>
                     <th className="text-left px-3 py-2.5">Açıklama</th>
@@ -380,11 +445,32 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-[#1e222d]">
                   {repairs.map(r => (
-                    <tr key={r.id} className={r.isCancelled ? "opacity-50" : (editingRepairId === r.id ? "bg-indigo-50/50 dark:bg-indigo-500/10" : "")}>
+                    <tr
+                      key={r.id}
+                      onClick={() => setSelectedRepairId(r.id)}
+                      className={`cursor-pointer transition-colors border-l-[3px] ${
+                        r.isCancelled
+                          ? "opacity-50 border-l-transparent"
+                          : editingRepairId === r.id
+                            ? "bg-indigo-50/50 dark:bg-indigo-500/10 border-l-indigo-500"
+                            : selectedRepairId === r.id
+                              ? "bg-blue-50 dark:bg-blue-500/5 border-l-blue-500"
+                              : "border-l-transparent hover:bg-slate-50 dark:hover:bg-[#12141c]"
+                      }`}
+                    >
                       <td className="px-4 py-2 text-xs font-mono text-slate-700 dark:text-slate-300">{r.partItemCode || "N/A"}</td>
                       <td className="px-3 py-2 text-xs text-slate-700 dark:text-slate-300">
                         {r.missionGroup}
                         {r.isCancelled && <span className="ml-1.5 text-[10px] font-bold text-red-500">(İptal Edildi)</span>}
+                      </td>
+                      {/* Atama Üretim Teknisyeni ekranından yapılır; burası salt okunur. */}
+                      <td className="px-3 py-2 text-xs text-slate-700 dark:text-slate-300">
+                        {r.technician || r.assignedTechnicianName || r.assignedTechnician
+                          ? <span className="inline-flex items-center gap-1.5">
+                              <User size={11} className="text-blue-500 shrink-0" />
+                              {r.technician || r.assignedTechnicianName || r.assignedTechnician}
+                            </span>
+                          : <span className="italic text-slate-400 dark:text-slate-600">Atanmadı</span>}
                       </td>
                       <td className="px-3 py-2 text-xs">
                         <span className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold border ${r.chargeType === "FREE" ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30" : "bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-500/30"}`}>

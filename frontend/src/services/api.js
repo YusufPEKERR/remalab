@@ -682,6 +682,35 @@ export const api = {
         });
     },
 
+    // Teknisyene Atama — görev grubuna göre teknisyen listesi.
+    // missionCode boş gönderilirse tüm aktif kullanıcılar döner.
+    getTechniciansForMission: async (missionCode) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_technicians_for_mission(String(missionCode || ''), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    // Kaydı teknisyene atar ve statüyü 1001 yapar (tek işlem).
+    // technicianUsername boş gönderilirse atama kaldırılır, statü 1000'e döner.
+    assignTechnicianToRepair: async (repairId, technicianUsername, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.assign_technician_to_repair(String(repairId), String(technicianUsername || ''), String(username || ''), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    // Depocunun parça teslimi: durumu "Stoktan Çıktı" yapar.
+    // Ön koşullar (statü 1001, parça eklenmiş, daha önce teslim edilmemiş,
+    // depo yetkisi) backend'de doğrulanır. Stok hareketi yalnızca stok
+    // takipli parçalarda oluşur.
+    deliverRepairPart: async (repairId, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.deliver_repair_part(String(repairId), String(username || ''), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
     // ==========================
     // PARÇA KATEGORİLERİ
     // ==========================

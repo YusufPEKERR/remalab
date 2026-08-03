@@ -36,6 +36,12 @@ class PhonecheckTestResult(Base):
     battery_cycle = Column(Integer, nullable=True)
     battery_health_percentage = Column(Integer, nullable=True)
     grading_results = Column(Text, nullable=True)
+    # Phonecheck "Parts" alaninin HAM JSON'u:
+    #   {"Remarks":"Not Genuine","Data":[{"name":"Battery","Status":"Not Genuine",...}, ...]}
+    # Kritik parca orijinallik kontrolu (Ana Kamera / Batarya / Eski Pil) bundan turetilir,
+    # bkz. phonecheck_service.parse_critical_parts. Ham hali saklanir cunku Phonecheck
+    # ileride yeni parca satirlari eklerse eski kayitlardan da okunabilsin.
+    parts = Column(Text, nullable=True)
     fetched_at = Column(DateTime(timezone=True), server_default=func.now())
     attempt_no = Column(Integer, nullable=True)
     is_manual = Column(Boolean, default=False)

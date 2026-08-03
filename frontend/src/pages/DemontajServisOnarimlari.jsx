@@ -119,7 +119,10 @@ const DemontajServisOnarimlari = () => {
       setDiagnosisDraft(realDevice.customerDiagnosis || "");
 
       if (repairLink) {
-        setRepairs((repairLink.repairs || []).map(r => ({ ...r, technician: "", parts: [] })));
+        // technician sabit "" yazılırsa Teklif Parçaları tablosundaki Teknisyen sütunu
+        // atama yapılmış kayıtlarda bile boş kalır. Backend assignedTechnicianName
+        // dönüyor (bkz. get_repair_operations_by_imei), onu kullanıyoruz.
+        setRepairs((repairLink.repairs || []).map(r => ({ ...r, technician: r.assignedTechnicianName || r.assignedTechnician || "", parts: [] })));
         showNotif("success", "Cihaz Yüklendi", `${realDevice.productInfo} — IMEI: ${realDevice.imei}`);
       } else {
         setRepairs([]);
@@ -156,7 +159,7 @@ const DemontajServisOnarimlari = () => {
     if (!device?.imei) return null;
     const refreshed = await api.getRepairOperationsByImei(device.imei).catch(() => null);
     if (refreshed && refreshed.success) {
-      setRepairs((refreshed.repairs || []).map(r => ({ ...r, technician: "", parts: [] })));
+      setRepairs((refreshed.repairs || []).map(r => ({ ...r, technician: r.assignedTechnicianName || r.assignedTechnician || "", parts: [] })));
     }
     // Onarım eklendikten sonra cihazın statüsü backend'de değişmiş olabilir (örn. Üretim
     // aşamasındaki bir cihaza yeni onarım eklenince statü 105'e geri çekilir ve "Müşteri
@@ -220,10 +223,10 @@ const DemontajServisOnarimlari = () => {
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2 max-w-2xl">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-500/20 border border-emerald-200 dark:border-emerald-400/30 text-emerald-700 dark:text-emerald-300 text-xs font-semibold tracking-wide">
-              <Wrench size={13} className="text-emerald-400" /> DEMONTAJ SERVİS ONARIMLARI
+              <Wrench size={13} className="text-emerald-400" /> ÜRETİME AKTAR
             </div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#181a24] dark:text-white">
-              Demontaj Servis Onarımları & Parça Demontajı
+              Üretime Aktar
             </h1>
             <p className="text-sm text-[#4A5A9E] dark:text-slate-300 leading-relaxed">
               Cihaz demontaj işlemlerini yapın, sökülen ve sağlam parçaları depolara ve DOA lokasyonlarına yönlendirin.

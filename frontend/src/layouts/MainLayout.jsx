@@ -173,7 +173,7 @@ export default function MainLayout() {
       title: 'DEMONTAJ TEKNİSYENİ',
       colorTheme: 'emerald',
       items: [
-        { name: 'Servis Onarımları (Demontaj)', icon: Wrench, path: '/servis-onarimlari-demontaj' },
+        { name: 'Üretime Aktar', icon: Wrench, path: '/servis-onarimlari-demontaj' },
         { name: 'Teknik departmana kabul et (104>105)', icon: Cog, path: '/statu-gecis/TEC_DISMANTLE/104_105' },
         { name: 'Müşteri onayına gönder (105>106)', icon: Cog, path: '/statu-gecis/TEC_DISMANTLE/105_106' },
         { name: 'Üretime Aktar (105>109)', icon: Cog, path: '/statu-gecis/TEC_DISMANTLE/105_109' }
@@ -183,7 +183,7 @@ export default function MainLayout() {
       title: 'ÜRETİM TEKNİSYENİ',
       colorTheme: 'red',
       items: [
-        { name: 'Servis Onarımları', icon: Wrench, path: '/technician-repair' }
+        { name: 'Üretim Kaydını Görüntüle', icon: Wrench, path: '/technician-repair' }
       ]
     },
     {

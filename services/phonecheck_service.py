@@ -49,9 +49,122 @@ FIELD_MAP = {
     "battery_cycle": "BatteryCycle",
     "battery_health_percentage": "BatteryHealthPercentage",
     "grading_results": "GradingResults",
+    "parts": "Parts",
 }
 
 INT_COLUMNS = ("battery_cycle", "battery_health_percentage")
+
+# ── Kritik parca orijinallik kontrolu ────────────────────────────────────────
+# Phonecheck "Parts" alani parca parca orijinallik bilgisi doner:
+#   {"Remarks":"Not Genuine",
+#    "Data":[{"name":"Battery","Status":"Not Genuine","FactorySerial":...,"reason":...}, ...]}
+# Ornek cihazda gorulen isimler: Serial Number, Main Board, Battery, Front Camera,
+# Back Camera, Lcd, Lidar Sensor.
+#
+# Takip edilen 3 kritik parca ve Phonecheck'te karsilik gelebilecek adlar. Eslesme
+# TAM AD uzerinden yapilir, "icinde geciyor mu" diye BAKILMAZ: "battery" alt dizgesi
+# "Old Battery"yi de yakalar ve iki kritik parca birbirine karisirdi.
+CRITICAL_PARTS = (
+    ("main_camera", "Ana Kamera",    ("back camera", "main camera", "rear camera")),
+    ("battery",     "Batarya / Pil", ("battery",)),
+    ("old_battery", "Eski Pil",      ("old battery", "previous battery", "eski pil")),
+)
+
+GENUINE_STATUS = "genuine"
+NOT_GENUINE_STATUS = "not_genuine"
+UNKNOWN_STATUS = "unknown"
+
+STATUS_LABELS = {
+    GENUINE_STATUS: "Orijinal",
+    NOT_GENUINE_STATUS: "Orijinal Değil",
+    UNKNOWN_STATUS: "Belirtilmemiş",
+}
+
+
+def _normalize_part_name(value) -> str:
+    return " ".join(str(value or "").strip().lower().split())
+
+
+def _normalize_status(value) -> str:
+    """Phonecheck Status metnini uc duruma indirger.
+    Bos/eksik deger 'unknown'dir - 'orijinal degil' ile ayni sey DEGILDIR, cunku
+    Phonecheck bazi parcalari (ornekte Lidar Sensor) hic degerlendirmeden bos birakiyor."""
+    s = _normalize_part_name(value)
+    if not s:
+        return UNKNOWN_STATUS
+    if s in ("not genuine", "nongenuine", "non genuine", "not-genuine", "fake"):
+        return NOT_GENUINE_STATUS
+    if s == "genuine":
+        return GENUINE_STATUS
+    # Beklenmedik bir metin geldiginde "orijinal" demek yerine bilinmiyor sayilir.
+    return UNKNOWN_STATUS
+
+
+def _load_parts(parts_raw):
+    """Ham Parts degerini (JSON metni ya da cozulmus nesne) (data_listesi, remarks)
+    ikilisine cevirir. Bozuk/eksik veride patlamaz, bos liste doner."""
+    import json as _json
+
+    data = []
+    remarks = ""
+    if parts_raw:
+        try:
+            parsed = _json.loads(parts_raw) if isinstance(parts_raw, str) else parts_raw
+            if isinstance(parsed, dict):
+                remarks = str(parsed.get("Remarks") or "")
+                data = parsed.get("Data") or []
+            elif isinstance(parsed, list):
+                data = parsed
+        except (ValueError, TypeError):
+            data = []
+    return [d for d in data if isinstance(d, dict)], remarks
+
+
+def parse_all_parts(parts_raw):
+    """Phonecheck'in bildirdigi TUM parcalari normalize edilmis durumlariyla doner
+    (yalnizca 3 kritik parca degil). Servis ekranindaki "Parts" sutununun kaynagi.
+    Ikinci deger: genel Remarks ozeti."""
+    data, remarks = _load_parts(parts_raw)
+    items = []
+    for item in data:
+        status = _normalize_status(item.get("Status"))
+        items.append({
+            "name": str(item.get("name") or "").strip() or "(isimsiz)",
+            "status": status,
+            "statusLabel": STATUS_LABELS[status],
+        })
+    return items, remarks
+
+
+def parse_critical_parts(parts_raw):
+    """Ham Parts JSON'undan 3 kritik parcanin orijinallik durumunu cikarir.
+
+    Her zaman UC eleman doner - parca Phonecheck ciktisinda hic yoksa da satir
+    'unknown' olarak yerinde durur, arayuzde gri gorunur. Veri hic yoksa
+    (kayit eski, Parts sutunu bos) yine ucu de 'unknown' doner.
+    Ikinci deger: Phonecheck'in genel Remarks ozeti (ornek: "Not Genuine")."""
+    data, remarks = _load_parts(parts_raw)
+
+    by_name = {}
+    for item in data:
+        if isinstance(item, dict):
+            by_name[_normalize_part_name(item.get("name"))] = item
+
+    result = []
+    for key, label, aliases in CRITICAL_PARTS:
+        found = next((by_name[a] for a in aliases if a in by_name), None)
+        status = _normalize_status(found.get("Status")) if found else UNKNOWN_STATUS
+        result.append({
+            "key": key,
+            "label": label,
+            "status": status,
+            "statusLabel": STATUS_LABELS[status],
+            # Hangi Phonecheck satirindan geldigini ve nedenini de tasiriz;
+            # arayuz bunu tooltip'te gosterip "neden kirmizi" sorusunu cevaplar.
+            "sourceName": (found or {}).get("name") or "",
+            "reason": (found or {}).get("reason") or (found or {}).get("notice") or "",
+        })
+    return result, remarks
 
 
 def get_api_key() -> Optional[str]:

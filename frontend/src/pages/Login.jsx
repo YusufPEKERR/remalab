@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   Eye, EyeOff, Lock, ArrowRight, AlertCircle, RefreshCw,
-  Sun, Moon, ShieldAlert, Wifi, WifiOff, CheckCircle2, Mail,
+  Sun, Moon, ShieldAlert, Wifi, WifiOff, CheckCircle2, Mail, User,
   BarChart2, Shield, Settings, Users, Cloud, Server, Cpu, Check
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -439,16 +439,17 @@ export default function Login() {
           {/* Form */}
           <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-            {/* E-posta */}
+            {/* Kullanıcı Adı — sistem e-posta ile değil warehouse.users.username ile
+                giriş yapıyor (api.login kullanıcı adı bekler), etiket buna göre. */}
             <div>
-              <label style={{ fontSize: 12.5, fontWeight: 600, color: T.deep, display: 'block', marginBottom: 6 }}>E-posta</label>
+              <label style={{ fontSize: 12.5, fontWeight: 600, color: T.deep, display: 'block', marginBottom: 6 }}>Kullanıcı Adı</label>
               <div style={{ position: 'relative' }}>
-                <Mail size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: T.indigo, opacity: .65, pointerEvents: 'none' }} />
+                <User size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: T.indigo, opacity: .65, pointerEvents: 'none' }} />
                 <input
                   id="username-input"
                   type="text"
                   autoComplete="username"
-                  placeholder="ornek@remalab.com"
+                  placeholder="kullanıcı adınız"
                   value={username}
                   onChange={e => setUsername(e.target.value)}
                   style={{ width: '100%', height: 48, boxSizing: 'border-box', paddingLeft: 44, paddingRight: 16, background: 'rgba(255,255,255,.55)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', border: `1.5px solid ${T.indigo}33`, borderRadius: 10, outline: 'none', fontSize: 14, color: T.ink, transition: 'all .2s', fontFamily: 'inherit' }}

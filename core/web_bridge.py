@@ -681,6 +681,11 @@ class WebBridge(QObject):
             db.execute(text("ALTER TABLE warehouse.produced_units ADD COLUMN IF NOT EXISTS return_location_id INTEGER REFERENCES warehouse.locations(id);"))
             db.execute(text("ALTER TABLE warehouse.produced_units ADD COLUMN IF NOT EXISTS returned_materials VARCHAR(2000);"))
             db.execute(text("ALTER TABLE warehouse.produced_units ADD COLUMN IF NOT EXISTS replacement_requested_qty INTEGER DEFAULT 0;"))
+
+            # Phonecheck "Parts" ham JSON'u - kritik parca orijinallik kontrolunun kaynagi.
+            # Eski satirlar NULL kalir (o kayitlarda parca durumu "Belirtilmemis" gorunur);
+            # yeni her Phonecheck sorgusunda dolar.
+            db.execute(text("ALTER TABLE warehouse.phonecheck_test_results ADD COLUMN IF NOT EXISTS parts TEXT;"))
             
             # Clean up old records to avoid data inconsistency with the new unique serial number system
             run_count = db.execute(text("SELECT COUNT(*) FROM warehouse.production_runs")).scalar() or 0
@@ -1045,8 +1050,11 @@ class WebBridge(QObject):
     def _ensure_repair_records_extra_columns(self):
         """warehouse.repair_records tablosuna Demontaj ekranı için part_item_code/item_fault_code,
         Onarım Parçaları ekranı için supply_status_code (warehouse.item_supply_status.code -
-        Depo Durum), ve Depo > Parça Teslim ekranı için supply_requested_by/supply_requested_at
-        (Depo Durum'u en son kim/ne zaman değiştirdi) sütunları yoksa ekler."""
+        Depo Durum), Depo > Parça Teslim ekranı için supply_requested_by/supply_requested_at
+        (Depo Durum'u en son kim/ne zaman değiştirdi) ve Teknisyene Atama ekranı için
+        assigned_technician/assigned_by/assigned_at (kaydın hangi teknisyene, kim tarafından,
+        ne zaman atandığı - statü 1001 'Teknisyene Atandı' ile birlikte yazılır) sütunlarını
+        yoksa ekler."""
         from sqlalchemy import text
         db = SessionLocal()
         try:
@@ -1055,6 +1063,10 @@ class WebBridge(QObject):
             db.execute(text("ALTER TABLE warehouse.repair_records ADD COLUMN IF NOT EXISTS supply_status_code VARCHAR(255);"))
             db.execute(text("ALTER TABLE warehouse.repair_records ADD COLUMN IF NOT EXISTS supply_requested_by VARCHAR(100);"))
             db.execute(text("ALTER TABLE warehouse.repair_records ADD COLUMN IF NOT EXISTS supply_requested_at TIMESTAMP;"))
+            # Teknisyene Atama - work_orders.assigned_technician ile ayni isimlendirme
+            db.execute(text("ALTER TABLE warehouse.repair_records ADD COLUMN IF NOT EXISTS assigned_technician VARCHAR(150);"))
+            db.execute(text("ALTER TABLE warehouse.repair_records ADD COLUMN IF NOT EXISTS assigned_by VARCHAR(100);"))
+            db.execute(text("ALTER TABLE warehouse.repair_records ADD COLUMN IF NOT EXISTS assigned_at TIMESTAMP;"))
             db.commit()
         except Exception as e:
             db.rollback()
@@ -9030,15 +9042,30 @@ class WebBridge(QObject):
             def fmt(dt):
                 return dt.strftime("%Y-%m-%d %H:%M") if dt else ""
 
-            items = [{
-                "deviceUpdatedD": fmt(r.fetched_at),
-                "grade": r.grade or "",
-                "partInfoRemark": r.notes or "",
-                "parts": r.failed or "",
-                "stationID": r.station_id or "",
-                "version": r.version or "",
-                "batteryCycle": r.battery_cycle if r.battery_cycle is not None else "",
-            } for r in rows]
+            # Kritik parca orijinallik kontrolu (Ana Kamera / Batarya / Eski Pil).
+            # Her kayit icin HER ZAMAN 3 satir doner; veri yoksa "unknown" (gri).
+            from services.phonecheck_service import parse_all_parts, parse_critical_parts
+
+            items = []
+            for r in rows:
+                raw_parts = getattr(r, "parts", None)
+                critical, parts_remark = parse_critical_parts(raw_parts)
+                all_parts, _ = parse_all_parts(raw_parts)
+                items.append({
+                    "deviceUpdatedD": fmt(r.fetched_at),
+                    "grade": r.grade or "",
+                    "partInfoRemark": r.notes or "",
+                    # "Parts" artik gercekten Phonecheck'in Parts verisidir. Eskiden bu
+                    # alan r.failed (basarisiz testler) tasiyordu - sutun basligi "Parts"
+                    # oldugu icin yanlisti; basarisiz testler ayri "Failed" alanina alindi.
+                    "parts": all_parts,
+                    "partsRemark": parts_remark,
+                    "criticalParts": critical,
+                    "failed": r.failed or "",
+                    "stationID": r.station_id or "",
+                    "version": r.version or "",
+                    "batteryCycle": r.battery_cycle if r.battery_cycle is not None else "",
+                })
 
             return json.dumps({"success": True, "items": items})
         except Exception as e:
@@ -9344,8 +9371,10 @@ class WebBridge(QObject):
         from sqlalchemy import text
         # Bu is emrine bagli ve is_issued=True olan parcalari getirir
         # Projede work_order_parts tablosu var
+        # part_id de dönülür: warehouse.stock ve warehouse.stock_movements part_code ile
+        # değil part_id ile çalışır (bkz. models/stock.py, models/stock_movement.py).
         sql = text("""
-            SELECT wp.id, wp.part_code, wp.quantity, p.name 
+            SELECT wp.id, wp.part_code, wp.quantity, p.name, p.id AS part_id
             FROM warehouse.work_order_parts wp
             LEFT JOIN warehouse.parts p ON p.item_code = wp.part_code
             WHERE wp.work_order_id = :wo_id AND wp.is_issued = true
@@ -9383,21 +9412,35 @@ class WebBridge(QObject):
                 # Sadece doa_stock artirilir. 
                 from models.stock import Stock
                 from models.stock_movement import StockMovement
-                # DOA stock artir
-                ds = db.query(Stock).filter_by(location_id=doa_loc_id, part_code=p["part_code"]).first()
+                # NOT: Stock ve StockMovement modellerinde 'part_code' kolonu YOKTUR;
+                # ikisi de part_id ile çalışır. Eskiden burada part_code/from_location_id/
+                # to_location_id/movement_type/reference_document veriliyordu - bunların
+                # hiçbiri model alanı olmadığı için çağrı TypeError fırlatıyor ve
+                # transfer_to_doa hiç çalışmıyordu.
+                part_id = p.get("part_id")
+                if not part_id:
+                    # Parça katalogda bulunamadıysa bu satırı atla; stok bozulmasın.
+                    logging.warning(f"transfer_to_doa: '{p['part_code']}' parts tablosunda bulunamadı, atlandı.")
+                    continue
+
+                # DOA stok artir
+                ds = db.query(Stock).filter_by(location_id=doa_loc_id, part_id=part_id).first()
                 if not ds:
-                    ds = Stock(location_id=doa_loc_id, part_code=p["part_code"], quantity=0)
+                    ds = Stock(location_id=doa_loc_id, part_id=part_id, quantity=0)
                     db.add(ds)
-                ds.quantity += p["quantity"]
-                
+                ds.quantity = (ds.quantity or 0) + p["quantity"]
+
                 # Hareketi kaydet
                 mov = StockMovement(
-                    part_code=p["part_code"],
-                    from_location_id=None, # Cihazdan cikiyor
-                    to_location_id=doa_loc_id,
+                    part_id=part_id,
+                    part_name_snapshot=p.get("name") or p["part_code"],
+                    source_location_id=None,        # Cihazdan çıkıyor
+                    target_location_id=doa_loc_id,
                     quantity=p["quantity"],
-                    movement_type="RETURN",
-                    reference_document=f"DOA Transfer WO: {service_record_id}"
+                    type="İade",
+                    movement_kind="Return",
+                    created_by="system",
+                    description=f"DOA Transfer - Parça: {p['part_code']} - İş Emri: {service_record_id}"
                 )
                 db.add(mov)
                 
@@ -9442,6 +9485,38 @@ class WebBridge(QObject):
             return json.dumps({"success": False, "message": str(e)})
         finally:
             db.close()
+
+    # Qt slotu DEĞİLDİR: arayüzden çağrılmaz, get_repair_operations_by_imei'nin
+    # açık DB oturumunu paylaşan dahili yardımcıdır.
+    def _get_device_critical_parts(self, db, imei):
+        """Cihazin EN YENI Phonecheck kaydindaki Parts verisinden 3 kritik parcayi
+        (Ana Kamera / Batarya / Eski Pil) cikarir. (liste, remarks) doner.
+
+        Phonecheck kaydi ya da Parts verisi yoksa ucu de 'unknown' doner - arayuzde
+        gri gorunur, "orijinal degil" ile karistirilmaz.
+
+        Sorgu patlarsa (ornegin 'parts' kolonu henuz olusmamis eski bir semada)
+        ozellik sessizce devre disi kalir; cagiran metodun asil isi bozulmasin diye
+        oturum rollback edilir - Postgres'te hatali sorgu sonrasi ayni transaction'da
+        yapilan her sorgu da hata verir."""
+        from sqlalchemy import text
+        from services.phonecheck_service import parse_critical_parts
+
+        raw = None
+        term = (imei or "").strip()
+        if term:
+            try:
+                row = db.execute(text("""
+                    SELECT parts FROM warehouse.phonecheck_test_results
+                    WHERE LOWER(TRIM(imei)) = LOWER(:t) AND parts IS NOT NULL
+                    ORDER BY fetched_at DESC LIMIT 1
+                """), {"t": term}).first()
+                raw = row[0] if row else None
+            except Exception as e:
+                db.rollback()
+                print(f"[WebBridge] kritik parca okunamadi ({term}): {e}")
+                raw = None
+        return parse_critical_parts(raw)
 
     # ---------------------------------------------------------
     # "İADE EDİLECEK" (Servis Onarımları -> Cihazı İadeye Al)
@@ -9558,13 +9633,19 @@ class WebBridge(QObject):
             repair_rows = db.execute(text("""
                 SELECT rr.id, rr.department_mission, rr.notes, rr.repair_result_type_code, rr.warranty_code,
                        rr.part_item_code, rr.item_fault_code, rr.operation_type_code, rr.supply_status_code,
+                       rr.assigned_technician, rr.assigned_by, rr.assigned_at,
                        rrt.short_name AS result_name, rrt.is_cancelled, rrt.is_success,
+                       -- mission_group_name SELECT'ten dusmustu (merge kaybi): mg JOIN'i duruyordu
+                       -- ama kolon secilmiyordu, mapping r["mission_group_name"] okuyunca
+                       -- NoSuchColumnError firlatiyor, metod success:false donuyor ve arayuzde
+                       -- HER cihazda "Aktif onarim kaydi yok" gorunuyordu.
                        mg.short_name AS mission_group_name,
                        it.short_name AS part_name, pp.item_category AS item_category,
                        pp.stock_tracking_type, pp.id AS part_id,
                        fault.short_name AS fault_name,
                        opt.short_name AS operation_type_name,
-                       sup.short_name AS supply_status_name
+                       sup.short_name AS supply_status_name,
+                       COALESCE(NULLIF(TRIM(au.fullname), ''), rr.assigned_technician) AS assigned_technician_name
                 FROM warehouse.repair_records rr
                 LEFT JOIN warehouse.repair_result_type rrt ON rrt.code = rr.repair_result_type_code
                 LEFT JOIN organization.mission_groups mg ON mg.code = rr.department_mission
@@ -9573,6 +9654,7 @@ class WebBridge(QObject):
                 LEFT JOIN warehouse.item_fault fault ON fault.code = rr.item_fault_code
                 LEFT JOIN warehouse.repair_item_operation_type opt ON opt.code = rr.operation_type_code
                 LEFT JOIN warehouse.item_supply_status sup ON sup.code = rr.supply_status_code
+                LEFT JOIN warehouse.users au ON au.username = rr.assigned_technician
                 WHERE rr.service_record_id = ANY(:refs)
                 ORDER BY rr.created_at DESC
             """), {"refs": repair_refs}).mappings().all()
@@ -9585,8 +9667,11 @@ class WebBridge(QObject):
                 
                 is_delivered = is_stoksuz
                 if not is_stoksuz:
-                    # Depocu Parça Teslim ekranından parça çıkışını yapıp supply_status_code = 'Teslim Edildi' yapmadığı sürece teslim edilmiş SAYILMAZ.
-                    if (r["supply_status_code"] or "").strip().lower() in ("teslim edildi", "teslim", "completed"):
+                    # Depocu Parça Teslim ekranından parça çıkışını yapıp supply_status_code'u
+                    # 'Stoktan Çıktı' yapmadığı sürece teslim edilmiş SAYILMAZ.
+                    # NOT: 'stoktan çıktı' warehouse.item_supply_status'taki GEÇERLİ koddur.
+                    # 'teslim edildi' o tabloda YOK - eski kayıtlar için geriye dönük kabul edilir.
+                    if (r["supply_status_code"] or "").strip().lower() in ("stoktan çıktı", "teslim edildi", "teslim", "completed"):
                         is_delivered = True
                     else:
                         is_delivered = False
@@ -9611,6 +9696,10 @@ class WebBridge(QObject):
                     "operationTypeName": r["operation_type_name"] or "",
                     "supplyStatusCode": r["supply_status_code"] or "",
                     "supplyStatusName": r["supply_status_name"] or "",
+                    "assignedTechnician": r["assigned_technician"] or "",
+                    "assignedTechnicianName": r["assigned_technician_name"] or "",
+                    "assignedBy": r["assigned_by"] or "",
+                    "assignedAt": r["assigned_at"].isoformat() if r["assigned_at"] else "",
                     "notes": r["notes"] or "",
                 })
 
@@ -9644,6 +9733,13 @@ class WebBridge(QObject):
 
             battery_cycle = pc.battery_cycle if pc else None
             battery_health = pc.battery_health_percentage if pc else None
+
+            # Kritik parça orijinallik kontrolü (Ana Kamera / Batarya / Eski Pil).
+            # Kaynak: bu cihaza ait EN YENİ Phonecheck kaydının Parts alanı. Her iki
+            # device_info dalı da aynı sonucu alsın diye tek noktada, dönüşten hemen
+            # önce ekleniyor.
+            device_info["criticalParts"], device_info["partsRemark"] = \
+                self._get_device_critical_parts(db, device_info.get("imei") or term)
 
             return json.dumps({
                 "success": True,
@@ -10173,16 +10269,27 @@ class WebBridge(QObject):
 
             target_code = int(new_status_code)
 
-            # Onarım Tamamlandı (1002) yapılıyorsa stok takipli parçanın depodan teslimatı yapılmış mı kontrol et
+            # Onarım Tamamlandı (1002) icin iki sart birden aranir:
+            #   1) Kayit bir teknisyene ATANMIS olmali,
+            #   2) Parca stok takipliyse depodan teslim edilmis ('Stoktan Çıktı') olmali;
+            #      stok takipsiz parcada bu sart aranmaz.
+            if target_code == 1002:
+                if not (rec.assigned_technician or "").strip():
+                    return json.dumps({
+                        "success": False,
+                        "message": "Bu onarım tamamlanamaz! Kayıt henüz bir teknisyene atanmamış. Önce 'Teknisyene Ata' ile atama yapın."
+                    }, ensure_ascii=False)
+
             if target_code == 1002 and rec.part_item_code:
-                part_row = db.execute(text("SELECT id, name, stock_tracking_type FROM warehouse.parts WHERE item_code = :c LIMIT 1"), {"c": rec.part_item_code.strip()}).mappings().first()
+                part_row = db.execute(text("SELECT id, name FROM warehouse.parts WHERE item_code = :c LIMIT 1"), {"c": rec.part_item_code.strip()}).mappings().first()
                 if part_row:
-                    tracking_type = (part_row["stock_tracking_type"] or "Stok Takipli").strip()
-                    is_stoksuz = tracking_type in ("Stok Takipsiz", "Stoksuz", "Servis Hizmeti", "Yazılım/Hizmet")
-                    
-                    if not is_stoksuz:
+                    # Takip tipi parts'ta bossa part_categories'e dusulur (bkz. _is_part_stock_tracked);
+                    # eskiden burada sadece parts.stock_tracking_type okunuyordu, kategoriye bakilmiyordu.
+                    if self._is_part_stock_tracked(db, rec.part_item_code):
                         # Parçanın bu cihazdaki supply_status_code değeri 'Teslim Edildi' mi?
-                        is_delivered = (rec.supply_status_code or "").strip().lower() in ("teslim edildi", "teslim", "1002", "completed")
+                        # 'stoktan çıktı' geçerli koddur (warehouse.item_supply_status);
+                        # 'teslim edildi' o tabloda yok, eski kayıtlar için kabul edilir.
+                        is_delivered = (rec.supply_status_code or "").strip().lower() in ("stoktan çıktı", "teslim edildi", "teslim", "1002", "completed")
                         if not is_delivered:
                             return json.dumps({
                                 "success": False, 
@@ -10192,6 +10299,189 @@ class WebBridge(QObject):
             rec.repair_result_type_code = target_code
             db.commit()
             return json.dumps({"success": True})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)}, ensure_ascii=False)
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
+    def get_technicians_for_mission(self, mission_code):
+        """Teknisyene Atama modalinin kaynağı: verilen GÖREV GRUBUNA bağlı aktif kullanıcıları,
+        üzerlerindeki açık iş sayısıyla birlikte döner.
+
+        DİKKAT - iki ayrı kod uzayı var, doğrudan karşılaştırılamazlar:
+          repair_records.department_mission -> organization.mission_groups.code  ("CASE", "BATTERY")
+          warehouse.users.gorev             -> organization.missions.code        ("TEC_CASE", "QAC_CASE")
+        Bağ, missions.mission_group_id üzerinden kurulur. Birebir string karşılaştırması
+        yapılırsa liste HER ZAMAN boş döner (canlı veride doğrulandı).
+
+        users.gorev virgülle ayrılmış mission kodları tutar; eşleşme TAM TOKEN üzerinden
+        (unnest + TRIM) yapılır - LIKE '%kod%' olsaydı 'L1' araması 'L10'u da yakalardı.
+
+        Bir görev grubunda hem TEC_* (teknisyen) hem QAC_* (son kontrol) görevleri olabilir.
+        Hiçbiri elenmez; kullanıcının eşleşen görev adı (missionName) listede gösterilir ki
+        atamayı yapan kimi seçtiğini görsün.
+
+        mission_code boş gelirse tüm aktif kullanıcılar döner.
+        Açık iş = o kullanıcıya atanmış, statüsü 1002 (Tamamlandı) / 1003 (İptal) OLMAYAN kayıtlar."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            code = (mission_code or "").strip()
+
+            open_jobs_sql = """
+                (SELECT COUNT(*) FROM warehouse.repair_records rr
+                  WHERE rr.assigned_technician = u.username
+                    AND COALESCE(rr.repair_result_type_code, 0) NOT IN (1002, 1003)) AS open_jobs
+            """
+
+            if not code:
+                rows = db.execute(text(f"""
+                    SELECT u.username,
+                           COALESCE(NULLIF(TRIM(u.fullname), ''), u.username) AS fullname,
+                           COALESCE(u.gorev, '') AS gorev,
+                           COALESCE(u.role, '')  AS role,
+                           '' AS mission_name,
+                           {open_jobs_sql}
+                    FROM warehouse.users u
+                    WHERE COALESCE(u.account_enabled, TRUE) = TRUE
+                    ORDER BY open_jobs ASC, fullname ASC
+                """)).mappings().all()
+            else:
+                # grp_missions: verilen koda ait TÜM mission kodlari.
+                # Kod bir mission_group kodu olabilir (normal durum) veya dogrudan bir
+                # mission kodu olabilir (savunma amacli ikinci kosul).
+                rows = db.execute(text(f"""
+                    WITH grp_missions AS (
+                        SELECT m.code, m.short_name
+                        FROM organization.missions m
+                        JOIN organization.mission_groups mg ON mg.id = m.mission_group_id
+                        WHERE mg.code = :code
+                        UNION
+                        SELECT m2.code, m2.short_name
+                        FROM organization.missions m2
+                        WHERE m2.code = :code
+                    )
+                    SELECT u.username,
+                           COALESCE(NULLIF(TRIM(u.fullname), ''), u.username) AS fullname,
+                           COALESCE(u.gorev, '') AS gorev,
+                           COALESCE(u.role, '')  AS role,
+                           (SELECT STRING_AGG(DISTINCT gm.short_name, ', ')
+                              FROM grp_missions gm
+                             WHERE EXISTS (
+                                   SELECT 1 FROM unnest(string_to_array(COALESCE(u.gorev, ''), ',')) g
+                                    WHERE TRIM(g) = gm.code)) AS mission_name,
+                           {open_jobs_sql}
+                    FROM warehouse.users u
+                    WHERE COALESCE(u.account_enabled, TRUE) = TRUE
+                      AND EXISTS (
+                          SELECT 1
+                            FROM grp_missions gm
+                            JOIN unnest(string_to_array(COALESCE(u.gorev, ''), ',')) g
+                              ON TRIM(g) = gm.code)
+                    ORDER BY open_jobs ASC, fullname ASC
+                """), {"code": code}).mappings().all()
+
+            techs = [{
+                "username": r["username"],
+                "fullname": r["fullname"],
+                "gorev": r["gorev"],
+                "role": r["role"],
+                "missionName": r["mission_name"] or "",
+                "openJobs": int(r["open_jobs"] or 0),
+            } for r in rows]
+            return json.dumps({"success": True, "technicians": techs}, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)}, ensure_ascii=False)
+        finally:
+            db.close()
+
+    @Slot(str, str, str, result=str)
+    def assign_technician_to_repair(self, repair_id, technician_username, username):
+        """Bir ONARIMI (görev grubunu) bir teknisyene atar ve statüsünü 1001 (Teknisyene
+        Atandı) yapar - ikisi TEK transaction içinde olur, yarım kalmış atama oluşmaz.
+
+        ATAMA SEVİYESİ = ONARIM, PARÇA DEĞİL. repair_records tablosunda her satır bir
+        parçayı taşır; atama parçaya göre yapılmaz. Verilen repair_id'nin ait olduğu
+        onarımın (aynı service_record_id + aynı department_mission) TÜM aktif kayıtları
+        aynı teknisyene yazılır. Böylece bir onarımın parçaları farklı teknisyenlere
+        dağılmaz, arayüzde de teknisyen parça başına değil onarım başına gösterilir.
+
+        Tamamlanmış (1002) ve iptal edilmiş (1003) kayıtlara DOKUNULMAZ - geçmiş
+        atamaları bozmamak için.
+
+        Sistemde henüz yetkilendirme kurulmadığı için atamayı KİMİN yaptığı kısıtlanmaz;
+        teknisyen listesi zaten görev grubuna göre süzülerek geliyor (bkz.
+        get_technicians_for_mission). Doğrulanan tek şey teknisyenin var ve aktif olduğudur.
+
+        technician_username boş gönderilirse atama KALDIRILIR ve statü 1000
+        (Teknisyene Atanacak) durumuna geri döner."""
+        from models.repair_record import RepairRecord
+        from sqlalchemy import text
+        import datetime
+        db = SessionLocal()
+        try:
+            rec = db.query(RepairRecord).filter(RepairRecord.id == repair_id).first()
+            if not rec:
+                return json.dumps({"success": False, "message": "Onarım kaydı bulunamadı."})
+
+            tech = (technician_username or "").strip()
+            actor = (username or "").strip() or None
+            now = datetime.datetime.utcnow()
+
+            # Onarımın kapsamı: aynı cihaz kaydı + aynı görev grubu, tamamlanmamış/iptal
+            # edilmemiş tüm satırlar. Parça kodu ölçüt DEĞİLDİR.
+            scope = """
+                WHERE service_record_id = :sr
+                  AND COALESCE(TRIM(department_mission), '') = COALESCE(TRIM(:dm), '')
+                  AND COALESCE(repair_result_type_code, 0) NOT IN (1002, 1003)
+            """
+            scope_params = {"sr": rec.service_record_id, "dm": rec.department_mission}
+
+            # Atamayı kaldırma
+            if not tech:
+                n = db.execute(text(f"""
+                    UPDATE warehouse.repair_records
+                    SET assigned_technician = NULL, assigned_by = :by, assigned_at = :now,
+                        repair_result_type_code = 1000
+                    {scope}
+                """), {**scope_params, "by": actor, "now": now}).rowcount
+                db.commit()
+                return json.dumps({
+                    "success": True, "assigned": False, "statusCode": 1000,
+                    "affected": n,
+                    "message": f"Atama kaldırıldı ({n} kayıt)."
+                }, ensure_ascii=False)
+
+            row = db.execute(text("""
+                SELECT username,
+                       COALESCE(NULLIF(TRIM(fullname), ''), username) AS fullname,
+                       COALESCE(account_enabled, TRUE) AS enabled
+                FROM warehouse.users WHERE username = :u
+            """), {"u": tech}).mappings().first()
+            if not row:
+                return json.dumps({"success": False, "message": f"Kullanıcı bulunamadı: {tech}"}, ensure_ascii=False)
+            if not row["enabled"]:
+                return json.dumps({"success": False, "message": f"'{row['fullname']}' pasif durumda, atama yapılamaz."}, ensure_ascii=False)
+
+            n = db.execute(text(f"""
+                UPDATE warehouse.repair_records
+                SET assigned_technician = :u, assigned_by = :by, assigned_at = :now,
+                    repair_result_type_code = 1001
+                {scope}
+            """), {**scope_params, "u": tech, "by": actor, "now": now}).rowcount
+            db.commit()
+
+            return json.dumps({
+                "success": True,
+                "assigned": True,
+                "statusCode": 1001,
+                "technician": tech,
+                "technicianName": row["fullname"],
+                "affected": n,
+                "message": f"Onarım '{row['fullname']}' teknisyenine atandı ({n} kayıt)."
+            }, ensure_ascii=False)
         except Exception as e:
             db.rollback()
             return json.dumps({"success": False, "message": str(e)}, ensure_ascii=False)
@@ -10245,6 +10535,144 @@ class WebBridge(QObject):
                 db.close()
         return self._cached_json("item_supply_statuses", 300, _compute)
 
+    # Depo teslimi yapabilen roller (yetkilendirme modülü kurulana kadar rol adına bakılır).
+    WAREHOUSE_ROLES = ("depo", "depo sorumlusu", "depo müdürü", "depo muduru")
+
+    def _is_warehouse_user(self, db, username):
+        """Kullanıcının depo rollerinden birine sahip olup olmadığını döner.
+        Admin/developer de depo işlemlerini yapabilir."""
+        from sqlalchemy import text
+        if not username:
+            return False
+        row = db.execute(text("SELECT role FROM warehouse.users WHERE username = :u"),
+                         {"u": username}).mappings().first()
+        if not row:
+            return False
+        role = (row["role"] or "").strip().lower()
+        return role in self.WAREHOUSE_ROLES or role in ("admin", "developer")
+
+    def _is_part_stock_tracked(self, db, item_code):
+        """Parçanın stok takibine tabi olup olmadığını döner.
+
+        Sıra: parts.stock_tracking_type -> (boşsa) part_categories.stock_tracking_type ->
+        (o da boşsa) varsayılan True. Yalnızca açıkça 'Stok Takipsiz' yazan parçalarda
+        stok hareketi oluşturulmaz - bu, kolon varsayılanı 'Stok Takipli' ile tutarlıdır."""
+        from sqlalchemy import text
+        code = (item_code or "").strip()
+        if not code:
+            return False
+        row = db.execute(text("""
+            SELECT COALESCE(NULLIF(TRIM(p.stock_tracking_type), ''),
+                            NULLIF(TRIM(pc.stock_tracking_type), '')) AS tt
+            FROM warehouse.parts p
+            LEFT JOIN warehouse.part_categories pc ON pc.id = p.part_category_id
+            WHERE p.item_code = :c
+            LIMIT 1
+        """), {"c": code}).mappings().first()
+        if not row or not row["tt"]:
+            return True
+        return "takipsiz" not in row["tt"].strip().lower()
+
+    @Slot(str, str, result=str)
+    def deliver_repair_part(self, repair_id, username):
+        """DEPOCUNUN TESLİM İŞLEMİ - Servis Onarımları ekranındaki 'Teslim Et' butonu.
+
+        Ön koşullar BACKEND'de doğrulanır (arayüzde butonu gizlemek güvenlik değildir):
+          - kayıt statüsü 1001 (Teknisyene Atandı) olmalı
+          - kayıtta eklenmiş bir parça (part_item_code) olmalı  <- 'eklenme parçası gerekli'
+          - daha önce teslim edilmemiş olmalı
+          - kullanıcı depo rollerinden birine (veya admin) sahip olmalı
+
+        Sonuç: supply_status_code = 'Stoktan Çıktı'. Stok hareketi (Good Stock -1 /
+        Repair Stock +1 + StockMovement) YALNIZCA parça 'Stok Takipli' ise oluşur;
+        takipsiz parçada sadece durum değişir.
+
+        Depocuda üretim mission'ı bulunmadığı için buradaki yetki kontrolü mission değil
+        ROL tabanlıdır - update_repair_supply_status'un mission kontrolü depocuyu bloke ederdi."""
+        from models.repair_record import RepairRecord
+        from models.stock import Stock
+        from sqlalchemy import text
+        import datetime
+        db = SessionLocal()
+        try:
+            if not self._is_warehouse_user(db, username):
+                return json.dumps({"success": False, "message": "Parça teslimi için depo yetkisi gerekiyor."}, ensure_ascii=False)
+
+            rec = db.query(RepairRecord).filter(RepairRecord.id == repair_id).first()
+            if not rec:
+                return json.dumps({"success": False, "message": "Onarım kaydı bulunamadı."}, ensure_ascii=False)
+
+            if int(rec.repair_result_type_code or 0) != 1001:
+                return json.dumps({"success": False, "message": "Yalnızca 'Teknisyene Atandı' (1001) statüsündeki kayıtlar teslim edilebilir."}, ensure_ascii=False)
+
+            if not (rec.part_item_code or "").strip():
+                return json.dumps({"success": False, "message": "Bu kayıtta eklenmiş bir parça yok. Parçayı teknisyen eklemelidir."}, ensure_ascii=False)
+
+            if rec.supply_status_code in ("Stoktan Çıktı", "TESLIMEDILDI", "Teslim Edildi"):
+                return json.dumps({"success": False, "message": "Bu parça zaten teslim edilmiş."}, ensure_ascii=False)
+
+            code = rec.part_item_code.strip()
+            tracked = self._is_part_stock_tracked(db, code)
+
+            rec.supply_status_code = "Stoktan Çıktı"
+            rec.supply_requested_by = (username or "").strip() or None
+            rec.supply_requested_at = datetime.datetime.utcnow()
+
+            moved = False
+            if tracked:
+                good_loc_id = _get_system_location_id(db, "good_stock")
+                repair_loc_id = _get_system_location_id(db, "repair_stock")
+                part_row = db.execute(text("SELECT id, name FROM warehouse.parts WHERE item_code = :c LIMIT 1"),
+                                      {"c": code}).mappings().first()
+                part_id = part_row["id"] if part_row else None
+
+                if not part_id:
+                    return json.dumps({"success": False, "message": f"Parça bulunamadı: {code}"}, ensure_ascii=False)
+
+                g_stock = db.query(Stock).filter(Stock.part_id == part_id, Stock.location_id == good_loc_id).first()
+                if not g_stock or (g_stock.quantity or 0) < 1:
+                    return json.dumps({"success": False, "message": f"'{part_row['name']}' ({code}) Good Stock'ta tükenmiş, teslim edilemez."}, ensure_ascii=False)
+
+                g_stock.quantity = max(0, (g_stock.quantity or 0) - 1)
+
+                r_stock = db.query(Stock).filter(Stock.part_id == part_id, Stock.location_id == repair_loc_id).first()
+                if r_stock:
+                    r_stock.quantity = (r_stock.quantity or 0) + 1
+                else:
+                    db.add(Stock(part_id=part_id, location_id=repair_loc_id, quantity=1))
+
+                from models.stock_movement import StockMovement
+                db.add(StockMovement(
+                    part_id=part_id,
+                    part_name_snapshot=part_row["name"],
+                    source_location_id=good_loc_id,
+                    target_location_id=repair_loc_id,
+                    quantity=1,
+                    type="İç Transfer",
+                    movement_kind="Transfer",
+                    created_by=(username or "system"),
+                    technician=rec.assigned_technician or None,
+                    description=f"Depo Teslim - Parça: {code} - RepairRecord ID: {repair_id}"
+                ))
+                moved = True
+
+            db.commit()
+            clear_api_cache()
+            return json.dumps({
+                "success": True,
+                "supplyStatusCode": "Stoktan Çıktı",
+                "stockTracked": tracked,
+                "stockMoved": moved,
+                "message": ("Parça teslim edildi, stok Repair Stock'a aktarıldı."
+                            if moved else
+                            "Parça teslim edildi. (Stok takipsiz parça - stok hareketi oluşturulmadı.)")
+            }, ensure_ascii=False)
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)}, ensure_ascii=False)
+        finally:
+            db.close()
+
     @Slot(str, str, str, result=str)
     def update_repair_supply_status(self, repair_id, supply_status_code, username):
         """Bir alt onarım kaydının Depo Durum'unu (supply_status_code, warehouse.item_supply_status.code)
@@ -10286,9 +10714,11 @@ class WebBridge(QObject):
             rec.supply_requested_by = (username or "").strip() or None
             rec.supply_requested_at = datetime.datetime.utcnow()
 
-            # Eger durum "Stoktan Çıktı" / "TESLIMEDILDI" yapıldıysa ve daha önce çıkarılmamışsa Good Stock'tan Repair Stock'a aktar
+            # Eger durum "Stoktan Çıktı" / "TESLIMEDILDI" yapıldıysa ve daha önce çıkarılmamışsa Good Stock'tan Repair Stock'a aktar.
+            # STOK TAKİBİ KURALI: stok hareketi YALNIZCA "Stok Takipli" parçalarda oluşur.
+            # Takipsiz parçada depo durumu yine değişir ama stok hiç düşmez (bkz. _is_part_stock_tracked).
             if supply_status_code in ["Stoktan Çıktı", "TESLIMEDILDI"] and previous_status not in ["Stoktan Çıktı", "TESLIMEDILDI"]:
-                if rec.part_item_code:
+                if rec.part_item_code and self._is_part_stock_tracked(db, rec.part_item_code):
                     # 1. Good Stock miktarını 1 düş
                     db.execute(text("""
                         UPDATE warehouse.stock s
@@ -10318,16 +10748,20 @@ class WebBridge(QObject):
                     try:
                         if part_id and good_loc_id and repair_loc_id:
                             from models.stock_movement import StockMovement
+                            # NOT: StockMovement'ta 'part_code' diye bir kolon yok (bkz.
+                            # models/stock_movement.py). Onu vermek TypeError firlatiyor,
+                            # asagidaki except bunu yutuyordu ve audit kaydi hic olusmuyordu.
+                            # Parca kodu artik part_name_snapshot + description'a yaziliyor.
                             mov = StockMovement(
                                 part_id=part_id,
-                                part_code=rec.part_item_code,
+                                part_name_snapshot=rec.part_item_code,
                                 source_location_id=good_loc_id,
                                 target_location_id=repair_loc_id,
                                 quantity=1,
                                 type="İç Transfer",
                                 movement_kind="Transfer",
                                 created_by=username or "system",
-                                description=f"Good Stock'tan Repair Stock'a Parça Teslimi - RepairRecord ID: {repair_id}"
+                                description=f"Good Stock'tan Repair Stock'a Parça Teslimi - Parça: {rec.part_item_code} - RepairRecord ID: {repair_id}"
                             )
                             db.add(mov)
                     except Exception as mov_err:
@@ -10532,6 +10966,13 @@ class WebBridge(QObject):
                 if be_row and be_row["service_id"]:
                     refs.append(str(be_row["service_id"]))
 
+                # TESLIM EDILMIS PARCALAR LISTEDE GORUNMEZ.
+                # Depo Durumu 'Stoktan Çıktı' (veya eski kayitlardaki 'Teslim Edildi')
+                # olan kayitlar haric tutulur - depocu ayni parcayi ikinci kez teslim
+                # etmeye calismasin, liste sadece BEKLEYEN isleri gostersin.
+                #
+                # Filtre parca koduna degil KAYDA uygulanir: ayni parca kodundan biri
+                # teslim edilmis, digeri bekliyorsa parca listede KALIR (bekleyen is var).
                 repair_part_rows = db.execute(text("""
                     SELECT DISTINCT rr.part_item_code
                     FROM warehouse.repair_records rr
@@ -10540,6 +10981,15 @@ class WebBridge(QObject):
                       AND (rrt.is_cancelled IS NOT TRUE)
                       AND rr.part_item_code IS NOT NULL
                       AND TRIM(rr.part_item_code) <> ''
+                      AND LOWER(TRIM(COALESCE(rr.supply_status_code, '')))
+                          NOT IN ('stoktan çıktı', 'teslim edildi', 'teslimedildi')
+                      -- TEKNISYENE ATANMAMIS KAYITLAR LISTEDE GORUNMEZ.
+                      -- Liste, deliver_part_to_device'in kabul ettigi kosullarla
+                      -- BIREBIR ayni olmali; yoksa depocu teslim edemeyecegi bir
+                      -- parcayi listede gorup butona basiyor ve hata aliyor.
+                      AND rr.repair_result_type_code = 1001
+                      AND rr.assigned_technician IS NOT NULL
+                      AND TRIM(rr.assigned_technician) <> ''
                 """), {"refs": refs}).fetchall()
                 added_part_codes = [r[0].strip() for r in repair_part_rows if r[0]]
 
@@ -10579,7 +11029,7 @@ class WebBridge(QObject):
                 ) team_map ON true
                 LEFT JOIN organization.mission_groups mg ON mg.code = team_map.bare_code
                 WHERE p.item_code = ANY(:codes)
-                ORDER BY 
+                ORDER BY
                     (
                         SELECT COALESCE(SUM(s.quantity), 0)
                         FROM warehouse.stock s
@@ -10656,34 +11106,68 @@ class WebBridge(QObject):
             if sr_row and sr_row["id"]:
                 refs.append(str(sr_row["id"]))
 
-            assigned_repair = db.execute(text("""
-                SELECT 1 FROM warehouse.repair_records
+            # Teslim edilecek TEK BIR bekleyen kayit secilir. Sartlar:
+            #   - statu 1001 (Teknisyene Atandi)
+            #   - assigned_technician DOLU  -> teknisyene atanmamis kayda teslim yapilmaz
+            #   - henuz teslim edilmemis    -> ayni parca ikinci kez teslim edilemez
+            # Guncelleme parca koduna gore degil BU KAYDIN ID'sine gore yapilir; yoksa
+            # ayni parca kodundan birden fazla kayit varsa hepsi birden isaretlenirdi.
+            pending = db.execute(text("""
+                SELECT id FROM warehouse.repair_records
                 WHERE service_record_id = ANY(:refs)
                   AND LOWER(TRIM(part_item_code)) = LOWER(TRIM(:code))
                   AND repair_result_type_code = 1001
+                  AND assigned_technician IS NOT NULL AND TRIM(assigned_technician) <> ''
+                  AND LOWER(TRIM(COALESCE(supply_status_code, '')))
+                      NOT IN ('stoktan çıktı', 'teslim edildi', 'teslimedildi')
+                ORDER BY created_at
                 LIMIT 1
-            """), {"refs": refs, "code": code}).first()
+            """), {"refs": refs, "code": code}).mappings().first()
 
-            completed_repair = db.execute(text("""
-                SELECT 1 FROM warehouse.repair_records
-                WHERE service_record_id = ANY(:refs)
-                  AND LOWER(TRIM(part_item_code)) = LOWER(TRIM(:code))
-                  AND (repair_result_type_code = 1002 OR LOWER(TRIM(supply_status_code)) IN ('teslim edildi', 'teslim', '1002', 'completed'))
-                LIMIT 1
-            """), {"refs": refs, "code": code}).first()
-
-            if not assigned_repair:
+            if not pending:
+                # Neden reddedildigini ayirt et - depocu ne yapmasi gerektigini bilsin.
+                zaten = db.execute(text("""
+                    SELECT 1 FROM warehouse.repair_records
+                    WHERE service_record_id = ANY(:refs)
+                      AND LOWER(TRIM(part_item_code)) = LOWER(TRIM(:code))
+                      AND LOWER(TRIM(COALESCE(supply_status_code, '')))
+                          IN ('stoktan çıktı', 'teslim edildi', 'teslimedildi')
+                    LIMIT 1
+                """), {"refs": refs, "code": code}).first()
+                if zaten:
+                    return json.dumps({
+                        "success": False,
+                        "message": "Bu parça zaten teslim edilmiş. Yeniden teslim için Servis Onarımları'ndan yeni bir onarım kaydı (parça) eklenmelidir."
+                    }, ensure_ascii=False)
                 return json.dumps({
                     "success": False,
-                    "message": "Parça teslimatı yapılamaz! Bu parça/onarım henüz teknisyene atanmamış (Statü '1001 - Teknisyene Atandı' olmalıdır)."
+                    "message": "Parça teslimatı yapılamaz! Bu parça/onarım henüz teknisyene atanmamış (Statü '1001 - Teknisyene Atandı' ve atanmış bir teknisyen olmalıdır)."
+                }, ensure_ascii=False)
+
+            pending_id = pending["id"]
+
+            # STOK TAKİBİ KURALI: stok hareketi yalnızca "Stok Takipli" parçalarda oluşur.
+            if not self._is_part_stock_tracked(db, code):
+                # Yalnizca secilen BEKLEYEN kayit isaretlenir (parca koduna gore toplu degil).
+                db.execute(text("""
+                    UPDATE warehouse.repair_records
+                    SET supply_status_code = 'Stoktan Çıktı', supply_requested_by = :user, supply_requested_at = NOW()
+                    WHERE id = :rid
+                """), {"rid": pending_id, "user": user})
+                db.commit()
+                return json.dumps({
+                    "success": True,
+                    "stockTracked": False,
+                    "stockMoved": False,
+                    "message": f"'{part_row['name']}' ({code}) teslim edildi. (Stok takipsiz parça - stok hareketi oluşturulmadı.)"
                 }, ensure_ascii=False)
 
             good_loc_id = _get_system_location_id(db, "good_stock")
             repair_loc_id = _get_system_location_id(db, "repair_stock")
 
             stock_row = db.execute(text("""
-                SELECT id, quantity FROM warehouse.stock 
-                WHERE part_id = :pid AND location_id = :loc_id 
+                SELECT id, quantity FROM warehouse.stock
+                WHERE part_id = :pid AND location_id = :loc_id
                 LIMIT 1
             """), {"pid": part_id, "loc_id": good_loc_id}).mappings().first()
 
@@ -10710,12 +11194,13 @@ class WebBridge(QObject):
                 from models.stock_movement import StockMovement
                 mov = StockMovement(
                     part_id=part_id,
+                    part_name_snapshot=part_row["name"],
                     source_location_id=good_loc_id,
                     target_location_id=repair_loc_id,
                     quantity=1,
                     type="İç Transfer",
                     movement_kind="PARCA_TESLIM",
-                    description=f"Parça Teslim - IMEI: {imei}",
+                    description=f"Parça Teslim - Parça: {code} - IMEI: {imei}",
                     created_by=user,
                     technician=user
                 )
@@ -10747,11 +11232,12 @@ class WebBridge(QObject):
                     if wo_row and wo_row["id"]:
                         refs.append(str(wo_row["id"]))
 
+                # Yalnizca secilen BEKLEYEN kayit isaretlenir (parca koduna gore toplu degil).
                 db.execute(text("""
                     UPDATE warehouse.repair_records
-                    SET supply_status_code = 'Teslim Edildi', supply_requested_by = :user, supply_requested_at = NOW()
-                    WHERE service_record_id = ANY(:refs) AND LOWER(TRIM(part_item_code)) = LOWER(TRIM(:code))
-                """), {"refs": refs, "code": code, "user": user})
+                    SET supply_status_code = 'Stoktan Çıktı', supply_requested_by = :user, supply_requested_at = NOW()
+                    WHERE id = :rid
+                """), {"rid": pending_id, "user": user})
 
             except Exception as mov_err:
                 print(f"[WARN] StockMovement / RepairRecord güncelleme hatası: {mov_err}")
