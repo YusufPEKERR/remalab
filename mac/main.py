@@ -158,7 +158,6 @@ class SettingsDialog(QDialog):
 
     def save_data(self):
         try:
-            # Ensure parent dir exists
             parent_dir = os.path.dirname(self.json_path)
             if parent_dir and not os.path.exists(parent_dir):
                 os.makedirs(parent_dir, exist_ok=True)
@@ -433,15 +432,12 @@ class WebAppWindow(QMainWindow):
         
         # Path resolution handling for PyInstaller .app bundle & standalone mode
         if getattr(sys, 'frozen', False):
-            # Running as bundled macOS .app (PyInstaller)
             bundle_dir = getattr(sys, '_MEIPASS', os.path.dirname(sys.executable))
             
-            # Application Support directory for persistent user sites.json
             user_config_dir = os.path.expanduser("~/Library/Application Support/ERPWebApp")
             os.makedirs(user_config_dir, exist_ok=True)
             self.sites_file = os.path.join(user_config_dir, "sites.json")
 
-            # Copy bundled initial sites.json if first run
             if not os.path.exists(self.sites_file):
                 bundled_sites = os.path.join(bundle_dir, "sites.json")
                 if os.path.exists(bundled_sites):
@@ -551,7 +547,6 @@ class WebAppWindow(QMainWindow):
         self.setWindowTitle("ERP Web App")
         self.resize(1280, 800)
 
-        # Varsayılan ikon ayarla (logo.png varsa yükle)
         self.update_app_icon_from_file()
 
         # Dark Theme CSS
@@ -801,6 +796,9 @@ class WebAppWindow(QMainWindow):
 
 
 def main():
+    # macOS QtWebEngine OpenGL Context Fix
+    QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
+    
     app = QApplication(sys.argv)
     app.setApplicationName("ERP Web App")
 
