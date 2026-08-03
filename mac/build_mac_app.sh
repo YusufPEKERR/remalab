@@ -27,15 +27,12 @@ python3 -m pip install PyQt6 PyQt6-WebEngine pyinstaller
 echo "🧹 Temizlik yapılıyor..."
 rm -rf build dist
 
-# PyInstaller ile .app bundle derle
+# PyInstaller ile .app bundle derle (PNG ikon çakışmasını önlemek için ikonu main.py içinde dinamik yüklüyoruz)
 echo "🚀 PyInstaller ile .app paketleniyor..."
 python3 -m PyInstaller --noconfirm \
             --onedir \
             --windowed \
             --name="ERP Web App" \
-            --icon="logo.png" \
-            --hidden-import="PyQt6.QtWebEngineWidgets" \
-            --hidden-import="PyQt6.QtWebEngineCore" \
             --add-data "sites.json:." \
             --add-data "logo.png:." \
             main.py
