@@ -3,6 +3,7 @@ import os
 import json
 import uuid
 import shutil
+import traceback
 import urllib.parse
 
 # macOS donanım ivmelendirmesi güvenli varsayılanları
@@ -775,27 +776,38 @@ class WebAppWindow(QMainWindow):
 
 def main():
     try:
-        QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
+        try:
+            QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
+        except Exception:
+            pass
+
+        app = QApplication(sys.argv)
+        app.setApplicationName("ERP Web App")
+
+        if getattr(sys, 'frozen', False):
+            bundle_dir = getattr(sys, '_MEIPASS', os.path.dirname(sys.executable))
+            logo_file = os.path.join(bundle_dir, "logo.png")
+        else:
+            app_dir = os.path.dirname(os.path.abspath(__file__))
+            logo_file = os.path.join(app_dir, "logo.png")
+
+        if os.path.exists(logo_file):
+            app.setWindowIcon(QIcon(logo_file))
+
+        window = WebAppWindow()
+        window.show()
+
+        sys.exit(app.exec())
     except Exception as e:
-        print(f"OpenGL Context attribute set warning: {e}")
-
-    app = QApplication(sys.argv)
-    app.setApplicationName("ERP Web App")
-
-    if getattr(sys, 'frozen', False):
-        bundle_dir = getattr(sys, '_MEIPASS', os.path.dirname(sys.executable))
-        logo_file = os.path.join(bundle_dir, "logo.png")
-    else:
-        app_dir = os.path.dirname(os.path.abspath(__file__))
-        logo_file = os.path.join(app_dir, "logo.png")
-
-    if os.path.exists(logo_file):
-        app.setWindowIcon(QIcon(logo_file))
-
-    window = WebAppWindow()
-    window.show()
-
-    sys.exit(app.exec())
+        error_msg = traceback.format_exc()
+        print(f"CRASH ERROR: {error_msg}")
+        try:
+            log_dir = os.path.expanduser("~/Library/Application Support/ERPWebApp")
+            os.makedirs(log_dir, exist_ok=True)
+            with open(os.path.join(log_dir, "crash.log"), "w", encoding="utf-8") as f:
+                f.write(error_msg)
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":

@@ -27,7 +27,7 @@ python3 -m pip install PyQt6 PyQt6-WebEngine pyinstaller
 echo "🧹 Temizlik yapılıyor..."
 rm -rf build dist
 
-# PyInstaller ile .app bundle derle (PNG ikon çakışmasını önlemek için ikonu main.py içinde dinamik yüklüyoruz)
+# PyInstaller ile .app bundle derle
 echo "🚀 PyInstaller ile .app paketleniyor..."
 python3 -m PyInstaller --noconfirm \
             --onedir \
@@ -38,6 +38,10 @@ python3 -m PyInstaller --noconfirm \
             main.py
 
 if [ -d "dist/ERP Web App.app" ]; then
+    echo "🔑 QtWebEngineProcess ve tüm iç kütüphanelere çalıştırıcı izinleri veriliyor..."
+    chmod -R 755 "dist/ERP Web App.app"
+    find "dist/ERP Web App.app" -type f -exec chmod +x {} +
+
     echo "=================================================="
     echo "✅ TEBRİKLER! .app Paketi Başarıyla Oluşturuldu!"
     echo "📍 Konum: $DIR/dist/ERP Web App.app"
