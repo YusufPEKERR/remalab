@@ -11,12 +11,21 @@ echo "=================================================="
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$DIR"
 
-# Intel x86_64 mimarisinde Python3 çalıştırma (A1708 ve tüm Intel Mac'ler için)
+# Intel x86_64 Homebrew / Python tespiti (A1708 MacBook Pro Uyumlu)
 PYTHON_CMD="python3"
-if command -v arch &> /dev/null && arch -x86_64 python3 -c "import sys" &> /dev/null; then
-    echo "🎯 Intel (x86_64) mimarisi aktif ediliyor (A1708 MacBook Pro Uyumlu)..."
-    PYTHON_CMD="arch -x86_64 python3"
+
+if [ -f "/usr/local/bin/python3" ]; then
+    echo "🎯 Intel (x86_64) Python3 tespit edildi: /usr/local/bin/python3"
+    PYTHON_CMD="/usr/local/bin/python3"
+elif [ -f "/usr/local/bin/brew" ]; then
+    echo "📦 Intel (x86_64) Homebrew üzerinden Intel Python kuruluyor..."
+    /usr/local/bin/brew install python@3.11 || true
+    if [ -f "/usr/local/bin/python3" ]; then
+        PYTHON_CMD="/usr/local/bin/python3"
+    fi
 fi
+
+echo "🚀 Kullanılan Python Mimarisi: $($PYTHON_CMD -c 'import platform; print(platform.machine())')"
 
 # Gerekli bağımlılıkları Intel x86_64 olarak yükle
 echo "📦 Intel (x86_64) bağımlılıkları yükleniyor..."
