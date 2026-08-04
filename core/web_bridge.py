@@ -12589,8 +12589,8 @@ class WebBridge(QObject):
                 rec = db.execute(text("""
                     SELECT id, part_item_code, service_record_id, supply_status_code
                     FROM warehouse.repair_records
-                    WHERE id = :rid
-                """), {"rid": int(rid_str)}).mappings().first()
+                    WHERE id::text = :rid
+                """), {"rid": rid_str}).mappings().first()
 
             if not rec:
                 return json.dumps({"success": False, "message": "Teslim edilmiş onarım kaydı bulunamadı."})
