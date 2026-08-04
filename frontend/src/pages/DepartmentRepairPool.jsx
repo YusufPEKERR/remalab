@@ -118,8 +118,8 @@ const DepartmentRepairPool = () => {
     }
   };
 
-  // Teknisyene atanacak (havuzda bekleyen) cihazlar (Sisteme giriş tarihine göre sıralı)
-  const unassignedItems = items.filter(item => !item.assignedTechnician && !item.isCancelled && !item.isSuccess);
+  // Tüm aktif (iptal edilmemiş ve tamamlanmamış) onarımlar
+  const poolItems = items.filter(item => !item.isCancelled && !item.isSuccess);
 
   return (
     <div className="p-6 space-y-6 max-w-[1600px] mx-auto">
@@ -275,15 +275,15 @@ const DepartmentRepairPool = () => {
         </div>
       </div>
 
-      {/* ── 2. BEKLEYEN ONARIM HAVUZU (SİSTEME GİRİŞ TARİHİ SIRASINA GÖRE) ── */}
+      {/* ── 2. DEPARTMAN ONARIM HAVUZU LİSTESİ ── */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
             <Clock size={16} className="text-amber-500" />
-            Teknisyene Atanacak Onarımlar (Giriş Tarihi Sırasıyla En Eskiden En Yeniye)
+            Departman Onarım Havuzu (Giriş Tarihi Sırasıyla En Eskiden En Yeniye)
           </h2>
           <span className="text-xs font-semibold text-slate-500">
-            Toplam {unassignedItems.length} bekleyen cihaz
+            Toplam {poolItems.length} cihaz
           </span>
         </div>
 
@@ -297,25 +297,26 @@ const DepartmentRepairPool = () => {
                   <th className="px-4 py-3">Müşteri / Parti</th>
                   <th className="px-4 py-3">Tespit Edilen Arıza</th>
                   <th className="px-4 py-3">İşlem / Parça</th>
+                  <th className="px-4 py-3">Atanan Teknisyen</th>
                   <th className="px-4 py-3">Statü</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-[#1e222d] text-xs">
                 {loading ? (
                   <tr>
-                    <td colSpan="6" className="px-4 py-12 text-center text-slate-400">
+                    <td colSpan="7" className="px-4 py-12 text-center text-slate-400">
                       <RefreshCw className="animate-spin mx-auto mb-2 text-blue-500" size={20} />
                       Havuz verileri yükleniyor...
                     </td>
                   </tr>
-                ) : unassignedItems.length === 0 ? (
+                ) : poolItems.length === 0 ? (
                   <tr>
-                    <td colSpan="6" className="px-4 py-12 text-center text-slate-400 dark:text-slate-600 italic">
-                      Atanmayı bekleyen yeni onarım kaydı bulunmuyor. Tüm cihazlar teknisyenlere dağıtıldı!
+                    <td colSpan="7" className="px-4 py-12 text-center text-slate-400 dark:text-slate-600 italic">
+                      Bu departmanda henüz kayıtlı onarım bulunmuyor.
                     </td>
                   </tr>
                 ) : (
-                  unassignedItems.map((item, idx) => (
+                  poolItems.map((item, idx) => (
                     <tr
                       key={item.repairId}
                       className="hover:bg-slate-50/80 dark:hover:bg-[#171a26]/50 transition-colors"
@@ -326,8 +327,8 @@ const DepartmentRepairPool = () => {
                           <span className="w-6 h-6 rounded-full bg-slate-100 dark:bg-[#1a1d27] text-slate-600 dark:text-slate-400 font-bold text-[11px] flex items-center justify-center">
                             #{idx + 1}
                           </span>
-                          <span className="text-slate-500 dark:text-slate-400 text-[11px]">
-                            {item.createdAt}
+                          <span className="text-slate-500 dark:text-slate-400 text-[11px]" title={`Oluşturulma: ${item.createdAt}`}>
+                            {item.updatedAt || item.createdAt}
                           </span>
                         </div>
                       </td>
@@ -377,12 +378,41 @@ const DepartmentRepairPool = () => {
                         )}
                       </td>
 
+                      {/* Atanan Teknisyen */}
+                      <td className="px-4 py-3.5">
+                        {item.assignedTechnician ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                            <User size={12} />
+                            {item.assignedTechnicianName || item.assignedTechnician}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium text-slate-400 bg-slate-100 dark:bg-[#1a1d27]">
+                            Atanacak (Bekliyor)
+                          </span>
+                        )}
+                      </td>
+
                       {/* Statü */}
                       <td className="px-4 py-3.5">
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-                          <Clock size={12} />
-                          {item.statusName || 'Teknisyene Atanacak'}
-                        </span>
+                        {item.isSuccess || Number(item.statusCode) === 1002 ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/20">
+                            <CheckCircle2 size={12} />
+                            Tamamlandı (1002)
+                          </span>
+                        ) : item.isCancelled || Number(item.statusCode) === 1003 ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20">
+                            İptal Edildi (1003)
+                          </span>
+                        ) : item.assignedTechnician ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                            Atandı / Onarımda (1001)
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                            <Clock size={12} />
+                            Teknisyene Atanacak (1000)
+                          </span>
+                        )}
                       </td>
                     </tr>
                   ))

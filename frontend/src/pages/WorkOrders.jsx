@@ -322,34 +322,55 @@ export default function WorkOrders() {
 
   const fetchOrders = async () => {
     setOrdersLoading(true);
-    const res = await api.getWorkOrders();
-    if (res.success) setOrders(res.work_orders || []);
-    setOrdersLoading(false);
+    try {
+      const res = await api.getWorkOrders();
+      if (res && res.success) setOrders(Array.isArray(res.work_orders) ? res.work_orders : []);
+      else setOrders([]);
+    } catch (e) {
+      console.error("fetchOrders error:", e);
+      setOrders([]);
+    } finally {
+      setOrdersLoading(false);
+    }
   };
 
   const fetchProductionRuns = async () => {
     setProductionLoading(true);
-    const res = await api.getProductionRuns();
-    if (res.success) setProductionRuns(res.production_runs || []);
-    setProductionLoading(false);
+    try {
+      const res = await api.getProductionRuns();
+      if (res && res.success) setProductionRuns(Array.isArray(res.production_runs) ? res.production_runs : []);
+      else setProductionRuns([]);
+    } catch (e) {
+      console.error("fetchProductionRuns error:", e);
+      setProductionRuns([]);
+    } finally {
+      setProductionLoading(false);
+    }
   };
 
   const fetchItemBoms = async () => {
     setBomsLoading(true);
-    const res = await api.getItemBOMs();
-    if (res.success) setItemBoms(res.item_boms || []);
-    setBomsLoading(false);
+    try {
+      const res = await api.getItemBOMs();
+      if (res && res.success) setItemBoms(Array.isArray(res.item_boms) ? res.item_boms : []);
+      else setItemBoms([]);
+    } catch (e) {
+      console.error("fetchItemBoms error:", e);
+      setItemBoms([]);
+    } finally {
+      setBomsLoading(false);
+    }
   };
 
   useEffect(() => {
     fetchOrders();
     fetchProductionRuns();
     fetchItemBoms();
-    api.getServiceRecords().then(res => { if (res.success) setServiceRecords(res.records || []); });
-    api.getUsers().then(res => { if (res.success) setUsers(res.users || []); });
-    api.getParts().then(res => { if (res.success) setParts(res.parts || []); });
-    api.getStockStatus().then(res => { if (res.success) setStockStatus(res.stock || []); });
-    api.getSystemLocations().then(res => { if (res.success) setSystemLocations(res.locations || []); });
+    api.getServiceRecords().then(res => { if (res && res.success) setServiceRecords(Array.isArray(res.records) ? res.records : []); }).catch(() => setServiceRecords([]));
+    api.getUsers().then(res => { if (res && res.success) setUsers(Array.isArray(res.users) ? res.users : []); }).catch(() => setUsers([]));
+    api.getParts().then(res => { if (res && res.success) setParts(Array.isArray(res.parts) ? res.parts : []); }).catch(() => setParts([]));
+    api.getStockStatus().then(res => { if (res && res.success) setStockStatus(Array.isArray(res.stock) ? res.stock : []); }).catch(() => setStockStatus([]));
+    api.getSystemLocations().then(res => { if (res && res.success) setSystemLocations(Array.isArray(res.locations) ? res.locations : []); }).catch(() => setSystemLocations([]));
   }, []);
 
   const getSystemLocationId = (kind) => {
@@ -1081,7 +1102,7 @@ export default function WorkOrders() {
 
   // ===================== Production Work Order handlers =====================
 
-  const productionWorkOrders = orders.filter(o => o.work_order_type === 'PRODUCTION');
+  const productionWorkOrders = (Array.isArray(orders) ? orders : []).filter(o => o && o.work_order_type === 'PRODUCTION');
   const selectedProductionOrder = productionWorkOrders.find(o => String(o.id) === String(selectedProductionOrderId)) || null;
 
   const totalProdWOPages = Math.ceil(productionWorkOrders.length / prodWOItemsPerPage) || 1;
@@ -1231,10 +1252,12 @@ export default function WorkOrders() {
 
   const materialConsumption = () => {
     const map = new Map();
-    productionRuns.forEach(run => {
-      (run.materials || []).forEach(m => {
+    (Array.isArray(productionRuns) ? productionRuns : []).forEach(run => {
+      if (!run) return;
+      (Array.isArray(run.materials) ? run.materials : []).forEach(m => {
+        if (!m) return;
         const key = m.part_id;
-        const prev = map.get(key) || { part_name: m.part_name, item_code: m.item_code, total: 0, runCount: 0 };
+        const prev = map.get(key) || { part_name: m.part_name || '-', item_code: m.item_code || '-', total: 0, runCount: 0 };
         prev.total += Number(m.quantity_consumed) || 0;
         prev.runCount += 1;
         map.set(key, prev);

@@ -129,6 +129,7 @@ def init_database_schema():
     from models.test_result_fault import TestResultFault
     from models.phonecheck_test_result import PhonecheckTestResult
     from models.service_repair import ServiceRepair
+    from models.batch_entry_statu_history import BatchEntryStatuHistory
 
     from models.warehouse import Warehouse
     from models.customer import Customer

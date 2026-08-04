@@ -60,5 +60,6 @@ def main():
     print("RemaLab WMS (React + QWebChannel) started successfully!")
     sys.exit(app.exec())
 
+
 if __name__ == "__main__":
     main()

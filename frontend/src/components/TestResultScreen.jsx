@@ -41,6 +41,8 @@ export default function TestResultScreen({
   const [successLoading, setSuccessLoading] = useState(false);
   const [failLoading, setFailLoading] = useState(false);
   const [notification, setNotification] = useState(null);
+  // "Test Başarılı" onayından SONRA gösterilen PhoneCheck test bilgisi. { imei, data } | null
+  const [successPcInfo, setSuccessPcInfo] = useState(null);
   const successInputRef = useRef(null);
 
   const selectedFaultLabels = useMemo(() => {
@@ -83,6 +85,7 @@ export default function TestResultScreen({
     e.preventDefault();
     if (!successImei.trim()) return;
     setSuccessLoading(true);
+    setSuccessPcInfo(null);
     try {
       const scanData = await resolveEntry(successImei);
       const res = await api.submitTestResult(
@@ -90,6 +93,17 @@ export default function TestResultScreen({
       );
       if (res.success) {
         showNotification('success', res.message);
+        // IMEI onaylandıktan (Test Başarılı) SONRA, cihazın PhoneCheck test verisini göster.
+        // Kaynak: kayıtlı phonecheck_test_results, yoksa canlı PhoneCheck fallback.
+        try {
+          const pc = await api.getPhonecheckStoredByImei(scanData.imei);
+          setSuccessPcInfo({
+            imei: scanData.imei,
+            data: (pc && pc.success && pc.found && pc.data) ? pc.data : null,
+          });
+        } catch (_e) {
+          setSuccessPcInfo({ imei: scanData.imei, data: null });
+        }
       } else {
         showNotification('error', res.message);
       }
@@ -191,6 +205,29 @@ export default function TestResultScreen({
               <CheckCircle size={16} /> {successLoading ? 'İşleniyor...' : 'Test Başarılı'}
             </button>
           </form>
+
+          {/* Onaydan SONRA gösterilen PhoneCheck test bilgisi (Son teste kabulde artık çekilmiyor). */}
+          {successPcInfo && (
+            <div className="px-6 pb-6">
+              <div className="rounded-xl border border-[#DCE1F1] dark:border-[#2e3545] bg-[#FFFFFF] dark:bg-[#181a24] p-4 space-y-2">
+                <div className="flex items-center gap-1.5 text-[10px] font-bold text-[#5A6685] dark:text-[#8892B5] uppercase tracking-wider">
+                  <ClipboardCheck size={12} /> PhoneCheck Test Bilgisi · <span className="font-mono normal-case">{successPcInfo.imei}</span>
+                </div>
+                {successPcInfo.data ? (
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px] text-[#12141c] dark:text-[#F6F8FF]">
+                    <div><span className="text-[#5A6685] dark:text-[#8892B5]">Grade:</span> {successPcInfo.data.grade || '-'}</div>
+                    <div><span className="text-[#5A6685] dark:text-[#8892B5]">Çalışıyor:</span> {successPcInfo.data.working || '-'}</div>
+                    <div className="col-span-2"><span className="text-[#5A6685] dark:text-[#8892B5]">Arıza (Failed):</span> {successPcInfo.data.failed || '-'}</div>
+                    <div><span className="text-[#5A6685] dark:text-[#8892B5]">Batarya Sağlık:</span> {successPcInfo.data.battery_health_percentage != null ? `%${successPcInfo.data.battery_health_percentage}` : '-'}</div>
+                    <div><span className="text-[#5A6685] dark:text-[#8892B5]">Batarya Döngü:</span> {successPcInfo.data.battery_cycle != null ? successPcInfo.data.battery_cycle : '-'}</div>
+                    <div className="col-span-2"><span className="text-[#5A6685] dark:text-[#8892B5]">Notes:</span> {successPcInfo.data.notes || '-'}</div>
+                  </div>
+                ) : (
+                  <p className="text-[11px] italic text-[#5A6685] dark:text-[#8892B5]">Bu cihaz için PhoneCheck test kaydı bulunamadı.</p>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Test Başarısız */}

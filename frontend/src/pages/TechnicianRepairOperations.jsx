@@ -899,12 +899,16 @@ const TechnicianRepairOperations = () => {
       if (!map.has(key)) map.set(key, { key, missionGroup: r.missionGroup, items: [] });
       map.get(key).items.push(r);
     }
-    return Array.from(map.values()).map(g => ({
-      ...g,
-      // Grup satırında/sekmesinde gösterilecek temsilci kayıt: aktif (iptal edilmemiş)
-      // olan varsa o, hepsi iptal edildiyse en sonuncusu.
-      active: g.items.find(r => !r.isCancelled) || g.items[g.items.length - 1],
-    }));
+    return Array.from(map.values()).map(g => {
+      const activeItem = g.items.find(r => !r.isCancelled && (r.technician || r.assignedTechnicianName || r.assignedTechnician)) ||
+                         g.items.find(r => !r.isCancelled) || 
+                         g.items[g.items.length - 1];
+      const techName = g.items.map(r => r.technician || r.assignedTechnicianName || r.assignedTechnician).find(Boolean) || "";
+      return {
+        ...g,
+        active: { ...activeItem, technician: techName || activeItem?.technician || "" }
+      };
+    });
   }, [repairs]);
 
   // ── Selected repair group ────────────────────────────────────

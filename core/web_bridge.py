@@ -223,6 +223,7 @@ class WebBridge(QObject):
         self._ensure_material_requests_table()
         self._ensure_production_tables()
         self._ensure_work_order_parts_table()
+        self._ensure_statu_history_table()
         self._ensure_location_kind_column()
         self._ensure_system_locations()
         self._ensure_part_category_columns()
@@ -908,6 +909,51 @@ class WebBridge(QObject):
             print(f"[WebBridge] work_order_parts tablosu oluşturulamadı: {e}")
         finally:
             db.close()
+
+    def _ensure_statu_history_table(self):
+        """warehouse.batch_entry_statu_history tablosunu yoksa oluşturur. Cihazın her
+        statü geçişini kalıcı loglar (bkz. models/batch_entry_statu_history.py ve
+        get_status_history_by_imei)."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            db.execute(text("""
+                CREATE TABLE IF NOT EXISTS warehouse.batch_entry_statu_history (
+                    id SERIAL PRIMARY KEY,
+                    batch_entry_id INTEGER,
+                    imei VARCHAR(100),
+                    old_statu_code INTEGER,
+                    new_statu_code INTEGER NOT NULL,
+                    staff_name VARCHAR(100),
+                    note TEXT,
+                    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+                );
+            """))
+            db.execute(text("CREATE INDEX IF NOT EXISTS idx_beh_batch_entry_id ON warehouse.batch_entry_statu_history(batch_entry_id);"))
+            db.execute(text("CREATE INDEX IF NOT EXISTS idx_beh_imei ON warehouse.batch_entry_statu_history(imei);"))
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            print(f"[WebBridge] batch_entry_statu_history tablosu oluşturulamadı: {e}")
+        finally:
+            db.close()
+
+    def _record_statu_change(self, db, entry_id, imei, old_code, new_code, staff=None, note=None):
+        """Bir statü geçişini history tablosuna ekler (COMMIT ETMEZ — çağıran commit eder,
+        böylece geçişle aynı transaction'da atomik kalır). Log yazımı asla asıl işlemi
+        bozmamalı; hata olursa sessizce yutulur."""
+        try:
+            from models.batch_entry_statu_history import BatchEntryStatuHistory
+            db.add(BatchEntryStatuHistory(
+                batch_entry_id=int(entry_id) if entry_id is not None else None,
+                imei=(imei or None),
+                old_statu_code=(int(old_code) if old_code is not None else None),
+                new_statu_code=int(new_code),
+                staff_name=(staff or None),
+                note=(note or None),
+            ))
+        except Exception as e:
+            print(f"[WebBridge] statü geçmişi log yazılamadı: {e}")
 
     def _ensure_service_records_table(self):
         """warehouse.service_records tablosu yoksa oluşturur."""
@@ -8913,6 +8959,11 @@ class WebBridge(QObject):
 
             entry.statu_code = result["new_statu_code"]
             entry.is_success = (test_result_code == "Pass1")
+            self._record_statu_change(
+                db, entry.id, entry.imei_number, old_statu_code, entry.statu_code,
+                staff=getattr(entry, "created_by", None),
+                note=f"Test sonucu ({test_result_code}) — {result.get('message') or ''}".strip(),
+            )
             db.commit()
             clear_api_cache()
 
@@ -9124,11 +9175,17 @@ class WebBridge(QObject):
 
     @Slot(str, result=str)
     def get_status_history_by_imei(self, term):
-        """Depo > Servis ekranindaki Durum sekmesi icin: batch_entries'te gercekten
-        tutulan iki zaman noktasindan (kayit olusturulma + son durum guncellemesi)
-        bir gecmis listesi uretir. Ayri bir durum-degisiklik log tablosu olmadigi
-        icin ara adimlar (araya giren statuler) burada YOK, sadece bu iki gercek nokta var."""
+        """Depo > Servis ekranindaki Durum sekmesi icin cihazin EKSIKSIZ statu gecmisini uretir.
+        Uc kaynak birlestirilir:
+          1) batch_entry_statu_history — her gecisin kalici logu (bundan sonraki gecisler tam).
+          2) phonecheck_test_results — test_stage 'AAA_BBB' formatindan gecmis geriye donuk
+             yeniden kurulur (log tablosu olmadan once yapilmis gecisler icin).
+          3) Kayit (100) + guncel statu — her zaman iki uc nokta olarak eklenir.
+        Ayni statu+dakika birden fazla kaynaktan gelirse tekillestirilir (log > phonecheck >
+        sentetik oncelik sirasiyla). Sonuc en yeni ustte olacak sekilde siralanir."""
         from models.service_statu import ServiceStatu
+        from models.batch_entry_statu_history import BatchEntryStatuHistory
+        from models.phonecheck_test_result import PhonecheckTestResult
         db = SessionLocal()
         try:
             term = (term or "").strip()
@@ -9139,34 +9196,71 @@ class WebBridge(QObject):
             if not entry:
                 return json.dumps({"success": False, "message": f"'{term}' için kayıtlı bir cihaz bulunamadı."})
 
-            statu = db.query(ServiceStatu).filter_by(code=entry.statu_code).first()
-            statu_name = statu.short_name if statu else str(entry.statu_code)
-            # Statü adı kullanıcıya Türkçe gösterilir (bkz. statu_label_tr / SERVICE_STATU_TR).
-            current_statu_label = statu_label_tr(entry.statu_code, statu_name)
-
-            # Kayıt oluşturulurken cihaz başlangıç statüsündedir (batch_entries varsayılanı 100).
-            creation_statu = db.query(ServiceStatu).filter_by(code=100).first()
-            creation_statu_label = statu_label_tr(100, creation_statu.short_name if creation_statu else None)
+            # Statü etiketi (Türkçe) — tekrar sorguyu önlemek için cache'lenir.
+            _label_cache = {}
+            def label(code):
+                if code is None:
+                    return ""
+                if code not in _label_cache:
+                    s = db.query(ServiceStatu).filter_by(code=code).first()
+                    _label_cache[code] = statu_label_tr(code, s.short_name if s else None)
+                return _label_cache[code]
 
             def fmt(dt):
                 return dt.strftime("%Y-%m-%d %H:%M") if dt else ""
 
-            items = []
+            # (öncelik, dt, kod, staff, text) topla; öncelik yüksek olan tekilleştirmede kazanır.
+            events = []
+
+            # 1) Kalıcı geçiş logu (en güvenilir kaynak)
+            lookup_imei = (entry.imei_number or entry.serial_number or term).strip()
+            log_rows = (db.query(BatchEntryStatuHistory)
+                        .filter((BatchEntryStatuHistory.batch_entry_id == entry.id)
+                                | (BatchEntryStatuHistory.imei == lookup_imei))
+                        .all())
+            for r in log_rows:
+                events.append((3, r.created_at, r.new_statu_code, r.staff_name or "",
+                               r.note or f"{label(r.old_statu_code)} → {label(r.new_statu_code)}"))
+
+            # 2) Phonecheck test adımlarından geriye dönük yeniden kurma.
+            #    test_stage 'AAA_BBB' => cihaz o anda BBB statüsüne geçmiştir.
+            pc_rows = (db.query(PhonecheckTestResult)
+                       .filter(PhonecheckTestResult.imei == lookup_imei)
+                       .all())
+            for r in pc_rows:
+                stage = (r.test_stage or "").strip()
+                parts = stage.split("_")
+                if len(parts) == 2 and parts[1].isdigit():
+                    new_code = int(parts[1])
+                    src = label(int(parts[0])) if parts[0].isdigit() else parts[0]
+                    events.append((2, r.fetched_at, new_code, getattr(r, "manual_entered_by", "") or "",
+                                   f"Test adımı: {src} → {label(new_code)}"))
+
+            # 3) Uç noktalar: güncel statü + kayıt (100). Log/phonecheck boşsa da her zaman görünür.
             last_update = entry.statu_update_time or entry.updated_at
-            if last_update:
-                items.append({
-                    "date": fmt(last_update),
-                    "staffName": "",
-                    "statu": current_statu_label,
-                    "text": f"Güncel durum: {current_statu_label}",
-                })
-            if entry.created_at:
-                items.append({
-                    "date": fmt(entry.created_at),
-                    "staffName": entry.created_by or "",
-                    "statu": creation_statu_label,
-                    "text": "Parti/cihaz sisteme kaydedildi.",
-                })
+            events.append((1, last_update, entry.statu_code, "",
+                           f"Güncel durum: {label(entry.statu_code)}"))
+            events.append((0, entry.created_at, 100, entry.created_by or "",
+                           "Parti/cihaz sisteme kaydedildi."))
+
+            # Tekilleştir: aynı (statü kodu, dakika) için en yüksek öncelikli olayı tut.
+            best = {}
+            for prio, dt, code, staff, text in events:
+                if code is None:
+                    continue
+                key = (code, fmt(dt))
+                if key not in best or prio > best[key][0]:
+                    best[key] = (prio, dt, code, staff, text)
+
+            # En yeni üstte: tarih string'ine (YYYY-MM-DD HH:MM, leksikografik = kronolojik) göre azalan.
+            ordered = sorted(best.values(), key=lambda e: fmt(e[1]), reverse=True)
+
+            items = [{
+                "date": fmt(dt),
+                "staffName": staff,
+                "statu": label(code),
+                "text": text,
+            } for (_prio, dt, code, staff, text) in ordered]
 
             return json.dumps({"success": True, "items": items})
         except Exception as e:
@@ -9457,6 +9551,11 @@ class WebBridge(QObject):
             new_name = statu_name(target_statu_code)
 
             entry.statu_code = target_statu_code
+            self._record_statu_change(
+                db, entry.id, entry.imei_number, current_statu_code, target_statu_code,
+                staff=getattr(entry, "created_by", None),
+                note=f"{old_name} ({current_statu_code}) → {new_name} ({target_statu_code})",
+            )
             db.commit()
 
             return json.dumps({
@@ -9601,6 +9700,11 @@ class WebBridge(QObject):
             new_name = statu_name(target_statu_code)
 
             entry.statu_code = target_statu_code
+            self._record_statu_change(
+                db, entry.id, entry.imei_number, current_statu_code, target_statu_code,
+                staff=getattr(entry, "created_by", None),
+                note=f"{old_name} ({current_statu_code}) → {new_name} ({target_statu_code})",
+            )
             db.commit()
 
             return json.dumps({
@@ -9892,7 +9996,7 @@ class WebBridge(QObject):
                        fault.short_name AS fault_name,
                        opt.short_name AS operation_type_name,
                        sup.short_name AS supply_status_name,
-                       COALESCE(NULLIF(TRIM(au.fullname), ''), rr.assigned_technician) AS assigned_technician_name
+                       COALESCE(NULLIF(TRIM(au.fullname), ''), rr.assigned_technician, rr.supply_requested_by) AS assigned_technician_name
                 FROM warehouse.repair_records rr
                 LEFT JOIN warehouse.repair_result_type rrt ON rrt.code = rr.repair_result_type_code
                 LEFT JOIN organization.mission_groups mg ON mg.code = rr.department_mission
@@ -9901,8 +10005,9 @@ class WebBridge(QObject):
                 LEFT JOIN warehouse.item_fault fault ON fault.code = rr.item_fault_code
                 LEFT JOIN warehouse.repair_item_operation_type opt ON opt.code = rr.operation_type_code
                 LEFT JOIN warehouse.item_supply_status sup ON sup.code = rr.supply_status_code
-                LEFT JOIN warehouse.users au ON au.username = rr.assigned_technician
+                LEFT JOIN warehouse.users au ON (au.username = rr.assigned_technician OR au.username = rr.supply_requested_by)
                 WHERE rr.service_record_id = ANY(:refs)
+                   OR LOWER(TRIM(rr.service_record_id)) = LOWER(:term)
                    OR EXISTS (
                        SELECT 1 FROM warehouse.batch_entries be
                        WHERE (be.service_id IS NOT NULL AND strpos(rr.service_record_id, be.service_id::text) > 0)
@@ -10070,22 +10175,13 @@ class WebBridge(QObject):
             if not tech_user:
                 return json.dumps({"success": False, "message": f"'{tech}' kullanıcısı bulunamadı."})
 
-            # İlgili departmanda bu IMEI'ye ait onarım kaydını bul.
-            #
-            # DIKKAT - kapali kayitlar HARIC tutulur (1002 Tamamlandi, 1003 Iptal).
-            # Bu filtre eskiden YOKTU: sorgu sadece "en eski kayit" aliyordu. Ayni cihazda
-            # birden fazla onarim kaydi olan durumlarda (canli veride CASE/ac21ce5b'de 16,
-            # BATTERY'de 6 kayit var ve en eskisi 1002) IMEI okutuldugunda TAMAMLANMIS ya da
-            # IPTAL EDILMIS bir kayit yeniden 1001'e cekiliyor, gercekten bekleyen 1000
-            # kaydi ise havuzda kaliyordu. Ekranda "atandi" yaziyor ama liste degismiyordu.
-            #
-            # Siralama: once gercekten bekleyen (1000), sonra devredilebilir olanlar,
-            # esitlikte en eski kayit. Boylece okutma her zaman dogru kaydi yakalar.
-            repair = db.execute(text("""
-                SELECT rr.id, rr.repair_result_type_code, rr.service_record_id
+            # İlgili departmanda bu IMEI'ye ait TÜM açık onarım kayıtlarını bul ve hepsini TEK teknisyene ata.
+            # (Aynı IMEI ve aynı departman için iki farklı teknisyen ataması oluşması engellenir).
+            repairs = db.execute(text("""
+                SELECT rr.id, rr.repair_result_type_code, rr.service_record_id, rr.assigned_technician, rr.supply_requested_by
                 FROM warehouse.repair_records rr
                 WHERE UPPER(TRIM(rr.department_mission)) = :dept
-                  AND rr.repair_result_type_code NOT IN (1002, 1003)
+                  AND COALESCE(rr.repair_result_type_code, 0) NOT IN (1002, 1003)
                   AND (
                     LOWER(TRIM(rr.service_record_id)) = LOWER(:term) OR
                     EXISTS (
@@ -10094,12 +10190,9 @@ class WebBridge(QObject):
                           AND (LOWER(TRIM(be.imei_number)) = LOWER(:term) OR LOWER(TRIM(be.serial_number)) = LOWER(:term) OR LOWER(TRIM(be.internal_id)) = LOWER(:term))
                     )
                   )
-                ORDER BY (rr.repair_result_type_code = 1000) DESC, rr.created_at ASC
-                LIMIT 1
-            """), {"dept": dept, "term": term}).mappings().first()
+            """), {"dept": dept, "term": term}).mappings().all()
 
-            if not repair:
-                # Kayit gercekten yok mu, yoksa hepsi kapali mi? Ikisi ayri sebep, mesaj da ayri olmali.
+            if not repairs:
                 kapali = db.execute(text("""
                     SELECT COUNT(*) FROM warehouse.repair_records rr
                     WHERE UPPER(TRIM(rr.department_mission)) = :dept
@@ -10115,25 +10208,28 @@ class WebBridge(QObject):
                 """), {"dept": dept, "term": term}).scalar() or 0
                 if kapali:
                     return json.dumps({"success": False, "message":
-                        f"'{term}' cihazının {dept} departmanındaki {kapali} onarım kaydının tamamı "
-                        f"kapalı (tamamlandı veya iptal edildi). Atanabilecek açık kayıt yok."},
+                        f"'{term}' cihazının {dept} departmanındaki {kapali} onarım kaydının tamamı kapalı."},
                         ensure_ascii=False)
                 return json.dumps({"success": False, "message": f"'{term}' IMEI/cihazı için {dept} departmanında onarım kaydı bulunamadı."}, ensure_ascii=False)
 
-            # Statüyü Teknisyene Atandı (1001) yap ve notes / supply_requested_by alanına teknisyeni işle
+            r_ids = [r["id"] for r in repairs]
+
+            # Statüyü Teknisyene Atandı (1001) yap ve tüm açık satırların teknisyen alanlarını güncelle
             db.execute(text("""
                 UPDATE warehouse.repair_records
                 SET repair_result_type_code = 1001,
                     supply_requested_by = :tech,
+                    assigned_technician = :tech,
+                    assigned_at = NOW(),
                     updated_at = NOW()
-                WHERE id = :rid
-            """), {"tech": tech, "rid": repair["id"]})
+                WHERE id = ANY(:rids)
+            """), {"tech": tech, "rids": r_ids})
             db.commit()
 
             tech_name = tech_user["fullname"] or tech_user["username"]
             return json.dumps({
                 "success": True,
-                "message": f"Onarım kaydı başarıyla {tech_name} üzerine atandı (1001).",
+                "message": f"'{term}' cihazının {dept} onarımı {tech_name} üzerine atandı ({len(r_ids)} kayıt).",
                 "assignedTo": tech,
                 "assignedToName": tech_name
             }, ensure_ascii=False)
@@ -10174,8 +10270,8 @@ class WebBridge(QObject):
                     fault.short_name AS fault_name,
                     rr.supply_status_code,
                     sup.short_name AS supply_status_name,
-                    rr.supply_requested_by AS assigned_technician,
-                    u.fullname AS assigned_technician_name,
+                    COALESCE(rr.assigned_technician, rr.supply_requested_by) AS assigned_technician,
+                    COALESCE(NULLIF(TRIM(u.fullname), ''), rr.assigned_technician, rr.supply_requested_by) AS assigned_technician_name,
                     rr.notes,
                     rr.created_at,
                     rr.updated_at,
@@ -10194,7 +10290,7 @@ class WebBridge(QObject):
                 LEFT JOIN warehouse.item_fault fault ON fault.code = rr.item_fault_code
                 LEFT JOIN warehouse.repair_item_operation_type opt ON opt.code = rr.operation_type_code
                 LEFT JOIN warehouse.item_supply_status sup ON sup.code = rr.supply_status_code
-                LEFT JOIN warehouse.users u ON u.username = rr.supply_requested_by
+                LEFT JOIN warehouse.users u ON (u.username = rr.assigned_technician OR u.username = rr.supply_requested_by)
                 LEFT JOIN warehouse.batch_entries be ON LOWER(TRIM(be.imei_number)) = LOWER(TRIM(rr.service_record_id))
                     OR LOWER(TRIM(be.serial_number)) = LOWER(TRIM(rr.service_record_id))
                     OR LOWER(TRIM(be.internal_id)) = LOWER(TRIM(rr.service_record_id))
@@ -10300,6 +10396,10 @@ class WebBridge(QObject):
             old_name = old_row["short_name"] if old_row else str(old_code)
 
             db.execute(text("UPDATE warehouse.batch_entries SET statu_code = :c WHERE id = :id"), {"c": target_statu_code, "id": entry["id"]})
+            self._record_statu_change(
+                db, entry["id"], imei, old_code, target_statu_code,
+                note=f"Manuel/idari düzeltme: {old_name} ({old_code}) → {target_row['short_name']} ({target_statu_code})",
+            )
             db.commit()
             return json.dumps({
                 "success": True,
@@ -10581,6 +10681,10 @@ class WebBridge(QObject):
                         be = db.query(BatchEntry).filter(BatchEntry.id == int(be_ref["id"])).first()
                         if be:
                             be.statu_code = RESET_TARGET_STATU
+                            self._record_statu_change(
+                                db, be.id, be.imei_number, cur, RESET_TARGET_STATU,
+                                note="Yeni onarım eklendi — karar için demontaj aşamasına geri çekildi (109 → 105)",
+                            )
                             db.commit()
                             reopened = True
             except Exception as reopen_err:
@@ -11509,7 +11613,7 @@ class WebBridge(QObject):
             if not tech:
                 n = db.execute(text(f"""
                     UPDATE warehouse.repair_records
-                    SET assigned_technician = NULL, assigned_by = :by, assigned_at = :now,
+                    SET assigned_technician = NULL, supply_requested_by = NULL, assigned_by = :by, assigned_at = :now,
                         repair_result_type_code = 1000
                     {scope}
                 """), {**scope_params, "by": actor, "now": now}).rowcount
@@ -11533,7 +11637,7 @@ class WebBridge(QObject):
 
             n = db.execute(text(f"""
                 UPDATE warehouse.repair_records
-                SET assigned_technician = :u, assigned_by = :by, assigned_at = :now,
+                SET assigned_technician = :u, supply_requested_by = :u, assigned_by = :by, assigned_at = :now,
                     repair_result_type_code = 1001
                 {scope}
             """), {**scope_params, "u": tech, "by": actor, "now": now}).rowcount

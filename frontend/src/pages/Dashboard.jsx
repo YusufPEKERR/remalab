@@ -370,7 +370,7 @@ export default function Dashboard() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {[
                 { title: 'Stok Listesi', path: '/depo', icon: Package, count: stats.totalParts || '0', color: '#00b2ff' },
-                { title: 'İş Emirleri', path: '/is-emirleri', icon: Layers, count: 'Aktif', color: '#3A76B8' },
+                { title: 'İş Emirleri', path: '/work-orders', icon: Layers, count: 'Aktif', color: '#3A76B8' },
                 { title: 'Servis Kayıtları', path: '/servis', icon: Activity, count: 'Takip', color: '#00e676' },
                 { title: 'Raporlar', path: '/raporlar', icon: FileText, count: 'Analiz', color: '#7A54C0' }
               ].map((sc, i) => (
