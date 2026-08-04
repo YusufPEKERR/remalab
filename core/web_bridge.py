@@ -12162,7 +12162,7 @@ class WebBridge(QObject):
 
     @Slot(str, str, str, str, result=str)
     def get_deliverable_parts_for_device(self, brand, model, color="", imei_or_serial=""):
-        """Parça Teslim ekranı için SADECE cihaza/onarıma teknisyen tarafından eklenmiş olan ve stoğu tutulan fiziki parçaları getirir. DGD işçilik kalemleri ve stoksuz parçalar elenir."""
+        """Parça Teslim ekranı için cihaza eklenmiş TÜM fiziki parçaları (teslim bekleyen ve teslim edilmiş) tek listede getirir. DGD işçilik kalemleri elenir."""
         from sqlalchemy import text
         db = SessionLocal()
         try:
@@ -12174,124 +12174,134 @@ class WebBridge(QObject):
             dgd_rows = db.execute(text("SELECT dgd_item_code FROM warehouse.flow_dgd_mapping WHERE dgd_item_code IS NOT NULL")).fetchall()
             dgd_mapped_codes = {r[0].strip().lower() for r in dgd_rows if r[0]}
 
-            # 1) Cihazın aktif onarım kayıtlarındaki eklenmiş parça kodlarını (part_item_code) bul
-            added_part_codes = []
-            if imei_clean:
-                be_row = db.execute(text("""
-                    SELECT service_id FROM warehouse.batch_entries
-                    WHERE LOWER(TRIM(imei_number)) = LOWER(:t) OR LOWER(TRIM(serial_number)) = LOWER(:t) OR LOWER(TRIM(internal_id)) = LOWER(:t)
-                    ORDER BY id DESC LIMIT 1
-                """), {"t": imei_clean}).mappings().first()
-
-                refs = [imei_clean]
-                if be_row and be_row["service_id"]:
-                    refs.append(str(be_row["service_id"]))
-
-                repair_part_rows = db.execute(text("""
-                    SELECT DISTINCT rr.part_item_code
-                    FROM warehouse.repair_records rr
-                    LEFT JOIN warehouse.repair_result_type rrt ON rrt.code = rr.repair_result_type_code
-                    LEFT JOIN warehouse.parts p ON p.item_code = rr.part_item_code
-                    WHERE rr.service_record_id = ANY(:refs)
-                      AND (rrt.is_cancelled IS NOT TRUE)
-                      AND rr.part_item_code IS NOT NULL
-                      AND TRIM(rr.part_item_code) <> ''
-                      AND LOWER(TRIM(COALESCE(rr.supply_status_code, '')))
-                          NOT IN ('stoktan çıktı', 'teslim edildi', 'teslimedildi')
-                      AND rr.repair_result_type_code = 1001
-                      AND rr.assigned_technician IS NOT NULL
-                      AND TRIM(rr.assigned_technician) <> ''
-                      AND UPPER(TRIM(rr.part_item_code)) NOT LIKE 'DGD%'
-                      AND LOWER(TRIM(COALESCE(p.item_category, ''))) NOT IN ('dgd', 'dgd_labor', 'dgd labor', 'dgd_iscilik', 'dgd işçilik')
-                      AND LOWER(TRIM(COALESCE(p.part_category, ''))) NOT IN ('dgd', 'dgd_labor', 'dgd labor', 'dgd_iscilik', 'dgd işçilik')
-                """), {"refs": refs}).fetchall()
-
-                added_part_codes = [
-                    r[0].strip() for r in repair_part_rows 
-                    if r[0] 
-                    and r[0].strip().lower() not in dgd_mapped_codes 
-                    and not r[0].strip().upper().startswith("DGD")
-                ]
-
-            if not added_part_codes:
+            if not imei_clean:
                 return json.dumps({"success": True, "parts": []}, ensure_ascii=False)
 
-            sql = text("""
-                SELECT
-                    p.id,
-                    p.item_code,
-                    p.name,
-                    p.brand,
-                    p.model,
-                    p.color,
-                    p.item_category,
-                    COALESCE(p.part_category, p.item_category) AS part_category,
-                    p.stock_tracking_type,
-                    mg.code AS repair_team_code,
-                    mg.short_name AS repair_team_name,
-                    (
-                        SELECT COALESCE(SUM(s.quantity), 0)
-                        FROM warehouse.stock s
-                        JOIN warehouse.locations l ON l.id = s.location_id
-                        WHERE s.part_id = p.id AND l.kind = 'good_stock'
-                    ) AS good_stock_qty
-                FROM warehouse.parts p
-                LEFT JOIN LATERAL (
-                    SELECT
-                        CASE WHEN UPPER(LEFT(icm.mission, 4)) = 'TEC_' THEN SUBSTRING(icm.mission FROM 5) ELSE icm.mission END AS bare_code
-                    FROM warehouse.item_category_mission icm
-                    WHERE LOWER(TRIM(icm.item_category)) = LOWER(TRIM(p.item_category)) AND icm.enabled = TRUE
-                    ORDER BY (CASE WHEN UPPER(icm.mission) IN ('TEC_L1REPAIR', 'TEC_L2REPAIR', 'TEC_L3REPAIR') THEN 1 ELSE 0 END) ASC
-                    LIMIT 1
-                ) team_map ON true
-                LEFT JOIN organization.mission_groups mg ON mg.code = team_map.bare_code
-                WHERE p.item_code = ANY(:codes)
-                ORDER BY
-                    (
-                        SELECT COALESCE(SUM(s.quantity), 0)
-                        FROM warehouse.stock s
-                        JOIN warehouse.locations l ON l.id = s.location_id
-                        WHERE s.part_id = p.id AND l.kind = 'good_stock'
-                    ) DESC,
-                    p.name
-            """)
+            be_row = db.execute(text("""
+                SELECT service_id FROM warehouse.batch_entries
+                WHERE LOWER(TRIM(imei_number)) = LOWER(:t) OR LOWER(TRIM(serial_number)) = LOWER(:t) OR LOWER(TRIM(internal_id)) = LOWER(:t)
+                ORDER BY id DESC LIMIT 1
+            """), {"t": imei_clean}).mappings().first()
 
-            rows = db.execute(sql, {"codes": added_part_codes}).mappings().all()
+            refs = [imei_clean]
+            if be_row and be_row["service_id"]:
+                refs.append(str(be_row["service_id"]))
+
+            sr_row = db.execute(text("""
+                SELECT id FROM warehouse.service_records
+                WHERE LOWER(TRIM(imei_number)) = LOWER(:t) OR LOWER(TRIM(imei_serial)) = LOWER(:t)
+                ORDER BY id DESC LIMIT 1
+            """), {"t": imei_clean}).mappings().first()
+            if sr_row and sr_row["id"]:
+                refs.append(str(sr_row["id"]))
+
+            # Cihazın eklenmiş tüm parçalarını çek
+            repair_part_rows = db.execute(text("""
+                SELECT 
+                    rr.id AS repair_record_id,
+                    rr.part_item_code,
+                    rr.supply_status_code,
+                    rr.supply_requested_by,
+                    TO_CHAR(rr.supply_requested_at, 'YYYY-MM-DD HH24:MI') AS supply_requested_at
+                FROM warehouse.repair_records rr
+                LEFT JOIN warehouse.repair_result_type rrt ON rrt.code = rr.repair_result_type_code
+                LEFT JOIN warehouse.parts p ON p.item_code = rr.part_item_code
+                WHERE rr.service_record_id = ANY(:refs)
+                  AND (rrt.is_cancelled IS NOT TRUE)
+                  AND rr.part_item_code IS NOT NULL
+                  AND TRIM(rr.part_item_code) <> ''
+                  AND rr.repair_result_type_code = 1001
+                  AND rr.assigned_technician IS NOT NULL
+                  AND TRIM(rr.assigned_technician) <> ''
+                  AND UPPER(TRIM(rr.part_item_code)) NOT LIKE 'DGD%'
+                  AND LOWER(TRIM(COALESCE(p.item_category, ''))) NOT IN ('dgd', 'dgd_labor', 'dgd labor', 'dgd_iscilik', 'dgd işçilik')
+                  AND LOWER(TRIM(COALESCE(p.part_category, ''))) NOT IN ('dgd', 'dgd_labor', 'dgd labor', 'dgd_iscilik', 'dgd işçilik')
+                ORDER BY rr.created_at DESC
+            """), {"refs": refs}).mappings().all()
+
+            if not repair_part_rows:
+                return json.dumps({"success": True, "parts": []}, ensure_ascii=False)
+
+            part_codes = list({r["part_item_code"].strip() for r in repair_part_rows if r["part_item_code"]})
+
+            parts_info_map = {}
+            if part_codes:
+                sql = text("""
+                    SELECT
+                        p.id,
+                        p.item_code,
+                        p.name,
+                        p.brand,
+                        p.model,
+                        p.color,
+                        p.item_category,
+                        COALESCE(p.part_category, p.item_category) AS part_category,
+                        p.stock_tracking_type,
+                        mg.code AS repair_team_code,
+                        mg.short_name AS repair_team_name,
+                        (
+                            SELECT COALESCE(SUM(s.quantity), 0)
+                            FROM warehouse.stock s
+                            JOIN warehouse.locations l ON l.id = s.location_id
+                            WHERE s.part_id = p.id AND l.kind = 'good_stock'
+                        ) AS good_stock_qty
+                    FROM warehouse.parts p
+                    LEFT JOIN LATERAL (
+                        SELECT
+                            CASE WHEN UPPER(LEFT(icm.mission, 4)) = 'TEC_' THEN SUBSTRING(icm.mission FROM 5) ELSE icm.mission END AS bare_code
+                        FROM warehouse.item_category_mission icm
+                        WHERE LOWER(TRIM(icm.item_category)) = LOWER(TRIM(p.item_category)) AND icm.enabled = TRUE
+                        ORDER BY (CASE WHEN UPPER(icm.mission) IN ('TEC_L1REPAIR', 'TEC_L2REPAIR', 'TEC_L3REPAIR') THEN 1 ELSE 0 END) ASC
+                        LIMIT 1
+                    ) team_map ON true
+                    LEFT JOIN organization.mission_groups mg ON mg.code = team_map.bare_code
+                    WHERE p.item_code = ANY(:codes)
+                """)
+                p_rows = db.execute(sql, {"codes": part_codes}).mappings().all()
+                for pr in p_rows:
+                    code_key = (pr["item_code"] or "").strip().lower()
+                    parts_info_map[code_key] = pr
 
             parts = []
-            for r in rows:
-                code_clean = (r["item_code"] or "").strip()
-                qty = int(r["good_stock_qty"] or 0)
-                tracking_type = (r["stock_tracking_type"] or "Stok Takipli").strip()
-                item_cat = (r["item_category"] or "").strip().lower()
-                part_cat = (r.get("part_category") or "").strip().lower()
+            for rr in repair_part_rows:
+                code_clean = (rr["part_item_code"] or "").strip()
+                code_key = code_clean.lower()
 
-                is_dgd = code_clean.lower() in dgd_mapped_codes \
-                    or code_clean.upper().startswith("DGD") \
-                    or item_cat in ('dgd', 'dgd_labor', 'dgd labor', 'dgd_iscilik', 'dgd işçilik') \
-                    or part_cat in ('dgd', 'dgd_labor', 'dgd labor', 'dgd_iscilik', 'dgd işçilik')
-
-                is_stoksuz = tracking_type in ("Stok Takipsiz", "Stoksuz", "Servis Hizmeti", "Yazılım/Hizmet") or is_dgd
-
-                # DGD parçaları sabit bir işçilik fiyatıdır, fiziki stoğu olmadığı için Parça Teslim ekranında gözükmez.
-                if is_dgd or is_stoksuz:
+                if code_key in dgd_mapped_codes or code_clean.upper().startswith("DGD"):
                     continue
 
+                pr = parts_info_map.get(code_key) or {}
+                item_cat = (pr.get("item_category") or "").strip().lower()
+                part_cat = (pr.get("part_category") or "").strip().lower()
+
+                if item_cat in ('dgd', 'dgd_labor', 'dgd labor', 'dgd_iscilik', 'dgd işçilik') or part_cat in ('dgd', 'dgd_labor', 'dgd labor', 'dgd_iscilik', 'dgd işçilik'):
+                    continue
+
+                qty = int(pr.get("good_stock_qty") or 0)
+                tracking_type = (pr.get("stock_tracking_type") or "Stok Takipli").strip()
+
+                status_clean = (rr["supply_status_code"] or "").strip().lower()
+                is_delivered = status_clean in ('stoktan çıktı', 'teslim edildi', 'teslimedildi')
+
                 parts.append({
-                    "id": str(r["id"]),
+                    "repairRecordId": str(rr["repair_record_id"]),
+                    "id": str(pr.get("id")) if pr.get("id") else str(rr["repair_record_id"]),
                     "itemCode": code_clean,
-                    "partName": r["name"] or "",
-                    "brand": r["brand"] or "",
-                    "model": r["model"] or "",
-                    "color": r["color"] or "",
-                    "itemCategory": r["item_category"] or "",
-                    "partCategory": r.get("part_category") or r["item_category"] or "",
-                    "repairTeamCode": r["repair_team_code"] or "",
-                    "repairTeamName": r["repair_team_name"] or "Genel",
+                    "partName": pr.get("name") or code_clean,
+                    "brand": pr.get("brand") or "",
+                    "model": pr.get("model") or "",
+                    "color": pr.get("color") or "",
+                    "itemCategory": pr.get("item_category") or "",
+                    "partCategory": pr.get("part_category") or pr.get("item_category") or "",
+                    "repairTeamCode": pr.get("repair_team_code") or "",
+                    "repairTeamName": pr.get("repair_team_name") or "Genel",
                     "goodStockQty": qty,
                     "stockTrackingType": tracking_type,
+                    "isDelivered": is_delivered,
+                    "deliveredBy": rr["supply_requested_by"] or "",
+                    "deliveredAt": rr["supply_requested_at"] or "",
                     "isStoksuz": False,
-                    "isAvailable": qty > 0
+                    "isAvailable": not is_delivered and (qty > 0)
                 })
 
             return json.dumps({"success": True, "parts": parts}, ensure_ascii=False)
