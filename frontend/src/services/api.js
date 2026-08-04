@@ -55,40 +55,97 @@ const getMockBackend = () => ({
 
 export const getBackend = () => {
     if (!backendPromise) {
-        backendPromise = new Promise((resolve, reject) => {
+        backendPromise = new Promise((resolve) => {
+            let isResolved = false;
+            const safeResolve = (backendObj) => {
+                if (!isResolved) {
+                    isResolved = true;
+                    resolve(backendObj);
+                }
+            };
+
+            const getQWebChannelClass = () => {
+                if (typeof window !== 'undefined' && window.QWebChannel) return window.QWebChannel;
+                if (typeof QWebChannel !== 'undefined') return QWebChannel;
+                return null;
+            };
+
             if (typeof window.qt === 'undefined' || !window.qt.webChannelTransport) {
                 console.warn('Qt WebChannel not detected in browser. Connecting over WebSocket (port 5174)...');
                 const wsProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
                 const hostName = window.location.hostname || '127.0.0.1';
                 const wsUri = `${wsProtocol}${hostName}:5174`;
-                const socket = new WebSocket(wsUri);
 
-                socket.onopen = () => {
-                    console.log('WebSocket connected. Initializing QWebChannel...');
-                    new QWebChannel(socket, (channel) => {
-                        if (channel.objects.backend) {
-                            resolve(channel.objects.backend);
-                        } else {
-                            resolve(getMockBackend());
+                const timeoutId = setTimeout(() => {
+                    console.warn('WebSocket connection timed out (3s). Falling back to mock backend.');
+                    safeResolve(getMockBackend());
+                }, 3000);
+
+                try {
+                    const socket = new WebSocket(wsUri);
+
+                    socket.onopen = () => {
+                        clearTimeout(timeoutId);
+                        console.log('WebSocket connected. Initializing QWebChannel...');
+                        const QWebChannelClass = getQWebChannelClass();
+                        if (!QWebChannelClass) {
+                            console.error('QWebChannel is not defined on window.');
+                            safeResolve(getMockBackend());
+                            return;
                         }
-                    });
-                };
+                        try {
+                            new QWebChannelClass(socket, (channel) => {
+                                if (channel && channel.objects && channel.objects.backend) {
+                                    safeResolve(channel.objects.backend);
+                                } else {
+                                    safeResolve(getMockBackend());
+                                }
+                            });
+                        } catch (err) {
+                            console.error('Failed to create QWebChannel instance:', err);
+                            safeResolve(getMockBackend());
+                        }
+                    };
 
-                socket.onerror = (err) => {
-                    console.error('WebSocket connection failed:', err);
-                    resolve(getMockBackend());
-                };
+                    socket.onerror = (err) => {
+                        clearTimeout(timeoutId);
+                        console.error('WebSocket connection failed:', err);
+                        safeResolve(getMockBackend());
+                    };
+
+                    socket.onclose = () => {
+                        clearTimeout(timeoutId);
+                        if (!isResolved) {
+                            console.warn('WebSocket closed before connection established.');
+                            safeResolve(getMockBackend());
+                        }
+                    };
+                } catch (e) {
+                    clearTimeout(timeoutId);
+                    console.error('WebSocket creation error:', e);
+                    safeResolve(getMockBackend());
+                }
                 return;
             }
 
-            // Initialize QWebChannel
-            new QWebChannel(window.qt.webChannelTransport, (channel) => {
-                if (channel.objects.backend) {
-                    resolve(channel.objects.backend);
-                } else {
-                    reject(new Error('Backend object not registered on QWebChannel'));
+            // Initialize QWebChannel for Qt WebEngine
+            try {
+                const QWebChannelClass = getQWebChannelClass();
+                if (!QWebChannelClass) {
+                    safeResolve(getMockBackend());
+                    return;
                 }
-            });
+                new QWebChannelClass(window.qt.webChannelTransport, (channel) => {
+                    if (channel && channel.objects && channel.objects.backend) {
+                        safeResolve(channel.objects.backend);
+                    } else {
+                        safeResolve(getMockBackend());
+                    }
+                });
+            } catch (err) {
+                console.error('Qt QWebChannel initialization failed:', err);
+                safeResolve(getMockBackend());
+            }
         });
     }
     return backendPromise;
