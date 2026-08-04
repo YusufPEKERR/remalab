@@ -6,7 +6,16 @@ import path from 'path'
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: './',
+  // KOK-MUTLAK olmali ('./' DEGIL). Uygulama BrowserRouter kullaniyor ve
+  // /onarim-havuzu/BATTERY gibi cok segmentli rotalari var. base './' iken
+  // index.html varliklari "./assets/index-xxx.js" diye cagirir; tarayici bunu
+  // bulundugu dizine gore cozer ve /onarim-havuzu/assets/index-xxx.js olur -> 404.
+  // Sonuc: React hic acilmaz, ekranda sonsuza kadar splash ekrani kalir.
+  // Tek segmentli rotalarda (/dashboard) tesadufen dogru cozuldugu icin sorun
+  // yalnizca ic sayfalar yenilendiginde (F5 / "Sayfayi Yenile" butonu) gorunur.
+  // Uygulama her iki modda da HTTP uzerinden yukleniyor (file:// yok), bu yuzden
+  // '/' guvenli.
+  base: '/',
   plugins: [
     {
       name: 'api-cache-server',

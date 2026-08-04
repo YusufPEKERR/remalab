@@ -32,6 +32,17 @@ const DEPARTMENTS_CONFIG = {
   L3REPAIR: { title: 'L3 Onarımı', icon: HardDrive, color: 'text-rose-500 bg-rose-500/10 border-rose-500/30' },
 };
 
+// Backend cihazin IMEI'si bulunamazsa geri donus olarak servis kayit numarasini
+// (cogu kez bir UUID) yolluyor. Bunu "IMEI:" diye etiketlemek yaniltici oluyordu -
+// ekranda "IMEI: 15d675ee-f8a2-447d-a93d-7bdfdb2efc94" gibi satirlar cikiyordu.
+const cihazEtiketi = (deger) => {
+  const v = (deger || "").trim();
+  if (!v || v === "-") return { etiket: "IMEI", metin: "-" };
+  return /^\d{8,}$/.test(v)
+    ? { etiket: "IMEI", metin: v }
+    : { etiket: "Servis kaydı", metin: v };
+};
+
 const DepartmentRepairPool = () => {
   const { deptCode } = useParams();
   const navigate = useNavigate();
@@ -327,7 +338,7 @@ const DepartmentRepairPool = () => {
                           {item.productInfo}
                         </div>
                         <div className="text-[11px] text-slate-400 font-mono mt-0.5">
-                          IMEI: {item.imei}
+                          {cihazEtiketi(item.imei).etiket}: {cihazEtiketi(item.imei).metin}
                         </div>
                       </td>
 

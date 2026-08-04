@@ -234,6 +234,17 @@ class WebBridge(QObject):
         self._ensure_batch_entries_table()
         self._schema_cache = None
 
+        # Giriş ekranındaki veritabanı rozeti için önbelleği arka planda ısıt.
+        # İlk çağrı ~950 ms sürüyor (motor kurulumu + bağlantı + köprü gidiş-dönüşü) ve
+        # rozet o kadar süre "kontrol ediliyor" kalıyordu. Burada peşinen yapılırsa
+        # ekran açıldığında cevap hazır olur, çağrı ~3 ms'ye düşer.
+        # Ayrı iş parçacığı: pencere açılışını hiçbir koşulda geciktirmemeli.
+        try:
+            import threading
+            threading.Thread(target=self.get_db_status, daemon=True).start()
+        except Exception:
+            pass  # ısıtma yapılamazsa rozet sadece ilk seferinde yavaş olur
+
     @Slot(result=str)
     def get_schema_introspection(self):
         """
@@ -10059,24 +10070,55 @@ class WebBridge(QObject):
             if not tech_user:
                 return json.dumps({"success": False, "message": f"'{tech}' kullanıcısı bulunamadı."})
 
-            # İlgili departmanda bu IMEI'ye ait onarım kaydını bul
+            # İlgili departmanda bu IMEI'ye ait onarım kaydını bul.
+            #
+            # DIKKAT - kapali kayitlar HARIC tutulur (1002 Tamamlandi, 1003 Iptal).
+            # Bu filtre eskiden YOKTU: sorgu sadece "en eski kayit" aliyordu. Ayni cihazda
+            # birden fazla onarim kaydi olan durumlarda (canli veride CASE/ac21ce5b'de 16,
+            # BATTERY'de 6 kayit var ve en eskisi 1002) IMEI okutuldugunda TAMAMLANMIS ya da
+            # IPTAL EDILMIS bir kayit yeniden 1001'e cekiliyor, gercekten bekleyen 1000
+            # kaydi ise havuzda kaliyordu. Ekranda "atandi" yaziyor ama liste degismiyordu.
+            #
+            # Siralama: once gercekten bekleyen (1000), sonra devredilebilir olanlar,
+            # esitlikte en eski kayit. Boylece okutma her zaman dogru kaydi yakalar.
             repair = db.execute(text("""
                 SELECT rr.id, rr.repair_result_type_code, rr.service_record_id
                 FROM warehouse.repair_records rr
                 WHERE UPPER(TRIM(rr.department_mission)) = :dept
+                  AND rr.repair_result_type_code NOT IN (1002, 1003)
                   AND (
                     LOWER(TRIM(rr.service_record_id)) = LOWER(:term) OR
                     EXISTS (
-                        SELECT 1 FROM warehouse.batch_entries be 
+                        SELECT 1 FROM warehouse.batch_entries be
                         WHERE (be.service_id IS NOT NULL AND strpos(rr.service_record_id, be.service_id::text) > 0)
                           AND (LOWER(TRIM(be.imei_number)) = LOWER(:term) OR LOWER(TRIM(be.serial_number)) = LOWER(:term) OR LOWER(TRIM(be.internal_id)) = LOWER(:term))
                     )
                   )
-                ORDER BY rr.created_at ASC LIMIT 1
+                ORDER BY (rr.repair_result_type_code = 1000) DESC, rr.created_at ASC
+                LIMIT 1
             """), {"dept": dept, "term": term}).mappings().first()
 
             if not repair:
-                return json.dumps({"success": False, "message": f"'{term}' IMEI/cihazı için {dept} departmanında onarım kaydı bulunamadı."})
+                # Kayit gercekten yok mu, yoksa hepsi kapali mi? Ikisi ayri sebep, mesaj da ayri olmali.
+                kapali = db.execute(text("""
+                    SELECT COUNT(*) FROM warehouse.repair_records rr
+                    WHERE UPPER(TRIM(rr.department_mission)) = :dept
+                      AND rr.repair_result_type_code IN (1002, 1003)
+                      AND (
+                        LOWER(TRIM(rr.service_record_id)) = LOWER(:term) OR
+                        EXISTS (
+                            SELECT 1 FROM warehouse.batch_entries be
+                            WHERE (be.service_id IS NOT NULL AND strpos(rr.service_record_id, be.service_id::text) > 0)
+                              AND (LOWER(TRIM(be.imei_number)) = LOWER(:term) OR LOWER(TRIM(be.serial_number)) = LOWER(:term) OR LOWER(TRIM(be.internal_id)) = LOWER(:term))
+                        )
+                      )
+                """), {"dept": dept, "term": term}).scalar() or 0
+                if kapali:
+                    return json.dumps({"success": False, "message":
+                        f"'{term}' cihazının {dept} departmanındaki {kapali} onarım kaydının tamamı "
+                        f"kapalı (tamamlandı veya iptal edildi). Atanabilecek açık kayıt yok."},
+                        ensure_ascii=False)
+                return json.dumps({"success": False, "message": f"'{term}' IMEI/cihazı için {dept} departmanında onarım kaydı bulunamadı."}, ensure_ascii=False)
 
             # Statüyü Teknisyene Atandı (1001) yap ve notes / supply_requested_by alanına teknisyeni işle
             db.execute(text("""
@@ -12276,6 +12318,60 @@ class WebBridge(QObject):
             return json.dumps({"success": False, "message": str(e)}, ensure_ascii=False)
         finally:
             db.close()
+
+    # Qt slotu DEĞİLDİR - get_db_status'un kullandığı, kısa zaman aşımlı ayrı motor.
+    def _db_kontrol_motoru(self):
+        """Yalnızca "ayakta mı" kontrolü için 2 saniye zaman aşımlı, havuzsuz motor.
+
+        Uygulamanın ana motoru connect_timeout=5 ile kurulu ve 40'lık bir havuzu var.
+        Bu kontrolü onun üzerinden yapmak iki sorun çıkarıyordu: (1) sunucu yanıt
+        vermediğinde çağrı 5 saniye boyunca Qt ana iş parçacığını bloke ediyor, yani
+        tüm arayüz donuyor; (2) sağlık kontrolü havuzdan bağlantı kapıp gerçek
+        işlemleri bekletiyor. Ayrı ve havuzsuz bir motorla en kötü durum 2 saniye
+        ve ana havuza hiç dokunulmuyor.
+        """
+        if getattr(self, "_db_kontrol_eng", None) is None:
+            from sqlalchemy import create_engine
+            from sqlalchemy.pool import NullPool
+            from config.database import _build_database_url
+            self._db_kontrol_eng = create_engine(
+                _build_database_url(),
+                poolclass=NullPool,
+                connect_args={"connect_timeout": 2, "options": "-c statement_timeout=2000"},
+            )
+        return self._db_kontrol_eng
+
+    @Slot(result=str)
+    def get_db_status(self):
+        """Veritabanına gerçekten ulaşılıp ulaşılamadığını söyler (giriş ekranındaki rozet).
+
+        QWebChannel köprüsünün ayakta olması veritabanının da ayakta olduğu anlamına
+        GELMEZ - köprü çalışırken sunucuya erişilemediği durumlar yaşandı. Bu yüzden
+        burada gerçekten bir sorgu çalıştırılır.
+
+        Sonuç 15 saniye önbelleklenir: ekran arka arkaya sorsa bile veritabanına tek
+        bir sorgu gider, sonraki cevaplar anında döner.
+        """
+        import time as _t
+        from sqlalchemy import text
+
+        onbellek = getattr(self, "_db_durum_onbellek", None)
+        if onbellek and (_t.time() - onbellek[0]) < 15:
+            return onbellek[1]
+
+        try:
+            with self._db_kontrol_motoru().connect() as baglanti:
+                baglanti.execute(text("SELECT 1"))
+            cevap = json.dumps({"success": True, "connected": True,
+                                "message": "Veritabanı bağlantısı aktif."}, ensure_ascii=False)
+        except Exception as e:
+            # Ham sürücü hatası kullanıcıya gösterilmez; sunucu adresi/parola sızdırabilir.
+            print(f"[WARN] get_db_status: veritabanina erisilemiyor -> {type(e).__name__}")
+            cevap = json.dumps({"success": True, "connected": False,
+                                "message": "Veritabanına ulaşılamıyor."}, ensure_ascii=False)
+
+        self._db_durum_onbellek = (_t.time(), cevap)
+        return cevap
 
     @Slot(result=str)
     def get_app_version(self):
