@@ -8,6 +8,7 @@ from PySide6.QtWebChannel import QWebChannel, QWebChannelAbstractTransport
 from PySide6.QtWebSockets import QWebSocketServer
 from PySide6.QtNetwork import QHostAddress
 from PySide6.QtCore import QUrl
+import socket
 import os
 import functools
 import http.server
@@ -50,6 +51,13 @@ class CustomRequestHandler(http.server.SimpleHTTPRequestHandler):
             super().handle()
         except (Exception, socket.timeout, ConnectionResetError, BrokenPipeError):
             pass
+
+    def log_error(self, format, *args):
+        # Boştaki HTTP Keep-Alive bağlantıları zaman aşımına uğradığında
+        # konsolda kirlilik oluşturan zararsız TimeoutError / socket.timeout uyarılarını gizle
+        if args and ("timed out" in str(args[0]) or "TimeoutError" in str(args[0]) or "timeout" in str(args[0])):
+            return
+        super().log_error(format, *args)
 
     def translate_path(self, path):
         if path.endswith('/qwebchannel.js') and path != '/qwebchannel.js':
