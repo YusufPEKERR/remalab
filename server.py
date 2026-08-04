@@ -56,11 +56,21 @@ class HeadlessServer(QObject):
             self
         )
         self.websocket_server.setMaxPendingConnections(200)
-        if self.websocket_server.listen(QHostAddress.Any, 5174):
+        if not self.websocket_server.listen(QHostAddress.Any, 5174):
+            print("[WARN] Port 5174 meşgul. Arka plandaki eski sunucu süreçleri temizleniyor...")
+            try:
+                import subprocess
+                subprocess.run("taskkill /F /FI \"COMMANDLINE eq *server.py*\" >nul 2>&1", shell=True)
+                time.sleep(1)
+            except Exception:
+                pass
+            self.websocket_server.listen(QHostAddress.Any, 5174)
+
+        if self.websocket_server.isListening():
             print("[INFO] WebSocket Arka Plan Sunucusu 5174 portunda (100+ Eşzamanlı Kullanıcı Kapasiteli) baslatildi.")
             self.websocket_server.newConnection.connect(self.on_new_websocket_connection)
         else:
-            print("[ERROR] WebSocket sunucusu baslatilamadi!")
+            print("[ERROR] WebSocket sunucusu 5174 portunda başlatılamadı! Lütfen Görev Yöneticisi'nden eski python süreçlerini sonlandırın.")
 
         # Frontend dist dizinini kontrol et ve Web Sunucusunu başlat
         base_dir = os.path.dirname(os.path.abspath(__file__))
