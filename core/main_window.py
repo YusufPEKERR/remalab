@@ -52,6 +52,8 @@ class CustomRequestHandler(http.server.SimpleHTTPRequestHandler):
             pass
 
     def translate_path(self, path):
+        if path.endswith('/qwebchannel.js') and path != '/qwebchannel.js':
+            path = '/qwebchannel.js'
         if path.startswith('/api_cache/'):
             base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
             cache_dir = os.path.join(base_dir, 'api_cache')
@@ -64,7 +66,7 @@ class CustomRequestHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
         target_file = self.translate_path(self.path)
         if not os.path.exists(target_file) and not self.path.startswith('/api_cache/'):
-            if not self.path.startswith('/assets/'):
+            if not self.path.startswith('/assets/') and not self.path.endswith('.js') and not self.path.endswith('.css') and not self.path.endswith('.png') and not self.path.endswith('.svg'):
                 self.path = '/index.html'
         super().do_GET()
 
