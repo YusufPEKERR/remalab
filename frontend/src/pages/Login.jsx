@@ -261,7 +261,7 @@ export default function Login() {
           {/* Başlıklar */}
           <div>
             <h1 style={{ fontSize: 42, fontWeight: 900, lineHeight: 1.15, color: '#FFFFFF', letterSpacing: '-1.2px', margin: 0, textShadow: '0 6px 24px rgba(22,32,74,.45)' }}>
-              Life Cycle Management
+              Life Cycle Management Suite
             </h1>
 
             {/* İndigo-teal aksan çizgisi */}
