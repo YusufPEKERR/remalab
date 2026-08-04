@@ -1,0 +1,1365 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RemaLab WMS — Frontend Dökümantasyonu</title>
+<style>
+  :root {
+    --bg:#0f1219; --panel:#161b26; --panel2:#1c2230; --text:#e6e9ef; --muted:#9aa4b2;
+    --border:#2a3242; --accent:#4c8dff; --accent2:#7c5cff; --code:#0b0e14; --th:#212b36;
+    --green:#3ddc84; --warn:#ffb454;
+  }
+  * { box-sizing:border-box; }
+  html { scroll-behavior:smooth; }
+  body { margin:0; background:var(--bg); color:var(--text);
+    font:16px/1.7 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; }
+  .wrap { max-width:1080px; margin:0 auto; padding:48px 28px 120px; }
+  h1,h2,h3,h4 { line-height:1.25; font-weight:700; scroll-margin-top:20px; }
+  h1 { font-size:2.1rem; margin:.2em 0 .6em;
+    background:linear-gradient(90deg,var(--accent),var(--accent2));
+    -webkit-background-clip:text; background-clip:text; color:transparent; }
+  h2 { font-size:1.5rem; margin-top:2.2em; padding-bottom:.35em; border-bottom:1px solid var(--border); }
+  h3 { font-size:1.2rem; margin-top:1.8em; color:#cdd6e4; }
+  h4 { font-size:1.03rem; margin-top:1.4em; color:#cdd6e4; }
+  a { color:var(--accent); text-decoration:none; }
+  a:hover { text-decoration:underline; }
+  p, li { color:var(--text); }
+  blockquote { margin:1.2em 0; padding:.6em 1.1em; border-left:4px solid var(--accent);
+    background:var(--panel); border-radius:0 8px 8px 0; color:#c9d2df; }
+  blockquote p { margin:.4em 0; }
+  code { font-family:"JetBrains Mono",Consolas,Menlo,monospace; font-size:.88em;
+    background:var(--panel2); padding:.15em .45em; border-radius:5px; color:#ffd9a0; }
+  pre { background:var(--code); border:1px solid var(--border); border-radius:10px;
+    padding:16px 18px; overflow-x:auto; }
+  pre code { background:none; padding:0; color:#c8e1ff; font-size:.85em; line-height:1.6; }
+  table { border-collapse:collapse; width:100%; margin:1.2em 0; font-size:.92rem;
+    display:block; overflow-x:auto; }
+  th,td { border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top; }
+  th { background:var(--th); color:#fff; font-weight:600; white-space:nowrap; }
+  tr:nth-child(even) td { background:var(--panel); }
+  tr:hover td { background:var(--panel2); }
+  hr { border:none; border-top:1px solid var(--border); margin:2.6em 0; }
+  ul,ol { padding-left:1.4em; }
+  li { margin:.25em 0; }
+  .headerbar { display:flex; align-items:center; gap:14px; margin-bottom:8px; }
+  .badge { display:inline-block; font-size:.72rem; letter-spacing:.08em; text-transform:uppercase;
+    background:var(--panel2); color:var(--muted); border:1px solid var(--border);
+    padding:4px 10px; border-radius:999px; }
+  .toc { background:var(--panel); border:1px solid var(--border); border-radius:12px;
+    padding:14px 20px; margin:1.4em 0 2.4em; }
+  .toc > ul { margin:.3em 0; }
+  .toc .toctitle { font-weight:700; color:#fff; font-size:1rem; }
+  ::selection { background:rgba(76,141,255,.35); }
+  .headerlink { opacity:0; margin-left:.4em; font-size:.8em; }
+  h2:hover .headerlink, h3:hover .headerlink { opacity:.6; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="headerbar">
+    <span class="badge">RemaLab WMS</span>
+    <span class="badge">Frontend Dökümantasyonu</span>
+  </div>
+  <h1 id="remalab-wms-frontend-dokumantasyonu">RemaLab WMS — Frontend Dökümantasyonu<a class="headerlink" href="#remalab-wms-frontend-dokumantasyonu" title="Permanent link">#</a></h1>
+<p>Bu belge <code>frontend/</code> klasörünün tamamını kaynak koddan çıkarılmış hâliyle anlatır:
+mimari, derleme, backend iletişimi, rotalar, tema, ortak desenler, sayfa envanteri
+ve bilinen tuzaklar.</p>
+<blockquote>
+<p>Belgedeki tüm sayılar ve satır referansları koddan üretilmiştir. Kod değişince
+bu belge de güncellenmelidir; özellikle <strong>Backend İletişim Katmanı</strong> bölümündeki
+kurallar zamanla ayrışırsa sessiz hatalar doğurur.</p>
+</blockquote>
+<hr />
+<h2 id="1-genel-baks">1. Genel Bakış<a class="headerlink" href="#1-genel-baks" title="Permanent link">#</a></h2>
+<p>RemaLab WMS bir <strong>masaüstü uygulamasıdır</strong>, ama arayüzü tamamen web teknolojisiyle
+yazılmıştır. PySide6 (Qt) bir pencere açar, içine <code>QWebEngineView</code> yerleştirir ve
+React uygulamasını bu görünümde çalıştırır. Frontend ile Python arasındaki tüm
+iletişim <strong>QWebChannel</strong> üzerinden yürür — HTTP REST API <strong>yoktur</strong>.</p>
+<pre><code>┌──────────────────────────────────────────────────────────┐
+│  main.py  →  MainWindow (PySide6)                        │
+│                                                          │
+│   ┌────────────────────┐      ┌───────────────────────┐  │
+│   │ QWebEngineView     │◄────►│ WebBridge (web_bridge)│  │
+│   │  React (bu belge)  │ QWeb │  ~190 @Slot metodu    │  │
+│   └────────────────────┘Channel└──────────┬────────────┘  │
+│                                           │              │
+└───────────────────────────────────────────┼──────────────┘
+                                            ▼
+                                   PostgreSQL (SQLAlchemy)
+</code></pre>
+<p>Sonuçları:</p>
+<ul>
+<li><strong>Ağ katmanı yok.</strong> <code>axios</code> bağımlılıklarda duruyor ama hiçbir dosyada
+  kullanılmıyor. Veriye erişim tek yoldan: <code>services/api.js</code>.</li>
+<li><strong>Kimlik doğrulama tarayıcı tarafında tutuluyor.</strong> Oturum <code>localStorage</code>/
+  <code>sessionStorage</code>'daki <code>user</code> anahtarıdır; sunucu tarafı bir oturum çerezi yoktur.</li>
+<li><strong>CORS, token, header yönetimi yok.</strong> Buna karşılık QWebChannel'ın kendi katı
+  kuralları var (bkz. bölüm 5).</li>
+</ul>
+<hr />
+<h2 id="2-teknoloji-ygn">2. Teknoloji Yığını<a class="headerlink" href="#2-teknoloji-ygn" title="Permanent link">#</a></h2>
+<p><code>frontend/package.json</code> içeriğinden:</p>
+<table>
+<thead>
+<tr>
+<th>Paket</th>
+<th>Sürüm</th>
+<th>Durum</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>react</code> / <code>react-dom</code></td>
+<td>^19.2.7</td>
+<td>Çekirdek</td>
+</tr>
+<tr>
+<td><code>react-router-dom</code></td>
+<td>^7.18.1</td>
+<td>Rotalar</td>
+</tr>
+<tr>
+<td><code>vite</code></td>
+<td>^8.1.1</td>
+<td>Derleyici / dev sunucu</td>
+</tr>
+<tr>
+<td><code>tailwindcss</code> + <code>@tailwindcss/vite</code></td>
+<td>^4.3.2</td>
+<td>Stil (v4, CSS-first yapılandırma)</td>
+</tr>
+<tr>
+<td><code>lucide-react</code></td>
+<td>^1.24.0</td>
+<td>İkonlar — <strong>45 dosyada</strong> kullanılıyor</td>
+</tr>
+<tr>
+<td><code>xlsx</code></td>
+<td>^0.18.5</td>
+<td>Excel içe/dışa aktarma — 3 dosyada import ediliyor (<code>ExcelMappingModal</code>, <code>BatchEntry</code>, <code>Suppliers</code>)</td>
+</tr>
+<tr>
+<td><code>react-barcode</code></td>
+<td>^1.6.1</td>
+<td>Sadece <code>WorkOrders.jsx</code></td>
+</tr>
+<tr>
+<td><code>oxlint</code></td>
+<td>^1.71.0</td>
+<td><code>npm run lint</code></td>
+</tr>
+<tr>
+<td><code>axios</code></td>
+<td>^1.18.1</td>
+<td><strong>Kullanılmıyor</strong> (0 dosya)</td>
+</tr>
+<tr>
+<td><code>zustand</code></td>
+<td>^5.0.14</td>
+<td><strong>Kullanılmıyor</strong> (0 dosya, <code>src/store/</code> boş)</td>
+</tr>
+<tr>
+<td><code>qwebchannel</code> (npm)</td>
+<td>^6.2.0</td>
+<td><strong>Kullanılmıyor</strong> — <code>public/qwebchannel.js</code> script etiketiyle yükleniyor</td>
+</tr>
+</tbody>
+</table>
+<p><code>qwebchannel</code> npm paketi <code>import</code> edilmiyor; <code>index.html</code> içindeki
+<code>&lt;script src="/qwebchannel.js"&gt;&lt;/script&gt;</code> satırı <code>public/qwebchannel.js</code>
+dosyasını global <code>window.QWebChannel</code> olarak yükler.</p>
+<hr />
+<h2 id="3-dizin-yaps">3. Dizin Yapısı<a class="headerlink" href="#3-dizin-yaps" title="Permanent link">#</a></h2>
+<pre><code>frontend/
+├── index.html            # Splash ekranı + qwebchannel.js script etiketi
+├── vite.config.js        # base:'./', manualChunks, emptyOutDir, api_cache middleware
+├── package.json
+├── public/
+│   ├── qwebchannel.js    # Qt'nin köprü istemcisi (global)
+│   ├── logo.png
+│   ├── karanlık-mod.png  # koyu tema logosu
+│   └── api_cache/
+└── src/
+    ├── main.jsx          # createRoot + StrictMode + ThemeProvider
+    ├── App.jsx           # BrowserRouter + ErrorBoundary + Suspense + rotalar
+    ├── index.css         # 389 satır — tema değişkenleri + responsive katmanı
+    ├── services/api.js   # 2430 satır — TEK backend erişim noktası (191 fonksiyon)
+    ├── layouts/
+    │   └── MainLayout.jsx    # 602 satır — kenar çubuğu, menü, üst bar
+    ├── context/
+    │   └── ThemeContext.jsx  # açık/koyu tema
+    ├── constants/
+    │   └── faultCatalog.js   # hatalı parça / hata kodu kataloğu
+    ├── hooks/
+    │   └── useCanvasPanZoom.js
+    ├── components/       # 12 bileşen + schema/ (2 dosya)
+    ├── pages/            # 35 sayfa, toplam 21.493 satır
+    ├── store/            # BOŞ
+    └── assets/
+</code></pre>
+<h3 id="boyut-daglm">Boyut dağılımı<a class="headerlink" href="#boyut-daglm" title="Permanent link">#</a></h3>
+<p>Sayfaların yarıdan fazlası birkaç yüz satırken beş dosya toplamın %45'ini tutuyor:</p>
+<table>
+<thead>
+<tr>
+<th>Dosya</th>
+<th>Satır</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>pages/WorkOrders.jsx</code></td>
+<td>3.426</td>
+</tr>
+<tr>
+<td><code>services/api.js</code></td>
+<td>2.430</td>
+</tr>
+<tr>
+<td><code>pages/BatchEntry.jsx</code></td>
+<td>1.817</td>
+</tr>
+<tr>
+<td><code>pages/TechnicianRepairOperations.jsx</code></td>
+<td>1.479</td>
+</tr>
+<tr>
+<td><code>pages/Users.jsx</code></td>
+<td>1.208</td>
+</tr>
+<tr>
+<td><code>pages/ImeiTracker.jsx</code></td>
+<td>1.150</td>
+</tr>
+<tr>
+<td><code>pages/SchemaMapper.jsx</code></td>
+<td>1.138</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="4-calstrma-ve-derleme">4. Çalıştırma ve Derleme<a class="headerlink" href="#4-calstrma-ve-derleme" title="Permanent link">#</a></h2>
+<h3 id="iki-mod">İki mod<a class="headerlink" href="#iki-mod" title="Permanent link">#</a></h3>
+<p><code>DEV_MODE</code> ortam değişkeni (<code>.env</code>) hangi frontend'in yükleneceğini belirler —
+<code>core/main_window.py:219</code>:</p>
+<table>
+<thead>
+<tr>
+<th>DEV_MODE</th>
+<th>Davranış</th>
+<th>Adres</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>1</code> (varsayılan)</td>
+<td>Vite dev sunucusu; yoksa otomatik başlatılır</td>
+<td><code>http://127.0.0.1:5173</code></td>
+</tr>
+<tr>
+<td><code>0</code> (bu kurulumdaki ayar)</td>
+<td><code>frontend/dist</code> yerleşik Python HTTP sunucusuyla servis edilir</td>
+<td><code>http://127.0.0.1:5175</code></td>
+</tr>
+</tbody>
+</table>
+<p>Sabit port kullanılmasının sebebi <strong>localStorage origin tutarlılığıdır</strong>: port
+değişirse tarayıcı depoyu farklı bir origin sayar ve oturum, tema, menü tercihleri
+sıfırlanır.</p>
+<p>QWebChannel için ayrıca <strong>5174</strong> portunda bir WebSocket sunucusu çalışır; normal
+tarayıcıdan (Qt dışından) açıldığında köprü bu porttan kurulur.</p>
+<h3 id="komutlar">Komutlar<a class="headerlink" href="#komutlar" title="Permanent link">#</a></h3>
+<pre><code class="language-bash">cd frontend
+npm install
+npm run dev      # Vite dev sunucusu (DEV_MODE=1 ile)
+npm run build    # dist/ üretir (DEV_MODE=0 bunu servis eder)
+npm run lint     # oxlint
+</code></pre>
+<p><code>DEV_MODE=0</code> iken <strong>kod değişikliği derlenmeden görünmez</strong>:</p>
+<pre><code class="language-bash">cd frontend &amp;&amp; npm run build
+# sonra uygulamayı yeniden başlat:
+python main.py
+</code></pre>
+<h3 id="onbellek-stratejisi">Önbellek stratejisi<a class="headerlink" href="#onbellek-stratejisi" title="Permanent link">#</a></h3>
+<p>Eski bir <code>index.html</code>'in eski bundle'ları yüklemesi bu projede gerçekten yaşanmış
+bir sorundur, iki yerden birden kapatılmıştır:</p>
+<ol>
+<li><strong><code>vite.config.js</code> → <code>build.emptyOutDir: true</code></strong> — her derlemede <code>dist/</code>
+   temizlenir, eski hash'li bundle'lar diskte kalmaz.</li>
+<li><strong><code>core/main_window.py</code> → <code>CustomRequestHandler.end_headers</code></strong> — <code>/assets/</code>
+   altındaki hash'li dosyalar <code>immutable</code> olarak bir yıl önbelleklenir; <code>index.html</code>
+   ve diğer sabit adresli dosyalar <code>no-store, no-cache, must-revalidate</code> alır.</li>
+</ol>
+<blockquote>
+<p><strong>Uyarı:</strong> <code>dist/assets/</code> içinde birden fazla <code>index-*.js</code> görürseniz derleme
+yarıda kalmış demektir. <code>rm -rf dist &amp;&amp; npm run build</code> ile temizleyin ve
+<code>dist/index.html</code>'in hangi bundle'ı çağırdığını doğrulayın.</p>
+</blockquote>
+<h3 id="paket-bolme">Paket bölme<a class="headerlink" href="#paket-bolme" title="Permanent link">#</a></h3>
+<p><code>vite.config.js</code> iki mekanizma kullanır:</p>
+<ul>
+<li><strong>Rota bazlı code splitting</strong> — <code>App.jsx</code> içinde <code>Login</code>, <code>Dashboard</code>,
+  <code>MainLayout</code> dışındaki 30+ sayfa <code>lazy()</code> ile yüklenir. Eskiden 28 sayfa tek
+  ~1.4 MB pakette birleşiyordu.</li>
+<li><strong><code>manualChunks</code></strong> — <code>lucide-react</code> → <code>icons</code>, React/router → <code>vendor</code>. Bu iki
+  paket uygulama kodundan çok daha az değiştiği için tarayıcı önbelleğinde kalır.</li>
+</ul>
+<hr />
+<h2 id="5-backend-iletisim-katman-servicesapijs">5. Backend İletişim Katmanı — <code>services/api.js</code><a class="headerlink" href="#5-backend-iletisim-katman-servicesapijs" title="Permanent link">#</a></h2>
+<p><strong>Bu belgenin en kritik bölümü.</strong> Frontend'deki en sık ve en sinsi hata sınıfı
+buradadır.</p>
+<h3 id="51-koprunun-kurulmas">5.1 Köprünün kurulması<a class="headerlink" href="#51-koprunun-kurulmas" title="Permanent link">#</a></h3>
+<p><code>getBackend()</code> (api.js:56) tek seferlik bir promise döndürür ve üç senaryoyu
+kapsar:</p>
+<ol>
+<li><strong>Qt WebEngine içinde</strong> (<code>window.qt.webChannelTransport</code> var) → doğrudan
+   <code>QWebChannel</code> kurulur.</li>
+<li><strong>Normal tarayıcıda</strong> → <code>ws://&lt;host&gt;:5174</code> üzerinden WebSocket açılır,
+   QWebChannel bunun üstüne kurulur. <strong>3 saniyelik zaman aşımı</strong> vardır.</li>
+<li><strong>Hiçbiri olmazsa</strong> → <code>getMockBackend()</code> devreye girer: her çağrı
+   <code>{success:false, message:'Veritabanı bağlantısı yok.'}</code> döner.</li>
+</ol>
+<p>Mock backend sayesinde uygulama bağlantısız da açılır, ekranlar beyaz kalmaz.
+Ama sadece <strong>12 metodu</strong> taklit eder; listede olmayan bir slot çağrılırsa
+<code>backend.x is not a function</code> hatası alınır.</p>
+<h3 id="52-sarmalama-deseni">5.2 Sarmalama deseni<a class="headerlink" href="#52-sarmalama-deseni" title="Permanent link">#</a></h3>
+<p>Her fonksiyon aynı kalıptadır:</p>
+<pre><code class="language-js">getParts: async () =&gt; {
+    const backend = await getBackend();
+    return new Promise((resolve) =&gt; {
+        backend.get_parts((res) =&gt; resolve(JSON.parse(res)));
+    });
+},
+</code></pre>
+<p>Kurallar:</p>
+<ul>
+<li>Python tarafı <strong>her zaman JSON string</strong> döner, JS tarafı <code>JSON.parse</code> eder.</li>
+<li>Son argüman <strong>daima callback</strong>'tir.</li>
+<li>Dönen nesne sözleşmesi: <code>{ success: boolean, message?: string, ...veri }</code>.</li>
+<li><code>api.js</code> şu an <strong>191 fonksiyon</strong> ile <strong>190 farklı slot</strong> çağırıyor.</li>
+</ul>
+<h3 id="53-arguman-says-kural">5.3 ⚠ Argüman sayısı kuralı<a class="headerlink" href="#53-arguman-says-kural" title="Permanent link">#</a></h3>
+<blockquote>
+<p><strong>QWebChannel bir slotu eksik veya fazla argümanla çağırırsanız çağrıyı hiç
+yapmaz.</strong> Exception fırlamaz, konsola hata düşmez, callback tetiklenmez.
+<code>Promise</code> sonsuza kadar <code>pending</code> kalır, <code>finally</code> bloğu çalışmaz, buton
+"İşleniyor..." halinde donar.</p>
+</blockquote>
+<p>Belirti her zaman aynıdır: <strong>ekran kilitlenir, hata mesajı çıkmaz.</strong></p>
+<p>Python tarafındaki imza <code>@Slot(...)</code> dekoratörüyle sabitlenir ve
+<strong>Python'daki varsayılan değerler QWebChannel için geçerli değildir</strong>:</p>
+<pre><code class="language-python">@Slot(str, int, int, int, str, str, str, bool, result=str)
+def submit_test_result(self, entry_id, current_statu_code, success_statu_code,
+                       fail_statu_code, result, description, faults_json,
+                       log_exit_test=False):   # &lt;- bu varsayılan JS tarafını KURTARMAZ
+</code></pre>
+<p><code>@Slot</code> 8 tip bildirdiyse JS tarafı <strong>8 argüman + callback</strong> göndermek zorundadır.</p>
+<p>Bu kural geçmişte üç yerde ihlal edildi ve üçü de ekran kilitlenmesine yol açtı:</p>
+<table>
+<thead>
+<tr>
+<th>Slot</th>
+<th>JS gönderiyordu</th>
+<th>Beklenen</th>
+<th>Eksik alan</th>
+<th>Etkilenen ekran</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>submit_test_result</code></td>
+<td>7</td>
+<td>8</td>
+<td><code>logExitTest</code></td>
+<td>Ara Test Sonuç, Son Test Sonuç</td>
+</tr>
+<tr>
+<td><code>create_service_record</code></td>
+<td>15</td>
+<td>16</td>
+<td><code>imei_number</code></td>
+<td>Servis kaydı oluşturma</td>
+</tr>
+<tr>
+<td><code>update_service_record</code></td>
+<td>16</td>
+<td>17</td>
+<td><code>imei_number</code></td>
+<td>Servis kaydı güncelleme</td>
+</tr>
+</tbody>
+</table>
+<h4 id="dogrulama-betigi">Doğrulama betiği<a class="headerlink" href="#dogrulama-betigi" title="Permanent link">#</a></h4>
+<p>Yeni bir slot eklerken veya imza değiştirirken bu kontrolü çalıştırın:</p>
+<pre><code class="language-python"># arity.py — SALT OKUNUR
+import re, os
+ROOT = r&quot;...\remalab-feature-users-module&quot;
+api = open(os.path.join(ROOT, &quot;frontend&quot;, &quot;src&quot;, &quot;services&quot;, &quot;api.js&quot;), encoding=&quot;utf-8&quot;).read()
+py  = open(os.path.join(ROOT, &quot;core&quot;, &quot;web_bridge.py&quot;), encoding=&quot;utf-8&quot;).read()
+
+slots = {}
+for m in re.finditer(r&quot;@Slot\(([^)]*)\)\s*\n\s*def\s+(\w+)\s*\(&quot;, py):
+    parts = [p.strip() for p in m.group(1).split(&quot;,&quot;)
+             if p.strip() and not p.strip().startswith(&quot;result&quot;)]
+    slots.setdefault(m.group(2), []).append(len(parts))
+
+for m in re.finditer(r&quot;backend\.(\w+)\s*\(&quot;, api):
+    name = m.group(1)
+    if name not in slots:
+        continue
+    i, depth = m.end() - 1, 0
+    while i &lt; len(api):
+        if api[i] in &quot;([{&quot;: depth += 1
+        elif api[i] in &quot;)]}&quot;:
+            depth -= 1
+            if depth == 0: break
+        i += 1
+    body, d, n = api[m.end():i], 0, 0
+    n = 1 if body.strip() else 0
+    for ch in body:
+        if ch in &quot;([{&quot;: d += 1
+        elif ch in &quot;)]}&quot;: d -= 1
+        elif ch == &quot;,&quot; and d == 0: n += 1
+    if (n - 1) not in slots[name]:
+        print(&quot;UYUMSUZ&quot;, name, &quot;JS=%d&quot; % (n - 1), &quot;Slot=%s&quot; % slots[name])
+</code></pre>
+<blockquote>
+<p>Betik üst seviye virgülleri sayar; <strong>argüman listesinin içine virgüllü yorum
+satırı yazarsanız yanlış alarm verir.</strong> Açıklamayı fonksiyonun üstüne koyun.</p>
+</blockquote>
+<h3 id="54-modul-bolumleri">5.4 Modül bölümleri<a class="headerlink" href="#54-modul-bolumleri" title="Permanent link">#</a></h3>
+<p><code>api.js</code> yorum bloklarıyla bölümlenmiştir:</p>
+<table>
+<thead>
+<tr>
+<th>Satır</th>
+<th>Bölüm</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>155</td>
+<td>Login / Schema Introspection / Kullanıcılar</td>
+</tr>
+<tr>
+<td>230</td>
+<td>Parts (Parçalar)</td>
+</tr>
+<tr>
+<td>381</td>
+<td>Locations (Lokasyonlar)</td>
+</tr>
+<tr>
+<td>479</td>
+<td>Görev Yönetimi (Mission)</td>
+</tr>
+<tr>
+<td>861</td>
+<td>Parça Kategorileri</td>
+</tr>
+<tr>
+<td>937</td>
+<td>Servis Kayıtları</td>
+</tr>
+<tr>
+<td>1081</td>
+<td>İş Emirleri</td>
+</tr>
+<tr>
+<td>1151</td>
+<td>Production Work Order (Yarı Mamul Üretim)</td>
+</tr>
+<tr>
+<td>1273</td>
+<td>Parça Tedarik Durumu</td>
+</tr>
+<tr>
+<td>1402</td>
+<td>Üretim (Yarı Mamul / Malzeme Tüketimi / Geçmiş)</td>
+</tr>
+<tr>
+<td>1474</td>
+<td>Products (Ürün Listesi)</td>
+</tr>
+<tr>
+<td>1529</td>
+<td>Müşteriler</td>
+</tr>
+<tr>
+<td>1614</td>
+<td>Stok &amp; Depo &amp; İrsaliye</td>
+</tr>
+<tr>
+<td>1794</td>
+<td>Item BOM</td>
+</tr>
+<tr>
+<td>1841</td>
+<td>Product BOM</td>
+</tr>
+<tr>
+<td>1917</td>
+<td>Batch Entry</td>
+</tr>
+<tr>
+<td>2106</td>
+<td>Local DB &amp; Data Folders</td>
+</tr>
+<tr>
+<td>2190</td>
+<td>Dynamic Table Management</td>
+</tr>
+<tr>
+<td>2224</td>
+<td>Modül 5: State Machine / Statü Geçiş Ekranları</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="6-rotalar-appjsx">6. Rotalar — <code>App.jsx</code><a class="headerlink" href="#6-rotalar-appjsx" title="Permanent link">#</a></h2>
+<pre><code>/                            → /login yönlendirmesi
+/login                       → Login                        (eager)
+└── MainLayout (Outlet)
+    /dashboard               → Dashboard                    (eager)
+    /statu-kontrol           → StatuKontrol
+    /depo                    → Depo
+    /parca-teslim            → ParcaTeslim
+    /servis                  → Servis
+    /irsaliye                → Irsaliye
+    /work-orders             → WorkOrders
+    /raporlar                → Raporlar
+    /parts                   → Parts
+    /part-categories         → PartCategories
+    /products                → Products
+    /suppliers               → Suppliers
+    /locations               → Locations
+    /users                   → Users
+    /batch-entry             → BatchEntry
+    /settings                → Settings
+    /departments             → Departments
+    /flow-dgd-mapping        → FlowDgdMapping
+    /customer-price-matrix   → CustomerPriceMatrix
+    /service-records         → ServiceRecords
+    /data-management         → DataManagement
+    /item-bom                → ItemBOM
+    /service-transition      → ServiceTransition
+    /statu-gecis/MNG1_AS/138_124 → AraTestSonuc     ┐ özel rotalar
+    /statu-gecis/QAC/125_126     → SonTestSonuc     ┘ genel rotadan ÖNCE
+    /statu-gecis/:groupKey/:code → BatchStatuTransition
+    /musteri-onayi           → CustomerApprovalDecision
+    /technician-panel        → TechnicianPanel
+    /technician-repair       → TechnicianRepairOperations
+    /onarim-havuzu/:deptCode → DepartmentRepairPool
+    /servis-onarimlari-demontaj → DemontajServisOnarimlari
+    /hizli-onarim-bitir/:missionGroup → HizliOnarimBitir
+    /schema-mapper           → SchemaMapper
+</code></pre>
+<h3 id="parametrik-rota-deseni">Parametrik rota deseni<a class="headerlink" href="#parametrik-rota-deseni" title="Permanent link">#</a></h3>
+<p>Üç ekran aynı bileşeni URL parametresiyle çoğaltır — kodu departman başına
+kopyalamak yerine tek bileşen kullanılır:</p>
+<table>
+<thead>
+<tr>
+<th>Rota</th>
+<th>Parametre</th>
+<th>Menüdeki giriş sayısı</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/statu-gecis/:groupKey/:code</code></td>
+<td><code>SPA_P/100_101</code>, <code>QAC/102_103</code> …</td>
+<td>9</td>
+</tr>
+<tr>
+<td><code>/onarim-havuzu/:deptCode</code></td>
+<td><code>BATTERY</code>, <code>CAMERA</code>, <code>DISPLAY</code>, <code>CASE</code>, <code>L1REPAIR</code>, <code>L2REPAIR</code>, <code>L3REPAIR</code></td>
+<td>7</td>
+</tr>
+<tr>
+<td><code>/hizli-onarim-bitir/:missionGroup</code></td>
+<td><code>BATTERY</code>, <code>CAMERA</code></td>
+<td>2</td>
+</tr>
+</tbody>
+</table>
+<p><code>BatchStatuTransition</code> geçiş tanımını <code>getAllStatuTransitions()</code> ile çeker ve
+<code>to_dest === groupKey &amp;&amp; code === code</code> eşleşmesini arar. Tanım
+<code>warehouse.service_statu_map</code> tablosundadır ve <code>enabled=true</code> olmalıdır; aksi
+hâlde ekran <em>"Bu statü geçişi bulunamadı veya artık aktif değil"</em> der.</p>
+<h3 id="menude-olmayan-rotalar">Menüde olmayan rotalar<a class="headerlink" href="#menude-olmayan-rotalar" title="Permanent link">#</a></h3>
+<p>Şu üç ekran rotası tanımlı ama kenar çubuğunda girişi yok — sadece doğrudan
+adres yazarak açılır:</p>
+<ul>
+<li><code>/service-records</code></li>
+<li><code>/service-transition</code></li>
+<li><code>/technician-panel</code></li>
+</ul>
+<p><code>ImeiTracker.jsx</code> (1.150 satır) hiç rota almaz; <code>WorkOrders.jsx</code>'in
+"Barkod Parça Takip" sekmesinde bileşen olarak gömülüdür.</p>
+<h3 id="rota-korumas-yok">⚠ Rota koruması yok<a class="headerlink" href="#rota-korumas-yok" title="Permanent link">#</a></h3>
+<p><code>MainLayout</code> altındaki hiçbir rotada oturum kontrolü yoktur. <code>MainLayout</code> kullanıcıyı
+<code>localStorage</code>'dan okur ama yoksa <strong>yönlendirme yapmaz</strong> — sadece "Misafir" yazar.
+Adres çubuğuna <code>/users</code> yazan biri giriş yapmadan ekranı görebilir. Menüde de rol
+filtresi devre dışıdır (<code>MainLayout.jsx:241</code> — <em>"Rol filtresi kaldırıldı"</em>).
+Yetkilendirme tamamen backend slotlarının sorumluluğundadır.</p>
+<hr />
+<h2 id="7-mainlayout-ve-menu">7. MainLayout ve Menü<a class="headerlink" href="#7-mainlayout-ve-menu" title="Permanent link">#</a></h2>
+<p><code>layouts/MainLayout.jsx</code> üç şeyi yapar: kenar çubuğu menüsü, üst bar, <code>&lt;Outlet/&gt;</code>.</p>
+<h3 id="menu-gruplar">Menü grupları<a class="headerlink" href="#menu-gruplar" title="Permanent link">#</a></h3>
+<p><code>menuGroups</code> dizisi (MainLayout.jsx:123) 10 grup içerir:</p>
+<table>
+<thead>
+<tr>
+<th>Grup</th>
+<th>Başlık rengi</th>
+<th>Öğe</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GENEL BAKIŞ</td>
+<td><code>#5B6EC4</code></td>
+<td>3</td>
+</tr>
+<tr>
+<td>DEPO</td>
+<td><code>#C1801C</code></td>
+<td>5</td>
+</tr>
+<tr>
+<td>ENVANTER</td>
+<td><code>#8A44C4</code></td>
+<td>4</td>
+</tr>
+<tr>
+<td>YEDEK PARÇA PERSONELİ</td>
+<td><code>#CE6320</code></td>
+<td>3</td>
+</tr>
+<tr>
+<td>TEST PERSONELİ</td>
+<td><code>#3A76B8</code></td>
+<td>4</td>
+</tr>
+<tr>
+<td>DEMONTAJ TEKNİSYENİ</td>
+<td><code>#3B8B76</code></td>
+<td>3</td>
+</tr>
+<tr>
+<td>ÜRETİM TEKNİSYENİ</td>
+<td><code>#C0392F</code></td>
+<td>3</td>
+</tr>
+<tr>
+<td>ONARIM HAVUZU</td>
+<td>(varsayılan)</td>
+<td>7</td>
+</tr>
+<tr>
+<td>ARA TEST</td>
+<td><code>#A83EAE</code></td>
+<td>3</td>
+</tr>
+<tr>
+<td>KULLANICI &amp; AYARLAR</td>
+<td><code>#C2445F</code></td>
+<td>10</td>
+</tr>
+</tbody>
+</table>
+<p>Grupların açık/kapalı durumu <code>localStorage.sidebarOpenGroups</code> içinde saklanır.
+Her menü öğesinin rengi <code>getItemColorConfig(path)</code> ile <strong>rota yoluna göre</strong>
+belirlenir; yeni bir rota eklerken bu <code>switch</code>'e de bir <code>case</code> eklenmezse öğe
+varsayılan mavi (<code>#00B2FF</code>) görünür.</p>
+<h3 id="ust-bar">Üst bar<a class="headerlink" href="#ust-bar" title="Permanent link">#</a></h3>
+<ul>
+<li><strong>Son güncelleme</strong> damgası — <code>currentTime</code> bilerek dondurulmuştur; saniye
+  sayacı <code>useEffect</code> içinde yorum satırına alınmıştır (MainLayout.jsx:63).</li>
+<li><strong>Sayfayı yenile</strong> butonu — <code>window.location.reload()</code>.</li>
+<li><strong>Tema düğmesi</strong> — <code>useTheme().toggleTheme</code>.</li>
+<li><strong>Bildirimler</strong> — <code>api.getCriticalStock()</code> ile <strong>60 saniyede bir</strong> çekilir.
+  Okunanlar <code>localStorage.readNotifications</code> içinde kayıt <code>id</code>'siyle tutulur.</li>
+<li><strong>Kullanıcı rozeti</strong> — <code>user.username</code> baş harfi + rol.</li>
+</ul>
+<hr />
+<h2 id="8-tema-sistemi">8. Tema Sistemi<a class="headerlink" href="#8-tema-sistemi" title="Permanent link">#</a></h2>
+<h3 id="mekanizma">Mekanizma<a class="headerlink" href="#mekanizma" title="Permanent link">#</a></h3>
+<p><code>context/ThemeContext.jsx</code> <code>&lt;html&gt;</code> etiketine <code>dark</code> sınıfını ekler/çıkarır.
+Tailwind v4'te bu bağ <code>index.css</code>'in ikinci satırında kurulur:</p>
+<pre><code class="language-css">@custom-variant dark (&amp;:is(.dark, .dark *));
+</code></pre>
+<p>Tema <strong>kullanıcı başına</strong> saklanır:</p>
+<table>
+<thead>
+<tr>
+<th>Anahtar</th>
+<th>İçerik</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>theme_&lt;username&gt;</code></td>
+<td>O kullanıcının tercihi</td>
+</tr>
+<tr>
+<td><code>global_theme</code></td>
+<td>Giriş yapılmamışken kullanılan varsayılan (<code>dark</code>)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="renk-sistemi">Renk sistemi<a class="headerlink" href="#renk-sistemi" title="Permanent link">#</a></h3>
+<p><code>index.css</code> Tailwind'in renk rampalarını <strong>ezerek</strong> tek merkezden tema dağıtır.
+Bu, sayfalardaki 1500+ <code>bg-slate-800</code> / <code>text-blue-500</code> kullanımını dokunmadan
+temaya uydurmak içindir.</p>
+<ul>
+<li><code>@theme { ... }</code> bloğu <strong>açık tema</strong> değerlerini tutar (Tailwind'in gerçek
+  değerleri).</li>
+<li><code>.dark { ... }</code> bloğu koyu temaya özgü tonları yeniden tanımlar.</li>
+</ul>
+<blockquote>
+<p><strong>Tarihçe:</strong> dosya eskiden yalnızca koyu tema için yazılmıştı ve <code>@theme</code> içinde
+<code>slate-50: #090a0f</code> gibi koyu değerler vardı. 288 yerdeki
+<code>bg-slate-50 dark:bg-[...]</code> deseni bu yüzden açık temada da siyah kalıyordu.</p>
+</blockquote>
+<p>Uygulama yüzeyleri CSS değişkenleriyle tanımlanır:</p>
+<table>
+<thead>
+<tr>
+<th>Sınıf</th>
+<th>Amaç</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>.app-shell</code></td>
+<td>Uygulama zemini</td>
+</tr>
+<tr>
+<td><code>.app-sidebar</code> / <code>.app-header</code></td>
+<td>Kenar çubuğu ve üst bar</td>
+</tr>
+<tr>
+<td><code>.app-card</code></td>
+<td>Gölgeli kart</td>
+</tr>
+<tr>
+<td><code>.glass-card</code></td>
+<td>Sayfa kartı — <code>box-shadow</code> <strong>bilerek tanımsız</strong>, Tailwind'in <code>shadow-md</code> sınıfları çalışsın diye</td>
+</tr>
+<tr>
+<td><code>.glass-modal</code></td>
+<td>Modal gövdesi</td>
+</tr>
+<tr>
+<td><code>.surface-solid</code></td>
+<td>Düz yüzey</td>
+</tr>
+</tbody>
+</table>
+<p><code>glass-*</code> isimleri korunmuştur (45+ kullanım) ama artık <code>backdrop-filter</code>
+kullanılmaz: zemin iki temada da düz tek renk olduğu için bulanıklaştırılacak
+doku yok, blur sadece GPU katmanı maliyeti olurdu.</p>
+<h3 id="responsive-katman">Responsive katmanı<a class="headerlink" href="#responsive-katman" title="Permanent link">#</a></h3>
+<p><code>index.css</code> sonundaki <code>@layer base</code> bloğu yapısal taşma sorunlarını tek yerden
+kapatır. <strong>Tamamının <code>@layer base</code> içinde olması zorunludur</strong> — Tailwind v4'te
+katmansız kurallar katmanlı utility'leri yener, yani <code>img { height: auto }</code> gibi
+bir kural sayfadaki <code>h-36</code> sınıfını sessizce ezer.</p>
+<p>Katmanın yaptıkları:</p>
+<ol>
+<li><code>html, body</code> yatay kaymayı engeller.</li>
+<li><code>:has(&gt; table)</code> ile tablonun ebeveynini kaydırılabilir yapar — 40 tablonun
+   18'inde <code>overflow-x</code> sarmalayıcısı yoktu.</li>
+<li>900px altında tablolara <code>min-width: 660px</code> verir (<strong>yalnızca kaydırılabilir
+   kapta</strong>; aksi hâlde sayfayı gerer).</li>
+<li>1024px altında grid/flex çocuklarına <code>min-width: 0</code>.</li>
+<li><code>.fixed.inset-0 &gt; div</code> modal gövdesine <code>max-height: 92vh</code>.</li>
+<li>640px altında butonlara <code>min-height: 36px</code>.</li>
+</ol>
+<hr />
+<h2 id="9-durum-yonetimi-ve-saklama">9. Durum Yönetimi ve Saklama<a class="headerlink" href="#9-durum-yonetimi-ve-saklama" title="Permanent link">#</a></h2>
+<p>Global durum kütüphanesi <strong>yoktur</strong>. <code>zustand</code> bağımlılıkta duruyor ama
+<code>src/store/</code> boş. Durum üç yerde tutulur:</p>
+<ol>
+<li><strong>Bileşen içi <code>useState</code></strong> — baskın desen.</li>
+<li><strong><code>ThemeContext</code></strong> — tek React context.</li>
+<li><strong><code>localStorage</code> / <code>sessionStorage</code></strong>.</li>
+</ol>
+<h3 id="saklama-anahtarlar">Saklama anahtarları<a class="headerlink" href="#saklama-anahtarlar" title="Permanent link">#</a></h3>
+<table>
+<thead>
+<tr>
+<th>Anahtar</th>
+<th>Nerede</th>
+<th>Amaç</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>user</code></td>
+<td>local + session</td>
+<td>Oturum. "Beni hatırla" işaretliyse <code>localStorage</code>, değilse <code>sessionStorage</code></td>
+</tr>
+<tr>
+<td><code>username</code></td>
+<td>local</td>
+<td>Bazı ekranların backend'e gönderdiği kullanıcı adı</td>
+</tr>
+<tr>
+<td><code>saved_username</code>, <code>saved_password</code></td>
+<td>local</td>
+<td>"Beni hatırla" — <strong>parola <code>btoa()</code> ile base64</strong>, şifreleme değil</td>
+</tr>
+<tr>
+<td><code>global_theme</code>, <code>theme_&lt;username&gt;</code></td>
+<td>local</td>
+<td>Tema</td>
+</tr>
+<tr>
+<td><code>sidebarOpenGroups</code></td>
+<td>local</td>
+<td>Açık menü grupları</td>
+</tr>
+<tr>
+<td><code>readNotifications</code></td>
+<td>local</td>
+<td>Okunmuş kritik stok bildirimleri</td>
+</tr>
+<tr>
+<td><code>deletedRoles</code>, <code>deletedGorevs</code></td>
+<td>local</td>
+<td>Kullanıcı ekranında gizlenen roller/görevler</td>
+</tr>
+</tbody>
+</table>
+<p><code>MainLayout</code>, <code>user:updated</code> adlı özel bir <code>window</code> olayını dinler; kullanıcı
+bilgisi değişen ekranlar bunu tetikleyerek üst barın güncellenmesini sağlar.</p>
+<blockquote>
+<p><strong>Not:</strong> <code>saved_password</code> base64'tür, geri çevrilebilir. Bu bir güvenlik
+önlemi değildir; makineye erişimi olan biri parolayı okuyabilir.</p>
+</blockquote>
+<hr />
+<h2 id="10-tekrar-eden-desenler">10. Tekrar Eden Desenler<a class="headerlink" href="#10-tekrar-eden-desenler" title="Permanent link">#</a></h2>
+<p>Sayfalar aynı görsel dili paylaşır. Yeni ekran yazarken bu desenleri kopyalayın.</p>
+<h3 id="bildirim-toast">Bildirim (toast)<a class="headerlink" href="#bildirim-toast" title="Permanent link">#</a></h3>
+<p><strong>7 dosyada birebir tekrarlanan</strong> bir <code>NotificationToast</code> bileşeni vardır
+(<code>fixed top-6 right-6 z-[110]</code>). Ortak bir bileşene çıkarılmamıştır.</p>
+<pre><code class="language-jsx">const NotificationToast = ({ notification, onClose }) =&gt; { ... };
+// tipler: success | error | warning | info
+</code></pre>
+<p>Kullanım kalıbı:</p>
+<pre><code class="language-jsx">const [notification, setNotification] = useState(null);
+const showNotification = (type, message) =&gt; {
+  setNotification({ type, message });
+  if (type !== &quot;error&quot;) setTimeout(() =&gt; setNotification(null), 5000);
+};
+</code></pre>
+<p><code>BatchStatuTransition</code> hata bildirimlerini bilerek otomatik kapatmaz — operatörün
+görmesi gerekir.</p>
+<h3 id="hero-banner">Hero banner<a class="headerlink" href="#hero-banner" title="Permanent link">#</a></h3>
+<p>Her sayfa gradyanlı bir başlık bandıyla açılır:</p>
+<pre><code class="language-jsx">&lt;div className=&quot;relative overflow-hidden rounded-2xl bg-gradient-to-r
+                from-[#EFF1FA] dark:from-[#090a0f] via-[#DDE2F2] dark:via-[#12141c]
+                to-[#FFFFFF] dark:to-[#1e222d] p-6 sm:p-8 ...&quot;&gt;
+  {/* ambient grid overlay + blur küre */}
+  &lt;div className=&quot;relative z-10 ...&quot;&gt;
+    &lt;div className=&quot;inline-flex ... rounded-full ...&quot;&gt;DEPARTMAN ETİKETİ&lt;/div&gt;
+    &lt;h1 className=&quot;text-2xl sm:text-3xl font-bold ...&quot;&gt;Başlık&lt;/h1&gt;
+    &lt;p className=&quot;text-sm text-[#4A5A9E] dark:text-slate-300&quot;&gt;Açıklama&lt;/p&gt;
+  &lt;/div&gt;
+&lt;/div&gt;
+</code></pre>
+<h3 id="barkod-okutma-ekran">Barkod okutma ekranı<a class="headerlink" href="#barkod-okutma-ekran" title="Permanent link">#</a></h3>
+<p>Depo/test/onarım ekranlarının ortak iskeleti:</p>
+<ol>
+<li><code>useRef</code> ile input'a otomatik odak; her işlem sonunda <code>inputRef.current?.focus()</code>.</li>
+<li><code>&lt;form onSubmit&gt;</code> — barkod okuyucu Enter gönderdiği için buton şart değil.</li>
+<li>İşlem sonucu renk kodlu <strong>log listesine</strong> eklenir (yeni satır başa veya sona).</li>
+<li><code>finally</code> bloğunda <code>setLoading(false)</code> + input temizleme.</li>
+</ol>
+<p><code>HizliOnarimBitir.jsx</code> bu desenin en sade örneğidir (200 satır).</p>
+<h3 id="modal">Modal<a class="headerlink" href="#modal" title="Permanent link">#</a></h3>
+<pre><code class="language-jsx">&lt;div className=&quot;fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-4&quot;&gt;
+  &lt;div className=&quot;bg-white dark:bg-[#12141c] w-full max-w-lg rounded-2xl
+                  border ... max-h-[90vh] flex flex-col&quot;&gt;
+    {/* başlık / gövde (overflow-y-auto) / alt butonlar */}
+  &lt;/div&gt;
+&lt;/div&gt;
+</code></pre>
+<p><code>index.css</code> içindeki <code>.fixed.inset-0 &gt; div { max-height: 92vh }</code> kuralı bu deseni
+dar ekranlarda otomatik düzeltir.</p>
+<hr />
+<h2 id="11-ortak-bilesenler">11. Ortak Bileşenler<a class="headerlink" href="#11-ortak-bilesenler" title="Permanent link">#</a></h2>
+<p><code>components/</code> altındaki 12 bileşen ve gerçek kullanım sayıları:</p>
+<table>
+<thead>
+<tr>
+<th>Bileşen</th>
+<th>Satır</th>
+<th>Kullanan dosya</th>
+<th>Açıklama</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ExcelMappingModal</code></td>
+<td>269</td>
+<td>6</td>
+<td>Excel sütunlarını alanlara eşleyen modal</td>
+</tr>
+<tr>
+<td><code>PartSelectCombobox</code></td>
+<td>138</td>
+<td>5</td>
+<td>Parça arama/seçme</td>
+</tr>
+<tr>
+<td><code>TestResultScreen</code></td>
+<td>287</td>
+<td>2</td>
+<td>Ara Test + Son Test ekranlarının gövdesi</td>
+</tr>
+<tr>
+<td><code>DemontajRepairPanel</code></td>
+<td>573</td>
+<td>1</td>
+<td>Demontaj onarım tablosu + parça ekleme</td>
+</tr>
+<tr>
+<td><code>StockTransferModal</code></td>
+<td>336</td>
+<td>1</td>
+<td>Stok transferi</td>
+</tr>
+<tr>
+<td><code>ModelSelectCombobox</code></td>
+<td>131</td>
+<td>1</td>
+<td>Model seçimi</td>
+</tr>
+<tr>
+<td><code>TextCombobox</code></td>
+<td>51</td>
+<td>1</td>
+<td>Serbest metin + öneri</td>
+</tr>
+<tr>
+<td><code>PartSupplyMenu</code></td>
+<td>61</td>
+<td>1</td>
+<td>Parça tedarik durumu menüsü</td>
+</tr>
+<tr>
+<td><code>DeliverPartPopover</code></td>
+<td>72</td>
+<td>1</td>
+<td>Parça teslim popover'ı</td>
+</tr>
+<tr>
+<td><code>ErrorBoundary</code></td>
+<td>49</td>
+<td>1</td>
+<td><code>App.jsx</code>'te tüm ağacı sarar</td>
+</tr>
+<tr>
+<td><code>schema/TableNode</code></td>
+<td>206</td>
+<td>1</td>
+<td>Schema Mapper düğümü</td>
+</tr>
+<tr>
+<td><code>schema/BezierEdge</code></td>
+<td>109</td>
+<td>1</td>
+<td>Schema Mapper bağlantısı</td>
+</tr>
+<tr>
+<td><code>Table</code></td>
+<td>141</td>
+<td><strong>0</strong></td>
+<td><strong>Ölü kod</strong></td>
+</tr>
+<tr>
+<td><code>DbErrorModal</code></td>
+<td>149</td>
+<td><strong>0</strong></td>
+<td><strong>Ölü kod</strong> — DB ayarlarını düzenleme modali, hiç bağlanmamış</td>
+</tr>
+</tbody>
+</table>
+<h3 id="errorboundary"><code>ErrorBoundary</code><a class="headerlink" href="#errorboundary" title="Permanent link">#</a></h3>
+<p><code>App.jsx</code>'te <code>BrowserRouter</code> ile <code>Suspense</code> arasında durur. Bir sayfa render
+sırasında patlarsa beyaz ekran yerine hata kartı gösterir ve <code>componentDidCatch</code>
+ile konsola <code>componentStack</code> yazar. <strong>Olay yakalayıcılarındaki (<code>onClick</code>,
+<code>async</code>) hataları yakalamaz</strong> — React Error Boundary'lerin genel sınırı.</p>
+<h3 id="testresultscreen"><code>TestResultScreen</code><a class="headerlink" href="#testresultscreen" title="Permanent link">#</a></h3>
+<p>İki sayfa bu bileşenin ince sarmalayıcısıdır:</p>
+<pre><code class="language-jsx">// SonTestSonuc.jsx — 14 satır
+&lt;TestResultScreen title=&quot;Son Test Sonuç&quot; sourceStatuCode={125}
+                  successStatuCode={126} failStatuCode={109} logExitTest /&gt;
+
+// AraTestSonuc.jsx — 13 satır
+&lt;TestResultScreen title=&quot;Ara Test Sonuç&quot; sourceStatuCode={138}
+                  successStatuCode={124} failStatuCode={109} /&gt;
+</code></pre>
+<p>Sol sütun "Test Başarılı (Onay)", sağ sütun "Test Başarısız (Geri Çevrim)".
+Başarısız tarafta <code>constants/faultCatalog.js</code>'ten gelen kategoriler kutucuk
+listesi olarak çizilir; <strong>en az 1, en fazla 10</strong> seçilebilir ve açıklama
+zorunludur.</p>
+<hr />
+<h2 id="12-sayfa-envanteri">12. Sayfa Envanteri<a class="headerlink" href="#12-sayfa-envanteri" title="Permanent link">#</a></h2>
+<table>
+<thead>
+<tr>
+<th>Sayfa</th>
+<th>Satır</th>
+<th>Rota</th>
+<th>Kısaca</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Login</code></td>
+<td>616</td>
+<td><code>/login</code></td>
+<td>Giriş, "beni hatırla", role göre yönlendirme</td>
+</tr>
+<tr>
+<td><code>Dashboard</code></td>
+<td>438</td>
+<td><code>/dashboard</code></td>
+<td>Kontrol paneli</td>
+</tr>
+<tr>
+<td><code>StatuKontrol</code></td>
+<td>208</td>
+<td><code>/statu-kontrol</code></td>
+<td>Statü sorgulama</td>
+</tr>
+<tr>
+<td><code>Servis</code></td>
+<td>364</td>
+<td><code>/servis</code></td>
+<td>IMEI ile cihaz/PhoneCheck sorgulama, kritik parça çipleri</td>
+</tr>
+<tr>
+<td><code>Depo</code></td>
+<td>289</td>
+<td><code>/depo</code></td>
+<td>Depo görünümü</td>
+</tr>
+<tr>
+<td><code>ParcaTeslim</code></td>
+<td>429</td>
+<td><code>/parca-teslim</code></td>
+<td>Parça teslim ekranı</td>
+</tr>
+<tr>
+<td><code>Irsaliye</code></td>
+<td>787</td>
+<td><code>/irsaliye</code></td>
+<td>İrsaliye</td>
+</tr>
+<tr>
+<td><code>WorkOrders</code></td>
+<td>3.426</td>
+<td><code>/work-orders</code></td>
+<td>8 sekmeli iş emri merkezi</td>
+</tr>
+<tr>
+<td><code>Raporlar</code></td>
+<td>727</td>
+<td><code>/raporlar</code></td>
+<td>Raporlar</td>
+</tr>
+<tr>
+<td><code>Parts</code></td>
+<td>746</td>
+<td><code>/parts</code></td>
+<td>Parça kartları</td>
+</tr>
+<tr>
+<td><code>PartCategories</code></td>
+<td>387</td>
+<td><code>/part-categories</code></td>
+<td>Kategoriler</td>
+</tr>
+<tr>
+<td><code>Products</code></td>
+<td>526</td>
+<td><code>/products</code></td>
+<td>Ürün listesi</td>
+</tr>
+<tr>
+<td><code>Suppliers</code></td>
+<td>743</td>
+<td><code>/suppliers</code></td>
+<td>Müşteriler/tedarikçiler</td>
+</tr>
+<tr>
+<td><code>Locations</code></td>
+<td>232</td>
+<td><code>/locations</code></td>
+<td>Lokasyonlar</td>
+</tr>
+<tr>
+<td><code>Users</code></td>
+<td>1.208</td>
+<td><code>/users</code></td>
+<td>Kullanıcı ve görev yönetimi</td>
+</tr>
+<tr>
+<td><code>BatchEntry</code></td>
+<td>1.817</td>
+<td><code>/batch-entry</code></td>
+<td>Toplu cihaz girişi + Excel</td>
+</tr>
+<tr>
+<td><code>Settings</code></td>
+<td>447</td>
+<td><code>/settings</code></td>
+<td>Ayarlar</td>
+</tr>
+<tr>
+<td><code>Departments</code></td>
+<td>332</td>
+<td><code>/departments</code></td>
+<td>Departman yönetimi</td>
+</tr>
+<tr>
+<td><code>FlowDgdMapping</code></td>
+<td>191</td>
+<td><code>/flow-dgd-mapping</code></td>
+<td>Flow → DGD eşlemesi</td>
+</tr>
+<tr>
+<td><code>CustomerPriceMatrix</code></td>
+<td>206</td>
+<td><code>/customer-price-matrix</code></td>
+<td>Fiyat matrisi</td>
+</tr>
+<tr>
+<td><code>ServiceRecords</code></td>
+<td>556</td>
+<td><code>/service-records</code></td>
+<td>Servis kayıtları (menüde yok)</td>
+</tr>
+<tr>
+<td><code>DataManagement</code></td>
+<td>442</td>
+<td><code>/data-management</code></td>
+<td>Veri yönetimi</td>
+</tr>
+<tr>
+<td><code>ItemBOM</code></td>
+<td>470</td>
+<td><code>/item-bom</code></td>
+<td>Ürün ağacı</td>
+</tr>
+<tr>
+<td><code>ServiceTransition</code></td>
+<td>238</td>
+<td><code>/service-transition</code></td>
+<td>Statü geçiş menüsü (menüde yok)</td>
+</tr>
+<tr>
+<td><code>BatchStatuTransition</code></td>
+<td>526</td>
+<td><code>/statu-gecis/:groupKey/:code</code></td>
+<td><strong>9 menü öğesinin ortak ekranı</strong></td>
+</tr>
+<tr>
+<td><code>AraTestSonuc</code></td>
+<td>13</td>
+<td><code>/statu-gecis/MNG1_AS/138_124</code></td>
+<td><code>TestResultScreen</code> sarmalayıcısı</td>
+</tr>
+<tr>
+<td><code>SonTestSonuc</code></td>
+<td>14</td>
+<td><code>/statu-gecis/QAC/125_126</code></td>
+<td><code>TestResultScreen</code> sarmalayıcısı</td>
+</tr>
+<tr>
+<td><code>CustomerApprovalDecision</code></td>
+<td>204</td>
+<td><code>/musteri-onayi</code></td>
+<td>Müşteri onay/red</td>
+</tr>
+<tr>
+<td><code>TechnicianPanel</code></td>
+<td>159</td>
+<td><code>/technician-panel</code></td>
+<td>(menüde yok)</td>
+</tr>
+<tr>
+<td><code>TechnicianRepairOperations</code></td>
+<td>1.479</td>
+<td><code>/technician-repair</code></td>
+<td>Üretim Kaydını Görüntüle</td>
+</tr>
+<tr>
+<td><code>DepartmentRepairPool</code></td>
+<td>388</td>
+<td><code>/onarim-havuzu/:deptCode</code></td>
+<td>7 departmanın ortak havuzu</td>
+</tr>
+<tr>
+<td><code>DemontajServisOnarimlari</code></td>
+<td>397</td>
+<td><code>/servis-onarimlari-demontaj</code></td>
+<td>Üretime Aktar</td>
+</tr>
+<tr>
+<td><code>HizliOnarimBitir</code></td>
+<td>200</td>
+<td><code>/hizli-onarim-bitir/:missionGroup</code></td>
+<td>Barkod okutup onarım kapatma</td>
+</tr>
+<tr>
+<td><code>SchemaMapper</code></td>
+<td>1.138</td>
+<td><code>/schema-mapper</code></td>
+<td>Şema görselleştirme</td>
+</tr>
+<tr>
+<td><code>ImeiTracker</code></td>
+<td>1.150</td>
+<td><em>(rota yok)</em></td>
+<td><code>WorkOrders</code> içinde sekme</td>
+</tr>
+</tbody>
+</table>
+<h3 id="workorders-sekmeleri"><code>WorkOrders</code> sekmeleri<a class="headerlink" href="#workorders-sekmeleri" title="Permanent link">#</a></h3>
+<p><code>TABS</code> dizisi (WorkOrders.jsx:1299). Ekran <code>activeTab = 'production'</code> ile açılır,
+bu yüzden o sekme listenin de başındadır:</p>
+<ol>
+<li><strong>Yarı Mamul Üretimi</strong> (varsayılan)</li>
+<li>Servis İş Emirleri</li>
+<li>Yeni İş Emri</li>
+<li>Hızlı Tekrar Üretim <em>(yalnızca geliştirici rolünde)</em></li>
+<li>Malzeme Tüketimi</li>
+<li>Üretim Raporu</li>
+<li>Üretim İş Emirleri</li>
+<li>Barkod Parça Takip (<code>ImeiTracker</code>)</li>
+</ol>
+<hr />
+<h2 id="13-bilinen-sorunlar-ve-dikkat-edilecekler">13. Bilinen Sorunlar ve Dikkat Edilecekler<a class="headerlink" href="#13-bilinen-sorunlar-ve-dikkat-edilecekler" title="Permanent link">#</a></h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Konu</th>
+<th>Etki</th>
+<th>Durum</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><strong>Slot argüman sayısı</strong> uyuşmazlığı</td>
+<td>Ekran sessizce kilitlenir</td>
+<td>3 vaka düzeltildi; betikle kontrol edilmeli</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>dist/</code> içinde birden fazla <code>index-*.js</code></td>
+<td>Yeni derleme görünmez</td>
+<td><code>emptyOutDir</code> + <code>no-store</code> ile kapatıldı</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Rota koruması yok</td>
+<td>Giriş yapmadan ekranlara erişilebilir</td>
+<td>Açık — yetki backend'de</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Menüde rol filtresi devre dışı</td>
+<td>Herkes tüm menüyü görür</td>
+<td>Bilinçli tercih (MainLayout.jsx:241)</td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>Table.jsx</code>, <code>DbErrorModal.jsx</code> ölü kod</td>
+<td>—</td>
+<td>Temizlenebilir</td>
+</tr>
+<tr>
+<td>6</td>
+<td><code>zustand</code>, <code>axios</code>, <code>qwebchannel</code> npm paketleri kullanılmıyor</td>
+<td>Gereksiz bağımlılık</td>
+<td>Temizlenebilir</td>
+</tr>
+<tr>
+<td>7</td>
+<td><code>NotificationToast</code> 7 dosyada tekrar</td>
+<td>Bakım maliyeti</td>
+<td>Ortak bileşene çıkarılabilir</td>
+</tr>
+<tr>
+<td>8</td>
+<td><code>saved_password</code> base64</td>
+<td>Şifreleme değil</td>
+<td>Bilinçli, ama not edilmeli</td>
+</tr>
+<tr>
+<td>9</td>
+<td><code>getMockBackend</code> yalnızca 12 metodu taklit eder</td>
+<td>Bağlantısızken bazı ekranlar <code>is not a function</code> verir</td>
+<td>Açık</td>
+</tr>
+<tr>
+<td>10</td>
+<td><code>WorkOrders.jsx</code> 3.426 satır</td>
+<td>Okunabilirlik</td>
+<td>Açık</td>
+</tr>
+</tbody>
+</table>
+<h3 id="hata-ayklama-sras">Hata ayıklama sırası<a class="headerlink" href="#hata-ayklama-sras" title="Permanent link">#</a></h3>
+<p>Bir ekran "İşleniyor..." / "Yükleniyor..." halinde donduğunda:</p>
+<ol>
+<li><strong>Argüman sayısını kontrol edin</strong> (bölüm 5.3 betiği). En olası sebep budur.</li>
+<li>Konsolda <code>backend.x is not a function</code> var mı? → Slot adı yanlış veya mock
+   backend devrede.</li>
+<li><code>getBackend()</code> mock'a mı düştü? Konsolda
+   <em>"WebSocket connection timed out (3s). Falling back to mock backend."</em> arayın.</li>
+<li>Veritabanı erişilebilir mi? Sunucu <code>10.200.246.238:5432</code>. Erişilemezse
+   <code>main.py</code> konsola <code>[WARN] Database tables could not be auto-initialized</code> yazar.</li>
+<li><code>dist</code> güncel mi? <code>frontend/dist/index.html</code>'in çağırdığı bundle içinde
+   beklediğiniz kodun olduğunu doğrulayın.</li>
+</ol>
+<hr />
+<h2 id="14-yeni-ekran-ekleme-kontrol-listesi">14. Yeni Ekran Ekleme Kontrol Listesi<a class="headerlink" href="#14-yeni-ekran-ekleme-kontrol-listesi" title="Permanent link">#</a></h2>
+<ol>
+<li><strong>Backend slot'unu yaz</strong> — <code>core/web_bridge.py</code> içinde <code>@Slot(...)</code>, JSON string
+   döndür, <code>{success, message}</code> sözleşmesine uy.</li>
+<li><strong><code>api.js</code>'e sarmalayıcı ekle</strong> — argüman sayısı <code>@Slot</code> ile birebir aynı olsun,
+   son argüman callback. İlgili modül bölümünün altına koy.</li>
+<li><strong>Sayfayı <code>pages/</code> altında oluştur</strong> — hero banner + toast + kart desenini
+   kopyala.</li>
+<li><strong><code>App.jsx</code>'e <code>lazy()</code> import + <code>&lt;Route&gt;</code> ekle</strong> — parametrik rota gerekiyorsa
+   özel rotaları genel olandan önce yaz.</li>
+<li><strong><code>MainLayout.jsx</code>'e menü öğesi ekle</strong> — <code>menuGroups</code> içine giriş <strong>ve</strong>
+   <code>getItemColorConfig</code> içine <code>case</code>; ikincisi unutulursa öğe varsayılan mavi olur.</li>
+<li><strong>Argüman kontrol betiğini çalıştır</strong> (bölüm 5.3).</li>
+<li><strong><code>npm run build</code></strong> ve uygulamayı yeniden başlat.</li>
+</ol>
+<hr />
+<h2 id="15-ilgili-belgeler">15. İlgili Belgeler<a class="headerlink" href="#15-ilgili-belgeler" title="Permanent link">#</a></h2>
+<ul>
+<li><code>docs/SISTEM_DOKUMANTASYONU.md</code> — sistemin geneli</li>
+<li><code>docs/HIZLI_ONARIM_BITIR.md</code> — Hızlı Onarım Bitiş tasarım kararları</li>
+<li><code>docs/api_reference.md</code> — backend slot referansı</li>
+<li><code>docs/SISTEM_HARITASI.html</code> — sistem haritası</li>
+</ul>
+<p>HTML sürümünü üretmek için:</p>
+<pre><code class="language-bash">cd docs
+python _render_doc.py FRONTEND &quot;Frontend Dökümantasyonu&quot;
+</code></pre>
+</div>
+</body>
+</html>

@@ -1004,6 +1004,10 @@ export const api = {
         });
     },
 
+    // DİKKAT: aşağıdaki argüman sırası create_service_record slotunun imzasıyla
+    // birebir aynı olmalı. imei_number product_code ile color arasında yer alır;
+    // atlanırsa argüman sayısı tutmaz, QWebChannel çağrıyı hiç yapmaz ve kaydet
+    // butonu sonsuza kadar yanıt bekler.
     createServiceRecord: async (rec) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
@@ -1017,6 +1021,7 @@ export const api = {
                     rec.model || '',
                     rec.memory || '',
                     rec.product_code || '',
+                    rec.imei_number || '',
                     rec.color || '',
                     rec.fault_category || '',
                     rec.fault_type || '',
@@ -1046,6 +1051,7 @@ export const api = {
                     rec.model || '',
                     rec.memory || '',
                     rec.product_code || '',
+                    rec.imei_number || '',   // create_service_record ile aynı sıra
                     rec.color || '',
                     rec.fault_category || '',
                     rec.fault_type || '',
@@ -2293,11 +2299,15 @@ export const api = {
         });
     },
 
-    submitTestResult: async (entryId, currentStatuCode, successStatuCode, failStatuCode, result, description, faultLines) => {
+    // logExitTest son parametredir ve Qt slotunda ZORUNLUDUR (@Slot(...,bool)).
+    // Gönderilmezse QWebChannel argüman sayısı uyuşmadığı için çağrıyı hiç
+    // yapmaz, callback tetiklenmez ve ekran "İşleniyor..." halinde kilitlenir.
+    submitTestResult: async (entryId, currentStatuCode, successStatuCode, failStatuCode, result, description, faultLines, logExitTest = false) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
             backend.submit_test_result(
                 String(entryId), currentStatuCode, successStatuCode, failStatuCode, result, description || '', JSON.stringify(faultLines || []),
+                Boolean(logExitTest),
                 (res) => resolve(JSON.parse(res))
             );
         });
