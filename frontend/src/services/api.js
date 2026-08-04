@@ -478,6 +478,19 @@ export const api = {
         });
     },
 
+    // Hızlı Onarım Bitiş: cihazı okut, o görev grubundaki uygun onarımları kapat.
+    // Kısmi kapatma yapar - uygun olmayan kayıtlar açık kalır, sebebi results[] içinde döner.
+    quickCompleteRepair: async (deviceRef, missionGroupCode, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.quick_complete_repair) {
+                backend.quick_complete_repair(String(deviceRef || ''), String(missionGroupCode || ''), username || '', (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false, message: "Backend eksik (uygulamayı yeniden başlatın)" });
+            }
+        });
+    },
+
     getRepairSupplyRequests: async () => {
         const backend = await getBackend();
         return new Promise((resolve) => {

@@ -190,7 +190,11 @@ export default function MainLayout() {
       title: 'ÜRETİM TEKNİSYENİ',
       colorTheme: 'red',
       items: [
-        { name: 'Üretim Kaydını Görüntüle', icon: Wrench, path: '/technician-repair' }
+        { name: 'Üretim Kaydını Görüntüle', icon: Wrench, path: '/technician-repair' },
+        // Departman başına ayrı giriş (karar #6). Rota aynı bileşene gider,
+        // görev grubu URL'den okunur - bkz. HizliOnarimBitir.jsx.
+        { name: 'BATARYA Onarımı Hızlı Bitiş', icon: Zap, path: '/hizli-onarim-bitir/BATTERY' },
+        { name: 'KAMERA Onarımı Hızlı Bitiş', icon: Zap, path: '/hizli-onarim-bitir/CAMERA' }
       ]
     },
     {
@@ -300,6 +304,11 @@ export default function MainLayout() {
       case '/statu-gecis/QAC/124_125':
       case '/statu-gecis/QAC/125_126':
         return { color: '#3A76B8' };
+
+      // ÜRETİM TEKNİSYENİ — Hızlı Onarım Bitiş (departman başına ayrı rota)
+      case '/hizli-onarim-bitir/BATTERY':
+      case '/hizli-onarim-bitir/CAMERA':
+        return { color: '#B84A4A' };
 
       // DEMONTAJ TEKNİSYENİ
       case '/servis-onarimlari-demontaj':

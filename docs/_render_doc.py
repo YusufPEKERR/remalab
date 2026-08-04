@@ -1,11 +1,18 @@
 # -*- coding: utf-8 -*-
-"""SISTEM_DOKUMANTASYONU.md -> tek dosyalik, sik HTML uretir."""
+"""Bir .md dosyasini tek dosyalik, sik HTML'e cevirir.
+
+    python _render_doc.py                              -> SISTEM_DOKUMANTASYONU
+    python _render_doc.py HIZLI_ONARIM_BITIR "Baslik"  -> istenen dosya
+"""
 import os
+import sys
 import markdown
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SRC = os.path.join(HERE, "SISTEM_DOKUMANTASYONU.md")
-OUT = os.path.join(HERE, "SISTEM_DOKUMANTASYONU.html")
+NAME = os.path.splitext(os.path.basename(sys.argv[1]))[0] if len(sys.argv) > 1 else "SISTEM_DOKUMANTASYONU"
+TITLE = sys.argv[2] if len(sys.argv) > 2 else "Sistem Dökümantasyonu"
+SRC = os.path.join(HERE, NAME + ".md")
+OUT = os.path.join(HERE, NAME + ".html")
 
 with open(SRC, encoding="utf-8") as f:
     text = f.read()
@@ -21,7 +28,7 @@ HTML = """<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>RemaLab WMS — Sistem Dökümantasyonu</title>
+<title>RemaLab WMS — {title}</title>
 <style>
   :root {{
     --bg:#0f1219; --panel:#161b26; --panel2:#1c2230; --text:#e6e9ef; --muted:#9aa4b2;
@@ -77,13 +84,13 @@ HTML = """<!doctype html>
 <div class="wrap">
   <div class="headerbar">
     <span class="badge">RemaLab WMS</span>
-    <span class="badge">Sistem Dökümantasyonu</span>
+    <span class="badge">{title}</span>
   </div>
   {body}
 </div>
 </body>
 </html>
-""".format(body=body)
+""".format(body=body, title=TITLE)
 
 with open(OUT, "w", encoding="utf-8") as f:
     f.write(HTML)
