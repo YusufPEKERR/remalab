@@ -112,15 +112,16 @@ export default function ParcaTeslim() {
     }
   };
 
-  // Parça Çıkışı / Teslim Et İşlemi
-  const handleDeliverPart = async () => {
+  // Parça Çıkışı / Teslim Et İşlemi (Spesifik bir parça verilebilir veya selectedPart teslim edilebilir)
+  const handleDeliverPart = async (partToDeliver = null) => {
     if (issuingRef.current) return;
-    if (!selectedPart) {
+    const targetPart = partToDeliver || selectedPart;
+    if (!targetPart) {
       setError('Lütfen teslim edilecek bir parça seçin.');
       return;
     }
-    if (selectedPart.goodStockQty < 1 && !selectedPart.isStoksuz) {
-      setError('Seçili parça Good Stock depoda tükenmiştir.');
+    if (targetPart.goodStockQty < 1 && !targetPart.isStoksuz) {
+      setError(`'${targetPart.partName}' Good Stock depoda tükenmiştir.`);
       return;
     }
 
@@ -133,13 +134,13 @@ export default function ParcaTeslim() {
       const username = getCurrentUser()?.username;
       const imeiOrSerial = device?.imei_number || device?.serial_number || imeiInput;
 
-      const res = await api.deliverPartToDevice(imeiOrSerial, selectedPart.itemCode, username);
+      const res = await api.deliverPartToDevice(imeiOrSerial, targetPart.itemCode, username);
       if (!res || !res.success) {
         setError(res?.message || 'Parça teslimatı başarısız oldu.');
         return;
       }
 
-      setSuccessMsg(res.message || `'${selectedPart.partName}' (${selectedPart.itemCode}) teslim edildi.`);
+      setSuccessMsg(res.message || `'${targetPart.partName}' (${targetPart.itemCode}) teslim edildi.`);
 
       // Listeleri yenile
       await fetchDeliverableParts(device.brand, device.model, device.color, imeiOrSerial);
@@ -260,13 +261,13 @@ export default function ParcaTeslim() {
         </form>
       </div>
 
-      {/* ── DETAY VE KONTROL KARTLARI ── */}
+      {/* ── BİRLEŞTİRİLMİŞ KONTROL PANELİ ── */}
       {device && (
         <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-300">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-            {/* KART 1: Genel Bilgiler */}
-            <div className="app-card rounded-2xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#12141c] shadow-lg flex flex-col justify-between space-y-4">
+            {/* KART 1: Cihaz Bilgileri */}
+            <div className="app-card rounded-2xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#12141c] shadow-lg flex flex-col justify-between space-y-4 lg:col-span-1">
               <div className="flex items-center gap-2 text-blue-500 dark:text-blue-400 border-b border-slate-100 dark:border-slate-800 pb-3">
                 <Info size={20} />
                 <h2 className="font-bold text-slate-800 dark:text-slate-100">Cihaz Bilgileri</h2>
@@ -304,71 +305,54 @@ export default function ParcaTeslim() {
               </div>
             </div>
 
-            {/* KART 2: Depo / Teslim İşlemi */}
-            <div className="app-card rounded-2xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#12141c] shadow-lg flex flex-col justify-between space-y-4">
-              <div className="flex items-center gap-2 text-purple-500 dark:text-purple-400 border-b border-slate-100 dark:border-slate-800 pb-3">
-                <Layers size={20} />
-                <h2 className="font-bold text-slate-800 dark:text-slate-100">Depo / Teslim İşlemi</h2>
+            {/* BİRLEŞTİRİLMİŞ KART (KART 2 + KART 3): Depo İşlemleri & Parça Yönetimi */}
+            <div className="app-card rounded-2xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#12141c] shadow-lg flex flex-col justify-between space-y-4 lg:col-span-2">
+              
+              {/* Üst Başlık & Depo Bilgisi */}
+              <div className="flex flex-wrap items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 gap-3">
+                <div className="flex items-center gap-2 text-purple-500 dark:text-purple-400">
+                  <Layers size={20} />
+                  <h2 className="font-bold text-slate-800 dark:text-slate-100">Depo & Parça Teslimat Yönetimi</h2>
+                </div>
+
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 font-medium">
+                    Good Stock <span className="text-slate-400">➔</span> Repair Stock
+                  </span>
+                  <span className="px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold border border-blue-500/20">
+                    {filteredParts.length} Parça
+                  </span>
+                </div>
               </div>
 
-              <div className="space-y-3 text-sm flex-1">
-                <div className="flex justify-between items-center py-1">
-                  <span className="text-slate-500 dark:text-slate-400">Kaynak Depo:</span>
-                  <span className="font-bold text-slate-800 dark:text-slate-200">Good Stock (Ana Depo)</span>
-                </div>
-                <div className="flex justify-between items-center py-1">
-                  <span className="text-slate-500 dark:text-slate-400">Hedef Depo:</span>
-                  <span className="font-bold text-slate-800 dark:text-slate-200">Repair Stock (Teknisyen)</span>
-                </div>
-
-                {selectedPart ? (
-                  <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 space-y-2 bg-slate-50/50 dark:bg-slate-900/50 p-3 rounded-xl border border-slate-200 dark:border-slate-800">
-                    <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-                      <span>Seçili Parça Adı:</span>
-                      <span className="font-bold text-slate-900 dark:text-white truncate max-w-[170px]" title={selectedPart.partName}>{selectedPart.partName}</span>
+              {/* Seçili Parça & Teslim Et Banner'ı (Seçili parça varsa gösterilir) */}
+              {selectedPart ? (
+                <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 flex flex-wrap items-center justify-between gap-3 animate-in fade-in duration-200">
+                  <div className="space-y-0.5 min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold text-amber-700 dark:text-amber-300">Teslim İçin Seçili Parça:</span>
+                      <span className="font-mono font-bold text-xs text-blue-600 dark:text-[#00b2ff]">{selectedPart.itemCode}</span>
                     </div>
-                    <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-                      <span>Parça Kodu:</span>
-                      <span className="font-mono font-bold text-blue-600 dark:text-[#00b2ff]">{selectedPart.itemCode}</span>
+                    <div className="font-bold text-sm text-slate-900 dark:text-white truncate" title={selectedPart.partName}>
+                      {selectedPart.partName}
                     </div>
-                    <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-                      <span>Onarım Takımı / Renk:</span>
-                      <span className="font-medium text-slate-700 dark:text-slate-300">{selectedPart.repairTeamName || "-"} {selectedPart.color ? `(${selectedPart.color})` : ''}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-200/60 dark:border-slate-800">
-                      <span>Good Stock Miktarı:</span>
-                      <span className={`font-bold ${selectedPart.goodStockQty > 0 || selectedPart.isStoksuz ? "text-emerald-600 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}>
-                        {selectedPart.isStoksuz ? "Stok Takipsiz (Serbest)" : selectedPart.goodStockQty > 0 ? `${selectedPart.goodStockQty} adet mevcut` : "Tükenmiş"}
-                      </span>
+                    <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-3 pt-0.5">
+                      <span>Takım: <strong>{selectedPart.repairTeamName || 'Genel'}</strong></span>
+                      <span>Depo Stok: <strong className={selectedPart.goodStockQty > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500"}>{selectedPart.goodStockQty} adet mevcut</strong></span>
                     </div>
                   </div>
-                ) : (
-                  <p className="text-xs text-slate-400 pt-2">Teslim edilecek parçayı sağdaki listeden seçiniz.</p>
-                )}
-              </div>
 
-              <button
-                onClick={handleDeliverPart}
-                disabled={submitting || !selectedPart || !selectedPart.isAvailable}
-                className="w-full py-3.5 px-4 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-bold rounded-xl shadow-lg shadow-amber-500/20 transition-all flex items-center justify-center gap-2 text-sm disabled:opacity-50 cursor-pointer"
-              >
-                {submitting ? <RefreshCw size={18} className="animate-spin" /> : <Package size={18} />}
-                Parça Çıkışı Yap / Teslim Et
-              </button>
-            </div>
-
-            {/* KART 3: Tek Listede Cihaz Parçaları (Teslim Edilecek & Teslim Edilmiş Parçalar) */}
-            <div className="app-card rounded-2xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#12141c] shadow-lg flex flex-col justify-between space-y-4">
-              
-              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-                <div className="flex items-center gap-2 text-emerald-500 dark:text-emerald-400">
-                  <Package size={20} />
-                  <h2 className="font-bold text-slate-800 dark:text-slate-100">Cihaz Parçaları</h2>
+                  <button
+                    type="button"
+                    onClick={() => handleDeliverPart(selectedPart)}
+                    disabled={submitting || !selectedPart.isAvailable}
+                    className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-bold rounded-xl shadow-md shadow-amber-500/20 transition-all flex items-center gap-2 text-xs disabled:opacity-50 cursor-pointer shrink-0"
+                  >
+                    {submitting ? <RefreshCw size={16} className="animate-spin" /> : <Package size={16} />}
+                    Parça Çıkışı Yap / Teslim Et
+                  </button>
                 </div>
-                <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-500/20">
-                  {filteredParts.length} Parça
-                </span>
-              </div>
+              ) : null}
 
               {/* Arama & Kategori Filtre Toolbar */}
               <div className="space-y-2">
@@ -379,7 +363,7 @@ export default function ParcaTeslim() {
                     value={searchFilter}
                     onChange={(e) => setSearchFilter(e.target.value)}
                     placeholder="Parça adı veya kodu ara..."
-                    className="w-full pl-8 pr-3 py-1.5 bg-slate-50 dark:bg-[#090a0f] border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:border-blue-500"
+                    className="w-full pl-8 pr-3 py-2 bg-slate-50 dark:bg-[#090a0f] border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-medium text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:border-blue-500"
                   />
                 </div>
 
@@ -403,7 +387,7 @@ export default function ParcaTeslim() {
                 )}
               </div>
 
-              {/* Tek Birleşik Parça Listesi */}
+              {/* Birleşik Parça Listesi */}
               <div className="space-y-2.5 overflow-y-auto max-h-80 pr-1 flex-1">
                 {filteredParts.length === 0 ? (
                   <div className="text-center py-8 text-slate-400 space-y-1">
@@ -422,7 +406,7 @@ export default function ParcaTeslim() {
                         onClick={() => {
                           if (!p.isDelivered) setSelectedPartCode(p.itemCode);
                         }}
-                        className={`p-3.5 rounded-xl border transition-all flex flex-col justify-between gap-2.5 ${
+                        className={`p-3.5 rounded-xl border transition-all flex flex-wrap items-center justify-between gap-3 ${
                           p.isDelivered
                             ? 'border-emerald-200 dark:border-emerald-900/40 bg-emerald-50/40 dark:bg-emerald-950/20'
                             : isSelected
@@ -430,66 +414,73 @@ export default function ParcaTeslim() {
                             : 'border-slate-200/80 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-[#181a24] cursor-pointer'
                         }`}
                       >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate" title={p.partName}>
-                                {p.partName}
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate" title={p.partName}>
+                              {p.partName}
+                            </span>
+                            {isColorMatch && (
+                              <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 shrink-0">
+                                Renge Uygun
                               </span>
-                              {isColorMatch && (
-                                <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 shrink-0">
-                                  Renge Uygun
-                                </span>
-                              )}
-                            </div>
-
-                            <div className="font-mono text-[11px] text-blue-600 dark:text-[#00b2ff] font-semibold mt-0.5 truncate">
-                              {p.itemCode}
-                            </div>
-
-                            <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-2">
-                              <span>{p.repairTeamName || 'Genel'}</span>
-                              {p.color && <span className="px-1.5 py-0.2 bg-slate-200 dark:bg-slate-800 rounded font-semibold text-slate-700 dark:text-slate-300">{p.color}</span>}
-                            </div>
+                            )}
                           </div>
 
-                          {/* DİLİM / BADGE KISMI: TESLİM EDİLDİ VEYA STOK DURUMU */}
-                          <div className="flex flex-col items-end gap-1.5 shrink-0">
-                            {p.isDelivered ? (
-                              <div className="flex items-center gap-2">
-                                <span className="px-2.5 py-1 rounded-md text-[10px] font-extrabold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
-                                  <CheckCircle size={12} />
-                                  Teslim Edildi
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleOpenReturnModal(p);
-                                  }}
-                                  className="px-2.5 py-1 bg-amber-500/10 hover:bg-amber-500/20 active:bg-amber-500/30 text-amber-600 dark:text-amber-400 font-bold text-[10px] rounded-md border border-amber-500/30 transition-all flex items-center gap-1 cursor-pointer shadow-xs"
-                                  title="Parçayı Teslimden Geri Al (Good Stock / DOA Stock)"
-                                >
-                                  <RotateCcw size={12} />
-                                  Parçayı Geri Al
-                                </button>
-                              </div>
-                            ) : (
-                              <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${
+                          <div className="flex items-center gap-3 text-[11px]">
+                            <span className="font-mono font-bold text-blue-600 dark:text-[#00b2ff]">{p.itemCode}</span>
+                            <span className="text-slate-400">•</span>
+                            <span className="text-slate-500 dark:text-slate-400">{p.repairTeamName || 'Genel'}</span>
+                            {p.color && (
+                              <span className="px-1.5 py-0.2 bg-slate-200 dark:bg-slate-800 rounded font-semibold text-slate-700 dark:text-slate-300 text-[10px]">{p.color}</span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* DİLİM / BADGE KISMI & AKSİYON BUTONLARI */}
+                        <div className="flex items-center gap-3 shrink-0">
+                          {p.isDelivered ? (
+                            <div className="flex items-center gap-2">
+                              <span className="px-2.5 py-1 rounded-md text-[10px] font-extrabold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                                <CheckCircle size={12} />
+                                Teslim Edildi
+                              </span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenReturnModal(p);
+                                }}
+                                className="px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 active:bg-amber-500/30 text-amber-600 dark:text-amber-400 font-bold text-xs rounded-lg border border-amber-500/30 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                                title="Parçayı Teslimden Geri Al (Good Stock / DOA Stock)"
+                              >
+                                <RotateCcw size={13} />
+                                Parçayı Geri Al
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold border ${
                                 p.goodStockQty > 0
                                   ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
                                   : 'bg-red-500/10 text-red-500 border-red-500/20'
                               }`}>
                                 Good Stock: {p.goodStockQty}
                               </span>
-                            )}
 
-                            {p.isDelivered && (p.deliveredBy || p.deliveredAt) && (
-                              <span className="text-[9px] text-slate-400 font-medium">
-                                {p.deliveredBy ? `Teslim: ${p.deliveredBy}` : ''} {p.deliveredAt ? `(${p.deliveredAt})` : ''}
-                              </span>
-                            )}
-                          </div>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeliverPart(p);
+                                }}
+                                disabled={submitting || !p.isAvailable}
+                                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-xs rounded-lg transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-xs"
+                              >
+                                <Package size={13} />
+                                Teslim Et
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     );
@@ -498,9 +489,9 @@ export default function ParcaTeslim() {
               </div>
 
               <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-between text-xs text-slate-400">
-                <span>Toplam Parça:</span>
+                <span>Toplam Ekli Parça:</span>
                 <span className="font-semibold text-slate-700 dark:text-slate-300">
-                  {filteredParts.length} adet ({filteredParts.filter(p => p.isDelivered).length} Teslim Edildi)
+                  {filteredParts.length} adet ({filteredParts.filter(p => p.isDelivered).length} Teslim Edilmiş, {filteredParts.filter(p => !p.isDelivered).length} Bekliyor)
                 </span>
               </div>
             </div>
