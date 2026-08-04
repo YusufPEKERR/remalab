@@ -82,6 +82,7 @@ export default function Login() {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [capsLock, setCapsLock] = useState(false);
   const [conn, setConn] = useState('checking');
+  const [dbConn, setDbConn] = useState('checking'); // 'checking' | 'ok' | 'offline'
   const [showForgotModal, setShowForgotModal] = useState(false);
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
@@ -93,6 +94,41 @@ export default function Login() {
       .then(b => { if (alive) setConn(b && b.login ? 'ok' : 'offline'); })
       .catch(() => { if (alive) setConn('offline'); });
     return () => { alive = false; };
+  }, []);
+
+  // Veritabanı durumu KÖPRÜ durumundan ayrı izlenir: köprü ayakta olup veritabanına
+  // ulaşılamadığı durumlar yaşandı (sunucu timeout). Rozet gerçek bir SELECT 1
+  // sonucunu gösterir.
+  //
+  // Bu kontrol YALNIZCA giriş ekranına aittir ve uygulamanın geri kalanını
+  // etkilemez, üç noktadan garanti altına alınmıştır:
+  //   1. Kayıtlı oturum varsa hiç çalışmaz - bu ekran o durumda sadece
+  //      yönlendirme için bir an açılıyor, boşuna sorgu atmanın anlamı yok.
+  //   2. Bağlantı kurulduğu anda tekrar (interval) durdurulur; "bağlı" yazdıktan
+  //      sonra veritabanına bir daha hiç gidilmez.
+  //   3. Bileşen kaldırıldığında (giriş yapılıp yönlendirildiğinde) temizlenir.
+  useEffect(() => {
+    if (localStorage.getItem('user') || sessionStorage.getItem('user')) return;
+
+    let alive = true;
+    let timer = null;
+    const durdur = () => { if (timer) { clearInterval(timer); timer = null; } };
+
+    const kontrolEt = () => {
+      api.getDbStatus()
+        .then(r => {
+          if (!alive) return;
+          const bagli = !!(r && r.connected);
+          setDbConn(bagli ? 'ok' : 'offline');
+          if (bagli) durdur();
+        })
+        .catch(() => { if (alive) setDbConn('offline'); });
+    };
+
+    kontrolEt();
+    // Sadece bağlantı YOKKEN tekrar denenir ki kullanıcı sayfayı yenilemeden yeşile dönsün.
+    timer = setInterval(kontrolEt, 10000);
+    return () => { alive = false; durdur(); };
   }, []);
 
   useEffect(() => {
@@ -225,7 +261,7 @@ export default function Login() {
           {/* Başlıklar */}
           <div>
             <h1 style={{ fontSize: 42, fontWeight: 900, lineHeight: 1.15, color: '#FFFFFF', letterSpacing: '-1.2px', margin: 0, textShadow: '0 6px 24px rgba(22,32,74,.45)' }}>
-              ERP Yönetim Sistemi
+              Life Cycle Management
             </h1>
 
             {/* İndigo-teal aksan çizgisi */}
@@ -523,6 +559,40 @@ export default function Login() {
         <div style={{ marginTop: 24, fontSize: 12, color: T.deep, opacity: .55, fontWeight: 600 }}>v1.0.0</div>
       </div>
 
+      {/* ── VERİTABANI DURUM ROZETİ (sağ alt köşe) ──
+          Ekranın sağ altı açık zeminle bittiği için metin koyu tonda.
+          Köprü durumundan (conn) BAĞIMSIZDIR: burada gerçek bir SELECT 1 sonucu gösterilir. */}
+      {(() => {
+        const D = {
+          checking: { renk: T.muted, nokta: T.lilac, metin: 'Veritabanı kontrol ediliyor…' },
+          ok: { renk: '#2F7360', nokta: T.teal, metin: 'Veritabanına bağlı' },
+          offline: { renk: '#B3261E', nokta: '#EF4444', metin: 'Veritabanına bağlı değil' },
+        }[dbConn] || {};
+        return (
+          <div
+            title={D.metin}
+            style={{
+              position: 'fixed', right: 20, bottom: 16, zIndex: 150,
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '7px 13px', borderRadius: 999,
+              background: 'rgba(255,255,255,.72)',
+              backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)',
+              border: '1px solid rgba(255,255,255,.85)',
+              boxShadow: '0 6px 20px rgba(22,32,74,.16)',
+              fontSize: 12, fontWeight: 700, color: D.renk,
+              pointerEvents: 'none', userSelect: 'none',
+            }}
+          >
+            <span style={{
+              width: 8, height: 8, borderRadius: '50%', background: D.nokta,
+              boxShadow: `0 0 0 3px ${D.nokta}33`,
+              animation: dbConn === 'checking' ? 'pulse 1.4s ease-in-out infinite' : 'none',
+            }} />
+            {D.metin}
+          </div>
+        );
+      })()}
+
       {/* Şifremi Unuttum modalı — cam */}
       {showForgotModal && (
         <div
@@ -578,6 +648,7 @@ export default function Login() {
         @keyframes spin     { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
         @keyframes dotb     { 0%,80%,100%{transform:scale(.6);opacity:.4} 40%{transform:scale(1);opacity:1} }
         @keyframes iconFloat{ 0%,100%{transform:translateY(0px)} 50%{transform:translateY(-8px)} }
+        @keyframes pulse    { 0%,100%{opacity:1} 50%{opacity:.35} }
         input::placeholder  { color:#7C87AC; letter-spacing:normal; }
 
         /* ── RESPONSIVE ──────────────────────────────────────────

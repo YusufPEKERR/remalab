@@ -592,6 +592,18 @@ export const api = {
         });
     },
 
+    // Slot yoksa mock backend devrededir; o durumda veritabanı da yok demektir.
+    getDbStatus: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_db_status) {
+                backend.get_db_status((res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true, connected: false, message: "Veritabanına ulaşılamıyor." });
+            }
+        });
+    },
+
     adminSetBatchEntryStatu: async (imei, targetStatuCode) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
