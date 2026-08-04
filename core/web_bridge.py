@@ -33,7 +33,7 @@ def clear_api_cache(session=None):
     """Veritabanında değişiklik olduğunda cache'i temizler, böylece UI sadece yeni veriyi bekler."""
     dirs = get_cache_dirs()
     for d in dirs:
-        for filename in ["parts.json", "stock.json", "critical.json"]:
+        for filename in ["parts.json", "stock.json", "critical.json", "price_matrix_items.json"]:
             path = os.path.join(d, filename)
             if os.path.exists(path):
                 try: 
@@ -1040,6 +1040,18 @@ class WebBridge(QObject):
             # submit_dismantle_decision, get_repair_records vb. hemen her yerde
             # kullanılıyor) tablo büyümeden önce indeks eklenir.
             db.execute(text("CREATE INDEX IF NOT EXISTS idx_repair_records_service_record_id ON warehouse.repair_records (service_record_id);"))
+            # product_bom_node (33.800+ satır) PK dışında hiç indekse sahip değildi;
+            # get_product_boms (sayfalı liste + COUNT(*)) ve get_parts_for_device
+            # (Demontaj ekranındaki 'Parça Seçiniz' - LOWER(TRIM(...)) ile eşleşiyor)
+            # her ikisi de parent_product_code üzerinden filtreliyor, get_product_boms
+            # ayrıca child_item_code'u warehouse.item ile JOIN'liyor.
+            db.execute(text("CREATE INDEX IF NOT EXISTS idx_product_bom_node_parent ON warehouse.product_bom_node (parent_product_code);"))
+            db.execute(text("CREATE INDEX IF NOT EXISTS idx_product_bom_node_parent_lower ON warehouse.product_bom_node (LOWER(TRIM(parent_product_code)));"))
+            db.execute(text("CREATE INDEX IF NOT EXISTS idx_product_bom_node_child ON warehouse.product_bom_node (child_item_code);"))
+            # warehouse.parts (30 bin+ satır): Müşteri Fiyat Matrisi'ndeki marka/kategori
+            # filtreleri UPPER(brand) eşitliği ve item_category eşitliği ile sorguluyor.
+            db.execute(text("CREATE INDEX IF NOT EXISTS idx_parts_brand_upper ON warehouse.parts (UPPER(brand));"))
+            db.execute(text("CREATE INDEX IF NOT EXISTS idx_parts_item_category ON warehouse.parts (item_category);"))
             db.commit()
         except Exception as e:
             db.rollback()
@@ -7077,10 +7089,10 @@ class WebBridge(QObject):
                     "critical_limit": limit,
                     "status": "Kritik" if s.quantity > 0 else "Tükendi"
                 })
-            import json
-            return json.dumps({"success": True, "critical_stock": res})
+            json_data = json.dumps({"success": True, "critical_stock": res}, ensure_ascii=False)
+            write_to_cache("critical.json", json_data)
+            return json.dumps({"success": True, "fetch_url": fetch_url})
         except Exception as e:
-            import json
             return json.dumps({"success": False, "message": str(e)})
         finally:
             db.close()
@@ -10651,19 +10663,125 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    @Slot(str, result=str)
-    def get_price_matrix_items(self, search=""):
-        """Fiyat matrisinin satırlarını oluşturan item_code listesini döner (fiziksel parçalar
-        + DGD işçilik kodları), her satırda türetilmiş bir 'İşçilik'/'Parça' etiketiyle."""
+    @Slot(result=str)
+    def get_price_matrix_brands(self):
+        """Fiyat matrisinde önce seçilecek marka listesini döner - matrisin varsayılan
+        yükleme davranışı artık tüm katalog (30 bin+ satır) yerine tek bir markanın
+        parçalarını göstermektir, bu yüzden marka seçimi ilk ve zorunlu adımdır.
+        warehouse.parts.brand serbest metin olarak girildiğinden aynı marka birden
+        çok yazımla var olabilir (Samsung/SAMSUNG, Oppo/OPPO gibi); bunlar büyük/küçük
+        harf duyarsız tek bir seçenekte gruplanır, etiket için en sık kullanılan yazım
+        seçilir. Marka taşımayan DGD işçilik kodları için ayrı bir sözde-marka eklenir."""
         from sqlalchemy import text
         db = SessionLocal()
         try:
-            search = (search or "").strip()
-            clause = ""
+            rows = db.execute(text("""
+                SELECT brand, COUNT(*) AS cnt
+                FROM warehouse.parts
+                WHERE brand IS NOT NULL AND brand != '' AND COALESCE(item_category, '') != 'DGD'
+                GROUP BY brand
+            """)).mappings().all()
+
+            grouped = {}
+            for r in rows:
+                raw = (r["brand"] or "").strip()
+                if not raw:
+                    continue
+                key = raw.upper()
+                g = grouped.setdefault(key, {"label": raw, "label_count": 0, "count": 0})
+                g["count"] += r["cnt"]
+                if r["cnt"] > g["label_count"]:
+                    g["label_count"] = r["cnt"]
+                    g["label"] = raw
+
+            brands = sorted(
+                [{"value": key, "label": g["label"], "count": g["count"]} for key, g in grouped.items()],
+                key=lambda b: b["label"]
+            )
+
+            dgd_count = db.execute(text(
+                "SELECT COUNT(*) FROM warehouse.parts WHERE item_category = 'DGD'"
+            )).scalar() or 0
+            if dgd_count:
+                brands.append({"value": "__DGD__", "label": "İşçilik (DGD)", "count": dgd_count})
+
+            return json.dumps({"success": True, "brands": brands}, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
+    def get_price_matrix_categories(self, brand=""):
+        """Seçili markaya ait item_category (parça tipi: Middle Frame, Back Glass, LCD...)
+        listesini döner - fiyat matrisinde markadan sonraki ikinci daraltma adımı budur.
+        brand boş verilirse tüm markalardaki kategoriler döner; '__DGD__' için kategori
+        ayrımı yoktur (işçilik kodları zaten tek bir marka-eşleniğinde toplanmıştır)."""
+        from sqlalchemy import text
+        brand = (brand or "").strip()
+        if brand == "__DGD__":
+            return json.dumps({"success": True, "categories": []}, ensure_ascii=False)
+
+        db = SessionLocal()
+        try:
+            params = {}
+            clause = "WHERE item_category IS NOT NULL AND item_category != '' AND item_category != 'DGD'"
+            if brand:
+                clause += " AND UPPER(brand) = UPPER(:brand)"
+                params["brand"] = brand
+            rows = db.execute(text(f"""
+                SELECT item_category, COUNT(*) AS cnt
+                FROM warehouse.parts
+                {clause}
+                GROUP BY item_category
+                ORDER BY item_category
+            """), params).mappings().all()
+            categories = [{"value": r["item_category"], "label": r["item_category"], "count": r["cnt"]} for r in rows]
+            return json.dumps({"success": True, "categories": categories}, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, str, result=str)
+    def get_price_matrix_items(self, search="", brand="", category=""):
+        """Fiyat matrisinin satırlarını oluşturan item_code listesini döner (fiziksel parçalar
+        + DGD işçilik kodları), her satırda türetilmiş bir 'İşçilik'/'Parça' etiketiyle.
+        warehouse.parts on binlerce satır olabildiğinden (bkz. get_parts/get_stock_status),
+        frontend artık markaya (ve opsiyonel kategoriye) göre daraltılmış bir alt küme ister -
+        bu yüzden brand/category verildiğinde doğrudan (küçük, hızlı) sorgulanır, önbelleklenmez.
+        Hiçbir filtre verilmeyen (search='', brand='', category='') geriye dönük çağrı için
+        tam katalog, diğer büyük listelerle aynı api_cache/*.json + fetch_url deseniyle döner."""
+        from sqlalchemy import text
+        search = (search or "").strip()
+        brand = (brand or "").strip()
+        category = (category or "").strip()
+        unfiltered = not search and not brand and not category
+
+        if unfiltered:
+            filename = "price_matrix_items.json"
+            path = os.path.join(get_cache_dirs()[0], filename)
+            fetch_url = f"/api_cache/{filename}"
+            if os.path.exists(path):
+                return json.dumps({"success": True, "fetch_url": fetch_url})
+
+        db = SessionLocal()
+        try:
+            clauses = []
             params = {}
             if search:
-                clause = "WHERE item_code ILIKE :s OR name ILIKE :s"
+                clauses.append("(item_code ILIKE :s OR name ILIKE :s)")
                 params["s"] = f"%{search}%"
+            if brand == "__DGD__":
+                clauses.append("item_category = 'DGD'")
+            elif brand:
+                clauses.append("UPPER(brand) = UPPER(:brand)")
+                params["brand"] = brand
+            if category:
+                clauses.append("item_category = :category")
+                params["category"] = category
+            clause = ("WHERE " + " AND ".join(clauses)) if clauses else ""
+
             rows = db.execute(text(f"""
                 SELECT item_code, name,
                        CASE WHEN item_category = 'DGD' THEN 'İşçilik' ELSE 'Parça' END AS item_type
@@ -10672,6 +10790,13 @@ class WebBridge(QObject):
                 ORDER BY item_type, item_code
             """), params).mappings().all()
             items = [{"item_code": r["item_code"], "name": r["name"] or "", "item_type": r["item_type"]} for r in rows if r["item_code"]]
+
+            if unfiltered:
+                json_data = json.dumps({"success": True, "items": items}, ensure_ascii=False)
+                write_to_cache("price_matrix_items.json", json_data)
+                fetch_url = f"/api_cache/price_matrix_items.json"
+                return json.dumps({"success": True, "fetch_url": fetch_url})
+
             return json.dumps({"success": True, "items": items}, ensure_ascii=False)
         except Exception as e:
             return json.dumps({"success": False, "message": str(e)})

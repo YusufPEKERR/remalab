@@ -1,6 +1,10 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { DollarSign, Save, Search, FileSpreadsheet, RefreshCw } from 'lucide-react';
+import { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
+import { DollarSign, Save, Search, FileSpreadsheet, RefreshCw, Filter } from 'lucide-react';
 import { api } from '../services/api';
+
+const ROW_HEIGHT_FALLBACK = 42; // ilk ölçüm gelene kadar kullanılan tahmini satır yüksekliği
+const OVERSCAN_ROWS = 8; // görünür alanın üstünde/altında ekstra render edilen satır sayısı
+const SEARCH_DEBOUNCE_MS = 150;
 
 function getCurrentUser() {
   try {
@@ -10,24 +14,84 @@ function getCurrentUser() {
   }
 }
 
+const selectClass = "px-3 py-2 bg-white dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed";
+
+// Tek bir satırı temsil eder. Sadece kendi item'ının fiyat/kirli verisi değiştiğinde
+// yeniden render olur (dirty[itemCode] ve prices[itemCode] referansları başka satır
+// düzenlenirken sabit kalır) - böylece bir hücreye yazmak binlerce input'u tekrar
+// render etmeye zorlamaz.
+const PriceMatrixRow = memo(function PriceMatrixRow({ item, customers, dirtyRow, priceRow, onCellChange, measureRef }) {
+  const getCellValue = (customerCode) => {
+    if (dirtyRow && Object.prototype.hasOwnProperty.call(dirtyRow, customerCode)) {
+      return dirtyRow[customerCode];
+    }
+    return priceRow?.[customerCode] ?? '';
+  };
+
+  return (
+    <tr ref={measureRef} className="hover:bg-slate-100 dark:hover:bg-[#1e222d] transition-colors">
+      <td className="px-4 py-2 sticky left-0 bg-white dark:bg-[#12141c] z-10 font-mono text-slate-700 dark:text-slate-300">
+        <div className="flex items-center gap-2">
+          <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${item.item_type === 'İşçilik' ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-300' : 'bg-slate-100 dark:bg-slate-500/20 text-slate-500'}`}>
+            {item.item_type}
+          </span>
+          <span>{item.item_code}</span>
+        </div>
+      </td>
+      {customers.map(c => (
+        <td key={c.code} className="px-2 py-1.5 text-center">
+          <input
+            type="number" step="0.01"
+            value={getCellValue(c.code)}
+            onChange={e => onCellChange(item.item_code, c.code, e.target.value)}
+            placeholder="-"
+            className="w-24 text-center px-2 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#181a24] text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </td>
+      ))}
+    </tr>
+  );
+});
+
 export default function CustomerPriceMatrix() {
   const [customers, setCustomers] = useState([]);
   const [items, setItems] = useState([]);
   const [prices, setPrices] = useState({}); // { item_code: { customer_code: price } }
   const [dirty, setDirty] = useState({}); // aynı şekil, sadece değiştirilen hücreler
-  const [loading, setLoading] = useState(false);
+  const [initializing, setInitializing] = useState(false); // müşteri/marka/fiyat ilk yükleme
+  const [itemsLoading, setItemsLoading] = useState(false); // seçili marka/kategoriye göre parça yükleme
   const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
 
-  const loadAll = useCallback(async () => {
-    setLoading(true);
-    const [custRes, itemRes, priceRes] = await Promise.all([
+  // Marka → Kategori kademeli filtreleri: sistem artık varsayılan olarak 30 bin+
+  // satırlık tüm katalogu değil, yalnızca seçilen markanın (isteğe bağlı olarak
+  // kategoriyle daha da daraltılmış) parçalarını yükler.
+  const [brands, setBrands] = useState([]);
+  const [selectedBrand, setSelectedBrand] = useState('');
+  const [categories, setCategories] = useState([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState('');
+
+  const loading = initializing || itemsLoading;
+
+  // Satır sanallaştırma (virtualization) durumu: binlerce parça x müşteri hücresi
+  // için tamamı DOM'a basılırsa tarayıcı kilitlenir. Sadece görünür aralık render edilir.
+  const scrollContainerRef = useRef(null);
+  const rowMeasureRef = useRef(null);
+  const [scrollTop, setScrollTop] = useState(0);
+  const [viewportHeight, setViewportHeight] = useState(600);
+  const [rowHeight, setRowHeight] = useState(ROW_HEIGHT_FALLBACK);
+
+  const loadStatic = useCallback(async () => {
+    setInitializing(true);
+    const [custRes, brandRes, priceRes] = await Promise.all([
       api.getPriceMatrixCustomers(),
-      api.getPriceMatrixItems(''),
+      api.getPriceMatrixBrands(),
       api.getPriceMatrix(),
     ]);
     if (custRes.success) setCustomers(custRes.customers || []);
-    if (itemRes.success) setItems(itemRes.items || []);
+    if (brandRes.success) setBrands(brandRes.brands || []);
     if (priceRes.success) {
       const map = {};
       for (const p of (priceRes.prices || [])) {
@@ -37,16 +101,97 @@ export default function CustomerPriceMatrix() {
       setPrices(map);
     }
     setDirty({});
-    setLoading(false);
+    setInitializing(false);
   }, []);
 
-  useEffect(() => { loadAll(); }, [loadAll]);
+  useEffect(() => { loadStatic(); }, [loadStatic]);
+
+  const loadItems = useCallback(async (brand, category) => {
+    if (!brand) {
+      setItems([]);
+      return;
+    }
+    setItemsLoading(true);
+    const res = await api.getPriceMatrixItems('', brand, category);
+    if (res.success) setItems(res.items || []);
+    setItemsLoading(false);
+  }, []);
+
+  useEffect(() => {
+    loadItems(selectedBrand, selectedCategory);
+  }, [selectedBrand, selectedCategory, loadItems]);
+
+  // Marka değiştiğinde o markaya ait kategori listesini getir; kategori seçimini
+  // sıfırla (önceki markanın kategorisi yeni markada geçerli olmayabilir).
+  useEffect(() => {
+    setSelectedCategory('');
+    if (!selectedBrand || selectedBrand === '__DGD__') {
+      setCategories([]);
+      return undefined;
+    }
+    let cancelled = false;
+    setCategoriesLoading(true);
+    api.getPriceMatrixCategories(selectedBrand).then(res => {
+      if (cancelled) return;
+      if (res.success) setCategories(res.categories || []);
+      setCategoriesLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [selectedBrand]);
+
+  // Arama kutusuna yazarken seçili marka/kategori alt kümesi üzerinde her tuş
+  // vuruşunda filtrelemek yerine kısa bir debounce uygulanır.
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchTerm), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(t);
+  }, [searchTerm]);
 
   const filteredItems = useMemo(() => {
-    const term = searchTerm.trim().toLowerCase();
+    const term = debouncedSearch.trim().toLowerCase();
     if (!term) return items;
     return items.filter(i => i.item_code.toLowerCase().includes(term) || (i.name || '').toLowerCase().includes(term));
-  }, [items, searchTerm]);
+  }, [items, debouncedSearch]);
+
+  // Marka/kategori/arama değiştiğinde sanallaştırma indekslerinin eski kaydırma
+  // konumuyla uyuşmaması için görünümü başa sar.
+  useEffect(() => {
+    if (scrollContainerRef.current) scrollContainerRef.current.scrollTop = 0;
+    setScrollTop(0);
+  }, [debouncedSearch, selectedBrand, selectedCategory]);
+
+  useEffect(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return undefined;
+    setViewportHeight(el.clientHeight);
+    const onScroll = () => setScrollTop(el.scrollTop);
+    el.addEventListener('scroll', onScroll, { passive: true });
+    const ro = new ResizeObserver(() => setViewportHeight(el.clientHeight));
+    ro.observe(el);
+    return () => {
+      el.removeEventListener('scroll', onScroll);
+      ro.disconnect();
+    };
+  }, []);
+
+  // İlk render edilen satırın gerçek yüksekliğini ölç ki sanallaştırma boşluk
+  // (spacer) hesapları tahmini değil gerçek satır boyuna göre yapılsın.
+  const measureRow = useCallback((node) => {
+    rowMeasureRef.current = node;
+    if (node) {
+      const h = node.getBoundingClientRect().height;
+      if (h > 0) {
+        setRowHeight(prev => (Math.abs(prev - h) > 0.5 ? h : prev));
+      }
+    }
+  }, []);
+
+  const totalRows = filteredItems.length;
+  const startIndex = loading ? 0 : Math.max(0, Math.floor(scrollTop / rowHeight) - OVERSCAN_ROWS);
+  const visibleCount = Math.ceil(viewportHeight / rowHeight) + OVERSCAN_ROWS * 2;
+  const endIndex = loading ? 0 : Math.min(totalRows, startIndex + visibleCount);
+  const visibleItems = useMemo(() => filteredItems.slice(startIndex, endIndex), [filteredItems, startIndex, endIndex]);
+  const topSpacerHeight = startIndex * rowHeight;
+  const bottomSpacerHeight = (totalRows - endIndex) * rowHeight;
 
   const getCellValue = (itemCode, customerCode) => {
     if (dirty[itemCode] && Object.prototype.hasOwnProperty.call(dirty[itemCode], customerCode)) {
@@ -55,18 +200,23 @@ export default function CustomerPriceMatrix() {
     return prices[itemCode]?.[customerCode] ?? '';
   };
 
-  const handleCellChange = (itemCode, customerCode, value) => {
+  const handleCellChange = useCallback((itemCode, customerCode, value) => {
     setDirty(prev => ({
       ...prev,
       [itemCode]: { ...(prev[itemCode] || {}), [customerCode]: value },
     }));
-  };
+  }, []);
 
   const dirtyCount = useMemo(() => {
     let n = 0;
     for (const itemCode of Object.keys(dirty)) n += Object.keys(dirty[itemCode]).length;
     return n;
   }, [dirty]);
+
+  const handleRefresh = async () => {
+    await loadStatic();
+    await loadItems(selectedBrand, selectedCategory);
+  };
 
   const handleSave = async () => {
     if (dirtyCount === 0 || saving) return;
@@ -82,7 +232,7 @@ export default function CustomerPriceMatrix() {
     const res = await api.savePriceMatrixBatch(rows, getCurrentUser()?.username);
     setSaving(false);
     if (res.success) {
-      await loadAll();
+      await handleRefresh();
     } else {
       alert(res.message || 'Kaydetme başarısız oldu.');
     }
@@ -98,6 +248,8 @@ export default function CustomerPriceMatrix() {
     });
     await api.exportTableToExcel(exportData, 'musteri_fiyat_matrisi.xlsx');
   };
+
+  const categorySelectDisabled = !selectedBrand || selectedBrand === '__DGD__' || categoriesLoading;
 
   return (
     <div className="flex flex-col space-y-6 pb-12 text-[#12141c] dark:text-[#F6F8FF] max-w-[1600px] mx-auto animate-in fade-in duration-300">
@@ -115,18 +267,20 @@ export default function CustomerPriceMatrix() {
               Müşteri Fiyat Matrisi
             </h1>
             <p className="text-sm text-[#4A5A9E] dark:text-slate-300 leading-relaxed">
-              Her parça/işçilik kodunun müşteriye göre değişen sabit fiyatını yönetin. Boş hücre, genel (item.satis) fiyata geri düşer.
+              Önce bir marka (isterseniz ardından kategori) seçin; parçalar ve fiyat hücreleri yalnızca o seçim için yüklenir.
+              Boş hücre, genel (item.satis) fiyata geri düşer.
             </p>
           </div>
           <div className="flex items-center gap-3 shrink-0 flex-wrap">
             <button
               onClick={handleExport}
-              className="flex items-center gap-2 bg-white dark:bg-[#1e222d] hover:bg-[#EFF1FA] dark:hover:bg-[#2e3545] text-[#12141c] dark:text-[#F6F8FF] border border-[#DCE1F1] dark:border-[#2e3545] px-4 py-2.5 rounded-xl text-xs font-bold transition-all"
+              disabled={!selectedBrand}
+              className="flex items-center gap-2 bg-white dark:bg-[#1e222d] hover:bg-[#EFF1FA] dark:hover:bg-[#2e3545] text-[#12141c] dark:text-[#F6F8FF] border border-[#DCE1F1] dark:border-[#2e3545] px-4 py-2.5 rounded-xl text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <FileSpreadsheet size={15} /> Dışa Aktar
             </button>
             <button
-              onClick={loadAll}
+              onClick={handleRefresh}
               className="flex items-center gap-2 bg-white dark:bg-[#1e222d] hover:bg-[#EFF1FA] dark:hover:bg-[#2e3545] text-[#12141c] dark:text-[#F6F8FF] border border-[#DCE1F1] dark:border-[#2e3545] px-4 py-2.5 rounded-xl text-xs font-bold transition-all"
               title="Yeniden Yükle"
             >
@@ -144,20 +298,50 @@ export default function CustomerPriceMatrix() {
       </div>
 
       <div className="glass-card rounded-2xl shadow-md overflow-hidden flex flex-col">
-        <div className="p-4 border-b border-[#DCE1F1] dark:border-[#1e222d] bg-[#F5F7FC] dark:bg-[#181a24]">
-          <div className="relative max-w-sm">
+        <div className="p-4 border-b border-[#DCE1F1] dark:border-[#1e222d] bg-[#F5F7FC] dark:bg-[#181a24] flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2 text-slate-400">
+            <Filter size={15} />
+          </div>
+          <select
+            value={selectedBrand}
+            onChange={(e) => setSelectedBrand(e.target.value)}
+            className={selectClass}
+          >
+            <option value="">Marka seçin...</option>
+            {brands.map(b => (
+              <option key={b.value} value={b.value}>{b.label} ({b.count})</option>
+            ))}
+          </select>
+
+          <select
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            disabled={categorySelectDisabled}
+            className={selectClass}
+          >
+            <option value="">{categoriesLoading ? 'Kategoriler yükleniyor...' : 'Tüm kategoriler'}</option>
+            {categories.map(c => (
+              <option key={c.value} value={c.value}>{c.label} ({c.count})</option>
+            ))}
+          </select>
+
+          <div className="relative max-w-sm flex-1 min-w-[220px]">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              disabled={!selectedBrand}
               placeholder="Item kodu veya ad ile ara..."
-              className="w-full pl-9 pr-3 py-2 bg-white dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 shadow-sm"
+              className="w-full pl-9 pr-3 py-2 bg-white dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
             />
           </div>
+          {selectedBrand && !loading && (
+            <span className="text-xs text-slate-400 font-medium shrink-0">{totalRows} kayıt</span>
+          )}
         </div>
 
-        <div className="overflow-auto max-h-[65vh]">
+        <div ref={scrollContainerRef} className="overflow-auto max-h-[65vh]">
           <table className="text-left text-xs whitespace-nowrap">
             <thead className="bg-slate-50 dark:bg-[#181a24] text-slate-400 font-semibold uppercase tracking-wider sticky top-0 z-20">
               <tr>
@@ -168,34 +352,43 @@ export default function CustomerPriceMatrix() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-700/30">
-              {loading ? (
+              {!selectedBrand ? (
+                <tr>
+                  <td colSpan={customers.length + 1} className="px-6 py-12 text-center text-slate-500">
+                    <div className="flex flex-col items-center gap-2">
+                      <Filter size={22} className="text-slate-300 dark:text-slate-600" />
+                      <span>Parçaları listelemek için önce bir <strong>marka</strong> seçin.</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : loading ? (
                 <tr><td colSpan={customers.length + 1} className="px-6 py-8 text-center"><RefreshCw className="animate-spin mx-auto text-blue-400" /></td></tr>
-              ) : filteredItems.length === 0 ? (
+              ) : totalRows === 0 ? (
                 <tr><td colSpan={customers.length + 1} className="px-6 py-8 text-center text-slate-500">Kayıt bulunamadı.</td></tr>
               ) : (
-                filteredItems.map(item => (
-                  <tr key={item.item_code} className="hover:bg-slate-100 dark:hover:bg-[#1e222d] transition-colors">
-                    <td className="px-4 py-2 sticky left-0 bg-white dark:bg-[#12141c] z-10 font-mono text-slate-700 dark:text-slate-300">
-                      <div className="flex items-center gap-2">
-                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${item.item_type === 'İşçilik' ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-300' : 'bg-slate-100 dark:bg-slate-500/20 text-slate-500'}`}>
-                          {item.item_type}
-                        </span>
-                        <span>{item.item_code}</span>
-                      </div>
-                    </td>
-                    {customers.map(c => (
-                      <td key={c.code} className="px-2 py-1.5 text-center">
-                        <input
-                          type="number" step="0.01"
-                          value={getCellValue(item.item_code, c.code)}
-                          onChange={e => handleCellChange(item.item_code, c.code, e.target.value)}
-                          placeholder="-"
-                          className="w-24 text-center px-2 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#181a24] text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                      </td>
-                    ))}
-                  </tr>
-                ))
+                <>
+                  {topSpacerHeight > 0 && (
+                    <tr aria-hidden="true" style={{ height: topSpacerHeight }}>
+                      <td colSpan={customers.length + 1} style={{ padding: 0, border: 0 }} />
+                    </tr>
+                  )}
+                  {visibleItems.map((item, i) => (
+                    <PriceMatrixRow
+                      key={item.item_code}
+                      item={item}
+                      customers={customers}
+                      dirtyRow={dirty[item.item_code]}
+                      priceRow={prices[item.item_code]}
+                      onCellChange={handleCellChange}
+                      measureRef={i === 0 ? measureRow : undefined}
+                    />
+                  ))}
+                  {bottomSpacerHeight > 0 && (
+                    <tr aria-hidden="true" style={{ height: bottomSpacerHeight }}>
+                      <td colSpan={customers.length + 1} style={{ padding: 0, border: 0 }} />
+                    </tr>
+                  )}
+                </>
               )}
             </tbody>
           </table>
