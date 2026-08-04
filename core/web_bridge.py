@@ -43,6 +43,43 @@ def clear_api_cache(session=None):
 
 event.listen(Session, 'after_commit', clear_api_cache)
 
+# service_statu kayıtları İngilizce tutulur (language='en'). Servis ekranı gibi kullanıcıya
+# dönük yerlerde statü adının Türkçe gösterilmesi için kod -> Türkçe eşlemesi. Haritada
+# olmayan bir kod, DB'deki short_name'e (fallback) düşer. Bkz. statu_label_tr.
+SERVICE_STATU_TR = {
+    100: "Ön bildirim yapıldı",
+    101: "Depo kabulü tamamlandı",
+    102: "İlk teste aktarıldı",
+    103: "İlk test bekleniyor",
+    104: "İlk test tamamlandı",
+    105: "Üretim planlama onayı bekleniyor",
+    106: "Müşteri onayına gönderilecek",
+    107: "Müşteri onayı bekleniyor",
+    109: "Üretim aşamasında",
+    124: "Son teste teslim edilecek",
+    125: "Son teste kabul edildi",
+    126: "Depoya sevk edilecek",
+    127: "Müşteriye sevkiyat bekleniyor",
+    128: "Serbest bırakıldı",
+    130: "Montaj bekleniyor",
+    131: "L1 Montaj yapılacak",
+    132: "L2 Montaj yapılacak",
+    133: "Montaj tamamlandı",
+    134: "RMA incelemesi",
+    135: "İade öncesi son teste gönderildi",
+    136: "Müşteri onay/red alındı",
+    137: "Ara teste teslim edilecek",
+    138: "Ara test bekleniyor",
+}
+
+
+def statu_label_tr(code, fallback_name=None):
+    """Statü kodunu 'Türkçe ad (kod)' biçiminde döner. Harita yoksa DB short_name'ine
+    (fallback_name), o da yoksa kodun kendisine düşer."""
+    name = SERVICE_STATU_TR.get(code) or fallback_name or str(code)
+    return f"{name} ({code})"
+
+
 # Otomatik iş akışıyla yönetilen sabit sistem depoları. Bu depolar arasındaki
 # manuel transferler (bkz. transfer_stock) SYSTEM_TRANSFER_RULES ile kısıtlanır.
 SYSTEM_LOCATION_KINDS = {
@@ -9093,6 +9130,12 @@ class WebBridge(QObject):
 
             statu = db.query(ServiceStatu).filter_by(code=entry.statu_code).first()
             statu_name = statu.short_name if statu else str(entry.statu_code)
+            # Statü adı kullanıcıya Türkçe gösterilir (bkz. statu_label_tr / SERVICE_STATU_TR).
+            current_statu_label = statu_label_tr(entry.statu_code, statu_name)
+
+            # Kayıt oluşturulurken cihaz başlangıç statüsündedir (batch_entries varsayılanı 100).
+            creation_statu = db.query(ServiceStatu).filter_by(code=100).first()
+            creation_statu_label = statu_label_tr(100, creation_statu.short_name if creation_statu else None)
 
             def fmt(dt):
                 return dt.strftime("%Y-%m-%d %H:%M") if dt else ""
@@ -9103,14 +9146,14 @@ class WebBridge(QObject):
                 items.append({
                     "date": fmt(last_update),
                     "staffName": "",
-                    "type": "Durum Güncellendi",
-                    "text": f"Güncel durum: {statu_name} ({entry.statu_code})",
+                    "statu": current_statu_label,
+                    "text": f"Güncel durum: {current_statu_label}",
                 })
             if entry.created_at:
                 items.append({
                     "date": fmt(entry.created_at),
                     "staffName": entry.created_by or "",
-                    "type": "Kayıt Oluşturuldu",
+                    "statu": creation_statu_label,
                     "text": "Parti/cihaz sisteme kaydedildi.",
                 })
 
@@ -9826,7 +9869,7 @@ class WebBridge(QObject):
             repair_rows = db.execute(text("""
                 SELECT rr.id, rr.department_mission, rr.notes, rr.repair_result_type_code, rr.warranty_code,
                        rr.part_item_code, rr.item_fault_code, rr.operation_type_code, rr.supply_status_code,
-                       rr.assigned_technician, rr.assigned_by, rr.assigned_at,
+                       rr.assigned_technician, rr.assigned_by, rr.assigned_at, rr.created_at, rr.updated_at,
                        rrt.short_name AS result_name, rrt.is_cancelled, rrt.is_success,
                        -- mission_group_name SELECT'ten dusmustu (merge kaybi): mg JOIN'i duruyordu
                        -- ama kolon secilmiyordu, mapping r["mission_group_name"] okuyunca
@@ -9898,6 +9941,9 @@ class WebBridge(QObject):
                     "assignedTechnicianName": r["assigned_technician_name"] or "",
                     "assignedBy": r["assigned_by"] or "",
                     "assignedAt": r["assigned_at"].isoformat() if r["assigned_at"] else "",
+                    # Onarım Detay grid'indeki "Tarih" sütunu bunu okur (onarımın oluşturulma anı).
+                    "createdAt": r["created_at"].strftime("%d.%m.%Y %H:%M") if r["created_at"] else "",
+                    "updatedAt": r["updated_at"].strftime("%d.%m.%Y %H:%M") if r["updated_at"] else "",
                     "notes": r["notes"] or "",
                 })
 

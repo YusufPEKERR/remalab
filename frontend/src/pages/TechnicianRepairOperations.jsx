@@ -1302,6 +1302,7 @@ const TechnicianRepairOperations = () => {
                   <th className="text-left px-5 py-3">Görev Grubu</th>
                   <th className="text-left px-3 py-3">Teknisyen</th>
                   <th className="text-left px-3 py-3">Alt Statü</th>
+                  <th className="text-left px-3 py-3">Tarih</th>
                   <th className="text-center px-3 py-3">Ücret</th>
                 </tr>
               </thead>
@@ -1316,6 +1317,7 @@ const TechnicianRepairOperations = () => {
                     </td>
                     <td className="px-3 py-3 text-xs text-slate-600 dark:text-slate-400">{g.active.technician || <span className="italic text-slate-400">Atanmadı</span>}</td>
                     <td className="px-3 py-3"><StatusBadge code={g.active.statusCode} /></td>
+                    <td className="px-3 py-3 text-xs text-slate-600 dark:text-slate-400 whitespace-nowrap">{g.active.createdAt || <span className="italic text-slate-400">-</span>}</td>
                     <td className="px-3 py-3 text-center">
                       <button
                         onClick={(e) => { e.stopPropagation(); if (hasAccess && !g.active.isCancelled) handleToggleChargeType(g.active.id, g.active.chargeType); }}
