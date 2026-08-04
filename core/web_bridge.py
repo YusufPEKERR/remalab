@@ -12162,17 +12162,6 @@ class WebBridge(QObject):
 
     @Slot(str, str, str, str, result=str)
     def get_deliverable_parts_for_device(self, brand, model, color="", imei_or_serial=""):
-        """Parça Teslim ekranı için SADECE cihaza/onarıma teknisyen tarafından eklenmiş olan parçaları ve Good Stock miktarlarını getirir."""
-        from sqlalchemy import text
-        db = SessionLocal()
-        try:
-            brand_clean = (brand or "").strip()
-            model_clean = (model or "").strip()
-            color_clean = (color or "").strip()
-            imei_clean = (imei_or_serial or "").strip()
-
-    @Slot(str, str, str, str, result=str)
-    def get_deliverable_parts_for_device(self, brand, model, color="", imei_or_serial=""):
         """Parça Teslim ekranı için SADECE cihaza/onarıma teknisyen tarafından eklenmiş olan ve stoğu tutulan fiziki parçaları getirir. DGD işçilik kalemleri ve stoksuz parçalar elenir."""
         from sqlalchemy import text
         db = SessionLocal()
