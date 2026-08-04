@@ -9165,9 +9165,9 @@ class WebBridge(QObject):
     @Slot(str, result=str)
     def get_phonecheck_stored_by_imei(self, term):
         """Cihaza ait EN GÜNCEL phonecheck_test_results kaydını (yerel tablo) TÜM alanlarıyla
-        döner. Canlı Phonecheck API'sine GİTMEZ; test aşamasında kaydedilmiş verileri kullanır.
-        Servis Onarımları / Teknisyen ekranlarındaki Müşteri Arıza Tespiti, Notes ve batarya
-        bilgileri bu kayıttan doldurulur."""
+        döner. Yerel kayıt YOKSA canlı Phonecheck API'sine düşer (fallback) — böylece test
+        aşamasından geçmemiş IMEI'ler için de veri gelir. Servis Onarımları / Teknisyen
+        ekranlarındaki Müşteri Arıza Tespiti, Notes ve batarya bilgileri buradan doldurulur."""
         from models.phonecheck_test_result import PhonecheckTestResult
         db = SessionLocal()
         try:
@@ -9184,6 +9184,43 @@ class WebBridge(QObject):
                  .order_by(PhonecheckTestResult.fetched_at.desc())
                  .first())
             if not r:
+                # Yerel kayıt yoksa CANLI Phonecheck API'sinden çek — böylece test aşamasından
+                # geçmemiş / tabloya yansımamış IMEI'ler için de Müşteri Arıza Tespiti ve Notes gelir.
+                try:
+                    from services.phonecheck_service import PhonecheckService
+                    pc = PhonecheckService(db)
+                    fetched = pc.fetch_device(lookup_imei)
+                    if fetched.get("success"):
+                        dv = fetched.get("device") or {}
+                        def _g(*keys):
+                            for k in keys:
+                                v = dv.get(k)
+                                if v not in (None, ""):
+                                    return str(v)
+                            return ""
+                        def _gi(key):
+                            try:
+                                v = dv.get(key)
+                                return int(float(v)) if v not in (None, "") else None
+                            except (TypeError, ValueError):
+                                return None
+                        live = {
+                            "imei": _g("IMEI") or lookup_imei,
+                            "test_stage": "", "test_type": _g("Type"),
+                            "test_start_time": _g("StartTime"), "test_end_time": _g("EndTime"),
+                            "station_id": _g("StationID"), "working": _g("Working"),
+                            "passed": _g("Passed"), "failed": _g("Failed"), "pending": _g("Pending"),
+                            "model": _g("Model"), "memory": _g("Memory"), "serial": _g("Serial"),
+                            "color": _g("Color"), "grade": _g("Grade"), "version": _g("Version"),
+                            "notes": _g("Notes"),
+                            "battery_cycle": _gi("BatteryCycle"),
+                            "battery_health_percentage": _gi("BatteryHealthPercentage"),
+                            "grading_results": _g("GradingResults"),
+                            "fetched_at": "", "is_manual": False, "manual_reason": "",
+                        }
+                        return json.dumps({"success": True, "found": True, "source": "live", "data": live}, ensure_ascii=False)
+                except Exception as live_err:
+                    print(f"[WebBridge] get_phonecheck_stored_by_imei canlı fallback hatası: {live_err}")
                 return json.dumps({"success": True, "found": False, "data": None})
 
             data = {
