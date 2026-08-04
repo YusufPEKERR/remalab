@@ -498,6 +498,27 @@ class WebAppWindow(QMainWindow):
         self.shortcut_mac_preferences = QShortcut(QKeySequence("Meta+,"), self)
         self.shortcut_mac_preferences.activated.connect(self.open_settings)
 
+        # Üst Menü (Toolbar) Göster/Gizle Kısayolları (⌘+M, ⌘+Shift+M, Ctrl+M, Ctrl+Shift+M, F2)
+        self.shortcut_toggle_toolbar_mac = QShortcut(QKeySequence("Meta+M"), self)
+        self.shortcut_toggle_toolbar_mac.activated.connect(self.toggle_toolbar)
+
+        self.shortcut_toggle_toolbar_mac_shift = QShortcut(QKeySequence("Meta+Shift+M"), self)
+        self.shortcut_toggle_toolbar_mac_shift.activated.connect(self.toggle_toolbar)
+
+        self.shortcut_toggle_toolbar_ctrl = QShortcut(QKeySequence("Ctrl+M"), self)
+        self.shortcut_toggle_toolbar_ctrl.activated.connect(self.toggle_toolbar)
+
+        self.shortcut_toggle_toolbar_ctrl_shift = QShortcut(QKeySequence("Ctrl+Shift+M"), self)
+        self.shortcut_toggle_toolbar_ctrl_shift.activated.connect(self.toggle_toolbar)
+
+        self.shortcut_toggle_toolbar_f2 = QShortcut(QKeySequence(Qt.Key.Key_F2), self)
+        self.shortcut_toggle_toolbar_f2.activated.connect(self.toggle_toolbar)
+
+    def toggle_toolbar(self):
+        """Üst menüyü (Toolbar) gösterir / gizler."""
+        if hasattr(self, 'toolbar') and self.toolbar:
+            self.toolbar.setVisible(not self.toolbar.isVisible())
+
     def toggle_fullscreen(self):
         """Tam ekran modunu açar / kapatır."""
         if self.isFullScreen():
@@ -607,60 +628,61 @@ class WebAppWindow(QMainWindow):
             }
         """)
 
-        # ToolBar
-        toolbar = QToolBar("Navigasyon")
-        toolbar.setMovable(False)
-        toolbar.setIconSize(QSize(18, 18))
-        self.addToolBar(toolbar)
+        # ToolBar (Varsayılan olarak gizlendi, kısayol ile açılıp kapatılabilir)
+        self.toolbar = QToolBar("Navigasyon")
+        self.toolbar.setMovable(False)
+        self.toolbar.setIconSize(QSize(18, 18))
+        self.addToolBar(self.toolbar)
+        self.toolbar.setVisible(False)  # Üst menü varsayılan olarak gizlendi
 
         # Geri Butonu
         self.back_btn = QToolButton(self)
         self.back_btn.setText("◀ Geri")
         self.back_btn.setToolTip("Geri Dön")
         self.back_btn.clicked.connect(self.navigate_back)
-        toolbar.addWidget(self.back_btn)
+        self.toolbar.addWidget(self.back_btn)
 
         # İleri Butonu
         self.forward_btn = QToolButton(self)
         self.forward_btn.setText("İleri ▶")
         self.forward_btn.setToolTip("İleri Git")
         self.forward_btn.clicked.connect(self.navigate_forward)
-        toolbar.addWidget(self.forward_btn)
+        self.toolbar.addWidget(self.forward_btn)
 
         # Yenile Butonu
         self.reload_btn = QToolButton(self)
         self.reload_btn.setText("🔄 Yenile")
         self.reload_btn.setToolTip("Sayfayı Yenile (⌘+R)")
         self.reload_btn.clicked.connect(self.navigate_reload)
-        toolbar.addWidget(self.reload_btn)
+        self.toolbar.addWidget(self.reload_btn)
 
         # Ana Sayfa Butonu
         self.home_btn = QToolButton(self)
         self.home_btn.setText("🏠 Ana Sayfa")
         self.home_btn.setToolTip("Varsayılan Siteye Git")
         self.home_btn.clicked.connect(self.load_initial_site)
-        toolbar.addWidget(self.home_btn)
+        self.toolbar.addWidget(self.home_btn)
 
-        toolbar.addSeparator()
+        self.toolbar.addSeparator()
 
         # Site Seçici Combobox
         self.site_combo = QComboBox(self)
         self.site_combo.setToolTip("Kayıtlı Siteler Arasında Geçiş Yap")
         self.site_combo.currentIndexChanged.connect(self.on_site_selected)
-        toolbar.addWidget(self.site_combo)
+        self.toolbar.addWidget(self.site_combo)
 
         # URL Giriş Alanı
         self.url_bar = QLineEdit(self)
         self.url_bar.setPlaceholderText("https://...")
         self.url_bar.returnPressed.connect(self.navigate_to_url)
-        toolbar.addWidget(self.url_bar)
+        self.toolbar.addWidget(self.url_bar)
 
         # Ayarlar Butonu
         self.settings_btn = QToolButton(self)
         self.settings_btn.setText("⚙️ Ayarlar")
         self.settings_btn.setToolTip("Web Sitelerini Yönet & Ayarlar (⌘+,)")
         self.settings_btn.clicked.connect(self.open_settings)
-        toolbar.addWidget(self.settings_btn)
+        self.toolbar.addWidget(self.settings_btn)
 
         # Web Engine View
         self.browser = QWebEngineView(self)
