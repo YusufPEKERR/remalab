@@ -29,8 +29,8 @@ const INFO_FIELDS = [
   { key: 'updateDate', label: 'Update Date' },
 ];
 
-const HISTORY_COLUMNS = ['Date', 'StaffName', 'Type', 'Text'];
-const HISTORY_ROW_KEYS = ['date', 'staffName', 'type', 'text'];
+const HISTORY_COLUMNS = ['Date', 'StaffName', 'Statü', 'Text'];
+const HISTORY_ROW_KEYS = ['date', 'staffName', 'statu', 'text'];
 const PHONECHECK_COLUMNS = ['DeviceUpdatedD', 'Grade', 'Kritik Parçalar', 'Parts', 'Failed', 'PartInfoRemark', 'StationID', 'Version', 'BatteryCycle'];
 const PHONECHECK_ROW_KEYS = ['deviceUpdatedD', 'grade', 'criticalParts', 'parts', 'failed', 'partInfoRemark', 'stationID', 'version', 'batteryCycle'];
 

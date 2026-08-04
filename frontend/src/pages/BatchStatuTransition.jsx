@@ -48,10 +48,11 @@ const LOG_ICONS = {
 const stageLabel = (testStage, transition) =>
   transition?.short_name || testStage || "Test";
 
-// Sadece bu iki geçişte IMEI okutulduğunda Phonecheck'e gidilir (Pass/Fail testi).
-// Diğer tüm statü geçiş ekranlarında eski davranış geçerlidir: PhoneCheck sorgusu
-// yapılmaz, kayıt doğrudan sabit kaynak→hedef statüsüne taşınır.
-const PHONECHECK_DRIVEN_CODES = ["103_104", "124_125"];
+// Sadece İLK TEST geçişinde (103_104) IMEI okutulduğunda Phonecheck'e gidilir (Pass/Fail testi).
+// Son teste kabul (124_125) artık Phonecheck'e GİTMEZ — cihaz doğrudan 124→125'e taşınır;
+// PhoneCheck test verisi Son Test Sonuç ekranında (onaydan sonra) gösterilir.
+// Diğer tüm statü geçiş ekranlarında da PhoneCheck sorgusu yapılmaz, kayıt doğrudan taşınır.
+const PHONECHECK_DRIVEN_CODES = ["103_104"];
 
 const MANUAL_FIELD_LABELS = {
   working: "Çalışıyor mu (Working)",

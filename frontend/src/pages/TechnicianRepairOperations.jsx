@@ -888,12 +888,16 @@ const TechnicianRepairOperations = () => {
       if (!map.has(key)) map.set(key, { key, missionGroup: r.missionGroup, items: [] });
       map.get(key).items.push(r);
     }
-    return Array.from(map.values()).map(g => ({
-      ...g,
-      // Grup satırında/sekmesinde gösterilecek temsilci kayıt: aktif (iptal edilmemiş)
-      // olan varsa o, hepsi iptal edildiyse en sonuncusu.
-      active: g.items.find(r => !r.isCancelled) || g.items[g.items.length - 1],
-    }));
+    return Array.from(map.values()).map(g => {
+      const activeItem = g.items.find(r => !r.isCancelled && (r.technician || r.assignedTechnicianName || r.assignedTechnician)) ||
+                         g.items.find(r => !r.isCancelled) || 
+                         g.items[g.items.length - 1];
+      const techName = g.items.map(r => r.technician || r.assignedTechnicianName || r.assignedTechnician).find(Boolean) || "";
+      return {
+        ...g,
+        active: { ...activeItem, technician: techName || activeItem?.technician || "" }
+      };
+    });
   }, [repairs]);
 
   // ── Selected repair group ────────────────────────────────────
@@ -1291,6 +1295,7 @@ const TechnicianRepairOperations = () => {
                   <th className="text-left px-5 py-3">Görev Grubu</th>
                   <th className="text-left px-3 py-3">Teknisyen</th>
                   <th className="text-left px-3 py-3">Alt Statü</th>
+                  <th className="text-left px-3 py-3">Tarih</th>
                   <th className="text-center px-3 py-3">Ücret</th>
                   <th className="text-center px-3 py-3">İşlemler</th>
                 </tr>
@@ -1306,6 +1311,7 @@ const TechnicianRepairOperations = () => {
                     </td>
                     <td className="px-3 py-3 text-xs text-slate-600 dark:text-slate-400">{g.active.technician || <span className="italic text-slate-400">Atanmadı</span>}</td>
                     <td className="px-3 py-3"><StatusBadge code={g.active.statusCode} /></td>
+                    <td className="px-3 py-3 text-xs text-slate-600 dark:text-slate-400 whitespace-nowrap">{g.active.createdAt || <span className="italic text-slate-400">-</span>}</td>
                     <td className="px-3 py-3 text-center">
                       <button
                         onClick={(e) => { e.stopPropagation(); if (hasAccess && !g.active.isCancelled) handleToggleChargeType(g.active.id, g.active.chargeType); }}
