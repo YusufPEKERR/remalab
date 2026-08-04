@@ -11754,22 +11754,39 @@ class WebBridge(QObject):
 
     def _is_part_stock_tracked(self, db, item_code):
         """Parçanın stok takibine tabi olup olmadığını döner.
-
-        Sıra: parts.stock_tracking_type -> (boşsa) part_categories.stock_tracking_type ->
-        (o da boşsa) varsayılan True. Yalnızca açıkça 'Stok Takipsiz' yazan parçalarda
-        stok hareketi oluşturulmaz - bu, kolon varsayılanı 'Stok Takipli' ile tutarlıdır."""
+        DGD işçilik kalemleri ve stok takipsiz/servis hizmeti parçaları stok tutmaz (False döner)."""
         from sqlalchemy import text
         code = (item_code or "").strip()
         if not code:
             return False
+
+        if code.upper().startswith("DGD"):
+            return False
+
+        dgd_row = db.execute(text("SELECT 1 FROM warehouse.flow_dgd_mapping WHERE LOWER(TRIM(dgd_item_code)) = LOWER(TRIM(:c)) LIMIT 1"), {"c": code}).first()
+        if dgd_row:
+            return False
+
         row = db.execute(text("""
             SELECT COALESCE(NULLIF(TRIM(p.stock_tracking_type), ''),
-                            NULLIF(TRIM(pc.stock_tracking_type), '')) AS tt
+                            NULLIF(TRIM(pc.stock_tracking_type), '')) AS tt,
+                   p.item_category,
+                   p.part_category
             FROM warehouse.parts p
             LEFT JOIN warehouse.part_categories pc ON pc.id = p.part_category_id
             WHERE p.item_code = :c
             LIMIT 1
         """), {"c": code}).mappings().first()
+
+        if row:
+            cat = (row["item_category"] or "").strip().lower()
+            pcat = (row["part_category"] or "").strip().lower()
+            if cat in ('dgd', 'dgd_labor', 'dgd labor', 'dgd_iscilik', 'dgd işçilik') or pcat in ('dgd', 'dgd_labor', 'dgd labor', 'dgd_iscilik', 'dgd işçilik'):
+                return False
+            tt = (row["tt"] or "").strip().lower()
+            if any(x in tt for x in ("takipsiz", "stoksuz", "hizmet", "dgd")):
+                return False
+
         if not row or not row["tt"]:
             return True
         return "takipsiz" not in row["tt"].strip().lower()
@@ -12154,6 +12171,20 @@ class WebBridge(QObject):
             color_clean = (color or "").strip()
             imei_clean = (imei_or_serial or "").strip()
 
+    @Slot(str, str, str, str, result=str)
+    def get_deliverable_parts_for_device(self, brand, model, color="", imei_or_serial=""):
+        """Parça Teslim ekranı için SADECE cihaza/onarıma teknisyen tarafından eklenmiş olan ve stoğu tutulan fiziki parçaları getirir. DGD işçilik kalemleri ve stoksuz parçalar elenir."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            brand_clean = (brand or "").strip()
+            model_clean = (model or "").strip()
+            color_clean = (color or "").strip()
+            imei_clean = (imei_or_serial or "").strip()
+
+            dgd_rows = db.execute(text("SELECT dgd_item_code FROM warehouse.flow_dgd_mapping WHERE dgd_item_code IS NOT NULL")).fetchall()
+            dgd_mapped_codes = {r[0].strip().lower() for r in dgd_rows if r[0]}
+
             # 1) Cihazın aktif onarım kayıtlarındaki eklenmiş parça kodlarını (part_item_code) bul
             added_part_codes = []
             if imei_clean:
@@ -12167,38 +12198,34 @@ class WebBridge(QObject):
                 if be_row and be_row["service_id"]:
                     refs.append(str(be_row["service_id"]))
 
-                # TESLIM EDILMIS PARCALAR LISTEDE GORUNMEZ.
-                # Depo Durumu 'Stoktan Çıktı' (veya eski kayitlardaki 'Teslim Edildi')
-                # olan kayitlar haric tutulur - depocu ayni parcayi ikinci kez teslim
-                # etmeye calismasin, liste sadece BEKLEYEN isleri gostersin.
-                #
-                # Filtre parca koduna degil KAYDA uygulanir: ayni parca kodundan biri
-                # teslim edilmis, digeri bekliyorsa parca listede KALIR (bekleyen is var).
                 repair_part_rows = db.execute(text("""
                     SELECT DISTINCT rr.part_item_code
                     FROM warehouse.repair_records rr
                     LEFT JOIN warehouse.repair_result_type rrt ON rrt.code = rr.repair_result_type_code
+                    LEFT JOIN warehouse.parts p ON p.item_code = rr.part_item_code
                     WHERE rr.service_record_id = ANY(:refs)
                       AND (rrt.is_cancelled IS NOT TRUE)
                       AND rr.part_item_code IS NOT NULL
                       AND TRIM(rr.part_item_code) <> ''
                       AND LOWER(TRIM(COALESCE(rr.supply_status_code, '')))
                           NOT IN ('stoktan çıktı', 'teslim edildi', 'teslimedildi')
-                      -- TEKNISYENE ATANMAMIS KAYITLAR LISTEDE GORUNMEZ.
-                      -- Liste, deliver_part_to_device'in kabul ettigi kosullarla
-                      -- BIREBIR ayni olmali; yoksa depocu teslim edemeyecegi bir
-                      -- parcayi listede gorup butona basiyor ve hata aliyor.
                       AND rr.repair_result_type_code = 1001
                       AND rr.assigned_technician IS NOT NULL
                       AND TRIM(rr.assigned_technician) <> ''
+                      AND UPPER(TRIM(rr.part_item_code)) NOT LIKE 'DGD%'
+                      AND LOWER(TRIM(COALESCE(p.item_category, ''))) NOT IN ('dgd', 'dgd_labor', 'dgd labor', 'dgd_iscilik', 'dgd işçilik')
+                      AND LOWER(TRIM(COALESCE(p.part_category, ''))) NOT IN ('dgd', 'dgd_labor', 'dgd labor', 'dgd_iscilik', 'dgd işçilik')
                 """), {"refs": refs}).fetchall()
-                added_part_codes = [r[0].strip() for r in repair_part_rows if r[0]]
+
+                added_part_codes = [
+                    r[0].strip() for r in repair_part_rows 
+                    if r[0] 
+                    and r[0].strip().lower() not in dgd_mapped_codes 
+                    and not r[0].strip().upper().startswith("DGD")
+                ]
 
             if not added_part_codes:
                 return json.dumps({"success": True, "parts": []}, ensure_ascii=False)
-
-            # Apple parçaları katalogda kısaltılmış kodla tutuluyor (bkz. _derive_apple_part_codes).
-            apple_codes = _derive_apple_part_codes(model_clean) or ["__NONE__"]
 
             sql = text("""
                 SELECT
@@ -12244,12 +12271,26 @@ class WebBridge(QObject):
 
             parts = []
             for r in rows:
+                code_clean = (r["item_code"] or "").strip()
                 qty = int(r["good_stock_qty"] or 0)
                 tracking_type = (r["stock_tracking_type"] or "Stok Takipli").strip()
-                is_stoksuz = tracking_type in ("Stok Takipsiz", "Stoksuz", "Servis Hizmeti", "Yazılım/Hizmet")
+                item_cat = (r["item_category"] or "").strip().lower()
+                part_cat = (r.get("part_category") or "").strip().lower()
+
+                is_dgd = code_clean.lower() in dgd_mapped_codes \
+                    or code_clean.upper().startswith("DGD") \
+                    or item_cat in ('dgd', 'dgd_labor', 'dgd labor', 'dgd_iscilik', 'dgd işçilik') \
+                    or part_cat in ('dgd', 'dgd_labor', 'dgd labor', 'dgd_iscilik', 'dgd işçilik')
+
+                is_stoksuz = tracking_type in ("Stok Takipsiz", "Stoksuz", "Servis Hizmeti", "Yazılım/Hizmet") or is_dgd
+
+                # DGD parçaları sabit bir işçilik fiyatıdır, fiziki stoğu olmadığı için Parça Teslim ekranında gözükmez.
+                if is_dgd or is_stoksuz:
+                    continue
+
                 parts.append({
                     "id": str(r["id"]),
-                    "itemCode": r["item_code"] or "",
+                    "itemCode": code_clean,
                     "partName": r["name"] or "",
                     "brand": r["brand"] or "",
                     "model": r["model"] or "",
@@ -12260,8 +12301,8 @@ class WebBridge(QObject):
                     "repairTeamName": r["repair_team_name"] or "Genel",
                     "goodStockQty": qty,
                     "stockTrackingType": tracking_type,
-                    "isStoksuz": is_stoksuz,
-                    "isAvailable": is_stoksuz or (qty > 0)
+                    "isStoksuz": False,
+                    "isAvailable": qty > 0
                 })
 
             return json.dumps({"success": True, "parts": parts}, ensure_ascii=False)
@@ -12307,12 +12348,6 @@ class WebBridge(QObject):
             if sr_row and sr_row["id"]:
                 refs.append(str(sr_row["id"]))
 
-            # Teslim edilecek TEK BIR bekleyen kayit secilir. Sartlar:
-            #   - statu 1001 (Teknisyene Atandi)
-            #   - assigned_technician DOLU  -> teknisyene atanmamis kayda teslim yapilmaz
-            #   - henuz teslim edilmemis    -> ayni parca ikinci kez teslim edilemez
-            # Guncelleme parca koduna gore degil BU KAYDIN ID'sine gore yapilir; yoksa
-            # ayni parca kodundan birden fazla kayit varsa hepsi birden isaretlenirdi.
             pending = db.execute(text("""
                 SELECT id FROM warehouse.repair_records
                 WHERE service_record_id = ANY(:refs)
@@ -12326,7 +12361,6 @@ class WebBridge(QObject):
             """), {"refs": refs, "code": code}).mappings().first()
 
             if not pending:
-                # Neden reddedildigini ayirt et - depocu ne yapmasi gerektigini bilsin.
                 zaten = db.execute(text("""
                     SELECT 1 FROM warehouse.repair_records
                     WHERE service_record_id = ANY(:refs)
@@ -12347,9 +12381,7 @@ class WebBridge(QObject):
 
             pending_id = pending["id"]
 
-            # STOK TAKİBİ KURALI: stok hareketi yalnızca "Stok Takipli" parçalarda oluşur.
             if not self._is_part_stock_tracked(db, code):
-                # Yalnizca secilen BEKLEYEN kayit isaretlenir (parca koduna gore toplu degil).
                 db.execute(text("""
                     UPDATE warehouse.repair_records
                     SET supply_status_code = 'Stoktan Çıktı', supply_requested_by = :user, supply_requested_at = NOW()
@@ -12376,13 +12408,11 @@ class WebBridge(QObject):
             if current_qty < 1:
                 return json.dumps({"success": False, "message": f"'{part_row['name']}' ({code}) Good Stock'ta tükenmiş!"})
 
-            # Good Stock -1
             db.execute(text("""
                 UPDATE warehouse.stock SET quantity = GREATEST(0, quantity - 1) 
                 WHERE id = :sid
             """), {"sid": stock_row["id"]})
 
-            # Repair Stock +1
             from models.stock import Stock
             r_stock = db.query(Stock).filter(Stock.part_id == part_id, Stock.location_id == repair_loc_id).first()
             if r_stock:
@@ -12390,7 +12420,6 @@ class WebBridge(QObject):
             else:
                 db.add(Stock(part_id=part_id, location_id=repair_loc_id, quantity=1))
 
-            # Stock Movement kaydı (Audit Log)
             try:
                 from models.stock_movement import StockMovement
                 mov = StockMovement(
@@ -12407,9 +12436,7 @@ class WebBridge(QObject):
                 )
                 db.add(mov)
 
-                # Cihaza ait aktif onarım kaydında Depo Durumu 'Teslim Edildi' (1002/TESLIM) olarak güncelle
                 refs = [imei]
-
                 be_row = db.execute(text("""
                     SELECT service_id FROM warehouse.batch_entries
                     WHERE LOWER(TRIM(imei_number)) = LOWER(:t) OR LOWER(TRIM(serial_number)) = LOWER(:t) OR LOWER(TRIM(internal_id)) = LOWER(:t)
@@ -12433,7 +12460,6 @@ class WebBridge(QObject):
                     if wo_row and wo_row["id"]:
                         refs.append(str(wo_row["id"]))
 
-                # Yalnizca secilen BEKLEYEN kayit isaretlenir (parca koduna gore toplu degil).
                 db.execute(text("""
                     UPDATE warehouse.repair_records
                     SET supply_status_code = 'Stoktan Çıktı', supply_requested_by = :user, supply_requested_at = NOW()
@@ -12456,13 +12482,16 @@ class WebBridge(QObject):
 
     @Slot(str, result=str)
     def get_delivered_parts_for_device(self, imei_or_serial):
-        """Parça Teslim ekranında teslim edilmiş parçaları getirir (Geri Alma / İade için)."""
+        """Parça Teslim ekranında teslim edilmiş fiziki parçaları getirir. DGD ve stoksuz işçilik kalemleri elenir."""
         from sqlalchemy import text
         db = SessionLocal()
         try:
             imei_clean = (imei_or_serial or "").strip()
             if not imei_clean:
                 return json.dumps({"success": True, "parts": []}, ensure_ascii=False)
+
+            dgd_rows = db.execute(text("SELECT dgd_item_code FROM warehouse.flow_dgd_mapping WHERE dgd_item_code IS NOT NULL")).fetchall()
+            dgd_mapped_codes = {r[0].strip().lower() for r in dgd_rows if r[0]}
 
             be_row = db.execute(text("""
                 SELECT service_id FROM warehouse.batch_entries
@@ -12490,6 +12519,8 @@ class WebBridge(QObject):
                     p.brand,
                     p.model,
                     p.color,
+                    p.item_category,
+                    COALESCE(p.part_category, p.item_category) AS part_category,
                     rr.supply_requested_by,
                     TO_CHAR(rr.supply_requested_at, 'YYYY-MM-DD HH24:MI') AS supply_requested_at,
                     p.stock_tracking_type
@@ -12498,16 +12529,33 @@ class WebBridge(QObject):
                 WHERE rr.service_record_id = ANY(:refs)
                   AND rr.part_item_code IS NOT NULL
                   AND TRIM(rr.part_item_code) <> ''
+                  AND UPPER(TRIM(rr.part_item_code)) NOT LIKE 'DGD%'
+                  AND LOWER(TRIM(COALESCE(p.item_category, ''))) NOT IN ('dgd', 'dgd_labor', 'dgd labor', 'dgd_iscilik', 'dgd işçilik')
+                  AND LOWER(TRIM(COALESCE(p.part_category, ''))) NOT IN ('dgd', 'dgd_labor', 'dgd labor', 'dgd_iscilik', 'dgd işçilik')
                   AND LOWER(TRIM(COALESCE(rr.supply_status_code, ''))) IN ('stoktan çıktı', 'teslim edildi', 'teslimedildi')
                 ORDER BY rr.supply_requested_at DESC NULLS LAST, rr.id DESC
             """), {"refs": refs}).mappings().all()
 
             parts = []
             for r in rows:
+                code_clean = (r["part_item_code"] or "").strip()
                 tracking_type = (r["stock_tracking_type"] or "Stok Takipli").strip()
+                item_cat = (r["item_category"] or "").strip().lower()
+                part_cat = (r.get("part_category") or "").strip().lower()
+
+                is_dgd = code_clean.lower() in dgd_mapped_codes \
+                    or code_clean.upper().startswith("DGD") \
+                    or item_cat in ('dgd', 'dgd_labor', 'dgd labor', 'dgd_iscilik', 'dgd işçilik') \
+                    or part_cat in ('dgd', 'dgd_labor', 'dgd labor', 'dgd_iscilik', 'dgd işçilik')
+
+                is_stoksuz = tracking_type in ("Stok Takipsiz", "Stoksuz", "Servis Hizmeti", "Yazılım/Hizmet") or is_dgd
+
+                if is_dgd or is_stoksuz:
+                    continue
+
                 parts.append({
                     "repairRecordId": str(r["repair_record_id"]),
-                    "itemCode": r["part_item_code"] or "",
+                    "itemCode": code_clean,
                     "partName": r["part_name"] or "",
                     "brand": r["brand"] or "",
                     "model": r["model"] or "",
