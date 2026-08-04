@@ -1729,7 +1729,7 @@ class WebBridge(QObject):
                 INSERT INTO warehouse.parts (name, item_code, barcode, brand, model, item_category, part_category, part_category_id, stock_tracking_type, department, status, critical_limit, memory, part_type)
                 VALUES (:name, :code, :barcode, :brand, :model, :icat, :pcat, :pcat_id, :stt, :dept, :status, :critical_limit, :memory, :part_type)
             """
-            if part_type in ["Labour", "Service", "Cost", "SparePartLabour", "Labor (İşçilik)", "Stoksuz Parça / Hizmet"]:
+            if part_type in ["Labour", "Service", "Cost", "SparePartLabour", "Labour (İşçilik)", "Stoksuz Parça / Hizmet"]:
                 stock_tracking_type = "Stok Takipsiz"
             
             db.execute(text(sql), {
@@ -1776,7 +1776,7 @@ class WebBridge(QObject):
                     memory = :memory, part_type = :part_type
                 WHERE id = :id
             """
-            if part_type in ["Labour", "Service", "Cost", "SparePartLabour", "Labor (İşçilik)", "Stoksuz Parça / Hizmet"]:
+            if part_type in ["Labour", "Service", "Cost", "SparePartLabour", "Labour (İşçilik)", "Stoksuz Parça / Hizmet"]:
                 stock_tracking_type = "Stok Takipsiz"
 
             db.execute(text(sql), {
@@ -11467,6 +11467,32 @@ class WebBridge(QObject):
 
         return None
 
+    def _repair_cancellation_blocker(self, db, rec):
+        """Bir onarım kaydının 1003 (İptal Edildi) yapılmasını ENGELLEYEN sebebi döner;
+        engel yoksa None.
+
+        _repair_completion_blocker'ın TERSİ mantığı: tamamlama parçanın depodan çıkmış
+        olmasını ŞART koşar, iptal ise tam tersine parçanın HÂLÂ depoda (henüz çıkmamış
+        ya da geri alınmış) olmasını şart koşar - aksi halde fiilen depodan çıkıp
+        teknisyende duran bir parça, sistemde 'iptal edildi' görünüp iz kaybeder. Parça
+        stok takipsizse (bkz. _is_part_stock_tracked) bu şart aranmaz - Cihaz İade
+        Prosedürü'ndeki aynı korumayla tutarlı (bkz. execute_device_return)."""
+        from sqlalchemy import text
+        if rec.part_item_code and self._is_part_stock_tracked(db, rec.part_item_code):
+            is_delivered = (rec.supply_status_code or "").strip().lower() in (
+                "stoktan çıktı", "teslim edildi", "teslim", "completed")
+            if is_delivered:
+                part_row = db.execute(
+                    text("SELECT name FROM warehouse.parts WHERE item_code = :c LIMIT 1"),
+                    {"c": rec.part_item_code.strip()},
+                ).mappings().first()
+                part_name = part_row["name"] if part_row else rec.part_item_code
+                return (f"Bu onarım iptal edilemez! Eklenen '{part_name}' ({rec.part_item_code}) "
+                        f"parçası hâlâ depoda görünmüyor (Stoktan Çıktı). Parçayı depocuya teslim "
+                        f"edin — depocu 'Depo → Parça Teslim' ekranından geri alma işlemini "
+                        f"tamamladıktan sonra tekrar deneyin.")
+        return None
+
     @Slot(str, str, str, result=str)
     def update_repair_status(self, repair_id, new_status_code, username):
         """Bir alt onarım kaydının statüsünü (repair_result_type_code) günceller.
@@ -11494,6 +11520,10 @@ class WebBridge(QObject):
             # digerinden kapanmaz.
             if target_code == 1002:
                 engel = self._repair_completion_blocker(db, rec)
+                if engel:
+                    return json.dumps({"success": False, "message": engel}, ensure_ascii=False)
+            elif target_code == 1003:
+                engel = self._repair_cancellation_blocker(db, rec)
                 if engel:
                     return json.dumps({"success": False, "message": engel}, ensure_ascii=False)
 
@@ -12071,88 +12101,118 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    @Slot(str, str, str, str, result=str)
-    def execute_device_return(self, work_order_id, return_reason, dispositions_json, username):
-        """Cihazı 'İade Edilecek' akışıyla 124 statüsüne alır.
-        Ön koşullar: (1) tüm onarımlar iptal edilmiş olmalı, (2) depodan çıkmış
-        her parça için GOOD/DOA yönlendirmesi yapılmalı, (3) iade nedeni girilmeli."""
+    @Slot(str, str, str, result=str)
+    def execute_device_return(self, device_ref, return_reason, username):
+        """CİHAZ İADE PROSEDÜRÜ - cihazı 124 (Son Teste Teslim Edilecek) statüsüne alır.
+
+        device_ref: add_repair_record ile AYNI desen - bağlı bir SERVICE iş emri varsa
+        work_order_id'dir, yoksa cihazın IMEI'sidir (bkz. _get_required_mission_for_ref,
+        _resolve_batch_entry_by_ref). Böylece SERVICE iş emri hiç oluşmamış (üretim
+        verisinde sık görülen) cihazlar için de çalışır - eski sürüm SADECE work_order_id
+        kabul ediyordu ve böyle cihazlarda hiç kullanılamıyordu.
+
+        SERT ENGELLEME (tek koşul, ödün verilmez): cihaza bağlı stok takipli bir parça
+        hâlâ 'Stoktan Çıktı' durumundaysa işlem TAMAMEN reddedilir - burada GOOD/DOA
+        yönlendirmesi SORULMAZ (eski sürümün aksine). Parça önce fiziksel olarak
+        depocuya teslim edilmeli, depocu 'Depo → Parça Teslim' ekranındaki 'Parçayı
+        Geri Alma' ile (return_delivered_part) işlemi tamamlamalı, ancak ondan sonra
+        bu prosedür tekrar denenebilir.
+
+        Engel yoksa TEK transaction'da: (1) cihaza bağlı tüm AKTİF (1002/1003 dışı)
+        onarım kayıtları 1003'e (İptal Edildi) çekilir, (2) bağlı bir SERVICE iş emri
+        varsa onun statüsü 124'e alınır ve iade nedeni work_orders.return_reason'a
+        yazılır; iş emri yoksa (üretim verisinin çoğunluğu) doğrudan
+        batch_entries.statu_code 124'e çekilir ve iade nedeni customer_diagnosis'e
+        not düşülür (bu tabloda ayrı bir 'iade nedeni' kolonu yok)."""
         from sqlalchemy import text
         db = SessionLocal()
         try:
+            device_ref = (device_ref or "").strip()
+            if not device_ref:
+                return json.dumps({"success": False, "message": "Cihaz bulunamadı."})
             if not return_reason or not return_reason.strip():
                 return json.dumps({"success": False, "message": "İade nedeni girilmelidir."})
-
-            wo_id = int(work_order_id)
-            wo = db.execute(text("SELECT id FROM warehouse.work_orders WHERE id = :id"), {"id": wo_id}).first()
-            if not wo:
-                return json.dumps({"success": False, "message": "İş emri bulunamadı."})
+            return_reason = return_reason.strip()
 
             user_missions, is_admin = self._get_user_missions(db, username)
             if not is_admin:
-                required = self._get_required_mission_for_work_order(db, wo_id)
+                required = self._get_required_mission_for_ref(db, device_ref)
                 if required and required not in user_missions:
                     return json.dumps({"success": False, "message": f"Bu işlem için '{required}' yetkisi gerekiyor."})
 
-            # 1. Tüm onarımlar iptal edilmiş mi?
-            active_repairs = db.execute(text("""
-                SELECT rr.department_mission
-                FROM warehouse.repair_records rr
-                LEFT JOIN warehouse.repair_result_type rrt ON rrt.code = rr.repair_result_type_code
-                WHERE rr.service_record_id = :wo_id_str AND COALESCE(rrt.is_cancelled, false) = false
-            """), {"wo_id_str": str(wo_id)}).mappings().all()
-
-            if active_repairs:
-                names = ", ".join(r["department_mission"] or "?" for r in active_repairs)
-                return json.dumps({
-                    "success": False,
-                    "message": f"Tüm onarımlar iptal edilmeden cihaz iadeye alınamaz. Aktif onarım(lar): {names}"
-                })
-
-            # 2. Depodan çıkmış (Teslim Edildi) parçalar için yönlendirme kontrolü
+            # device_ref gerçekten var olan bir work_order_id mi? (add_repair_record'daki
+            # _resolve_service_record_id_for_new_repair ile aynı kontrol - IMEI'ler de tamamen
+            # sayısal olduğundan sadece int() dönüşümü yeterli değildir, varlığı doğrulanır.)
+            wo_id = None
             try:
-                dispositions = json.loads(dispositions_json) if dispositions_json else {}
+                wo_candidate = int(device_ref)
             except (TypeError, ValueError):
-                dispositions = {}
+                wo_candidate = None
+            if wo_candidate is not None:
+                if db.execute(text("SELECT id FROM warehouse.work_orders WHERE id = :id"), {"id": wo_candidate}).first():
+                    wo_id = wo_candidate
 
-            issued_parts = db.execute(text("""
-                SELECT id, quantity FROM warehouse.work_order_parts
-                WHERE work_order_id = :wo_id AND status = 'Teslim Edildi'
-            """), {"wo_id": wo_id}).mappings().all()
+            # Onarım kayıtlarına ulaşmak için olası TÜM referansları topla (apply_dgd_return
+            # ile aynı desen): device_ref'in kendisi + varsa batch_entries.service_id.
+            refs = [device_ref]
+            entry = self._resolve_batch_entry_by_ref(db, device_ref)
+            if entry and entry["service_id"]:
+                refs.append(str(entry["service_id"]))
+            if wo_id is not None and str(wo_id) not in refs:
+                refs.append(str(wo_id))
 
-            missing = [str(p["id"]) for p in issued_parts if str(p["id"]) not in dispositions]
-            if missing:
+            # 1. SERT ENGEL: stok takipli, hâlâ 'Stoktan Çıktı' olan parça var mı?
+            issued_rows = db.execute(text("""
+                SELECT rr.part_item_code, p.name AS part_name
+                FROM warehouse.repair_records rr
+                LEFT JOIN warehouse.parts p ON p.item_code = rr.part_item_code
+                WHERE rr.service_record_id = ANY(:refs)
+                  AND rr.repair_result_type_code NOT IN (1002, 1003)
+                  AND rr.supply_status_code = 'Stoktan Çıktı'
+            """), {"refs": refs}).mappings().all()
+
+            blocking_names = []
+            for row in issued_rows:
+                if row["part_item_code"] and self._is_part_stock_tracked(db, row["part_item_code"]):
+                    blocking_names.append(row["part_name"] or row["part_item_code"])
+
+            if blocking_names:
+                names = ", ".join(f"'{n}'" for n in dict.fromkeys(blocking_names))
                 return json.dumps({
                     "success": False,
-                    "message": f"Depodan çıkmış {len(missing)} parça için GOOD/DOA yönlendirmesi seçilmelidir."
-                })
+                    "message": f"{names} parçası/parçaları hâlâ depoda görünmüyor (Stoktan Çıktı). "
+                               f"Parçaları depocuya teslim edin — depocu 'Depo → Parça Teslim' "
+                               f"ekranından geri alma işlemini tamamladıktan sonra tekrar deneyin."
+                }, ensure_ascii=False)
 
-            # 3. Parçaları gerçekten geri al (mevcut, çalışan fonksiyonları kullan)
-            username = username or "system"
-            for p in issued_parts:
-                wop_id_str = str(p["id"])
-                disposition = dispositions.get(wop_id_str)
-                qty = str(p["quantity"])
-                if disposition == "DOA":
-                    result_json = self.return_part_to_doa(wop_id_str, qty, username)
-                else:
-                    result_json = self.revert_work_order_part_status(wop_id_str, username, qty)
-                result = json.loads(result_json)
-                if not result.get("success"):
-                    return json.dumps({
-                        "success": False,
-                        "message": f"Parça iade işlemi başarısız (id={wop_id_str}): {result.get('message')}"
-                    })
-
-            # 4. Statüyü 124'e al ve iade nedenini kaydet (service_statu_map grafiğinden bağımsız, doğrudan)
+            # 2. Engel yok: cihaza bağlı tüm AKTİF onarımları iptal et.
             db.execute(text("""
-                UPDATE warehouse.work_orders SET status = '124', return_reason = :reason WHERE id = :id
-            """), {"reason": return_reason.strip(), "id": wo_id})
-            db.commit()
+                UPDATE warehouse.repair_records
+                SET repair_result_type_code = 1003, updated_at = now()
+                WHERE service_record_id = ANY(:refs) AND repair_result_type_code NOT IN (1002, 1003)
+            """), {"refs": refs})
 
+            # 3. Statüyü 124'e al (service_statu_map grafiğinden bağımsız, doğrudan).
+            if wo_id is not None:
+                db.execute(text("""
+                    UPDATE warehouse.work_orders SET status = '124', return_reason = :reason WHERE id = :id
+                """), {"reason": return_reason, "id": wo_id})
+            elif entry:
+                db.execute(text("""
+                    UPDATE warehouse.batch_entries
+                    SET statu_code = 124, updated_at = now(),
+                        customer_diagnosis = COALESCE(customer_diagnosis || E'\\n', '') || :note
+                    WHERE id = :id
+                """), {"id": entry["id"], "note": f"[Cihaz İade Prosedürü] {return_reason}"})
+            else:
+                db.rollback()
+                return json.dumps({"success": False, "message": "Cihaz kaydı (batch entry) bulunamadı."})
+
+            db.commit()
             return json.dumps({
                 "success": True,
                 "new_statu_code": 124,
-                "message": f"Cihaz iade alındı, 124 (Son Teste Teslim Edilecek) statüsüne yönlendirildi."
+                "message": "Cihaz iade alındı, tüm onarımlar iptal edildi, 124 (Son Teste Teslim Edilecek) statüsüne yönlendirildi."
             })
         except Exception as e:
             db.rollback()

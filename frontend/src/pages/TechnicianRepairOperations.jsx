@@ -434,86 +434,47 @@ const TechnicianAssignModal = ({ repair, partCount, technicians, loading, onClos
   );
 };
 
-// ─── DOA RETURN PROTECTION MODAL ────────────────────────────────────
-const DOAReturnModal = ({ parts, onClose, onConfirm, submitting }) => {
-  const [dispositions, setDispositions] = useState(
-    parts.filter(p => p.location === "OUT").reduce((acc, p) => ({ ...acc, [p.id]: "" }), {})
-  );
+// ─── CİHAZ İADE PROSEDÜRÜ MODALI ─────────────────────────────────────
+// Sert engelleme modeli: bu modal SADECE handleReturnDevice'ın istemci tarafı ön
+// kontrolünden (depoda görünmeyen/Stoktan Çıktı parça yok) geçildiğinde açılır -
+// bu yüzden burada artık parça/yönlendirme (GOOD/DOA) seçimi YOK, sadece iade
+// nedeni + onay var. Backend (execute_device_return) aynı kontrolü otoriter
+// şekilde tekrar yapar.
+const DeviceReturnModal = ({ onClose, onConfirm, submitting }) => {
   const [returnReason, setReturnReason] = useState("");
-  const outParts = parts.filter(p => p.location === "OUT");
-  const allSelected = outParts.length > 0 && outParts.every(p => dispositions[p.id]);
-  const canConfirm = returnReason.trim().length > 0 && (outParts.length === 0 || allSelected) && !submitting;
+  const canConfirm = returnReason.trim().length > 0 && !submitting;
 
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/70 backdrop-blur-sm">
-      <div className="bg-white dark:bg-[#12141c] rounded-2xl shadow-2xl border border-red-300 dark:border-red-500/40 max-w-2xl w-full mx-4 overflow-hidden max-h-[90vh] flex flex-col">
+      <div className="bg-white dark:bg-[#12141c] rounded-2xl shadow-2xl border border-red-300 dark:border-red-500/40 max-w-lg w-full mx-4 overflow-hidden flex flex-col">
         <div className="bg-red-500/10 dark:bg-red-500/5 border-b border-red-200 dark:border-red-500/20 px-6 py-5 flex items-center gap-4 shrink-0">
           <div className="w-14 h-14 rounded-2xl bg-red-100 dark:bg-red-500/20 flex items-center justify-center shrink-0">
             <Shield size={28} className="text-red-500" />
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-red-600 dark:text-red-400">İade Güvenlik Kontrolü</h3>
-            <p className="text-sm text-red-500/80 dark:text-red-400/70 mt-0.5">Zero-Invoice Protection Aktif</p>
+            <h3 className="text-lg font-semibold text-red-600 dark:text-red-400">Cihaz İade Prosedürü</h3>
+            <p className="text-sm text-red-500/80 dark:text-red-400/70 mt-0.5">Cihaza bağlı tüm aktif onarımlar iptal edilecek</p>
           </div>
         </div>
 
-        <div className="px-6 py-4 bg-amber-50 dark:bg-amber-500/5 border-b border-amber-200 dark:border-amber-500/20 shrink-0">
-          <div className="flex items-start gap-3">
-            <AlertTriangle size={20} className="text-amber-500 mt-0.5 shrink-0" />
-            <p className="text-sm text-amber-800 dark:text-amber-300 leading-relaxed">
-              <strong>DİKKAT!</strong> Bu cihaz iadeye ayrılmıştır. Cihaz üzerindeki depodan çıkmış parçaların sistemden temizlenmesi zorunludur! Her parça için aşağıdaki seçeneklerden birini belirlemeniz gerekmektedir.
-            </p>
-          </div>
-        </div>
-
-        <div className="px-6 pt-4 shrink-0">
+        <div className="px-6 py-5">
           <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">İade Nedeni *</label>
           <textarea
             value={returnReason}
             onChange={e => setReturnReason(e.target.value)}
-            rows="2"
+            rows="3"
             placeholder="İade nedenini yazınız..."
+            autoFocus
             className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#181a24] text-slate-800 dark:text-slate-200 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all placeholder:text-slate-400 resize-none"
           />
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 py-4">
-          {outParts.length === 0 ? (
-            <div className="text-center py-8">
-              <CheckCircle size={40} className="text-emerald-500 mx-auto mb-3" />
-              <p className="text-sm text-slate-600 dark:text-slate-400">Depodan çıkmış parça bulunmuyor. İade işlemi doğrudan onaylanabilir.</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {outParts.map(p => (
-                <div key={p.id} className="border border-slate-200 dark:border-slate-700 rounded-xl p-4 bg-slate-50 dark:bg-[#181a24]">
-                  <div className="flex flex-wrap items-center justify-between mb-3">
-                    <div>
-                      <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">{p.name}</p>
-                      <p className="text-xs text-slate-500 mt-0.5">{p.itemCode} — Miktar: {p.qty}</p>
-                    </div>
-                    <span className="text-xs font-bold text-red-500 bg-red-50 dark:bg-red-500/10 px-2 py-1 rounded-lg border border-red-200 dark:border-red-500/30">DEPODAN ÇIKMIŞ</span>
-                  </div>
-                  <div className="flex gap-2">
-                    <button onClick={() => setDispositions(d => ({ ...d, [p.id]: "GOOD" }))} className={`flex-1 py-2.5 rounded-xl text-xs font-bold border transition-all ${dispositions[p.id] === "GOOD" ? "bg-emerald-500 text-white border-emerald-500 shadow-lg shadow-emerald-500/20" : "bg-white dark:bg-[#12141c] text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-emerald-300"}`}>
-                      ✅ Sağlam Söküldü → GOOD Depoya
-                    </button>
-                    <button onClick={() => setDispositions(d => ({ ...d, [p.id]: "DOA" }))} className={`flex-1 py-2.5 rounded-xl text-xs font-bold border transition-all ${dispositions[p.id] === "DOA" ? "bg-red-500 text-white border-red-500 shadow-lg shadow-red-500/20" : "bg-white dark:bg-[#12141c] text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-red-300"}`}>
-                      ❌ Hasarlı → DOA Hurda Depoya
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="px-6 pb-5 pt-3 flex gap-3 border-t border-slate-200 dark:border-slate-700 shrink-0">
+        <div className="px-6 pb-5 pt-1 flex gap-3 border-t border-slate-200 dark:border-slate-700">
           <button onClick={onClose} className="flex-1 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 text-sm font-semibold transition-colors border border-slate-200 dark:border-slate-700">
             İptal
           </button>
-          <button onClick={() => onConfirm(dispositions, returnReason.trim())} disabled={!canConfirm} className="flex-1 py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-bold transition-colors shadow-lg shadow-red-500/20 disabled:opacity-40 disabled:cursor-not-allowed">
-            {submitting ? "İşleniyor..." : outParts.length === 0 ? "İadeyi Onayla" : "Transferleri Tamamla & İadeyi Onayla"}
+          <button onClick={() => onConfirm(returnReason.trim())} disabled={!canConfirm} className="flex-1 py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-bold transition-colors shadow-lg shadow-red-500/20 disabled:opacity-40 disabled:cursor-not-allowed">
+            {submitting ? "İşleniyor..." : "İadeyi Onayla"}
           </button>
         </div>
       </div>
@@ -565,14 +526,14 @@ const TechnicianRepairOperations = () => {
   // showAddPartModal -> seçili onarıma ek parça (grup sabit).
   const [showAddPartModal, setShowAddPartModal] = useState(false);
   const [showAdvanceModal, setShowAdvanceModal] = useState(false);
-  const [showDOAModal, setShowDOAModal] = useState(false);
+  const [showReturnModal, setShowReturnModal] = useState(false);
   // Teknisyene Atama modalı
   const [assignTarget, setAssignTarget] = useState(null);   // atanacak onarım kaydı
   const [technicians, setTechnicians] = useState([]);
   const [techLoading, setTechLoading] = useState(false);
   const [assignSubmitting, setAssignSubmitting] = useState(false);
-  const [deviceParts, setDeviceParts] = useState([]);
   const [returnSubmitting, setReturnSubmitting] = useState(false);
+  const [cancellingRepairId, setCancellingRepairId] = useState(null);
   const [notification, setNotification] = useState(null);
   const [techNotes, setTechNotes] = useState("");
   const [chipCode, setChipCode] = useState("");
@@ -626,7 +587,6 @@ const TechnicianRepairOperations = () => {
         showNotif("error", "Kayıt Bulunamadı", `"${term}" için Batch Giriş kayıtlarında eşleşme yok.`);
         setDevice(null);
         setRepairs([]);
-        setDeviceParts([]);
         return;
       }
 
@@ -686,7 +646,6 @@ const TechnicianRepairOperations = () => {
       setTechNotes("");
       setChipCode("");
       setDiagnosisDraft(realDevice.customerDiagnosis || "");
-      setDeviceParts(repairLink?.parts || []);
       setSelectedRepairIdx(0);
 
       if (repairLink) {
@@ -736,7 +695,6 @@ const TechnicianRepairOperations = () => {
     if (!device?.imei) return null;
     const refreshed = await api.getRepairOperationsByImei(device.imei).catch(() => null);
     if (refreshed && refreshed.success) {
-      setDeviceParts(refreshed.parts || []);
       setRepairs((refreshed.repairs || []).map(r => ({ ...r, technician: r.assignedTechnicianName || r.assignedTechnician || "" })));
     }
     return refreshed;
@@ -837,29 +795,35 @@ const TechnicianRepairOperations = () => {
     showNotif("success", "Statü Güncellendi", `${newStatus} - ${statusLabel}`);
   }, [repairs, showNotif, openAssignModal]);
 
-  // ── DOA Return Handler (Guardrail: tüm onarımlar iptal + parça yönlendirmesi + iade nedeni) ──
+  // ── Cihaz İade Prosedürü (Sert Engelleme) ──────────────────────
+  // Cihaza bağlı stok takipli bir parça hâlâ 'Stoktan Çıktı' ise (isStoksuz=false,
+  // isDelivered=true - bkz. get_repair_operations_by_imei) modal HİÇ AÇILMAZ; bu sadece
+  // hızlı/istemci tarafı bir ön kontroldür, backend (execute_device_return) aynı kontrolü
+  // otoriter şekilde tekrar yapar.
   const handleReturnDevice = useCallback(() => {
-    const activeRepairs = repairs.filter(r => !r.isCancelled);
-    if (activeRepairs.length > 0) {
+    const blocking = repairs.filter(r => !r.isCancelled && !r.isStoksuz && r.isDelivered);
+    if (blocking.length > 0) {
+      const names = [...new Set(blocking.map(r => r.partName || r.partItemCode))].join(", ");
       showNotif(
         "error",
         "İade Edilemez",
-        `Tüm onarımlar iptal edilmeden cihaz iadeye alınamaz. Aktif onarım(lar): ${activeRepairs.map(r => r.missionGroup).join(", ")}`
+        `${names} parçası/parçaları hâlâ depoda görünmüyor (Stoktan Çıktı). Parçaları depocuya teslim edin — depocu 'Depo → Parça Teslim' ekranından geri alma işlemini tamamladıktan sonra tekrar deneyin.`
       );
       return;
     }
-    setShowDOAModal(true);
+    setShowReturnModal(true);
   }, [repairs, showNotif]);
 
-  const handleDOAConfirm = useCallback(async (dispositions, returnReason) => {
-    if (!device?.workOrderId) return;
+  const handleReturnConfirm = useCallback(async (returnReason) => {
+    if (!device) return;
+    const deviceRef = device.workOrderId || device.imei;
     setReturnSubmitting(true);
     try {
-      const result = await api.executeDeviceReturn(device.workOrderId, returnReason, dispositions, getCurrentUser()?.username);
+      const result = await api.executeDeviceReturn(deviceRef, returnReason, getCurrentUser()?.username);
       if (result.success) {
-        setShowDOAModal(false);
+        setShowReturnModal(false);
         setDevice(prev => (prev ? { ...prev, serviceStatus: 124 } : prev));
-        setDeviceParts(prev => prev.map(p => (dispositions[p.id] ? { ...p, location: dispositions[p.id] } : p)));
+        await refreshRepairs();
         showNotif("success", "İade İşlemi Tamamlandı", result.message || "Cihaz 124 statüsüne alındı.");
       } else {
         showNotif("error", "İade Başarısız", result.message || "İşlem tamamlanamadı.");
@@ -869,7 +833,32 @@ const TechnicianRepairOperations = () => {
     } finally {
       setReturnSubmitting(false);
     }
-  }, [device, showNotif]);
+  }, [device, refreshRepairs, showNotif]);
+
+  // ── Tekil Onarım İptali (Sert Engelleme) ───────────────────────
+  // Tek bir görev grubunu (ör. sadece Batarya) diğerlerine dokunmadan iptal eder.
+  // Cihaz İade Prosedürü'ndeki AYNI korumayla çalışır: parça stok takipliyse ve hâlâ
+  // 'Stoktan Çıktı' ise reddedilir - önce depocuya teslim edilmeli.
+  const handleCancelRepair = useCallback(async (repair) => {
+    if (!repair || repair.isCancelled) return;
+    if (!repair.isStoksuz && repair.isDelivered) {
+      showNotif(
+        "error",
+        "İptal Edilemez",
+        `'${repair.partName || repair.partItemCode}' parçası hâlâ depoda görünmüyor (Stoktan Çıktı). Parçayı depocuya teslim edin — depocu 'Depo → Parça Teslim' ekranından geri alma işlemini tamamladıktan sonra tekrar deneyin.`
+      );
+      return;
+    }
+    setCancellingRepairId(repair.id);
+    const res = await api.updateRepairStatus(repair.id, "1003", getCurrentUser()?.username);
+    setCancellingRepairId(null);
+    if (!res || !res.success) {
+      showNotif("error", "İptal Edilemedi", res?.message || "İşlem başarısız oldu.");
+      return;
+    }
+    await refreshRepairs();
+    showNotif("success", "Onarım İptal Edildi", `${repair.missionGroup} onarımı iptal edildi.`);
+  }, [refreshRepairs, showNotif]);
 
   // ── Toggle Repair Charge Type ─────────────────────────────────
   // warehouse.repair_records.warranty_code'a kalıcı olarak yazar (IW=Ücretsiz, OOW=Ücretli).
@@ -1020,8 +1009,8 @@ const TechnicianRepairOperations = () => {
         />
       )}
 
-      {/* DOA Return Modal */}
-      {showDOAModal && <DOAReturnModal parts={deviceParts} onClose={() => setShowDOAModal(false)} onConfirm={handleDOAConfirm} submitting={returnSubmitting} />}
+      {/* Cihaz İade Prosedürü Modalı */}
+      {showReturnModal && <DeviceReturnModal onClose={() => setShowReturnModal(false)} onConfirm={handleReturnConfirm} submitting={returnSubmitting} />}
 
       {/* ════════════════ HERO BANNER ════════════════ */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#EFF1FA] dark:from-[#090a0f] via-[#DDE2F2] dark:via-[#12141c] to-[#FFFFFF] dark:to-[#1e222d] p-6 sm:p-8 text-[#181a24] dark:text-white shadow-xl border border-[#DCE1F1] dark:border-[#1e222d]">
@@ -1303,6 +1292,7 @@ const TechnicianRepairOperations = () => {
                   <th className="text-left px-3 py-3">Teknisyen</th>
                   <th className="text-left px-3 py-3">Alt Statü</th>
                   <th className="text-center px-3 py-3">Ücret</th>
+                  <th className="text-center px-3 py-3">İşlemler</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-[#1e222d]">
@@ -1324,6 +1314,21 @@ const TechnicianRepairOperations = () => {
                         className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold border cursor-pointer hover:opacity-80 transition-opacity disabled:cursor-not-allowed ${CHARGE_TYPES[g.active.chargeType]?.bg} ${CHARGE_TYPES[g.active.chargeType]?.color}`}
                       >
                         {CHARGE_TYPES[g.active.chargeType]?.label}
+                      </button>
+                    </td>
+                    <td className="px-3 py-3 text-center">
+                      {/* Tekil onarım iptali: bu görev grubunu (ör. sadece Batarya) diğer
+                          gruplara dokunmadan iptal eder. Parça 'Stoktan Çıktı' ise backend
+                          reddeder (_repair_cancellation_blocker), burada da önden aynı
+                          kontrolle engellenir - handleCancelRepair. */}
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); handleCancelRepair(g.active); }}
+                        disabled={!hasAccess || g.active.isCancelled || g.active.statusCode === 1002 || cancellingRepairId === g.active.id}
+                        title="Onarımı İptal Et"
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                      >
+                        <X size={16} />
                       </button>
                     </td>
                   </tr>

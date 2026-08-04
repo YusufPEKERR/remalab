@@ -2472,11 +2472,13 @@ export const api = {
         });
     },
 
-    executeDeviceReturn: async (workOrderId, returnReason, dispositions, username) => {
+    // Cihaz İade Prosedürü: deviceRef, add_repair_record ile aynı desen - bağlı bir
+    // SERVICE iş emri varsa work_order_id, yoksa cihazın IMEI'sidir.
+    executeDeviceReturn: async (deviceRef, returnReason, username) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
             backend.execute_device_return(
-                String(workOrderId), returnReason, JSON.stringify(dispositions || {}), String(username || ''),
+                String(deviceRef || ''), String(returnReason || ''), String(username || ''),
                 (res) => resolve(JSON.parse(res))
             );
         });
