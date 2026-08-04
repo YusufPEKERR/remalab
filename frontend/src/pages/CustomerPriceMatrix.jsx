@@ -64,11 +64,21 @@ export default function CustomerPriceMatrix() {
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
-  // Marka → Kategori kademeli filtreleri: sistem artık varsayılan olarak 30 bin+
-  // satırlık tüm katalogu değil, yalnızca seçilen markanın (isteğe bağlı olarak
-  // kategoriyle daha da daraltılmış) parçalarını yükler.
+  // Marka → Ürün Tipi → Model → Kategori kademeli filtreleri: sistem artık
+  // varsayılan olarak 30 bin+ satırlık tüm katalogu değil, yalnızca seçilen
+  // markanın (isteğe bağlı olarak ürün tipi/model/kategoriyle daha da
+  // daraltılmış) parçalarını yükler. Hepsi birbiriyle uyumlu çalışır: ürün
+  // tipi seçilince model listesi, model seçilince kategori listesi o seçime
+  // göre daralır (bkz. get_price_matrix_models/get_price_matrix_categories'in
+  // product_type/model parametreleri).
   const [brands, setBrands] = useState([]);
   const [selectedBrand, setSelectedBrand] = useState('');
+  const [productTypes, setProductTypes] = useState([]);
+  const [productTypesLoading, setProductTypesLoading] = useState(false);
+  const [selectedProductType, setSelectedProductType] = useState('');
+  const [models, setModels] = useState([]);
+  const [modelsLoading, setModelsLoading] = useState(false);
+  const [selectedModel, setSelectedModel] = useState('');
   const [categories, setCategories] = useState([]);
   const [categoriesLoading, setCategoriesLoading] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('');
@@ -85,44 +95,101 @@ export default function CustomerPriceMatrix() {
 
   const loadStatic = useCallback(async () => {
     setInitializing(true);
-    const [custRes, brandRes, priceRes] = await Promise.all([
-      api.getPriceMatrixCustomers(),
-      api.getPriceMatrixBrands(),
-      api.getPriceMatrix(),
-    ]);
-    if (custRes.success) setCustomers(custRes.customers || []);
-    if (brandRes.success) setBrands(brandRes.brands || []);
-    if (priceRes.success) {
-      const map = {};
-      for (const p of (priceRes.prices || [])) {
-        if (!map[p.item_code]) map[p.item_code] = {};
-        map[p.item_code][p.customer_code] = p.price;
-      }
-      setPrices(map);
+    try {
+      const [custRes, brandRes] = await Promise.all([
+        api.getPriceMatrixCustomers(),
+        api.getPriceMatrixBrands(),
+      ]);
+      if (custRes.success) setCustomers(custRes.customers || []);
+      if (brandRes.success) setBrands(brandRes.brands || []);
+      setDirty({});
+    } finally {
+      setInitializing(false);
     }
-    setDirty({});
-    setInitializing(false);
   }, []);
 
   useEffect(() => { loadStatic(); }, [loadStatic]);
 
-  const loadItems = useCallback(async (brand, category) => {
-    if (!brand) {
-      setItems([]);
-      return;
-    }
+  // Varsayılan görünüm (hiçbir filtre seçilmeden) TÜM katalogdur - parçalar VE işçilik
+  // (DGD) kodları dahil, ne varsa gösterilir. Marka/model/kategori/ürün tipi sadece
+  // isteğe bağlı daraltma filtreleridir, artık zorunlu değildir. Bu, filtresiz haldeyken
+  // bile hızlı kalır çünkü hem items hem prices filtresiz çağrıldığında backend'de
+  // api_cache/*.json + fetch_url deseniyle (QWebChannel yerine HTTP ile) döner, tablo da
+  // sanallaştırılmış (virtualized) render edildiğinden binlerce satır DOM'u zorlamaz.
+  const loadItems = useCallback(async (brand, productType, model, category) => {
     setItemsLoading(true);
-    const res = await api.getPriceMatrixItems('', brand, category);
-    if (res.success) setItems(res.items || []);
-    setItemsLoading(false);
+    try {
+      const [itemRes, priceRes] = await Promise.all([
+        api.getPriceMatrixItems('', brand, category, model, productType),
+        api.getPriceMatrix(brand, category, model, productType),
+      ]);
+      if (itemRes.success) setItems(itemRes.items || []);
+      if (priceRes.success) {
+        const map = {};
+        for (const p of (priceRes.prices || [])) {
+          if (!map[p.item_code]) map[p.item_code] = {};
+          map[p.item_code][p.customer_code] = p.price;
+        }
+        setPrices(map);
+      } else {
+        setPrices({});
+      }
+    } catch (_e) {
+      setItems([]);
+      setPrices({});
+    } finally {
+      setItemsLoading(false);
+    }
   }, []);
 
   useEffect(() => {
-    loadItems(selectedBrand, selectedCategory);
-  }, [selectedBrand, selectedCategory, loadItems]);
+    loadItems(selectedBrand, selectedProductType, selectedModel, selectedCategory);
+  }, [selectedBrand, selectedProductType, selectedModel, selectedCategory, loadItems]);
 
-  // Marka değiştiğinde o markaya ait kategori listesini getir; kategori seçimini
-  // sıfırla (önceki markanın kategorisi yeni markada geçerli olmayabilir).
+  // Marka değiştiğinde o markaya ait ürün tipi listesini getir; ürün tipi
+  // seçimini sıfırla (önceki markanın ürün tipi yeni markada geçerli olmayabilir).
+  useEffect(() => {
+    setSelectedProductType('');
+    if (!selectedBrand || selectedBrand === '__DGD__') {
+      setProductTypes([]);
+      return undefined;
+    }
+    let cancelled = false;
+    setProductTypesLoading(true);
+    api.getPriceMatrixProductTypes(selectedBrand)
+      .then(res => {
+        if (cancelled) return;
+        if (res.success) setProductTypes(res.product_types || []);
+      })
+      .catch(() => { if (!cancelled) setProductTypes([]); })
+      .finally(() => { if (!cancelled) setProductTypesLoading(false); });
+    return () => { cancelled = true; };
+  }, [selectedBrand]);
+
+  // Marka veya ürün tipi değiştiğinde o ikiliye ait model listesini getir (ürün
+  // tipi ile 'uyumlu' çalışır - tip seçiliyse modeller de SADECE o tipe göre
+  // daralır); model seçimini sıfırla (önceki seçim yeni marka/tipte geçerli olmayabilir).
+  useEffect(() => {
+    setSelectedModel('');
+    if (!selectedBrand || selectedBrand === '__DGD__') {
+      setModels([]);
+      return undefined;
+    }
+    let cancelled = false;
+    setModelsLoading(true);
+    api.getPriceMatrixModels(selectedBrand, selectedProductType)
+      .then(res => {
+        if (cancelled) return;
+        if (res.success) setModels(res.models || []);
+      })
+      .catch(() => { if (!cancelled) setModels([]); })
+      .finally(() => { if (!cancelled) setModelsLoading(false); });
+    return () => { cancelled = true; };
+  }, [selectedBrand, selectedProductType]);
+
+  // Marka/ürün tipi/model değiştiğinde o üçlüye ait kategori listesini getir
+  // (hepsiyle 'uyumlu' çalışır - seçiliyse kategoriler de SADECE o alt kümeye
+  // göre daralır); kategori seçimini sıfırla (önceki seçim artık geçerli olmayabilir).
   useEffect(() => {
     setSelectedCategory('');
     if (!selectedBrand || selectedBrand === '__DGD__') {
@@ -131,13 +198,15 @@ export default function CustomerPriceMatrix() {
     }
     let cancelled = false;
     setCategoriesLoading(true);
-    api.getPriceMatrixCategories(selectedBrand).then(res => {
-      if (cancelled) return;
-      if (res.success) setCategories(res.categories || []);
-      setCategoriesLoading(false);
-    });
+    api.getPriceMatrixCategories(selectedBrand, selectedModel, selectedProductType)
+      .then(res => {
+        if (cancelled) return;
+        if (res.success) setCategories(res.categories || []);
+      })
+      .catch(() => { if (!cancelled) setCategories([]); })
+      .finally(() => { if (!cancelled) setCategoriesLoading(false); });
     return () => { cancelled = true; };
-  }, [selectedBrand]);
+  }, [selectedBrand, selectedProductType, selectedModel]);
 
   // Arama kutusuna yazarken seçili marka/kategori alt kümesi üzerinde her tuş
   // vuruşunda filtrelemek yerine kısa bir debounce uygulanır.
@@ -152,12 +221,12 @@ export default function CustomerPriceMatrix() {
     return items.filter(i => i.item_code.toLowerCase().includes(term) || (i.name || '').toLowerCase().includes(term));
   }, [items, debouncedSearch]);
 
-  // Marka/kategori/arama değiştiğinde sanallaştırma indekslerinin eski kaydırma
-  // konumuyla uyuşmaması için görünümü başa sar.
+  // Marka/ürün tipi/model/kategori/arama değiştiğinde sanallaştırma indekslerinin
+  // eski kaydırma konumuyla uyuşmaması için görünümü başa sar.
   useEffect(() => {
     if (scrollContainerRef.current) scrollContainerRef.current.scrollTop = 0;
     setScrollTop(0);
-  }, [debouncedSearch, selectedBrand, selectedCategory]);
+  }, [debouncedSearch, selectedBrand, selectedProductType, selectedModel, selectedCategory]);
 
   useEffect(() => {
     const el = scrollContainerRef.current;
@@ -215,7 +284,7 @@ export default function CustomerPriceMatrix() {
 
   const handleRefresh = async () => {
     await loadStatic();
-    await loadItems(selectedBrand, selectedCategory);
+    await loadItems(selectedBrand, selectedProductType, selectedModel, selectedCategory);
   };
 
   const handleSave = async () => {
@@ -249,6 +318,8 @@ export default function CustomerPriceMatrix() {
     await api.exportTableToExcel(exportData, 'musteri_fiyat_matrisi.xlsx');
   };
 
+  const productTypeSelectDisabled = !selectedBrand || selectedBrand === '__DGD__' || productTypesLoading;
+  const modelSelectDisabled = !selectedBrand || selectedBrand === '__DGD__' || modelsLoading;
   const categorySelectDisabled = !selectedBrand || selectedBrand === '__DGD__' || categoriesLoading;
 
   return (
@@ -267,14 +338,14 @@ export default function CustomerPriceMatrix() {
               Müşteri Fiyat Matrisi
             </h1>
             <p className="text-sm text-[#4A5A9E] dark:text-slate-300 leading-relaxed">
-              Önce bir marka (isterseniz ardından kategori) seçin; parçalar ve fiyat hücreleri yalnızca o seçim için yüklenir.
+              Varsayılan olarak tüm parçalar ve işçilik (DGD) kodları listelenir; isterseniz marka, ürün tipi, model ve/veya kategoriyle daraltın.
               Boş hücre, genel (item.satis) fiyata geri düşer.
             </p>
           </div>
           <div className="flex items-center gap-3 shrink-0 flex-wrap">
             <button
               onClick={handleExport}
-              disabled={!selectedBrand}
+              disabled={totalRows === 0}
               className="flex items-center gap-2 bg-white dark:bg-[#1e222d] hover:bg-[#EFF1FA] dark:hover:bg-[#2e3545] text-[#12141c] dark:text-[#F6F8FF] border border-[#DCE1F1] dark:border-[#2e3545] px-4 py-2.5 rounded-xl text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <FileSpreadsheet size={15} /> Dışa Aktar
@@ -307,9 +378,33 @@ export default function CustomerPriceMatrix() {
             onChange={(e) => setSelectedBrand(e.target.value)}
             className={selectClass}
           >
-            <option value="">Marka seçin...</option>
+            <option value="">Tüm markalar</option>
             {brands.map(b => (
               <option key={b.value} value={b.value}>{b.label} ({b.count})</option>
+            ))}
+          </select>
+
+          <select
+            value={selectedProductType}
+            onChange={(e) => setSelectedProductType(e.target.value)}
+            disabled={productTypeSelectDisabled}
+            className={selectClass}
+          >
+            <option value="">{productTypesLoading ? 'Ürün tipleri yükleniyor...' : 'Tüm ürün tipleri'}</option>
+            {productTypes.map(pt => (
+              <option key={pt.value} value={pt.value}>{pt.label} ({pt.count})</option>
+            ))}
+          </select>
+
+          <select
+            value={selectedModel}
+            onChange={(e) => setSelectedModel(e.target.value)}
+            disabled={modelSelectDisabled}
+            className={selectClass}
+          >
+            <option value="">{modelsLoading ? 'Modeller yükleniyor...' : 'Tüm modeller'}</option>
+            {models.map(m => (
+              <option key={m.value} value={m.value}>{m.label} ({m.count})</option>
             ))}
           </select>
 
@@ -331,12 +426,11 @@ export default function CustomerPriceMatrix() {
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              disabled={!selectedBrand}
               placeholder="Item kodu veya ad ile ara..."
               className="w-full pl-9 pr-3 py-2 bg-white dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
             />
           </div>
-          {selectedBrand && !loading && (
+          {!loading && (
             <span className="text-xs text-slate-400 font-medium shrink-0">{totalRows} kayıt</span>
           )}
         </div>
@@ -352,16 +446,7 @@ export default function CustomerPriceMatrix() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-700/30">
-              {!selectedBrand ? (
-                <tr>
-                  <td colSpan={customers.length + 1} className="px-6 py-12 text-center text-slate-500">
-                    <div className="flex flex-col items-center gap-2">
-                      <Filter size={22} className="text-slate-300 dark:text-slate-600" />
-                      <span>Parçaları listelemek için önce bir <strong>marka</strong> seçin.</span>
-                    </div>
-                  </td>
-                </tr>
-              ) : loading ? (
+              {loading ? (
                 <tr><td colSpan={customers.length + 1} className="px-6 py-8 text-center"><RefreshCw className="animate-spin mx-auto text-blue-400" /></td></tr>
               ) : totalRows === 0 ? (
                 <tr><td colSpan={customers.length + 1} className="px-6 py-8 text-center text-slate-500">Kayıt bulunamadı.</td></tr>

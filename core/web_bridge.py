@@ -33,7 +33,7 @@ def clear_api_cache(session=None):
     """Veritabanında değişiklik olduğunda cache'i temizler, böylece UI sadece yeni veriyi bekler."""
     dirs = get_cache_dirs()
     for d in dirs:
-        for filename in ["parts.json", "stock.json", "critical.json", "price_matrix_items.json"]:
+        for filename in ["parts.json", "stock.json", "critical.json", "price_matrix_items.json", "price_matrix_prices.json"]:
             path = os.path.join(d, filename)
             if os.path.exists(path):
                 try: 
@@ -64,6 +64,26 @@ SYSTEM_TRANSFER_RULES = {
     "scrap_stock": set(),
     "wip_stock": set(),
 }
+
+# Müşteri Fiyat Matrisi'nde markanın yanındaki "Ürün Tipi" filtresi için kullanılır.
+# warehouse.parts'ta bu ayrımı tutan ayrı bir kolon YOK; warehouse.parts.model metnindeki
+# anahtar kelimelerden türetilir (iPad/Tab → TABLET, Watch → SMARTWATCH, MacBook → LAPTOP,
+# AirPods/Buds/Kulaklık → EARPHONE, diğerleri → SMART PHONE, ki veri setinin büyük
+# çoğunluğu zaten telefon parçasıdır). Üretilen değerler KASITLI OLARAK warehouse.
+# product_category.code ile birebir aynıdır (SMART PHONE/TABLET/LAPTOP/EARPHONE/
+# SMARTWATCH) - böylece get_price_matrix_product_types Türkçe ekran adını (short_name:
+# 'Akıllı Telefon', 'Dizüstü Bilgisayar', 'Bluetooth Kulaklık' vb.) o var olan referans
+# tablosundan JOIN ile çeker, kendi metnini uydurmaz. get_price_matrix_* fonksiyonları
+# arasında tutarlı kalması için tek bir yerde tanımlanır.
+PRICE_MATRIX_PRODUCT_TYPE_CASE_SQL = """
+    CASE
+        WHEN model ILIKE '%iPad%' OR model ILIKE '%Tab %' OR model ILIKE 'Tab %' OR model ILIKE '%Tablet%' THEN 'TABLET'
+        WHEN model ILIKE '%Watch%' THEN 'SMARTWATCH'
+        WHEN model ILIKE '%MacBook%' OR model ILIKE '%Laptop%' OR model ILIKE '%Notebook%' THEN 'LAPTOP'
+        WHEN model ILIKE '%AirPods%' OR model ILIKE '%Buds%' OR model ILIKE '%Kulaklık%' OR model ILIKE '%Earphone%' OR model ILIKE '%Headphone%' THEN 'EARPHONE'
+        ELSE 'SMART PHONE'
+    END
+"""
 
 # work_orders.work_order_type için desteklenen değerler. SERVICE, mevcut/varsayılan
 # akıştır (Service Record'a bağlı tamir süreci). PRODUCTION, bir Recipe'ye (ItemBOM,
@@ -1063,6 +1083,9 @@ class WebBridge(QObject):
             # filtreleri UPPER(brand) eşitliği ve item_category eşitliği ile sorguluyor.
             db.execute(text("CREATE INDEX IF NOT EXISTS idx_parts_brand_upper ON warehouse.parts (UPPER(brand));"))
             db.execute(text("CREATE INDEX IF NOT EXISTS idx_parts_item_category ON warehouse.parts (item_category);"))
+            # Marka + Model (get_price_matrix_models, get_price_matrix_categories,
+            # get_price_matrix_items - modele göre daraltma) birlikte sorgulanıyor.
+            db.execute(text("CREATE INDEX IF NOT EXISTS idx_parts_brand_upper_model ON warehouse.parts (UPPER(brand), model);"))
             db.commit()
         except Exception as e:
             db.rollback()
@@ -10754,13 +10777,100 @@ class WebBridge(QObject):
             db.close()
 
     @Slot(str, result=str)
-    def get_price_matrix_categories(self, brand=""):
-        """Seçili markaya ait item_category (parça tipi: Middle Frame, Back Glass, LCD...)
-        listesini döner - fiyat matrisinde markadan sonraki ikinci daraltma adımı budur.
+    def get_price_matrix_product_types(self, brand=""):
+        """Fiyat matrisinde markanın yanındaki 'Ürün Tipi' (Akıllı Telefon/Tablet/Dizüstü
+        Bilgisayar/Bluetooth Kulaklık/Akıllı Saat) filtresinin seçeneklerini döner - bkz.
+        PRICE_MATRIX_PRODUCT_TYPE_CASE_SQL (model metninden türetilir, warehouse.parts'ta
+        ayrı bir DB kolonu yoktur). Ekran adı (label) uydurulmaz; CASE ifadesinin ürettiği
+        değer (SMART PHONE/TABLET/...) warehouse.product_category.code ile birebir aynı
+        olduğundan gerçek Türkçe adı (short_name) o var olan referans tablosundan JOIN ile
+        çekilir - 'value' (filtreleme için kullanılan kod) sabit kalır, sadece 'label'
+        (ekranda görünen) product_category'den gelir. Model listesiyle 'uyumlu' çalışır:
+        bkz. get_price_matrix_models'in product_type parametresi. '__DGD__' için ürün tipi
+        ayrımı yoktur (işçilik kodlarının cihaz modeli yoktur)."""
+        from sqlalchemy import text
+        brand = (brand or "").strip()
+        if brand == "__DGD__":
+            return json.dumps({"success": True, "product_types": []}, ensure_ascii=False)
+
+        db = SessionLocal()
+        try:
+            params = {}
+            clause = "WHERE COALESCE(item_category, '') != 'DGD'"
+            if brand:
+                clause += " AND UPPER(brand) = UPPER(:brand)"
+                params["brand"] = brand
+            rows = db.execute(text(f"""
+                SELECT sub.product_type AS value, COALESCE(pc.short_name, sub.product_type) AS label, sub.cnt
+                FROM (
+                    SELECT {PRICE_MATRIX_PRODUCT_TYPE_CASE_SQL} AS product_type, COUNT(*) AS cnt
+                    FROM warehouse.parts
+                    {clause}
+                    GROUP BY product_type
+                ) sub
+                LEFT JOIN warehouse.product_category pc ON pc.code = sub.product_type
+                ORDER BY sub.cnt DESC
+            """), params).mappings().all()
+            product_types = [{"value": r["value"], "label": r["label"], "count": r["cnt"]} for r in rows]
+            return json.dumps({"success": True, "product_types": product_types}, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, result=str)
+    def get_price_matrix_models(self, brand="", product_type=""):
+        """Seçili marka (+ opsiyonel ürün tipi) için cihaz modeli listesini döner - fiyat
+        matrisinde markadan sonraki daraltma adımlarından biridir, ürün tipi ve kategori ile
+        birlikte 'uyumlu' çalışır (ürün tipi seçiliyse model listesi de SADECE o tipe göre
+        daralır: bkz. PRICE_MATRIX_PRODUCT_TYPE_CASE_SQL). Filtreleme değeri ('value') HER
+        ZAMAN warehouse.parts.model'in ham hâlidir (parça sorguları bunu birebir kullanır) -
+        ama bu kolon marka bazında tutarsız: bazı satırlarda okunaklı isim ('Galaxy S21'),
+        bazılarında (özellikle Apple telefonlarında) kısa dahili kod var ('iP12PM'). Ekranda
+        okunaklı isim ('label') göstermek için warehouse.product_family'de aynı marka altında
+        code = model eşleşen bir kayıt varsa short_name'i ('iPhone 12 Pro Max') kullanılır,
+        yoksa ham model metni aynen gösterilir (product_family her modeli kapsamıyor)."""
+        from sqlalchemy import text
+        brand = (brand or "").strip()
+        product_type = (product_type or "").strip()
+        if not brand or brand == "__DGD__":
+            return json.dumps({"success": True, "models": []}, ensure_ascii=False)
+
+        db = SessionLocal()
+        try:
+            params = {"brand": brand}
+            clause = "WHERE UPPER(parts.brand) = UPPER(:brand) AND parts.model IS NOT NULL AND parts.model != ''"
+            if product_type:
+                clause += f" AND ({PRICE_MATRIX_PRODUCT_TYPE_CASE_SQL}) = :product_type"
+                params["product_type"] = product_type
+            rows = db.execute(text(f"""
+                SELECT parts.model AS value, COALESCE(pf.short_name, parts.model) AS label, COUNT(*) AS cnt
+                FROM warehouse.parts
+                LEFT JOIN warehouse.product_family pf
+                    ON UPPER(pf.code) = UPPER(parts.model) AND UPPER(pf.brand) = UPPER(parts.brand)
+                {clause}
+                GROUP BY parts.model, pf.short_name
+                ORDER BY label
+            """), params).mappings().all()
+            models = [{"value": r["value"], "label": r["label"], "count": r["cnt"]} for r in rows]
+            return json.dumps({"success": True, "models": models}, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, str, result=str)
+    def get_price_matrix_categories(self, brand="", model="", product_type=""):
+        """Seçili marka (+ opsiyonel ürün tipi/model) için item_category (parça tipi:
+        Middle Frame, Back Glass, LCD...) listesini döner - fiyat matrisinde markadan
+        sonraki daraltma adımlarından biridir, ürün tipi ve model ile birlikte 'uyumlu'
+        çalışır (ikisi de seçiliyse kategori listesi SADECE o alt kümeye göre daralır).
         brand boş verilirse tüm markalardaki kategoriler döner; '__DGD__' için kategori
         ayrımı yoktur (işçilik kodları zaten tek bir marka-eşleniğinde toplanmıştır)."""
         from sqlalchemy import text
         brand = (brand or "").strip()
+        model = (model or "").strip()
+        product_type = (product_type or "").strip()
         if brand == "__DGD__":
             return json.dumps({"success": True, "categories": []}, ensure_ascii=False)
 
@@ -10771,6 +10881,12 @@ class WebBridge(QObject):
             if brand:
                 clause += " AND UPPER(brand) = UPPER(:brand)"
                 params["brand"] = brand
+            if model:
+                clause += " AND model = :model"
+                params["model"] = model
+            if product_type:
+                clause += f" AND ({PRICE_MATRIX_PRODUCT_TYPE_CASE_SQL}) = :product_type"
+                params["product_type"] = product_type
             rows = db.execute(text(f"""
                 SELECT item_category, COUNT(*) AS cnt
                 FROM warehouse.parts
@@ -10785,20 +10901,23 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    @Slot(str, str, str, result=str)
-    def get_price_matrix_items(self, search="", brand="", category=""):
+    @Slot(str, str, str, str, str, result=str)
+    def get_price_matrix_items(self, search="", brand="", category="", model="", product_type=""):
         """Fiyat matrisinin satırlarını oluşturan item_code listesini döner (fiziksel parçalar
         + DGD işçilik kodları), her satırda türetilmiş bir 'İşçilik'/'Parça' etiketiyle.
         warehouse.parts on binlerce satır olabildiğinden (bkz. get_parts/get_stock_status),
-        frontend artık markaya (ve opsiyonel kategoriye) göre daraltılmış bir alt küme ister -
-        bu yüzden brand/category verildiğinde doğrudan (küçük, hızlı) sorgulanır, önbelleklenmez.
-        Hiçbir filtre verilmeyen (search='', brand='', category='') geriye dönük çağrı için
-        tam katalog, diğer büyük listelerle aynı api_cache/*.json + fetch_url deseniyle döner."""
+        frontend artık markaya (ve opsiyonel ürün tipi/model/kategoriye) göre daraltılmış bir
+        alt küme ister - bu yüzden herhangi biri verildiğinde doğrudan (küçük, hızlı)
+        sorgulanır, önbelleklenmez. Hiçbir filtre verilmeyen (search='', brand='', category='',
+        model='', product_type='') geriye dönük çağrı için tam katalog, diğer büyük listelerle
+        aynı api_cache/*.json + fetch_url deseniyle döner."""
         from sqlalchemy import text
         search = (search or "").strip()
         brand = (brand or "").strip()
         category = (category or "").strip()
-        unfiltered = not search and not brand and not category
+        model = (model or "").strip()
+        product_type = (product_type or "").strip()
+        unfiltered = not search and not brand and not category and not model and not product_type
 
         if unfiltered:
             filename = "price_matrix_items.json"
@@ -10819,6 +10938,12 @@ class WebBridge(QObject):
             elif brand:
                 clauses.append("UPPER(brand) = UPPER(:brand)")
                 params["brand"] = brand
+            if model:
+                clauses.append("model = :model")
+                params["model"] = model
+            if product_type:
+                clauses.append(f"({PRICE_MATRIX_PRODUCT_TYPE_CASE_SQL}) = :product_type")
+                params["product_type"] = product_type
             if category:
                 clauses.append("item_category = :category")
                 params["category"] = category
@@ -10845,17 +10970,73 @@ class WebBridge(QObject):
         finally:
             db.close()
 
-    @Slot(result=str)
-    def get_price_matrix(self):
-        """warehouse.customer_item_prices'taki tüm (item_code, customer_code, price) satırlarını
-        döner - frontend bunu {item_code: {customer_code: price}} pivot haritasına çevirir."""
+    @Slot(str, str, str, str, result=str)
+    def get_price_matrix(self, brand="", category="", model="", product_type=""):
+        """warehouse.customer_item_prices'taki (item_code, customer_code, price) satırlarını
+        döner - frontend bunu {item_code: {customer_code: price}} pivot haritasına çevirir.
+        Varsayılan görünüm (Müşteri Fiyat Matrisi'nde marka/model/kategori seçilmeden) TÜM
+        katalog + işçilik kodlarıdır (bkz. get_price_matrix_items'ın unfiltered dalı) - bu
+        yüzden hiç filtre verilmediğinde bu fonksiyon da diğer büyük listelerle aynı
+        api_cache/*.json + fetch_url deseniyle döner: 30 bin parça x N müşteri onbinlerce/
+        yüzbinlerce satıra çıkabildiğinden (test verisiyle 572K oldu) tüm tabloyu her
+        seferinde QWebChannel'dan inline döndürmek get_price_matrix_items için çözdüğümüz
+        sorunu geri getirir. Marka/model/kategori/ürün-tipi verildiğinde (kullanıcı daraltma
+        filtrelerinden birini seçtiğinde) items ile AYNI filtrelerle, warehouse.parts'a JOIN
+        edilerek doğrudan (küçük, hızlı) sorgulanır, önbelleklenmez."""
         from sqlalchemy import text
+        brand = (brand or "").strip()
+        category = (category or "").strip()
+        model = (model or "").strip()
+        product_type = (product_type or "").strip()
+        unfiltered = not brand and not category and not model and not product_type
+
+        if unfiltered:
+            filename = "price_matrix_prices.json"
+            path = os.path.join(get_cache_dirs()[0], filename)
+            fetch_url = f"/api_cache/{filename}"
+            if os.path.exists(path):
+                return json.dumps({"success": True, "fetch_url": fetch_url})
+
         db = SessionLocal()
         try:
-            rows = db.execute(text("""
-                SELECT item_code, customer_code, price FROM warehouse.customer_item_prices
-            """)).mappings().all()
+            if unfiltered:
+                rows = db.execute(text(
+                    "SELECT item_code, customer_code, price FROM warehouse.customer_item_prices"
+                )).mappings().all()
+            else:
+                clauses = []
+                params = {}
+                if brand == "__DGD__":
+                    clauses.append("item_category = 'DGD'")
+                elif brand:
+                    clauses.append("UPPER(brand) = UPPER(:brand)")
+                    params["brand"] = brand
+                if model:
+                    clauses.append("model = :model")
+                    params["model"] = model
+                if product_type:
+                    clauses.append(f"({PRICE_MATRIX_PRODUCT_TYPE_CASE_SQL}) = :product_type")
+                    params["product_type"] = product_type
+                if category:
+                    clauses.append("item_category = :category")
+                    params["category"] = category
+                clause = ("WHERE " + " AND ".join(clauses)) if clauses else ""
+
+                rows = db.execute(text(f"""
+                    SELECT cip.item_code, cip.customer_code, cip.price
+                    FROM warehouse.customer_item_prices cip
+                    JOIN warehouse.parts ON parts.item_code = cip.item_code
+                    {clause}
+                """), params).mappings().all()
+
             items = [{"item_code": r["item_code"], "customer_code": r["customer_code"], "price": float(r["price"])} for r in rows]
+
+            if unfiltered:
+                json_data = json.dumps({"success": True, "prices": items}, ensure_ascii=False)
+                write_to_cache("price_matrix_prices.json", json_data)
+                fetch_url = f"/api_cache/price_matrix_prices.json"
+                return json.dumps({"success": True, "fetch_url": fetch_url})
+
             return json.dumps({"success": True, "prices": items}, ensure_ascii=False)
         except Exception as e:
             return json.dumps({"success": False, "message": str(e)})
@@ -12266,6 +12447,181 @@ class WebBridge(QObject):
             return json.dumps({
                 "success": True, 
                 "message": f"'{part_row['name']}' ({code}) başarıyla teslim edildi (Repair Stock'a aktarıldı)."
+            }, ensure_ascii=False)
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)}, ensure_ascii=False)
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
+    def get_delivered_parts_for_device(self, imei_or_serial):
+        """Parça Teslim ekranında teslim edilmiş parçaları getirir (Geri Alma / İade için)."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            imei_clean = (imei_or_serial or "").strip()
+            if not imei_clean:
+                return json.dumps({"success": True, "parts": []}, ensure_ascii=False)
+
+            be_row = db.execute(text("""
+                SELECT service_id FROM warehouse.batch_entries
+                WHERE LOWER(TRIM(imei_number)) = LOWER(:t) OR LOWER(TRIM(serial_number)) = LOWER(:t) OR LOWER(TRIM(internal_id)) = LOWER(:t)
+                ORDER BY id DESC LIMIT 1
+            """), {"t": imei_clean}).mappings().first()
+
+            refs = [imei_clean]
+            if be_row and be_row["service_id"]:
+                refs.append(str(be_row["service_id"]))
+
+            sr_row = db.execute(text("""
+                SELECT id FROM warehouse.service_records
+                WHERE LOWER(TRIM(imei_number)) = LOWER(:t) OR LOWER(TRIM(imei_serial)) = LOWER(:t)
+                ORDER BY id DESC LIMIT 1
+            """), {"t": imei_clean}).mappings().first()
+            if sr_row and sr_row["id"]:
+                refs.append(str(sr_row["id"]))
+
+            rows = db.execute(text("""
+                SELECT 
+                    rr.id AS repair_record_id,
+                    rr.part_item_code,
+                    COALESCE(p.name, rr.part_item_code) AS part_name,
+                    p.brand,
+                    p.model,
+                    p.color,
+                    rr.supply_requested_by,
+                    TO_CHAR(rr.supply_requested_at, 'YYYY-MM-DD HH24:MI') AS supply_requested_at,
+                    p.stock_tracking_type
+                FROM warehouse.repair_records rr
+                LEFT JOIN warehouse.parts p ON p.item_code = rr.part_item_code
+                WHERE rr.service_record_id = ANY(:refs)
+                  AND rr.part_item_code IS NOT NULL
+                  AND TRIM(rr.part_item_code) <> ''
+                  AND LOWER(TRIM(COALESCE(rr.supply_status_code, ''))) IN ('stoktan çıktı', 'teslim edildi', 'teslimedildi')
+                ORDER BY rr.supply_requested_at DESC NULLS LAST, rr.id DESC
+            """), {"refs": refs}).mappings().all()
+
+            parts = []
+            for r in rows:
+                tracking_type = (r["stock_tracking_type"] or "Stok Takipli").strip()
+                parts.append({
+                    "repairRecordId": str(r["repair_record_id"]),
+                    "itemCode": r["part_item_code"] or "",
+                    "partName": r["part_name"] or "",
+                    "brand": r["brand"] or "",
+                    "model": r["model"] or "",
+                    "color": r["color"] or "",
+                    "deliveredBy": r["supply_requested_by"] or "",
+                    "deliveredAt": r["supply_requested_at"] or "",
+                    "stockTrackingType": tracking_type,
+                })
+
+            return json.dumps({"success": True, "parts": parts}, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)}, ensure_ascii=False)
+        finally:
+            db.close()
+
+    @Slot(str, str, str, str, result=str)
+    def return_delivered_part(self, repair_record_id, imei_or_serial, target_stock, username=""):
+        """Parça Teslim ekranında teslim edilmiş bir parçayı geri alır ve seçilen stoğa (GOOD veya DOA) aktarır."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            rid_str = (repair_record_id or "").strip()
+            imei = (imei_or_serial or "").strip()
+            target = (target_stock or "").strip().upper()
+            user = (username or "").strip() or "Sistem"
+
+            if target not in ("GOOD", "DOA"):
+                return json.dumps({"success": False, "message": "Hedef stok sadece 'GOOD' (Good Stock) veya 'DOA' (DOA Stock) olabilir."})
+
+            rec = None
+            if rid_str:
+                rec = db.execute(text("""
+                    SELECT id, part_item_code, service_record_id, supply_status_code
+                    FROM warehouse.repair_records
+                    WHERE id = :rid
+                """), {"rid": int(rid_str)}).mappings().first()
+
+            if not rec:
+                return json.dumps({"success": False, "message": "Teslim edilmiş onarım kaydı bulunamadı."})
+
+            record_id = rec["id"]
+            item_code = rec["part_item_code"]
+
+            if not item_code:
+                return json.dumps({"success": False, "message": "Kayda ait parça kodu bulunamadı."})
+
+            # 1) supply_status_code sıfırla (Böylece parça teslim edilmiş durumdan çıkar)
+            db.execute(text("""
+                UPDATE warehouse.repair_records
+                SET supply_status_code = NULL,
+                    supply_requested_by = NULL,
+                    supply_requested_at = NULL
+                WHERE id = :rid
+            """), {"rid": record_id})
+
+            # 2) Stok Hareketi (Stok takipli parçalarda)
+            part_row = db.execute(text("SELECT id, name FROM warehouse.parts WHERE item_code = :c LIMIT 1"), {"c": item_code}).mappings().first()
+
+            if part_row and self._is_part_stock_tracked(db, item_code):
+                part_id = part_row["id"]
+                part_name = part_row["name"]
+
+                repair_loc_id = _get_system_location_id(db, "repair_stock")
+                
+                if target == "GOOD":
+                    target_loc_id = _get_system_location_id(db, "good_stock")
+                    target_label = "Good Stock"
+                    m_kind = "PARCA_IADE_GOOD"
+                else:
+                    target_loc_id = _get_system_location_id(db, "doa_stock")
+                    target_label = "DOA Stock"
+                    m_kind = "PARCA_IADE_DOA"
+
+                # Repair Stock -1
+                if repair_loc_id:
+                    db.execute(text("""
+                        UPDATE warehouse.stock
+                        SET quantity = GREATEST(0, quantity - 1)
+                        WHERE part_id = :pid AND location_id = :loc_id
+                    """), {"pid": part_id, "loc_id": repair_loc_id})
+
+                # Target Stock +1 (Good Stock veya DOA Stock)
+                if target_loc_id:
+                    from models.stock import Stock
+                    t_stock = db.query(Stock).filter(Stock.part_id == part_id, Stock.location_id == target_loc_id).first()
+                    if t_stock:
+                        t_stock.quantity += 1
+                    else:
+                        db.add(Stock(part_id=part_id, location_id=target_loc_id, quantity=1))
+
+                # Stock Movement Audit Log
+                try:
+                    from models.stock_movement import StockMovement
+                    mov = StockMovement(
+                        part_id=part_id,
+                        part_name_snapshot=part_name,
+                        source_location_id=repair_loc_id,
+                        target_location_id=target_loc_id,
+                        quantity=1,
+                        type="İç Transfer",
+                        movement_kind=m_kind,
+                        description=f"Teslim Edilen Parça İadesi ({target_label}) - Parça: {item_code} - IMEI: {imei}",
+                        created_by=user,
+                        technician=user
+                    )
+                    db.add(mov)
+                except Exception as mov_err:
+                    print(f"[WARN] StockMovement kaydı eklenemedi: {mov_err}")
+
+            db.commit()
+            target_name = "Good Stock (Sağlam Depo)" if target == "GOOD" else "DOA Stock (Hasarlı/Arızalı Depo)"
+            return json.dumps({
+                "success": True,
+                "message": f"'{part_row['name'] if part_row else item_code}' parçası teslimden geri alındı ve {target_name} alanına aktarıldı."
             }, ensure_ascii=False)
         except Exception as e:
             db.rollback()

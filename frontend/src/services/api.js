@@ -50,6 +50,12 @@ const getMockBackend = () => ({
     },
     set_dev_mode: (enabled, cb) => {
         setTimeout(() => cb(JSON.stringify({ success: false, message: 'Veritabanı bağlantısı yok.' })), 200);
+    },
+    get_delivered_parts_for_device: (imeiOrSerial, cb) => {
+        setTimeout(() => cb(JSON.stringify({ success: true, parts: [] })), 200);
+    },
+    return_delivered_part: (repairRecordId, imeiOrSerial, targetStock, username, cb) => {
+        setTimeout(() => cb(JSON.stringify({ success: true, message: 'Parça başarıyla geri alındı (Mock).' })), 200);
     }
 });
 
@@ -581,6 +587,34 @@ export const api = {
         });
     },
 
+    getDeliveredPartsForDevice: async (imeiOrSerial) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_delivered_parts_for_device) {
+                backend.get_delivered_parts_for_device(String(imeiOrSerial || ''), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true, parts: [] });
+            }
+        });
+    },
+
+    returnDeliveredPart: async (repairRecordId, imeiOrSerial, targetStock, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.return_delivered_part) {
+                backend.return_delivered_part(
+                    String(repairRecordId || ''),
+                    String(imeiOrSerial || ''),
+                    String(targetStock || 'GOOD'),
+                    String(username || ''),
+                    (res) => resolve(JSON.parse(res))
+                );
+            } else {
+                resolve({ success: false, message: "Backend servis alanı eksik." });
+            }
+        });
+    },
+
     getAppVersion: async () => {
         const backend = await getBackend();
         return new Promise((resolve) => {
@@ -705,17 +739,31 @@ export const api = {
         });
     },
 
-    getPriceMatrixCategories: async (brand) => {
+    getPriceMatrixProductTypes: async (brand) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
-            backend.get_price_matrix_categories(String(brand || ''), (res) => resolve(JSON.parse(res)));
+            backend.get_price_matrix_product_types(String(brand || ''), (res) => resolve(JSON.parse(res)));
         });
     },
 
-    getPriceMatrixItems: async (search, brand, category) => {
+    getPriceMatrixModels: async (brand, productType) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
-            backend.get_price_matrix_items(String(search || ''), String(brand || ''), String(category || ''), async (resStr) => {
+            backend.get_price_matrix_models(String(brand || ''), String(productType || ''), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    getPriceMatrixCategories: async (brand, model, productType) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_price_matrix_categories(String(brand || ''), String(model || ''), String(productType || ''), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    getPriceMatrixItems: async (search, brand, category, model, productType) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_price_matrix_items(String(search || ''), String(brand || ''), String(category || ''), String(model || ''), String(productType || ''), async (resStr) => {
                 try {
                     const res = JSON.parse(resStr);
                     if (res.fetch_url) {
@@ -732,10 +780,10 @@ export const api = {
         });
     },
 
-    getPriceMatrix: async () => {
+    getPriceMatrix: async (brand, category, model, productType) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
-            backend.get_price_matrix((res) => resolve(JSON.parse(res)));
+            backend.get_price_matrix(String(brand || ''), String(category || ''), String(model || ''), String(productType || ''), (res) => resolve(JSON.parse(res)));
         });
     },
 
