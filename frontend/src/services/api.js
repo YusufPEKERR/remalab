@@ -748,6 +748,20 @@ export const api = {
     },
 
     // Basımda kullanılacak kağıt formunun adı. Boş gönderilirse ölçüye göre seçilir.
+    // Üretim Kaydını Görüntüle → "Ara Teste Gönder" (109 → 138).
+    // Açık onarım kalmışsa backend reddeder; kural orada, ekranda değil.
+    sendToIntermediateTest: async (term, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.send_to_intermediate_test) {
+                backend.send_to_intermediate_test(String(term || ""), String(username || ""),
+                    (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false, message: "Bu sürümde Ara Teste gönderme yok. Uygulamayı yeniden başlatın." });
+            }
+        });
+    },
+
     setLabelForm: async (formName) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
