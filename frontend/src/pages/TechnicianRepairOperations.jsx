@@ -8,6 +8,16 @@ import {
 import { api } from "../services/api";
 import PartSelectCombobox from "../components/PartSelectCombobox";
 
+// Flow'a göre otomatik eklenen DGD işçilik kaydı DISMANTLE görev grubuyla oluşur
+// (bkz. WebBridge.open_device_for_dismantle) ve ekranlarda "Demontaj" görünürdü;
+// sahada bu iş L1'e ait olduğu için L1 gösterilir. Yalnızca GÖRÜNEN ad değişir -
+// kayıttaki department_mission='DISMANTLE' durur, onarım havuzu yönlendirmesi ve
+// tamamlama kuralları etkilenmez. Aynı yardımcı DemontajRepairPanel'de de var.
+// Karşılaştırma KOD üzerinden yapılır: get_repair_operations_by_imei kodu
+// missionGroupCode, okunur adı missionGroup alanında döndürür.
+const takimAdi = (kod, hazirAd) =>
+  kod === "DISMANTLE" ? "L1 Onarımı" : (hazirAd || kod || "");
+
 function getCurrentUser() {
   try {
     return JSON.parse(localStorage.getItem("user") || sessionStorage.getItem("user") || "null");
@@ -327,7 +337,7 @@ const StatusAdvanceModal = ({ repair, onClose, onAdvance }) => {
             </div>
             <div>
               <h3 className="font-semibold text-slate-800 dark:text-slate-100">Onarıma Devam Et</h3>
-              <p className="text-xs text-slate-500 mt-0.5">{repair.missionGroup} — {repair.id}</p>
+              <p className="text-xs text-slate-500 mt-0.5">{takimAdi(repair.missionGroupCode, repair.missionGroup)} — {repair.id}</p>
             </div>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
@@ -378,7 +388,7 @@ const TechnicianAssignModal = ({ repair, partCount, technicians, loading, onClos
           {/* Atama ONARIM seviyesindedir; tek bir parçaya değil, bu görev grubundaki
               tüm aktif kayıtlara uygulanır. Parça adı bilerek gösterilmiyor. */}
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Görev grubu: <span className="font-semibold">{repair.missionGroup || "—"}</span>
+            Görev grubu: <span className="font-semibold">{takimAdi(repair.missionGroupCode, repair.missionGroup) || "—"}</span>
             {partCount > 0 ? <> · Bu onarımdaki <span className="font-semibold">{partCount} kaydın tamamı</span> seçilen teknisyene atanır.</> : null}
           </p>
         </div>
@@ -876,7 +886,7 @@ const TechnicianRepairOperations = () => {
       return;
     }
     await refreshRepairs();
-    showNotif("success", "Onarım İptal Edildi", `${repair.missionGroup} onarımı iptal edildi.`);
+    showNotif("success", "Onarım İptal Edildi", `${takimAdi(repair.missionGroupCode, repair.missionGroup)} onarımı iptal edildi.`);
   }, [refreshRepairs, showNotif]);
 
   // ── Toggle Repair Charge Type ─────────────────────────────────
@@ -1009,7 +1019,7 @@ const TechnicianRepairOperations = () => {
           missionGroups={missionGroups}
           device={device}
           lockedMissionGroupCode={selectedGroup.active.missionGroupCode || selectedGroup.key}
-          lockedMissionGroupName={selectedGroup.active.missionGroup}
+          lockedMissionGroupName={takimAdi(selectedGroup.active.missionGroupCode, selectedGroup.active.missionGroup)}
         />
       )}
 
@@ -1234,7 +1244,7 @@ const TechnicianRepairOperations = () => {
                 onClick={() => setShowAddPartModal(true)}
                 disabled={!hasAccess || !device || !selectedGroup || selectedGroup.active.isCancelled}
                 title={selectedGroup
-                  ? `'${selectedGroup.active.missionGroup}' onarımına yeni bir parça ekler (yeni onarım açmaz)`
+                  ? `'${takimAdi(selectedGroup.active.missionGroupCode, selectedGroup.active.missionGroup)}' onarımına yeni bir parça ekler (yeni onarım açmaz)`
                   : "Önce alttaki listeden bir onarım seçin"}
                 className="px-3.5 py-2 rounded-xl bg-white dark:bg-[#181a24] border border-blue-200 dark:border-blue-500/30 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-bold transition-colors shadow-sm flex items-center gap-1.5 cursor-pointer"
               >
@@ -1296,7 +1306,7 @@ const TechnicianRepairOperations = () => {
             </button>
             {groupedRepairs.map((g, i) => (
               <button key={g.key} onClick={() => setSelectedRepairIdx(i)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap border flex items-center gap-1.5 ${i === selectedRepairIdx ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-500/20' : 'bg-white dark:bg-[#12141c] text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-500/50'}`}>
-                {g.active.missionGroup}
+                {takimAdi(g.active.missionGroupCode, g.active.missionGroup)}
                 {/* Sekmede de her zaman görünür - alttaki grid ile aynı sayıyı versin. */}
                 <span className={`px-1.5 rounded-full text-[10px] font-bold ${i === selectedRepairIdx ? 'bg-white/20' : 'bg-slate-100 dark:bg-slate-800'}`}>×{g.items.length}</span>
               </button>
@@ -1337,7 +1347,7 @@ const TechnicianRepairOperations = () => {
                 {groupedRepairs.map((g, i) => (
                   <tr key={g.key} onClick={() => setSelectedRepairIdx(i)} className={`cursor-pointer transition-colors ${i === selectedRepairIdx ? 'bg-blue-50 dark:bg-blue-500/5 border-l-[3px] border-l-blue-500' : 'hover:bg-slate-50 dark:hover:bg-[#12141c] border-l-[3px] border-l-transparent'}`}>
                     <td className="px-5 py-3 text-xs font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                      {g.active.missionGroup}
+                      {takimAdi(g.active.missionGroupCode, g.active.missionGroup)}
                       {/* Tek kayıtlı grupta da yazılır: rozet yokken "kaç parça var"
                           sorusunun cevabı belirsiz kalıyordu (yok mu, bir mi?). */}
                       <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-500">{g.items.length} kayıt</span>
@@ -1387,7 +1397,7 @@ const TechnicianRepairOperations = () => {
             <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
               <Package size={16} className="text-slate-400" />
               Onarım Parçaları
-              <span className="text-[11px] font-bold text-blue-500">— {selectedGroup.active.missionGroup}</span>
+              <span className="text-[11px] font-bold text-blue-500">— {takimAdi(selectedGroup.active.missionGroupCode, selectedGroup.active.missionGroup)}</span>
             </h3>
 
             {/* Onarımın teknisyeni: parça başına DEĞİL, onarım başına tek kayıt.
@@ -1449,8 +1459,15 @@ const TechnicianRepairOperations = () => {
                 <tbody className="divide-y divide-slate-100 dark:divide-[#1e222d]">
                   {selectedGroup.items.map(r => (
                     <tr key={r.id} className={`hover:bg-slate-50 dark:hover:bg-[#12141c] transition-colors ${r.isCancelled ? "opacity-50" : ""}`}>
-                      <td className="px-5 py-2.5 text-xs font-mono font-semibold text-slate-700 dark:text-slate-300">{r.partItemCode || "N/A"}</td>
-                      <td className="px-3 py-2.5 text-xs text-slate-800 dark:text-slate-200">{r.itemCategory || "N/A"}</td>
+                      {/* DGD satırı fiziksel bir parça değil, Flow'a göre otomatik eklenen
+                          işçilik kaydıdır; parça kodu/kategorisi gösterilmez (Üretime Aktar
+                          ekranıyla aynı davranış). Kod kayıtta olduğu gibi durur. */}
+                      <td className="px-5 py-2.5 text-xs font-mono font-semibold text-slate-700 dark:text-slate-300">
+                        {r.itemCategory === "DGD" ? "—" : (r.partItemCode || "N/A")}
+                      </td>
+                      <td className="px-3 py-2.5 text-xs text-slate-800 dark:text-slate-200">
+                        {r.itemCategory === "DGD" ? "—" : (r.itemCategory || "N/A")}
+                      </td>
                       <td className="px-3 py-2.5 text-xs text-slate-700 dark:text-slate-300">{r.faultName || "N/A"}</td>
                       <td className="px-3 py-2.5 text-center">
                         <button onClick={() => hasAccess && !r.isCancelled && handleToggleChargeType(r.id, r.chargeType)} disabled={!hasAccess || r.isCancelled} className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold border cursor-pointer hover:opacity-80 transition-opacity ${CHARGE_TYPES[r.chargeType]?.bg} ${CHARGE_TYPES[r.chargeType]?.color} disabled:cursor-not-allowed`} title="Tıklayarak ücret tipini değiştirin">

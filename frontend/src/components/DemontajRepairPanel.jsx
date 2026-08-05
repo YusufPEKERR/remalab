@@ -1,13 +1,8 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Plus, Package, Wrench, CheckCircle, AlertTriangle, Pencil, Ban, X, User } from "lucide-react";
 import { api } from "../services/api";
 import PartSelectCombobox from "./PartSelectCombobox";
 import EtiketYazdirModal from "./EtiketYazdirModal";
-
-// Demontaj aşamasında iş yalnızca L1/L2'ye açılır; uzman ekip (BATTERY, CAMERA,
-// DISPLAY, CASE, L3...) ataması sonraki onarım havuzu adımında yapılır.
-const DEMONTAJ_TAKIMLARI = ["L1REPAIR", "L2REPAIR"];
-const DEMONTAJ_VARSAYILAN_TAKIM = "L1REPAIR";
 
 function getCurrentUser() {
   try {
@@ -31,6 +26,7 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
   const [selectedPartId, setSelectedPartId] = useState("");
   const [faultCode, setFaultCode] = useState("");
   const [missionGroupCode, setMissionGroupCode] = useState("");
+  const [availableMissionCodes, setAvailableMissionCodes] = useState([]);
   const [warrantyCode, setWarrantyCode] = useState("");
   const [description, setDescription] = useState("");
   const [adding, setAdding] = useState(false);
@@ -109,40 +105,40 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
     });
   }, [selectedItemCategory]);
 
-  // Onarım Takımı: Demontaj'da YALNIZCA L1 ve L2 seçilebilir, varsayılan L1'dir.
-  // Eskiden liste, parçanın kategorisine göre item_category_mission'dan geliyor ve
-  // kategoriye özel uzman ekip (BATTERY, CAMERA, DISPLAY...) otomatik seçiliyordu;
-  // demontaj aşamasında bu ayrım yapılmıyor, iş L1/L2'ye açılıyor. Uzman ekip ataması
-  // ilerideki onarım havuzu adımında yapılır.
+  // Onarım Takımı dropdown'u, seçilen parçanın kategorisine göre item_category_mission'da
+  // tanımlı departmanlarla sınırlanır (kategori için hiç tanım yoksa tüm departmanlara geri
+  // düşülür). Kategoriye özel uzman ekip (varsa) ilk değer olarak otomatik seçilir, kullanıcı
+  // isterse bu daraltılmış listeden başka birini seçebilir. Düzenleme modunda otomatik öneri
+  // devre dışı bırakılır, satırın mevcut takımı korunur.
   useEffect(() => {
     if (!selectedItemCategory) {
+      setAvailableMissionCodes([]);
       // Parça ekleme modunda grup seçili onarımdan gelir; parça temizlense de korunur.
       if (!addToGroupRef.current) setMissionGroupCode("");
       return;
     }
+    api.getMissionsForItemCategory(selectedItemCategory).then(res => {
+      setAvailableMissionCodes(res && res.success ? (res.mission_codes || []) : []);
+    });
     const pending = pendingEditRef.current;
     if (pending && pending.missionGroupCode !== undefined) {
       setMissionGroupCode(pending.missionGroupCode);
       if (pending.warrantyCode !== undefined) setWarrantyCode(pending.warrantyCode);
       pendingEditRef.current = null;
     } else if (addToGroupRef.current) {
-      // Parça ekleme modunda grup sabit - seçili onarımın takımı korunur.
+      // Kategoriye göre otomatik takım önerisi bu modda devre dışı - grup sabit.
       setMissionGroupCode(addToGroupRef.current.code);
     } else if (!editingRepairIdRef.current) {
-      setMissionGroupCode(DEMONTAJ_VARSAYILAN_TAKIM);
+      setMissionGroupCode("");
+      api.getMissionForItemCategory(selectedItemCategory).then(res => {
+        if (res && res.success && res.mission_code) setMissionGroupCode(res.mission_code);
+      });
     }
   }, [selectedItemCategory]);
 
-  const filteredMissionGroups = useMemo(() => {
-    const izinli = missionGroups.filter(mg => DEMONTAJ_TAKIMLARI.includes(mg.code));
-    // Düzenleme / parça ekleme modunda satırın mevcut takımı L1-L2 dışında olabilir
-    // (eski kayıtlar, onarım havuzundan gelen gruplar). Seçili değer listede yoksa
-    // dropdown boş görünür ve kaydetme engellenir; bu yüzden o değer listeye eklenir.
-    const secili = missionGroups.find(mg => mg.code === missionGroupCode);
-    return secili && !izinli.some(mg => mg.code === secili.code)
-      ? [...izinli, secili]
-      : izinli;
-  }, [missionGroups, missionGroupCode]);
+  const filteredMissionGroups = availableMissionCodes.length > 0
+    ? missionGroups.filter(mg => availableMissionCodes.includes(mg.code))
+    : missionGroups;
 
   // Test aşamasında (QAC) tespit edilen, planlı parçalar — cihaz değiştikçe yeniden çekilir.
   // QAC test ekranı henüz olmadığından bu liste şu an her zaman boş döner.
@@ -240,6 +236,26 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
 
   // Onarım Takımları — repairs içindeki benzersiz, iptal edilmemiş görev gruplarından türetilir.
   const activeMissionGroupCodes = new Set(repairs.filter(r => !r.isCancelled).map(r => r.missionGroupCode).filter(Boolean));
+
+  // DGD işçilik satırı: cihaz Üretime Aktar'da açılınca Flow'a göre otomatik bir işçilik
+  // satırı ekleniyor (bkz. WebBridge.open_device_for_dismantle) ve bu satır DISMANTLE
+  // takımıyla oluşuyor - bu yüzden her cihazda hep "Demontaj" görünüyordu. Sahada bu iş
+  // L1'e ait olduğu için L1 gösterilir.
+  //
+  // KOD ile ad AYRI alanlarda geliyor: get_repair_operations_by_imei
+  //   missionGroupCode = department_mission            -> "DISMANTLE"
+  //   missionGroup     = mission_groups.short_name     -> "Demontaj"
+  // Karşılaştırma KOD üzerinden yapılmalı; ada bakılırsa hiçbir zaman eşleşmez.
+  //
+  // DİKKAT: yalnızca GÖRÜNEN ad değişir. Kayıttaki department_mission='DISMANTLE' olduğu
+  // gibi kalır, dolayısıyla onarım havuzu yönlendirmesi ve tamamlama kuralları etkilenmez.
+  const takimAdi = (kod, hazirAd) => {
+    if (kod === "DISMANTLE") return "L1 Onarımı";
+    if (hazirAd) return hazirAd;
+    if (!kod) return "";
+    const mg = missionGroups.find(m => m.code === kod);
+    return mg ? mg.short_name : kod;
+  };
 
   // Cihazın Flow'unun (Akış Durumu) onayladığı parça kategorileri (warehouse.
   // service_request_item_category.is_customer_approved) - bkz. WebBridge.get_approved_categories_for_flow.
@@ -369,7 +385,7 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
               <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 text-blue-700 dark:text-blue-400 text-xs">
                 <Package size={14} className="shrink-0 mt-0.5" />
                 <span className="flex-1">
-                  <strong>{addToGroup.name || addToGroup.code}</strong> onarımına parça ekleniyor — yeni bir onarım açılmaz, parça bu onarımın altına yazılır.
+                  <strong>{takimAdi(addToGroup.code, addToGroup.name)}</strong> onarımına parça ekleniyor — yeni bir onarım açılmaz, parça bu onarımın altına yazılır.
                 </span>
                 <button onClick={resetToolbar} type="button" className="shrink-0 font-bold underline underline-offset-2 hover:opacity-70">
                   Vazgeç
@@ -398,7 +414,7 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
               {addToGroup ? (
                 <div className="w-full px-3 py-2 rounded-lg border border-blue-200 dark:border-blue-500/30 bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 text-sm font-semibold flex items-center gap-2">
                   <Wrench size={14} className="shrink-0" />
-                  <span className="truncate">{addToGroup.name || addToGroup.code}</span>
+                  <span className="truncate">{takimAdi(addToGroup.code, addToGroup.name)}</span>
                   <span className="ml-auto text-[10px] font-bold uppercase tracking-widest opacity-70 shrink-0">Sabit</span>
                 </div>
               ) : (
@@ -453,7 +469,7 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
                   type="button"
                   disabled={!hasAccess || !statusAllowsParts || !!editingRepairId || !selectedRepair || selectedRepair.isCancelled}
                   title={selectedRepair
-                    ? `'${selectedRepair.missionGroup}' onarımına yeni bir parça ekler`
+                    ? `'${takimAdi(selectedRepair.missionGroupCode, selectedRepair.missionGroup)}' onarımına yeni bir parça ekler`
                     : "Önce alttaki tablodan bir onarım satırı seçin"}
                   className="px-4 py-2 rounded-lg border border-blue-200 dark:border-blue-500/30 bg-white dark:bg-[#12141c] text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold transition-colors flex items-center gap-1.5 shrink-0"
                 >
@@ -495,9 +511,15 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
                               : "border-l-transparent hover:bg-slate-50 dark:hover:bg-[#12141c]"
                       }`}
                     >
-                      <td className="px-4 py-2 text-xs font-mono text-slate-700 dark:text-slate-300">{r.partItemCode || "N/A"}</td>
+                      {/* DGD satırı fiziksel bir parça değil, Flow'a göre otomatik eklenen
+                          işçilik kaydıdır; parça kodu sütununda DGD kodu gösterilmez.
+                          Kod kayıtta (repair_records.part_item_code) olduğu gibi durur -
+                          iade/muhasebe tarafı onu kullanmaya devam eder. */}
+                      <td className="px-4 py-2 text-xs font-mono text-slate-700 dark:text-slate-300">
+                        {r.itemCategory === "DGD" ? "—" : (r.partItemCode || "N/A")}
+                      </td>
                       <td className="px-3 py-2 text-xs text-slate-700 dark:text-slate-300">
-                        {r.missionGroup}
+                        {takimAdi(r.missionGroupCode, r.missionGroup)}
                         {r.isCancelled && <span className="ml-1.5 text-[10px] font-bold text-red-500">(İptal Edildi)</span>}
                       </td>
                       {/* Atama Üretim Teknisyeni ekranından yapılır; burası salt okunur. */}
@@ -560,7 +582,7 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
                     key={mg.code}
                     className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border ${active ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30" : "bg-slate-50 dark:bg-slate-800/50 text-slate-400 border-slate-200 dark:border-slate-700"}`}
                   >
-                    {active ? <CheckCircle size={11} /> : null} {mg.short_name}
+                    {active ? <CheckCircle size={11} /> : null} {takimAdi(mg.code, null) || mg.short_name}
                   </span>
                 );
               })}

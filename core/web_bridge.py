@@ -3,6 +3,23 @@ from PySide6.QtCore import QObject, Slot, Signal
 import json
 import logging
 import os
+import datetime as _dt
+
+# Türkiye kalıcı olarak UTC+3'tür (2016'dan beri yaz saati uygulaması yok), bu yüzden
+# sabit offset güvenli ve tzdata bağımlılığı gerektirmez. Bazı zaman sütunları naive
+# (tz'siz) ve UTC olarak yazılmış (Python utcnow()), bazıları TIMESTAMPTZ. İkisini de
+# doğru Türkiye yerel saatine çevirip gg.aa.yyyy SS:DD formatında döndürür.
+_TR_TZ = _dt.timezone(_dt.timedelta(hours=3))
+
+def fmt_tr_datetime(dt, with_time=True):
+    """Bir datetime'ı Türkiye yerel saatine çevirip formatlar. None -> ''.
+    Naive datetime'lar UTC kabul edilir (repair_records.created_at gibi utcnow() ile yazılanlar)."""
+    if not dt:
+        return ""
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=_dt.timezone.utc)
+    local = dt.astimezone(_TR_TZ)
+    return local.strftime("%d.%m.%Y %H:%M" if with_time else "%d.%m.%Y")
 
 def get_cache_dirs():
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -1366,6 +1383,21 @@ class WebBridge(QObject):
             db.execute(text("ALTER TABLE warehouse.repair_records ADD COLUMN IF NOT EXISTS assigned_technician VARCHAR(150);"))
             db.execute(text("ALTER TABLE warehouse.repair_records ADD COLUMN IF NOT EXISTS assigned_by VARCHAR(100);"))
             db.execute(text("ALTER TABLE warehouse.repair_records ADD COLUMN IF NOT EXISTS assigned_at TIMESTAMP;"))
+            # Geriye dönük düzeltme: Onarım Havuzu ekranı eskiden teknisyen atamasını
+            # yanlışlıkla supply_requested_by'a yazıyordu (bu sütun aslında Parça Teslim'de
+            # depo durumunu kimin değiştirdiğini tutar). Bu yüzden havuzdan atanan teknisyen
+            # Üretim Kaydını Görüntüle ekranında (assigned_technician okur) görünmüyor, hatta
+            # depocu parça durumunu değiştirince üzerine yazılıp kayboluyordu. Atama artık
+            # kanonik assigned_technician sütununa yazılıyor; henüz taşınmamış 1001 kayıtları
+            # (assigned_technician boş ama supply_requested_by geçerli bir kullanıcı) buraya kopyalanır.
+            db.execute(text("""
+                UPDATE warehouse.repair_records rr
+                SET assigned_technician = rr.supply_requested_by
+                WHERE rr.repair_result_type_code = 1001
+                  AND (rr.assigned_technician IS NULL OR TRIM(rr.assigned_technician) = '')
+                  AND rr.supply_requested_by IS NOT NULL
+                  AND EXISTS (SELECT 1 FROM warehouse.users u WHERE u.username = rr.supply_requested_by)
+            """))
             db.commit()
         except Exception as e:
             db.rollback()
@@ -5160,7 +5192,18 @@ class WebBridge(QObject):
             except (ValueError, TypeError):
                 rows = []
 
+            # AYNI PARÇA İKİ KEZ EKLENEMEZ - hem gelen listenin kendi içinde hem de iş emrinde
+            # zaten bulunan satırlara karşı. İptal edilmiş satırlar sayılmaz (bkz.
+            # remove_work_order_part: satırı silmez, status='İptal Edildi' yapar).
+            var_olanlar = {
+                r[0] for r in db.execute(text("""
+                    SELECT part_id FROM warehouse.work_order_parts
+                     WHERE work_order_id = :wid AND COALESCE(status, '') <> 'İptal Edildi'
+                """), {"wid": work_order_id}).fetchall()
+            }
+
             inserted = 0
+            atlanan = 0
             for row in rows:
                 part_id = row.get("part_id")
                 try:
@@ -5169,13 +5212,19 @@ class WebBridge(QObject):
                     qty = 0
                 if not part_id or qty < 1:
                     continue
+                pid = int(part_id)
+                if pid in var_olanlar:
+                    atlanan += 1
+                    continue
                 db.execute(text("""
                     INSERT INTO warehouse.work_order_parts (work_order_id, part_id, quantity, status, requested_by)
                     VALUES (:wid, :pid, :qty, 'Stokta Var', :req)
-                """), {"wid": work_order_id, "pid": int(part_id), "qty": qty, "req": username or None})
+                """), {"wid": work_order_id, "pid": pid, "qty": qty, "req": username or None})
+                var_olanlar.add(pid)
                 inserted += 1
             db.commit()
-            return json.dumps({"success": True, "inserted": inserted})
+            # Atlananlar SESSİZCE yutulmaz: çağıran ekran kaç satırın tekrar olduğunu bilsin.
+            return json.dumps({"success": True, "inserted": inserted, "skipped_duplicates": atlanan})
         except Exception as e:
             db.rollback()
             return json.dumps({"success": False, "message": str(e)})
@@ -5237,6 +5286,21 @@ class WebBridge(QObject):
             work_order_id = int(work_order_id_str)
             part_id = int(part_id_str)
             qty = int(quantity_str) if quantity_str and int(quantity_str) > 0 else 1
+
+            # AYNI PARÇA İKİ KEZ EKLENEMEZ. İptal edilmiş satırlar sayılmaz: remove_work_order_part
+            # satırı silmez, status='İptal Edildi' yapar - iptal edilen parça yeniden eklenebilmeli.
+            mevcut = db.execute(text("""
+                SELECT id FROM warehouse.work_order_parts
+                 WHERE work_order_id = :wid AND part_id = :pid
+                   AND COALESCE(status, '') <> 'İptal Edildi'
+                 LIMIT 1
+            """), {"wid": work_order_id, "pid": part_id}).first()
+            if mevcut:
+                return json.dumps({
+                    "success": False,
+                    "message": "Bu parça iş emrine zaten eklenmiş. Aynı parça ikinci kez eklenemez; "
+                               "adet değiştirmek için mevcut satırı düzenleyin."
+                }, ensure_ascii=False)
 
             # Check available Good Stock quantity
             good_stock_loc = _get_system_location_id(db, "good_stock")
@@ -10155,8 +10219,18 @@ class WebBridge(QObject):
                 if key not in best or prio > best[key][0]:
                     best[key] = (prio, dt, code, staff, text)
 
-            # En yeni üstte: tarih string'ine (YYYY-MM-DD HH:MM, leksikografik = kronolojik) göre azalan.
-            ordered = sorted(best.values(), key=lambda e: fmt(e[1]), reverse=True)
+            # En yeni üstte (en son yapılan statü işlemi ilk sırada): dakikaya yuvarlanmış
+            # string yerine SANİYE hassasiyetinde gerçek datetime'a göre azalan sıralanır —
+            # böylece aynı dakika içinde yapılan ardışık geçişler de doğru sırada gelir.
+            # Naive (tz'siz) değerler UTC kabul edilir ki karşılaştırma tutarlı olsun.
+            def _sort_key(e):
+                dt = e[1]
+                if not dt:
+                    return float("-inf")
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=_dt.timezone.utc)
+                return dt.timestamp()
+            ordered = sorted(best.values(), key=_sort_key, reverse=True)
 
             items = [{
                 "date": fmt(dt),
@@ -10961,8 +11035,9 @@ class WebBridge(QObject):
                     "assignedBy": r["assigned_by"] or "",
                     "assignedAt": r["assigned_at"].isoformat() if r["assigned_at"] else "",
                     # Onarım Detay grid'indeki "Tarih" sütunu bunu okur (onarımın oluşturulma anı).
-                    "createdAt": r["created_at"].strftime("%d.%m.%Y %H:%M") if r["created_at"] else "",
-                    "updatedAt": r["updated_at"].strftime("%d.%m.%Y %H:%M") if r["updated_at"] else "",
+                    # Türkiye yerel saati (naive created_at UTC'dir - bkz. fmt_tr_datetime).
+                    "createdAt": fmt_tr_datetime(r["created_at"]),
+                    "updatedAt": fmt_tr_datetime(r["updated_at"]),
                     "notes": r["notes"] or "",
                 })
 
@@ -11117,12 +11192,15 @@ class WebBridge(QObject):
 
             r_ids = [r["id"] for r in repairs]
 
-            # Statüyü Teknisyene Atandı (1001) yap ve tüm açık satırların teknisyen alanlarını güncelle
+            # Statüyü Teknisyene Atandı (1001) yap ve tüm açık satırların teknisyen alanlarını
+            # güncelle. KANONİK assigned_technician yazılır (Üretim Kaydını Görüntüle ekranı bunu
+            # okur); geriye dönük uyum için supply_requested_by da set edilir.
             db.execute(text("""
                 UPDATE warehouse.repair_records
                 SET repair_result_type_code = 1001,
                     supply_requested_by = :tech,
                     assigned_technician = :tech,
+                    assigned_by = :tech,
                     assigned_at = NOW(),
                     updated_at = NOW()
                 WHERE id = ANY(:rids)
@@ -11202,8 +11280,8 @@ class WebBridge(QObject):
                 ORDER BY rr.created_at ASC
             """), {"dept": dept}).mappings().all()
 
-            def fmt(dt):
-                return dt.strftime("%Y-%m-%d %H:%M") if dt else ""
+            # Tarih/saat Türkiye yerel saatinde ve gg.aa.yyyy SS:DD formatında (bkz. fmt_tr_datetime).
+            fmt = fmt_tr_datetime
 
             items = []
             for r in rows:
@@ -11548,9 +11626,48 @@ class WebBridge(QObject):
                 if required and required not in user_missions and not any(m in ("TEC_DISMANTLE", "QAC") or m.startswith("TEC_") or m.startswith("QAC_") for m in user_missions):
                     return json.dumps({"success": False, "message": f"Bu işlem için '{required}' yetkisi gerekiyor."})
 
+            service_ref = self._resolve_service_record_id_for_new_repair(db, device_ref)
+            part_code = part_item_code.strip() if part_item_code else None
+
+            # AYNI PARÇA İKİ KEZ EKLENEMEZ. Aynı cihaza aynı parça için ikinci bir onarım
+            # kaydı açılması hem stoktan iki kez düşülmesine hem de teknisyene aynı işin iki
+            # kez görünmesine yol açıyordu. İptal edilmiş (1003) kayıtlar sayılmaz; iptal
+            # edilen bir parça yeniden eklenebilmeli.
+            if part_code:
+                mevcut = db.query(RepairRecord).filter(
+                    RepairRecord.service_record_id == service_ref,
+                    RepairRecord.part_item_code == part_code,
+                    RepairRecord.repair_result_type_code != 1003,
+                ).first()
+                if mevcut:
+                    return json.dumps({
+                        "success": False,
+                        "message": f"'{part_code}' bu cihaza zaten eklenmiş. Aynı parça ikinci kez eklenemez; "
+                                   f"mevcut satırı düzenleyin veya iptal edip yeniden ekleyin."
+                    }, ensure_ascii=False)
+
+            # L1REPAIR ve L2REPAIR aynı cihazda birlikte olamaz: biri varsa diğeri eklenemez.
+            # Yalnızca aktif (iptal edilmemiş, 1003 değil) kayıtlar sayılır - iptal edilmiş bir
+            # L1/L2 onarımı bu kısıtlamayı artık tetiklemez.
+            OPPOSING_REPAIR_TEAMS = {"L1REPAIR": ("L2REPAIR", "L1", "L2"), "L2REPAIR": ("L1REPAIR", "L2", "L1")}
+            team_code = mission_group_code.strip().upper()
+            opposing = OPPOSING_REPAIR_TEAMS.get(team_code)
+            if opposing:
+                opposing_code, team_label, opposing_label = opposing
+                conflict = db.query(RepairRecord).filter(
+                    RepairRecord.service_record_id == service_ref,
+                    RepairRecord.department_mission == opposing_code,
+                    RepairRecord.repair_result_type_code != 1003,
+                ).first()
+                if conflict:
+                    return json.dumps({
+                        "success": False,
+                        "message": f"Bu cihazda zaten aktif bir {opposing_label} onarımı var. Aynı cihaza hem {team_label} hem {opposing_label} onarımı eklenemez."
+                    }, ensure_ascii=False)
+
             rec = RepairRecord(
                 id=uuid.uuid4(),
-                service_record_id=self._resolve_service_record_id_for_new_repair(db, device_ref),
+                service_record_id=service_ref,
                 department_mission=mission_group_code.strip(),
                 repair_result_type_code=1000,
                 warranty_code=warranty_code.strip() if warranty_code else "OOW",
