@@ -10187,8 +10187,18 @@ class WebBridge(QObject):
                 if key not in best or prio > best[key][0]:
                     best[key] = (prio, dt, code, staff, text)
 
-            # En yeni üstte: tarih string'ine (YYYY-MM-DD HH:MM, leksikografik = kronolojik) göre azalan.
-            ordered = sorted(best.values(), key=lambda e: fmt(e[1]), reverse=True)
+            # En yeni üstte (en son yapılan statü işlemi ilk sırada): dakikaya yuvarlanmış
+            # string yerine SANİYE hassasiyetinde gerçek datetime'a göre azalan sıralanır —
+            # böylece aynı dakika içinde yapılan ardışık geçişler de doğru sırada gelir.
+            # Naive (tz'siz) değerler UTC kabul edilir ki karşılaştırma tutarlı olsun.
+            def _sort_key(e):
+                dt = e[1]
+                if not dt:
+                    return float("-inf")
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=_dt.timezone.utc)
+                return dt.timestamp()
+            ordered = sorted(best.values(), key=_sort_key, reverse=True)
 
             items = [{
                 "date": fmt(dt),
