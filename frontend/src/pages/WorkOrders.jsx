@@ -721,7 +721,12 @@ export default function WorkOrders() {
       : await api.createWorkOrder(payload);
     if (res.success) {
       if (!editingOrder && res.id && usedParts.length > 0) {
-        await api.addWorkOrderPartsBulk(res.id, usedParts, currentUser?.username);
+        const bulk = await api.addWorkOrderPartsBulk(res.id, usedParts, currentUser?.username);
+        // Aynı parça iki kez eklenemez; atlanan satırlar sessizce yutulmasın, yoksa
+        // kullanıcı listeye koyduğu parçanın neden görünmediğini anlayamaz.
+        if (bulk && bulk.skipped_duplicates > 0) {
+          alert(`${bulk.skipped_duplicates} parça zaten iş emrinde olduğu için eklenmedi (aynı parça iki kez eklenemez).`);
+        }
       }
       setEditingOrder(null);
       setFormData({ ...EMPTY_FORM, source_location_id: getSystemLocationId('good_stock') });
