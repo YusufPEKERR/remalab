@@ -33,6 +33,7 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
   const [deciding, setDeciding] = useState(false);
   const [returningDgd, setReturningDgd] = useState(false);
   const [togglingDgdId, setTogglingDgdId] = useState(null);
+  const [partPrices, setPartPrices] = useState({}); // { [item_code]: price } - Müşteri Fiyat Matrisi
   const [editingRepairId, setEditingRepairId] = useState(null);
   const [deletingRepairId, setDeletingRepairId] = useState(null);
   const editingRepairIdRef = useRef(null);
@@ -288,6 +289,20 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
   const hasRepairs = activeRepairs.length > 0;
   const allPlanned = hasRepairs && (isNoApprovalFlow || activeRepairs.every(r => r.itemCategory && approvedCategoriesLower.has(r.itemCategory.toLowerCase())));
 
+  // Teklif Parçaları tablosundaki "Fiyat" sütunu: görünen tüm parça kodları için Müşteri
+  // Fiyat Matrisi fiyatını TEK seferde çeker (get_prices_for_items), parça başına ayrı
+  // çağrı yapmaz.
+  useEffect(() => {
+    const codes = Array.from(new Set(repairs.map(r => r.partItemCode).filter(Boolean)));
+    if (codes.length === 0 || !device?.customerNo) return;
+    api.getPricesForItems(codes, device.customerNo).then(res => {
+      if (res && res.success) {
+        setPartPrices(prev => ({ ...prev, ...res.prices }));
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [repairs, device?.customerNo]);
+
   const handleSubmitDecision = useCallback(async () => {
     if (!device?.imei || !hasRepairs || deciding) return;
     setDeciding(true);
@@ -503,6 +518,7 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
                 <thead className="bg-slate-50 dark:bg-[#12141c] sticky top-0">
                   <tr className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">
                     <th className="text-left px-4 py-2.5">Parça kodu</th>
+                    <th className="text-right px-3 py-2.5">Fiyat</th>
                     <th className="text-left px-3 py-2.5">Onarım Takımı</th>
                     <th className="text-left px-3 py-2.5">Teknisyen</th>
                     <th className="text-left px-3 py-2.5">Ücret Tipi</th>
@@ -532,6 +548,11 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
                           iade/muhasebe tarafı onu kullanmaya devam eder. */}
                       <td className="px-4 py-2 text-xs font-mono text-slate-700 dark:text-slate-300">
                         {r.itemCategory === "DGD" ? "—" : (r.partItemCode || "N/A")}
+                      </td>
+                      <td className="px-3 py-2 text-right text-xs font-semibold text-slate-700 dark:text-slate-200">
+                        {r.partItemCode && partPrices[r.partItemCode] !== undefined
+                          ? `${partPrices[r.partItemCode].toFixed(2)} ${device?.currency || ''}`.trim()
+                          : <span className="text-slate-400 font-normal">—</span>}
                       </td>
                       <td className="px-3 py-2 text-xs text-slate-700 dark:text-slate-300">
                         {takimAdi(r.missionGroupCode, r.missionGroup)}

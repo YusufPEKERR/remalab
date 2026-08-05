@@ -12273,6 +12273,45 @@ class WebBridge(QObject):
             db.close()
 
     @Slot(str, str, result=str)
+    def get_prices_for_items(self, item_codes_csv, customer_code):
+        """get_effective_price'ın toplu (çoklu item_code, TEK sorgu) hali - Üretim Kaydını
+        Görüntüle ve Üretime Aktar ekranlarındaki 'Fiyat' sütunu için, bir onarım grubundaki
+        her parça için ayrı ayrı çağrı yapmak yerine tek seferde tüm fiyatları getirir. Aynı
+        kural: önce customer_item_prices (müşteriye özel), yoksa warehouse.item.satis
+        (genel varsayılan)."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            item_codes = list({c.strip() for c in (item_codes_csv or "").split(",") if c.strip()})
+            customer_code = (customer_code or "").strip()
+            if not item_codes:
+                return json.dumps({"success": True, "prices": {}})
+
+            prices = {}
+            if customer_code:
+                rows = db.execute(text("""
+                    SELECT item_code, price FROM warehouse.customer_item_prices
+                    WHERE customer_code = :customer_code AND item_code = ANY(:codes)
+                """), {"customer_code": customer_code, "codes": item_codes}).mappings().all()
+                for r in rows:
+                    prices[r["item_code"]] = float(r["price"])
+
+            missing = [c for c in item_codes if c not in prices]
+            if missing:
+                rows2 = db.execute(text("""
+                    SELECT code, satis FROM warehouse.item WHERE code = ANY(:codes)
+                """), {"codes": missing}).mappings().all()
+                for r in rows2:
+                    if r["satis"] is not None:
+                        prices[r["code"]] = float(r["satis"])
+
+            return json.dumps({"success": True, "prices": prices})
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, result=str)
     def get_effective_price(self, item_code, customer_code):
         """item_code x customer_code için geçerli fiyatı döner: önce customer_item_prices'tan,
         yoksa warehouse.item.satis'ten (global varsayılan). Şu an sadece lookup Slot'u olarak

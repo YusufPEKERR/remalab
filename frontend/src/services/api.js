@@ -957,6 +957,14 @@ export const api = {
         });
     },
 
+    getPricesForItems: async (itemCodes, customerCode) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            const csv = Array.isArray(itemCodes) ? itemCodes.join(',') : String(itemCodes || '');
+            backend.get_prices_for_items(csv, String(customerCode || ''), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
     // ── Müşteri Hedef Fiyat Matrisi ──────────────────────────────
     getTargetPriceCustomers: async () => {
         const backend = await getBackend();

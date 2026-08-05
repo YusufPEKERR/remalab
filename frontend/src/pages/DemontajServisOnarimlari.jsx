@@ -133,6 +133,8 @@ const DemontajServisOnarimlari = () => {
         model: d.model || "",
         productInfo: productInfo || "-",
         productCode: d.batch_no || "",
+        customerNo: d.customer_no || "",
+        currency: d.currency || "EUR",
         customerRequest: d.flow || "Belirtilmemiş",
         // Öncelik: kayıtlı tespit → canlı PhoneCheck (Failed) → Batch girişinde PhoneCheck'ten
         // çekilip saklanan defects. Böylece cihaz PhoneCheck'te canlı bulunmasa da tespit görünür.

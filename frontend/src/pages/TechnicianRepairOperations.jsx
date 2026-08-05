@@ -565,6 +565,7 @@ const TechnicianRepairOperations = () => {
   const [savingDiagnosis, setSavingDiagnosis] = useState(false);
   const [supplyStatuses, setSupplyStatuses] = useState([]);
   const [partStock, setPartStock] = useState({}); // { [item_code]: quantity }
+  const [partPrices, setPartPrices] = useState({}); // { [item_code]: price } - Müşteri Fiyat Matrisi
   const searchRef = useRef(null);
 
   // Görev grupları MioCreate.xlsx MissionGroup sayfasından seed edilen
@@ -647,6 +648,8 @@ const TechnicianRepairOperations = () => {
         model: d.model || "",
         productInfo: productInfo || "-",
         productCode: d.batch_no || "",
+        customerNo: d.customer_no || "",
+        currency: d.currency || "EUR",
         customerRequest: d.flow || "Belirtilmemiş",
         // Öncelik: kayıtlı tespit → canlı PhoneCheck (Failed) → Batch girişinde PhoneCheck'ten
         // çekilip saklanan defects. Böylece cihaz PhoneCheck'te canlı bulunmasa da tespit görünür.
@@ -966,6 +969,20 @@ const TechnicianRepairOperations = () => {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedGroup]);
+
+  // Seçili gruptaki parçaların Müşteri Fiyat Matrisi fiyatını çeker - "Fiyat" sütunu.
+  // Parça başına ayrı çağrı yerine (get_effective_price), görünen tüm parça kodları
+  // TEK seferde (get_prices_for_items) sorgulanır.
+  useEffect(() => {
+    const codes = Array.from(new Set((selectedGroup?.items || []).map(r => r.partItemCode).filter(Boolean)));
+    if (codes.length === 0 || !device?.customerNo) return;
+    api.getPricesForItems(codes, device.customerNo).then(res => {
+      if (res && res.success) {
+        setPartPrices(prev => ({ ...prev, ...res.prices }));
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedGroup, device?.customerNo]);
 
   // ── Statü-bazlı rol/yetki kontrolü ──────────────────────────
   // warehouse.service_statu.mission: her statü kodunun hangi rol (mission) tarafından
@@ -1447,6 +1464,7 @@ const TechnicianRepairOperations = () => {
                     <th className="text-left px-3 py-2.5">Parça Kategorisi</th>
                     <th className="text-left px-3 py-2.5">Arıza Tespiti</th>
                     <th className="text-center px-3 py-2.5">Ücret</th>
+                    <th className="text-right px-3 py-2.5">Fiyat</th>
                     {/* "Atanan Teknisyen" sütunu YOK: teknisyen parçaya değil ONARIMA
                         atanır, bu yüzden bölüm başlığında tek yerde gösterilir. */}
                     <th className="text-left px-3 py-2.5">Depo Durum</th>
@@ -1473,6 +1491,11 @@ const TechnicianRepairOperations = () => {
                         <button onClick={() => hasAccess && !r.isCancelled && handleToggleChargeType(r.id, r.chargeType)} disabled={!hasAccess || r.isCancelled} className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold border cursor-pointer hover:opacity-80 transition-opacity ${CHARGE_TYPES[r.chargeType]?.bg} ${CHARGE_TYPES[r.chargeType]?.color} disabled:cursor-not-allowed`} title="Tıklayarak ücret tipini değiştirin">
                           {CHARGE_TYPES[r.chargeType]?.label}
                         </button>
+                      </td>
+                      <td className="px-3 py-2.5 text-right text-xs font-semibold text-slate-700 dark:text-slate-200">
+                        {r.partItemCode && partPrices[r.partItemCode] !== undefined
+                          ? `${partPrices[r.partItemCode].toFixed(2)} ${device?.currency || ''}`.trim()
+                          : <span className="text-slate-400 font-normal">—</span>}
                       </td>
                       <td className="px-3 py-2.5">
                         <SupplyStatusCell
