@@ -18,7 +18,8 @@ import {
   ChevronRight,
   User,
   Barcode,
-  Tag
+  Tag,
+  ClipboardCheck
 } from 'lucide-react';
 import { api } from '../services/api';
 
@@ -402,6 +403,12 @@ const DepartmentRepairPool = () => {
                         ) : item.isCancelled || Number(item.statusCode) === 1003 ? (
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20">
                             İptal Edildi (1003)
+                          </span>
+                        ) : Number(item.statusCode) === 1006 ? (
+                          // Onarım bitiş testine aktarıldı — sonuç Onarım Bitiş Testi ekranından verilir.
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20">
+                            <ClipboardCheck size={12} />
+                            Bitiş Testinde (1006)
                           </span>
                         ) : item.assignedTechnician ? (
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">

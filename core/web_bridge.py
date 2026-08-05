@@ -12910,6 +12910,23 @@ class WebBridge(QObject):
         finally:
             db.close()
 
+    # ── ONARIM BİTİŞ TESTİ ───────────────────────────────────────────────
+    # Bu görev gruplarında teknisyen onarımı "tamamladığında" kayıt DOĞRUDAN
+    # 1002 (Onarım Tamamlandı) OLMAZ; önce 1006 (Onarım Testi Bekleniyor =
+    # "Onarım Bitiş Testine Aktarıldı") statüsüne geçer. Ayrı bir "Onarım Bitiş
+    # Testi" ekranında test edilir: başarılı → 1002, başarısız → 1001 (kayıt
+    # teknisyende açık iş olarak kalır). Diğer departmanlarda akış değişmez.
+    COMPLETION_TEST_DEPARTMENTS = {"CAMERA", "L3REPAIR", "DISPLAY", "CASE"}
+    # 1006 kaydın bitiş testinde beklediğini, 1007 testten kaldığını gösterir
+    # (bkz. warehouse.repair_result_type). Tamamlama işlemi bu statüdeki kayıtları
+    # "zaten test aşamasında" kabul edip tekrar işlemez.
+    COMPLETION_TEST_PENDING_CODE = 1006
+
+    def _needs_completion_test(self, department_mission):
+        """Verilen görev grubu (department_mission) bir onarım bitiş testi
+        gerektiriyor mu? Kamera / L3 / Ekran / Kasa için True döner."""
+        return (department_mission or "").strip().upper() in self.COMPLETION_TEST_DEPARTMENTS
+
     @Slot(str, str, str, result=str)
     def quick_complete_repair(self, device_ref, mission_group_code, username):
         """Hızlı Onarım Bitiş ekranı: bir cihaz okutulduğunda, verilen GÖREV GRUBUNDAKİ
@@ -12971,10 +12988,13 @@ class WebBridge(QObject):
                         "message": f"Bu işlem için '{grup}' görev grubuna bağlı bir yetkiniz yok."
                     }, ensure_ascii=False)
 
+            # 1006 (bitiş testinde bekliyor) da hariç tutulur: bu görev grubunda
+            # onarımı bitirilen kayıt teste alınmıştır, "hızlı bitiş" onu tekrar
+            # işlememelidir - sonucu artık Onarım Bitiş Testi ekranı belirler.
             kayitlar = db.query(RepairRecord).filter(
                 RepairRecord.service_record_id.in_(refs),
                 RepairRecord.department_mission == grup,
-                ~RepairRecord.repair_result_type_code.in_([1002, 1003]),
+                ~RepairRecord.repair_result_type_code.in_([1002, 1003, 1006]),
             ).all()
 
             if not kayitlar:
@@ -12996,15 +13016,30 @@ class WebBridge(QObject):
                         "message": engel,
                     })
                     continue
-                rec.repair_result_type_code = 1002
-                kapanan += 1
-                sonuclar.append({
-                    "repairId": str(rec.id),
-                    "partItemCode": rec.part_item_code or "",
-                    "technician": rec.assigned_technician or "",
-                    "completed": True,
-                    "message": "Onarım tamamlandı.",
-                })
+                # Kamera / L3 / Ekran / Kasa: doğrudan tamamlanmaz, önce bitiş
+                # testine (1006) aktarılır. Diğer departmanlar 1002 ile kapanır.
+                if self._needs_completion_test(rec.department_mission):
+                    rec.repair_result_type_code = self.COMPLETION_TEST_PENDING_CODE
+                    kapanan += 1
+                    sonuclar.append({
+                        "repairId": str(rec.id),
+                        "partItemCode": rec.part_item_code or "",
+                        "technician": rec.assigned_technician or "",
+                        "completed": True,
+                        "toTest": True,
+                        "message": "Onarım bitiş testine aktarıldı.",
+                    })
+                else:
+                    rec.repair_result_type_code = 1002
+                    kapanan += 1
+                    sonuclar.append({
+                        "repairId": str(rec.id),
+                        "partItemCode": rec.part_item_code or "",
+                        "technician": rec.assigned_technician or "",
+                        "completed": True,
+                        "toTest": False,
+                        "message": "Onarım tamamlandı.",
+                    })
 
             # Tek commit: kısmi kapatma yapiliyor ama yazma atomik olmali.
             db.commit()
@@ -13068,7 +13103,7 @@ class WebBridge(QObject):
         if rec.repair_result_type_code == 1001:
             ref = str(rec.service_record_id or "")
             be_row = db.execute(text("""
-                SELECT flow FROM warehouse.batch_entries
+                SELECT flow, statu_code FROM warehouse.batch_entries
                 WHERE service_id::text = :ref
                    OR LOWER(TRIM(imei_number)) = LOWER(:ref)
                    OR LOWER(TRIM(serial_number)) = LOWER(:ref)
@@ -13076,6 +13111,7 @@ class WebBridge(QObject):
                 ORDER BY id DESC LIMIT 1
             """), {"ref": ref}).first()
             ham_flow = ((be_row[0] if be_row else "") or "").strip()
+            device_statu = be_row[1] if be_row else None
 
             # batch_entries.flow bazen KODU ("To refurbish") bazen KISA ADI ("Refurbish")
             # tutuyor - canli veride 7644 kayit kisa ad, 33 kayit kod. Karsilastirma
@@ -13091,8 +13127,24 @@ class WebBridge(QObject):
                 if srt and srt[0]:
                     flow = srt[0].strip().lower()
 
-            NO_APPROVAL_FLOWS = {"to refurbish", "to rma"}
-            if flow and flow not in NO_APPROVAL_FLOWS:
+            # Müşteri onayı GEREKTİRMEYEN akışlar. "Battery only" (batarya değişimi)
+            # de buradadır: bu akış demontaj kararında doğrudan 109'a gider, müşteri
+            # onayı (107→136) adımından HİÇ geçmez (bkz. state_machine_service
+            # is_battery_only özel işleme). Kanonik kod ("Battery only ") TRIM+lower
+            # ile "battery only"e indirgenir.
+            NO_APPROVAL_FLOWS = {"to refurbish", "to rma", "battery only"}
+
+            # Onay GEREKTİREN akışlarda (ör. "To repair") engel yalnızca cihaz HÂLÂ
+            # onay bekleyen bir statüde PARK EDERKEN çıkmalı. Onay kararı verildiğinde
+            # cihaz 109'a (Production in Progress) geçer - hangi yoldan gelirse gelsin:
+            #   105→109 (doğrudan üretime), 106→109 / 136→109 (onay geldi).
+            # Onay bekleyen cihaz 106/107/136'da durur, ASLA 109'da değildir. Bu yüzden
+            # cihaz onay kapısını (109) geçmişse tekrar onay aranmaz - aksi halde onaydan
+            # geçmiş "To repair" cihazları da hiç tamamlanamaz (statü geçmişine değil
+            # yalnızca flow'a bakan eski davranışın hatası buydu).
+            APPROVAL_PENDING_STATUS = {106, 107, 136}
+            needs_approval = bool(flow) and flow not in NO_APPROVAL_FLOWS
+            if needs_approval and device_statu in APPROVAL_PENDING_STATUS:
                 return ("Bu onarım müşteri onayı alınmadan tamamlanamaz. Önce "
                         "'Müşteri Onayına Sun' adımından geçip onay alınmalı, ardından "
                         "'Onay Geldi - Tamamla' ile kapatılmalıdır.")
@@ -13150,10 +13202,19 @@ class WebBridge(QObject):
             # Hizli Onarim Bitis ekrani da ayni yardimciyi cagirir - kural iki yerde
             # ayri yazilirsa zamanla ayrisir ve ayni onarim bir ekrandan kapanip
             # digerinden kapanmaz.
+            applied_message = ""
             if target_code == 1002:
                 engel = self._repair_completion_blocker(db, rec)
                 if engel:
                     return json.dumps({"success": False, "message": engel}, ensure_ascii=False)
+                # Kamera / L3 / Ekran / Kasa: "Onarımı Tamamla" kaydı 1002 yapmaz,
+                # önce bitiş testine (1006) aktarır. Nihai 1002/1001 kararı Onarım
+                # Bitiş Testi ekranından (submit_completion_test) verilir.
+                if self._needs_completion_test(rec.department_mission):
+                    target_code = self.COMPLETION_TEST_PENDING_CODE
+                    applied_message = "Onarım bitiş testine aktarıldı."
+                else:
+                    applied_message = "Onarım tamamlandı."
             elif target_code == 1003:
                 engel = self._repair_cancellation_blocker(db, rec)
                 if engel:
@@ -13161,7 +13222,188 @@ class WebBridge(QObject):
 
             rec.repair_result_type_code = target_code
             db.commit()
-            return json.dumps({"success": True})
+            return json.dumps({"success": True, "appliedCode": target_code, "message": applied_message}, ensure_ascii=False)
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)}, ensure_ascii=False)
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
+    def get_completion_test_pool(self, department_code):
+        """Onarım Bitiş Testi ekranı: verilen departmanda (CAMERA / L3REPAIR /
+        DISPLAY / CASE) BİTİŞ TESTİ BEKLEYEN (repair_result_type_code = 1006)
+        kayıtları cihaz/batch detaylarıyla döndürür. Teknisyen onarımı bitirince
+        kayıt bu havuza düşer; testçi başarılı/başarısız kararı verir."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            dept = (department_code or "").strip().upper()
+            if not dept:
+                return json.dumps({"success": False, "message": "Departman kodu boş olamaz."})
+            if dept not in self.COMPLETION_TEST_DEPARTMENTS:
+                return json.dumps({
+                    "success": False,
+                    "message": f"'{dept}' bir onarım bitiş testi departmanı değil."
+                }, ensure_ascii=False)
+
+            rows = db.execute(text("""
+                SELECT
+                    rr.id AS repair_id,
+                    rr.service_record_id,
+                    rr.department_mission,
+                    rr.repair_result_type_code,
+                    rr.item_category,
+                    rr.part_item_code,
+                    pp.name AS part_name,
+                    rr.item_fault_code,
+                    fault.short_name AS fault_name,
+                    rr.operation_type_code,
+                    opt.short_name AS operation_type_name,
+                    COALESCE(rr.assigned_technician, rr.supply_requested_by) AS assigned_technician,
+                    COALESCE(NULLIF(TRIM(u.fullname), ''), rr.assigned_technician, rr.supply_requested_by) AS assigned_technician_name,
+                    rr.notes,
+                    rr.created_at,
+                    rr.updated_at,
+                    be.imei_number,
+                    be.serial_number,
+                    be.internal_id,
+                    be.batch_no,
+                    be.model,
+                    be.gb,
+                    be.color,
+                    be.customer_name
+                FROM warehouse.repair_records rr
+                LEFT JOIN warehouse.parts pp ON pp.item_code = rr.part_item_code
+                LEFT JOIN warehouse.item_fault fault ON fault.code = rr.item_fault_code
+                LEFT JOIN warehouse.repair_item_operation_type opt ON opt.code = rr.operation_type_code
+                LEFT JOIN warehouse.users u ON (u.username = rr.assigned_technician OR u.username = rr.supply_requested_by)
+                LEFT JOIN warehouse.batch_entries be ON LOWER(TRIM(be.imei_number)) = LOWER(TRIM(rr.service_record_id))
+                    OR LOWER(TRIM(be.serial_number)) = LOWER(TRIM(rr.service_record_id))
+                    OR LOWER(TRIM(be.internal_id)) = LOWER(TRIM(rr.service_record_id))
+                    OR (be.service_id IS NOT NULL AND strpos(rr.service_record_id, be.service_id::text) > 0)
+                WHERE UPPER(TRIM(rr.department_mission)) = :dept
+                  AND rr.repair_result_type_code = :pending
+                ORDER BY rr.updated_at ASC, rr.created_at ASC
+            """), {"dept": dept, "pending": self.COMPLETION_TEST_PENDING_CODE}).mappings().all()
+
+            def fmt(dt):
+                return dt.strftime("%Y-%m-%d %H:%M") if dt else ""
+
+            items = []
+            for r in rows:
+                product_info = " ".join(filter(None, [r["model"], r["gb"], r["color"]])) or "-"
+                items.append({
+                    "repairId": str(r["repair_id"]),
+                    "serviceRecordId": r["service_record_id"] or "",
+                    "departmentMission": r["department_mission"] or "",
+                    "itemCategory": r["item_category"] or "",
+                    "partItemCode": r["part_item_code"] or "",
+                    "partName": r["part_name"] or "",
+                    "itemFaultCode": r["item_fault_code"] or "",
+                    "faultName": r["fault_name"] or r["item_fault_code"] or "",
+                    "operationTypeCode": r["operation_type_code"] or "",
+                    "operationTypeName": r["operation_type_name"] or "",
+                    "assignedTechnician": r["assigned_technician"] or "",
+                    "assignedTechnicianName": r["assigned_technician_name"] or r["assigned_technician"] or "",
+                    "notes": r["notes"] or "",
+                    "createdAt": fmt(r["created_at"]),
+                    "updatedAt": fmt(r["updated_at"]),
+                    "imei": r["imei_number"] or r["service_record_id"] or "-",
+                    "serialNo": r["serial_number"] or "",
+                    "internalId": r["internal_id"] or "",
+                    "batchNo": r["batch_no"] or "",
+                    "productInfo": product_info,
+                    "customerName": r["customer_name"] or "",
+                })
+
+            return json.dumps({"success": True, "items": items}, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)}, ensure_ascii=False)
+        finally:
+            db.close()
+
+    @Slot(str, str, str, str, result=str)
+    def submit_completion_test(self, repair_id, result, description, username):
+        """Onarım Bitiş Testi kararı. Kayıt 1006 (bitiş testinde) iken çağrılır.
+          result = 'pass' (başarılı)  -> 1002 (Onarım Tamamlandı)
+          result = 'fail' (başarısız) -> 1001 (Teknisyene Atandı); kayıt atanmış
+                     teknisyende AÇIK İŞ olarak kalır, açıklama ZORUNLUDUR.
+        Karar her iki durumda da tarih/kullanıcı/sonuç ile notes'a eklenir."""
+        from models.repair_record import RepairRecord
+        from sqlalchemy import text
+        import datetime
+
+        db = SessionLocal()
+        try:
+            rec = db.query(RepairRecord).filter(RepairRecord.id == repair_id).first()
+            if not rec:
+                return json.dumps({"success": False, "message": "Onarım kaydı bulunamadı."}, ensure_ascii=False)
+
+            raw = (result or "").strip().lower()
+            is_pass = raw in ("pass", "success", "ok", "basarili", "başarılı", "1")
+            is_fail = raw in ("fail", "failed", "nok", "basarisiz", "başarısız", "0")
+            if not is_pass and not is_fail:
+                return json.dumps({"success": False, "message": "Geçersiz test sonucu (pass/fail bekleniyor)."}, ensure_ascii=False)
+
+            aciklama = (description or "").strip()
+            # Karar yalnızca "bitiş testinde bekleyen" (1006) kayıtlar için verilir.
+            if rec.repair_result_type_code != self.COMPLETION_TEST_PENDING_CODE:
+                return json.dumps({
+                    "success": False,
+                    "message": "Bu kayıt onarım bitiş testinde değil (yalnızca 1006 statüsündeki kayıtlar test edilir)."
+                }, ensure_ascii=False)
+
+            # Başarısız testte arıza nedeni girilmesi zorunlu (karar #2).
+            if is_fail and not aciklama:
+                return json.dumps({
+                    "success": False,
+                    "message": "Test başarısız işaretlenirken açıklama (arıza nedeni) girilmesi zorunludur."
+                }, ensure_ascii=False)
+
+            # Yetki: kullanıcının kaydın GÖREV GRUBUNA bağlı bir görevi olmalı
+            # (bkz. quick_complete_repair - aynı iki kod uzayı ayrımı geçerli).
+            user_missions, is_admin = self._get_user_missions(db, username)
+            if not is_admin:
+                yetkili = db.execute(text("""
+                    SELECT 1 FROM organization.missions m
+                    JOIN organization.mission_groups g ON g.id = m.mission_group_id
+                    WHERE g.code = :grup AND m.code = ANY(:kodlar) LIMIT 1
+                """), {"grup": (rec.department_mission or "").strip(), "kodlar": list(user_missions or [])}).first()
+                if not yetkili:
+                    return json.dumps({
+                        "success": False,
+                        "message": f"Bu işlem için '{rec.department_mission}' görev grubuna bağlı bir yetkiniz yok."
+                    }, ensure_ascii=False)
+
+            if is_pass:
+                # Başarılı testte de tamamlama şartları korunur (parça teslimi vb.).
+                engel = self._repair_completion_blocker(db, rec)
+                if engel:
+                    return json.dumps({"success": False, "message": engel}, ensure_ascii=False)
+                rec.repair_result_type_code = 1002
+                sonuc_etiket = "BAŞARILI"
+                mesaj = "Onarım bitiş testi başarılı — onarım tamamlandı."
+            else:
+                # Başarısız: kayıt teknisyene geri döner (atama korunur, açık iş olur).
+                rec.repair_result_type_code = 1001
+                sonuc_etiket = "BAŞARISIZ"
+                mesaj = "Onarım bitiş testi başarısız — kayıt teknisyene geri gönderildi."
+
+            zaman = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+            not_satiri = f"[Onarım Bitiş Testi · {sonuc_etiket} · {username or '?'} · {zaman}]"
+            if aciklama:
+                not_satiri += f" {aciklama}"
+            rec.notes = (rec.notes + "\n" + not_satiri) if (rec.notes or "").strip() else not_satiri
+            rec.updated_at = datetime.datetime.utcnow()
+
+            db.commit()
+            return json.dumps({
+                "success": True,
+                "result": "pass" if is_pass else "fail",
+                "newStatusCode": rec.repair_result_type_code,
+                "message": mesaj,
+            }, ensure_ascii=False)
         except Exception as e:
             db.rollback()
             return json.dumps({"success": False, "message": str(e)}, ensure_ascii=False)

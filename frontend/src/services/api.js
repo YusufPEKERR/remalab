@@ -561,6 +561,30 @@ export const api = {
         });
     },
 
+    // Onarım Bitiş Testi: departmanda bitiş testi bekleyen (1006) kayıtları getirir.
+    getCompletionTestPool: async (departmentCode) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_completion_test_pool) {
+                backend.get_completion_test_pool(String(departmentCode || ''), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false, items: [], message: "Backend eksik (uygulamayı yeniden başlatın)" });
+            }
+        });
+    },
+
+    // Onarım Bitiş Testi kararı. result: 'pass' | 'fail'. Başarısızda açıklama zorunlu.
+    submitCompletionTest: async (repairId, result, description, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.submit_completion_test) {
+                backend.submit_completion_test(String(repairId || ''), String(result || ''), String(description || ''), String(username || ''), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false, message: "Backend eksik (uygulamayı yeniden başlatın)" });
+            }
+        });
+    },
+
     getRepairSupplyRequests: async () => {
         const backend = await getBackend();
         return new Promise((resolve) => {

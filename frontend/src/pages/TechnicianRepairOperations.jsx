@@ -41,6 +41,11 @@ const REPAIR_STATUS = {
   1008: { label: "Parça Bekleniyor", color: "bg-orange-500", textColor: "text-orange-600 dark:text-orange-400", bgLight: "bg-orange-50 dark:bg-orange-500/10" },
 };
 
+// Kamera / L3 / Ekran / Kasa: "Onarımı Tamamla" bu departmanlarda kaydı doğrudan
+// 1002 yapmaz, önce Onarım Bitiş Testi'ne (1006) gönderir (bkz. web_bridge
+// _needs_completion_test). Buton etiketi/mesajı buna göre değişir.
+const COMPLETION_TEST_DEPARTMENTS = new Set(["CAMERA", "L3REPAIR", "DISPLAY", "CASE"]);
+
 // ─── ONARIM ÜCRET TİPİ ───────────────────────────────────────────────
 const CHARGE_TYPES = {
   FREE: { label: "Ücretsiz", color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30" },
@@ -808,9 +813,16 @@ const TechnicianRepairOperations = () => {
       showNotif("error", "Statü Güncellenemedi", res?.message || "İşlem başarısız oldu.");
       return;
     }
-    const statusLabel = REPAIR_STATUS[newStatus]?.label || newStatus;
-    showNotif("success", "Statü Güncellendi", `${newStatus} - ${statusLabel}`);
-  }, [repairs, showNotif, openAssignModal]);
+    // Kamera / L3 / Ekran / Kasa: "Onarımı Tamamla" backend'de 1002 yerine 1006
+    // (bitiş testine aktarıldı) uygular. Optimistik 1002'yi backend'in gerçekte
+    // uyguladığı kodla (appliedCode) düzeltip listeyi tazeliyoruz.
+    const applied = res.appliedCode != null ? Number(res.appliedCode) : Number(newStatus);
+    if (applied !== Number(newStatus)) {
+      await refreshRepairs();
+    }
+    const statusLabel = REPAIR_STATUS[applied]?.label || applied;
+    showNotif("success", "Statü Güncellendi", res.message || `${applied} - ${statusLabel}`);
+  }, [repairs, showNotif, openAssignModal, refreshRepairs]);
 
   // ── Cihaz İade Prosedürü (Sert Engelleme) ──────────────────────
   // Cihaza bağlı stok takipli bir parça hâlâ 'Stoktan Çıktı' ise (isStoksuz=false,
@@ -1258,15 +1270,27 @@ const TechnicianRepairOperations = () => {
                   <Play size={14} /> Onarım Devam Ediyor
                 </button>
               )}
-              {selectedRepair && selectedRepair.statusCode !== 1002 && selectedRepair.statusCode !== 1003 && (
-                <button
-                  onClick={() => handleAdvanceStatus(selectedRepair.id, 1002)}
-                  disabled={!hasAccess || !!completeBlockReason}
-                  className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold transition-colors shadow-sm flex items-center gap-1.5 cursor-pointer"
-                  title={completeBlockReason || "Onarımı tamamla"}
+              {selectedRepair && selectedRepair.statusCode !== 1002 && selectedRepair.statusCode !== 1003 && selectedRepair.statusCode !== 1006 && (() => {
+                const dept = (selectedRepair.missionGroupCode || selectedRepair.missionGroup || "").toUpperCase();
+                const toTest = COMPLETION_TEST_DEPARTMENTS.has(dept);
+                return (
+                  <button
+                    onClick={() => handleAdvanceStatus(selectedRepair.id, 1002)}
+                    disabled={!hasAccess || !!completeBlockReason}
+                    className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold transition-colors shadow-sm flex items-center gap-1.5 cursor-pointer"
+                    title={completeBlockReason || (toTest ? "Onarımı bitir ve bitiş testine gönder" : "Onarımı tamamla")}
+                  >
+                    <CheckCircle size={14} /> {toTest ? "Bitir ve Teste Gönder" : "Onarımı Tamamla"}
+                  </button>
+                );
+              })()}
+              {selectedRepair && selectedRepair.statusCode === 1006 && (
+                <span
+                  className="px-3.5 py-2 rounded-xl bg-cyan-600/20 text-cyan-700 dark:text-cyan-300 border border-cyan-500/30 text-xs font-bold flex items-center gap-1.5"
+                  title="Kayıt onarım bitiş testine aktarıldı; sonuç Onarım Bitiş Testi ekranından verilir."
                 >
-                  <CheckCircle size={14} /> Onarımı Tamamla
-                </button>
+                  <Clock size={14} /> Bitiş Testinde
+                </span>
               )}
               <button onClick={handleReturnDevice} disabled={!hasAccess || !device} className="px-3.5 py-2 rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold transition-colors shadow-sm flex items-center gap-1.5 cursor-pointer">
                 <AlertTriangle size={14} /> İade Edilecek
