@@ -36,6 +36,8 @@ export default function Parts() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentPart, setCurrentPart] = useState(null);
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importErrors, setImportErrors] = useState([]);
 
   // Selection and Export States
   const [selectedRows, setSelectedRows] = useState([]);
@@ -346,11 +348,17 @@ export default function Parts() {
   };
 
   const handleExcelImport = async (data) => {
-    for (const item of data) {
-      await api.createPart(item);
+    setImporting(true);
+    const res = await api.bulkImportParts(data);
+    setImporting(false);
+    if (res.success) {
+      setIsExcelModalOpen(false);
+      setImportErrors([]);
+      fetchParts();
+      alert(res.message || `${res.imported} parça içe aktarıldı.`);
+    } else {
+      setImportErrors(res.errors && res.errors.length > 0 ? res.errors : [{ row: '-', field: '-', message: res.message || 'İçe aktarma başarısız oldu.' }]);
     }
-    setIsExcelModalOpen(false);
-    fetchParts();
   };
 
   const handleSort = (key) => {
@@ -741,6 +749,31 @@ export default function Parts() {
         dbColumns={dbColumns}
         friendlyNames={friendlyNames}
       />
+      {importing && (
+        <div className="fixed inset-0 z-[95] flex items-center justify-center bg-slate-900/40">
+          <div className="bg-white dark:bg-[#181a24] rounded-2xl px-6 py-4 shadow-2xl flex items-center gap-3">
+            <RefreshCw size={18} className="animate-spin text-blue-500" />
+            <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">İçe aktarılıyor...</span>
+          </div>
+        </div>
+      )}
+      {importErrors.length > 0 && (
+        <div className="fixed inset-0 z-[95] flex items-center justify-center bg-slate-900/40 p-4">
+          <div className="rounded-2xl border border-red-200 dark:border-red-500/30 bg-white dark:bg-[#181a24] p-4 max-w-lg w-full shadow-2xl">
+            <div className="flex items-center justify-between gap-2 text-red-700 dark:text-red-400 font-semibold text-sm mb-2">
+              <span className="flex items-center gap-2"><AlertCircle size={16} /> İçe aktarma başarısız — hiçbir kayıt eklenmedi ({importErrors.length} hata)</span>
+              <button onClick={() => setImportErrors([])} className="text-slate-400 hover:text-slate-600"><X size={16} /></button>
+            </div>
+            <div className="max-h-64 overflow-y-auto space-y-1">
+              {importErrors.map((err, i) => (
+                <div key={i} className="text-xs text-red-600 dark:text-red-400">
+                  Satır {err.row} — <span className="font-semibold">{err.field}:</span> {err.message}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

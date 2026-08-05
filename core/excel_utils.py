@@ -1,46 +1,41 @@
 def style_excel_file(filepath: str):
     """Excel dosyasını openpyxl kullanarak premium ve estetik bir tasarıma kavuşturur."""
     try:
+        import re
         import openpyxl
         from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
         from openpyxl.worksheet.datavalidation import DataValidation
-        
+        from openpyxl.worksheet.table import Table, TableStyleInfo
+
         wb = openpyxl.load_workbook(filepath)
-        for sheet in wb.worksheets:
-            # Renk Paleti ve Stiller
+        used_table_names = set()
+        for sheet_idx, sheet in enumerate(wb.worksheets):
+            max_row = sheet.max_row
+            max_col = sheet.max_column
+            if max_row < 1 or max_col < 1:
+                continue
+
+            # Başlık (satır 1) rengi/fontu: özel marka paleti, tek satır olduğu için ucuz.
             header_fill = PatternFill(start_color="212B36", end_color="212B36", fill_type="solid") # Koyu şık gri/lacivert
-            even_row_fill = PatternFill(start_color="F4F6F8", end_color="F4F6F8", fill_type="solid") # Açık gri alternatif satır
-            odd_row_fill = PatternFill(start_color="FFFFFF", end_color="FFFFFF", fill_type="solid") # Beyaz satır
-            
             header_font = Font(name="Segoe UI", color="FFFFFF", bold=True, size=11)
-            data_font = Font(name="Segoe UI", color="161C24", size=10)
-            
             center_align = Alignment(horizontal="center", vertical="center")
-            left_align = Alignment(horizontal="left", vertical="center", wrap_text=True)
-            
-            # Sadece altı çizili zarif kenarlık (Modern web tabloları gibi)
-            light_gray_side = Side(style='thin', color='E2E8F0')
-            modern_border = Border(bottom=light_gray_side, left=light_gray_side, right=light_gray_side)
             header_border = Border(bottom=Side(style='medium', color='1F6FEB')) # Başlığın altına mavi bir vurgu
-            
-            # Satır Yükseklikleri
+
             sheet.row_dimensions[1].height = 28 # Başlık daha ferah
-            
-            # Başlık satırını (Satır 1) biçimlendir
+
+            flow_col_letter = None
+            max_lengths = [0] * (max_col + 1)  # 1-index kullanılacak
+
             for cell in sheet[1]:
                 cell.fill = header_fill
                 cell.font = header_font
                 cell.alignment = center_align
                 cell.border = header_border
-                
-            # Flow sütununu bul (başlık "flow" veya "Flow" olan)
-            flow_col_letter = None
-            max_row = sheet.max_row
-            for cell in sheet[1]:
                 if cell.value and str(cell.value).strip().lower() == 'flow':
                     flow_col_letter = openpyxl.utils.get_column_letter(cell.column)
-                    break
-            
+                val_str = str(cell.value) if cell.value is not None else ""
+                max_lengths[cell.column] = len(val_str)
+
             # Flow sütununa dropdown validation ekle
             if flow_col_letter and max_row > 1:
                 flow_options = '"Refurbish,Repair,RMA,Battery Replacement"'
@@ -59,39 +54,47 @@ def style_excel_file(filepath: str):
                 dv.sqref = f"{flow_col_letter}2:{flow_col_letter}{max(max_row, 1000)}"
                 sheet.add_data_validation(dv)
 
-            # Tüm veri satırlarını biçimlendir ve sütun genişliklerini ayarla
-            for col_idx, col in enumerate(sheet.columns, 1):
-                max_length = 0
+            # Veri satırlarının biçimlendirmesi (zebra + kenarlık): hücre başına yazmak yerine
+            # Excel'in yerleşik "Table" (banded) stiline devredilir - O(satır*sütun) hücre
+            # yazma yerine O(1) tablo tanımı, büyük tablolarda kat kat hızlı.
+            # Sütun genişliği için yine de değerleri satır bazlı gezip ölçmemiz gerekiyor.
+            for row_cells in sheet.iter_rows(min_row=2, max_row=max_row):
+                for cell in row_cells:
+                    val_str = str(cell.value) if cell.value is not None else ""
+                    if len(val_str) > max_lengths[cell.column]:
+                        max_lengths[cell.column] = len(val_str)
+
+            if max_row > 1:
+                last_col_letter = openpyxl.utils.get_column_letter(max_col)
+                table_name = re.sub(r'[^A-Za-z0-9_]', '_', f"Tablo_{sheet.title}_{sheet_idx}")
+                if not table_name or not table_name[0].isalpha():
+                    table_name = f"T_{table_name}"
+                base_name = table_name
+                suffix = 1
+                while table_name in used_table_names:
+                    table_name = f"{base_name}_{suffix}"
+                    suffix += 1
+                used_table_names.add(table_name)
+
+                tab = Table(displayName=table_name, ref=f"A1:{last_col_letter}{max_row}")
+                tab.tableStyleInfo = TableStyleInfo(
+                    name="TableStyleLight1",
+                    showFirstColumn=False,
+                    showLastColumn=False,
+                    showRowStripes=True,
+                    showColumnStripes=False,
+                )
+                sheet.add_table(tab)
+
+            # Sütun genişliklerini içeriğe göre ayarla (min 15, max 50)
+            for col_idx in range(1, max_col + 1):
                 col_letter = openpyxl.utils.get_column_letter(col_idx)
-                for cell in col:
-                    if cell.row > 1:
-                        # Satır yüksekliği
-                        sheet.row_dimensions[cell.row].height = 22
-                        
-                        # Alternatif arka plan rengi
-                        if cell.row % 2 == 0:
-                            cell.fill = even_row_fill
-                        else:
-                            cell.fill = odd_row_fill
-                            
-                        cell.font = data_font
-                        cell.border = modern_border
-                        cell.alignment = left_align
-                        
-                    try:
-                        val_str = str(cell.value) if cell.value is not None else ""
-                        if len(val_str) > max_length:
-                            max_length = len(val_str)
-                    except:
-                        pass
-                
-                # Sütun genişliğini içeriğe göre ayarla (min 15, max 45)
-                adjusted_width = min(max(int(max_length * 1.3) + 4, 15), 50)
+                adjusted_width = min(max(int(max_lengths[col_idx] * 1.3) + 4, 15), 50)
                 sheet.column_dimensions[col_letter].width = adjusted_width
-                
+
             # İlk satırı dondur (sabit kalsın)
             sheet.freeze_panes = 'A2'
-            
+
         wb.save(filepath)
     except Exception as e:
         print(f"Excel stili uygulanırken hata oluştu: {e}")

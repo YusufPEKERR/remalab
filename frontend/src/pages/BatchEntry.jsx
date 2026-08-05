@@ -736,6 +736,11 @@ export default function BatchEntry() {
       return;
     }
 
+    if (!(formData.power_test || '').trim()) {
+      alert("Hata: Power Test alanı zorunludur, boş bırakılamaz.");
+      return;
+    }
+
     // Kapasite mükerrer girişi: model alanı zaten kapasite içeriyorsa (örn. "iPhone 13 mini 128GB")
     // GB alanı da doldurulamaz — aksi halde "... 128GB 128GB" gibi ürün ailesinde olmayan kayıt oluşur.
     const modelVal = (formData.model || '').trim();
@@ -868,11 +873,15 @@ export default function BatchEntry() {
     setIsExcelModalOpen(false);
     setLoading(true);
 
-    // 2) Her satırı içe aktar. Import SADECE sistemde tanımlı (batch_entries'te kayıtlı)
-    //    cihazları günceller; tanımlı olmayan IMEI/batch reddedilir.
+    // 2) Zorunlu alan + mükerrer (aynı Excel içinde) kontrolü client-side yapılır;
+    //    geçerli satırlar TEK bir toplu çağrıyla (bulk_process_batch_entries) sunucuya
+    //    gönderilir - sunucu tarafında satır başına aynı "önce güncelle, tanımlı değilse
+    //    oluştur" mantığı (import_defined_batch_entry + create_batch_entry ile birebir
+    //    aynı kurallar) uygulanır, ama N ayrı round-trip yerine tek seferde.
     let createdCount = 0;
     const failed = [];
     const seen = new Set();
+    const toSend = [];
     for (let idx = 0; idx < rows.length; idx++) {
       const item = rows[idx];
       const rowNum = idx + 1;
@@ -892,15 +901,22 @@ export default function BatchEntry() {
       }
       seen.add(key);
 
-      let res = await api.importDefinedBatchEntry(item);
-      // Eğer cihaz sistemde önceden tanımlı değilse yeni cihaz kaydı oluştur
-      if (res && res.success && res.ok === false && res.message && res.message.includes('sistemde tanımlı değil')) {
-        const createRes = await api.createBatchEntry(item);
-        res = { success: createRes.success, ok: createRes.success !== false, message: createRes.message };
-      }
+      toSend.push({ rowNum, identifier, item });
+    }
 
-      if (res.success && res.ok !== false) createdCount++;
-      else failed.push({ row: rowNum, identifier, message: res.message || 'İçe aktarılamadı.', data: item });
+    if (toSend.length > 0) {
+      const bulkRes = await api.bulkProcessBatchEntries(toSend.map(t => t.item));
+      if (bulkRes.success && Array.isArray(bulkRes.results)) {
+        bulkRes.results.forEach((r, i) => {
+          const { rowNum, identifier, item } = toSend[i];
+          if (r.ok) createdCount++;
+          else failed.push({ row: rowNum, identifier, message: r.message || 'İçe aktarılamadı.', data: item });
+        });
+      } else {
+        toSend.forEach(({ rowNum, identifier, item }) => {
+          failed.push({ row: rowNum, identifier, message: bulkRes.message || 'İçe aktarılamadı.', data: item });
+        });
+      }
     }
 
     // 3) Hatalılar için nedenli Excel dökümü indir
@@ -1532,20 +1548,7 @@ export default function BatchEntry() {
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
                         <div>
                           <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
-                            Screen Test (Ekran Testi)
-                          </label>
-                          <input
-                            type="text"
-                            value={formData.screen_test || ''}
-                            onChange={e => setFormData({ ...formData, screen_test: e.target.value })}
-                            className="w-full bg-white dark:bg-[#12141c] border border-slate-300 dark:border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-500"
-                            placeholder="Örn: Tamamlandı / Hasarlı"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
-                            Power Test (Güç Testi)
+                            Power Test (Güç Testi) *
                           </label>
                           <input
                             type="text"
@@ -1553,6 +1556,20 @@ export default function BatchEntry() {
                             onChange={e => setFormData({ ...formData, power_test: e.target.value })}
                             className="w-full bg-white dark:bg-[#12141c] border border-slate-300 dark:border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-500"
                             placeholder="Örn: Açılıyor / Şarj Olmuyor"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+                            Screen Test (Ekran Testi)
+                          </label>
+                          <input
+                            type="text"
+                            value={formData.screen_test || ''}
+                            onChange={e => setFormData({ ...formData, screen_test: e.target.value })}
+                            disabled={!(formData.power_test || '').trim()}
+                            className="w-full bg-white dark:bg-[#12141c] border border-slate-300 dark:border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                            placeholder={(formData.power_test || '').trim() ? "Örn: Tamamlandı / Hasarlı" : "Önce Power Test giriniz"}
                           />
                         </div>
 

@@ -138,6 +138,7 @@ def init_database_schema():
     from models.mission import Mission
     from models.flow_dgd_mapping import FlowDgdMapping
     from models.customer_item_price import CustomerItemPrice
+    from models.customer_target_price import CustomerTargetPrice
 
     try:
         # organization şemasını oluştur (yoksa)
