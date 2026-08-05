@@ -3,6 +3,7 @@ import * as XLSX from 'xlsx';
 import { Plus, Trash2, Edit2, X, FileSpreadsheet, Search, RefreshCw, RotateCcw, User, Wrench, Smartphone, AlertCircle, Layers, Check, Download, Truck, FileText, Upload, AlertTriangle, CheckCircle, Table } from 'lucide-react';
 import { api } from '../services/api';
 import ExcelMappingModal from '../components/ExcelMappingModal';
+import ModelSelectCombobox from '../components/ModelSelectCombobox';
 
 const GB_OPTIONS = ['16GB', '32GB', '64GB', '128GB', '256GB', '512GB', '1TB', '2TB'];
 
@@ -46,6 +47,7 @@ export default function BatchEntry() {
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
   const [customerList, setCustomerList] = useState([]);
+  const [productFamilies, setProductFamilies] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
   // Modal Tabs & Excel Preview State
   const [modalTab, setModalTab] = useState('excel'); // 'excel' | 'form'
@@ -490,6 +492,7 @@ export default function BatchEntry() {
     };
     loadCustomers();
     api.getFlowValues().then(res => { if (res && res.success) setFlowValues(res.flows || []); });
+    api.getProductFamilies().then(res => { if (res && res.success) setProductFamilies(res.product_families || []); });
   }, []);
 
   const handleSelectAll = (e) => {
@@ -1367,11 +1370,25 @@ export default function BatchEntry() {
                         </label>
                         <input
                           type="text"
+                          list="customer-nos-list"
                           value={formData.customer_no || ''}
-                          onChange={e => setFormData({ ...formData, customer_no: e.target.value })}
+                          onChange={e => {
+                            const val = e.target.value;
+                            const foundCust = (customerList || []).find(c => (c.code || '') === val);
+                            setFormData(prev => ({
+                              ...prev,
+                              customer_no: val,
+                              customer_name: foundCust ? (foundCust.customer_name || foundCust.short_name || foundCust.code) : prev.customer_name
+                            }));
+                          }}
                           className="w-full bg-white dark:bg-[#12141c] border border-slate-300 dark:border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-500 font-mono"
                           placeholder="Örn: CUST-001"
                         />
+                        <datalist id="customer-nos-list">
+                          {(customerList || []).map((c, idx) => (
+                            <option key={idx} value={c.code || ''} />
+                          ))}
+                        </datalist>
                       </div>
 
                       <div>
@@ -1482,12 +1499,12 @@ export default function BatchEntry() {
                         <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
                           Model (Cihaz Modeli)
                         </label>
-                        <input
-                          type="text"
+                        <ModelSelectCombobox
+                          models={productFamilies}
                           value={formData.model || ''}
-                          onChange={e => setFormData({ ...formData, model: e.target.value })}
-                          className="w-full bg-white dark:bg-[#12141c] border border-slate-300 dark:border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-blue-500"
-                          placeholder="Örn: iPhone 13 Pro"
+                          onChange={val => setFormData(prev => ({ ...prev, model: val }))}
+                          placeholder="Cihaz modeli ara veya seç..."
+                          searchPlaceholder="Model ara..."
                         />
                       </div>
 
