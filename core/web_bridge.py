@@ -11646,6 +11646,25 @@ class WebBridge(QObject):
                                    f"mevcut satırı düzenleyin veya iptal edip yeniden ekleyin."
                     }, ensure_ascii=False)
 
+            # L1REPAIR ve L2REPAIR aynı cihazda birlikte olamaz: biri varsa diğeri eklenemez.
+            # Yalnızca aktif (iptal edilmemiş, 1003 değil) kayıtlar sayılır - iptal edilmiş bir
+            # L1/L2 onarımı bu kısıtlamayı artık tetiklemez.
+            OPPOSING_REPAIR_TEAMS = {"L1REPAIR": ("L2REPAIR", "L1", "L2"), "L2REPAIR": ("L1REPAIR", "L2", "L1")}
+            team_code = mission_group_code.strip().upper()
+            opposing = OPPOSING_REPAIR_TEAMS.get(team_code)
+            if opposing:
+                opposing_code, team_label, opposing_label = opposing
+                conflict = db.query(RepairRecord).filter(
+                    RepairRecord.service_record_id == service_ref,
+                    RepairRecord.department_mission == opposing_code,
+                    RepairRecord.repair_result_type_code != 1003,
+                ).first()
+                if conflict:
+                    return json.dumps({
+                        "success": False,
+                        "message": f"Bu cihazda zaten aktif bir {opposing_label} onarımı var. Aynı cihaza hem {team_label} hem {opposing_label} onarımı eklenemez."
+                    }, ensure_ascii=False)
+
             rec = RepairRecord(
                 id=uuid.uuid4(),
                 service_record_id=service_ref,
