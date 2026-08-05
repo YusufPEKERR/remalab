@@ -603,60 +603,34 @@ export default function BatchEntry() {
 
   const totalPages = Math.ceil(totalCount / itemsPerPage) || 1;
 
-  const [autoFilledMessage, setAutoFilledMessage] = useState('');
-
-  const handleAutoLookup = async (fieldKey, value) => {
-    const updated = { ...formData, [fieldKey]: value };
-    setFormData(updated);
-
-    const term = String(value || '').trim();
-    if (term.length < 2) return;
-
-    // 1) Sistemdeki mevcut kayıtlardan otomatik doldurma (batch_no + müşteri dahil).
-    //    ÖNEMLİ: Backend kısmi (ILIKE %term%) eşleşme de yapabildiğinden, YENİ batch
-    //    girişinde henüz tamamlanmamış bir IMEI/Seri yazılırken alakasız bir kayıt
-    //    kısmen eşleşip formu (batch_no/müşteri dahil) ele geçirebiliyordu. Bu yüzden
-    //    otomatik doldurmayı SADECE yazılan değer, bulunan kaydın AYNI alanına birebir
-    //    (tam) eşitse uygula. Önek/kısmi eşleşmeler formu değiştirmez.
-    const res = await api.lookupBatchEntry(term);
-    if (res.success && res.found && res.data) {
-      const matchedValue = String(res.data[fieldKey] || '').trim().toLowerCase();
-      const isExactMatch = matchedValue !== '' && matchedValue === term.toLowerCase();
-      if (isExactMatch) {
-        setFormData(prev => ({
-          ...res.data,
-          [fieldKey]: value
-        }));
-        setAutoFilledMessage(`Kayıtlı cihaz bulundu! "${term}" eşleşmesine göre tüm bilgiler otomatik dolduruldu.`);
-        setTimeout(() => setAutoFilledMessage(''), 6000);
+  // Sistemde zaten kayıtlı bir cihazla çakışıp çakışmadığını kontrol eder (IMEI/Seri/Internal
+  // ID birebir eşleşme). Eskiden bu kontrol her tuş vuruşunda (debounce'suz) çalışıyor ve aynı
+  // zamanda dış bir Phonecheck HTTP isteği de tetikliyordu - yazarken ekranın donmasına yol
+  // açıyordu. Artık SADECE Kaydet tıklanınca, tek seferlik bir kontrol olarak çalışıyor;
+  // Phonecheck çağrısı bu ekrandan tamamen kaldırıldı. Düzenleme modunda kaydın kendisiyle
+  // eşleşmesi çakışma sayılmaz.
+  const checkDuplicateDevice = async () => {
+    const idFields = [
+      { key: 'imei_number', label: 'IMEI' },
+      { key: 'serial_number', label: 'Seri No' },
+      { key: 'internal_id', label: 'Internal ID' },
+    ];
+    for (const { key, label } of idFields) {
+      const val = (formData[key] || '').trim();
+      if (!val) continue;
+      const res = await api.lookupBatchEntry(val);
+      if (res && res.success && res.found && res.data) {
+        const matched = String(res.data[key] || '').trim().toLowerCase();
+        const isSelfMatch = editingRecord && res.data.id != null && String(res.data.id) === String(editingRecord.id);
+        if (matched && matched === val.toLowerCase() && !isSelfMatch) {
+          return `Bu cihaz zaten sistemde kayıtlı (${label}: "${val}"). Lütfen mevcut kaydı listeden bulup düzenleyin.`;
+        }
       }
     }
-
-    // 2) IMEI/Seri okutulduysa cihaz teknik bilgilerini PhoneCheck'ten çek.
-    //    PhoneCheck'te batch_no/müşteri bulunmadığından bu alanlara DOKUNULMAZ.
-    if (fieldKey === 'imei_number' || fieldKey === 'serial_number') {
-      const pc = await api.getPhonecheckDeviceByImei(term);
-      if (pc.success && pc.data) {
-        const dev = pc.data;
-        setFormData(prev => ({
-          ...prev,
-          model: dev.model || prev.model,
-          gb: dev.gb || prev.gb,
-          color: dev.color || prev.color,
-          serial_number: dev.serial_number || prev.serial_number,
-          defects: dev.defects || prev.defects,
-          screen_test: dev.screen_test || prev.screen_test,
-          power_test: dev.power_test || prev.power_test,
-          [fieldKey]: value
-        }));
-        setAutoFilledMessage(`PhoneCheck'ten cihaz bilgileri çekildi (model, hafıza, renk, test sonuçları). Batch No ve müşteri bilgisini elle girin.`);
-        setTimeout(() => setAutoFilledMessage(''), 6000);
-      }
-    }
+    return null;
   };
 
   const handleOpenModal = async (record = null) => {
-    setAutoFilledMessage('');
     if (record) {
       setEditingRecord(record);
       
@@ -753,6 +727,12 @@ export default function BatchEntry() {
       alert(`Kapasite modelde zaten belirtilmiş ("${modelCap[0].toUpperCase().replace(/\s/g, '')}"). ` +
         `GB alanına ikinci kez kapasite girildiğinde "${modelVal} ${gbVal}" gibi ürün ailesinde ` +
         `tanımlı olmayan geçersiz bir kayıt oluşur. Lütfen ya modeldeki kapasiteyi kaldırın ya da GB seçimini boş bırakın.`);
+      return;
+    }
+
+    const duplicateMessage = await checkDuplicateDevice();
+    if (duplicateMessage) {
+      alert("Hata: " + duplicateMessage);
       return;
     }
 
@@ -1349,13 +1329,6 @@ export default function BatchEntry() {
               {!editingRecord ? (
                 /* YENİ BATCH GİRİŞİ: 4 SECTION CARD MANUAL FORM */
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  {autoFilledMessage && (
-                    <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-xl text-xs font-semibold flex items-center gap-2">
-                      <CheckCircle size={16} />
-                      <span>{autoFilledMessage}</span>
-                    </div>
-                  )}
-
                   {/* 1. MÜŞTERİ BİLGİLERİ CARD */}
                   <div className="bg-slate-100/60 dark:bg-[#12141c] p-4 rounded-xl border border-slate-200 dark:border-slate-700/60 space-y-3">
                     <div className="flex items-center gap-2 text-xs font-bold text-blue-500 dark:text-blue-400 tracking-wide uppercase">
@@ -1440,7 +1413,7 @@ export default function BatchEntry() {
                         <input
                           type="text"
                           value={formData.imei_number || ''}
-                          onChange={e => handleAutoLookup('imei_number', e.target.value)}
+                          onChange={e => setFormData({ ...formData, imei_number: e.target.value })}
                           className="w-full bg-white dark:bg-[#12141c] border border-slate-300 dark:border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 font-mono focus:outline-none focus:border-blue-500"
                           placeholder="IMEI giriniz (örn: 358901234567890)"
                         />
@@ -1453,7 +1426,7 @@ export default function BatchEntry() {
                         <input
                           type="text"
                           value={formData.serial_number || ''}
-                          onChange={e => handleAutoLookup('serial_number', e.target.value)}
+                          onChange={e => setFormData({ ...formData, serial_number: e.target.value })}
                           className="w-full bg-white dark:bg-[#12141c] border border-slate-300 dark:border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 font-mono focus:outline-none focus:border-blue-500"
                           placeholder="Cihaz seri numarası"
                         />
@@ -1466,7 +1439,7 @@ export default function BatchEntry() {
                         <input
                           type="text"
                           value={formData.internal_id || ''}
-                          onChange={e => handleAutoLookup('internal_id', e.target.value)}
+                          onChange={e => setFormData({ ...formData, internal_id: e.target.value })}
                           className="w-full bg-white dark:bg-[#12141c] border border-slate-300 dark:border-slate-700/80 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 font-mono focus:outline-none focus:border-blue-500"
                           placeholder="İç takip ID"
                         />
