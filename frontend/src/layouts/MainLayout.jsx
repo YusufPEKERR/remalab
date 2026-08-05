@@ -4,7 +4,7 @@ import {
   LogOut, LayoutDashboard, Users, Package, Settings, Bell,
   Warehouse, FileText, BarChart2, Box, Truck, MapPin,
   CheckCircle, Search, AlertTriangle, Zap, RefreshCw, Sun, Moon, Database, Building2, Wrench, ClipboardList, PackagePlus, Tags, ChevronDown, ChevronRight, Menu, X, Layers, FileSpreadsheet,
-  Boxes, ClipboardCheck, Cog, Repeat, DollarSign
+  Boxes, ClipboardCheck, Cog, Repeat, DollarSign, Target
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useTheme } from '../context/ThemeContext';
@@ -231,6 +231,7 @@ export default function MainLayout() {
         { name: 'Departman Yönetimi', icon: Building2, path: '/departments' },
         { name: 'Flow → DGD Eşleşmesi', icon: Wrench, path: '/flow-dgd-mapping' },
         { name: 'Müşteri Fiyat Matrisi', icon: DollarSign, path: '/customer-price-matrix' },
+        { name: 'Müşteri Hedef Fiyat Matrisi', icon: Target, path: '/customer-target-price-matrix' },
         { name: 'Schema Mapper', icon: Database, path: '/schema-mapper' }
       ]
     }

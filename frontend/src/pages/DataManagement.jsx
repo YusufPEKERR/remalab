@@ -82,8 +82,7 @@ export default function DataManagement() {
             table_name: t.table_name,
             columns: t.columns,
             friendlyNames: friendlyNames,
-            fetch: () => api.getTableData(t.schema, t.table_name),
-            create: (data) => api.insertTableData(t.schema, t.table_name, data)
+            fetch: () => api.getTableData(t.schema, t.table_name)
           };
         });
         setTables(dynamicTables);
@@ -207,12 +206,20 @@ export default function DataManagement() {
     if (!selectedTable) return;
     setLoading(true);
     try {
-      for (const item of data) {
-        if (selectedTable.create) {
-          await selectedTable.create(item);
+      const res = await api.bulkInsertTableData(selectedTable.schema, selectedTable.table_name, data);
+      if (res.success) {
+        const errCount = (res.errors || []).length;
+        if (errCount > 0) {
+          const preview = res.errors.slice(0, 10).map(e => `Satır ${e.row}: ${e.message}`).join('\n');
+          alert(`${res.imported} satır içe aktarıldı, ${errCount} satır hata verdi.\n\n${preview}${errCount > 10 ? '\n...' : ''}`);
+        } else {
+          alert(res.message || "İçe aktarma başarıyla tamamlandı!");
         }
+      } else {
+        const errCount = (res.errors || []).length;
+        const preview = errCount > 0 ? '\n\n' + res.errors.slice(0, 10).map(e => `Satır ${e.row}: ${e.message}`).join('\n') : '';
+        alert(`İçe aktarım başarısız: ${res.message || 'Bilinmeyen hata'}${preview}`);
       }
-      alert("İçe aktarma başarıyla tamamlandı!");
     } catch (err) {
       console.error(err);
       alert("İçe aktarım sırasında bir hata oluştu.");

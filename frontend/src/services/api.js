@@ -345,6 +345,13 @@ export const api = {
         });
     },
 
+    bulkImportParts: async (rows) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.bulk_import_parts(JSON.stringify(rows || []), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
     updatePart: async (id, partData) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
@@ -798,6 +805,67 @@ export const api = {
         const backend = await getBackend();
         return new Promise((resolve) => {
             backend.get_effective_price(String(itemCode || ''), String(customerCode || ''), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    // ── Müşteri Hedef Fiyat Matrisi ──────────────────────────────
+    getTargetPriceCustomers: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_target_price_customers((res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    getTargetPriceBrands: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_target_price_brands((res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    getTargetPriceModels: async (brand) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_target_price_models(String(brand || ''), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    getCustomerTargetPrices: async (customerCode) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_customer_target_prices(String(customerCode || ''), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    createCustomerTargetPrice: async (customerCode, productFamilyCode, screenTestResult, powerTestResult, targetPrice, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.create_customer_target_price(
+                String(customerCode || ''), String(productFamilyCode || ''), String(screenTestResult || ''),
+                String(powerTestResult || ''), String(targetPrice || ''), String(username || ''),
+                (res) => resolve(JSON.parse(res))
+            );
+        });
+    },
+
+    updateCustomerTargetPrice: async (id, targetPrice, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.update_customer_target_price(String(id || ''), String(targetPrice || ''), String(username || ''), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    deleteCustomerTargetPrice: async (id) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.delete_customer_target_price(String(id || ''), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    bulkImportCustomerTargetPrices: async (rows, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.bulk_import_customer_target_prices(JSON.stringify(rows || []), String(username || ''), (res) => resolve(JSON.parse(res)));
         });
     },
 
@@ -1591,6 +1659,13 @@ export const api = {
         });
     },
 
+    bulkImportProducts: async (rows) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.bulk_import_products(JSON.stringify(rows || []), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
     updateProduct: async (id, p) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
@@ -1798,6 +1873,13 @@ export const api = {
         });
     },
 
+    bulkImportInboundEntries: async (rows, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.bulk_import_inbound_entries(JSON.stringify(rows || []), String(username || ''), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
     addOutboundEntry: async (partId, locId, qty, typeStr, user, technician, description) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
@@ -1962,6 +2044,13 @@ export const api = {
         });
     },
 
+    bulkImportProductBOM: async (rows) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.bulk_import_product_bom(JSON.stringify(rows || []), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
     updateProductBOM: async (id, product_model, child_item_code, quantity) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
@@ -2117,6 +2206,13 @@ export const api = {
             } else {
                 resolve({ success: false, ok: false, message: "Backend eksik (import_defined_batch_entry)" });
             }
+        });
+    },
+
+    bulkProcessBatchEntries: async (rows) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.bulk_process_batch_entries(JSON.stringify(rows || []), (res) => resolve(JSON.parse(res)));
         });
     },
 
@@ -2302,6 +2398,17 @@ export const api = {
         return new Promise((resolve) => {
             if (backend.insert_table_data) {
                 backend.insert_table_data(schema, table, JSON.stringify(data), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false, message: "Backend bridge missing" });
+            }
+        });
+    },
+
+    bulkInsertTableData: async (schema, table, rows) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.bulk_insert_table_data) {
+                backend.bulk_insert_table_data(schema, table, JSON.stringify(rows || []), (res) => resolve(JSON.parse(res)));
             } else {
                 resolve({ success: false, message: "Backend bridge missing" });
             }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Download, Upload, Plus, RefreshCw, ArrowRightLeft, FileSpreadsheet, Search } from 'lucide-react';
+import { Download, Upload, Plus, RefreshCw, ArrowRightLeft, FileSpreadsheet, Search, AlertCircle, X } from 'lucide-react';
 import { api } from '../services/api';
 import ExcelMappingModal from '../components/ExcelMappingModal';
 import StockTransferModal from '../components/StockTransferModal';
@@ -40,6 +40,8 @@ export default function Irsaliye() {
 
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
   const [excelDirection, setExcelDirection] = useState('inbound');
+  const [importing, setImporting] = useState(false);
+  const [importErrors, setImportErrors] = useState([]);
 
   // Export Modal
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
@@ -70,47 +72,17 @@ export default function Irsaliye() {
   };
 
   const handleExcelImport = async (data) => {
-    setIsExcelModalOpen(false);
-    let successCount = 0;
-    
-    // Her zaman 'good_stock' kullanacağız
-    const defaultLocId = getSystemLocationId('good_stock') || 1;
-    
-    for (const row of data) {
-        if (!row.barcode || !row.qty || !row.who) {
-            console.log("Skipping row, missing mandatory fields:", row);
-            continue;
-        }
-
-        const part = parts.find(p => String(p.barcode) === String(row.barcode));
-        if (!part) {
-            alert(`Barkodu ${row.barcode} olan parça bulunamadı. Bu satır atlandı.`);
-            continue;
-        }
-
-        if (excelDirection === 'inbound') {
-            await api.addInboundEntry(
-                part.id,
-                defaultLocId,
-                row.qty,
-                row.price || 0,
-                row.type || 'Yeni Alım',
-                row.who
-            );
-        } else {
-            await api.addOutboundEntry(
-                part.id,
-                defaultLocId,
-                row.qty,
-                row.type || 'Çıkış',
-                row.who
-            );
-        }
-        successCount++;
+    setImporting(true);
+    const res = await api.bulkImportInboundEntries(data, '');
+    setImporting(false);
+    if (res.success) {
+      setIsExcelModalOpen(false);
+      setImportErrors([]);
+      alert(res.message || `${res.imported} kayıt başarıyla içe aktarıldı.`);
+      fetchData();
+    } else {
+      setImportErrors(res.errors && res.errors.length > 0 ? res.errors : [{ row: '-', field: '-', message: res.message || 'İçe aktarma başarısız oldu.' }]);
     }
-    
-    alert(`${successCount} kayıt başarıyla içe aktarıldı.`);
-    fetchData();
   };
 
   const handleExcelAction = async (e) => {
@@ -734,6 +706,31 @@ export default function Irsaliye() {
         dbColumns={dbColumns}
         friendlyNames={friendlyNames}
       />
+      {importing && (
+        <div className="fixed inset-0 z-[95] flex items-center justify-center bg-slate-900/40">
+          <div className="bg-white dark:bg-[#181a24] rounded-2xl px-6 py-4 shadow-2xl flex items-center gap-3">
+            <RefreshCw size={18} className="animate-spin text-blue-500" />
+            <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">İçe aktarılıyor...</span>
+          </div>
+        </div>
+      )}
+      {importErrors.length > 0 && (
+        <div className="fixed inset-0 z-[95] flex items-center justify-center bg-slate-900/40 p-4">
+          <div className="rounded-2xl border border-red-200 dark:border-red-500/30 bg-white dark:bg-[#181a24] p-4 max-w-lg w-full shadow-2xl">
+            <div className="flex items-center justify-between gap-2 text-red-700 dark:text-red-400 font-semibold text-sm mb-2">
+              <span className="flex items-center gap-2"><AlertCircle size={16} /> İçe aktarma başarısız — hiçbir kayıt eklenmedi ({importErrors.length} hata)</span>
+              <button onClick={() => setImportErrors([])} className="text-slate-400 hover:text-slate-600"><X size={16} /></button>
+            </div>
+            <div className="max-h-64 overflow-y-auto space-y-1">
+              {importErrors.map((err, i) => (
+                <div key={i} className="text-xs text-red-600 dark:text-red-400">
+                  Satır {err.row} — <span className="font-semibold">{err.field}:</span> {err.message}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Dışa Aktar Sütun Seçimi Modalı */}
       {isExportModalOpen && (

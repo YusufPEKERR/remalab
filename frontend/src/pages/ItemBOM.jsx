@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, RefreshCw, X, FileSpreadsheet, Edit2, Search, RotateCcw } from 'lucide-react';
+import { Plus, Trash2, RefreshCw, X, FileSpreadsheet, Edit2, Search, RotateCcw, AlertCircle } from 'lucide-react';
 import { api } from '../services/api';
 import ExcelMappingModal from '../components/ExcelMappingModal';
 import ModelSelectCombobox from '../components/ModelSelectCombobox';
@@ -13,6 +13,8 @@ export default function ItemBOM() {
   const [productFamilies, setProductFamilies] = useState([]);
   const [allItemCodes, setAllItemCodes] = useState([]);
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importErrors, setImportErrors] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(50);
   const [pageInput, setPageInput] = useState('1');
@@ -171,11 +173,17 @@ export default function ItemBOM() {
   };
 
   const handleExcelImport = async (data) => {
-    for (const item of data) {
-      await api.createProductBOM(item.product_model, item.child_item_code, item.quantity || 1);
+    setImporting(true);
+    const res = await api.bulkImportProductBOM(data);
+    setImporting(false);
+    if (res.success) {
+      setIsExcelModalOpen(false);
+      setImportErrors([]);
+      fetchBOMs();
+      alert(res.message || `${res.imported} reçete satırı içe aktarıldı.`);
+    } else {
+      setImportErrors(res.errors && res.errors.length > 0 ? res.errors : [{ row: '-', field: '-', message: res.message || 'İçe aktarma başarısız oldu.' }]);
     }
-    setIsExcelModalOpen(false);
-    fetchBOMs();
   };
 
   return (
@@ -465,6 +473,31 @@ export default function ItemBOM() {
         dbColumns={dbColumns}
         friendlyNames={friendlyNames}
       />
+      {importing && (
+        <div className="fixed inset-0 z-[95] flex items-center justify-center bg-slate-900/40">
+          <div className="bg-white dark:bg-[#181a24] rounded-2xl px-6 py-4 shadow-2xl flex items-center gap-3">
+            <RefreshCw size={18} className="animate-spin text-blue-500" />
+            <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">İçe aktarılıyor...</span>
+          </div>
+        </div>
+      )}
+      {importErrors.length > 0 && (
+        <div className="fixed inset-0 z-[95] flex items-center justify-center bg-slate-900/40 p-4">
+          <div className="rounded-2xl border border-red-200 dark:border-red-500/30 bg-white dark:bg-[#181a24] p-4 max-w-lg w-full shadow-2xl">
+            <div className="flex items-center justify-between gap-2 text-red-700 dark:text-red-400 font-semibold text-sm mb-2">
+              <span className="flex items-center gap-2"><AlertCircle size={16} /> İçe aktarma başarısız — hiçbir kayıt eklenmedi ({importErrors.length} hata)</span>
+              <button onClick={() => setImportErrors([])} className="text-slate-400 hover:text-slate-600"><X size={16} /></button>
+            </div>
+            <div className="max-h-64 overflow-y-auto space-y-1">
+              {importErrors.map((err, i) => (
+                <div key={i} className="text-xs text-red-600 dark:text-red-400">
+                  Satır {err.row} — <span className="font-semibold">{err.field}:</span> {err.message}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
