@@ -3,6 +3,23 @@ from PySide6.QtCore import QObject, Slot, Signal
 import json
 import logging
 import os
+import datetime as _dt
+
+# Türkiye kalıcı olarak UTC+3'tür (2016'dan beri yaz saati uygulaması yok), bu yüzden
+# sabit offset güvenli ve tzdata bağımlılığı gerektirmez. Bazı zaman sütunları naive
+# (tz'siz) ve UTC olarak yazılmış (Python utcnow()), bazıları TIMESTAMPTZ. İkisini de
+# doğru Türkiye yerel saatine çevirip gg.aa.yyyy SS:DD formatında döndürür.
+_TR_TZ = _dt.timezone(_dt.timedelta(hours=3))
+
+def fmt_tr_datetime(dt, with_time=True):
+    """Bir datetime'ı Türkiye yerel saatine çevirip formatlar. None -> ''.
+    Naive datetime'lar UTC kabul edilir (repair_records.created_at gibi utcnow() ile yazılanlar)."""
+    if not dt:
+        return ""
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=_dt.timezone.utc)
+    local = dt.astimezone(_TR_TZ)
+    return local.strftime("%d.%m.%Y %H:%M" if with_time else "%d.%m.%Y")
 
 def get_cache_dirs():
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -1173,6 +1190,21 @@ class WebBridge(QObject):
             db.execute(text("ALTER TABLE warehouse.repair_records ADD COLUMN IF NOT EXISTS assigned_technician VARCHAR(150);"))
             db.execute(text("ALTER TABLE warehouse.repair_records ADD COLUMN IF NOT EXISTS assigned_by VARCHAR(100);"))
             db.execute(text("ALTER TABLE warehouse.repair_records ADD COLUMN IF NOT EXISTS assigned_at TIMESTAMP;"))
+            # Geriye dönük düzeltme: Onarım Havuzu ekranı eskiden teknisyen atamasını
+            # yanlışlıkla supply_requested_by'a yazıyordu (bu sütun aslında Parça Teslim'de
+            # depo durumunu kimin değiştirdiğini tutar). Bu yüzden havuzdan atanan teknisyen
+            # Üretim Kaydını Görüntüle ekranında (assigned_technician okur) görünmüyor, hatta
+            # depocu parça durumunu değiştirince üzerine yazılıp kayboluyordu. Atama artık
+            # kanonik assigned_technician sütununa yazılıyor; henüz taşınmamış 1001 kayıtları
+            # (assigned_technician boş ama supply_requested_by geçerli bir kullanıcı) buraya kopyalanır.
+            db.execute(text("""
+                UPDATE warehouse.repair_records rr
+                SET assigned_technician = rr.supply_requested_by
+                WHERE rr.repair_result_type_code = 1001
+                  AND (rr.assigned_technician IS NULL OR TRIM(rr.assigned_technician) = '')
+                  AND rr.supply_requested_by IS NOT NULL
+                  AND EXISTS (SELECT 1 FROM warehouse.users u WHERE u.username = rr.supply_requested_by)
+            """))
             db.commit()
         except Exception as e:
             db.rollback()
@@ -10057,8 +10089,9 @@ class WebBridge(QObject):
                     "assignedBy": r["assigned_by"] or "",
                     "assignedAt": r["assigned_at"].isoformat() if r["assigned_at"] else "",
                     # Onarım Detay grid'indeki "Tarih" sütunu bunu okur (onarımın oluşturulma anı).
-                    "createdAt": r["created_at"].strftime("%d.%m.%Y %H:%M") if r["created_at"] else "",
-                    "updatedAt": r["updated_at"].strftime("%d.%m.%Y %H:%M") if r["updated_at"] else "",
+                    # Türkiye yerel saati (naive created_at UTC'dir - bkz. fmt_tr_datetime).
+                    "createdAt": fmt_tr_datetime(r["created_at"]),
+                    "updatedAt": fmt_tr_datetime(r["updated_at"]),
                     "notes": r["notes"] or "",
                 })
 
@@ -10186,7 +10219,7 @@ class WebBridge(QObject):
             # Siralama: once gercekten bekleyen (1000), sonra devredilebilir olanlar,
             # esitlikte en eski kayit. Boylece okutma her zaman dogru kaydi yakalar.
             repair = db.execute(text("""
-                SELECT rr.id, rr.repair_result_type_code, rr.service_record_id
+                SELECT rr.id, rr.repair_result_type_code, rr.service_record_id, rr.department_mission
                 FROM warehouse.repair_records rr
                 WHERE UPPER(TRIM(rr.department_mission)) = :dept
                   AND rr.repair_result_type_code NOT IN (1002, 1003)
@@ -10224,14 +10257,24 @@ class WebBridge(QObject):
                         ensure_ascii=False)
                 return json.dumps({"success": False, "message": f"'{term}' IMEI/cihazı için {dept} departmanında onarım kaydı bulunamadı."}, ensure_ascii=False)
 
-            # Statüyü Teknisyene Atandı (1001) yap ve notes / supply_requested_by alanına teknisyeni işle
-            db.execute(text("""
+            # Statüyü Teknisyene Atandı (1001) yap ve teknisyeni KANONİK assigned_technician
+            # sütununa yaz — Üretim Kaydını Görüntüle ekranı ve get_repair_operations_by_imei
+            # bu sütunu okur. (Eskiden supply_requested_by'a yazılıyordu; o sütun Parça Teslim'e
+            # ait olduğu için atama diğer ekranda görünmüyor ve depo işleminde eziliyordu.)
+            # Atama ONARIM seviyesindedir: Üretim ekranındaki assign_technician_to_repair ile
+            # aynı kapsam kullanılır — aynı cihaz kaydı + aynı görev grubunun tüm aktif satırları
+            # birlikte atanır, böylece iki ekran birebir aynı sonucu gösterir.
+            n = db.execute(text("""
                 UPDATE warehouse.repair_records
                 SET repair_result_type_code = 1001,
-                    supply_requested_by = :tech,
+                    assigned_technician = :tech,
+                    assigned_by = :tech,
+                    assigned_at = NOW(),
                     updated_at = NOW()
-                WHERE id = :rid
-            """), {"tech": tech, "rid": repair["id"]})
+                WHERE service_record_id = :sr
+                  AND COALESCE(TRIM(department_mission), '') = COALESCE(TRIM(:dm), '')
+                  AND COALESCE(repair_result_type_code, 0) NOT IN (1002, 1003)
+            """), {"tech": tech, "sr": repair["service_record_id"], "dm": repair["department_mission"]}).rowcount
             db.commit()
 
             tech_name = tech_user["fullname"] or tech_user["username"]
@@ -10278,7 +10321,7 @@ class WebBridge(QObject):
                     fault.short_name AS fault_name,
                     rr.supply_status_code,
                     sup.short_name AS supply_status_name,
-                    rr.supply_requested_by AS assigned_technician,
+                    rr.assigned_technician AS assigned_technician,
                     u.fullname AS assigned_technician_name,
                     rr.notes,
                     rr.created_at,
@@ -10298,7 +10341,7 @@ class WebBridge(QObject):
                 LEFT JOIN warehouse.item_fault fault ON fault.code = rr.item_fault_code
                 LEFT JOIN warehouse.repair_item_operation_type opt ON opt.code = rr.operation_type_code
                 LEFT JOIN warehouse.item_supply_status sup ON sup.code = rr.supply_status_code
-                LEFT JOIN warehouse.users u ON u.username = rr.supply_requested_by
+                LEFT JOIN warehouse.users u ON u.username = rr.assigned_technician
                 LEFT JOIN warehouse.batch_entries be ON LOWER(TRIM(be.imei_number)) = LOWER(TRIM(rr.service_record_id))
                     OR LOWER(TRIM(be.serial_number)) = LOWER(TRIM(rr.service_record_id))
                     OR LOWER(TRIM(be.internal_id)) = LOWER(TRIM(rr.service_record_id))
@@ -10307,8 +10350,8 @@ class WebBridge(QObject):
                 ORDER BY rr.created_at ASC
             """), {"dept": dept}).mappings().all()
 
-            def fmt(dt):
-                return dt.strftime("%Y-%m-%d %H:%M") if dt else ""
+            # Tarih/saat Türkiye yerel saatinde ve gg.aa.yyyy SS:DD formatında (bkz. fmt_tr_datetime).
+            fmt = fmt_tr_datetime
 
             items = []
             for r in rows:

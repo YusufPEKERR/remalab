@@ -118,8 +118,11 @@ const DepartmentRepairPool = () => {
     }
   };
 
-  // Teknisyene atanacak (havuzda bekleyen) cihazlar (Sisteme giriş tarihine göre sıralı)
-  const unassignedItems = items.filter(item => !item.assignedTechnician && !item.isCancelled && !item.isSuccess);
+  // Havuz onarım listesi (Sisteme giriş tarihine göre sıralı). Atanmış kayıtlar
+  // listeden ÇIKARILMAZ — sadece iptal (1003) ve tamamlanan/başarılı kayıtlar dışlanır.
+  // Teknisyen atanınca satır listede kalır, durumu "Teknisyene Atandı" olur (kullanıcı isteği).
+  const poolItems = items.filter(item => !item.isCancelled && !item.isSuccess);
+  const waitingCount = poolItems.filter(item => !item.assignedTechnician).length;
 
   return (
     <div className="p-6 space-y-6 max-w-[1600px] mx-auto">
@@ -280,10 +283,10 @@ const DepartmentRepairPool = () => {
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
             <Clock size={16} className="text-amber-500" />
-            Teknisyene Atanacak Onarımlar (Giriş Tarihi Sırasıyla En Eskiden En Yeniye)
+            Onarım Havuzu (Giriş Tarihi Sırasıyla En Eskiden En Yeniye)
           </h2>
           <span className="text-xs font-semibold text-slate-500">
-            Toplam {unassignedItems.length} bekleyen cihaz
+            Toplam {poolItems.length} cihaz · {waitingCount} bekliyor
           </span>
         </div>
 
@@ -308,14 +311,14 @@ const DepartmentRepairPool = () => {
                       Havuz verileri yükleniyor...
                     </td>
                   </tr>
-                ) : unassignedItems.length === 0 ? (
+                ) : poolItems.length === 0 ? (
                   <tr>
                     <td colSpan="6" className="px-4 py-12 text-center text-slate-400 dark:text-slate-600 italic">
-                      Atanmayı bekleyen yeni onarım kaydı bulunmuyor. Tüm cihazlar teknisyenlere dağıtıldı!
+                      Havuzda aktif onarım kaydı bulunmuyor.
                     </td>
                   </tr>
                 ) : (
-                  unassignedItems.map((item, idx) => (
+                  poolItems.map((item, idx) => (
                     <tr
                       key={item.repairId}
                       className="hover:bg-slate-50/80 dark:hover:bg-[#171a26]/50 transition-colors"
@@ -377,12 +380,25 @@ const DepartmentRepairPool = () => {
                         )}
                       </td>
 
-                      {/* Statü */}
+                      {/* Statü — atanınca satır listede KALIR, sadece rozet "Teknisyene Atandı"ya döner. */}
                       <td className="px-4 py-3.5">
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-                          <Clock size={12} />
-                          {item.statusName || 'Teknisyene Atanacak'}
-                        </span>
+                        {item.assignedTechnician ? (
+                          <div className="flex flex-col gap-1">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 w-fit">
+                              <CheckCircle2 size={12} />
+                              {item.statusName || 'Teknisyene Atandı'}
+                            </span>
+                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                              <User size={11} className="text-blue-400" />
+                              {item.assignedTechnicianName || item.assignedTechnician}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                            <Clock size={12} />
+                            {item.statusName || 'Teknisyene Atanacak'}
+                          </span>
+                        )}
                       </td>
                     </tr>
                   ))
