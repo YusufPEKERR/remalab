@@ -1,10 +1,17 @@
 import { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
-import { DollarSign, Save, Search, FileSpreadsheet, RefreshCw, Filter } from 'lucide-react';
+import * as XLSX from 'xlsx';
+import { DollarSign, Save, Search, FileSpreadsheet, RefreshCw, Filter, AlertCircle, X } from 'lucide-react';
 import { api } from '../services/api';
 
 const ROW_HEIGHT_FALLBACK = 42; // ilk ölçüm gelene kadar kullanılan tahmini satır yüksekliği
 const OVERSCAN_ROWS = 8; // görünür alanın üstünde/altında ekstra render edilen satır sayısı
 const SEARCH_DEBOUNCE_MS = 150;
+
+// İçe aktarma, Dışa Aktar ile BİREBİR AYNI "geniş" (wide) formatı bekler: her satır bir
+// parça, her müşteri kendi sütununda. Sabit sütunlu ExcelMappingModal bu değişken sütun
+// sayısına (müşteri sayısı kadar) uymadığından burada dosya doğrudan xlsx ile okunur.
+const ITEM_CODE_HEADER_ALIASES = ['item kodu', 'item_code', 'parça kodu', 'parca kodu'];
+const SKIP_HEADER_ALIASES = ['ad', 'tip', 'name', 'item_type'];
 
 function getCurrentUser() {
   try {
@@ -82,6 +89,12 @@ export default function CustomerPriceMatrix() {
   const [categories, setCategories] = useState([]);
   const [categoriesLoading, setCategoriesLoading] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('');
+
+  const [importing, setImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState(null); // { done, total }
+  const [importErrors, setImportErrors] = useState([]);
+  const [importPartialSuccess, setImportPartialSuccess] = useState(false);
+  const importFileInputRef = useRef(null);
 
   const loading = initializing || itemsLoading;
 
@@ -318,6 +331,133 @@ export default function CustomerPriceMatrix() {
     await api.exportTableToExcel(exportData, 'musteri_fiyat_matrisi.xlsx');
   };
 
+  const handleExcelAction = async (e) => {
+    const action = e.target.value;
+    e.target.value = '';
+
+    if (action === 'download_template') {
+      // Şablon, Dışa Aktar ile BİREBİR AYNI "geniş" formatta: her müşteri kendi sütununda.
+      const row = { 'Item Kodu': 'ABC123', 'Ad': 'Örnek Parça', 'Tip': 'Parça' };
+      for (const c of customers) row[c.short_name] = '';
+      if (customers[0]) row[customers[0].short_name] = 25;
+      await api.exportTableToExcel([row], 'musteri_fiyat_matrisi_sablonu.xlsx');
+    } else if (action === 'export') {
+      await handleExport();
+    } else if (action === 'import') {
+      setImportErrors([]);
+      importFileInputRef.current?.click();
+    }
+  };
+
+  // Dışa Aktar ile aynı "geniş" formattaki Excel'i okur: ilk sütun parça kodu, her müşteri
+  // adı sütunu o müşterinin fiyatı. "Ad"/"Tip" gibi bilgi amaçlı sütunlar atlanır. Sonuç,
+  // backend'in (bulk_import_price_matrix) beklediği düz {item_code, musteri, fiyat} satır
+  // listesine dönüştürülüp aynı doğrulama/kaydetme akışına (handleExcelImport) verilir.
+  const handleWideExcelFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const data = new Uint8Array(event.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rawRows = XLSX.utils.sheet_to_json(worksheet);
+
+        if (!rawRows || rawRows.length === 0) {
+          setImportErrors([{ row: '-', field: '-', message: 'Seçilen Excel dosyasında veri bulunamadı.' }]);
+          return;
+        }
+
+        const headers = Object.keys(rawRows[0]);
+        const itemCodeHeader = headers.find(h => ITEM_CODE_HEADER_ALIASES.includes(h.trim().toLowerCase()));
+        if (!itemCodeHeader) {
+          setImportErrors([{ row: '-', field: '-', message: '"Item Kodu" sütunu bulunamadı. Lütfen "Boş Şablon İndir" ile indirilen formatı kullanın.' }]);
+          return;
+        }
+        const customerHeaders = headers.filter(h =>
+          h !== itemCodeHeader && !SKIP_HEADER_ALIASES.includes(h.trim().toLowerCase())
+        );
+
+        const flatRows = [];
+        rawRows.forEach((r) => {
+          const itemCode = String(r[itemCodeHeader] ?? '').trim();
+          if (!itemCode) return;
+          for (const custHeader of customerHeaders) {
+            const val = r[custHeader];
+            if (val === undefined || val === null || String(val).trim() === '') continue;
+            flatRows.push({ item_code: itemCode, musteri: custHeader, fiyat: String(val) });
+          }
+        });
+
+        if (flatRows.length === 0) {
+          setImportErrors([{ row: '-', field: '-', message: 'Doldurulmuş hiçbir fiyat hücresi bulunamadı.' }]);
+          return;
+        }
+
+        await handleExcelImport(flatRows);
+      } catch (err) {
+        setImportErrors([{ row: '-', field: '-', message: 'Excel dosyası okunurken hata oluştu: ' + err.message }]);
+      } finally {
+        e.target.value = '';
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  // QWebChannel/WebSocket köprüsü tek bir dev payload'a (yüz binlerce satırlık JSON) uygun
+  // değil - büyük dosyalarda köprü mesajı çok büyüyüp "yanıt vermiyor" hissi yaratıyordu.
+  // Bunun yerine satırlar sabit boyutlu (5000) gruplar hâlinde ARDI ARDINA gönderilir, her
+  // grup kendi (hızlı, ~1sn) backend çağrısını yapar; sonuçlar (eklenen/atlanan/hatalar)
+  // biriktirilip sonda tek özet olarak gösterilir. İlerleme "İçe aktarılıyor..." panelinde
+  // canlı güncellenir.
+  const IMPORT_CHUNK_SIZE = 5000;
+
+  const handleExcelImport = async (mappedRows) => {
+    setImporting(true);
+    setImportProgress({ done: 0, total: mappedRows.length });
+
+    let totalImported = 0;
+    let totalSkipped = 0;
+    const allErrors = [];
+    let hardFailure = null;
+
+    for (let i = 0; i < mappedRows.length; i += IMPORT_CHUNK_SIZE) {
+      const chunk = mappedRows.slice(i, i + IMPORT_CHUNK_SIZE);
+      const res = await api.bulkImportPriceMatrix(chunk, getCurrentUser()?.username);
+      if (res.success) {
+        totalImported += res.imported || 0;
+        totalSkipped += res.skipped || 0;
+        if (res.errors) allErrors.push(...res.errors);
+      } else {
+        hardFailure = res;
+        if (res.errors) allErrors.push(...res.errors);
+      }
+      setImportProgress({ done: Math.min(i + IMPORT_CHUNK_SIZE, mappedRows.length), total: mappedRows.length });
+    }
+
+    setImporting(false);
+    setImportProgress(null);
+    await handleRefresh();
+
+    if (totalImported === 0 && hardFailure) {
+      setImportPartialSuccess(false);
+      setImportErrors(allErrors.length > 0 ? allErrors.slice(0, 200) : [{ row: '-', field: '-', message: hardFailure.message || 'İçe aktarma başarısız oldu.' }]);
+      return;
+    }
+
+    if (totalSkipped > 0 && allErrors.length > 0) {
+      setImportPartialSuccess(true);
+      setImportErrors(allErrors.slice(0, 200));
+    } else {
+      setImportPartialSuccess(false);
+      setImportErrors([]);
+    }
+    alert(totalSkipped > 0
+      ? `${totalImported} fiyat içe aktarıldı, ${totalSkipped} satır atlandı (hatalı).`
+      : `${totalImported} fiyat başarıyla içe aktarıldı.`);
+  };
+
   const productTypeSelectDisabled = !selectedBrand || selectedBrand === '__DGD__' || productTypesLoading;
   const modelSelectDisabled = !selectedBrand || selectedBrand === '__DGD__' || modelsLoading;
   const categorySelectDisabled = !selectedBrand || selectedBrand === '__DGD__' || categoriesLoading;
@@ -343,13 +483,21 @@ export default function CustomerPriceMatrix() {
             </p>
           </div>
           <div className="flex items-center gap-3 shrink-0 flex-wrap">
-            <button
-              onClick={handleExport}
-              disabled={totalRows === 0}
-              className="flex items-center gap-2 bg-white dark:bg-[#1e222d] hover:bg-[#EFF1FA] dark:hover:bg-[#2e3545] text-[#12141c] dark:text-[#F6F8FF] border border-[#DCE1F1] dark:border-[#2e3545] px-4 py-2.5 rounded-xl text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <FileSpreadsheet size={15} /> Dışa Aktar
-            </button>
+            <div className="relative">
+              <select
+                onChange={handleExcelAction}
+                defaultValue=""
+                className="appearance-none bg-white dark:bg-[#1e222d] hover:bg-[#EFF1FA] dark:hover:bg-[#2e3545] text-[#12141c] dark:text-[#F6F8FF] border border-[#DCE1F1] dark:border-[#2e3545] rounded-xl px-4 py-2.5 pr-9 text-xs font-bold transition-all cursor-pointer focus:outline-none"
+              >
+                <option value="">Excel İşlemleri...</option>
+                <option value="download_template">Boş Şablon İndir</option>
+                <option value="export">Dışa Aktar</option>
+                <option value="import">Excel'den İçe Aktar</option>
+              </select>
+              <div className="absolute inset-y-0 right-0 flex items-center px-2.5 pointer-events-none text-[#5A6685] dark:text-[#8892B5]">
+                <FileSpreadsheet size={15} />
+              </div>
+            </div>
             <button
               onClick={handleRefresh}
               className="flex items-center gap-2 bg-white dark:bg-[#1e222d] hover:bg-[#EFF1FA] dark:hover:bg-[#2e3545] text-[#12141c] dark:text-[#F6F8FF] border border-[#DCE1F1] dark:border-[#2e3545] px-4 py-2.5 rounded-xl text-xs font-bold transition-all"
@@ -479,6 +627,56 @@ export default function CustomerPriceMatrix() {
           </table>
         </div>
       </div>
+
+      <input
+        type="file"
+        ref={importFileInputRef}
+        accept=".xlsx,.xls"
+        onChange={handleWideExcelFile}
+        style={{ display: 'none' }}
+      />
+      {importing && (
+        <div className="fixed inset-0 z-[95] flex items-center justify-center bg-slate-900/40">
+          <div className="bg-white dark:bg-[#181a24] rounded-2xl px-6 py-4 shadow-2xl flex items-center gap-3 min-w-[240px]">
+            <RefreshCw size={18} className="animate-spin text-blue-500 shrink-0" />
+            <div className="flex-1">
+              <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                İçe aktarılıyor{importProgress ? ` (${importProgress.done.toLocaleString('tr-TR')} / ${importProgress.total.toLocaleString('tr-TR')})` : '...'}
+              </span>
+              {importProgress && (
+                <div className="mt-1.5 h-1.5 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-blue-500 transition-all duration-200"
+                    style={{ width: `${Math.round((importProgress.done / importProgress.total) * 100)}%` }}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+      {importErrors.length > 0 && (
+        <div className="fixed inset-0 z-[95] flex items-center justify-center bg-slate-900/40 p-4">
+          <div className="rounded-2xl border border-red-200 dark:border-red-500/30 bg-white dark:bg-[#181a24] p-4 max-w-lg w-full shadow-2xl">
+            <div className="flex items-center justify-between gap-2 text-red-700 dark:text-red-400 font-semibold text-sm mb-2">
+              <span className="flex items-center gap-2">
+                <AlertCircle size={16} />
+                {importPartialSuccess
+                  ? `Geçerli satırlar içe aktarıldı, ${importErrors.length} satır atlandı (hatalı)`
+                  : `İçe aktarma başarısız — hiçbir kayıt eklenmedi (${importErrors.length} hata)`}
+              </span>
+              <button onClick={() => { setImportErrors([]); setImportPartialSuccess(false); }} className="text-slate-400 hover:text-slate-600"><X size={16} /></button>
+            </div>
+            <div className="max-h-64 overflow-y-auto space-y-1">
+              {importErrors.map((err, i) => (
+                <div key={i} className="text-xs text-red-600 dark:text-red-400">
+                  Satır {err.row} — <span className="font-semibold">{err.field}:</span> {err.message}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

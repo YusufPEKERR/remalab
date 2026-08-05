@@ -12273,6 +12273,125 @@ class WebBridge(QObject):
             db.close()
 
     @Slot(str, str, result=str)
+    def bulk_import_price_matrix(self, rows_json, username):
+        """Müşteri Fiyat Matrisi için toplu (Excel) içe aktarma. Diğer bulk_import_* Slot'larının
+        aksine (hepsi ya da hiçbiri), burada dosyalar çok büyük olabildiğinden (geniş/wide
+        format: parça x müşteri sayısı kadar satır, yüz binlerce olabilir) GEÇERSİZ satırlar
+        atlanır ve rapor edilir, geri kalan TÜM geçerli satırlar yine de kaydedilir - tek bir
+        hatalı satır yüzbinlerce geçerli satırı engellemez. save_price_matrix_batch'teki ile
+        aynı ON CONFLICT upsert deseniyle yazılır."""
+        import uuid
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            try:
+                rows = json.loads(rows_json or "[]")
+            except (ValueError, TypeError):
+                return json.dumps({"success": False, "message": "Geçersiz dosya verisi.", "errors": []})
+            if not rows:
+                return json.dumps({"success": False, "message": "Dosyada içe aktarılacak satır bulunamadı.", "errors": []})
+
+            valid_item_codes = {r[0] for r in db.execute(text("SELECT item_code FROM warehouse.parts")).all()}
+
+            customers = db.execute(text("SELECT code, short_name FROM warehouse.customers WHERE code IS NOT NULL")).mappings().all()
+            customer_by_code = {c["code"].strip().lower(): c["code"] for c in customers}
+            customer_by_name = {(c["short_name"] or "").strip().lower(): c["code"] for c in customers if c["short_name"]}
+
+            errors = []
+            valid_rows = []
+            seen_keys_in_file = {}
+
+            for idx, row in enumerate(rows):
+                row_num = idx + 2
+                row = row or {}
+
+                def get_val(key):
+                    v = row.get(key)
+                    return str(v).strip() if v is not None else ""
+
+                item_code = get_val("item_code")
+                musteri_raw = get_val("musteri")
+                price_raw = get_val("fiyat")
+
+                if not item_code:
+                    errors.append({"row": row_num, "field": "Parça Kodu", "message": "Parça Kodu boş olamaz."})
+                elif item_code not in valid_item_codes:
+                    errors.append({"row": row_num, "field": "Parça Kodu", "message": f"\"{item_code}\" sistemde tanımlı bir parça/işçilik kodu değil."})
+
+                if not musteri_raw:
+                    errors.append({"row": row_num, "field": "Müşteri", "message": "Müşteri boş olamaz."})
+
+                customer_code = customer_by_code.get(musteri_raw.lower()) or customer_by_name.get(musteri_raw.lower())
+                if musteri_raw and not customer_code:
+                    errors.append({"row": row_num, "field": "Müşteri", "message": f"\"{musteri_raw}\" sistemde tanımlı bir müşteri değil (kod veya ad ile eşleşmedi)."})
+
+                price_val = None
+                if not price_raw:
+                    errors.append({"row": row_num, "field": "Fiyat", "message": "Fiyat boş olamaz."})
+                else:
+                    try:
+                        price_val = float(price_raw.replace(",", "."))
+                    except ValueError:
+                        errors.append({"row": row_num, "field": "Fiyat", "message": f"\"{price_raw}\" sayısal değil."})
+
+                # NOT: geniş (wide) formatta aynı item_code+müşteri kombinasyonu dosyada birden
+                # fazla kez geçebilir (ör. kaynak dosyada aynı parça birden fazla satırda
+                # tekrarlanmış olabilir) - bu HATA sayılmaz, sadece son görülen değer kazanır.
+                # Devasa (yüz binlerce satırlık) dosyalarda bunu tek tek raporlamak hem anlamsız
+                # gürültü yaratır hem de gerçek hataları görünmez kılar. Tekilleştirme (son değer
+                # kazanır) aşağıda dict ile yapılır - aynı zamanda Postgres'in "ON CONFLICT DO
+                # UPDATE command cannot affect row a second time" kısıtını da karşılar (tek bir
+                # çok-satırlı INSERT içinde aynı çakışma anahtarı iki kez geçemez).
+                if item_code in valid_item_codes and customer_code and price_val is not None:
+                    valid_rows.append({"item_code": item_code, "customer_code": customer_code, "price": price_val})
+
+            if not valid_rows:
+                return json.dumps({"success": False, "message": f"{len(errors)} satırda hata bulundu, kaydedilecek geçerli satır yok.", "errors": errors[:200]}, ensure_ascii=False)
+
+            deduped = {}
+            for r in valid_rows:
+                deduped[(r["item_code"], r["customer_code"])] = r["price"]
+            dedup_rows = [{"item_code": k[0], "customer_code": k[1], "price": v} for k, v in deduped.items()]
+
+            # psycopg2'nin executemany'si (SQLAlchemy'ye tek çağrıda bir liste verilse bile)
+            # varsayılan olarak satır başına AYRI bir INSERT gönderir - 500K satırda bu, network
+            # round-trip'i darboğaz yapar (5000 satır ~32sn, 500K satıra ölçeklendiğinde ~1 saat).
+            # Bunun yerine sabit boyutlu (1000 satır) gruplar hâlinde TEK ÇOK-SATIRLI INSERT
+            # oluşturulur - round-trip sayısını ~500 kata düşürür.
+            CHUNK_SIZE = 1000
+            for chunk_start in range(0, len(dedup_rows), CHUNK_SIZE):
+                chunk = dedup_rows[chunk_start:chunk_start + CHUNK_SIZE]
+                values_clauses = []
+                params = {"username": username or None}
+                for j, r in enumerate(chunk):
+                    values_clauses.append(f"(:id{j}, :item_code{j}, :customer_code{j}, :price{j}, :username, now())")
+                    params[f"id{j}"] = str(uuid.uuid4())
+                    params[f"item_code{j}"] = r["item_code"]
+                    params[f"customer_code{j}"] = r["customer_code"]
+                    params[f"price{j}"] = r["price"]
+                chunk_sql = text(f"""
+                    INSERT INTO warehouse.customer_item_prices (id, item_code, customer_code, price, updated_by, updated_at)
+                    VALUES {', '.join(values_clauses)}
+                    ON CONFLICT (item_code, customer_code)
+                    DO UPDATE SET price = EXCLUDED.price, updated_by = EXCLUDED.updated_by, updated_at = now()
+                """)
+                db.execute(chunk_sql, params)
+
+            db.commit()
+            if errors:
+                return json.dumps({
+                    "success": True,
+                    "message": f"{len(dedup_rows)} fiyat içe aktarıldı, {len(errors)} satır atlandı (hatalı).",
+                    "imported": len(dedup_rows), "skipped": len(errors), "errors": errors[:200],
+                }, ensure_ascii=False)
+            return json.dumps({"success": True, "message": f"{len(dedup_rows)} fiyat başarıyla içe aktarıldı.", "imported": len(dedup_rows)})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": f"İçe aktarma hatası: {str(e)}", "errors": []})
+        finally:
+            db.close()
+
+    @Slot(str, str, result=str)
     def get_prices_for_items(self, item_codes_csv, customer_code):
         """get_effective_price'ın toplu (çoklu item_code, TEK sorgu) hali - Üretim Kaydını
         Görüntüle ve Üretime Aktar ekranlarındaki 'Fiyat' sütunu için, bir onarım grubundaki

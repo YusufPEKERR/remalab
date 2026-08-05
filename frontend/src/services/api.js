@@ -950,6 +950,13 @@ export const api = {
         });
     },
 
+    bulkImportPriceMatrix: async (rows, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.bulk_import_price_matrix(JSON.stringify(rows || []), String(username || ''), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
     getEffectivePrice: async (itemCode, customerCode) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
