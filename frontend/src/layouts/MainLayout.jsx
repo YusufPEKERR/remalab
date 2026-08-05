@@ -29,6 +29,7 @@ export default function MainLayout() {
     'DEMONTAJ TEKNİSYENİ': true,
     'ÜRETİM TEKNİSYENİ': true,
     'ONARIM HAVUZU': true,
+    'ONARIM BİTİŞ TESTİ': true,
     'ARA TEST': true,
     'KULLANICI & AYARLAR': true
   };
@@ -216,6 +217,18 @@ export default function MainLayout() {
       ]
     },
     {
+      title: 'ONARIM BİTİŞ TESTİ',
+      colorTheme: 'cyan',
+      items: [
+        // Teknisyen onarımı bitirince kayıt 1006'ya (test bekliyor) düşer; burada
+        // başarılı/başarısız kararı verilir. Görev grubu rotadan okunur.
+        { name: 'Kamera Bitiş Testi', icon: ClipboardCheck, path: '/onarim-bitis-testi/CAMERA' },
+        { name: 'L3 Bitiş Testi', icon: ClipboardCheck, path: '/onarim-bitis-testi/L3REPAIR' },
+        { name: 'Ekran Bitiş Testi', icon: ClipboardCheck, path: '/onarim-bitis-testi/DISPLAY' },
+        { name: 'Kasa Bitiş Testi', icon: ClipboardCheck, path: '/onarim-bitis-testi/CASE' },
+      ]
+    },
+    {
       title: 'ARA TEST',
       colorTheme: 'purple',
       items: [
@@ -257,6 +270,7 @@ export default function MainLayout() {
       case 'TEST PERSONELİ': return '#3A76B8';
       case 'DEMONTAJ TEKNİSYENİ': return '#3B8B76';
       case 'ÜRETİM TEKNİSYENİ': return '#C0392F';
+      case 'ONARIM BİTİŞ TESTİ': return '#2C8CA8';
       case 'ARA TEST': return '#A83EAE';
       case 'KULLANICI & AYARLAR': return '#C2445F';
       default: return '#5B6EC4';
@@ -316,6 +330,13 @@ export default function MainLayout() {
       case '/hizli-onarim-bitir/BATTERY':
       case '/hizli-onarim-bitir/CAMERA':
         return { color: '#B84A4A' };
+
+      // ONARIM BİTİŞ TESTİ (departman başına ayrı rota)
+      case '/onarim-bitis-testi/CAMERA':
+      case '/onarim-bitis-testi/L3REPAIR':
+      case '/onarim-bitis-testi/DISPLAY':
+      case '/onarim-bitis-testi/CASE':
+        return { color: '#2C8CA8' };
 
       // DEMONTAJ TEKNİSYENİ
       case '/servis-onarimlari-demontaj':

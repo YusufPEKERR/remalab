@@ -72,6 +72,7 @@ const SonTestSonuc = dayanikliLazy(() => import('./pages/SonTestSonuc'));
 const StatuKontrol = dayanikliLazy(() => import('./pages/StatuKontrol'));
 const ParcaTeslim = dayanikliLazy(() => import('./pages/ParcaTeslim'));
 const DepartmentRepairPool = dayanikliLazy(() => import('./pages/DepartmentRepairPool'));
+const OnarimBitisTesti = dayanikliLazy(() => import('./pages/OnarimBitisTesti'));
 
 function RouteLoading() {
   return (
@@ -151,6 +152,8 @@ function App() {
               <Route path="/technician-panel" element={<TechnicianPanel />} />
               <Route path="/technician-repair" element={<TechnicianRepairOperations />} />
               <Route path="/onarim-havuzu/:deptCode" element={<DepartmentRepairPool />} />
+              {/* Onarım Bitiş Testi — departman görev grubunu rotadan okur (Kamera/L3/Ekran/Kasa). */}
+              <Route path="/onarim-bitis-testi/:deptCode" element={<OnarimBitisTesti />} />
               <Route path="/servis-onarimlari-demontaj" element={<DemontajServisOnarimlari />} />
               {/* Menüde departman başına ayrı görünür, tek bileşen görev grubunu rotadan okur. */}
               <Route path="/hizli-onarim-bitir/:missionGroup" element={<HizliOnarimBitir />} />
