@@ -2,6 +2,7 @@ import { useState, useMemo, useRef } from 'react';
 import { CheckCircle, AlertTriangle, X, ClipboardCheck, Undo2 } from 'lucide-react';
 import { api } from '../services/api';
 import { FAULT_CATALOG } from '../constants/faultCatalog';
+import EtiketYazdirModal from './EtiketYazdirModal';
 
 const NotificationToast = ({ notification, onClose }) => {
   if (!notification) return null;
@@ -32,7 +33,8 @@ export default function TestResultScreen({
   sourceStatuCode,
   successStatuCode,
   failStatuCode,
-  logExitTest = false
+  logExitTest = false,
+  etiketSor = false      // Son Test: başarılı sonuçta cihaz etiketi sorulur
 }) {
   const [successImei, setSuccessImei] = useState('');
   const [failImei, setFailImei] = useState('');
@@ -43,6 +45,7 @@ export default function TestResultScreen({
   const [notification, setNotification] = useState(null);
   // "Test Başarılı" onayından SONRA gösterilen PhoneCheck test bilgisi. { imei, data } | null
   const [successPcInfo, setSuccessPcInfo] = useState(null);
+  const [etiketCihazi, setEtiketCihazi] = useState(null);
   const successInputRef = useRef(null);
 
   const selectedFaultLabels = useMemo(() => {
@@ -104,6 +107,19 @@ export default function TestResultScreen({
         } catch (_e) {
           setSuccessPcInfo({ imei: scanData.imei, data: null });
         }
+        // Test başarılıysa cihaz etiketi sorulur (yalnızca Son Test ekranında).
+        if (etiketSor) {
+          setEtiketCihazi({
+            imei: scanData.imei,
+            internalId: scanData.internal_id || '',
+            serialNo: scanData.serial_number || '',
+            brand: scanData.brand || '',
+            model: scanData.model || '',
+            gb: scanData.gb || '',
+            color: scanData.color || '',
+            productCode: scanData.batch_no || '',
+          });
+        }
       } else {
         showNotification('error', res.message);
       }
@@ -152,6 +168,14 @@ export default function TestResultScreen({
   return (
     <div className="flex flex-col space-y-6 pb-12 text-[#12141c] dark:text-[#F6F8FF] max-w-[1600px] mx-auto animate-in fade-in duration-300 relative">
       <NotificationToast notification={notification} onClose={() => setNotification(null)} />
+
+      <EtiketYazdirModal
+        acik={!!etiketCihazi}
+        cihaz={etiketCihazi}
+        tur="cihaz"
+        soruMetni="Test başarılı. Barkod yazdırmak ister misiniz?"
+        onKapat={() => setEtiketCihazi(null)}
+      />
 
       {/* ════════════════ HERO BANNER ════════════════ */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#EFF1FA] dark:from-[#090a0f] via-[#DDE2F2] dark:via-[#12141c] to-[#FFFFFF] dark:to-[#1e222d] p-6 sm:p-8 text-[#181a24] dark:text-white shadow-xl border border-[#DCE1F1] dark:border-[#1e222d]">

@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { ScanLine, CheckCircle, AlertTriangle, Info, X, ArrowRight, History, ClipboardEdit } from "lucide-react";
 import { api } from "../services/api";
+import EtiketYazdirModal from "../components/EtiketYazdirModal";
 
 // ─── NOTIFICATION TOAST (TechnicianRepairOperations.jsx ile aynı desen) ───
 const NotificationToast = ({ notification, onClose }) => {
@@ -53,6 +54,10 @@ const stageLabel = (testStage, transition) =>
 // PhoneCheck test verisi Son Test Sonuç ekranında (onaydan sonra) gösterilir.
 // Diğer tüm statü geçiş ekranlarında da PhoneCheck sorgusu yapılmaz, kayıt doğrudan taşınır.
 const PHONECHECK_DRIVEN_CODES = ["103_104"];
+
+// Geçiş başarılı olduktan sonra etiket sorulan ekranlar.
+// 103_104 = "Üretime teslim edilecek": barkod basılır, kalan alanlar elle doldurulur.
+const ETIKET_SORULAN_KODLAR = { "103_104": "teslim" };
 
 const MANUAL_FIELD_LABELS = {
   working: "Çalışıyor mu (Working)",
@@ -226,6 +231,7 @@ const BatchStatuTransition = () => {
   const [log, setLog] = useState([]);
   const [deviceInfo, setDeviceInfo] = useState(null);
   const [manualModal, setManualModal] = useState(null); // { imei, testStage, fields, entryId }
+  const [etiketSorusu, setEtiketSorusu] = useState(null); // { tur, cihaz }
   const [savingManual, setSavingManual] = useState(false);
   const inputRef = useRef(null);
 
@@ -271,7 +277,7 @@ const BatchStatuTransition = () => {
   const attemptLabel = (pc) => `${pc.attempt_no || 1}. deneme`;
 
   // Kaynak→hedef statü geçişini uygular ve sonucu loglar.
-  const applyTransition = async (entryId) => {
+  const applyTransition = async (entryId, cihazBilgisi = null) => {
     const data = await api.executeBatchEntryStatuTransition(
       entryId,
       transition.parent_statu,
@@ -282,6 +288,8 @@ const BatchStatuTransition = () => {
       showNotification("success", data.message);
       appendLog("success", data.message);
       setDeviceInfo((prev) => (prev ? { ...prev, statuCode: transition.child_statu, statuName: null } : prev));
+      const etiketTuru = ETIKET_SORULAN_KODLAR[transition.code];
+      if (etiketTuru) setEtiketSorusu({ tur: etiketTuru, cihaz: cihazBilgisi });
     } else {
       showNotification("error", data.message);
       appendLog("error", data.message);
@@ -310,7 +318,7 @@ const BatchStatuTransition = () => {
 
       appendLog("warning", `${stageLabel(manualModal.testStage, transition)} verisi elle dolduruldu: ${reason}`);
       setManualModal(null);
-      await applyTransition(manualModal.entryId);
+      await applyTransition(manualModal.entryId, { imei: manualModal.imei });
     } catch (err) {
       console.error(err);
       showNotification("error", "Manuel kayıt sırasında beklenmeyen bir hata oluştu.");
@@ -388,7 +396,16 @@ const BatchStatuTransition = () => {
 
       // 3. Adım: bu ekranın sabit kaynak→hedef geçişini uygula.
       // Parti şu an bu geçişin kaynak statüsünde değilse backend "uygun statü değil" hatası döner.
-      await applyTransition(scanData.entry_id);
+      await applyTransition(scanData.entry_id, {
+        imei: scanData.imei,
+        internalId: scanData.internal_id || "",
+        serialNo: scanData.serial_number || "",
+        brand: scanData.brand || "",
+        model: scanData.model || "",
+        gb: scanData.gb || "",
+        color: scanData.color || "",
+        productCode: scanData.batch_no || "",
+      });
     } catch (err) {
       console.error(err);
       showNotification("error", "Sistem Hatası: sorgu sırasında beklenmeyen bir hata oluştu.");
@@ -416,6 +433,14 @@ const BatchStatuTransition = () => {
   return (
     <div className="flex flex-col space-y-6 pb-12 text-[#12141c] dark:text-[#F6F8FF] max-w-[1600px] mx-auto animate-in fade-in duration-300 relative">
       <NotificationToast notification={notification} onClose={() => setNotification(null)} />
+
+      <EtiketYazdirModal
+        acik={!!etiketSorusu}
+        cihaz={etiketSorusu?.cihaz}
+        tur={etiketSorusu?.tur || "teslim"}
+        soruMetni="Barkod yazdırmak ister misiniz?"
+        onKapat={() => setEtiketSorusu(null)}
+      />
 
       <ManualTestModal
         open={!!manualModal}

@@ -7,7 +7,7 @@ from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWebChannel import QWebChannel, QWebChannelAbstractTransport
 from PySide6.QtWebSockets import QWebSocketServer
 from PySide6.QtNetwork import QHostAddress
-from PySide6.QtCore import QUrl
+from PySide6.QtCore import QUrl, QTimer
 import socket
 import os
 import functools
@@ -196,7 +196,24 @@ class MainWindow(QMainWindow):
         self.web_page.setBackgroundColor(QColor("#0f1219"))
         
         self.web_view.setPage(self.web_page)
-        
+
+        # ── YAZDIRMA ──
+        # QtWebEngine'de JavaScript'teki window.print() KENDİLİĞİNDEN bir şey yapmaz;
+        # yalnızca printRequested sinyalini yayar. Uygulama bu sinyali karşılamazsa
+        # hiçbir yazdırma iletişim kutusu açılmaz ve buton "hiçbir şey yapmıyor" gibi
+        # görünür - etiket yazdırma butonunun boş dönmesinin sebebi buydu.
+        self.web_view.printRequested.connect(self._yazdirma_istegi)
+        # Calisan surumun yazdirma destegi olup olmadigini konsoldan ayirt edebilmek icin.
+        # Bu satiri gormuyorsaniz ESKI surec calisiyor demektir; python main.py ile yeniden baslatin.
+        try:
+            from PySide6.QtPrintSupport import QPrinterInfo
+            _v = QPrinterInfo.defaultPrinter()
+            print("[INFO] Yazdirma destegi AKTIF (yazici secim penceresi acilir). "
+                  "Varsayilan yazici: "
+                  + (_v.printerName() if not _v.isNull() else "yok"))
+        except Exception as _e:
+            print(f"[WARN] Yazdirma destegi kontrol edilemedi: {_e}")
+
         self._layout.addWidget(self.web_view)
 
         # QWebChannel Kurulumu
@@ -299,6 +316,512 @@ class MainWindow(QMainWindow):
                 print(f"[WARN] Statik sunucu kapatılamadı: {e}")
 
         event.accept()
+
+    def _yazdirma_istegi(self):
+        """Sayfadan window.print() çağrıldığında tetiklenir.
+
+        DİKKAT: Qt'de printRequested işleyicisinin İÇİNDEN doğrudan print() çağırmak
+        yeniden girişe yol açıyor ve uygulama sessizce KAPANIYOR. İş bir sonraki olay
+        döngüsü turuna ertelenmeli.
+        """
+        QTimer.singleShot(0, self._yazdir)
+
+    def _kagit_ayarla(self, printer, genislik, yukseklik):
+        """Yaziciyi istenen etiket olcusune ayarlar; sorun varsa uyari metni doner.
+
+        Etiket yazicilarinda medyanin FIZIKSEL genisligi sabittir. Ornegin DYMO 99014
+        etiketi 54 mm genis / 101 mm uzundur. Tasarim 101x54 (yatay) istendiginde sayfa
+        "101 mm genis" diye bildirilirse surucu 54 mm'lik medyaya sigdirmak icin iceriği
+        KUCULTUYOR - cikti minicik oluyor. Dogrusu: medya olcusu (kisa kenar x uzun kenar)
+        + YATAY yonlendirme.
+        """
+        from PySide6.QtCore import QMarginsF, QSizeF
+        from PySide6.QtGui import QPageLayout, QPageSize
+        from PySide6.QtPrintSupport import QPrinterInfo
+
+        # Sayfa DAIMA medyanin fiziksel yonunde (dikey) bildirilir. Yatay tasarim
+        # gerekiyorsa dondurmeyi CSS yapar (bkz. EtiketYazdirModal::yazdirmaCss).
+        # Surucuye Landscape demek ise yaramiyor: cikti yine dikey geliyor ve tasarim
+        # sigdirilmak icin kuculuyordu.
+        medya_en, medya_boy = min(genislik, yukseklik), max(genislik, yukseklik)
+        yon = QPageLayout.Orientation.Portrait
+
+        # Yazicinin HAZIR TANIMLI formu varsa onu tercih et - ozel olcuden daha
+        # guvenilir, surucu kendi besleme ayarlarini uygular.
+        # Kullanici Etiket Tasarimi ekranindan bir form sectiyse ONCE o denenir.
+        # Olcuye gore otomatik esleme her zaman dogru formu bulmuyor: DYMO'da ayni
+        # 53.98x100.89 mm olcusunu uc form paylasiyor ve yanlis secilen form surucunun
+        # kendi kenar bosluklariyla basiliyor - cerceve ve bos etiket bundan cikiyor.
+        secilen_ad = ""
+        try:
+            secilen_ad = (getattr(self.web_bridge, "etiket_form_adi", "") or "").strip()
+        except Exception:
+            pass
+
+        sayfa = None
+        try:
+            bilgi = QPrinterInfo.printerInfo(printer.printerName())
+            adaylar = list(bilgi.supportedPageSizes())
+            if secilen_ad:
+                for aday in adaylar:
+                    if aday.name().strip().lower() == secilen_ad.lower():
+                        sayfa = aday
+                        b = aday.size(QPageSize.Unit.Millimeter)
+                        print(f"[INFO] Secilen kagit formu: {aday.name()} "
+                              f"({b.width():.1f}x{b.height():.1f} mm)")
+                        break
+                if sayfa is None:
+                    print(f"[WARN] '{secilen_ad}' formu bu yazicida yok; olcuye gore secilecek.")
+            if sayfa is None:
+                for aday in adaylar:
+                    b = aday.size(QPageSize.Unit.Millimeter)
+                    if abs(b.width() - medya_en) <= 1.5 and abs(b.height() - medya_boy) <= 1.5:
+                        sayfa = aday
+                        print(f"[INFO] Yazicinin hazir formu kullaniliyor: {aday.name()} "
+                              f"({b.width():.0f}x{b.height():.0f} mm)")
+                        break
+        except Exception as e:
+            print(f"[WARN] Yazici formlari okunamadi: {e}")
+        if sayfa is None:
+            sayfa = QPageSize(QSizeF(medya_en, medya_boy), QPageSize.Unit.Millimeter,
+                              "Etiket", QPageSize.SizeMatchPolicy.ExactMatch)
+
+        # ONCE setPageSize: DYMO'da setPageLayout(...) False donuyor ve yazici
+        # varsayilan formunda (30252 Address, 27.87x88.90 mm) kaliyordu - olculdu.
+        # setPageSize ise kabul ediliyor.
+        uygulandi = printer.setPageSize(sayfa)
+        if uygulandi:
+            printer.setPageOrientation(yon)
+        else:
+            uygulandi = printer.setPageLayout(QPageLayout(
+                sayfa, yon, QMarginsF(0, 0, 0, 0), QPageLayout.Unit.Millimeter))
+
+        # TAM SAYFA MODU - ikinci etikete tasmanin asil sebebi buydu.
+        # Etiket yazicilari sifir kenar boslugunu REDDEDIYOR: DYMO'da
+        # setPageMargins(0) False donuyor ve 53.98x100.89 mm'lik 99014 etiketinde
+        # Chromium'a yalnizca 51.44x93.53 mm tuval veriliyordu. Tasarim medya
+        # olcusune (54x101) gore kurulunca 7.4 mm tasiyor, tasan serit IKINCI
+        # ETIKETE basiliyor ve ikiye bolunen kutunun kenari cerceve gibi
+        # gorunuyordu.
+        #
+        # setFullPage(True) sayfa duzenini FullPageMode'a alir: Qt artik Chromium'a
+        # basilabilir alani degil MEDYANIN TAMAMINI tuval olarak verir, boylece
+        # surucunun donanim kenar bosluklari sayfa kutusunu kucultmez. Sayfa kutusu
+        # = fiziksel etiket oldugu icin her etiket TEK sayfaya sigar.
+        #
+        # Bedeli: yazicinin fiziksel olarak basamadigi en dis serit (DYMO'da ~1-1.5 mm)
+        # artik kirpilir. Bu yuzden tasarim, sayfanin tamamini degil her kenardan
+        # "kenar payi" kadar iceride kalan alani doldurur - bkz. EtiketYazdirModal.
+        printer.setFullPage(True)
+        printer.setPageMargins(QMarginsF(0, 0, 0, 0), QPageLayout.Unit.Millimeter)
+
+        alan = printer.pageLayout().fullRect(QPageLayout.Unit.Millimeter)
+        basilabilir = printer.pageLayout().paintRect(QPageLayout.Unit.Millimeter)
+        # Formu kullanici kendi sectiyse olcu tutmasa da uyarilmaz - bilerek secmis.
+        if (not uygulandi or (not secilen_ad and (abs(alan.width() - medya_en) > 2
+                              or abs(alan.height() - medya_boy) > 2))):
+            uyari = (f"Yazici '{printer.printerName()}' {medya_en:.0f}x{medya_boy:.0f} mm etiketi "
+                     f"veremedi; basilacak alan {alan.width():.0f}x{alan.height():.0f} mm. "
+                     f"Yazici ayarlarindan bu olcude bir etiket formu secin.")
+            print("[WARN] " + uyari)
+            return uyari
+        # Not: dondurmeyi CSS yapiyor; burada yalnizca MEDYA olcusu bildirilir.
+        # paintRect artik fullRect'e esit olmali (tam sayfa modu); esit degilse
+        # surucu FullPageMode'u yok saymis demektir ve tasma yeniden baslar.
+        print(f"[INFO] Etiket medyasi {alan.width():.1f}x{alan.height():.1f} mm olarak ayarlandi "
+              f"(tuval {basilabilir.width():.1f}x{basilabilir.height():.1f} mm).")
+        if (abs(basilabilir.width() - alan.width()) > 0.5
+                or abs(basilabilir.height() - alan.height()) > 0.5):
+            print("[WARN] Surucu tam sayfa modunu kabul etmedi; tuval medyadan kucuk kaldi.")
+        return ""
+
+    def _yazdirma_sonucu(self, durum, mesaj, yazici=""):
+        """Son yazdirma isinin sonucunu ekranin okuyabilecegi yere yazar."""
+        self.web_bridge.son_yazdirma_sonucu = {
+            "durum": durum, "mesaj": mesaj, "yazici": yazici,
+        }
+        print(f"[{'INFO' if durum in ('gonderildi', 'tamamlandi') else 'ERROR'}] {mesaj}")
+
+    def _baski_penceresi(self, pdf_yolu):
+        """Yazici secimi + ONIZLEME tek pencerede. "Yazdir" secilirse True doner.
+
+        NEDEN WINDOWS'UN PENCERESI DEGIL: Windows 11'in yazdirma penceresindeki
+        onizleme alani "Bu uygulama yazdirma onizlemesini desteklemiyor" diyor ve
+        DOLDURULAMAZ. O alani beslemek uygulamanin WinRT yazdirma sozlesmesini
+        (PrintManager / IPrintDocumentSource) uygulamasini gerektirir; Qt'nin
+        QPrintDialog'u eski PrintDlgEx API'sini cagirir, o API'de onizleme icerigi
+        verecek bir kanal yoktur. Yani sorun uygulamada degil, hicbir Qt uygulamasinda
+        o alan dolmaz. Cozum: Windows'un penceresini hic acmamak - yazici secimi,
+        kopya sayisi ve onizleme burada, tek yerde.
+
+        NEDEN QPrintPreviewDialog DEGIL: o sinif paintRequested icinde SENKRON cizim
+        bekler; QWebEngineView.print() ise eszamansizdir, ikisi birlikte calismaz.
+        Bunun yerine sayfa, gercek basimla AYNI sayfa duzeniyle PDF'e basilip
+        gosteriliyor - yani onizlemede gordugunuz, motorun kagida cizecegi seyin
+        birebir kendisi (sayfa sayisi dahil: etiket ikiye bolunuyorsa burada gorunur).
+        """
+        from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QPushButton,
+                                       QLabel, QComboBox, QSpinBox, QFrame, QWidget)
+        from PySide6.QtGui import QPageLayout
+        from PySide6.QtCore import Qt, QMargins
+        from PySide6.QtPdf import QPdfDocument
+        from PySide6.QtPdfWidgets import QPdfView
+        from PySide6.QtPrintSupport import QPrinterInfo
+
+        koyu = getattr(self.web_bridge, "baski_temasi", "dark") != "light"
+        r = {
+            "zemin":   "#12141c" if koyu else "#ffffff",
+            "panel":   "#181a24" if koyu else "#f8fafc",
+            "tuval":   "#0b0d13" if koyu else "#e9edf4",
+            "kenar":   "#2a2e3d" if koyu else "#e2e8f0",
+            "metin":   "#e6e9f5" if koyu else "#0f172a",
+            "solgun":  "#8b93ab" if koyu else "#64748b",
+            "vurgu":   "#7c3aed",
+            "vurgu2":  "#6d28d9",
+            "iyi":     "#22c55e" if koyu else "#16a34a",
+            "uyari":   "#f59e0b" if koyu else "#b45309",
+        }
+
+        pencere = QDialog(self)
+        pencere.setWindowTitle("Etiket Yazdır")
+        pencere.resize(900, 740)
+        pencere.setStyleSheet(f"""
+            QDialog {{ background: {r['zemin']}; }}
+            QLabel {{ color: {r['metin']}; font-size: 12px; }}
+            QLabel#baslik {{ font-size: 17px; font-weight: 700; }}
+            QLabel#etiketAdi {{ color: {r['solgun']}; font-size: 11px; font-weight: 600;
+                                text-transform: uppercase; letter-spacing: 1px; }}
+            QFrame#kart {{ background: {r['panel']}; border: 1px solid {r['kenar']};
+                           border-radius: 12px; }}
+            QComboBox, QSpinBox {{
+                background: {r['zemin']}; color: {r['metin']};
+                border: 1px solid {r['kenar']}; border-radius: 8px;
+                padding: 7px 10px; font-size: 12px; min-height: 18px;
+            }}
+            QComboBox:focus, QSpinBox:focus {{ border-color: {r['vurgu']}; }}
+            QComboBox::drop-down {{ border: none; width: 22px; }}
+            QComboBox QAbstractItemView {{
+                background: {r['panel']}; color: {r['metin']};
+                border: 1px solid {r['kenar']}; selection-background-color: {r['vurgu']};
+                outline: none;
+            }}
+            QPushButton {{
+                background: {r['panel']}; color: {r['metin']};
+                border: 1px solid {r['kenar']}; border-radius: 9px;
+                padding: 9px 18px; font-size: 12px; font-weight: 600;
+            }}
+            QPushButton:hover {{ border-color: {r['solgun']}; }}
+            QPushButton#birincil {{ background: {r['vurgu']}; border-color: {r['vurgu']};
+                                    color: #ffffff; }}
+            QPushButton#birincil:hover {{ background: {r['vurgu2']}; }}
+            QPushButton#birincil:disabled {{ background: {r['kenar']};
+                                             border-color: {r['kenar']}; color: {r['solgun']}; }}
+            QPdfView {{ background: {r['tuval']}; border: 1px solid {r['kenar']};
+                        border-radius: 12px; }}
+        """)
+
+        belge = QPdfDocument(pencere)
+        gorunum = QPdfView(pencere)
+        gorunum.setDocument(belge)
+        gorunum.setPageMode(QPdfView.PageMode.MultiPage)
+        gorunum.setZoomMode(QPdfView.ZoomMode.FitInView)
+        gorunum.setDocumentMargins(QMargins(18, 18, 18, 18))
+
+        yazici_kutusu = QComboBox()
+        adlar = [i.printerName() for i in QPrinterInfo.availablePrinters()]
+        yazici_kutusu.addItems(adlar)
+        if self._printer.printerName() in adlar:
+            yazici_kutusu.setCurrentText(self._printer.printerName())
+        kopya = QSpinBox()
+        kopya.setRange(1, 99)
+        kopya.setValue(1)
+
+        # Sayfa sayisi bilerek one cikariliyor: etiket sigmayip ikiye bolunuyorsa
+        # etiket harcamadan burada gorulur.
+        ozet = QLabel()
+        ozet.setWordWrap(True)
+        olcu_etiketi = QLabel()
+        olcu_etiketi.setWordWrap(True)
+        olcu_etiketi.setStyleSheet(f"color: {r['solgun']}; font-size: 11px;")
+
+        def bilgi_tazele(mesaj=None):
+            if mesaj:
+                ozet.setText(f"<span style='color:{r['solgun']}'>{mesaj}</span>")
+                return
+            sayfa_sayisi = belge.pageCount()
+            beklenen = getattr(self.web_bridge, "baski_etiket_sayisi", 0)
+            if beklenen and sayfa_sayisi > beklenen:
+                ozet.setText(
+                    f"<span style='color:{r['uyari']};font-weight:700'>⚠ {beklenen} etiket "
+                    f"→ {sayfa_sayisi} sayfa</span><br>"
+                    f"<span style='color:{r['solgun']}'>Tasarım etikete sığmıyor, taşan "
+                    f"kısım sonraki etikete basılacak. Etiket Tasarımı'ndan kenar payını "
+                    f"artırın veya barkodu küçültün.</span>")
+            elif beklenen:
+                ozet.setText(f"<span style='color:{r['iyi']};font-weight:700'>✓ {beklenen} "
+                             f"etiket → {sayfa_sayisi} sayfa</span>")
+            else:
+                ozet.setText(f"<b>{sayfa_sayisi} sayfa</b>")
+            o = self._printer.pageLayout().fullRect(QPageLayout.Unit.Millimeter)
+            olcu_etiketi.setText(f"Kağıt {o.width():.1f} × {o.height():.1f} mm")
+
+        belge.load(pdf_yolu)
+        bilgi_tazele()
+
+        def yazici_degisti(ad):
+            """Baska yazici secilirse kagit ayari VE onizleme yeniden uretilir -
+            her yazicinin medya olculeri farkli, eski onizleme yaniltici olur."""
+            secilen = QPrinterInfo.printerInfo(ad)
+            if secilen.isNull():
+                return
+            self._printer.setPrinterName(ad)
+            olcu = getattr(self.web_bridge, "son_etiket_olcusu", None)
+            if olcu:
+                self._kagit_ayarla(self._printer, float(olcu[0]), float(olcu[1]))
+            bilgi_tazele("Önizleme yenileniyor…")
+            yazdir_dugmesi.setEnabled(False)
+
+            def yenilendi(yeni_yol):
+                yazdir_dugmesi.setEnabled(True)
+                if yeni_yol:
+                    belge.load(yeni_yol)
+                    bilgi_tazele()
+                else:
+                    bilgi_tazele("Önizleme yenilenemedi; çıktı yine de doğru ölçüde basılır.")
+
+            self._onizleme_pdf_uret(yenilendi)
+
+        iptal = QPushButton("İptal")
+        yazdir_dugmesi = QPushButton("Yazdır")
+        yazdir_dugmesi.setObjectName("birincil")
+        yazdir_dugmesi.setDefault(True)
+        iptal.clicked.connect(pencere.reject)
+        yazdir_dugmesi.clicked.connect(pencere.accept)
+        yazici_kutusu.currentTextChanged.connect(yazici_degisti)
+
+        def alan(baslik, widget):
+            kap = QVBoxLayout()
+            kap.setSpacing(5)
+            et = QLabel(baslik)
+            et.setObjectName("etiketAdi")
+            kap.addWidget(et)
+            kap.addWidget(widget)
+            return kap
+
+        baslik = QLabel("Etiket Yazdır")
+        baslik.setObjectName("baslik")
+
+        ozet_karti = QFrame()
+        ozet_karti.setObjectName("kart")
+        ozet_duzen = QVBoxLayout(ozet_karti)
+        ozet_duzen.setContentsMargins(14, 12, 14, 12)
+        ozet_duzen.setSpacing(4)
+        ozet_duzen.addWidget(ozet)
+        ozet_duzen.addWidget(olcu_etiketi)
+
+        sol = QVBoxLayout()
+        sol.setContentsMargins(0, 0, 0, 0)
+        sol.setSpacing(16)
+        sol.addWidget(baslik)
+        sol.addLayout(alan("Yazıcı", yazici_kutusu))
+        sol.addLayout(alan("Kopya", kopya))
+        sol.addWidget(ozet_karti)
+        sol.addStretch(1)
+        dugmeler = QHBoxLayout()
+        dugmeler.setSpacing(10)
+        dugmeler.addWidget(iptal, 1)
+        dugmeler.addWidget(yazdir_dugmesi, 1)
+        sol.addLayout(dugmeler)
+
+        sol_panel = QWidget()
+        sol_panel.setLayout(sol)
+        sol_panel.setFixedWidth(268)
+
+        govde = QHBoxLayout(pencere)
+        govde.setContentsMargins(20, 20, 20, 20)
+        govde.setSpacing(18)
+        # Sol panel dikeyde DOLDURUR (AlignTop degil): aradaki esneme sayesinde
+        # butonlar pencerenin altina yaslanir.
+        govde.addWidget(sol_panel, 0)
+        govde.addWidget(gorunum, 1)
+
+        kabul = pencere.exec() == QDialog.DialogCode.Accepted
+        if kabul:
+            self._printer.setCopyCount(kopya.value())
+        # Belge dosyayi acik tutuyor; kapatilmazsa gecici PDF silinemiyor.
+        belge.close()
+        return kabul
+
+    def _yazdir(self):
+        """Baskı önizlemesini, ardından yazıcı seçim penceresini açar.
+
+        Kağıt ölçüsü CSS'teki @page'ten değil, ekranın yazdırmadan hemen önce bildirdiği
+        değerden alınır (WebBridge.set_label_page_size) - sürücülerin çoğu @page'i yok
+        sayıp etiketi A4'e ortalıyor.
+
+        QPrinter self üzerinde tutulur: yazdırma eşzamansız olduğu için yerel değişkende
+        tutulursa çöp toplayıcı onu iş bitmeden yok ediyor ve çıktı boş geliyor.
+        """
+        from PySide6.QtPrintSupport import QPrinter, QPrinterInfo
+
+        if getattr(self, "_yazdirma_suruyor", False) or getattr(self, "_onizleme_acik", False):
+            print("[WARN] Onceki yazdirma isi surerken yeni istek geldi, yok sayildi.")
+            return
+
+        # Onceki isin sonucu temizlenir: ekran basimdan 2.5 sn sonra sonucu soruyor,
+        # onizleme/yazici penceresinde daha uzun kalinirsa BIR ONCEKI isin sonucunu
+        # okuyup yaniltici bildirim gosteriyordu.
+        self.web_bridge.son_yazdirma_sonucu = None
+
+        try:
+            varsayilan = QPrinterInfo.defaultPrinter()
+            self._printer = (QPrinter(varsayilan, QPrinter.PrinterMode.HighResolution)
+                             if not varsayilan.isNull()
+                             else QPrinter(QPrinter.PrinterMode.HighResolution))
+
+            olcu = getattr(self.web_bridge, "son_etiket_olcusu", None)
+            kagit_uyarisi = ""
+            if olcu:
+                kagit_uyarisi = self._kagit_ayarla(self._printer, float(olcu[0]), float(olcu[1]))
+
+            if not getattr(self.web_bridge, "baski_onizleme_istendi", True):
+                self._yazdirma_penceresi(kagit_uyarisi)
+                return
+
+            self._onizleme_uret(kagit_uyarisi)
+        except Exception as e:
+            self._yazdirma_suruyor = False
+            self._onizleme_acik = False
+            self._yazdirma_sonucu("hata", f"Yazdirma baslatilamadi: {e}")
+
+    def _onizleme_pdf_uret(self, geri):
+        """Sayfayi GECERLI sayfa duzeniyle gecici bir PDF'e basar; bitince geri(yol) cagirir.
+
+        printToPdf ESZAMANSIZDIR - is bitince pdfPrintingFinished sinyali gelir; bu
+        yuzden sonuc geri cagriyla verilir. Uretilemezse geri(None) cagrilir.
+        Yazici degistirildiginde onizlemeyi tazelemek icin de kullanilir.
+        """
+        import tempfile
+
+        yol = os.path.join(tempfile.gettempdir(), "remalab_etiket_onizleme.pdf")
+        try:
+            if os.path.exists(yol):
+                os.remove(yol)
+        except OSError:
+            # Onizleme penceresi hala acikken dosya kilitli olabilir; farkli ad kullan.
+            yol = os.path.join(tempfile.gettempdir(),
+                               f"remalab_etiket_onizleme_{os.getpid()}.pdf")
+
+        sayfa = self.web_view.page()
+
+        def pdf_hazir(uretilen, basarili):
+            try:
+                sayfa.pdfPrintingFinished.disconnect(pdf_hazir)
+            except (RuntimeError, TypeError):
+                pass
+            geri(uretilen if (basarili and os.path.exists(uretilen)) else None)
+
+        sayfa.pdfPrintingFinished.connect(pdf_hazir)
+        sayfa.printToPdf(yol, self._printer.pageLayout())
+
+    def _onizleme_uret(self, kagit_uyarisi):
+        """Onizlemeyi uretip yazdirma penceresini (yazici secimi + onizleme) acar.
+
+        Onizleme uretilemezse basim ENGELLENMEZ; Windows'un yazdirma penceresine dusulur.
+        """
+        self._onizleme_acik = True
+
+        def pdf_hazir(yol):
+            self._onizleme_acik = False
+            if yol is None:
+                print("[WARN] Baski onizlemesi uretilemedi; Windows yazdirma penceresi aciliyor.")
+                self._yazdirma_penceresi(kagit_uyarisi)
+                return
+            try:
+                devam = self._baski_penceresi(yol)
+            except Exception as e:
+                # QtPdf yoksa veya pencere kurulamazsa basim engellenmemeli.
+                print(f"[WARN] Yazdirma penceresi acilamadi ({e}); Windows penceresine dusuluyor.")
+                self._yazdirma_penceresi(kagit_uyarisi)
+                return
+            try:
+                os.remove(yol)
+            except OSError:
+                pass
+            if devam:
+                # Yazici ve kopya sayisi pencerede secildi; Windows'un penceresi ACILMAZ.
+                self._bas(kagit_uyarisi)
+            else:
+                self._yazdirma_sonucu("iptal", "Yazdirma onizleme penceresinde iptal edildi.")
+
+        self._onizleme_pdf_uret(pdf_hazir)
+
+    def _yazdirma_penceresi(self, kagit_uyarisi):
+        """WINDOWS'UN yazdirma penceresi. Yalnizca onizleme kapaliyken veya onizleme
+        uretilemediginde kullanilir; normal akista _baski_penceresi devreye girer.
+
+        Sessiz basimda is her zaman Windows'un varsayilan yazicisina gidiyordu; sahada
+        varsayilan cogu zaman etiket yazicisi degil (or. AnyDesk Printer gibi sanal bir
+        yazici) ve cikti sessizce kayboluyordu. Pencere dogru yazicinin secilmesini saglar.
+        """
+        from PySide6.QtPrintSupport import QPrintDialog
+
+        try:
+            dialog = QPrintDialog(self._printer, self)
+            dialog.setWindowTitle("Etiket Yazdır")
+            if dialog.exec() != QPrintDialog.DialogCode.Accepted:
+                self._yazdirma_sonucu("iptal", "Yazdirma kullanici tarafindan iptal edildi.")
+                return
+
+            # Kullanici pencerede BASKA bir yazici sectiyse kagit ayari o yaziciya gore
+            # yeniden yapilmali; her yazicinin medya olculeri farkli.
+            olcu = getattr(self.web_bridge, "son_etiket_olcusu", None)
+            if olcu:
+                kagit_uyarisi = self._kagit_ayarla(self._printer, float(olcu[0]), float(olcu[1]))
+        except Exception as e:
+            self._yazdirma_suruyor = False
+            self._yazdirma_sonucu("hata", f"Yazdirma baslatilamadi: {e}")
+            return
+
+        self._bas(kagit_uyarisi)
+
+    def _bas(self, kagit_uyarisi):
+        """Isi secilen yaziciya gonderir. Yazici/kopya secimi cagirandan gelir."""
+        try:
+            self._yazdirma_suruyor = True
+
+            def bitti(basarili):
+                self._yazdirma_suruyor = False
+                if basarili:
+                    self._yazdirma_sonucu(
+                        "tamamlandi",
+                        f"Yazdirma tamamlandi -> {self._printer.printerName()}",
+                        self._printer.printerName())
+                else:
+                    self._yazdirma_sonucu(
+                        "hata",
+                        f"Yazici '{self._printer.printerName()}' isi reddetti veya yanit vermedi.",
+                        self._printer.printerName())
+
+            if hasattr(self.web_view, "printFinished"):
+                try:
+                    self.web_view.printFinished.disconnect()
+                except Exception:
+                    pass
+                try:
+                    self.web_view.printFinished.connect(bitti)
+                except Exception:
+                    self._yazdirma_suruyor = False
+
+            self._yazdirma_sonucu(
+                "gonderildi",
+                f"Is yaziciya gonderildi -> {self._printer.printerName()}"
+                + (" | " + kagit_uyarisi if kagit_uyarisi else ""),
+                self._printer.printerName())
+            self.web_view.print(self._printer)
+        except Exception as e:
+            self._yazdirma_suruyor = False
+            self._yazdirma_sonucu("hata", f"Yazdirma baslatilamadi: {e}")
 
     def on_new_websocket_connection(self):
         socket = self.websocket_server.nextPendingConnection()

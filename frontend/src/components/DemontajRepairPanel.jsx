@@ -1,7 +1,13 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { Plus, Package, Wrench, CheckCircle, AlertTriangle, Pencil, Ban, X, User } from "lucide-react";
 import { api } from "../services/api";
 import PartSelectCombobox from "./PartSelectCombobox";
+import EtiketYazdirModal from "./EtiketYazdirModal";
+
+// Demontaj aşamasında iş yalnızca L1/L2'ye açılır; uzman ekip (BATTERY, CAMERA,
+// DISPLAY, CASE, L3...) ataması sonraki onarım havuzu adımında yapılır.
+const DEMONTAJ_TAKIMLARI = ["L1REPAIR", "L2REPAIR"];
+const DEMONTAJ_VARSAYILAN_TAKIM = "L1REPAIR";
 
 function getCurrentUser() {
   try {
@@ -25,7 +31,6 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
   const [selectedPartId, setSelectedPartId] = useState("");
   const [faultCode, setFaultCode] = useState("");
   const [missionGroupCode, setMissionGroupCode] = useState("");
-  const [availableMissionCodes, setAvailableMissionCodes] = useState([]);
   const [warrantyCode, setWarrantyCode] = useState("");
   const [description, setDescription] = useState("");
   const [adding, setAdding] = useState(false);
@@ -39,6 +44,9 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
 
   // Tablodan tıklanarak seçilen satır. "PARÇA EKLE" bu satırın onarımını hedef alır.
   const [selectedRepairId, setSelectedRepairId] = useState(null);
+  // Parça barkod etiketi. Ayrı buton ve soru YOK: "Üretime Aktar" başarılı olur
+  // olmaz etiketler doğrudan varsayılan yazıcıya basılır.
+  const [etiketBas, setEtiketBas] = useState(false);
   // Seçili onarıma parça ekleme modu: { code, name }. Doluyken Onarım Takımı sabitlenir,
   // eklenen parça YENİ onarım açmaz, aynı görev grubuna ikinci bir satır olarak yazılır.
   const [addToGroup, setAddToGroup] = useState(null);
@@ -101,40 +109,40 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
     });
   }, [selectedItemCategory]);
 
-  // Onarım Takımı dropdown'u, seçilen parçanın kategorisine göre item_category_mission'da
-  // tanımlı departmanlarla sınırlanır (kategori için hiç tanım yoksa tüm departmanlara geri
-  // düşülür). Kategoriye özel uzman ekip (varsa) ilk değer olarak otomatik seçilir, kullanıcı
-  // isterse bu daraltılmış listeden başka birini seçebilir. Düzenleme modunda otomatik öneri
-  // devre dışı bırakılır, satırın mevcut takımı korunur.
+  // Onarım Takımı: Demontaj'da YALNIZCA L1 ve L2 seçilebilir, varsayılan L1'dir.
+  // Eskiden liste, parçanın kategorisine göre item_category_mission'dan geliyor ve
+  // kategoriye özel uzman ekip (BATTERY, CAMERA, DISPLAY...) otomatik seçiliyordu;
+  // demontaj aşamasında bu ayrım yapılmıyor, iş L1/L2'ye açılıyor. Uzman ekip ataması
+  // ilerideki onarım havuzu adımında yapılır.
   useEffect(() => {
     if (!selectedItemCategory) {
-      setAvailableMissionCodes([]);
       // Parça ekleme modunda grup seçili onarımdan gelir; parça temizlense de korunur.
       if (!addToGroupRef.current) setMissionGroupCode("");
       return;
     }
-    api.getMissionsForItemCategory(selectedItemCategory).then(res => {
-      setAvailableMissionCodes(res && res.success ? (res.mission_codes || []) : []);
-    });
     const pending = pendingEditRef.current;
     if (pending && pending.missionGroupCode !== undefined) {
       setMissionGroupCode(pending.missionGroupCode);
       if (pending.warrantyCode !== undefined) setWarrantyCode(pending.warrantyCode);
       pendingEditRef.current = null;
     } else if (addToGroupRef.current) {
-      // Kategoriye göre otomatik takım önerisi bu modda devre dışı - grup sabit.
+      // Parça ekleme modunda grup sabit - seçili onarımın takımı korunur.
       setMissionGroupCode(addToGroupRef.current.code);
     } else if (!editingRepairIdRef.current) {
-      setMissionGroupCode("");
-      api.getMissionForItemCategory(selectedItemCategory).then(res => {
-        if (res && res.success && res.mission_code) setMissionGroupCode(res.mission_code);
-      });
+      setMissionGroupCode(DEMONTAJ_VARSAYILAN_TAKIM);
     }
   }, [selectedItemCategory]);
 
-  const filteredMissionGroups = availableMissionCodes.length > 0
-    ? missionGroups.filter(mg => availableMissionCodes.includes(mg.code))
-    : missionGroups;
+  const filteredMissionGroups = useMemo(() => {
+    const izinli = missionGroups.filter(mg => DEMONTAJ_TAKIMLARI.includes(mg.code));
+    // Düzenleme / parça ekleme modunda satırın mevcut takımı L1-L2 dışında olabilir
+    // (eski kayıtlar, onarım havuzundan gelen gruplar). Seçili değer listede yoksa
+    // dropdown boş görünür ve kaydetme engellenir; bu yüzden o değer listeye eklenir.
+    const secili = missionGroups.find(mg => mg.code === missionGroupCode);
+    return secili && !izinli.some(mg => mg.code === secili.code)
+      ? [...izinli, secili]
+      : izinli;
+  }, [missionGroups, missionGroupCode]);
 
   // Test aşamasında (QAC) tespit edilen, planlı parçalar — cihaz değiştikçe yeniden çekilir.
   // QAC test ekranı henüz olmadığından bu liste şu an her zaman boş döner.
@@ -236,19 +244,26 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
   // Cihazın Flow'unun (Akış Durumu) onayladığı parça kategorileri (warehouse.
   // service_request_item_category.is_customer_approved) - bkz. WebBridge.get_approved_categories_for_flow.
   const [approvedCategories, setApprovedCategories] = useState([]);
+  // Bu akışta müşteri onayı hiç aranmıyor mu? Karar BACKEND'den gelir; burada ayrıca
+  // hesaplanmıyor (aşağıdaki açıklamaya bakın).
+  const [noApprovalNeeded, setNoApprovalNeeded] = useState(false);
   useEffect(() => {
-    if (!device?.customerRequest) { setApprovedCategories([]); return; }
+    if (!device?.customerRequest) { setApprovedCategories([]); setNoApprovalNeeded(false); return; }
     api.getApprovedCategoriesForFlow(device.customerRequest).then(res => {
       setApprovedCategories(res && res.success ? (res.categories || []) : []);
+      setNoApprovalNeeded(!!(res && res.success && res.noApprovalNeeded));
     });
   }, [device?.customerRequest]);
 
   // Eklenen onarımların kategorilerini, cihazın Flow'unun onayladığı kategorilerle karşılaştırıp
   // "Üretime Aktar" mı "Müşteri Onayı Alınacak" mı gerektiğini anlık önizler — gerçek karar
   // submit_dismantle_decision içinde backend'de yeniden ve otoriter şekilde hesaplanır.
-  // To RMA / To refurbish akışlarında müşteri onayı hiç aranmaz, her zaman Üretime Aktar önizlenir.
-  const NO_APPROVAL_FLOWS = new Set(["to rma", "to refurbish"]);
-  const isNoApprovalFlow = NO_APPROVAL_FLOWS.has((device?.customerRequest || "").toLowerCase());
+  //
+  // "Müşteri onayı aranmayan akış" listesi burada TEKRAR EDİLMEZ. Eskiden edilirdi ve
+  // ham flow değeriyle ("Refurbish") kod listesini ("to refurbish") karşılaştırdığı için
+  // 7644 cihazın tamamı yanlışlıkla "Müşteri Onayı Alınacak" görünüyordu. Karar artık
+  // tek kaynaktan, backend'in döndüğü noApprovalNeeded alanından geliyor.
+  const isNoApprovalFlow = noApprovalNeeded;
   const approvedCategoriesLower = new Set(approvedCategories.map(c => c.toLowerCase()));
   // İptal edilen onarımlar Üretime Aktar/Müşteri Onayı önizlemesine dahil edilmez -
   // backend'deki submit_dismantle_decision de aynı şekilde is_cancelled kayıtları hariç tutar.
@@ -263,6 +278,10 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
     setDeciding(false);
     if (res && res.success) {
       showNotif("success", res.decision === "URETIME_AKTAR" ? "Üretime Aktarıldı" : "Müşteri Onayına Gönderildi", res.message || "");
+      // Aktarım başarılıysa etiketler SORULMADAN basılır. onRefresh() listeyi
+      // tazeleyeceği için tetikleme ONDAN ÖNCE yapılır; aksi halde etiket bileşeni
+      // parçaları henüz yenilenmiş listeden okuyup boş basıyor.
+      if (res.decision === "URETIME_AKTAR") setEtiketBas(true);
       await onRefresh();
     } else {
       showNotif("error", "İşlem Başarısız", res?.message || "Statü güncellenemedi.");
@@ -560,7 +579,14 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
           )}
           <button
             onClick={handleSubmitDecision}
-            disabled={!hasAccess || !hasRepairs || deciding}
+            /* statusAllowsParts: cihaz DEMONTAJ aşamasında mı. Eskiden kontrol
+               edilmiyordu; cihaz 106/107'ye (müşteri onayı) geçtikten sonra bile
+               buton basılabiliyor, backend "bu okutmaya uygun statü değil" hatası
+               döndürüyordu. Artık buton o statülerde pasif ve sebebini söylüyor. */
+            disabled={!hasAccess || !hasRepairs || deciding || !statusAllowsParts}
+            title={!statusAllowsParts
+              ? `Cihaz artık demontaj aşamasında değil${statusLabel ? ` (${statusLabel})` : ""} — bu işlem yapılamaz.`
+              : ""}
             className={`px-5 py-3 rounded-xl text-white text-sm font-semibold transition-colors shadow-lg disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 shrink-0 ${allPlanned ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20" : "bg-violet-600 hover:bg-violet-700 shadow-violet-500/20"}`}
           >
             {allPlanned ? <CheckCircle size={16} /> : <AlertTriangle size={16} />}
@@ -568,6 +594,16 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
           </button>
         </div>
       </div>
+
+      <EtiketYazdirModal
+        acik={etiketBas}
+        cihaz={device}
+        onarimlar={repairs}
+        tur="parca"
+        ekEtiketler          /* kontrol + "x" etiketleri yalnızca Demontaj'da basılır */
+        otomatik             /* soru sorulmaz, doğrudan basılır */
+        onKapat={() => setEtiketBas(false)}
+      />
     </div>
   );
 }

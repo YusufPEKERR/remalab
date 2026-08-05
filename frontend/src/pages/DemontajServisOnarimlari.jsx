@@ -129,6 +129,7 @@ const DemontajServisOnarimlari = () => {
         imei,
         internalId: d.internal_id || "",
         serialNo: d.serial_number || "",
+        brand: d.brand || "",
         model: d.model || "",
         productInfo: productInfo || "-",
         productCode: d.batch_no || "",
@@ -352,7 +353,7 @@ const DemontajServisOnarimlari = () => {
                 </div>
               </div>
 
-              <div className="lg:col-span-4 flex gap-2">
+              <div className="lg:col-span-4 flex gap-2 items-start">
                 <div className="flex-1 px-3 py-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/30 text-center">
                   <div className="flex items-center justify-center gap-1.5 mb-1">
                     <BatteryCharging size={14} className="text-indigo-500" />

@@ -30,6 +30,7 @@ export default function Raporlar() {
     "İtem Kodu": true,
     "Parça Adı": true,
     "Miktar": true,
+    "Kaynakta Kalan": true,
     "Kaynak Depo": true,
     "Hedef Depo": true,
     "İşlemi Yapan": true,
@@ -203,6 +204,10 @@ export default function Raporlar() {
           const isOut = (r.type || '').includes('Çıkış') || (r.type || '').includes('Satış') || (r.type || '').includes('Servis Kullanımı') || (r.type || '').includes('Outbound') || (r.type || '').includes('Fire') || (r.type || '').includes('Teknik Servis');
           const isIn = (r.type || '').includes('Giriş') || (r.type || '').includes('Yeni Alım') || (r.type || '').includes('İade') || (r.type || '').includes('Return') || (r.type || '').includes('İptal') || (r.type || '').includes('Inbound');
           row["Miktar"] = (isOut ? '-' : (isIn ? '+' : '')) + r.quantity;
+        }
+        if (selectedTransferCols["Kaynakta Kalan"]) {
+          row["Kaynakta Kalan"] = (r.source_balance_after !== null && r.source_balance_after !== undefined)
+            ? r.source_balance_after : "";
         }
         if (selectedTransferCols["Kaynak Depo"]) row["Kaynak Depo"] = r.source_location;
         if (selectedTransferCols["Hedef Depo"]) row["Hedef Depo"] = r.target_location;
@@ -589,6 +594,9 @@ export default function Raporlar() {
                     <th className="px-6 py-4">İTEM KODU</th>
                     <th className="px-6 py-4">PARÇA ADI</th>
                     <th className="px-6 py-4">MİKTAR</th>
+                    {/* İşlem sonrası kaynak depoda kalan miktar. Hareket miktarı (1)
+                        değil, bakiye (49) görünsün diye eklendi. */}
+                    <th className="px-6 py-4">KAYNAKTA KALAN</th>
                     <th className="px-6 py-4">KAYNAK DEPO</th>
                     <th className="px-6 py-4">HEDEF DEPO</th>
                     <th className="px-6 py-4">İŞLEMİ YAPAN</th>
@@ -598,14 +606,14 @@ export default function Raporlar() {
                 <tbody className="divide-y divide-[#DCE1F1] dark:divide-[#1e222d]">
                   {loading ? (
                     <tr>
-                      <td colSpan="9" className="px-6 py-8 text-center text-[#5A6685] dark:text-[#8892B5]">
+                      <td colSpan="10" className="px-6 py-8 text-center text-[#5A6685] dark:text-[#8892B5]">
                         <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-[#8894D8]" />
                         Yükleniyor...
                       </td>
                     </tr>
                   ) : filteredTransferReports.length === 0 ? (
                     <tr>
-                      <td colSpan="9" className="px-6 py-8 text-center text-[#5A6685] dark:text-[#8892B5]">
+                      <td colSpan="10" className="px-6 py-8 text-center text-[#5A6685] dark:text-[#8892B5]">
                         Transfer hareketi bulunamadı.
                       </td>
                     </tr>
@@ -633,6 +641,11 @@ export default function Raporlar() {
                         <td className="px-6 py-3.5 font-semibold text-[#12141c] dark:text-[#F6F8FF]">{r.part_name}</td>
                         <td className={`px-6 py-3.5 font-mono font-semibold text-sm ${isOut ? 'text-red-400' : (isIn ? 'text-emerald-400' : 'text-blue-400')}`}>
                           {isOut ? '-' : (isIn ? '+' : '')}{r.quantity}
+                        </td>
+                        <td className="px-6 py-3.5 font-mono font-semibold text-sm">
+                          {r.source_balance_after !== null && r.source_balance_after !== undefined
+                            ? r.source_balance_after
+                            : <span className="text-[#5A6685] dark:text-[#8892B5] font-normal" title="Bu hareket, kalan miktar kaydedilmeye başlamadan önce oluşturulmuş">—</span>}
                         </td>
                         <td className="px-6 py-3.5">{r.source_location || '-'}</td>
                         <td className="px-6 py-3.5">{r.target_location || '-'}</td>

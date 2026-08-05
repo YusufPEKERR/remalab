@@ -300,7 +300,13 @@ const StatusAdvanceModal = ({ repair, onClose, onAdvance }) => {
   // aşamaları yapılabilmelidir. Diğer karmaşık ara statüler kaldırıldı.
   if (current === 1000) {
     rawOptions.push({ code: 1001, label: "Teknisyene Ata" });
-  } else if (current !== 1002 && current !== 1003) {
+  } else if (current !== 1003) {
+    // TAMAMLANMIŞ onarım (1002) da yeniden açılabilir. Eskiden 1002 burada dışarıda
+    // bırakılıyordu; "Onarıma Devam Et" penceresi açılıyor ama içi boş geliyor
+    // ("Bu statüden ileri geçiş yapılamaz") ve buton çalışmıyor görünüyordu.
+    // 1001'e dönen kayıt teknisyende kalır: update_repair_status assigned_technician
+    // alanına dokunmaz, yani onarım "teknisyene atanmış" hâline geri döner.
+    // 1003 (Onarım İptal Edildi) hariç tutulmaya devam ediyor.
     rawOptions.push({ code: 1001, label: "Onarıma Devam Et" });
   }
 
@@ -622,6 +628,7 @@ const TechnicianRepairOperations = () => {
         imei,
         internalId: d.internal_id || "",
         serialNo: d.serial_number || "",
+        brand: d.brand || "",
         model: d.model || "",
         productInfo: productInfo || "-",
         productCode: d.batch_no || "",
@@ -1221,6 +1228,8 @@ const TechnicianRepairOperations = () => {
               >
                 <Package size={14} /> Parça Ekle
               </button>
+              {/* Bu ekranda etiket yazdırma YOK. Barkod, Demontaj'da "Üretime Aktar"
+                  anında ve Son Test Sonuç ekranında basılıyor. */}
               {selectedRepair && selectedRepair.statusCode === 1000 && (
                 <button
                   onClick={() => handleAdvanceStatus(selectedRepair.id, 1001)}

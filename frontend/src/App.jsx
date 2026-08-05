@@ -5,44 +5,73 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import MainLayout from './layouts/MainLayout';
 
+// ESKİ PARÇA ADI KORUMASI.
+// Derleme, parça adlarını içeriğe göre hash'liyor (EtiketTasarimi-C7uzMj4A.js) ve her
+// yeni derlemede eski adı diskten SİLİYOR. Uygulama açıkken güncelleme yapılırsa
+// (update.bat veya yeniden derleme) çalışan sekme hâlâ ESKİ adları hatırlar; o ana
+// kadar ziyaret edilmemiş bir rotaya tıklandığında 404 alınır, dinamik import
+// reddedilir ve sayfa "açılmıyor, hata veriyor" hâline gelir. Statik sunucu
+// /assets/* için index.html'e düşmediğinden (bkz. core/main_window.py::do_GET)
+// bu gerçek bir 404'tür, kendiliğinden düzelmez.
+//
+// Çözüm: parça yüklenemezse sayfa BİR KEZ yenilenir. index.html "no-store" ile
+// servis edildiği için yenileme güncel parça adlarını getirir. Bayrak sessionStorage'da
+// tutulur; parça gerçekten yoksa sonsuz yenileme döngüsüne girilmez, hata yüzeye çıkar.
+const PARCA_YENILEME_ANAHTARI = "parca_yenilendi";
+const dayanikliLazy = (yukleyici) => lazy(() =>
+  yukleyici().then((mod) => {
+    try { sessionStorage.removeItem(PARCA_YENILEME_ANAHTARI); } catch (_e) { /* önemsiz */ }
+    return mod;
+  }).catch((hata) => {
+    let yenilendi = false;
+    try { yenilendi = !!sessionStorage.getItem(PARCA_YENILEME_ANAHTARI); } catch (_e) { /* önemsiz */ }
+    if (yenilendi) throw hata;
+    try { sessionStorage.setItem(PARCA_YENILEME_ANAHTARI, "1"); } catch (_e) { /* önemsiz */ }
+    window.location.reload();
+    // Yenileme sürerken bileşen çözülmemeli; aksi halde bir an hata ekranı görünür.
+    return new Promise(() => {});
+  })
+);
+
 // Route-bazlı code splitting: kullanıcı tek oturumda genelde birkaç sayfa
 // ziyaret ediyor, ama eskiden 28 sayfanın TAMAMI tek bir ~1.4MB JS paketinde
 // birleşip ilk açılışta indiriliyordu. Login/Dashboard/MainLayout hemen her
 // oturumda görüldüğü için eager kalıyor, geri kalan sayfalar sadece o rotaya
 // gidildiğinde indirilir.
-const Users = lazy(() => import('./pages/Users'));
-const Parts = lazy(() => import('./pages/Parts'));
-const PartCategories = lazy(() => import('./pages/PartCategories'));
-const Products = lazy(() => import('./pages/Products'));
-const Suppliers = lazy(() => import('./pages/Suppliers'));
-const Locations = lazy(() => import('./pages/Locations'));
-const Depo = lazy(() => import('./pages/Depo'));
-const Servis = lazy(() => import('./pages/Servis'));
-const Irsaliye = lazy(() => import('./pages/Irsaliye'));
-const WorkOrders = lazy(() => import('./pages/WorkOrders'));
-const Raporlar = lazy(() => import('./pages/Raporlar'));
-const Settings = lazy(() => import('./pages/Settings'));
-const Departments = lazy(() => import('./pages/Departments'));
-const FlowDgdMapping = lazy(() => import('./pages/FlowDgdMapping'));
-const CustomerPriceMatrix = lazy(() => import('./pages/CustomerPriceMatrix'));
-const CustomerTargetPriceMatrix = lazy(() => import('./pages/CustomerTargetPriceMatrix'));
-const ServiceRecords = lazy(() => import('./pages/ServiceRecords'));
-const BatchEntry = lazy(() => import('./pages/BatchEntry'));
-const DataManagement = lazy(() => import('./pages/DataManagement'));
-const ItemBOM = lazy(() => import('./pages/ItemBOM'));
-const ServiceTransition = lazy(() => import('./pages/ServiceTransition'));
-const BatchStatuTransition = lazy(() => import('./pages/BatchStatuTransition'));
-const TechnicianPanel = lazy(() => import('./pages/TechnicianPanel'));
-const TechnicianRepairOperations = lazy(() => import('./pages/TechnicianRepairOperations'));
-const DemontajServisOnarimlari = lazy(() => import('./pages/DemontajServisOnarimlari'));
-const HizliOnarimBitir = lazy(() => import('./pages/HizliOnarimBitir'));
-const SchemaMapper = lazy(() => import('./pages/SchemaMapper'));
-const CustomerApprovalDecision = lazy(() => import('./pages/CustomerApprovalDecision'));
-const AraTestSonuc = lazy(() => import('./pages/AraTestSonuc'));
-const SonTestSonuc = lazy(() => import('./pages/SonTestSonuc'));
-const StatuKontrol = lazy(() => import('./pages/StatuKontrol'));
-const ParcaTeslim = lazy(() => import('./pages/ParcaTeslim'));
-const DepartmentRepairPool = lazy(() => import('./pages/DepartmentRepairPool'));
+const Users = dayanikliLazy(() => import('./pages/Users'));
+const Parts = dayanikliLazy(() => import('./pages/Parts'));
+const PartCategories = dayanikliLazy(() => import('./pages/PartCategories'));
+const Products = dayanikliLazy(() => import('./pages/Products'));
+const Suppliers = dayanikliLazy(() => import('./pages/Suppliers'));
+const Locations = dayanikliLazy(() => import('./pages/Locations'));
+const Depo = dayanikliLazy(() => import('./pages/Depo'));
+const Servis = dayanikliLazy(() => import('./pages/Servis'));
+const Irsaliye = dayanikliLazy(() => import('./pages/Irsaliye'));
+const WorkOrders = dayanikliLazy(() => import('./pages/WorkOrders'));
+const Raporlar = dayanikliLazy(() => import('./pages/Raporlar'));
+const Settings = dayanikliLazy(() => import('./pages/Settings'));
+const Departments = dayanikliLazy(() => import('./pages/Departments'));
+const FlowDgdMapping = dayanikliLazy(() => import('./pages/FlowDgdMapping'));
+const CustomerPriceMatrix = dayanikliLazy(() => import('./pages/CustomerPriceMatrix'));
+const CustomerTargetPriceMatrix = dayanikliLazy(() => import('./pages/CustomerTargetPriceMatrix'));
+const ServiceRecords = dayanikliLazy(() => import('./pages/ServiceRecords'));
+const BatchEntry = dayanikliLazy(() => import('./pages/BatchEntry'));
+const DataManagement = dayanikliLazy(() => import('./pages/DataManagement'));
+const ItemBOM = dayanikliLazy(() => import('./pages/ItemBOM'));
+const ServiceTransition = dayanikliLazy(() => import('./pages/ServiceTransition'));
+const BatchStatuTransition = dayanikliLazy(() => import('./pages/BatchStatuTransition'));
+const TechnicianPanel = dayanikliLazy(() => import('./pages/TechnicianPanel'));
+const TechnicianRepairOperations = dayanikliLazy(() => import('./pages/TechnicianRepairOperations'));
+const DemontajServisOnarimlari = dayanikliLazy(() => import('./pages/DemontajServisOnarimlari'));
+const HizliOnarimBitir = dayanikliLazy(() => import('./pages/HizliOnarimBitir'));
+const SchemaMapper = dayanikliLazy(() => import('./pages/SchemaMapper'));
+const EtiketTasarimi = dayanikliLazy(() => import('./pages/EtiketTasarimi'));
+const CustomerApprovalDecision = dayanikliLazy(() => import('./pages/CustomerApprovalDecision'));
+const AraTestSonuc = dayanikliLazy(() => import('./pages/AraTestSonuc'));
+const SonTestSonuc = dayanikliLazy(() => import('./pages/SonTestSonuc'));
+const StatuKontrol = dayanikliLazy(() => import('./pages/StatuKontrol'));
+const ParcaTeslim = dayanikliLazy(() => import('./pages/ParcaTeslim'));
+const DepartmentRepairPool = dayanikliLazy(() => import('./pages/DepartmentRepairPool'));
 
 function RouteLoading() {
   return (
@@ -104,6 +133,21 @@ function App() {
               <Route path="/statu-gecis/QAC/125_126" element={<SonTestSonuc />} />
               <Route path="/statu-gecis/:groupKey/:code" element={<BatchStatuTransition />} />
               <Route path="/musteri-onayi" element={<CustomerApprovalDecision />} />
+              {/* "Müşteri Onay/Red Geldi" — eskiden düz bir statü geçişi ekranıydı, cihazı
+                  yalnızca 107'den 136'ya taşıyordu ve orada bırakıyordu (136'dan çıkan aktif
+                  geçiş yoktu, cihaz kilitleniyordu). Artık kararın verildiği ekran burası:
+                  akış şemasındaki 107 → 136 → 109/124 zincirini tek işlemde yürütür. */}
+              <Route path="/musteri-onay-red" element={
+                <CustomerApprovalDecision
+                  sourceStatu={107}
+                  araStatu={136}
+                  approveTarget={109}
+                  rejectTarget={124}
+                  rozet="MÜŞTERİ ONAY/RED GELDİ"
+                  baslik="Müşteri Onay/Red Geldi"
+                  bosMetin="Müşteri kararı bekleyen cihaz bulunmuyor."
+                />
+              } />
               <Route path="/technician-panel" element={<TechnicianPanel />} />
               <Route path="/technician-repair" element={<TechnicianRepairOperations />} />
               <Route path="/onarim-havuzu/:deptCode" element={<DepartmentRepairPool />} />
@@ -111,6 +155,7 @@ function App() {
               {/* Menüde departman başına ayrı görünür, tek bileşen görev grubunu rotadan okur. */}
               <Route path="/hizli-onarim-bitir/:missionGroup" element={<HizliOnarimBitir />} />
               <Route path="/schema-mapper" element={<SchemaMapper />} />
+              <Route path="/etiket-tasarimi" element={<EtiketTasarimi />} />
             </Route>
           </Routes>
         </Suspense>

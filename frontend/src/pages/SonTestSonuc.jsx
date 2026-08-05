@@ -9,6 +9,7 @@ export default function SonTestSonuc() {
       successStatuCode={126}
       failStatuCode={109}
       logExitTest
+      etiketSor
     />
   );
 }
