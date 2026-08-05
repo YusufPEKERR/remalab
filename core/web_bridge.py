@@ -1383,21 +1383,17 @@ class WebBridge(QObject):
             db.execute(text("ALTER TABLE warehouse.repair_records ADD COLUMN IF NOT EXISTS assigned_technician VARCHAR(150);"))
             db.execute(text("ALTER TABLE warehouse.repair_records ADD COLUMN IF NOT EXISTS assigned_by VARCHAR(100);"))
             db.execute(text("ALTER TABLE warehouse.repair_records ADD COLUMN IF NOT EXISTS assigned_at TIMESTAMP;"))
-            # Geriye dönük düzeltme: Onarım Havuzu ekranı eskiden teknisyen atamasını
-            # yanlışlıkla supply_requested_by'a yazıyordu (bu sütun aslında Parça Teslim'de
-            # depo durumunu kimin değiştirdiğini tutar). Bu yüzden havuzdan atanan teknisyen
-            # Üretim Kaydını Görüntüle ekranında (assigned_technician okur) görünmüyor, hatta
-            # depocu parça durumunu değiştirince üzerine yazılıp kayboluyordu. Atama artık
-            # kanonik assigned_technician sütununa yazılıyor; henüz taşınmamış 1001 kayıtları
-            # (assigned_technician boş ama supply_requested_by geçerli bir kullanıcı) buraya kopyalanır.
-            db.execute(text("""
-                UPDATE warehouse.repair_records rr
-                SET assigned_technician = rr.supply_requested_by
-                WHERE rr.repair_result_type_code = 1001
-                  AND (rr.assigned_technician IS NULL OR TRIM(rr.assigned_technician) = '')
-                  AND rr.supply_requested_by IS NOT NULL
-                  AND EXISTS (SELECT 1 FROM warehouse.users u WHERE u.username = rr.supply_requested_by)
-            """))
+            # KALDIRILDI - burada eskiden her açılışta şu güncelleme çalışıyordu:
+            #     SET assigned_technician = rr.supply_requested_by
+            #     WHERE repair_result_type_code = 1001 AND assigned_technician boş
+            # Amacı, teknisyen atamasını yanlışlıkla supply_requested_by'a yazan ESKİ Onarım
+            # Havuzu kodundan kalan kayıtları taşımaktı. Ama o hata giderildikten sonra bu
+            # sütun artık "Parça Teslim'de depo durumunu KİM değiştirdi" bilgisini tutuyor,
+            # yani DEPOCUYU. Kopyalama sürdüğü için depocu, teknisyeni atanmamış her 1001
+            # kaydına teknisyen olarak yazılıyordu: teknisyen parça teslimi üzerinden
+            # belirleniyor, onarıma yapılan gerçek atama ile ilgisi kalmıyordu.
+            # Teknisyen artık YALNIZCA onarım kaydına yapılan atamadan gelir
+            # (assigned_technician); parça/depo hareketi teknisyen belirlemez.
             db.commit()
         except Exception as e:
             db.rollback()
@@ -10973,7 +10969,17 @@ class WebBridge(QObject):
                        fault.short_name AS fault_name,
                        opt.short_name AS operation_type_name,
                        sup.short_name AS supply_status_name,
-                       COALESCE(NULLIF(TRIM(au.fullname), ''), rr.assigned_technician, rr.supply_requested_by) AS assigned_technician_name
+                       -- SATIR KATLANMASINA KARSI: eskiden tek bir users JOIN'i vardi ve
+                       -- kosulu "username = assigned_technician OR username = supply_requested_by"
+                       -- idi. Teknisyen ile depocu FARKLI kisiler oldugunda bu OR iki ayri
+                       -- users satiriyla eslesiyor ve onarim kaydini IKIYE KATLIYORDU (olculdu:
+                       -- 35 onarimli cihaz ekranda 56 satir). Iki ayri JOIN'de her biri en
+                       -- fazla bir satir getirir (users.username benzersiz).
+                       -- Teknisyen YALNIZCA onarım kaydının kendi atamasından gelir.
+                       -- Eskiden supply_requested_by (Parça Teslim'de işlemi yapan DEPOCU)
+                       -- yedek kaynak olarak kullanılıyordu; atanmamış onarımlarda depocu
+                       -- teknisyen gibi görünüyor, "kime atadıysam o görünsün" bozuluyordu.
+                       COALESCE(NULLIF(TRIM(au_tek.fullname), ''), rr.assigned_technician) AS assigned_technician_name
                 FROM warehouse.repair_records rr
                 LEFT JOIN warehouse.repair_result_type rrt ON rrt.code = rr.repair_result_type_code
                 LEFT JOIN organization.mission_groups mg ON mg.code = rr.department_mission
@@ -10982,7 +10988,7 @@ class WebBridge(QObject):
                 LEFT JOIN warehouse.item_fault fault ON fault.code = rr.item_fault_code
                 LEFT JOIN warehouse.repair_item_operation_type opt ON opt.code = rr.operation_type_code
                 LEFT JOIN warehouse.item_supply_status sup ON sup.code = rr.supply_status_code
-                LEFT JOIN warehouse.users au ON (au.username = rr.assigned_technician OR au.username = rr.supply_requested_by)
+                LEFT JOIN warehouse.users au_tek ON au_tek.username = rr.assigned_technician
                 WHERE rr.service_record_id = ANY(:refs)
                    OR LOWER(TRIM(rr.service_record_id)) = LOWER(:term)
                    OR EXISTS (
@@ -11193,12 +11199,13 @@ class WebBridge(QObject):
             r_ids = [r["id"] for r in repairs]
 
             # Statüyü Teknisyene Atandı (1001) yap ve tüm açık satırların teknisyen alanlarını
-            # güncelle. KANONİK assigned_technician yazılır (Üretim Kaydını Görüntüle ekranı bunu
-            # okur); geriye dönük uyum için supply_requested_by da set edilir.
+            # güncelle. Teknisyen YALNIZCA kanonik assigned_technician sütununa yazılır.
+            # supply_requested_by'a artık DOKUNULMUYOR: o sütun "Parça Teslim'de depo durumunu
+            # kim değiştirdi" (depocu) bilgisidir. Teknisyeni oraya da yazmak iki kaynağı
+            # birbirine karıştırıyor, ekranlarda depocu teknisyen gibi görünüyordu.
             db.execute(text("""
                 UPDATE warehouse.repair_records
                 SET repair_result_type_code = 1001,
-                    supply_requested_by = :tech,
                     assigned_technician = :tech,
                     assigned_by = :tech,
                     assigned_at = NOW(),
@@ -11251,8 +11258,11 @@ class WebBridge(QObject):
                     fault.short_name AS fault_name,
                     rr.supply_status_code,
                     sup.short_name AS supply_status_name,
-                    COALESCE(rr.assigned_technician, rr.supply_requested_by) AS assigned_technician,
-                    COALESCE(NULLIF(TRIM(u.fullname), ''), rr.assigned_technician, rr.supply_requested_by) AS assigned_technician_name,
+                    -- Depocuya (supply_requested_by) düşülmez; teknisyen yalnızca atamadan gelir.
+                    rr.assigned_technician AS assigned_technician,
+                    -- Iki ayri JOIN: tek OR'lu JOIN teknisyen ile depocu farkli oldugunda
+                    -- satiri ikiye katliyordu (bkz. get_repair_operations_by_imei).
+                    COALESCE(NULLIF(TRIM(u_tek.fullname), ''), rr.assigned_technician) AS assigned_technician_name,
                     rr.notes,
                     rr.created_at,
                     rr.updated_at,
@@ -11271,7 +11281,7 @@ class WebBridge(QObject):
                 LEFT JOIN warehouse.item_fault fault ON fault.code = rr.item_fault_code
                 LEFT JOIN warehouse.repair_item_operation_type opt ON opt.code = rr.operation_type_code
                 LEFT JOIN warehouse.item_supply_status sup ON sup.code = rr.supply_status_code
-                LEFT JOIN warehouse.users u ON (u.username = rr.assigned_technician OR u.username = rr.supply_requested_by)
+                LEFT JOIN warehouse.users u_tek ON u_tek.username = rr.assigned_technician
                 LEFT JOIN warehouse.batch_entries be ON LOWER(TRIM(be.imei_number)) = LOWER(TRIM(rr.service_record_id))
                     OR LOWER(TRIM(be.serial_number)) = LOWER(TRIM(rr.service_record_id))
                     OR LOWER(TRIM(be.internal_id)) = LOWER(TRIM(rr.service_record_id))
@@ -11665,16 +11675,34 @@ class WebBridge(QObject):
                         "message": f"Bu cihazda zaten aktif bir {opposing_label} onarımı var. Aynı cihaza hem {team_label} hem {opposing_label} onarımı eklenemez."
                     }, ensure_ascii=False)
 
+            # ZATEN ATANMIŞ BİR GRUBA EKLENEN PARÇA, TEKNİSYENİ DEVRALIR.
+            # Yeni kayıt normalde 1000 (Teknisyene Atanacak) / teknisyensiz doğar. Grup
+            # atanırken assign_technician_to_repair o anda VAR OLAN tüm kayıtları 1001 +
+            # teknisyen yapıyor; sonradan eklenen parça ise atanmamış kalıyordu. Parça Teslim
+            # ekranı (get_deliverable_parts_for_device) yalnızca "1001 + teknisyen dolu"
+            # kayıtları listelediği için o parça depoda HİÇ görünmüyor, teslim alınamıyor ve
+            # onarım bitirilemiyordu. Grubun mevcut teknisyeni varsa devralınır.
+            atanmis = db.query(RepairRecord).filter(
+                RepairRecord.service_record_id == service_ref,
+                RepairRecord.department_mission == mission_group_code.strip(),
+                RepairRecord.repair_result_type_code == 1001,
+                RepairRecord.assigned_technician.isnot(None),
+                RepairRecord.assigned_technician != "",
+            ).order_by(RepairRecord.assigned_at.desc()).first()
+
             rec = RepairRecord(
                 id=uuid.uuid4(),
                 service_record_id=service_ref,
                 department_mission=mission_group_code.strip(),
-                repair_result_type_code=1000,
+                repair_result_type_code=1001 if atanmis else 1000,
                 warranty_code=warranty_code.strip() if warranty_code else "OOW",
                 notes=notes.strip() if notes else None,
                 part_item_code=part_item_code.strip() if part_item_code else None,
                 item_fault_code=item_fault_code.strip() if item_fault_code else None,
                 operation_type_code=operation_type_code.strip() if operation_type_code else None,
+                assigned_technician=atanmis.assigned_technician if atanmis else None,
+                assigned_by=atanmis.assigned_by if atanmis else None,
+                assigned_at=_dt.datetime.utcnow() if atanmis else None,
             )
             db.add(rec)
             db.commit()
@@ -13299,8 +13327,11 @@ class WebBridge(QObject):
                     fault.short_name AS fault_name,
                     rr.operation_type_code,
                     opt.short_name AS operation_type_name,
-                    COALESCE(rr.assigned_technician, rr.supply_requested_by) AS assigned_technician,
-                    COALESCE(NULLIF(TRIM(u.fullname), ''), rr.assigned_technician, rr.supply_requested_by) AS assigned_technician_name,
+                    -- Depocuya (supply_requested_by) düşülmez; teknisyen yalnızca atamadan gelir.
+                    rr.assigned_technician AS assigned_technician,
+                    -- Iki ayri JOIN: tek OR'lu JOIN teknisyen ile depocu farkli oldugunda
+                    -- satiri ikiye katliyordu (bkz. get_repair_operations_by_imei).
+                    COALESCE(NULLIF(TRIM(u_tek.fullname), ''), rr.assigned_technician) AS assigned_technician_name,
                     rr.notes,
                     rr.created_at,
                     rr.updated_at,
@@ -13316,7 +13347,7 @@ class WebBridge(QObject):
                 LEFT JOIN warehouse.parts pp ON pp.item_code = rr.part_item_code
                 LEFT JOIN warehouse.item_fault fault ON fault.code = rr.item_fault_code
                 LEFT JOIN warehouse.repair_item_operation_type opt ON opt.code = rr.operation_type_code
-                LEFT JOIN warehouse.users u ON (u.username = rr.assigned_technician OR u.username = rr.supply_requested_by)
+                LEFT JOIN warehouse.users u_tek ON u_tek.username = rr.assigned_technician
                 LEFT JOIN warehouse.batch_entries be ON LOWER(TRIM(be.imei_number)) = LOWER(TRIM(rr.service_record_id))
                     OR LOWER(TRIM(be.serial_number)) = LOWER(TRIM(rr.service_record_id))
                     OR LOWER(TRIM(be.internal_id)) = LOWER(TRIM(rr.service_record_id))
@@ -13442,6 +13473,70 @@ class WebBridge(QObject):
                 "result": "pass" if is_pass else "fail",
                 "newStatusCode": rec.repair_result_type_code,
                 "message": mesaj,
+            }, ensure_ascii=False)
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)}, ensure_ascii=False)
+        finally:
+            db.close()
+
+    @Slot(str, str, result=str)
+    def send_to_intermediate_test(self, term, username):
+        """Cihazı Ara Test'e gönderir (109 → 138). Üretim Kaydını Görüntüle ekranındaki
+        'Ara Teste Gönder' aksiyonunun karşılığıdır.
+
+        Kural SUNUCUDA: cihazın AÇIK onarımı kaldıysa geçiş yapılmaz. Açık = tamamlanmamış
+        (1002) ve iptal edilmemiş (1003) her onarım kaydı. Ekranın kendi kontrolüne
+        güvenilmez; @Slot metodlarında rol denetimi yok ve köprüye bağlanan herkes çağırabilir.
+        """
+        from models.batch_entry import BatchEntry  # noqa: F401 - _find_batch_entry_by_term kullanır
+        from models.repair_record import RepairRecord
+        from models.service_statu import ServiceStatu
+        from services.state_machine_service import StateMachineService
+
+        db = SessionLocal()
+        try:
+            entry = self._find_batch_entry_by_term(db, term or "")
+            if not entry:
+                return json.dumps({"success": False, "message": f"'{term}' için cihaz bulunamadı."},
+                                  ensure_ascii=False)
+
+            mevcut = entry.statu_code if entry.statu_code is not None else 100
+            if mevcut != 109:
+                ad = db.query(ServiceStatu).filter_by(code=mevcut).first()
+                return json.dumps({
+                    "success": False,
+                    "message": f"Cihaz {ad.short_name if ad else ''} ({mevcut}) statüsünde; "
+                               f"Ara Teste yalnızca Üretim aşamasındaki (109) cihazlar gönderilir."
+                }, ensure_ascii=False)
+
+            device_ref = entry.imei_number or entry.batch_no or str(entry.id)
+            repair_refs = [r for r in [device_ref, str(entry.service_id) if entry.service_id else None] if r]
+
+            acik = db.query(RepairRecord).filter(
+                RepairRecord.service_record_id.in_(repair_refs),
+                RepairRecord.repair_result_type_code.notin_([1002, 1003]),
+            ).all()
+            if acik:
+                adlar = ", ".join(sorted({(r.item_category or r.part_item_code or r.department_mission or "?")
+                                          for r in acik}))
+                return json.dumps({
+                    "success": False,
+                    "message": f"{len(acik)} onarım hâlâ açık ({adlar}). Ara Teste göndermeden önce "
+                               f"tüm onarımların tamamlanması gerekiyor."
+                }, ensure_ascii=False)
+
+            svc = StateMachineService(db)
+            if not svc.validate_transition(109, 138):
+                return json.dumps({"success": False,
+                                   "message": "109 → 138 geçişi tanımlı/aktif değil."}, ensure_ascii=False)
+
+            entry.statu_code = 138
+            db.commit()
+            return json.dumps({
+                "success": True,
+                "new_statu_code": 138,
+                "message": f"{device_ref} Ara Test Bekleniyor (138) statüsüne alındı."
             }, ensure_ascii=False)
         except Exception as e:
             db.rollback()
@@ -13611,7 +13706,9 @@ class WebBridge(QObject):
 
             n = db.execute(text(f"""
                 UPDATE warehouse.repair_records
-                SET assigned_technician = :u, supply_requested_by = :u, assigned_by = :by, assigned_at = :now,
+                -- supply_requested_by'a YAZILMIYOR: o sütun depocunun Parça Teslim'de
+                -- yaptığı işlemi tutar, teknisyen atamasıyla ilgisi yoktur.
+                SET assigned_technician = :u, assigned_by = :by, assigned_at = :now,
                     repair_result_type_code = 1001
                 {scope}
             """), {**scope_params, "u": tech, "by": actor, "now": now}).rowcount
@@ -14170,15 +14267,21 @@ class WebBridge(QObject):
 
             # Cihazın eklenmiş tüm parçalarını çek
             repair_part_rows = db.execute(text("""
-                SELECT 
+                SELECT
                     rr.id AS repair_record_id,
                     rr.part_item_code,
                     rr.supply_status_code,
                     rr.supply_requested_by,
+                    -- Onarim kaydinin GERCEK gorev grubu. Asagida takim adi bundan
+                    -- turetilir; parca kategorisinden turetilen oneri yalnizca bu bos
+                    -- oldugunda kullanilir (bkz. append blogundaki aciklama).
+                    rr.department_mission,
+                    rr_mg.short_name AS record_team_name,
                     TO_CHAR(rr.supply_requested_at, 'YYYY-MM-DD HH24:MI') AS supply_requested_at
                 FROM warehouse.repair_records rr
                 LEFT JOIN warehouse.repair_result_type rrt ON rrt.code = rr.repair_result_type_code
                 LEFT JOIN warehouse.parts p ON p.item_code = rr.part_item_code
+                LEFT JOIN organization.mission_groups rr_mg ON rr_mg.code = rr.department_mission
                 WHERE rr.service_record_id = ANY(:refs)
                   AND (rrt.is_cancelled IS NOT TRUE)
                   AND rr.part_item_code IS NOT NULL
@@ -14221,10 +14324,17 @@ class WebBridge(QObject):
                     FROM warehouse.parts p
                     LEFT JOIN LATERAL (
                         SELECT
-                            CASE WHEN UPPER(LEFT(icm.mission, 4)) = 'TEC_' THEN SUBSTRING(icm.mission FROM 5) ELSE icm.mission END AS bare_code
+                            -- COLLATE "C": veritabani ICU/tr-TR ile kurulu (datlocale='tr-TR'),
+                            -- bu yuzden UPPER('i') = 'I' DEGIL 'İ' veriyor. Sabit ASCII
+                            -- metinlerle ('TEC_L1REPAIR' gibi, icinde I var) karsilastirirken
+                            -- kucuk/karisik harfle yazilmis bir mission degeri sessizce
+                            -- eslesmez ve genel takim (L1/L2/L3) one alinmaz. C collation
+                            -- ASCII kivrimini zorlar; kod/kimlik alanlari zaten ASCII.
+                            CASE WHEN UPPER(LEFT(icm.mission, 4) COLLATE "C") = 'TEC_'
+                                 THEN SUBSTRING(icm.mission FROM 5) ELSE icm.mission END AS bare_code
                         FROM warehouse.item_category_mission icm
                         WHERE LOWER(TRIM(icm.item_category)) = LOWER(TRIM(p.item_category)) AND icm.enabled = TRUE
-                        ORDER BY (CASE WHEN UPPER(icm.mission) IN ('TEC_L1REPAIR', 'TEC_L2REPAIR', 'TEC_L3REPAIR') THEN 1 ELSE 0 END) ASC
+                        ORDER BY (CASE WHEN UPPER(icm.mission COLLATE "C") IN ('TEC_L1REPAIR', 'TEC_L2REPAIR', 'TEC_L3REPAIR') THEN 1 ELSE 0 END) ASC
                         LIMIT 1
                     ) team_map ON true
                     LEFT JOIN organization.mission_groups mg ON mg.code = team_map.bare_code
@@ -14266,8 +14376,18 @@ class WebBridge(QObject):
                     "color": pr.get("color") or "",
                     "itemCategory": pr.get("item_category") or "",
                     "partCategory": pr.get("part_category") or pr.get("item_category") or "",
-                    "repairTeamCode": pr.get("repair_team_code") or "",
-                    "repairTeamName": pr.get("repair_team_name") or "Genel",
+                    # TAKIM, ONARIM KAYDININ KENDİ GRUBUDUR.
+                    # Eskiden takım yalnızca parçanın KATEGORİSİNDEN türetiliyordu
+                    # (item_category_mission). Kayıt CAMERA grubuna açılmış olsa bile
+                    # kategori eşleşmesi L3 diyorsa parça ekranda "L3 Onarımı" altında
+                    # listeleniyordu; Parça Teslim ekranı takıma göre filtrelediği için
+                    # kamera grubuna bakan kişi parçayı HİÇ göremiyordu (teknisyeni ise
+                    # kayıttan geldiği için CAMERA teknisyeni görünüyordu - tutarsızdı).
+                    # Kategori eşleşmesi artık yalnızca kaydın grubu boşken kullanılır.
+                    "repairTeamCode": (rr["department_mission"] or "").strip() or pr.get("repair_team_code") or "",
+                    "repairTeamName": (rr["record_team_name"] or "").strip()
+                                      or (rr["department_mission"] or "").strip()
+                                      or pr.get("repair_team_name") or "Genel",
                     "goodStockQty": qty,
                     "stockTrackingType": tracking_type,
                     "isDelivered": is_delivered,

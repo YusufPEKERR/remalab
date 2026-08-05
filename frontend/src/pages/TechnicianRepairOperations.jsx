@@ -725,6 +725,30 @@ const TechnicianRepairOperations = () => {
     return refreshed;
   }, [device]);
 
+  // ARA TESTE GÖNDER (109 → 138)
+  // Cihazın tüm onarımları bitti mi: iptal edilmemiş her kaydın tamamlanmış (1002) olması.
+  // Hiç aktif onarım yoksa izin verilmez - üzerinde hiç iş yapılmamış cihaz yanlışlıkla
+  // Ara Test'e düşmesin.
+  const [sendingToTest, setSendingToTest] = useState(false);
+  const allRepairsDone = useMemo(() => {
+    const aktif = repairs.filter(r => !r.isCancelled);
+    return aktif.length > 0 && aktif.every(r => r.statusCode === 1002);
+  }, [repairs]);
+
+  const handleSendToIntermediateTest = useCallback(async () => {
+    if (!device || sendingToTest) return;
+    setSendingToTest(true);
+    const res = await api.sendToIntermediateTest(device.imei, getCurrentUser()?.username).catch(() => null);
+    setSendingToTest(false);
+    if (!res || !res.success) {
+      showNotif("error", "Ara Teste Gönderilemedi", res?.message || "İşlem başarısız oldu.");
+      return;
+    }
+    showNotif("success", "Ara Teste Gönderildi", res.message);
+    // Statü yerel olarak da güncellenir; buton hemen kaybolsun, cihaz yeniden aranmasın.
+    setDevice(d => (d ? { ...d, serviceStatus: 138 } : d));
+  }, [device, sendingToTest, showNotif]);
+
   // Backend'e kalıcı olarak yazar (warehouse.repair_records) ve ardından
   // güncel listeyi tekrar çeker — sayfa yenilense/cihaz tekrar aransa da kaybolmaz.
   const handleAddRepair = useCallback(async (missionGroupCode, warrantyCode, notes, partItemCode, itemFaultCode, isPartAdd = false) => {
@@ -1267,6 +1291,24 @@ const TechnicianRepairOperations = () => {
               >
                 <Package size={14} /> Parça Ekle
               </button>
+              {/* ARA TESTE GÖNDER (109 → 138). Cihazın tüm onarımları bitince teknisyen
+                  ekrandan ayrılmadan cihazı Ara Test'e verebilsin diye buraya kondu;
+                  eskiden yalnızca menüdeki "Ara Test için Teslim al" ekranından yapılıyordu.
+                  Buton yalnızca cihaz 109'dayken görünür. Açık onarım varsa pasif kalır -
+                  asıl denetim backend'de (send_to_intermediate_test), burası sadece
+                  gereksiz tıklamayı önler. */}
+              {device && device.serviceStatus === 109 && (
+                <button
+                  onClick={handleSendToIntermediateTest}
+                  disabled={!hasAccess || sendingToTest || !allRepairsDone}
+                  title={allRepairsDone
+                    ? "Cihazı Ara Test Bekleniyor (138) statüsüne alır"
+                    : "Önce tüm onarımların tamamlanması gerekiyor"}
+                  className="px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold transition-colors shadow-sm flex items-center gap-1.5 cursor-pointer"
+                >
+                  <ArrowRightLeft size={14} /> {sendingToTest ? "Gönderiliyor..." : "Ara Teste Gönder"}
+                </button>
+              )}
               {/* Bu ekranda etiket yazdırma YOK. Barkod, Demontaj'da "Üretime Aktar"
                   anında ve Son Test Sonuç ekranında basılıyor. */}
               {selectedRepair && selectedRepair.statusCode === 1000 && (
