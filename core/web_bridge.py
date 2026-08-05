@@ -253,7 +253,31 @@ class WebBridge(QObject):
         self._ensure_item_bom_data()
         self._ensure_item_model_lookup()
         self._ensure_batch_entries_table()
+        self._ensure_label_templates_table()
+        self._ensure_customer_decision_transitions()
         self._schema_cache = None
+        # Yazdırılacak etiketin kağıt ölçüsü (mm). Ekran, window.print() öncesi
+        # set_label_page_size ile günceller; main_window bunu QPrinter'a uygular.
+        self.son_etiket_olcusu = None
+        # Kullanıcının seçtiği yazıcı kağıt formunun adı ("30384 PC Postage 2-Part"
+        # gibi). Boşsa ölçüye en yakın form seçilir. set_label_form ile güncellenir;
+        # main_window._kagit_ayarla bunu QPrinter'a uygular.
+        self.etiket_form_adi = ""
+        # Son yazdırma işinin sonucu. main_window._yazdir doldurur, ekran
+        # get_last_print_result ile okur; böylece sessiz başarısızlıklar görünür olur.
+        self.son_yazdirma_sonucu = None
+        # Yazıcı seçim penceresinden ÖNCE kendi baskı önizlememiz açılsın mı.
+        # Windows'un yazdırma penceresindeki önizleme alanı "Bu uygulama yazdırma
+        # önizlemesini desteklemiyor" der: o alanı doldurmak uygulamanın WinRT
+        # IPrintDocumentPageSource sözleşmesini uygulamasını gerektirir, Qt uygulamaz.
+        # Bu yüzden önizlemeyi kendimiz gösteriyoruz - bkz. main_window._baski_onizleme.
+        # Ekran, window.print() öncesi set_print_preview ile günceller (otomatik
+        # basımda kapatılır; teknisyen barkodu okutunca pencere çıkmamalı).
+        self.baski_onizleme_istendi = True
+        # Yazdırma penceresinin teması ve basılacak etiket sayısı; ekran
+        # set_print_preview ile bildirir.
+        self.baski_temasi = "dark"
+        self.baski_etiket_sayisi = 0
 
         # Giriş ekranındaki veritabanı rozeti için önbelleği arka planda ısıt.
         # İlk çağrı ~950 ms sürüyor (motor kurulumu + bağlantı + köprü gidiş-dönüşü) ve
@@ -1018,10 +1042,156 @@ class WebBridge(QObject):
             db.execute(text("ALTER TABLE warehouse.stock_movements ADD COLUMN IF NOT EXISTS technician VARCHAR(150);"))
             db.execute(text("ALTER TABLE warehouse.stock_movements ADD COLUMN IF NOT EXISTS description TEXT;"))
             db.execute(text("ALTER TABLE warehouse.stock_movements ADD COLUMN IF NOT EXISTS movement_kind VARCHAR(20);"))
+            # İşlem sonrası kalan miktar - Raporlar > Transfer Hareketleri ekranındaki
+            # "kaynak/hedef kalan" sütunları. Eski satırlarda NULL kalır; o dönemin
+            # bakiyesi geriye dönük hesaplanamıyor (bkz. config.database'deki açıklama).
+            db.execute(text("ALTER TABLE warehouse.stock_movements ADD COLUMN IF NOT EXISTS source_balance_after INTEGER;"))
+            db.execute(text("ALTER TABLE warehouse.stock_movements ADD COLUMN IF NOT EXISTS target_balance_after INTEGER;"))
             db.commit()
         except Exception as e:
             db.rollback()
             print(f"[WebBridge] stock_movements kolonları eklenemedi: {e}")
+        finally:
+            db.close()
+
+    def _ensure_label_templates_table(self):
+        """Etiket şablonlarını tutar. Şablonlar veritabanında durur ki tasarım bir kez
+        yapılıp tüm makinelerde aynı çıksın; kod değişikliği gerekmesin."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            db.execute(text("""
+                CREATE TABLE IF NOT EXISTS warehouse.label_templates (
+                    key         VARCHAR(40) PRIMARY KEY,
+                    name        VARCHAR(120),
+                    width_mm    NUMERIC(6,2) NOT NULL,
+                    height_mm   NUMERIC(6,2) NOT NULL,
+                    html        TEXT NOT NULL,
+                    updated_by  VARCHAR(100),
+                    updated_at  TIMESTAMPTZ DEFAULT NOW()
+                );
+            """))
+            # Tasarımın 90 derece döndürülerek basılıp basılmayacağı. Etiket rulosu
+            # fiziksel olarak dikeydir (54 mm geniş); yatay bir tasarım ancak
+            # döndürülerek sığar - bkz. EtiketYazdirModal::yazdirmaCss.
+            db.execute(text("ALTER TABLE warehouse.label_templates "
+                            "ADD COLUMN IF NOT EXISTS rotate BOOLEAN DEFAULT FALSE;"))
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            print(f"[WebBridge] label_templates tablosu olusturulamadi: {e}")
+        finally:
+            db.close()
+
+    def _ensure_customer_decision_transitions(self):
+        """136 (Müşteri Onay/Red Geldi) statüsünün çıkış geçişlerini garanti eder.
+
+        Akış şemasına göre 136'dan iki yol çıkar:
+          136 -> 109  "İade Edilmeyecek - Müşteri Onayı Geldi"  (onay: cihaz üretime girer)
+          136 -> 124  "İade Edilecek - Müşteri Reddetti"        (red: onarılmadan son teste)
+
+        Sahadaki durum: 136_109 tanımlıydı ama KAPALI, 136_124 ise hiç yoktu. Yani müşteri
+        onayına giden cihaz 136'ya düştüğü anda kilitleniyordu - 136'dan çıkan aktif hiçbir
+        geçiş yoktu. Burası idempotenttir; her açılışta çalışır, varsa dokunmaz.
+        """
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            db.execute(text("""
+                UPDATE warehouse.service_statu_map
+                   SET enabled = TRUE
+                 WHERE parent_statu = 136 AND child_statu = 109 AND enabled IS NOT TRUE;
+            """))
+            db.execute(text("""
+                INSERT INTO warehouse.service_statu_map
+                    (id, code, parent_statu, child_statu, is_positive, is_user_change_statu,
+                     to_dest, short_name, full_name, description, enabled, order_number)
+                SELECT gen_random_uuid(), '136_124', 136, 124, FALSE, TRUE,
+                       'MNG1_AS', 'İade Edilecek - Müşteri Reddetti',
+                       'İade Edilecek - Müşteri Reddetti',
+                       'Musteri onarimi reddetti; cihaz uretime girmeden son teste teslim edilir.',
+                       TRUE, 1
+                 WHERE NOT EXISTS (
+                    SELECT 1 FROM warehouse.service_statu_map
+                     WHERE parent_statu = 136 AND child_statu = 124
+                 );
+            """))
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            print(f"[WebBridge] 136 musteri karari gecisleri hazirlanamadi: {e}")
+        finally:
+            db.close()
+
+    @Slot(result=str)
+    def get_label_templates(self):
+        """Kayıtlı etiket şablonlarını döner. Kayıt yoksa ekran gömülü varsayılanı kullanır."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            rows = db.execute(text("""
+                SELECT key, name, width_mm, height_mm, html, rotate, updated_by, updated_at
+                FROM warehouse.label_templates
+            """)).mappings().all()
+            return json.dumps({"success": True, "templates": [{
+                "key": r["key"], "name": r["name"] or "",
+                "widthMm": float(r["width_mm"]), "heightMm": float(r["height_mm"]),
+                "html": r["html"] or "",
+                "rotate": bool(r["rotate"]),
+                "updatedBy": r["updated_by"] or "",
+                "updatedAt": r["updated_at"].strftime("%d.%m.%Y %H:%M") if r["updated_at"] else "",
+            } for r in rows]}, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, float, float, str, bool, str, result=str)
+    def save_label_template(self, key, name, width_mm, height_mm, html, rotate, username):
+        """Bir etiket şablonunu kaydeder (varsa günceller)."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            k = (key or "").strip()
+            if not k:
+                return json.dumps({"success": False, "message": "Şablon anahtarı boş olamaz."})
+            if not (html or "").strip():
+                return json.dumps({"success": False, "message": "Şablon içeriği boş olamaz."})
+            if float(width_mm) <= 0 or float(height_mm) <= 0:
+                return json.dumps({"success": False, "message": "Ölçüler sıfırdan büyük olmalı."})
+            db.execute(text("""
+                INSERT INTO warehouse.label_templates (key, name, width_mm, height_mm, html, rotate, updated_by, updated_at)
+                VALUES (:k, :n, :w, :h, :html, :r, :u, NOW())
+                ON CONFLICT (key) DO UPDATE SET
+                    name = EXCLUDED.name, width_mm = EXCLUDED.width_mm,
+                    height_mm = EXCLUDED.height_mm, html = EXCLUDED.html,
+                    rotate = EXCLUDED.rotate,
+                    updated_by = EXCLUDED.updated_by, updated_at = NOW()
+            """), {"k": k, "n": (name or "").strip(), "w": float(width_mm),
+                   "h": float(height_mm), "html": html, "r": bool(rotate),
+                   "u": (username or "").strip()})
+            db.commit()
+            return json.dumps({"success": True, "message": "Şablon kaydedildi."}, ensure_ascii=False)
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
+    def delete_label_template(self, key):
+        """Şablonu siler - ekran o etiket için gömülü varsayılana geri döner."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            db.execute(text("DELETE FROM warehouse.label_templates WHERE key = :k"),
+                       {"k": (key or "").strip()})
+            db.commit()
+            return json.dumps({"success": True, "message": "Varsayılan şablona dönüldü."},
+                              ensure_ascii=False)
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
         finally:
             db.close()
 
@@ -2598,24 +2768,61 @@ class WebBridge(QObject):
                 db.close()
         return self._cached_json("flow_values", 300, _compute)
 
+    # Qt slotu DEĞİLDİR - flow (Akış Durumu) değerini kanonik KODA çevirir.
+    def _kanonik_flow(self, db, ham_flow):
+        """batch_entries.flow bazen KODU ('To refurbish') bazen KISA ADI ('Refurbish')
+        tutuyor. Canlı veride 7644 cihaz kısa ad, 33 cihaz kod - yani neredeyse tamamı
+        kısa ad. Kural metinleri ('to refurbish', 'to rma') ve
+        service_request_item_category.service_request_type ise KOD ile yazılmış.
+
+        Ham değerle karşılaştırma yapılırsa 'Refurbish' akışındaki cihazlar hiçbir kurala
+        uymuyor ve hepsi 'Müşteri Onayı Alınacak' tarafına düşüyordu. Burada değer
+        service_request_type üzerinden (code VEYA short_name eşleşmesiyle) koda çevrilir.
+        Eşleşme bulunamazsa ham değer olduğu gibi döner.
+        """
+        from sqlalchemy import text
+        f = (ham_flow or "").strip()
+        if not f:
+            return ""
+        row = db.execute(text("""
+            SELECT code FROM warehouse.service_request_type
+            WHERE LOWER(TRIM(code)) = LOWER(:f) OR LOWER(TRIM(short_name)) = LOWER(:f)
+            LIMIT 1
+        """), {"f": f}).first()
+        return (row[0] or "").strip() if row and row[0] else f
+
+    # Müşteri onayı hiç aranmayan akışlar (kanonik KOD ile yazılır).
+    ONAY_GEREKTIRMEYEN_FLOWLAR = {"to rma", "to refurbish"}
+
     @Slot(str, result=str)
     def get_approved_categories_for_flow(self, flow):
         """warehouse.service_request_item_category'den, verilen Flow (Akış Durumu) için
         önceden onaylanmış (is_customer_approved=TRUE) parça kategorilerini döner. Demontaj
         ekranındaki 'Üretime Aktar'/'Müşteri Onayı Alınacak' butonunun canlı önizlemesi
-        (submit_dismantle_decision ile aynı mantık) burada da kullanılır."""
+        (submit_dismantle_decision ile aynı mantık) burada da kullanılır.
+
+        Ayrıca noApprovalNeeded döner: bu akışta müşteri onayı hiç aranmıyorsa True.
+        Bu bilgi eskiden ekranda ayrıca kodlanmıştı; iki yerde ayrı yazılınca kural
+        zamanla ayrışıyordu, artık tek kaynak burası."""
         from sqlalchemy import text
         db = SessionLocal()
         try:
-            flow = (flow or "").strip()
-            if not flow:
-                return json.dumps({"success": True, "categories": []})
+            ham = (flow or "").strip()
+            if not ham:
+                return json.dumps({"success": True, "categories": [], "noApprovalNeeded": False,
+                                   "canonicalFlow": ""}, ensure_ascii=False)
+            kanonik = self._kanonik_flow(db, ham)
             rows = db.execute(text("""
                 SELECT DISTINCT item_category FROM warehouse.service_request_item_category
                 WHERE LOWER(TRIM(service_request_type)) = LOWER(:flow) AND is_customer_approved = TRUE
-            """), {"flow": flow}).fetchall()
+            """), {"flow": kanonik}).fetchall()
             categories = [r[0] for r in rows if r[0]]
-            return json.dumps({"success": True, "categories": categories}, ensure_ascii=False)
+            return json.dumps({
+                "success": True,
+                "categories": categories,
+                "canonicalFlow": kanonik,
+                "noApprovalNeeded": kanonik.lower() in self.ONAY_GEREKTIRMEYEN_FLOWLAR,
+            }, ensure_ascii=False)
         except Exception as e:
             return json.dumps({"success": False, "message": str(e)})
         finally:
@@ -6973,12 +7180,43 @@ class WebBridge(QObject):
         from models.location import Location
         db = SessionLocal()
         try:
-            qty = int(qty)
+            # GİRDİ DOĞRULAMASI - burası köprüye bağlanan herkese açıktır ve
+            # @Slot metodlarında rol kontrolü yoktur; ekranın doğrulamasına
+            # güvenilemez (bkz. aşağıdaki iki hata).
+            try:
+                qty = int(qty)
+                from_id, to_id = int(from_loc_id), int(to_loc_id)
+                part_id = int(part_id)
+            except (TypeError, ValueError):
+                return json.dumps({"success": False, "message": "Geçersiz parça, depo veya miktar bilgisi."})
 
-            locs = db.query(Location).filter(Location.id.in_([int(from_loc_id), int(to_loc_id)])).all()
+            # 1) Miktar pozitif olmalı. Kontrolsüz negatif miktar YOKTAN STOK YARATIYORDU:
+            #    "source_stock.quantity < qty" negatif qty'de daima False döndüğü için
+            #    yetersiz stok kontrolü geçiliyor, ardından kaynaktan çıkarma işlemi
+            #    (quantity -= -5) kaynağı ARTIRIYOR, hedefe ekleme (quantity += -5)
+            #    hedefi eksiye düşürüyordu.
+            if qty <= 0:
+                return json.dumps({"success": False, "message": "Transfer miktarı sıfırdan büyük olmalıdır."})
+
+            # 2) Kaynak ve hedef aynı olamaz. Stok bozulmuyordu (aynı satır önce eksilip
+            #    sonra artıyor) ama stock_movements denetim defterine gerçekte hiçbir şey
+            #    taşımayan bir "İç Transfer" satırı yazılıyordu.
+            if from_id == to_id:
+                return json.dumps({"success": False, "message": "Kaynak ve hedef depo aynı olamaz."})
+
+            locs = db.query(Location).filter(Location.id.in_([from_id, to_id])).all()
             loc_by_id = {l.id: l for l in locs}
-            from_kind = loc_by_id.get(int(from_loc_id)).kind if loc_by_id.get(int(from_loc_id)) else None
-            to_kind = loc_by_id.get(int(to_loc_id)).kind if loc_by_id.get(int(to_loc_id)) else None
+
+            # 3) Her iki depo da gerçekten var olmalı. Kaynak sistem deposu değilse
+            #    kural denetimi çalışmadığından, olmayan bir hedefe transfer sessizce
+            #    öksüz bir stok satırı oluşturuyordu.
+            eksik = [str(i) for i in (from_id, to_id) if i not in loc_by_id]
+            if eksik:
+                return json.dumps({"success": False,
+                                   "message": f"Lokasyon bulunamadı: {', '.join(eksik)}"})
+
+            from_kind = loc_by_id[from_id].kind
+            to_kind = loc_by_id[to_id].kind
 
             if from_kind in SYSTEM_TRANSFER_RULES:
                 allowed_targets = SYSTEM_TRANSFER_RULES[from_kind]
@@ -6991,29 +7229,29 @@ class WebBridge(QObject):
                         message = f"{from_label} sadece çıkış deposudur, buradan başka bir depoya transfer yapılamaz."
                     return json.dumps({"success": False, "message": message})
 
-            source_stock = db.query(Stock).with_for_update().filter(Stock.part_id == part_id, Stock.location_id == from_loc_id).first()
+            source_stock = db.query(Stock).with_for_update().filter(Stock.part_id == part_id, Stock.location_id == from_id).first()
             if not source_stock or source_stock.quantity < qty:
                 return json.dumps({"success": False, "message": "Yetersiz stok veya lokasyon bulunamadı."})
 
             source_stock.quantity -= qty
-            
-            target_stock = db.query(Stock).with_for_update().filter(Stock.part_id == part_id, Stock.location_id == to_loc_id).first()
+
+            target_stock = db.query(Stock).with_for_update().filter(Stock.part_id == part_id, Stock.location_id == to_id).first()
             if target_stock:
                 target_stock.quantity += qty
             else:
-                target_stock = Stock(part_id=part_id, location_id=to_loc_id, quantity=qty)
+                target_stock = Stock(part_id=part_id, location_id=to_id, quantity=qty)
                 db.add(target_stock)
-                
-            from_name = loc_by_id.get(int(from_loc_id)).name if loc_by_id.get(int(from_loc_id)) else ""
-            to_name = loc_by_id.get(int(to_loc_id)).name if loc_by_id.get(int(to_loc_id)) else ""
+
+            from_name = loc_by_id[from_id].name
+            to_name = loc_by_id[to_id].name
 
             movement = StockMovement(
                 type="İç Transfer",
                 movement_kind="Transfer",
                 quantity=qty,
                 part_id=part_id,
-                source_location_id=from_loc_id,
-                target_location_id=to_loc_id,
+                source_location_id=from_id,
+                target_location_id=to_id,
                 created_by=username,
                 description=f"Stok Transferi: {from_name} -> {to_name}"
             )
@@ -7426,6 +7664,10 @@ class WebBridge(QObject):
                     "source_location": source_name,
                     "target_location": target_name,
                     "quantity": mov.quantity,
+                    # İşlem sonrası kalan miktar. Bu kolonlar eklenmeden ÖNCE yazılmış
+                    # hareketlerde None kalır; ekran o satırlarda "—" gösterir.
+                    "source_balance_after": mov.source_balance_after,
+                    "target_balance_after": mov.target_balance_after,
                     "user": mov.created_by,
                     "description": mov.description if mov.description else ""
                 })
@@ -9043,6 +9285,8 @@ class WebBridge(QObject):
                     "serial_number": entry.serial_number or '',
                     "internal_id": entry.internal_id or '',
                     "batch_no": entry.batch_no or '',
+                    # Cihaz etiketindeki "Brand:" satırı için gerekli (bkz. EtiketYazdirModal).
+                    "brand": entry.brand or '',
                     "model": entry.model or '',
                     "gb": entry.gb or '',
                     "color": entry.color or '',
@@ -9466,6 +9710,13 @@ class WebBridge(QObject):
                 "imei": entry.imei_number or entry.serial_number or entry.internal_id or "",
                 "batch_no": entry.batch_no or "",
                 "flow": entry.flow or "",
+                # Etiket basımı için gerekli cihaz alanları (bkz. EtiketYazdirModal).
+                "serial_number": entry.serial_number or "",
+                "internal_id": entry.internal_id or "",
+                "brand": entry.brand or "",
+                "model": entry.model or "",
+                "gb": entry.gb or "",
+                "color": entry.color or "",
                 "current_statu_code": current_code,
                 "current_statu_name": current_name,
                 "transitions": transitions,
@@ -12395,11 +12646,13 @@ class WebBridge(QObject):
             if not repair_rows:
                 return json.dumps({"success": False, "message": "Önce en az bir onarım eklemelisiniz."})
 
-            flow = (entry["flow"] or "").strip()
+            # Ham flow KODA çevrilir: alanda 7644 cihaz kısa adı ("Refurbish") tutuyor,
+            # kural ve kategori tablosu ise kodu ("To refurbish") kullanıyor. Ham değerle
+            # karşılaştırılınca bu cihazların HEPSİ gereksiz yere müşteri onayına düşüyordu.
+            flow = self._kanonik_flow(db, entry["flow"])
             # To RMA ve To refurbish akışlarında müşteri onayı hiç aranmaz, kategoriden
             # bağımsız olarak her zaman doğrudan Üretime Aktarılır.
-            no_approval_needed_flows = {"to rma", "to refurbish"}
-            if flow.lower() in no_approval_needed_flows:
+            if flow.lower() in self.ONAY_GEREKTIRMEYEN_FLOWLAR:
                 all_approved = True
             else:
                 approved_categories = set()
@@ -13982,6 +14235,159 @@ class WebBridge(QObject):
                 connect_args={"connect_timeout": 2, "options": "-c statement_timeout=2000"},
             )
         return self._db_kontrol_eng
+
+    @Slot(result=str)
+    def get_print_support(self):
+        """Yazdırmanın gerçekten mümkün olup olmadığını söyler.
+
+        Asıl amaç: uygulamanın ESKİ bir süreci çalışıyorsa printRequested işleyicisi
+        yoktur ve window.print() sessizce hiçbir şey yapmaz. Bu slot eski sürümde HİÇ
+        BULUNMADIĞI için ekran durumu "eski sürüm" olarak ayırt edebilir.
+        Yazıcı adı yalnızca bilgi amaçlıdır; çıktı PDF önizlemesi olarak açıldığından
+        yazıcı kurulu olmasa da yazdırma çalışır.
+        """
+        try:
+            from PySide6.QtPrintSupport import QPrinterInfo
+            v = QPrinterInfo.defaultPrinter()
+            # Yazıcı seçim penceresi açıldığı için varsayılan yazıcı olmasa da devam
+            # edilir; ad yalnızca bilgi amaçlı döner.
+            return json.dumps({"success": True, "supported": True, "reason": "",
+                               "printer": "" if v.isNull() else v.printerName()},
+                              ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": True, "supported": False, "reason": "hata",
+                               "printer": "", "message": str(e)}, ensure_ascii=False)
+
+    @Slot(result=str)
+    def get_printer_forms(self):
+        """Varsayılan yazıcının kağıt formlarını döner.
+
+        Yazdır penceresindeki "Kağıt boyutu" listesiyle birebir aynıdır. Ölçüye göre
+        otomatik eşleştirme her zaman doğru formu bulmuyor (DYMO'da 53.98x100.89 mm
+        ölçüsünü üç ayrı form paylaşıyor) ve yanlış form seçilince sürücü etiketi
+        kendi kenar boşluklarıyla basıp çerçeve/boş etiket üretiyor. Bu yüzden form
+        Etiket Tasarımı ekranından elle seçilebiliyor.
+        """
+        try:
+            from PySide6.QtGui import QPageSize
+            from PySide6.QtPrintSupport import QPrinterInfo
+            v = QPrinterInfo.defaultPrinter()
+            if v.isNull():
+                return json.dumps({"success": True, "printer": "", "forms": []})
+            formlar = []
+            for f in v.supportedPageSizes():
+                b = f.size(QPageSize.Unit.Millimeter)
+                formlar.append({"name": f.name(),
+                                "width": round(b.width(), 2), "height": round(b.height(), 2)})
+            return json.dumps({"success": True, "printer": v.printerName(),
+                               "forms": formlar, "selected": self.etiket_form_adi},
+                              ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e), "forms": []},
+                              ensure_ascii=False)
+
+    @Slot(str, result=str)
+    def set_label_form(self, form_name):
+        """Basımda kullanılacak kağıt formunun adını bildirir. Boş = otomatik seç."""
+        self.etiket_form_adi = (form_name or "").strip()
+        return json.dumps({"success": True, "selected": self.etiket_form_adi},
+                          ensure_ascii=False)
+
+    @Slot(bool, str, int, result=str)
+    def set_print_preview(self, enabled, theme, label_count):
+        """Yazdırma penceresini hazırlar: önizleme açık mı, tema, kaç etiket basılacak.
+
+        Windows'un kendi yazdırma penceresindeki önizleme alanı Qt uygulamalarında
+        "Bu uygulama yazdırma önizlemesini desteklemiyor" der ve doldurulamaz; bu
+        yüzden yazıcı seçimi + önizleme uygulamanın kendi penceresinde gösterilir
+        (bkz. main_window._baski_penceresi). TÜM basım noktalarında aynı davranır -
+        Demontaj → "Üretime Aktar" dahil; kapatılırsa hiçbir pencere açılmaz.
+
+        theme: "dark" | "light" — pencere uygulamanın temasıyla aynı görünsün diye.
+        label_count: ekranın bastığı etiket sayısı. Pencere bunu üretilen SAYFA
+        sayısıyla karşılaştırır; sayfa daha fazlaysa etiket sığmıyor demektir ve
+        kullanıcı bunu kâğıt harcamadan görür.
+        """
+        self.baski_onizleme_istendi = bool(enabled)
+        self.baski_temasi = "light" if str(theme).lower() == "light" else "dark"
+        try:
+            self.baski_etiket_sayisi = max(0, int(label_count))
+        except (TypeError, ValueError):
+            self.baski_etiket_sayisi = 0
+        return json.dumps({"success": True, "enabled": self.baski_onizleme_istendi},
+                          ensure_ascii=False)
+
+    @Slot(result=str)
+    def get_last_print_result(self):
+        """Son yazdırma işinin sonucunu döner (ekran, basımdan sonra bunu sorar).
+
+        Sessiz basımda operatör hiçbir şey görmüyordu: iş yazıcıya gitti mi, sürücü
+        reddetti mi, kağıt ölçüsü tutmadı mı belli olmuyordu. Artık bu bilgi ekrana
+        taşınıyor.
+        """
+        s = getattr(self, "son_yazdirma_sonucu", None)
+        if not s:
+            return json.dumps({"success": True, "durum": "yok"}, ensure_ascii=False)
+        return json.dumps({"success": True, **s}, ensure_ascii=False)
+
+    @Slot(float, float, result=str)
+    def set_label_page_size(self, width_mm, height_mm):
+        """Bir sonraki yazdırma işleminin kağıt ölçüsünü (mm) bildirir.
+
+        CSS'teki @page kuralını sürücülerin çoğu yok sayıyor; kağıt boyutunu QPrinter
+        üzerinde ayarlamak gerekiyor. Ekran window.print() çağırmadan HEMEN ÖNCE burayı
+        çağırır, main_window._yazdirma_istegi de bu değeri okur (bkz. son_etiket_olcusu).
+        Farklı etiket türleri farklı ölçüde olduğu için sabit bir değer kullanılamıyor.
+
+        Ayrıca yazıcının GERÇEK sayfa tuvalini ölçüp döner; baskı CSS'i kutuyu bu
+        ölçüye göre kurar. Etiket yazıcıları sıfır kenar boşluğunu kabul etmiyor
+        (DYMO'da setPageMargins(0) False dönüyor), bu yüzden _kagit_ayarla artık
+        setFullPage(True) ile tam sayfa modunu açıyor: tuval = medyanın tamamı.
+        Dönen ölçü genelde sürücünün form ölçüsüdür (99014 için 53.98x100.89 mm) ve
+        şablondaki yuvarlak 54x101'den birkaç yüzde mm küçüktür — kutu bu farkı
+        bilmeden kurulursa kıl payı taşıyıp İKİNCİ ETİKETE düşüyordu.
+        """
+        try:
+            g, y = float(width_mm), float(height_mm)
+            if g <= 0 or y <= 0:
+                return json.dumps({"success": False, "message": "Geçersiz ölçü."})
+            self.son_etiket_olcusu = (g, y)
+            alan = {"width": g, "height": y, "olculdu": False}
+            try:
+                from PySide6.QtWidgets import QApplication
+                from PySide6.QtGui import QPageLayout
+                from PySide6.QtPrintSupport import QPrinter, QPrinterInfo
+                uygulama = QApplication.instance()
+                # Headless sunucu (server.py) ve tarayıcıdan basım: QApplication YOK,
+                # pencere de yok. Eskiden burada uygulama None iken topLevelWidgets()
+                # çağrılıyor ve AttributeError atıyordu; ölçüm sessizce "ölçülemedi"ye
+                # düşüyor, ekran kutuyu medya ölçüsüne göre kurup taşırıyordu.
+                # Ayrıca o modda ölçülecek yazıcı SUNUCUNUN yazıcısıdır — kullanıcının
+                # DYMO'suyla ilgisi yoktur, ölçmemek doğrusudur.
+                pencere = None
+                if uygulama is not None:
+                    pencere = getattr(uygulama, "main_window", None)
+                    if pencere is None or not hasattr(pencere, "_kagit_ayarla"):
+                        # app.main_window'u main.py atıyor; test/gömülü kullanımda
+                        # atanmamış olabiliyor. Pencereyi doğrudan da bulabilelim.
+                        pencere = next((w for w in uygulama.topLevelWidgets()
+                                        if hasattr(w, "_kagit_ayarla")), None)
+                varsayilan = QPrinterInfo.defaultPrinter()
+                if pencere is not None and not varsayilan.isNull():
+                    # Gerçek işle aynı ayarlar uygulanır; bu kopya yalnızca ölçüm için.
+                    deneme = QPrinter(varsayilan, QPrinter.PrinterMode.HighResolution)
+                    pencere._kagit_ayarla(deneme, g, y)
+                    r = deneme.pageLayout().paintRect(QPageLayout.Unit.Millimeter)
+                    if r.width() > 1 and r.height() > 1:
+                        alan = {"width": round(r.width(), 2),
+                                "height": round(r.height(), 2), "olculdu": True,
+                                "printer": varsayilan.printerName()}
+            except Exception as e:
+                print(f"[WARN] Basilabilir alan olculemedi: {e}")
+            return json.dumps({"success": True, "printable": alan}, ensure_ascii=False)
+        except Exception:
+            pass
+        return json.dumps({"success": False, "message": "Geçersiz ölçü."})
 
     @Slot(result=str)
     def get_db_status(self):

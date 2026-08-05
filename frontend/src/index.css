@@ -3,6 +3,33 @@
 @custom-variant dark (&:is(.dark, .dark *));
 
 /* ─────────────────────────────────────────────────────────────
+   BARKOD YAZI TIPI — IDAHC39M Code 39 Barcode (IDAutomationHC39M)
+
+   Etiketlerdeki barkod bu yazi tipiyle cizilir. Cubuklarin ALTINDAKI okunur
+   metin yazi tipinin KENDI icinde gelir (yildizlar dahil) - ayrica yazmaya
+   gerek yoktur.
+
+   LISANS UYARISI: Bu ucretsiz surumun lisansi "yalnizca kar amaci gutmeyen,
+   egitim amacli veya yillik brut cirosu 500.000 USD'nin ALTINDA olan
+   kuruluslar" ile sinirlidir (IDAutomation, http://www.idautomation.com/licenses.html).
+   Kurulus bu esigin ustundeyse IDAutomation'dan lisans alinmalidir.
+
+   local() ONCE denenir: makinede kurulu (ve lisansli) bir kopya varsa o kullanilir.
+   Uygulamayla birlikte dagitilan kopyayi KALDIRMAK icin asagidaki url(...) satirini
+   silmek yeterlidir; yazi tipi bulunamazsa barkod otomatik olarak SVG cizimine
+   duser ve etiket yine okunabilir cikar (bkz. constants/etiketSablonlari.js).
+   ───────────────────────────────────────────────────────────── */
+@font-face {
+  font-family: "IDAHC39M Code 39 Barcode";
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: local("IDAHC39M Code 39 Barcode"),
+       local("IDAutomationHC39M"),
+       url("/fonts/IDAHC39M-Code39.woff") format("woff");
+}
+
+/* ─────────────────────────────────────────────────────────────
    RENK SISTEMI
 
    Onemli: bu dosya eskiden yalnizca koyu tema icin yazilmisti.

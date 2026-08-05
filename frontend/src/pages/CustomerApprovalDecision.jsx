@@ -2,9 +2,21 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { ScanLine, CheckCircle, AlertTriangle, X, Check, RefreshCw, Info } from "lucide-react";
 import { api } from "../services/api";
 
-const SOURCE_STATU = 106;
-const APPROVE_TARGET = 109;
-const REJECT_TARGET = 124;
+// Ekran iki yerde kullanılıyor, ölçüler prop'tan gelir (bkz. App.jsx):
+//   106 · Müşteri onayına sunulacak   → onay 109 / red 124   (varsayılan)
+//   136 · Müşteri Onay/Red Geldi      → onay 109 / red 124
+// Akış şemasındaki eşleşme: 136 → 109 kenarı "İade Edilmeyecek - Müşteri Onayı Geldi"
+// etiketini taşır, yani ONAY üretime (109) gider; RED ise cihaz onarılmadan son teste
+// (124) teslim edilir.
+const VARSAYILAN = {
+  sourceStatu: 106,
+  araStatu: null,        // varsa karar öncesi geçilen ara statü
+  approveTarget: 109,
+  rejectTarget: 124,
+  rozet: "MÜŞTERİ ONAY KARARLARI",
+  baslik: "Müşteri Onayı Bekleyen Cihazlar",
+  bosMetin: "Müşteri onayı bekleyen cihaz bulunmuyor.",
+};
 
 const NotificationToast = ({ notification, onClose }) => {
   if (!notification) return null;
@@ -29,7 +41,14 @@ const NotificationToast = ({ notification, onClose }) => {
   );
 };
 
-const CustomerApprovalDecision = () => {
+const CustomerApprovalDecision = (props) => {
+  const {
+    sourceStatu: SOURCE_STATU,
+    araStatu: ARA_STATU,
+    approveTarget: APPROVE_TARGET,
+    rejectTarget: REJECT_TARGET,
+    rozet, baslik, bosMetin,
+  } = { ...VARSAYILAN, ...props };
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [term, setTerm] = useState("");
@@ -57,7 +76,7 @@ const CustomerApprovalDecision = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [SOURCE_STATU]);
 
   useEffect(() => {
     loadItems();
@@ -78,7 +97,18 @@ const CustomerApprovalDecision = () => {
   const handleDecision = async (entry, targetStatu) => {
     setProcessingId(entry.entry_id);
     try {
-      const data = await api.executeBatchEntryStatuTransition(entry.entry_id, SOURCE_STATU, targetStatu);
+      // Ara statü varsa önce oraya geçilir (akış şeması: 107 → 136 → 109/124).
+      // Cihaz 136'da bırakılmaz; karar tek işlemde sonuna kadar yürütülür.
+      let mevcut = SOURCE_STATU;
+      if (ARA_STATU) {
+        const ara = await api.executeBatchEntryStatuTransition(entry.entry_id, mevcut, ARA_STATU);
+        if (!ara.success) {
+          showNotification("error", ara.message);
+          return;
+        }
+        mevcut = ARA_STATU;
+      }
+      const data = await api.executeBatchEntryStatuTransition(entry.entry_id, mevcut, targetStatu);
       if (data.success) {
         showNotification("success", data.message);
         const decision = targetStatu === APPROVE_TARGET ? "approved" : "rejected";
@@ -107,13 +137,15 @@ const CustomerApprovalDecision = () => {
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2 max-w-2xl">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-100 dark:bg-purple-500/20 border border-purple-200 dark:border-purple-400/30 text-purple-700 dark:text-purple-300 text-xs font-semibold tracking-wide">
-              <ScanLine size={13} className="text-purple-400" /> MÜŞTERİ ONAY KARARLARI
+              <ScanLine size={13} className="text-purple-400" /> {rozet}
             </div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#181a24] dark:text-white">
-              Müşteri Onayı Bekleyen Cihazlar
+              {baslik}
             </h1>
             <p className="text-sm text-[#4A5A9E] dark:text-slate-300 leading-relaxed">
-              Müşteri onayına sunulmuş ({SOURCE_STATU}) tüm cihazları görüntüleyin, gelen müşteri kararına göre onay (109) veya red (124) işlemini yapın.
+              {SOURCE_STATU} statüsündeki cihazları görüntüleyin ve gelen müşteri kararını
+              işleyin: <strong>Onaylandı</strong> → {APPROVE_TARGET} (üretime girer),
+              {" "}<strong>Reddedildi</strong> → {REJECT_TARGET} (onarılmadan son teste teslim edilir).
             </p>
           </div>
 
@@ -149,7 +181,7 @@ const CustomerApprovalDecision = () => {
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-3 py-16 text-[#5A6685]">
             <Info size={32} className="text-[#2e3545]" />
-            <p className="text-xs font-semibold">{items.length === 0 ? "Müşteri onayı bekleyen cihaz bulunmuyor." : "Aramanızla eşleşen cihaz bulunamadı."}</p>
+            <p className="text-xs font-semibold">{items.length === 0 ? bosMetin : "Aramanızla eşleşen cihaz bulunamadı."}</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -176,7 +208,7 @@ const CustomerApprovalDecision = () => {
                       <button
                         onClick={() => handleDecision(entry, REJECT_TARGET)}
                         disabled={processingId === entry.entry_id}
-                        title="Red Ver (124 Statüsüne Gönder)"
+                        title={`Müşteri reddetti — iade edilecek (${REJECT_TARGET} statüsüne gönder)`}
                         className="px-4 py-2 flex items-center gap-1.5 rounded-xl bg-rose-100 dark:bg-rose-500/20 hover:bg-rose-500/30 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-500/30 transition-all text-xs font-bold cursor-pointer disabled:opacity-40"
                       >
                         <X size={16} /> Reddet
@@ -184,7 +216,7 @@ const CustomerApprovalDecision = () => {
                       <button
                         onClick={() => handleDecision(entry, APPROVE_TARGET)}
                         disabled={processingId === entry.entry_id}
-                        title="Onayla (109 Statüsüne Gönder)"
+                        title={`Müşteri onayladı — iade edilmeyecek (${APPROVE_TARGET} statüsüne gönder)`}
                         className="px-4 py-2 flex items-center gap-1.5 rounded-xl bg-emerald-100 dark:bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30 transition-all text-xs font-bold cursor-pointer disabled:opacity-40"
                       >
                         <Check size={16} /> Onayla

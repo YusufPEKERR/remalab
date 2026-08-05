@@ -18,6 +18,10 @@ class StockMovement(Base):
     technician = Column(String(150), nullable=True)
     description = Column(String, nullable=True)
     part_name_snapshot = Column(String, nullable=True)
+    # İşlem sonrası kalan miktar (bkz. config.database._stok_hareketi_bakiye_damgala).
+    # Geçmiş kayıtlarda NULL'dur - o dönemin bakiyesi geriye dönük hesaplanamıyor.
+    source_balance_after = Column(Integer, nullable=True)
+    target_balance_after = Column(Integer, nullable=True)
     unit_price = Column(Numeric(12, 2), nullable=True)
     total_cost = Column(Numeric(12, 2), nullable=True)
     created_at = Column(DateTime, server_default=text("CURRENT_TIMESTAMP"))

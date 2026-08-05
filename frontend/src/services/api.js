@@ -633,6 +633,124 @@ export const api = {
         });
     },
 
+    // Yazdırma mümkün mü? Slot YOKSA uygulamanın eski bir süreci çalışıyordur:
+    // o sürümde printRequested işleyicisi olmadığı için window.print() sessizce
+    // hiçbir şey yapmaz. Ekran bunu kullanıcıya açık bir mesajla söyler.
+    getPrintSupport: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_print_support) {
+                backend.get_print_support((res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true, supported: false, reason: "eski_surum", printer: "" });
+            }
+        });
+    },
+
+    // ── ETİKET ŞABLONLARI ──
+    getLabelTemplates: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_label_templates) {
+                backend.get_label_templates((res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true, templates: [] });
+            }
+        });
+    },
+
+    saveLabelTemplate: async (key, name, widthMm, heightMm, html, rotate, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.save_label_template) {
+                backend.save_label_template(
+                    String(key), String(name || ''), Number(widthMm), Number(heightMm),
+                    String(html || ''), Boolean(rotate), String(username || ''),
+                    (res) => resolve(JSON.parse(res))
+                );
+            } else {
+                resolve({ success: false, message: "Uygulamanın eski bir süreci çalışıyor. Yeniden başlatın." });
+            }
+        });
+    },
+
+    deleteLabelTemplate: async (key) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.delete_label_template) {
+                backend.delete_label_template(String(key), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false, message: "Uygulamanın eski bir süreci çalışıyor." });
+            }
+        });
+    },
+
+    // Yazdırmadan SONRA sorulur: iş yazıcıya gitti mi, sürücü reddetti mi.
+    getLastPrintResult: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_last_print_result) {
+                backend.get_last_print_result((res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: true, durum: "yok" });
+            }
+        });
+    },
+
+    // window.print() ÇAĞRILMADAN HEMEN ÖNCE çağrılır: basılacak etiketin kağıt
+    // ölçüsünü backend'e bildirir, QPrinter bunu uygular (bkz. main_window).
+    setLabelPageSize: async (widthMm, heightMm) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.set_label_page_size) {
+                backend.set_label_page_size(Number(widthMm), Number(heightMm),
+                    (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false });
+            }
+        });
+    },
+
+    // Yazıcının kağıt formları — Yazdır penceresindeki "Kağıt boyutu" listesiyle aynı.
+    getPrinterForms: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_printer_forms) {
+                backend.get_printer_forms((res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false, forms: [] });
+            }
+        });
+    },
+
+    // Basımda kullanılacak kağıt formunun adı. Boş gönderilirse ölçüye göre seçilir.
+    setLabelForm: async (formName) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.set_label_form) {
+                backend.set_label_form(String(formName || ""),
+                    (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false });
+            }
+        });
+    },
+
+    // Yazıcı seçim penceresinden önce uygulamanın kendi baskı önizlemesi açılsın mı.
+    // Windows'un yazdırma penceresindeki önizleme alanı Qt uygulamalarında doldurulamaz
+    // ("Bu uygulama yazdırma önizlemesini desteklemiyor"), önizlemeyi biz gösteriyoruz.
+    setPrintPreview: async (enabled, theme, labelCount) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.set_print_preview) {
+                backend.set_print_preview(!!enabled, String(theme || "dark"),
+                    Number(labelCount) || 0, (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false });
+            }
+        });
+    },
+
     // Slot yoksa mock backend devrededir; o durumda veritabanı da yok demektir.
     getDbStatus: async () => {
         const backend = await getBackend();

@@ -209,3 +209,73 @@ def receive_handle_error(exception_context):
 def register_db_error_listener():
     """Veritabanı çalışma zamanı bağlantı hatalarını yakalamak için dinleyiciyi kaydeder."""
     event.listen(Engine, "handle_error", receive_handle_error)
+
+
+# ─────────────────────────────────────────────────────────────────────
+# STOK HAREKETİ BAKİYE DAMGASI
+#
+# Raporlar > Transfer Hareketleri ekranında "kaynak depoda kaç adet kaldı"
+# görünmesi isteniyordu. Bu sayı geçmişe dönük HESAPLANAMIYOR: başlangıç
+# stokları (MioCreate aktarımı) hareket kaydı üretmeden doğrudan yazılmış,
+# bu yüzden hareketlerin toplamı mevcut bakiyeyi açıklamıyor (ölçüldü:
+# iPAirWAn giren 2145 / çıkan 10 / bakiye 105). Tek doğru yol, bakiyeyi
+# hareket YAZILIRKEN damgalamak.
+#
+# Kod tabanında 30 ayrı yerde StockMovement üretiliyor. Hepsine tek tek
+# dokunmak yerine oturum düzeyinde tek bir kanca kullanılıyor: yeni eklenen
+# her StockMovement, flush'tan hemen önce o anki stok miktarıyla damgalanır.
+# Böylece bundan sonra eklenen HER hareket türü otomatik kapsanır.
+# ─────────────────────────────────────────────────────────────────────
+
+def _o_anki_miktar(session, part_id, location_id):
+    """part/lokasyon için işlemin O ANKİ stok miktarı; bulunamazsa None."""
+    if part_id is None or location_id is None:
+        return None
+    from models.stock import Stock
+
+    # 1) Aynı oturumda değiştirilmiş bir Stock nesnesi varsa onun güncel değeri
+    #    esas alınır - ORM üzerinden yapılan değişiklikler henüz veritabanına
+    #    yazılmadığı için sorgu eski değeri döndürürdü.
+    for nesne in list(session.dirty) + list(session.new):
+        if isinstance(nesne, Stock) and nesne.part_id == part_id and nesne.location_id == location_id:
+            return int(nesne.quantity or 0)
+
+    # 2) Aksi halde veritabanından okunur. Ham SQL ile miktar güncelleyen
+    #    yerler aynı işlem içinde zaten yazmış olur, doğru değer gelir.
+    #    no_autoflush: sorgu yüzünden yeniden flush tetiklenmesin (sonsuz döngü).
+    with session.no_autoflush:
+        satir = session.query(Stock.quantity).filter(
+            Stock.part_id == part_id, Stock.location_id == location_id
+        ).first()
+    return int(satir[0] or 0) if satir else 0
+
+
+def _stok_hareketi_bakiye_damgala(session, flush_context, instances):
+    from models.stock_movement import StockMovement
+
+    for nesne in session.new:
+        if not isinstance(nesne, StockMovement):
+            continue
+        try:
+            if nesne.source_balance_after is None:
+                nesne.source_balance_after = _o_anki_miktar(
+                    session, nesne.part_id, nesne.source_location_id)
+            if nesne.target_balance_after is None:
+                nesne.target_balance_after = _o_anki_miktar(
+                    session, nesne.part_id, nesne.target_location_id)
+        except Exception as e:
+            # Bakiye damgası KOZMETİKTİR. Burada oluşan bir hata gerçek stok
+            # işlemini geri almamalı; sessizce boş bırakılır.
+            print(f"[WARN] stok hareketi bakiye damgasi atlandi: {type(e).__name__}: {e}")
+
+
+def register_stock_balance_listener():
+    """Yeni stok hareketlerine 'işlem sonrası kalan miktar' damgasını ekler."""
+    from sqlalchemy.orm import Session as _Session
+    if not event.contains(_Session, "before_flush", _stok_hareketi_bakiye_damgala):
+        event.listen(_Session, "before_flush", _stok_hareketi_bakiye_damgala)
+
+
+# Kanca modül yüklenirken kurulur: WebBridge, betikler ve testler dahil
+# oturum açan her yol aynı davranışı görsün.
+register_stock_balance_listener()

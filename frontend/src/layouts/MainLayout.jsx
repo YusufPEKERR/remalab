@@ -176,7 +176,12 @@ export default function MainLayout() {
       items: [
         { name: 'Üretime Aktar', icon: Wrench, path: '/servis-onarimlari-demontaj' },
         { name: 'Teknik departmana kabul et (104>105)', icon: Cog, path: '/statu-gecis/TEC_DISMANTLE/104_105' },
-        { name: 'Müşteri onayına gönder (105>106)', icon: Cog, path: '/statu-gecis/TEC_DISMANTLE/105_106' }
+        { name: 'Müşteri onayına gönder (105>106)', icon: Cog, path: '/statu-gecis/TEC_DISMANTLE/105_106' },
+        // Ara Test akışının GİRİŞ adımı. Geçiş (109_138) veritabanında tanımlı ve
+        // aktifti ama menüde hiçbir yerde yoktu; bu yüzden 109'daki cihaz 138'e
+        // hiç geçemiyor, "Ara Test Yap" ekranında okutulunca "bu okutmaya uygun
+        // statü değil" hatası alınıyordu. Ekran değil, akışın girişi eksikmiş.
+        { name: 'Ara Test için Teslim al (109>138)', icon: Repeat, path: '/statu-gecis/TEC_DISMANTLE/109_138' }
         // "Üretime Aktar (105>109)" toplu statü geçişi menüden KALDIRILDI: aynı işi
         // yukarıdaki "Üretime Aktar" ekranındaki karar butonu yapıyor
         // (submit_dismantle_decision, eklenen parçalara göre 109 ya da 106 seçiyor).
@@ -215,6 +220,7 @@ export default function MainLayout() {
       colorTheme: 'purple',
       items: [
         { name: 'Müşteri onayı bekleyecek', icon: Repeat, path: '/musteri-onayi' },
+        { name: 'Müşteri Onay/Red Geldi', icon: Repeat, path: '/musteri-onay-red' },
         { name: 'Ara Test Yap (138>124)', icon: Repeat, path: '/statu-gecis/MNG1_AS/138_124' }
       ]
     },
@@ -232,6 +238,7 @@ export default function MainLayout() {
         { name: 'Flow → DGD Eşleşmesi', icon: Wrench, path: '/flow-dgd-mapping' },
         { name: 'Müşteri Fiyat Matrisi', icon: DollarSign, path: '/customer-price-matrix' },
         { name: 'Müşteri Hedef Fiyat Matrisi', icon: Target, path: '/customer-target-price-matrix' },
+        { name: 'Etiket Tasarımı', icon: Tags, path: '/etiket-tasarimi' },
         { name: 'Schema Mapper', icon: Database, path: '/schema-mapper' }
       ]
     }
@@ -314,12 +321,13 @@ export default function MainLayout() {
       case '/servis-onarimlari-demontaj':
       case '/statu-gecis/TEC_DISMANTLE/104_105':
       case '/statu-gecis/TEC_DISMANTLE/105_106':
+      case '/statu-gecis/TEC_DISMANTLE/109_138':
         // 105_109 buradan da kaldirildi - menude artik yok (bkz. menuGroups).
         return { color: '#3B8B76' };
 
       // ARA TEST
       case '/musteri-onayi':
-      case '/statu-gecis/MNG1_AS/107_136':
+      case '/musteri-onay-red':
       case '/statu-gecis/MNG1_AS/138_124':
         return { color: '#8A44C4' };
 
@@ -342,6 +350,8 @@ export default function MainLayout() {
         return { color: '#B27B2F' };
       case '/customer-price-matrix':
         return { color: '#2FA36E' };
+      case '/etiket-tasarimi':
+        return { color: '#7A54C0' };
       case '/schema-mapper':
         return { color: '#8A44C4' };
 
