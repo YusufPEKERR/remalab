@@ -5192,7 +5192,18 @@ class WebBridge(QObject):
             except (ValueError, TypeError):
                 rows = []
 
+            # AYNI PARÇA İKİ KEZ EKLENEMEZ - hem gelen listenin kendi içinde hem de iş emrinde
+            # zaten bulunan satırlara karşı. İptal edilmiş satırlar sayılmaz (bkz.
+            # remove_work_order_part: satırı silmez, status='İptal Edildi' yapar).
+            var_olanlar = {
+                r[0] for r in db.execute(text("""
+                    SELECT part_id FROM warehouse.work_order_parts
+                     WHERE work_order_id = :wid AND COALESCE(status, '') <> 'İptal Edildi'
+                """), {"wid": work_order_id}).fetchall()
+            }
+
             inserted = 0
+            atlanan = 0
             for row in rows:
                 part_id = row.get("part_id")
                 try:
@@ -5201,13 +5212,19 @@ class WebBridge(QObject):
                     qty = 0
                 if not part_id or qty < 1:
                     continue
+                pid = int(part_id)
+                if pid in var_olanlar:
+                    atlanan += 1
+                    continue
                 db.execute(text("""
                     INSERT INTO warehouse.work_order_parts (work_order_id, part_id, quantity, status, requested_by)
                     VALUES (:wid, :pid, :qty, 'Stokta Var', :req)
-                """), {"wid": work_order_id, "pid": int(part_id), "qty": qty, "req": username or None})
+                """), {"wid": work_order_id, "pid": pid, "qty": qty, "req": username or None})
+                var_olanlar.add(pid)
                 inserted += 1
             db.commit()
-            return json.dumps({"success": True, "inserted": inserted})
+            # Atlananlar SESSİZCE yutulmaz: çağıran ekran kaç satırın tekrar olduğunu bilsin.
+            return json.dumps({"success": True, "inserted": inserted, "skipped_duplicates": atlanan})
         except Exception as e:
             db.rollback()
             return json.dumps({"success": False, "message": str(e)})
@@ -5269,6 +5286,21 @@ class WebBridge(QObject):
             work_order_id = int(work_order_id_str)
             part_id = int(part_id_str)
             qty = int(quantity_str) if quantity_str and int(quantity_str) > 0 else 1
+
+            # AYNI PARÇA İKİ KEZ EKLENEMEZ. İptal edilmiş satırlar sayılmaz: remove_work_order_part
+            # satırı silmez, status='İptal Edildi' yapar - iptal edilen parça yeniden eklenebilmeli.
+            mevcut = db.execute(text("""
+                SELECT id FROM warehouse.work_order_parts
+                 WHERE work_order_id = :wid AND part_id = :pid
+                   AND COALESCE(status, '') <> 'İptal Edildi'
+                 LIMIT 1
+            """), {"wid": work_order_id, "pid": part_id}).first()
+            if mevcut:
+                return json.dumps({
+                    "success": False,
+                    "message": "Bu parça iş emrine zaten eklenmiş. Aynı parça ikinci kez eklenemez; "
+                               "adet değiştirmek için mevcut satırı düzenleyin."
+                }, ensure_ascii=False)
 
             # Check available Good Stock quantity
             good_stock_loc = _get_system_location_id(db, "good_stock")
@@ -11594,9 +11626,29 @@ class WebBridge(QObject):
                 if required and required not in user_missions and not any(m in ("TEC_DISMANTLE", "QAC") or m.startswith("TEC_") or m.startswith("QAC_") for m in user_missions):
                     return json.dumps({"success": False, "message": f"Bu işlem için '{required}' yetkisi gerekiyor."})
 
+            service_ref = self._resolve_service_record_id_for_new_repair(db, device_ref)
+            part_code = part_item_code.strip() if part_item_code else None
+
+            # AYNI PARÇA İKİ KEZ EKLENEMEZ. Aynı cihaza aynı parça için ikinci bir onarım
+            # kaydı açılması hem stoktan iki kez düşülmesine hem de teknisyene aynı işin iki
+            # kez görünmesine yol açıyordu. İptal edilmiş (1003) kayıtlar sayılmaz; iptal
+            # edilen bir parça yeniden eklenebilmeli.
+            if part_code:
+                mevcut = db.query(RepairRecord).filter(
+                    RepairRecord.service_record_id == service_ref,
+                    RepairRecord.part_item_code == part_code,
+                    RepairRecord.repair_result_type_code != 1003,
+                ).first()
+                if mevcut:
+                    return json.dumps({
+                        "success": False,
+                        "message": f"'{part_code}' bu cihaza zaten eklenmiş. Aynı parça ikinci kez eklenemez; "
+                                   f"mevcut satırı düzenleyin veya iptal edip yeniden ekleyin."
+                    }, ensure_ascii=False)
+
             rec = RepairRecord(
                 id=uuid.uuid4(),
-                service_record_id=self._resolve_service_record_id_for_new_repair(db, device_ref),
+                service_record_id=service_ref,
                 department_mission=mission_group_code.strip(),
                 repair_result_type_code=1000,
                 warranty_code=warranty_code.strip() if warranty_code else "OOW",
