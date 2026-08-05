@@ -13240,10 +13240,12 @@ class WebBridge(QObject):
         Gerçek statü geçişi mevcut, doğrulanmış execute_batch_entry_statu_transition
         üzerinden yapılır.
 
-        Ayrıca Müşteri Hedef Fiyat Matrisi limit kontrolü uygulanır (bkz. aşağıdaki blok):
-        kategori onaylı olsa bile, eklenen parçaların toplam fiyatı müşterinin bu model +
-        test sonucu için tanımladığı hedef fiyatı aşıyorsa karar zorla Müşteri Onayına
-        çevrilir. Tanımlı bir hedef fiyat kuralı yoksa bu kontrol hiçbir şeyi değiştirmez."""
+        Ayrıca Müşteri Hedef Fiyat Matrisi limit kontrolü HER ZAMAN uygulanır (bkz. aşağıdaki
+        blok): kategori onaylı olsa bile, eklenen parçaların toplam fiyatı hedef fiyatı
+        aşıyorsa karar zorla Müşteri Onayına çevrilir. customer_target_prices'taki kurallar
+        istisnai kabul edilir - müşteri+model+test kombinasyonu için özel bir kural tanımlıysa
+        o kullanılır, tanımlı değilse DEFAULT_TARGET_PRICE (varsayılan 9999) limit olarak
+        kullanılır."""
         from sqlalchemy import text
         db = SessionLocal()
         try:
@@ -13310,16 +13312,19 @@ class WebBridge(QObject):
             # ── Müşteri Hedef Fiyat Matrisi limit kontrolü ──────────────────────
             # Eklenen onarımların (işçilik dahil, repair_rows zaten hepsini kapsıyor) toplam
             # parça fiyatı - _get_effective_price ile AYNI kural (önce customer_item_prices,
-            # yoksa item.satis) - müşterinin bu model + test sonucu kombinasyonu için
-            # tanımladığı hedef fiyatı aşarsa, kategori onaylı olsa BİLE cihaz zorla Müşteri
-            # Onayına gönderilir. customer_target_prices'ta bu kombinasyon için TANIMLI bir
-            # kural yoksa (batch_entries.customer_no boşsa, model warehouse.product_family'de
-            # çözülemezse, ya da tam eşleşen bir satır yoksa) bu blok hiçbir şeyi DEĞİŞTİRMEZ -
-            # sadece yukarıdaki kategori mantığı karar verir.
+            # yoksa item.satis) - hedef fiyatı aşarsa, kategori onaylı olsa BİLE cihaz zorla
+            # Müşteri Onayına gönderilir. customer_target_prices'taki kurallar İSTİSNAİ olarak
+            # tanımlanmış kabul edilir: müşteri+model+test kombinasyonu için özel bir kural
+            # varsa o kullanılır, YOKSA DEFAULT_TARGET_PRICE (varsayılan limit) devreye girer -
+            # yani limit kontrolü HER ZAMAN uygulanır, sadece kural yoksa varsayılan eşik
+            # kullanılır (eskiden kural yoksa kontrol tamamen atlanıyordu).
+            DEFAULT_TARGET_PRICE = 9999.0
             price_limit_exceeded = False
             price_limit_info = None
             customer_code = (entry["customer_no"] or "").strip()
             model_text = (entry["model"] or "").strip()
+
+            target_price = None
             if customer_code and model_text:
                 fam = db.execute(text("""
                     SELECT code FROM warehouse.product_family
@@ -13348,15 +13353,19 @@ class WebBridge(QObject):
                     }).mappings().first()
 
                     if target_row:
-                        total_price = 0.0
-                        for r in repair_rows:
-                            p = self._get_effective_price(db, r["part_item_code"], customer_code)
-                            if p is not None:
-                                total_price += p
                         target_price = float(target_row["target_price"])
-                        if total_price > target_price:
-                            price_limit_exceeded = True
-                            price_limit_info = {"total_price": total_price, "target_price": target_price}
+
+            if target_price is None:
+                target_price = DEFAULT_TARGET_PRICE
+
+            total_price = 0.0
+            for r in repair_rows:
+                p = self._get_effective_price(db, r["part_item_code"], customer_code)
+                if p is not None:
+                    total_price += p
+            if total_price > target_price:
+                price_limit_exceeded = True
+                price_limit_info = {"total_price": total_price, "target_price": target_price}
 
             all_approved = all_approved and not price_limit_exceeded
             target_statu_code = 109 if all_approved else 106
