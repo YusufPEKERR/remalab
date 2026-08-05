@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Plus, Package, Wrench, CheckCircle, AlertTriangle, Pencil, Ban, X, User } from "lucide-react";
+import { Plus, Package, Wrench, CheckCircle, AlertTriangle, Pencil, Ban, X, User, ArrowLeftRight } from "lucide-react";
 import { api } from "../services/api";
 import PartSelectCombobox from "./PartSelectCombobox";
 import EtiketYazdirModal from "./EtiketYazdirModal";
@@ -32,6 +32,7 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
   const [adding, setAdding] = useState(false);
   const [deciding, setDeciding] = useState(false);
   const [returningDgd, setReturningDgd] = useState(false);
+  const [togglingDgdId, setTogglingDgdId] = useState(null);
   const [editingRepairId, setEditingRepairId] = useState(null);
   const [deletingRepairId, setDeletingRepairId] = useState(null);
   const editingRepairIdRef = useRef(null);
@@ -321,6 +322,20 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
     }
   }, [device, hasActiveDgd, returningDgd, onRefresh, showNotif]);
 
+  // DGD satırının onarım takımını (L1 ↔ L2) tek tuşla değiştirir - bkz. WebBridge.toggle_dgd_repair_team.
+  const handleToggleDgdTeam = useCallback(async (repair) => {
+    if (togglingDgdId) return;
+    setTogglingDgdId(repair.id);
+    const res = await api.toggleDgdRepairTeam(repair.id, getCurrentUser()?.username);
+    setTogglingDgdId(null);
+    if (res && res.success) {
+      showNotif("success", "Onarım Takımı Değiştirildi", res.new_team === "L2REPAIR" ? "DGD artık L2 onarımına atandı." : "DGD artık L1 onarımına atandı.");
+      await onRefresh();
+    } else {
+      showNotif("error", "Değiştirilemedi", res?.message || "İşlem başarısız oldu.");
+    }
+  }, [togglingDgdId, onRefresh, showNotif]);
+
   return (
     <div className="flex-1 flex flex-col gap-4 min-h-0">
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-4 min-h-0">
@@ -540,6 +555,17 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
                       <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">{r.notes || "N/A"}</td>
                       <td className="px-3 py-2">
                         <div className="flex items-center justify-center gap-2">
+                          {r.itemCategory === "DGD" && r.partItemCode !== "DGDDEC" && (
+                            <button
+                              type="button"
+                              onClick={() => hasAccess && !r.isCancelled && handleToggleDgdTeam(r)}
+                              disabled={!hasAccess || r.isCancelled || togglingDgdId === r.id}
+                              title={r.missionGroupCode === "L2REPAIR" ? "L1 Onarımına Al" : "L2 Onarımına Al"}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                            >
+                              <ArrowLeftRight size={14} />
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={() => hasAccess && statusAllowsParts && !r.isCancelled && handleEditRow(r)}

@@ -850,6 +850,13 @@ export const api = {
         });
     },
 
+    toggleDgdRepairTeam: async (repairId, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.toggle_dgd_repair_team(String(repairId || ''), String(username || ''), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
     getPriceMatrixCustomers: async () => {
         const backend = await getBackend();
         return new Promise((resolve) => {

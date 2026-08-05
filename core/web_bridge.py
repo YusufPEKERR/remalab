@@ -11793,6 +11793,43 @@ class WebBridge(QObject):
             db.close()
 
     @Slot(str, str, result=str)
+    def toggle_dgd_repair_team(self, repair_id, username):
+        """DGD (otomatik demontaj işçiliği) satırının onarım takımını L1REPAIR ↔ L2REPAIR
+        arasında tek tuşla değiştirir. Satır hâlâ eski varsayılan 'DISMANTLE' kodundaysa
+        (ekranda 'L1 Onarımı' gösterilir) L1 sayılıp L2REPAIR'e geçirilir. add_repair_record'daki
+        L1/L2 karşılıklı dışlama kontrolünden BİLEREK muaf tutulur - bu yeni bir onarım eklemez,
+        var olan tek satırın takımını değiştirir, kullanıcı isteğiyle her zaman izin verilir."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            row = db.execute(text("""
+                SELECT rr.id, rr.department_mission, rr.repair_result_type_code, p.item_category
+                FROM warehouse.repair_records rr
+                LEFT JOIN warehouse.parts p ON p.item_code = rr.part_item_code
+                WHERE rr.id = :id
+            """), {"id": repair_id}).mappings().first()
+
+            if not row:
+                return json.dumps({"success": False, "message": "Onarım kaydı bulunamadı."})
+            if row["repair_result_type_code"] == 1003:
+                return json.dumps({"success": False, "message": "İptal edilmiş bir onarımın takımı değiştirilemez."})
+            is_dgd = (row["item_category"] == "DGD") or str(row["department_mission"] or "").upper() == "DISMANTLE"
+            if not is_dgd:
+                return json.dumps({"success": False, "message": "Bu işlem sadece DGD (otomatik demontaj işçiliği) satırları için geçerlidir."})
+
+            new_team = "L1REPAIR" if row["department_mission"] == "L2REPAIR" else "L2REPAIR"
+            db.execute(text("""
+                UPDATE warehouse.repair_records SET department_mission = :team WHERE id = :id
+            """), {"team": new_team, "id": repair_id})
+            db.commit()
+            return json.dumps({"success": True, "new_team": new_team})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, result=str)
     def apply_dgd_return(self, device_ref, username):
         """Demontaj ekranındaki 'İade Et' aksiyonu: cihazın aktif DGD işçilik satırlarını
         (part_item_code, warehouse.parts.item_category='DGD', 'DGDDEC' hariç) iptal eder
