@@ -637,7 +637,7 @@ class WebBridge(QObject):
                 );
             """))
             db.execute(text("ALTER TABLE warehouse.item_models ALTER COLUMN model TYPE TEXT;"))
-            db.execute(text("ALTER TABLE warehouse.item_models ADD COLUMN IF NOT EXISTS brand TEXT;"))
+            self._ddl_kolon(db, "ALTER TABLE warehouse.item_models ADD COLUMN IF NOT EXISTS brand TEXT;")
             db.commit()
 
             # brand sütunu sonradan eklendiği için, marka verisi henüz işlenmemiş
@@ -723,7 +723,7 @@ class WebBridge(QObject):
         from sqlalchemy import text
         db = SessionLocal()
         try:
-            db.execute(text("ALTER TABLE warehouse.users ADD COLUMN IF NOT EXISTS gorev VARCHAR(100);"))
+            self._ddl_kolon(db, "ALTER TABLE warehouse.users ADD COLUMN IF NOT EXISTS gorev VARCHAR(100);")
             db.commit()
         except Exception as e:
             db.rollback()
@@ -736,7 +736,7 @@ class WebBridge(QObject):
         from sqlalchemy import text
         db = SessionLocal()
         try:
-            db.execute(text("ALTER TABLE warehouse.users ADD COLUMN IF NOT EXISTS fullname VARCHAR(150);"))
+            self._ddl_kolon(db, "ALTER TABLE warehouse.users ADD COLUMN IF NOT EXISTS fullname VARCHAR(150);")
             db.commit()
         except Exception as e:
             db.rollback()
@@ -785,17 +785,17 @@ class WebBridge(QObject):
                 );
             """))
             db.execute(text("ALTER TABLE warehouse.produced_units DROP CONSTRAINT IF EXISTS produced_units_serial_number_key;"))
-            db.execute(text("ALTER TABLE warehouse.produced_units ADD COLUMN IF NOT EXISTS is_returned BOOLEAN DEFAULT FALSE;"))
-            db.execute(text("ALTER TABLE warehouse.produced_units ADD COLUMN IF NOT EXISTS return_reason VARCHAR(500);"))
-            db.execute(text("ALTER TABLE warehouse.produced_units ADD COLUMN IF NOT EXISTS returned_at TIMESTAMP WITH TIME ZONE;"))
-            db.execute(text("ALTER TABLE warehouse.produced_units ADD COLUMN IF NOT EXISTS return_location_id INTEGER REFERENCES warehouse.locations(id);"))
-            db.execute(text("ALTER TABLE warehouse.produced_units ADD COLUMN IF NOT EXISTS returned_materials VARCHAR(2000);"))
-            db.execute(text("ALTER TABLE warehouse.produced_units ADD COLUMN IF NOT EXISTS replacement_requested_qty INTEGER DEFAULT 0;"))
+            self._ddl_kolon(db, "ALTER TABLE warehouse.produced_units ADD COLUMN IF NOT EXISTS is_returned BOOLEAN DEFAULT FALSE;")
+            self._ddl_kolon(db, "ALTER TABLE warehouse.produced_units ADD COLUMN IF NOT EXISTS return_reason VARCHAR(500);")
+            self._ddl_kolon(db, "ALTER TABLE warehouse.produced_units ADD COLUMN IF NOT EXISTS returned_at TIMESTAMP WITH TIME ZONE;")
+            self._ddl_kolon(db, "ALTER TABLE warehouse.produced_units ADD COLUMN IF NOT EXISTS return_location_id INTEGER REFERENCES warehouse.locations(id);")
+            self._ddl_kolon(db, "ALTER TABLE warehouse.produced_units ADD COLUMN IF NOT EXISTS returned_materials VARCHAR(2000);")
+            self._ddl_kolon(db, "ALTER TABLE warehouse.produced_units ADD COLUMN IF NOT EXISTS replacement_requested_qty INTEGER DEFAULT 0;")
 
             # Phonecheck "Parts" ham JSON'u - kritik parca orijinallik kontrolunun kaynagi.
             # Eski satirlar NULL kalir (o kayitlarda parca durumu "Belirtilmemis" gorunur);
             # yeni her Phonecheck sorgusunda dolar.
-            db.execute(text("ALTER TABLE warehouse.phonecheck_test_results ADD COLUMN IF NOT EXISTS parts TEXT;"))
+            self._ddl_kolon(db, "ALTER TABLE warehouse.phonecheck_test_results ADD COLUMN IF NOT EXISTS parts TEXT;")
             
             # Clean up old records to avoid data inconsistency with the new unique serial number system
             run_count = db.execute(text("SELECT COUNT(*) FROM warehouse.production_runs")).scalar() or 0
@@ -829,9 +829,9 @@ class WebBridge(QObject):
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
             """))
-            db.execute(text("ALTER TABLE warehouse.work_orders ADD COLUMN IF NOT EXISTS source_location_id INTEGER REFERENCES warehouse.locations(id);"))
-            db.execute(text("ALTER TABLE warehouse.work_orders ADD COLUMN IF NOT EXISTS stock_settled_at TIMESTAMP;"))
-            db.execute(text("ALTER TABLE warehouse.work_orders ADD COLUMN IF NOT EXISTS return_reason VARCHAR(500);"))
+            self._ddl_kolon(db, "ALTER TABLE warehouse.work_orders ADD COLUMN IF NOT EXISTS source_location_id INTEGER REFERENCES warehouse.locations(id);")
+            self._ddl_kolon(db, "ALTER TABLE warehouse.work_orders ADD COLUMN IF NOT EXISTS stock_settled_at TIMESTAMP;")
+            self._ddl_kolon(db, "ALTER TABLE warehouse.work_orders ADD COLUMN IF NOT EXISTS return_reason VARCHAR(500);")
             db.commit()
         except Exception as e:
             db.rollback()
@@ -879,11 +879,11 @@ class WebBridge(QObject):
         from sqlalchemy import text
         db = SessionLocal()
         try:
-            db.execute(text("ALTER TABLE warehouse.work_orders ADD COLUMN IF NOT EXISTS started_at TIMESTAMP;"))
-            db.execute(text("ALTER TABLE warehouse.work_orders ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP;"))
-            db.execute(text("ALTER TABLE warehouse.work_orders ADD COLUMN IF NOT EXISTS produced_quantity INTEGER;"))
-            db.execute(text("ALTER TABLE warehouse.work_orders ADD COLUMN IF NOT EXISTS scrap_quantity INTEGER;"))
-            db.execute(text("ALTER TABLE warehouse.work_orders ADD COLUMN IF NOT EXISTS production_notes TEXT;"))
+            self._ddl_kolon(db, "ALTER TABLE warehouse.work_orders ADD COLUMN IF NOT EXISTS started_at TIMESTAMP;")
+            self._ddl_kolon(db, "ALTER TABLE warehouse.work_orders ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP;")
+            self._ddl_kolon(db, "ALTER TABLE warehouse.work_orders ADD COLUMN IF NOT EXISTS produced_quantity INTEGER;")
+            self._ddl_kolon(db, "ALTER TABLE warehouse.work_orders ADD COLUMN IF NOT EXISTS scrap_quantity INTEGER;")
+            self._ddl_kolon(db, "ALTER TABLE warehouse.work_orders ADD COLUMN IF NOT EXISTS production_notes TEXT;")
             db.execute(text("UPDATE warehouse.work_orders SET status = 'URETIMDE' WHERE work_order_type = 'PRODUCTION' AND status = 'BEKLIYOR';"))
             db.commit()
         except Exception as e:
@@ -914,7 +914,7 @@ class WebBridge(QObject):
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
             """))
-            db.execute(text("ALTER TABLE warehouse.material_requests ADD COLUMN IF NOT EXISTS fire_quantity INTEGER NOT NULL DEFAULT 0;"))
+            self._ddl_kolon(db, "ALTER TABLE warehouse.material_requests ADD COLUMN IF NOT EXISTS fire_quantity INTEGER NOT NULL DEFAULT 0;")
             db.execute(text("CREATE INDEX IF NOT EXISTS idx_material_requests_work_order_id ON warehouse.material_requests(work_order_id);"))
             db.commit()
         except Exception as e:
@@ -999,6 +999,43 @@ class WebBridge(QObject):
         finally:
             db.close()
 
+    def _ddl_kolon(self, db, sql):
+        """"ALTER TABLE ... ADD COLUMN IF NOT EXISTS ..." ifadesini, kolon ZATEN VARSA
+        hiç çalıştırmaz.
+
+        NEDEN: "IF NOT EXISTS" yalnızca hatayı bastırır, işi ATLAMAZ - PostgreSQL kolon
+        mevcut olsa bile tabloya ACCESS EXCLUSIVE kilidi almak zorundadır. Uygulama her
+        açılışta 51 tane böyle ifade çalıştırıyor; başka bir oturum tabloyu tutuyorsa
+        (ör. 'idle in transaction' kalmış bir INSERT) DDL kilidi bekler, statement_timeout'a
+        (15 sn) takılır ve şu hatayı verir:
+            [WebBridge] department kolonu eklenemedi:
+            canceling statement due to statement timeout
+        Üstelik beklediği sürece o tabloyu okumak isteyen HERKESİ de kuyruğa sokar.
+
+        information_schema okuması kilit almaz; kolon varsa DDL'e hiç girilmez. Böylece
+        normal açılışta (şema zaten güncelken) tek bir ACCESS EXCLUSIVE kilidi alınmaz.
+        Kolon gerçekten eksikse ifade eskisi gibi çalışır.
+
+        Dönüş: DDL çalıştırıldıysa True, atlandıysa False.
+        """
+        import re
+        from sqlalchemy import text as _text
+        m = re.search(r"ALTER\s+TABLE\s+([\w\.\"]+)\s+ADD\s+COLUMN\s+IF\s+NOT\s+EXISTS\s+\"?(\w+)\"?",
+                      sql, re.IGNORECASE)
+        if m:
+            tam = m.group(1).replace('"', '')
+            kolon = m.group(2)
+            sema, _, tablo = tam.rpartition(".")
+            sema = sema or "public"
+            var = db.execute(_text("""
+                SELECT 1 FROM information_schema.columns
+                 WHERE table_schema = :s AND table_name = :t AND column_name = :c
+            """), {"s": sema, "t": tablo, "c": kolon}).first()
+            if var:
+                return False
+        db.execute(_text(sql))
+        return True
+
     def _record_statu_change(self, db, entry_id, imei, old_code, new_code, staff=None, note=None):
         """Bir statü geçişini history tablosuna ekler (COMMIT ETMEZ — çağıran commit eder,
         böylece geçişle aynı transaction'da atomik kalır). Log yazımı asla asıl işlemi
@@ -1042,8 +1079,8 @@ class WebBridge(QObject):
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
             """))
-            db.execute(text("ALTER TABLE warehouse.service_records ADD COLUMN IF NOT EXISTS memory VARCHAR(50);"))
-            db.execute(text("ALTER TABLE warehouse.service_records ADD COLUMN IF NOT EXISTS product_code VARCHAR(100);"))
+            self._ddl_kolon(db, "ALTER TABLE warehouse.service_records ADD COLUMN IF NOT EXISTS memory VARCHAR(50);")
+            self._ddl_kolon(db, "ALTER TABLE warehouse.service_records ADD COLUMN IF NOT EXISTS product_code VARCHAR(100);")
             db.commit()
         except Exception as e:
             db.rollback()
@@ -1056,14 +1093,14 @@ class WebBridge(QObject):
         from sqlalchemy import text
         db = SessionLocal()
         try:
-            db.execute(text("ALTER TABLE warehouse.stock_movements ADD COLUMN IF NOT EXISTS technician VARCHAR(150);"))
-            db.execute(text("ALTER TABLE warehouse.stock_movements ADD COLUMN IF NOT EXISTS description TEXT;"))
-            db.execute(text("ALTER TABLE warehouse.stock_movements ADD COLUMN IF NOT EXISTS movement_kind VARCHAR(20);"))
+            self._ddl_kolon(db, "ALTER TABLE warehouse.stock_movements ADD COLUMN IF NOT EXISTS technician VARCHAR(150);")
+            self._ddl_kolon(db, "ALTER TABLE warehouse.stock_movements ADD COLUMN IF NOT EXISTS description TEXT;")
+            self._ddl_kolon(db, "ALTER TABLE warehouse.stock_movements ADD COLUMN IF NOT EXISTS movement_kind VARCHAR(20);")
             # İşlem sonrası kalan miktar - Raporlar > Transfer Hareketleri ekranındaki
             # "kaynak/hedef kalan" sütunları. Eski satırlarda NULL kalır; o dönemin
             # bakiyesi geriye dönük hesaplanamıyor (bkz. config.database'deki açıklama).
-            db.execute(text("ALTER TABLE warehouse.stock_movements ADD COLUMN IF NOT EXISTS source_balance_after INTEGER;"))
-            db.execute(text("ALTER TABLE warehouse.stock_movements ADD COLUMN IF NOT EXISTS target_balance_after INTEGER;"))
+            self._ddl_kolon(db, "ALTER TABLE warehouse.stock_movements ADD COLUMN IF NOT EXISTS source_balance_after INTEGER;")
+            self._ddl_kolon(db, "ALTER TABLE warehouse.stock_movements ADD COLUMN IF NOT EXISTS target_balance_after INTEGER;")
             db.commit()
         except Exception as e:
             db.rollback()
@@ -1217,7 +1254,7 @@ class WebBridge(QObject):
         from sqlalchemy import text
         db = SessionLocal()
         try:
-            db.execute(text("ALTER TABLE warehouse.locations ADD COLUMN IF NOT EXISTS kind VARCHAR(20);"))
+            self._ddl_kolon(db, "ALTER TABLE warehouse.locations ADD COLUMN IF NOT EXISTS kind VARCHAR(20);")
             db.commit()
         except Exception as e:
             db.rollback()
@@ -1258,11 +1295,11 @@ class WebBridge(QObject):
                     name VARCHAR(100) NOT NULL
                 );
             """))
-            db.execute(text("ALTER TABLE warehouse.part_categories ADD COLUMN IF NOT EXISTS departments VARCHAR(255);"))
-            db.execute(text("ALTER TABLE warehouse.part_categories ADD COLUMN IF NOT EXISTS stock_tracking_type VARCHAR(20) DEFAULT 'Stok Takipli';"))
-            db.execute(text("ALTER TABLE warehouse.part_categories ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;"))
-            db.execute(text("ALTER TABLE warehouse.part_categories ADD COLUMN IF NOT EXISTS description TEXT;"))
-            db.execute(text("ALTER TABLE warehouse.part_categories ADD COLUMN IF NOT EXISTS part_type VARCHAR(100);"))
+            self._ddl_kolon(db, "ALTER TABLE warehouse.part_categories ADD COLUMN IF NOT EXISTS departments VARCHAR(255);")
+            self._ddl_kolon(db, "ALTER TABLE warehouse.part_categories ADD COLUMN IF NOT EXISTS stock_tracking_type VARCHAR(20) DEFAULT 'Stok Takipli';")
+            self._ddl_kolon(db, "ALTER TABLE warehouse.part_categories ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;")
+            self._ddl_kolon(db, "ALTER TABLE warehouse.part_categories ADD COLUMN IF NOT EXISTS description TEXT;")
+            self._ddl_kolon(db, "ALTER TABLE warehouse.part_categories ADD COLUMN IF NOT EXISTS part_type VARCHAR(100);")
             db.commit()
         except Exception as e:
             db.rollback()
@@ -1275,11 +1312,11 @@ class WebBridge(QObject):
         from sqlalchemy import text
         db = SessionLocal()
         try:
-            db.execute(text("ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS part_category_id INTEGER REFERENCES warehouse.part_categories(id);"))
-            db.execute(text("ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS barcode VARCHAR(100);"))
-            db.execute(text("ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS part_type VARCHAR(100);"))
-            db.execute(text("ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS brand VARCHAR(100);"))
-            db.execute(text("ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS model VARCHAR(100);"))
+            self._ddl_kolon(db, "ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS part_category_id INTEGER REFERENCES warehouse.part_categories(id);")
+            self._ddl_kolon(db, "ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS barcode VARCHAR(100);")
+            self._ddl_kolon(db, "ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS part_type VARCHAR(100);")
+            self._ddl_kolon(db, "ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS brand VARCHAR(100);")
+            self._ddl_kolon(db, "ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS model VARCHAR(100);")
             db.commit()
         except Exception as e:
             db.rollback()
@@ -1292,7 +1329,7 @@ class WebBridge(QObject):
         from sqlalchemy import text
         db = SessionLocal()
         try:
-            db.execute(text("ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS department VARCHAR(255);"))
+            self._ddl_kolon(db, "ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS department VARCHAR(255);")
             db.commit()
         except Exception as e:
             db.rollback()
@@ -1305,7 +1342,7 @@ class WebBridge(QObject):
         from sqlalchemy import text
         db = SessionLocal()
         try:
-            db.execute(text("ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'Aktif';"))
+            self._ddl_kolon(db, "ALTER TABLE warehouse.parts ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'Aktif';")
             db.commit()
         except Exception as e:
             db.rollback()
@@ -1374,15 +1411,15 @@ class WebBridge(QObject):
         from sqlalchemy import text
         db = SessionLocal()
         try:
-            db.execute(text("ALTER TABLE warehouse.repair_records ADD COLUMN IF NOT EXISTS part_item_code VARCHAR(100);"))
-            db.execute(text("ALTER TABLE warehouse.repair_records ADD COLUMN IF NOT EXISTS item_fault_code VARCHAR(255);"))
-            db.execute(text("ALTER TABLE warehouse.repair_records ADD COLUMN IF NOT EXISTS supply_status_code VARCHAR(255);"))
-            db.execute(text("ALTER TABLE warehouse.repair_records ADD COLUMN IF NOT EXISTS supply_requested_by VARCHAR(100);"))
-            db.execute(text("ALTER TABLE warehouse.repair_records ADD COLUMN IF NOT EXISTS supply_requested_at TIMESTAMP;"))
+            self._ddl_kolon(db, "ALTER TABLE warehouse.repair_records ADD COLUMN IF NOT EXISTS part_item_code VARCHAR(100);")
+            self._ddl_kolon(db, "ALTER TABLE warehouse.repair_records ADD COLUMN IF NOT EXISTS item_fault_code VARCHAR(255);")
+            self._ddl_kolon(db, "ALTER TABLE warehouse.repair_records ADD COLUMN IF NOT EXISTS supply_status_code VARCHAR(255);")
+            self._ddl_kolon(db, "ALTER TABLE warehouse.repair_records ADD COLUMN IF NOT EXISTS supply_requested_by VARCHAR(100);")
+            self._ddl_kolon(db, "ALTER TABLE warehouse.repair_records ADD COLUMN IF NOT EXISTS supply_requested_at TIMESTAMP;")
             # Teknisyene Atama - work_orders.assigned_technician ile ayni isimlendirme
-            db.execute(text("ALTER TABLE warehouse.repair_records ADD COLUMN IF NOT EXISTS assigned_technician VARCHAR(150);"))
-            db.execute(text("ALTER TABLE warehouse.repair_records ADD COLUMN IF NOT EXISTS assigned_by VARCHAR(100);"))
-            db.execute(text("ALTER TABLE warehouse.repair_records ADD COLUMN IF NOT EXISTS assigned_at TIMESTAMP;"))
+            self._ddl_kolon(db, "ALTER TABLE warehouse.repair_records ADD COLUMN IF NOT EXISTS assigned_technician VARCHAR(150);")
+            self._ddl_kolon(db, "ALTER TABLE warehouse.repair_records ADD COLUMN IF NOT EXISTS assigned_by VARCHAR(100);")
+            self._ddl_kolon(db, "ALTER TABLE warehouse.repair_records ADD COLUMN IF NOT EXISTS assigned_at TIMESTAMP;")
             # KALDIRILDI - burada eskiden her açılışta şu güncelleme çalışıyordu:
             #     SET assigned_technician = rr.supply_requested_by
             #     WHERE repair_result_type_code = 1001 AND assigned_technician boş
@@ -1408,7 +1445,7 @@ class WebBridge(QObject):
         from sqlalchemy import text
         db = SessionLocal()
         try:
-            db.execute(text("ALTER TABLE warehouse.batch_entries ADD COLUMN IF NOT EXISTS customer_diagnosis TEXT;"))
+            self._ddl_kolon(db, "ALTER TABLE warehouse.batch_entries ADD COLUMN IF NOT EXISTS customer_diagnosis TEXT;")
             db.commit()
         except Exception as e:
             db.rollback()
@@ -1428,9 +1465,9 @@ class WebBridge(QObject):
         from sqlalchemy import text
         db = SessionLocal()
         try:
-            db.execute(text("ALTER TABLE warehouse.batch_entries ADD COLUMN IF NOT EXISTS service_id UUID;"))
-            db.execute(text("ALTER TABLE warehouse.service_records ADD COLUMN IF NOT EXISTS service_id UUID;"))
-            db.execute(text("ALTER TABLE warehouse.work_orders ADD COLUMN IF NOT EXISTS service_id UUID;"))
+            self._ddl_kolon(db, "ALTER TABLE warehouse.batch_entries ADD COLUMN IF NOT EXISTS service_id UUID;")
+            self._ddl_kolon(db, "ALTER TABLE warehouse.service_records ADD COLUMN IF NOT EXISTS service_id UUID;")
+            self._ddl_kolon(db, "ALTER TABLE warehouse.work_orders ADD COLUMN IF NOT EXISTS service_id UUID;")
             db.commit()
 
             missing_ids = db.execute(text(
@@ -10075,7 +10112,6 @@ class WebBridge(QObject):
         QAC alani, o cihaza ait en guncel Phonecheck test sonucundan (grade/working) doldurulur —
         TEC/SupplyStatu/Labour Phonecheck'te karsiligi olmayan ic surec bilgileri oldugu icin bos kalir."""
         from sqlalchemy import text
-        from models.phonecheck_test_result import PhonecheckTestResult
         db = SessionLocal()
         try:
             term = (term or "").strip()
@@ -10085,35 +10121,83 @@ class WebBridge(QObject):
             entry = self._find_batch_entry_by_term(db, term)
             lookup_imei = (entry.imei_number if entry else None) or term
 
+            # ONARIM KAYITLARI HEM IMEI HEM service_id ILE YAZILMIS OLABILIR.
+            # _resolve_service_record_id_for_new_repair, cihazin batch_entries.service_id'si
+            # varsa onarimi IMEI yerine service_id ile yaziyor (artik her yeni girişte
+            # üretiliyor). Burada yalnizca IMEI aranıyordu; bu yüzden service_id ile yazılmış
+            # kayıtların TAMAMI kaçıyor ve Servis ekranındaki "Alt Onarımlar" ile "Onarım
+            # Parça ve İşçilikleri" tabloları BOŞ görünüyordu (ölçüldü: 5 kayıtlı cihazda 0).
+            # Diğer uçlar (get_repair_operations_by_imei, get_deliverable_parts_for_device)
+            # zaten her iki referansı da arıyor; bu uç güncellenmemişti.
+            refs = [lookup_imei]
+            if term and term != lookup_imei:
+                refs.append(term)
+            if entry is not None and getattr(entry, "service_id", None):
+                refs.append(str(entry.service_id))
+            sr_row = db.execute(text("""
+                SELECT id FROM warehouse.service_records
+                WHERE LOWER(TRIM(imei_number)) = LOWER(:t) OR LOWER(TRIM(imei_serial)) = LOWER(:t)
+                ORDER BY id DESC LIMIT 1
+            """), {"t": lookup_imei}).first()
+            if sr_row and sr_row[0]:
+                refs.append(str(sr_row[0]))
+
             rows = db.execute(text("""
                 SELECT rr.department_mission, rrt.short_name, rr.operation_type_code,
                        rr.item_category, rr.part_item_code, rr.item_fault_code, rr.notes,
-                       rr.created_at, rr.updated_at
+                       rr.created_at, rr.updated_at,
+                       -- TEC sütunu: onarımı üstlenen teknisyen. Eskiden sabit boş ("")
+                       -- basılıyordu, "hangi teknisyen onarımı tamamladı" hiç görünmüyordu.
+                       COALESCE(NULLIF(TRIM(u.fullname), ''), rr.assigned_technician) AS tec_name,
+                       mg.short_name AS mission_group_name
                 FROM warehouse.repair_records rr
                 LEFT JOIN warehouse.repair_result_type rrt ON rrt.code = rr.repair_result_type_code
-                WHERE rr.service_record_id = :imei
+                LEFT JOIN warehouse.users u ON u.username = rr.assigned_technician
+                LEFT JOIN organization.mission_groups mg ON mg.code = rr.department_mission
+                WHERE rr.service_record_id = ANY(:refs)
                 ORDER BY rr.created_at DESC
-            """), {"imei": lookup_imei}).fetchall()
+            """), {"refs": refs}).fetchall()
 
-            latest_pc = db.query(PhonecheckTestResult).filter(
-                PhonecheckTestResult.imei == lookup_imei
-            ).order_by(PhonecheckTestResult.fetched_at.desc()).first()
+            # QAC sütunu: cihazın EN GÜNCEL test kaydından "hangi test aşaması" +
+            # "testi kim yaptı". Eskiden yalnızca Phonecheck notu (grade/working)
+            # basılıyordu; tek bir harf ("A") olduğu için hangi testten geldiği ve kimin
+            # yaptığı görünmüyordu - Ara Test ile Son Test ayırt edilemiyordu.
+            # test_stage, service_statu_map.code formatındadır ("138_124"), okunur adı
+            # oradan gelir. Kişi elle işlenen kayıtlarda manual_entered_by'dadır
+            # (Phonecheck API'sinden çekilen kayıtlarda boştur, o zaman yalnızca aşama yazılır).
+            pc = db.execute(text("""
+                SELECT p.test_stage, p.grade, p.working,
+                       p.battery_cycle, p.battery_health_percentage,
+                       m.short_name AS stage_name,
+                       COALESCE(NULLIF(TRIM(u.fullname), ''), p.manual_entered_by) AS tester
+                  FROM warehouse.phonecheck_test_results p
+                  LEFT JOIN warehouse.service_statu_map m ON m.code = p.test_stage
+                  LEFT JOIN warehouse.users u ON u.username = p.manual_entered_by
+                 WHERE p.imei = :imei
+                 ORDER BY p.fetched_at DESC NULLS LAST, p.id DESC
+                 LIMIT 1
+            """), {"imei": lookup_imei}).mappings().first()
+
+            battery_cycle = pc["battery_cycle"] if pc else None
+            battery_health = pc["battery_health_percentage"] if pc else None
 
             qac_value = ""
-            battery_cycle = None
-            battery_health = None
-            if latest_pc:
-                qac_value = latest_pc.grade or latest_pc.working or ""
-                battery_cycle = latest_pc.battery_cycle
-                battery_health = latest_pc.battery_health_percentage
+            if pc:
+                asama = (pc["stage_name"] or pc["test_stage"] or "").strip()
+                kisi = (pc["tester"] or "").strip()
+                sonuc = (pc["grade"] or pc["working"] or "").strip()
+                qac_value = " · ".join(x for x in (asama, kisi, sonuc) if x)
 
             def fmt(dt):
                 return dt.strftime("%Y-%m-%d %H:%M") if dt else ""
 
             items = [{
-                "missionGroup": r[0] or "",
+                # Görev grubu okunur adıyla; yoksa ham kod. DISMANTLE, diğer ekranlarla
+                # tutarlı olsun diye "L1 Onarımı" gösterilir.
+                "missionGroup": ("L1 Onarımı" if (r[0] or "") == "DISMANTLE"
+                                 else (r[10] or r[0] or "")),
                 "repairStatu": r[1] or "",
-                "tec": "",
+                "tec": r[9] or "",
                 "repairStartTime": fmt(r[7]),
                 "repairFinishTime": fmt(r[8]) if r[8] and r[8] != r[7] else "",
                 "qac": qac_value,
@@ -10146,6 +10230,12 @@ class WebBridge(QObject):
           3) Kayit (100) + guncel statu — her zaman iki uc nokta olarak eklenir.
         Ayni statu+dakika birden fazla kaynaktan gelirse tekillestirilir (log > phonecheck >
         sentetik oncelik sirasiyla). Sonuc en yeni ustte olacak sekilde siralanir."""
+        # DİKKAT: bu fonksiyonda "text" adı, olay demetlerini açan döngülerde
+        # (for ... staff, text in events) yerel değişken olarak EZİLİYOR. sqlalchemy.text
+        # düz adıyla alınırsa o döngülerden sonra çağrıldığında "'str' object is not
+        # callable" hatası veriyor; bu yüzden takma adla alınıyor.
+        import re
+        from sqlalchemy import text as _sqltext
         from models.service_statu import ServiceStatu
         from models.batch_entry_statu_history import BatchEntryStatuHistory
         from models.phonecheck_test_result import PhonecheckTestResult
@@ -10228,12 +10318,221 @@ class WebBridge(QObject):
                 return dt.timestamp()
             ordered = sorted(best.values(), key=_sort_key, reverse=True)
 
-            items = [{
+            satirlar = [(dt, {
                 "date": fmt(dt),
                 "staffName": staff,
                 "statu": label(code),
                 "text": text,
-            } for (_prio, dt, code, staff, text) in ordered]
+            }) for (_prio, dt, code, staff, text) in ordered]
+
+            # 4) TEST KAYITLARI — HER TEST AYRI SATIR.
+            #    Yukarıdaki tekilleştirme (statü kodu, dakika) anahtarıyla çalışıyor; testler
+            #    o kümeye konsaydı aynı dakikadaki statü geçişiyle birleşip kaybolurdu. Bu
+            #    yüzden ayrı toplanıp en sonda harmanlanıyor - böylece aynı statüye ait
+            #    birden fazla test denemesi (ör. 2 kez başarısız, 3. seferde başarılı)
+            #    tek tek görünür.
+            #    Başarı/başarısızlık working alanından, başarısızlık gerekçesi ise
+            #    manual_reason/notes'tan gelir (submit_test_result oraya "Test Başarısız —
+            #    <açıklama> / Hatalı Parçalar: ..." metnini yazar).
+            ad_cache = {}
+
+            def tam_ad(kullanici):
+                k = (kullanici or "").strip()
+                if not k:
+                    return ""
+                if k not in ad_cache:
+                    r = db.execute(_sqltext(
+                        "SELECT fullname FROM warehouse.users WHERE username = :u LIMIT 1"
+                    ), {"u": k}).first()
+                    ad_cache[k] = (r[0].strip() if r and r[0] and r[0].strip() else k)
+                return ad_cache[k]
+
+            BASARILI = {"yes", "true", "1", "ok", "pass", "passed", "başarılı", "basarili"}
+            BASARISIZ = {"no", "false", "0", "fail", "failed", "başarısız", "basarisiz"}
+
+            for r in pc_rows:
+                stage = (r.test_stage or "").strip()
+                bolum = stage.split("_")
+                if len(bolum) == 2 and bolum[0].isdigit() and bolum[1].isdigit():
+                    asama = f"{label(int(bolum[0]))} → {label(int(bolum[1]))}"
+                else:
+                    asama = stage or "Test"
+
+                calisiyor = (r.working or "").strip().lower()
+                if calisiyor in BASARILI:
+                    sonuc = "TEST PASS"
+                elif calisiyor in BASARISIZ:
+                    # Başarısız testte cihaz 109'a, onarımlar da teknisyene geri döner
+                    # (bkz. submit_test_result: 1002 kayıtlar 1001'e çekilir).
+                    sonuc = "TEST FAIL — teknisyene geri gönderildi"
+                else:
+                    sonuc = "Test kaydı"
+
+                # Tekrar denemeler ayırt edilsin, ama ilk denemede gereksiz kalabalık olmasın.
+                deneme = ""
+                if getattr(r, "attempt_no", None) and r.attempt_no > 1:
+                    deneme = f" ({r.attempt_no}. deneme)"
+
+                # TEXT SÜTUNU YALNIZCA AÇIKLAMADIR. Eskiden aşama adı ("İlk test bekleniyor
+                # (103) → İlk test tamamlandı (104)") buraya yazılıyordu; statü sütunuyla
+                # tekrar ediyor ve asıl gerekçeyi gölgeliyordu.
+                aciklama = (getattr(r, "manual_reason", None) or r.notes or "").strip()
+                if not aciklama and (r.failed or "").strip():
+                    aciklama = f"Başarısız kalemler: {r.failed.strip()}"
+                # Notun başındaki "[05.08.2026 15:32] Test Başarısız — " gibi damga/etiket
+                # kırpılır: tarih zaten Date sütununda, sonuç da Statü sütununda yazıyor.
+                aciklama = re.sub(r"^\[[^\]]*\]\s*", "", aciklama)
+                aciklama = re.sub(r"^Test\s+(Başarısız|Basarisiz|Başarılı|Basarili|olumlu|olumsuz)\s*[—\-:]\s*",
+                                  "", aciklama, flags=re.IGNORECASE)
+
+                aciklama = aciklama.strip()
+                # FAIL satırlarında sebep, statü sütununda da parantez içinde görünür;
+                # tam metin Text sütununda kalır (uzun notlar sütunu taşırmasın diye kırpılır).
+                sebep = ""
+                if "FAIL" in sonuc and aciklama:
+                    kisa = aciklama.replace("\n", " / ")
+                    sebep = f" ({kisa[:60]}…)" if len(kisa) > 60 else f" ({kisa})"
+
+                satirlar.append((r.fetched_at, {
+                    "date": fmt(r.fetched_at),
+                    # Testi onaylayan / onaylamayan kişi.
+                    "staffName": tam_ad(getattr(r, "manual_entered_by", "")),
+                    "statu": f"{sonuc}{deneme}{sebep}",
+                    "text": aciklama,
+                }))
+
+            # 5) ONARIM BİTİŞLERİ — her onarımın kapanışı AYRI SATIR.
+            #    Onarım tamamlama (repair_result_type_code 1002) cihazın STATÜSÜNÜ
+            #    değiştirmediği için batch_entry_statu_history'ye hiç düşmüyor; sonuç
+            #    olarak "Hızlı Onarım Bitiş" ve "Üretim Kaydını Görüntüle" ekranlarından
+            #    kapatılan onarımlar Durum sekmesinde hiç görünmüyordu. Kayıtlar
+            #    repair_records'tan okunup geçmişe harmanlanıyor.
+            #    İptaller (1003) de gösteriliyor - bir onarımın neden kapandığı kadar
+            #    neden iptal edildiği de takip için gerekli.
+            #    ZAMAN: tabloda ayrı bir "tamamlanma zamanı" sütunu yok, updated_at
+            #    kullanılıyor. Kapanıştan sonra kayıt tekrar düzenlenirse bu damga kayar.
+            # ONARIM BİTİŞ TESTİ notu, quick_complete_repair tarafından onarımın notes
+            # alanına şu biçimde EKLENEREK yazılıyor (birden fazla deneme alt alta birikir):
+            #     [Onarım Bitiş Testi · BAŞARILI · kullanici · 2026-08-05 15:32] açıklama
+            # Bu bloklar tek bir hücrede üst üste binince okunmuyordu; ayrıştırılıp her
+            # deneme AYRI SATIR yapılıyor, onarım satırının metninden de çıkarılıyor.
+            TEST_NOTU = re.compile(
+                r"\[Onarım Bitiş Testi\s*·\s*([^·\]]+?)\s*·\s*([^·\]]+?)\s*·\s*([^\]]+?)\]"
+                r"\s*(.*?)(?=\[Onarım Bitiş Testi|\Z)",
+                re.DOTALL)
+
+            onarim_refs = [lookup_imei]
+            if getattr(entry, "service_id", None):
+                onarim_refs.append(str(entry.service_id))
+            # TÜM onarımlar okunur (yalnızca 1002/1003 değil): bitiş testi BAŞARISIZ dönen
+            # kayıt teknisyene geri gittiği için 1001'de kalır; o testin de görünmesi gerekir.
+            for r in db.execute(_sqltext("""
+                SELECT rr.department_mission, rr.part_item_code, rr.notes,
+                       rr.repair_result_type_code AS kod, rr.updated_at, rr.assigned_technician,
+                       rrt.short_name AS durum_adi,
+                       mg.short_name AS grup_adi,
+                       COALESCE(NULLIF(TRIM(u.fullname), ''), rr.assigned_technician) AS teknisyen
+                  FROM warehouse.repair_records rr
+                  LEFT JOIN warehouse.repair_result_type rrt ON rrt.code = rr.repair_result_type_code
+                  LEFT JOIN organization.mission_groups mg ON mg.code = rr.department_mission
+                  LEFT JOIN warehouse.users u ON u.username = rr.assigned_technician
+                 WHERE rr.service_record_id = ANY(:refs)
+            """), {"refs": onarim_refs}).mappings():
+                grup = (r["grup_adi"] or r["department_mission"] or "").strip()
+                if (r["department_mission"] or "") == "DISMANTLE":
+                    grup = "L1 Onarımı"
+                ham_not = (r["notes"] or "")
+
+                # --- Bitiş testi denemeleri: her biri ayrı satır ---
+                # Notlar eklendikleri sırayla duruyor, yani finditer kronolojik gider.
+                # Her BAŞARISIZ sonuç bir "geri dönüş"tür (kayıt teknisyene iade edilir);
+                # bunlar onarım BAZINDA numaralanır: 1. geri dönüş, 2. geri dönüş...
+                geri_donus = 0
+                for m in TEST_NOTU.finditer(ham_not):
+                    t_sonuc = (m.group(1) or "").strip()
+                    t_kisi = (m.group(2) or "").strip()
+                    t_zaman = (m.group(3) or "").strip()
+                    t_aciklama = (m.group(4) or "").strip()
+                    try:
+                        # Not yerel saatle yazılıyor (datetime.now); aynı eksende kalsın diye
+                        # yerel dilim bilgisi ekleniyor.
+                        t_dt = _dt.datetime.strptime(t_zaman, "%Y-%m-%d %H:%M").astimezone()
+                    except (ValueError, TypeError):
+                        t_dt = r["updated_at"]
+                    olumlu = "BAŞARILI" in t_sonuc.upper()
+                    if olumlu:
+                        baslik = "BİTİŞ TESTİ PASS"
+                        # Kaç geri dönüşten sonra geçtiği, testin kendi satırından okunabilsin.
+                        if geri_donus:
+                            baslik += f" · {geri_donus}. geri dönüşten sonra"
+                    else:
+                        geri_donus += 1
+                        baslik = f"BİTİŞ TESTİ FAIL · {geri_donus}. geri dönüş"
+                        # FAIL'de sebep statü sütununda da parantez içinde yazsın.
+                        if t_aciklama:
+                            kisa = t_aciklama.replace("\n", " / ")
+                            baslik += f" ({kisa[:60]}…)" if len(kisa) > 60 else f" ({kisa})"
+                    # Departman EN BAŞTA.
+                    satirlar.append((t_dt, {
+                        "date": t_zaman or fmt(t_dt),
+                        # Testi onaylayan / onaylamayan kişi.
+                        "staffName": tam_ad(t_kisi) if t_kisi and t_kisi != "?" else "",
+                        "statu": f"{grup} — {baslik}" if grup else baslik,
+                        "text": t_aciklama,
+                    }))
+
+                    # Başarısız testin SONUCU: kayıt 1001'e (Teknisyene Atandı) düşer ve
+                    # teknisyene geri gider (bkz. quick_complete_repair). Bu bir onarım
+                    # kaydı statüsü olduğu için cihazın statü geçmişine hiç yazılmıyor;
+                    # kimin üzerine geri düştüğü de test satırından okunamıyordu (orada
+                    # testi YAPAN kişi yazıyor). Ayrı satır olarak eklenir.
+                    if not olumlu:
+                        tekn = (r["teknisyen"] or "").strip()
+                        # Sıralama testten hemen SONRA olsun diye 1 sn ileri alınır;
+                        # nottaki damga dakika hassasiyetinde olduğu için görünen tarih aynı.
+                        d_dt = (t_dt + _dt.timedelta(seconds=1)) if t_dt else t_dt
+                        satirlar.append((d_dt, {
+                            "date": t_zaman or fmt(t_dt),
+                            "staffName": tekn,
+                            "statu": (f"{grup} — TEKNİSYENE GERİ ATANDI (1001)"
+                                      if grup else "TEKNİSYENE GERİ ATANDI (1001)"),
+                            "text": (f"{tekn} üzerine yeniden açıldı — onarım sürüyor."
+                                     if tekn else "Onarım yeniden açıldı — teknisyen atanmamış."),
+                        }))
+
+                # Onarımın kendi satırı yalnızca kapanmış kayıtlar için.
+                if r["kod"] not in (1002, 1003):
+                    continue
+                bitis = "ONARIM TAMAMLANDI" if r["kod"] == 1002 else "ONARIM İPTAL EDİLDİ"
+                if geri_donus:
+                    # Onarımın kaç kez teknisyene geri döndüğü kapanış satırında da yazsın;
+                    # tek satıra bakarak sürecin sancılı geçip geçmediği görülsün.
+                    bitis += f" ({geri_donus} geri dönüş sonrası)"
+                # Departman EN BAŞTA; metinde tekrar edilmez.
+                bitis = f"{grup} — {bitis}" if grup else bitis
+                # Bitiş testi blokları metinden çıkarılır - kendi satırlarında zaten var.
+                kalan_not = TEST_NOTU.sub("", ham_not).strip()
+                metin = " · ".join(x for x in (
+                    (r["part_item_code"] or "").strip(),
+                    kalan_not,
+                ) if x)
+                # ZAMAN DİLİMİ: repair_records.updated_at TIMESTAMP (naive) ve UTC olarak
+                # yazılıyor (datetime.utcnow); statü geçmişi ise TIMESTAMPTZ olduğu için
+                # yerel saatle geliyor. Dönüştürülmezse aynı an tabloda 12:32 ve 15:32
+                # diye iki farklı saatle görünüyor. Naive değer UTC kabul edilip yerel
+                # saate çevriliyor - diğer satırlarla aynı eksene oturuyor.
+                ts = r["updated_at"]
+                if ts is not None and ts.tzinfo is None:
+                    ts = ts.replace(tzinfo=_dt.timezone.utc).astimezone()
+                satirlar.append((ts, {
+                    "date": fmt(ts),
+                    "staffName": (r["teknisyen"] or "").strip(),
+                    "statu": bitis,   # departman zaten başa eklendi
+                    "text": metin,
+                }))
+
+            satirlar.sort(key=lambda x: _sort_key((None, x[0])), reverse=True)
+            items = [d for (_dt, d) in satirlar]
 
             return json.dumps({"success": True, "items": items})
         except Exception as e:
@@ -13335,6 +13634,38 @@ class WebBridge(QObject):
                         "'Müşteri Onayına Sun' adımından geçip onay alınmalı, ardından "
                         "'Onay Geldi - Tamamla' ile kapatılmalıdır.")
 
+        # 4) GÖREV GRUBU HİYERARŞİSİ (seviye sırası)
+        #    organization.mission_groups.order_number iş sırasını belirler:
+        #    BÜYÜK olan ÖNCE işlenir, AYNI değerdekiler paralel çalışabilir
+        #    (bkz. models/mission_group.py). Sahadaki seviyeler:
+        #      RMA 99  >  L3REPAIR 9  >  BATTERY/CAMERA/CASE/DISPLAY 7  >  L1REPAIR/L2REPAIR 6
+        #    Bu yüzden bir onarım, aynı cihazda KENDİSİNDEN DAHA YÜKSEK sıralı bir grupta
+        #    hâlâ açık (tamamlanmamış ve iptal edilmemiş) onarım varken kapatılamaz.
+        #    order_number'ı olmayan gruplar (ör. DISMANTLE/DGD işçiliği) sıralamaya
+        #    girmez: ne engeller ne de engellenir.
+        my_group = (rec.department_mission or "").strip()
+        if my_group:
+            my_order = db.execute(text("""
+                SELECT order_number FROM organization.mission_groups WHERE code = :c LIMIT 1
+            """), {"c": my_group}).scalar()
+            if my_order is not None:
+                onceki = db.execute(text("""
+                    SELECT mg.short_name, mg.order_number, count(*) AS adet
+                      FROM warehouse.repair_records rr2
+                      JOIN organization.mission_groups mg ON mg.code = rr2.department_mission
+                     WHERE rr2.service_record_id = :ref
+                       AND rr2.repair_result_type_code NOT IN (1002, 1003)
+                       AND mg.order_number IS NOT NULL
+                       AND mg.order_number > :ord
+                     GROUP BY mg.short_name, mg.order_number
+                     ORDER BY mg.order_number DESC
+                """), {"ref": rec.service_record_id, "ord": my_order}).mappings().all()
+                if onceki:
+                    adlar = ", ".join(f"{r['short_name']} ({r['adet']} kayıt)" for r in onceki)
+                    return ("Bu onarım şu an tamamlanamaz! İş sırasına göre önce daha üst "
+                            f"seviyedeki onarımların bitmesi gerekiyor: {adlar}. "
+                            "Bu gruplar tamamlandığında bu onarım kapatılabilir.")
+
         return None
 
     def _repair_cancellation_blocker(self, db, rec):
@@ -13651,6 +13982,20 @@ class WebBridge(QObject):
                                    "message": "109 → 138 geçişi tanımlı/aktif değil."}, ensure_ascii=False)
 
             entry.statu_code = 138
+
+            # GEÇİŞ GÜNLÜĞÜNE YAZ. Bu satır eksikti: statü değişiyor ama
+            # batch_entry_statu_history'ye kayıt düşmüyordu. Sonuç: Servis ekranındaki
+            # statü geçmişinde 109 → 138 adımı hiç görünmüyor, cihaz sanki ara teste
+            # uğramadan 124'e geçmiş gibi duruyordu (menüden giden yol -
+            # execute_batch_entry_statu_transition - günlüğe yazdığı için orada sorun yok).
+            eski_ad = (db.query(ServiceStatu).filter_by(code=109).first() or None)
+            yeni_ad = (db.query(ServiceStatu).filter_by(code=138).first() or None)
+            self._record_statu_change(
+                db, entry.id, entry.imei_number, 109, 138,
+                staff=(username or "").strip() or getattr(entry, "created_by", None),
+                note=f"{(eski_ad.short_name if eski_ad else '109')} (109) → "
+                     f"{(yeni_ad.short_name if yeni_ad else '138')} (138)",
+            )
             db.commit()
             return json.dumps({
                 "success": True,
