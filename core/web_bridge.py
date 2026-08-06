@@ -13447,10 +13447,18 @@ class WebBridge(QObject):
             """), {"m": model_text}).mappings().first()
             if fam:
                 def _map_test_result(raw):
+                    # batch_entries.screen_test/power_test iki farklı gösterimle
+                    # dolduruluyor: Batch Girişi formu Türkçe kelimeler ("BAŞARILI"/
+                    # "BAŞARISIZ") yazıyor, ama gerçek verinin ezici çoğunluğu (Excel
+                    # içe aktarma / MioCreate gibi başka kaynaklardan) doğrudan "OK"/
+                    # "NOK" koduyla geliyor - DB'de %97'si bu ikinci türde. Sadece
+                    # Türkçe kelimeleri tanıyan eski hâli bu satırların tamamında
+                    # eşleşmeyi "BOŞ"a düşürüp customer_target_prices kuralını hiç
+                    # bulamıyor, limit sessizce varsayılan 9999'a düşüyordu.
                     v = (raw or "").strip().upper()
-                    if v in ("BAŞARILI", "BASARILI"):
+                    if v in ("BAŞARILI", "BASARILI", "OK"):
                         return "OK"
-                    if v in ("BAŞARISIZ", "BASARISIZ"):
+                    if v in ("BAŞARISIZ", "BASARISIZ", "NOK"):
                         return "NOK"
                     return "BOŞ"
 
