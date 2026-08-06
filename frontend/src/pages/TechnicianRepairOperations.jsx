@@ -1005,6 +1005,34 @@ const TechnicianRepairOperations = () => {
       .reduce((sum, r) => sum + partPrices[r.partItemCode], 0);
   }, [repairs, partPrices]);
 
+  // Toplam Fiyat rozetinin dinamik renk durumu:
+  // - Müşteri Onayı Bekliyor (sarı/amber): 106, 136, 1005 veya onarımlarda 1005 var
+  // - Müşteri Reddi / İade (kırmızı): 124, 108, 1003
+  // - Müşteri Onaylı / Limit İçinde / Üretimde (yeşil): 109 veya diğer normal statüler
+  const totalPriceBadgeInfo = useMemo(() => {
+    const status = device?.serviceStatus;
+    const hasPendingApprovalRepair = repairs.some(r => r.statusCode === 1005);
+    const isPendingApproval = status === 106 || status === 136 || status === 1005 || hasPendingApprovalRepair;
+    const isRejected = status === 124 || status === 108 || status === 1003;
+
+    if (isRejected) {
+      return {
+        bg: "bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300 border-red-200 dark:border-red-500/30",
+        statusText: "Müşteri Reddi / İade"
+      };
+    }
+    if (isPendingApproval) {
+      return {
+        bg: "bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-500/30",
+        statusText: "Müşteri Onayı Bekliyor"
+      };
+    }
+    return {
+      bg: "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-500/20",
+      statusText: "Müşteri Onaylı / Limit İçinde"
+    };
+  }, [device?.serviceStatus, repairs]);
+
   // "Onarımı Tamamla" iki şartı birden ister (backend'de update_repair_status
   // aynı iki kontrolü tekrar yapar; burası yalnızca butonu erkenden kilitler):
   //   1) kayıt bir teknisyene atanmış olmalı,
@@ -1326,8 +1354,8 @@ const TechnicianRepairOperations = () => {
             {repairs.length > 0 && <span className="text-[11px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md">{repairs.length} kayıt</span>}
             {totalRepairPrice > 0 && (
               <span
-                className="text-[11px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 px-2 py-0.5 rounded-md"
-                title="Cihazdaki tüm aktif onarımların toplam fiyatı"
+                className={`text-[11px] font-bold px-2 py-0.5 rounded-md border ${totalPriceBadgeInfo.bg}`}
+                title={`Cihazdaki tüm aktif onarımların toplam fiyatı (${totalPriceBadgeInfo.statusText})`}
               >
                 Toplam: {totalRepairPrice.toFixed(2)} {device?.currency || ''}
               </span>

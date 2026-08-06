@@ -332,6 +332,29 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
       .reduce((sum, r) => sum + partPrices[r.partItemCode], 0);
   }, [activeRepairs, partPrices]);
 
+  const totalPriceBadgeInfo = useMemo(() => {
+    const status = device?.serviceStatus || device?.statuCode;
+    const isPendingApproval = status === 106 || status === 136 || status === 1005 || isPriceExceeded;
+    const isRejected = status === 124 || status === 108 || status === 1003;
+
+    if (isRejected) {
+      return {
+        bg: "bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300 border-red-200 dark:border-red-500/30",
+        statusText: "Müşteri Reddi / İade"
+      };
+    }
+    if (isPendingApproval) {
+      return {
+        bg: "bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-500/30",
+        statusText: "Müşteri Onayı Bekliyor"
+      };
+    }
+    return {
+      bg: "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-500/20",
+      statusText: "Müşteri Onaylı / Limit İçinde"
+    };
+  }, [device?.serviceStatus, device?.statuCode, isPriceExceeded]);
+
   const handleSubmitDecision = useCallback(async () => {
     if (!device?.imei || !hasRepairs || deciding) return;
     if (!hasNonDgdRepairs) {
@@ -668,8 +691,8 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
               <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Onarım Takımları</label>
               {totalRepairPrice > 0 && (
                 <span
-                  className="text-[11px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 px-2 py-0.5 rounded-md"
-                  title="Teklif parçalarının toplam fiyatı"
+                  className={`text-[11px] font-bold px-2 py-0.5 rounded-md border ${totalPriceBadgeInfo.bg}`}
+                  title={`Teklif parçalarının toplam fiyatı (${totalPriceBadgeInfo.statusText})`}
                 >
                   Toplam: {totalRepairPrice.toFixed(2)} {device?.currency || ''}
                 </span>
