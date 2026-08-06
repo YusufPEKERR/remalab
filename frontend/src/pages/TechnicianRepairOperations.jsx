@@ -1498,21 +1498,9 @@ const TechnicianRepairOperations = () => {
               ) : (
                 <span className="text-xs text-slate-400 dark:text-slate-500">Atanmadı</span>
               )}
-              {/* "Değiştir" SADECE atama varken çıkar. Atama yokken üst bardaki
-                  "Teknisyene Ata" butonu zaten görünür durumda (statü 1000);
-                  aynı işlem için iki buton olmasın diye burada tekrarlanmıyor.
-                  Atandıktan sonra üstteki buton kaybolduğu için değiştirmenin
-                  tek yolu burasıdır. */}
-              {selectedGroup.active.assignedTechnicianName && (
-                <button
-                  onClick={() => openAssignModal(selectedGroup.active)}
-                  disabled={!hasAccess || selectedGroup.active.isCancelled}
-                  className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-[#1e222d] text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#181a24] disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
-                  title="Bu onarımın teknisyenini değiştir (tüm parçaları kapsar)"
-                >
-                  Değiştir
-                </button>
-              )}
+              {/* Onarım Parçaları başlığındaki "Değiştir" butonu KALDIRILDI.
+                  Atanmış teknisyen bu ekrandan değiştirilmez; atama yalnızca
+                  üst bardaki "Teknisyene Ata" ile (statü 1000/1004) yapılır. */}
             </div>
           </div>
           <div className="overflow-x-auto">
