@@ -315,6 +315,12 @@ const StatusAdvanceModal = ({ repair, onClose, onAdvance }) => {
   // aşamaları yapılabilmelidir. Diğer karmaşık ara statüler kaldırıldı.
   if (current === 1000) {
     rawOptions.push({ code: 1001, label: "Teknisyene Ata" });
+  } else if (current === 1004) {
+    // Sırası gelmemiş onarım (Yüksek Seviye Onarımını Bekliyor): TEKNİSYEN
+    // ATANABİLİR - iş önden planlansın. Ama statü 1004'te kalır; parça teslimi
+    // ve onarımı tamamlama üst seviye bitene kadar kapalıdır. Atama kaydın
+    // teknisyenini yazar, statüyü ilerletmez (backend sırayı yeniden hesaplar).
+    rawOptions.push({ code: 1001, label: "Teknisyene Ata" });
   } else if (current !== 1003) {
     // TAMAMLANMIŞ onarım (1002) da yeniden açılabilir. Eskiden 1002 burada dışarıda
     // bırakılıyordu; "Onarıma Devam Et" penceresi açılıyor ama içi boş geliyor
@@ -966,6 +972,11 @@ const TechnicianRepairOperations = () => {
   //   2) stok takipli parçaların hepsi depodan teslim alınmış olmalı.
   const completeBlockReason = useMemo(() => {
     if (!selectedRepair) return null;
+    // Görev grubu sırası (seviyelendirme): sırası gelmemiş onarım backend'de 1004'e
+    // (Yüksek Seviye Onarımını Bekliyor) alınır. Sıra RMA → L3 → Batarya/Kamera/
+    // Kasa/Ekran → L1/L2 şeklindedir; üst seviye kapanınca kayıt kendiliğinden açılır.
+    if (selectedRepair.statusCode === 1004)
+      return "Bu onarımın sırası gelmedi — önce üst seviye onarımlar tamamlanmalı";
     if (!(selectedRepair.assignedTechnician || "").trim())
       return "Kayıt teknisyene atanmadan onarım tamamlanamaz";
     const bekleyen = (selectedGroup?.items || [])
@@ -1311,7 +1322,10 @@ const TechnicianRepairOperations = () => {
               )}
               {/* Bu ekranda etiket yazdırma YOK. Barkod, Demontaj'da "Üretime Aktar"
                   anında ve Son Test Sonuç ekranında basılıyor. */}
-              {selectedRepair && selectedRepair.statusCode === 1000 && (
+              {/* 1004 (sırada bekliyor) kayda da teknisyen atanabilir: iş önden
+                  planlanır, ama statü 1004'te kalır - parça teslimi ve tamamlama
+                  üst seviye onarımlar bitene kadar kapalıdır. */}
+              {selectedRepair && (selectedRepair.statusCode === 1000 || selectedRepair.statusCode === 1004) && (
                 <button
                   onClick={() => handleAdvanceStatus(selectedRepair.id, 1001)}
                   disabled={!hasAccess}
@@ -1329,7 +1343,15 @@ const TechnicianRepairOperations = () => {
                   <Play size={14} /> Onarım Devam Ediyor
                 </button>
               )}
-              {selectedRepair && selectedRepair.statusCode !== 1002 && selectedRepair.statusCode !== 1003 && selectedRepair.statusCode !== 1006 && (() => {
+              {selectedRepair && selectedRepair.statusCode === 1004 && (
+                <span
+                  className="px-3.5 py-2 rounded-xl bg-violet-600/20 text-violet-700 dark:text-violet-300 border border-violet-500/30 text-xs font-bold flex items-center gap-1.5"
+                  title="Görev grubu sırası: önce üst seviye onarımlar (RMA → L3 → Batarya/Kamera/Kasa/Ekran → L1/L2) bitmeli. Onlar kapandığında bu onarım kendiliğinden açılır."
+                >
+                  <Clock size={14} /> Sırada Bekliyor
+                </span>
+              )}
+              {selectedRepair && selectedRepair.statusCode !== 1002 && selectedRepair.statusCode !== 1003 && selectedRepair.statusCode !== 1006 && selectedRepair.statusCode !== 1004 && (() => {
                 const dept = (selectedRepair.missionGroupCode || selectedRepair.missionGroup || "").toUpperCase();
                 const toTest = COMPLETION_TEST_DEPARTMENTS.has(dept);
                 return (

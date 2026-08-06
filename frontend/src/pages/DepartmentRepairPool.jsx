@@ -410,6 +410,17 @@ const DepartmentRepairPool = () => {
                             <ClipboardCheck size={12} />
                             Bitiş Testinde (1006)
                           </span>
+                        ) : Number(item.statusCode) === 1004 ? (
+                          // Görev grubu sırası: RMA → L3 → Batarya/Kamera/Kasa/Ekran → L1/L2.
+                          // Sırası gelmeyen onarım havuzda beklemede durur; üst seviye
+                          // kapandığında backend kaydı kendiliğinden 1000/1001'e döndürür.
+                          <span
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold bg-violet-500/10 text-violet-600 dark:text-violet-400 border border-violet-500/20"
+                            title="Üst seviye onarımlar bitmeden bu onarıma başlanamaz."
+                          >
+                            <Clock size={12} />
+                            Sırada Bekliyor (1004)
+                          </span>
                         ) : item.assignedTechnician ? (
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
                             Atandı / Onarımda (1001)

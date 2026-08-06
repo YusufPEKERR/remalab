@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Scan, Info, Layers, Package, Search, RefreshCw, CheckCircle, AlertCircle, RotateCcw, X } from 'lucide-react';
+import { Scan, Info, Layers, Package, Search, RefreshCw, CheckCircle, AlertCircle, RotateCcw, X, Clock } from 'lucide-react';
 import { api } from '../services/api';
 
 function getCurrentUser() {
@@ -110,6 +110,14 @@ export default function ParcaTeslim() {
     }
     if (targetPart.goodStockQty < 1 && !targetPart.isStoksuz) {
       setError(`'${targetPart.partName}' Good Stock depoda tükenmiştir.`);
+      return;
+    }
+    // Görev grubu sırası - hızlı istemci kontrolü. Asıl kural backend'dedir
+    // (deliver_part_to_device, 1004 kaydı reddeder).
+    if (targetPart.isWaitingTurn) {
+      setError(targetPart.waitingFor
+        ? `'${targetPart.partName}' teslim edilemez: bu onarımın sırası gelmedi. Önce şu onarımlar tamamlanmalı: ${targetPart.waitingFor}.`
+        : `'${targetPart.partName}' teslim edilemez: bu onarımın sırası gelmedi.`);
       return;
     }
 
@@ -406,6 +414,26 @@ export default function ParcaTeslim() {
                                 <RotateCcw size={14} />
                                 Parçayı Geri Al
                               </button>
+                            </div>
+                          ) : p.isWaitingTurn ? (
+                            /* Görev grubu sırası (seviyelendirme): sırası gelmemiş
+                               onarımın parçası teslim edilemez. Satır listeden
+                               KALDIRILMAZ - depocu parçanın neden verilemediğini
+                               görsün diye kilitli gösterilir. Üst seviye onarım
+                               bitince satır kendiliğinden teslim edilebilir olur. */
+                            <div className="flex items-center gap-3">
+                              <span className="px-2.5 py-1.5 rounded-lg text-xs font-bold border bg-slate-500/10 text-slate-500 dark:text-slate-400 border-slate-500/20">
+                                Good Stock: {p.goodStockQty}
+                              </span>
+                              <span
+                                className="px-3.5 py-2 rounded-xl text-xs font-extrabold bg-violet-500/10 text-violet-600 dark:text-violet-400 border border-violet-500/30 flex items-center gap-1.5"
+                                title={p.waitingFor
+                                  ? `Önce şu onarımlar tamamlanmalı: ${p.waitingFor}`
+                                  : "Üst seviye onarımlar tamamlanmadan bu parça teslim edilemez."}
+                              >
+                                <Clock size={14} />
+                                Sırada Bekliyor{p.waitingFor ? ` — önce ${p.waitingFor}` : ""}
+                              </span>
                             </div>
                           ) : (
                             <div className="flex items-center gap-3">

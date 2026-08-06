@@ -277,6 +277,7 @@ class WebBridge(QObject):
         self._ensure_batch_entries_table()
         self._ensure_label_templates_table()
         self._ensure_customer_decision_transitions()
+        self._ensure_hierarchy_wait_sync()
         self._schema_cache = None
         # Yazdırılacak etiketin kağıt ölçüsü (mm). Ekran, window.print() öncesi
         # set_label_page_size ile günceller; main_window bunu QPrinter'a uygular.
@@ -11562,6 +11563,10 @@ class WebBridge(QObject):
                     updated_at = NOW()
                 WHERE id = ANY(:rids)
             """), {"tech": tech, "rids": r_ids})
+            # Atama sırayı değiştirmez: sırası gelmemiş kayıt teknisyeni üzerinde
+            # kalarak 1004'e (beklemede) geri döner.
+            for _ref in {r["service_record_id"] for r in repairs if r["service_record_id"]}:
+                self._sync_hierarchy_wait(db, _ref)
             db.commit()
 
             tech_name = tech_user["fullname"] or tech_user["username"]
@@ -12055,6 +12060,11 @@ class WebBridge(QObject):
                 assigned_at=_dt.datetime.utcnow() if atanmis else None,
             )
             db.add(rec)
+            # Yeni onarım sıraya girer: üst seviyede açık iş varsa kayıt doğrudan
+            # 1004 (beklemede) doğar; yeni kayıt kendisi üst seviyedeyse alttakiler
+            # beklemeye alınır. flush() olmadan senkron yeni satırı göremez.
+            db.flush()
+            self._sync_hierarchy_wait(db, service_ref)
             db.commit()
 
             # Karar sonrası yeniden onarım: Cihaz demontaj kararını (Müşteri Onayı / Üretime
@@ -13268,7 +13278,12 @@ class WebBridge(QObject):
                 if required and required not in user_missions:
                     return json.dumps({"success": False, "message": f"Bu işlem için '{required}' yetkisi gerekiyor."})
 
+            silinen_ref = rec.service_record_id
             db.delete(rec)
+            # Silinen kayıt üst seviyedeki son açık iş olabilir; alt seviyeler
+            # beklemede kalmasın.
+            db.flush()
+            self._sync_hierarchy_wait(db, silinen_ref)
             db.commit()
             return json.dumps({"success": True})
         except Exception as e:
@@ -13478,6 +13493,100 @@ class WebBridge(QObject):
         gerektiriyor mu? Kamera / L3 / Ekran / Kasa için True döner."""
         return (department_mission or "").strip().upper() in self.COMPLETION_TEST_DEPARTMENTS
 
+    # ── GÖREV GRUBU SIRASI (SEVİYELENDİRME) ──────────────────────────────
+    # İş sırasını organization.mission_groups.order_number belirler; BÜYÜK olan
+    # ÖNCE işlenir, aynı değerdekiler paralel çalışır:
+    #   RMA (99) → L3REPAIR (9) → BATTERY/CAMERA/CASE/DISPLAY (7) → L1/L2REPAIR (6)
+    # Sırası GELMEMİŞ onarım havuzda normal açık iş gibi durmaz: 1004 (Yüksek
+    # Seviye Onarımını Bekliyor) ile beklemeye alınır, üst seviye kapandığında
+    # otomatik geri açılır. Böylece teknisyen sırası gelmemiş işe parça çıkarıp
+    # onarıma başlamaz; engeli en sonda hata mesajı olarak görmez.
+    #
+    # order_number'ı OLMAYAN gruplar (DISMANTLE/Demontaj, TEST vb.) sıralamaya
+    # HİÇ girmez: ne bekletilir ne de başkasını bekletir, her zaman görünür kalır.
+    HIERARCHY_WAIT_CODE = 1004
+    # Beklemeye yalnızca bu iki kod alınır. 1005 (müşteri onayı), 1006 (bitiş
+    # testi), 1007, 1008 zaten kendi kapılarında bekliyor - onlara dokunulmaz.
+    HIERARCHY_MOVABLE_CODES = (1000, 1001)
+
+    # Bir cihazın açık onarımları arasındaki EN YÜKSEK grup sırası. Beklemeye
+    # alma ve serbest bırakma kararlarının ikisi de bunu ölçüt alır; iki sorguda
+    # ayrı yazılırsa zamanla ayrışır.
+    _HIERARCHY_TOP_SQL = """
+        SELECT MAX(mg2.order_number)
+          FROM warehouse.repair_records rr2
+          JOIN organization.mission_groups mg2 ON mg2.code = rr2.department_mission
+         WHERE rr2.service_record_id = rr.service_record_id
+           AND COALESCE(rr2.repair_result_type_code, 0) NOT IN (1002, 1003)
+           AND mg2.order_number IS NOT NULL
+    """
+
+    def _sync_hierarchy_wait(self, db, service_record_id=None):
+        """Bir cihazın açık onarımlarını görev grubu sırasına göre 1004'e alır ya
+        da 1004'ten çıkarır.
+
+        service_record_id verilmezse TÜM cihazlar taranır (açılışta bir kez).
+        COMMIT ETMEZ - çağıran kendi transaction'ında commit eder; böylece onarım
+        ekleme/tamamlama ile bekleme durumu tek atomik yazma olur.
+
+        Döner: (beklemeye_alinan, serbest_birakilan)"""
+        from sqlalchemy import text as _t
+
+        params = {}
+        filtre = ""
+        if service_record_id:
+            filtre = " AND rr.service_record_id = :ref "
+            params["ref"] = str(service_record_id)
+
+        # 1) Sırası gelmemişleri beklemeye al. mg.order_number < üst seviye.
+        #    NULL sıralı gruplar IS NOT NULL ile zaten dışarıda.
+        bekleyen = db.execute(_t(f"""
+            UPDATE warehouse.repair_records rr
+               SET repair_result_type_code = {self.HIERARCHY_WAIT_CODE},
+                   updated_at = NOW()
+              FROM organization.mission_groups mg
+             WHERE mg.code = rr.department_mission
+               AND rr.repair_result_type_code IN {self.HIERARCHY_MOVABLE_CODES}
+               AND mg.order_number IS NOT NULL
+               {filtre}
+               AND mg.order_number < ({self._HIERARCHY_TOP_SQL})
+        """), params).rowcount or 0
+
+        # 2) Sırası gelenleri serbest bırak. Teknisyeni varsa 1001'e (onarımda),
+        #    yoksa 1000'e (teknisyene atanacak) döner - atama korunur.
+        #    NULL sıralı bir kayıt yanlışlıkla 1004'te kaldıysa o da açılır.
+        serbest = db.execute(_t(f"""
+            UPDATE warehouse.repair_records rr
+               SET repair_result_type_code = CASE
+                       WHEN COALESCE(TRIM(rr.assigned_technician), '') <> '' THEN 1001
+                       ELSE 1000 END,
+                   updated_at = NOW()
+              FROM organization.mission_groups mg
+             WHERE mg.code = rr.department_mission
+               AND rr.repair_result_type_code = {self.HIERARCHY_WAIT_CODE}
+               {filtre}
+               AND (mg.order_number IS NULL
+                    OR mg.order_number >= COALESCE(({self._HIERARCHY_TOP_SQL}), mg.order_number))
+        """), params).rowcount or 0
+
+        return bekleyen, serbest
+
+    def _ensure_hierarchy_wait_sync(self):
+        """Açılışta bir kez: mevcut tüm cihazların onarımlarını sıraya göre
+        senkronlar. Kural sonradan eklendiği için geçmiş kayıtlar 1000/1001'de
+        kalmıştı; bu tarama onları beklemeye alır. İdempotenttir."""
+        db = SessionLocal()
+        try:
+            bekleyen, serbest = self._sync_hierarchy_wait(db)
+            db.commit()
+            if bekleyen or serbest:
+                print(f"[WebBridge] Onarım sırası senkronu: {bekleyen} kayıt beklemeye alındı, {serbest} kayıt serbest bırakıldı")
+        except Exception as e:
+            db.rollback()
+            print(f"[WebBridge] Onarım sırası senkronu yapılamadı: {e}")
+        finally:
+            db.close()
+
     @Slot(str, str, str, result=str)
     def quick_complete_repair(self, device_ref, mission_group_code, username):
         """Hızlı Onarım Bitiş ekranı: bir cihaz okutulduğunda, verilen GÖREV GRUBUNDAKİ
@@ -13593,6 +13702,11 @@ class WebBridge(QObject):
                     })
 
             # Tek commit: kısmi kapatma yapiliyor ama yazma atomik olmali.
+            # Kapanan kayıtlar bir alt seviyenin sırasını açmış olabilir.
+            if kapanan:
+                db.flush()
+                for _ref in {r.service_record_id for r in kayitlar if r.service_record_id}:
+                    self._sync_hierarchy_wait(db, _ref)
             db.commit()
 
             return json.dumps({
@@ -13728,9 +13842,9 @@ class WebBridge(QObject):
                 """), {"ref": rec.service_record_id, "ord": my_order}).mappings().all()
                 if onceki:
                     adlar = ", ".join(f"{r['short_name']} ({r['adet']} kayıt)" for r in onceki)
-                    return ("Bu onarım şu an tamamlanamaz! İş sırasına göre önce daha üst "
-                            f"seviyedeki onarımların bitmesi gerekiyor: {adlar}. "
-                            "Bu gruplar tamamlandığında bu onarım kapatılabilir.")
+                    return ("Bu onarımın sırası gelmedi (Yüksek Seviye Onarımını Bekliyor - 1004). "
+                            f"Önce şu üst seviye onarımlar bitmeli: {adlar}. "
+                            "Onlar kapandığında bu onarım kendiliğinden açılır.")
 
         return None
 
@@ -13804,6 +13918,10 @@ class WebBridge(QObject):
                     return json.dumps({"success": False, "message": engel}, ensure_ascii=False)
 
             rec.repair_result_type_code = target_code
+            # Bu onarım kapandıysa (1002/1003) bir alt seviyenin sırası gelmiş
+            # olabilir; senkron o kayıtları 1004'ten çıkarır.
+            db.flush()
+            self._sync_hierarchy_wait(db, rec.service_record_id)
             db.commit()
             return json.dumps({"success": True, "appliedCode": target_code, "message": applied_message}, ensure_ascii=False)
         except Exception as e:
@@ -13983,7 +14101,12 @@ class WebBridge(QObject):
             rec.notes = (rec.notes + "\n" + not_satiri) if (rec.notes or "").strip() else not_satiri
             rec.updated_at = datetime.datetime.utcnow()
 
+            # Test başarılıysa onarım kapandı, alt seviyenin sırası gelmiş olabilir;
+            # başarısızsa kayıt tekrar açıldı, alt seviye yeniden beklemeye girer.
+            db.flush()
+            self._sync_hierarchy_wait(db, rec.service_record_id)
             db.commit()
+            db.refresh(rec)
             return json.dumps({
                 "success": True,
                 "result": "pass" if is_pass else "fail",
@@ -14216,6 +14339,7 @@ class WebBridge(QObject):
                         repair_result_type_code = 1000
                     {scope}
                 """), {**scope_params, "by": actor, "now": now}).rowcount
+                self._sync_hierarchy_wait(db, rec.service_record_id)
                 db.commit()
                 return json.dumps({
                     "success": True, "assigned": False, "statusCode": 1000,
@@ -14242,12 +14366,16 @@ class WebBridge(QObject):
                     repair_result_type_code = 1001
                 {scope}
             """), {**scope_params, "u": tech, "by": actor, "now": now}).rowcount
+            # Sırası gelmemiş onarım atandıktan sonra da beklemede kalır (1004);
+            # teknisyen ataması korunur, üst seviye bitince kendiliğinden 1001 olur.
+            self._sync_hierarchy_wait(db, rec.service_record_id)
             db.commit()
+            db.refresh(rec)
 
             return json.dumps({
                 "success": True,
                 "assigned": True,
-                "statusCode": 1001,
+                "statusCode": int(rec.repair_result_type_code or 1001),
                 "technician": tech,
                 "technicianName": row["fullname"],
                 "affected": n,
@@ -14807,6 +14935,10 @@ class WebBridge(QObject):
                     -- oldugunda kullanilir (bkz. append blogundaki aciklama).
                     rr.department_mission,
                     rr_mg.short_name AS record_team_name,
+                    -- 1004 = sırası gelmemiş onarım. Satır listede KALIR ama teslime
+                    -- kapalıdır: depocu parçanın neden verilemediğini görsün, "parça
+                    -- kayboldu" sanmasın.
+                    rr.repair_result_type_code AS statu_code,
                     TO_CHAR(rr.supply_requested_at, 'YYYY-MM-DD HH24:MI') AS supply_requested_at
                 FROM warehouse.repair_records rr
                 LEFT JOIN warehouse.repair_result_type rrt ON rrt.code = rr.repair_result_type_code
@@ -14816,7 +14948,7 @@ class WebBridge(QObject):
                   AND (rrt.is_cancelled IS NOT TRUE)
                   AND rr.part_item_code IS NOT NULL
                   AND TRIM(rr.part_item_code) <> ''
-                  AND rr.repair_result_type_code = 1001
+                  AND rr.repair_result_type_code IN (1001, 1004)
                   AND rr.assigned_technician IS NOT NULL
                   AND TRIM(rr.assigned_technician) <> ''
                   AND UPPER(TRIM(rr.part_item_code)) NOT LIKE 'DGD%'
@@ -14896,6 +15028,27 @@ class WebBridge(QObject):
                 status_clean = (rr["supply_status_code"] or "").strip().lower()
                 is_delivered = status_clean in ('stoktan çıktı', 'teslim edildi', 'teslimedildi')
 
+                # Görev grubu sırası: sırası gelmemiş onarımın parçası teslim
+                # EDİLEMEZ. Teknisyen atanabilir (iş önden planlanır) ama parça
+                # depodan çıkmaz - üst seviye onarım bitince satır kendiliğinden
+                # teslim edilebilir hâle gelir.
+                sirada_bekliyor = int(rr["statu_code"] or 0) == self.HIERARCHY_WAIT_CODE
+                bekleyen_ustler = ""
+                if sirada_bekliyor:
+                    ust = db.execute(text("""
+                        SELECT DISTINCT mg.short_name
+                          FROM warehouse.repair_records rr2
+                          JOIN organization.mission_groups mg ON mg.code = rr2.department_mission
+                          JOIN organization.mission_groups benim ON benim.code = :grup
+                         WHERE rr2.service_record_id = ANY(:refs)
+                           AND rr2.repair_result_type_code NOT IN (1002, 1003)
+                           AND mg.order_number IS NOT NULL
+                           AND benim.order_number IS NOT NULL
+                           AND mg.order_number > benim.order_number
+                         ORDER BY mg.short_name
+                    """), {"refs": refs, "grup": (rr["department_mission"] or "").strip()}).scalars().all()
+                    bekleyen_ustler = ", ".join(ust)
+
                 parts.append({
                     "repairRecordId": str(rr["repair_record_id"]),
                     "id": str(pr.get("id")) if pr.get("id") else str(rr["repair_record_id"]),
@@ -14924,7 +15077,10 @@ class WebBridge(QObject):
                     "deliveredBy": rr["supply_requested_by"] or "",
                     "deliveredAt": rr["supply_requested_at"] or "",
                     "isStoksuz": False,
-                    "isAvailable": not is_delivered and (qty > 0)
+                    "isAvailable": not is_delivered and (qty > 0) and not sirada_bekliyor,
+                    # Parça Teslim ekranı bu iki alanla satırı kilitli gösterir.
+                    "isWaitingTurn": sirada_bekliyor,
+                    "waitingFor": bekleyen_ustler,
                 })
 
             return json.dumps({"success": True, "parts": parts}, ensure_ascii=False)
@@ -14983,6 +15139,37 @@ class WebBridge(QObject):
             """), {"refs": refs, "code": code}).mappings().first()
 
             if not pending:
+                # Görev grubu sırası: kayıt 1004'te (sırası gelmedi) ise teslim
+                # yapılmaz. Ekran kilitli gösteriyor ama @Slot'a doğrudan da
+                # çağrılabildiği için asıl kural burada.
+                bekleyen = db.execute(text("""
+                    SELECT mg.short_name
+                      FROM warehouse.repair_records rr
+                      JOIN organization.mission_groups mg ON mg.code = rr.department_mission
+                     WHERE rr.service_record_id = ANY(:refs)
+                       AND LOWER(TRIM(rr.part_item_code)) = LOWER(TRIM(:code))
+                       AND rr.repair_result_type_code = :bekleme
+                     LIMIT 1
+                """), {"refs": refs, "code": code, "bekleme": self.HIERARCHY_WAIT_CODE}).mappings().first()
+                if bekleyen:
+                    ustler = db.execute(text("""
+                        SELECT DISTINCT mg.short_name
+                          FROM warehouse.repair_records rr2
+                          JOIN organization.mission_groups mg ON mg.code = rr2.department_mission
+                          JOIN organization.mission_groups benim ON benim.short_name = :grup
+                         WHERE rr2.service_record_id = ANY(:refs)
+                           AND rr2.repair_result_type_code NOT IN (1002, 1003)
+                           AND mg.order_number IS NOT NULL
+                           AND benim.order_number IS NOT NULL
+                           AND mg.order_number > benim.order_number
+                    """), {"refs": refs, "grup": bekleyen["short_name"]}).scalars().all()
+                    return json.dumps({
+                        "success": False,
+                        "message": (f"Parça teslim edilemez! '{bekleyen['short_name']}' onarımının sırası gelmedi "
+                                    f"(Yüksek Seviye Onarımını Bekliyor). Önce şu onarımlar bitmeli: "
+                                    f"{', '.join(ustler) if ustler else 'üst seviye onarımlar'}.")
+                    }, ensure_ascii=False)
+
                 zaten = db.execute(text("""
                     SELECT 1 FROM warehouse.repair_records
                     WHERE service_record_id = ANY(:refs)
