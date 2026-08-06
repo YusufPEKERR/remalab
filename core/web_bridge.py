@@ -1,8 +1,13 @@
+import sys
+import os
+
+_BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _BASE_DIR not in sys.path:
+    sys.path.insert(0, _BASE_DIR)
+
 import json
 from PySide6.QtCore import QObject, Slot, Signal
-import json
 import logging
-import os
 import datetime as _dt
 
 # Türkiye kalıcı olarak UTC+3'tür (2016'dan beri yaz saati uygulaması yok), bu yüzden
