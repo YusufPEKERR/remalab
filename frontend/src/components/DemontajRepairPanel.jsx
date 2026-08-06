@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Plus, Package, Wrench, CheckCircle, AlertTriangle, Pencil, Ban, X, User, ArrowLeftRight } from "lucide-react";
 import { api } from "../services/api";
 import PartSelectCombobox from "./PartSelectCombobox";
@@ -308,6 +308,16 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [repairs, device?.customerNo]);
 
+  // Teklif Parçaları tablosundaki aktif (iptal edilmemiş) satırların toplam fiyatı -
+  // submit_dismantle_decision'ın (backend, _compute_dismantle_decision) Hedef Fiyat
+  // Matrisi limit kontrolünde topladığı tutarla aynı kaynak (partPrices), bu yüzden
+  // teknisyen karar vermeden önce toplamı burada da görebilir.
+  const totalRepairPrice = useMemo(() => {
+    return activeRepairs
+      .filter(r => r.partItemCode && partPrices[r.partItemCode] !== undefined)
+      .reduce((sum, r) => sum + partPrices[r.partItemCode], 0);
+  }, [activeRepairs, partPrices]);
+
   const handleSubmitDecision = useCallback(async () => {
     if (!device?.imei || !hasRepairs || deciding) return;
     if (!hasNonDgdRepairs) {
@@ -318,7 +328,14 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
     const res = await api.submitDismantleDecision(device.imei, getCurrentUser()?.username);
     setDeciding(false);
     if (res && res.success) {
-      showNotif("success", res.decision === "URETIME_AKTAR" ? "Üretime Aktarıldı" : "Müşteri Onayına Gönderildi", res.message || "");
+      // priceLimitExceeded true ise (Hedef Fiyat Matrisi limiti aşıldı) bildirim
+      // "success" (yeşil) değil "error" (kırmızı) olmalı - kategori onaylı olsa bile
+      // fiyat limiti cihazı Müşteri Onayına zorlamış demektir, bu yeşil bir sonuç değil.
+      showNotif(
+        res.priceLimitExceeded ? "error" : "success",
+        res.decision === "URETIME_AKTAR" ? "Üretime Aktarıldı" : "Müşteri Onayına Gönderildi",
+        res.message || ""
+      );
       // Karar başarılıysa etiketler SORULMADAN basılır - HER İKİ kararda da
       // (URETIME_AKTAR ve MUSTERI_ONAYI). Müşteri onayına giden cihazın da
       // parçaları fiziksel olarak ayrılıyor, barkodu o anda basılmalı; eskiden
@@ -633,7 +650,17 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
       <div className="bg-[#C6CEE2] dark:bg-[#181a24] rounded-2xl border border-slate-200 dark:border-[#1e222d] shadow-sm overflow-hidden px-5 py-4">
         <div className="flex flex-col sm:flex-row sm:items-center gap-4">
           <div className="flex-1">
-            <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Onarım Takımları</label>
+            <div className="flex items-center gap-2 mb-2">
+              <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Onarım Takımları</label>
+              {totalRepairPrice > 0 && (
+                <span
+                  className="text-[11px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 px-2 py-0.5 rounded-md"
+                  title="Teklif parçalarının toplam fiyatı"
+                >
+                  Toplam: {totalRepairPrice.toFixed(2)} {device?.currency || ''}
+                </span>
+              )}
+            </div>
             <div className="flex flex-wrap gap-2">
               {missionGroups.map(mg => {
                 const active = activeMissionGroupCodes.has(mg.code);
