@@ -30,7 +30,7 @@ export default function Irsaliye() {
   const [stockStatus, setStockStatus] = useState([]);
   const [users, setUsers] = useState([]);
   const [systemLocations, setSystemLocations] = useState([]);
-  const [formData, setFormData] = useState({ part_id: '', loc_id: '', source_loc_id: '', qty: 1, price: 0, type: '', technician: '', description: '' });
+  const [formData, setFormData] = useState({ part_id: '', loc_id: '', source_loc_id: '', target_loc_id: '', qty: 1, price: 0, type: '', technician: '', description: '' });
 
   // Inbound Form States
   const [inboundBarcode, setInboundBarcode] = useState('');
@@ -331,33 +331,42 @@ export default function Irsaliye() {
       alert("Lütfen önce barkod okutarak veya aratarak bir parça seçin.");
       return;
     }
+    if (!formData.source_loc_id) {
+      alert("Lütfen çıkışın yapılacağı Kaynak Depo'yu seçin.");
+      return;
+    }
+    if (!formData.target_loc_id) {
+      alert("Lütfen çıkışın yapılacağı Hedef Depo'yu seçin.");
+      return;
+    }
+    if (String(formData.source_loc_id) === String(formData.target_loc_id)) {
+      alert("Kaynak Depo ile Hedef Depo aynı olamaz.");
+      return;
+    }
     if (!(formData.who || '').trim()) {
       alert("Lütfen 'İşlemi Yapan (Kim)' alanını seçin.");
       return;
     }
-    if (!formData.source_loc_id) {
-      alert("Lütfen çıkışın yapılacağı Hedef Depo'yu seçin.");
-      return;
-    }
-    // NOT: Kaynak depo artık sabit Good Stock değil, kullanıcının seçtiği geçerli
-    // depo - Good Stock'tan sadece Repair Stock'a transfer yapılabildiği için (bkz.
-    // SYSTEM_TRANSFER_RULES), Good Stock'tan doğrudan çıkış (Teknik Servis/Müşteri
-    // Satışı/Fire vb.) backend tarafından reddedilir - bu beklenen/kasıtlı bir kural,
-    // bu yüzden kullanıcı çıkışa uygun gerçek kaynağı (ör. Repair Stock) seçmelidir.
+
     const payloadLocId = formData.source_loc_id;
     const available = getStockQty(formData.part_id, payloadLocId);
     if (Number(formData.qty) > available) {
-      alert("Seçili depoda yeterli stok yok!");
+      alert("Kaynak depoda yeterli stok yok!");
       return;
     }
     if (isSubmitting) return;
     setIsSubmitting(true);
     try {
-      // addOutboundEntry(partId, locId, qty, typeStr, user, technician, description) 7
-      // parametre bekliyor - eskiden description 6. sıraya (technician'ın yerine)
-      // gönderiliyordu, gerçek description hiç kaydedilmiyordu. Bu formda ayrı bir
-      // "Teknisyen" alanı yok, o yüzden technician boş geçilir.
-      const res = await api.addOutboundEntry(formData.part_id, payloadLocId, formData.qty, formData.type || 'Teknik Servis', formData.who, '', formData.description || '');
+      const res = await api.addOutboundEntry(
+        formData.part_id,
+        payloadLocId,
+        formData.qty,
+        formData.type || 'Teknik Servis',
+        formData.who,
+        '',
+        formData.description || '',
+        formData.target_loc_id
+      );
       if (res && res.success) {
         setShowOutboundModal(false);
         fetchData();
@@ -690,28 +699,45 @@ export default function Irsaliye() {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  Hedef Depo <span className="text-red-500">*</span>
-                </label>
-                <select
-                  required
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-[#12141c] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
-                  value={formData.source_loc_id || ''}
-                  onChange={(e) => setFormData({ ...formData, source_loc_id: e.target.value })}
-                >
-                  <option value="">Seçiniz...</option>
-                  {/* Good Stock burada kasıtlı olarak listelenmez: backend SYSTEM_TRANSFER_RULES'a
-                      göre Good Stock'tan doğrudan çıkış yapılamaz, sadece Repair Stock'a transfer
-                      edilebilir - bu yüzden Good Stock seçilebilir bir kaynak olarak sunulmaz. */}
-                  {locations
-                    .filter(l => l.kind !== 'good_stock')
-                    .map(l => (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                    Kaynak Depo (Çıkış Deposu) <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    required
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-[#12141c] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+                    value={formData.source_loc_id || ''}
+                    onChange={(e) => setFormData({ ...formData, source_loc_id: e.target.value })}
+                  >
+                    <option value="">Kaynak Depo Seçiniz...</option>
+                    {locations
+                      .map(l => (
+                        <option key={l.id} value={l.id}>
+                          {l.name} ({getStockQty(formData.part_id, l.id)} adet)
+                        </option>
+                      ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                    Hedef Depo (Varış Deposu) <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    required
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-[#12141c] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+                    value={formData.target_loc_id || ''}
+                    onChange={(e) => setFormData({ ...formData, target_loc_id: e.target.value })}
+                  >
+                    <option value="">Hedef Depo Seçiniz...</option>
+                    {locations.map(l => (
                       <option key={l.id} value={l.id}>
-                        {l.name} ({getStockQty(formData.part_id, l.id)} adet)
+                        {l.name}
                       </option>
                     ))}
-                </select>
+                  </select>
+                </div>
               </div>
 
               <div className="flex gap-4">

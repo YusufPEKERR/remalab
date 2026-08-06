@@ -2058,11 +2058,11 @@ export const api = {
         });
     },
 
-    addOutboundEntry: async (partId, locId, qty, typeStr, user, technician, description) => {
+    addOutboundEntry: async (partId, locId, qty, typeStr, user, technician, description, targetLocId) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
             if (backend.add_outbound_entry) {
-                backend.add_outbound_entry(String(partId), String(locId), String(qty), typeStr, user, technician || "", description || "", (res) => resolve(JSON.parse(res)));
+                backend.add_outbound_entry(String(partId), String(locId), String(qty), typeStr, user, technician || "", description || "", String(targetLocId || ""), (res) => resolve(JSON.parse(res)));
             } else {
                 resolve({ success: true });
             }

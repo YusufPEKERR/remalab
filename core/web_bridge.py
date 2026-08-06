@@ -7651,60 +7651,69 @@ class WebBridge(QObject):
             db.close()
 
     @Slot(str, str, str, str, str, str, str, result=str)
-    def add_outbound_entry(self, part_id, location_id, qty, type_str, username, technician, description):
-        """İrsaliye Çıkış: bir depodan dışarı (Out Stock/Scrap Stock) çıkış kaydı açar.
+    @Slot(str, str, str, str, str, str, str, str, result=str)
+    def add_outbound_entry(self, part_id, location_id, qty, type_str, username, technician, description, target_location_id=""):
+        """İrsaliye Çıkış: bir depodan dışarı (Out Stock/Scrap Stock veya seçilen Hedef Depo) çıkış kaydı açar.
         source_loc.kind sistem depolarından biriyse (good_stock, doa_stock, repair_stock,
-        vb.), hedef SYSTEM_TRANSFER_RULES'a göre doğrulanır -- örn. Good Stock sadece
-        Repair Stock'a çıkabilir, doğrudan Out/Scrap Stock'a çıkamaz (bkz. transfer_stock,
-        aynı kural kontrolü). Kural izin vermiyorsa işlem reddedilir, stok değişmez."""
+        vb.), hedef SYSTEM_TRANSFER_RULES'a göre doğrulanır. Kural izin vermiyorsa işlem reddedilir, stok değişmez."""
         from models.stock import Stock
         from models.stock_movement import StockMovement
         from models.location import Location
         db = SessionLocal()
         try:
             part_id = int(part_id)
-            location_id = int(location_id)
+            source_location_id = int(location_id)
             qty = int(qty)
 
-            source_loc = db.query(Location).filter(Location.id == int(location_id)).first()
-            target_location_id = None
+            target_loc_id = None
+            if target_location_id and str(target_location_id).strip():
+                try:
+                    target_loc_id = int(target_location_id)
+                except ValueError:
+                    target_loc_id = None
+
+            source_loc = db.query(Location).filter(Location.id == source_location_id).first()
             movement_kind = None
-            if source_loc and source_loc.kind in ("good_stock", "doa_stock"):
-                target_kind = "scrap_stock" if type_str == "Fire" else "out_stock"
 
-                if source_loc.kind in SYSTEM_TRANSFER_RULES and target_kind not in SYSTEM_TRANSFER_RULES[source_loc.kind]:
-                    from_label = SYSTEM_LOCATION_KINDS.get(source_loc.kind, source_loc.kind)
-                    allowed_targets = SYSTEM_TRANSFER_RULES[source_loc.kind]
-                    if allowed_targets:
-                        allowed_labels = " veya ".join(SYSTEM_LOCATION_KINDS.get(k, k) for k in allowed_targets)
-                        message = f"{from_label}'tan doğrudan çıkış yapılamaz; sadece {allowed_labels} deposuna transfer yapılabilir."
-                    else:
-                        message = f"{from_label} sadece çıkış deposudur, buradan başka bir depoya transfer yapılamaz."
-                    return json.dumps({"success": False, "message": message})
+            if not target_loc_id:
+                if source_loc and source_loc.kind in ("good_stock", "doa_stock"):
+                    target_kind = "scrap_stock" if type_str == "Fire" else "out_stock"
 
-                target_location_id = _get_system_location_id(db, target_kind)
-                movement_kind = "Scrap" if target_kind == "scrap_stock" else "Outbound"
+                    if source_loc.kind in SYSTEM_TRANSFER_RULES and target_kind not in SYSTEM_TRANSFER_RULES[source_loc.kind]:
+                        from_label = SYSTEM_LOCATION_KINDS.get(source_loc.kind, source_loc.kind)
+                        allowed_targets = SYSTEM_TRANSFER_RULES[source_loc.kind]
+                        if allowed_targets:
+                            allowed_labels = " veya ".join(SYSTEM_LOCATION_KINDS.get(k, k) for k in allowed_targets)
+                            message = f"{from_label}'tan doğrudan çıkış yapılamaz; sadece {allowed_labels} deposuna transfer yapılabilir."
+                        else:
+                            message = f"{from_label} sadece çıkış deposudur, buradan başka bir depoya transfer yapılamaz."
+                        return json.dumps({"success": False, "message": message})
 
-            stock = db.query(Stock).with_for_update().filter(Stock.part_id == part_id, Stock.location_id == location_id).first()
+                    target_loc_id = _get_system_location_id(db, target_kind)
+                    movement_kind = "Scrap" if target_kind == "scrap_stock" else "Outbound"
+            else:
+                movement_kind = "Outbound"
+
+            stock = db.query(Stock).with_for_update().filter(Stock.part_id == part_id, Stock.location_id == source_location_id).first()
             if not stock or stock.quantity < qty:
-                return json.dumps({"success": False, "message": "Yetersiz stok."})
+                return json.dumps({"success": False, "message": "Kaynak depoda yeterli stok yok."})
 
             stock.quantity -= qty
 
-            if target_location_id:
-                target_stock = db.query(Stock).filter(Stock.part_id == part_id, Stock.location_id == target_location_id).first()
+            if target_loc_id:
+                target_stock = db.query(Stock).filter(Stock.part_id == part_id, Stock.location_id == target_loc_id).first()
                 if target_stock:
                     target_stock.quantity += qty
                 else:
-                    db.add(Stock(part_id=part_id, location_id=target_location_id, quantity=qty))
+                    db.add(Stock(part_id=part_id, location_id=target_loc_id, quantity=qty))
 
             mov = StockMovement(
                 type=type_str or "Çıkış",
                 movement_kind=movement_kind,
                 quantity=qty,
                 part_id=part_id,
-                source_location_id=location_id,
-                target_location_id=target_location_id,
+                source_location_id=source_location_id,
+                target_location_id=target_loc_id,
                 created_by=username,
                 technician=technician or None,
                 description=description or None
