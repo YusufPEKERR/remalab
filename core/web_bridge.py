@@ -1722,8 +1722,44 @@ class WebBridge(QObject):
             
     @Slot(result=str)
     def get_parts(self):
-        # Backward compatibility or fallback
-        return self.get_parts_paginated(1, 100, "", "", "", "")
+        """Irsaliye (Stok Girişi/Çıkışı), ItemBOM, WorkOrders, ImeiTracker gibi ekranlardaki
+        parça arama/seçim bileşenleri (PartSelectCombobox vb.) için TÜM katalogu döner - bu
+        bileşenler kendi içlerinde arayıp filtreliyor, bu yüzden backend'in sayfalama
+        yapmasına gerek yok. Eskiden get_parts_paginated(1, 100, ...) sabitliydi ve sadece
+        ilk 100 parça (30 binden fazlasının küçük bir kesiti) seçilebiliyordu.
+        get_parts_paginated'ın department (item_category_mission) correlated subquery'si
+        TEK sayfa (100 satır) için ucuzken TÜM katalog (30K+ satır) için satır başına
+        çalışıp ~9 saniyeye çıkıyordu (bkz. get_parts_paginated'daki not) - o sütun bu arama
+        bileşenlerinde hiç kullanılmadığından burada tamamen atlanır, sorgu 0.6 saniyeye iner.
+
+        ÖNEMLİ - iki AYRI ID uzayı: warehouse.item.id UUID'dir, warehouse.parts.id ise
+        integer'dır (warehouse.stock.part_id / stock_movements.part_id BUNA referans verir).
+        get_parts_paginated (Parts.jsx'in kendi veri tablosu için) kasıtlı olarak i.id
+        (UUID) döner çünkü CRUD orada item tablosu üzerinden yürür. AMA bu Slot'un asıl
+        tüketicileri (Irsaliye Stok Girişi/Çıkışı, WorkOrders parça seçimi) seçilen id'yi
+        DOĞRUDAN add_inbound_entry/add_outbound_entry/Stock sorgularına part_id olarak
+        geçiriyor - o Slot'lar int(part_id) yapıyor, UUID verilince "invalid literal for
+        int()" ile patlıyordu. Bu yüzden burada id p.id (parts.id, integer) olarak döndürülür
+        ve eşleşen bir parts satırı olmayan item kayıtları (stok tutulamayacakları için
+        zaten Inbound/Outbound'da kullanılamazlar) INNER JOIN ile hariç tutulur."""
+        from sqlalchemy import text
+        from core.mapper import map_item_to_part
+        db = SessionLocal()
+        try:
+            rows = db.execute(text("""
+                SELECT p.id, i.code, i.short_name, i.color, i.item_type, i.item_category, i.enabled,
+                       p.brand, p.model
+                FROM warehouse.item i
+                JOIN warehouse.parts p ON p.item_code = i.code
+                ORDER BY i.short_name ASC
+            """)).mappings().all()
+            parts_list = [map_item_to_part(row) for row in rows]
+            return json.dumps({"success": True, "parts": parts_list, "total_count": len(parts_list)})
+        except Exception as e:
+            print(f"[WebBridge] get_parts error: {e}")
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
 
     @Slot(result=str)
     def get_item_boms(self):
@@ -7409,6 +7445,7 @@ class WebBridge(QObject):
                 "quantity": mov.quantity,
                 "part_id": mov.part_id,
                 "part_name": p.name if p else (f"{mov.part_name_snapshot} (silindi)" if mov.part_name_snapshot else "Silinmiş Parça"),
+                "item_code": p.item_code if p else None,
                 "source_location_id": mov.source_location_id,
                 "source_location": source_name,
                 "target_location_id": mov.target_location_id,

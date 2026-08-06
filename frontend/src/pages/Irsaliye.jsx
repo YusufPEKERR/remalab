@@ -47,6 +47,7 @@ export default function Irsaliye() {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedExportColumns, setSelectedExportColumns] = useState({
+    "Parça Kodu": true,
     "Parça Adı": true,
     "Yön": true,
     "Miktar": true,
@@ -124,6 +125,7 @@ export default function Irsaliye() {
     const exportReadyData = dataToExport.map(mov => {
       const dir = getDirection(mov);
       const row = {};
+      if (selectedExportColumns["Parça Kodu"]) row["Parça Kodu"] = mov.item_code || '';
       if (selectedExportColumns["Parça Adı"]) row["Parça Adı"] = mov.part_name;
       if (selectedExportColumns["Yön"]) row["Yön"] = dir === 'in' ? 'Giriş' : (dir === 'out' ? 'Çıkış' : 'Transfer');
       if (selectedExportColumns["Miktar"]) row["Miktar"] = mov.quantity;
@@ -219,7 +221,13 @@ export default function Irsaliye() {
   };
 
   const findBestSourceLocation = (partId) => {
-    const entries = stockStatus.filter(s => String(s.part_id) === String(partId) && s.quantity > 0);
+    // Good Stock hariç tutulur: backend'de Good Stock'tan doğrudan çıkış yapılamaz
+    // (sadece Repair Stock'a transfer edilebilir), bu yüzden otomatik önerilen varsayılan
+    // kaynak asla Good Stock olmamalı - aksi halde her seferinde reddedilirdi.
+    const goodStockId = String(getSystemLocationId('good_stock'));
+    const entries = stockStatus.filter(s =>
+      String(s.part_id) === String(partId) && s.quantity > 0 && String(s.location_id) !== goodStockId
+    );
     if (entries.length === 0) return '';
     const best = entries.reduce((a, b) => (b.quantity > a.quantity ? b : a));
     return String(best.location_id);
@@ -265,7 +273,7 @@ export default function Irsaliye() {
       x.barcode === outboundBarcode || String(x.barcode) === outboundBarcode
     );
     if (p) {
-      setFormData(prev => ({...prev, part_id: p.id}));
+      setFormData(prev => ({...prev, part_id: p.id, source_loc_id: findBestSourceLocation(p.id)}));
     } else {
       alert('Barkod bulunamadı!');
     }
@@ -273,7 +281,7 @@ export default function Irsaliye() {
 
   const resetInboundForm = () => {
     setInboundBarcode('');
-    setFormData({ part_id: '', loc_id: getSystemLocationId('good_stock'), source_loc_id: '', qty: 1, price: 0, type: 'Yeni Alım (Tedarikçiden)', technician: '', description: '' });
+    setFormData({ part_id: '', loc_id: getSystemLocationId('good_stock'), source_loc_id: '', qty: 1, price: 0, type: 'Yeni Alım (Tedarikçiden)', who: '' });
     setShowInboundModal(true);
     fetchDependencies();
   };
@@ -296,12 +304,18 @@ export default function Irsaliye() {
       alert("Lütfen önce barkod okutarak veya aratarak bir parça seçin.");
       return;
     }
+    if (!(formData.who || '').trim()) {
+      alert("Lütfen 'İşlemi Yapan (Kim)' alanını seçin.");
+      return;
+    }
     const goodLoc = systemLocations.find(l => l.kind === 'good_stock') || locations.find(l => l.kind === 'good_stock');
     const payloadLocId = formData.loc_id || (goodLoc ? String(goodLoc.id) : '');
     if (isSubmitting) return;
     setIsSubmitting(true);
     try {
-      const res = await api.addInboundEntry(formData.part_id, payloadLocId, formData.qty, formData.price || 0, formData.type || 'Yeni Alım', formData.who || 'admin', formData.description);
+      // NOT: addInboundEntry (backend.add_inbound_entry) description parametresi almaz -
+      // Stok Girişi modalında zaten Açıklama alanı yok, bu yüzden burada gönderilmiyor.
+      const res = await api.addInboundEntry(formData.part_id, payloadLocId, formData.qty, formData.price || 0, formData.type || 'Yeni Alım', formData.who);
       if (res && res.success) {
         setShowInboundModal(false);
         fetchData();
@@ -317,16 +331,33 @@ export default function Irsaliye() {
       alert("Lütfen önce barkod okutarak veya aratarak bir parça seçin.");
       return;
     }
-    const payloadLocId = getSystemLocationId('good_stock') || 1;
+    if (!(formData.who || '').trim()) {
+      alert("Lütfen 'İşlemi Yapan (Kim)' alanını seçin.");
+      return;
+    }
+    if (!formData.source_loc_id) {
+      alert("Lütfen çıkışın yapılacağı Hedef Depo'yu seçin.");
+      return;
+    }
+    // NOT: Kaynak depo artık sabit Good Stock değil, kullanıcının seçtiği geçerli
+    // depo - Good Stock'tan sadece Repair Stock'a transfer yapılabildiği için (bkz.
+    // SYSTEM_TRANSFER_RULES), Good Stock'tan doğrudan çıkış (Teknik Servis/Müşteri
+    // Satışı/Fire vb.) backend tarafından reddedilir - bu beklenen/kasıtlı bir kural,
+    // bu yüzden kullanıcı çıkışa uygun gerçek kaynağı (ör. Repair Stock) seçmelidir.
+    const payloadLocId = formData.source_loc_id;
     const available = getStockQty(formData.part_id, payloadLocId);
     if (Number(formData.qty) > available) {
-      alert("Seçili lokasyonda (Good Stok) yeterli stok yok!");
+      alert("Seçili depoda yeterli stok yok!");
       return;
     }
     if (isSubmitting) return;
     setIsSubmitting(true);
     try {
-      const res = await api.addOutboundEntry(formData.part_id, payloadLocId, formData.qty, formData.type || 'Teknik Servis', formData.who || 'admin', formData.description);
+      // addOutboundEntry(partId, locId, qty, typeStr, user, technician, description) 7
+      // parametre bekliyor - eskiden description 6. sıraya (technician'ın yerine)
+      // gönderiliyordu, gerçek description hiç kaydedilmiyordu. Bu formda ayrı bir
+      // "Teknisyen" alanı yok, o yüzden technician boş geçilir.
+      const res = await api.addOutboundEntry(formData.part_id, payloadLocId, formData.qty, formData.type || 'Teknik Servis', formData.who, '', formData.description || '');
       if (res && res.success) {
         setShowOutboundModal(false);
         fetchData();
@@ -391,13 +422,13 @@ export default function Irsaliye() {
                       locId = mov.source_location_id || '';
                     }
 
-                    setFormData({ part_id: String(mov.part_id || ''), loc_id: String(locId), qty: mov.quantity || 1, price: 0, type: 'Teknik Servis', technician: '', description: '' });
+                    setFormData({ part_id: String(mov.part_id || ''), source_loc_id: String(locId), qty: mov.quantity || 1, price: 0, type: 'Teknik Servis', who: '', description: '' });
                     setShowOutboundModal(true);
                     return;
                   }
                 }
                 
-                setOutboundBarcode(''); setFormData({ part_id: '', loc_id: getSystemLocationId('good_stock'), qty: 1, price: 0, type: 'Teknik Servis', who: '', description: '' }); setShowOutboundModal(true); 
+                setOutboundBarcode(''); setFormData({ part_id: '', source_loc_id: '', qty: 1, price: 0, type: 'Teknik Servis', who: '', description: '' }); setShowOutboundModal(true);
               }}
               className="flex items-center gap-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
             >
@@ -442,6 +473,7 @@ export default function Irsaliye() {
                     onChange={toggleSelectAll}
                   />
                 </th>
+                <th className="px-6 py-4">PARÇA KODU</th>
                 <th className="px-6 py-4">PARÇA ADI</th>
                 <th className="px-6 py-4">YÖN</th>
                 <th className="px-6 py-4">MİKTAR</th>
@@ -457,14 +489,14 @@ export default function Irsaliye() {
             <tbody className="divide-y divide-[#DCE1F1] dark:divide-[#1e222d]">
               {loading ? (
                 <tr>
-                  <td colSpan={11} className="px-6 py-8 text-center text-[#5A6685] dark:text-[#8892B5]">
+                  <td colSpan={12} className="px-6 py-8 text-center text-[#5A6685] dark:text-[#8892B5]">
                     <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-[#8894D8]" />
                     Yükleniyor...
                   </td>
                 </tr>
               ) : movements.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="px-6 py-8 text-center text-[#5A6685] dark:text-[#8892B5]">
+                  <td colSpan={12} className="px-6 py-8 text-center text-[#5A6685] dark:text-[#8892B5]">
                     Kayıt bulunamadı.
                   </td>
                 </tr>
@@ -482,6 +514,7 @@ export default function Irsaliye() {
                           onChange={(e) => toggleRowSelect(mov.id, e)}
                         />
                       </td>
+                      <td className="px-6 py-3 font-mono text-xs text-[#5A6685] dark:text-[#8892B5]">{mov.item_code || '-'}</td>
                       <td className="px-6 py-3 font-semibold text-[#12141c] dark:text-[#F6F8FF]">{mov.part_name}</td>
                       <td className="px-6 py-3">{directionBadge(dir)}</td>
                       <td className={`px-6 py-3 font-mono font-semibold ${dir === 'out' ? 'text-red-400' : (dir === 'transfer' ? 'text-blue-400' : 'text-emerald-400')}`}>
@@ -651,13 +684,35 @@ export default function Irsaliye() {
                   parts={parts}
                   value={formData.part_id}
                   onChange={(partId) => {
-                    setFormData(prev => ({ ...prev, part_id: partId, loc_id: getSystemLocationId('good_stock') }));
+                    setFormData(prev => ({ ...prev, part_id: partId, source_loc_id: findBestSourceLocation(partId) }));
                   }}
                   placeholder="Parça ara veya seç..."
                 />
               </div>
 
-
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  Hedef Depo <span className="text-red-500">*</span>
+                </label>
+                <select
+                  required
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-[#12141c] border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+                  value={formData.source_loc_id || ''}
+                  onChange={(e) => setFormData({ ...formData, source_loc_id: e.target.value })}
+                >
+                  <option value="">Seçiniz...</option>
+                  {/* Good Stock burada kasıtlı olarak listelenmez: backend SYSTEM_TRANSFER_RULES'a
+                      göre Good Stock'tan doğrudan çıkış yapılamaz, sadece Repair Stock'a transfer
+                      edilebilir - bu yüzden Good Stock seçilebilir bir kaynak olarak sunulmaz. */}
+                  {locations
+                    .filter(l => l.kind !== 'good_stock')
+                    .map(l => (
+                      <option key={l.id} value={l.id}>
+                        {l.name} ({getStockQty(formData.part_id, l.id)} adet)
+                      </option>
+                    ))}
+                </select>
+              </div>
 
               <div className="flex gap-4">
                 <div className="flex-1">
