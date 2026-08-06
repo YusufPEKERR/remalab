@@ -39,3 +39,7 @@ class RepairRecord(Base):
     
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    # Onarımın KAPANDIĞI an (1002 Tamamlandı / 1003 İptal). Kayıt yeniden açılırsa
+    # temizlenir. updated_at "satıra son yazma" olduğu için kapanış zamanı ondan
+    # okunamaz - depo durumu değişikliği gibi sonraki yazmalar damgayı ileri kaydırır.
+    closed_at = Column(DateTime, nullable=True)

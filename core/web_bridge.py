@@ -1430,6 +1430,21 @@ class WebBridge(QObject):
             self._ddl_kolon(db, "ALTER TABLE warehouse.repair_records ADD COLUMN IF NOT EXISTS assigned_technician VARCHAR(150);")
             self._ddl_kolon(db, "ALTER TABLE warehouse.repair_records ADD COLUMN IF NOT EXISTS assigned_by VARCHAR(100);")
             self._ddl_kolon(db, "ALTER TABLE warehouse.repair_records ADD COLUMN IF NOT EXISTS assigned_at TIMESTAMP;")
+            # KAPANIŞ ZAMANI. Onarım 1002 (Tamamlandı) / 1003 (İptal) olduğunda BİR KEZ
+            # yazılır, kayıt yeniden açılırsa (1000/1001/1004) temizlenir.
+            # Neden ayrı sütun: Servis > Durum ekranı kapanış zamanını updated_at'ten
+            # okuyordu, ama updated_at "satıra son yazma" demektir (ORM onupdate + ham
+            # UPDATE'ler). Depo durumu değişikliği, sıra senkronu gibi sonraki her yazma
+            # damgayı ileri kaydırıyor, geçmişte onarımın bittiği an yanlış görünüyordu.
+            self._ddl_kolon(db, "ALTER TABLE warehouse.repair_records ADD COLUMN IF NOT EXISTS closed_at TIMESTAMP;")
+            # Geçmiş kayıtlar için tek seferlik doldurma: kapanmış ama closed_at'i boş
+            # olanlarda elde en iyi tahmin updated_at'tir. İdempotenttir - bir kez dolan
+            # satır bir daha güncellenmez.
+            db.execute(text("""
+                UPDATE warehouse.repair_records
+                   SET closed_at = updated_at
+                 WHERE repair_result_type_code IN (1002, 1003) AND closed_at IS NULL
+            """))
             # KALDIRILDI - burada eskiden her açılışta şu güncelleme çalışıyordu:
             #     SET assigned_technician = rr.supply_requested_by
             #     WHERE repair_result_type_code = 1001 AND assigned_technician boş
@@ -10501,7 +10516,11 @@ class WebBridge(QObject):
             # kayıt teknisyene geri gittiği için 1001'de kalır; o testin de görünmesi gerekir.
             for r in db.execute(_sqltext("""
                 SELECT rr.department_mission, rr.part_item_code, rr.notes,
-                       rr.repair_result_type_code AS kod, rr.updated_at, rr.assigned_technician,
+                       rr.repair_result_type_code AS kod,
+                       -- Kapanış zamanı closed_at'ten okunur; updated_at yalnızca
+                       -- eski (closed_at doldurulmamış) kayıtlar için yedektir.
+                       COALESCE(rr.closed_at, rr.updated_at) AS updated_at,
+                       rr.assigned_technician,
                        rrt.short_name AS durum_adi,
                        mg.short_name AS grup_adi,
                        COALESCE(NULLIF(TRIM(u.fullname), ''), rr.assigned_technician) AS teknisyen
@@ -10573,10 +10592,20 @@ class WebBridge(QObject):
                                      if tekn else "Onarım yeniden açıldı — teknisyen atanmamış."),
                         }))
 
-                # Onarımın kendi satırı yalnızca kapanmış kayıtlar için.
-                if r["kod"] not in (1002, 1003):
+                # Onarımın kendi satırı yalnızca TAMAMLANMIŞ (1002) kayıtlar için.
+                #
+                # İPTAL EDİLEN (1003) onarımlar buraya YAZILMAZ. İptal bir cihaz statüsü
+                # olayı değildir ve neredeyse her zaman toplu gelir: "Cihaz İade Edilecek"
+                # (execute_device_return) cihaza bağlı tüm aktif onarımları TEK cümlede
+                # 1003'e çeker. Sonuç, statü geçmişinde aynı dakikaya damgalanmış, hepsi
+                # aynı şeyi söyleyen 5-6 satırlık bir yığındı; cihazın gerçek statü akışını
+                # gölgeliyordu. İadenin kendisi artık geçiş günlüğüne yazılıyor
+                # (execute_device_return → _record_statu_change, "[Cihaz İade Prosedürü: ...]"),
+                # iptal edilen onarımlar da Servis > Onarımlar sekmesinde görünmeye devam
+                # ediyor - bilgi kaybolmuyor, yalnızca Durum akışı temiz kalıyor.
+                if r["kod"] != 1002:
                     continue
-                bitis = "ONARIM TAMAMLANDI" if r["kod"] == 1002 else "ONARIM İPTAL EDİLDİ"
+                bitis = "ONARIM TAMAMLANDI"
                 if geri_donus:
                     # Onarımın kaç kez teknisyene geri döndüğü kapanış satırında da yazsın;
                     # tek satıra bakarak sürecin sancılı geçip geçmediği görülsün.
@@ -11040,7 +11069,7 @@ class WebBridge(QObject):
                 if int(current_statu_code) == self.TEST_FAIL_REOPEN_SOURCE_STATU:
                     geri_donen = db.execute(text("""
                         UPDATE warehouse.repair_records
-                           SET repair_result_type_code = 1001, updated_at = NOW()
+                           SET repair_result_type_code = 1001, closed_at = NULL, updated_at = NOW()
                          WHERE service_record_id = ANY(:refs)
                            AND repair_result_type_code = 1002
                            AND UPPER(TRIM(COALESCE(department_mission, ''))) = ANY(:gruplar)
@@ -12352,7 +12381,9 @@ class WebBridge(QObject):
 
             for row in active_dgd_rows:
                 db.execute(text("""
-                    UPDATE warehouse.repair_records SET repair_result_type_code = 1003 WHERE id = :id
+                    UPDATE warehouse.repair_records
+                       SET repair_result_type_code = 1003, closed_at = now(), updated_at = now()
+                     WHERE id = :id
                 """), {"id": row["id"]})
 
             warranty_code = active_dgd_rows[0]["warranty_code"] or "OOW"
@@ -13901,6 +13932,7 @@ class WebBridge(QObject):
                 # Kamera / L3 / Ekran / Kasa: doğrudan tamamlanmaz, önce bitiş
                 # testine (1006) aktarılır. Diğer departmanlar 1002 ile kapanır.
                 if self._needs_completion_test(rec.department_mission):
+                    # 1006 KAPANIŞ DEĞİLDİR (bitiş testi bekliyor) - closed_at yazılmaz.
                     rec.repair_result_type_code = self.COMPLETION_TEST_PENDING_CODE
                     kapanan += 1
                     sonuclar.append({
@@ -13913,6 +13945,7 @@ class WebBridge(QObject):
                     })
                 else:
                     rec.repair_result_type_code = 1002
+                    rec.closed_at = _dt.datetime.utcnow()
                     kapanan += 1
                     sonuclar.append({
                         "repairId": str(rec.id),
@@ -14143,6 +14176,8 @@ class WebBridge(QObject):
                     return json.dumps({"success": False, "message": engel}, ensure_ascii=False)
 
             rec.repair_result_type_code = target_code
+            # Kapanış zamanı: kapanınca yazılır, yeniden açılınca temizlenir.
+            rec.closed_at = _dt.datetime.utcnow() if target_code in (1002, 1003) else None
             # Bu onarım kapandıysa (1002/1003) bir alt seviyenin sırası gelmiş
             # olabilir; senkron o kayıtları 1004'ten çıkarır.
             db.flush()
@@ -14323,11 +14358,13 @@ class WebBridge(QObject):
                 if engel:
                     return json.dumps({"success": False, "message": engel}, ensure_ascii=False)
                 rec.repair_result_type_code = 1002
+                rec.closed_at = datetime.datetime.utcnow()
                 sonuc_etiket = "BAŞARILI"
                 mesaj = "Onarım bitiş testi başarılı — onarım tamamlandı."
             else:
                 # Başarısız: kayıt teknisyene geri döner (atama korunur, açık iş olur).
                 rec.repair_result_type_code = 1001
+                rec.closed_at = None
                 sonuc_etiket = "BAŞARISIZ"
                 mesaj = "Onarım bitiş testi başarısız — kayıt teknisyene geri gönderildi."
 
@@ -15098,7 +15135,7 @@ class WebBridge(QObject):
             # 2. Engel yok: cihaza bağlı tüm AKTİF onarımları iptal et.
             db.execute(text("""
                 UPDATE warehouse.repair_records
-                SET repair_result_type_code = 1003, updated_at = now()
+                SET repair_result_type_code = 1003, closed_at = now(), updated_at = now()
                 WHERE service_record_id = ANY(:refs) AND repair_result_type_code NOT IN (1002, 1003)
             """), {"refs": refs})
 
@@ -15117,6 +15154,26 @@ class WebBridge(QObject):
             else:
                 db.rollback()
                 return json.dumps({"success": False, "message": "Cihaz kaydı (batch entry) bulunamadı."})
+
+            # GEÇİŞ GÜNLÜĞÜNE YAZ. Bu adım eksikti: statü doğrudan 124'e çekiliyor ama
+            # batch_entry_statu_history'ye hiç kayıt düşmüyordu. Sonuç: Servis > Durum
+            # ekranında cihaz sanki 124'e kendiliğinden gelmiş gibi görünüyor, onarımların
+            # neden hep birden iptal edildiği hiçbir yerden okunamıyordu. Geçiş
+            # state machine'i ATLADIĞI için (grafikten bağımsız, doğrudan) günlüğü de
+            # burada elle yazmak gerekiyor.
+            if entry:
+                from models.service_statu import ServiceStatu
+                eski_kod = int(entry["statu_code"]) if entry["statu_code"] is not None else None
+                if eski_kod != 124:
+                    eski_ad = db.query(ServiceStatu).filter_by(code=eski_kod).first() if eski_kod else None
+                    yeni_ad = db.query(ServiceStatu).filter_by(code=124).first()
+                    self._record_statu_change(
+                        db, entry["id"], entry["imei_number"], eski_kod, 124,
+                        staff=(username or "").strip() or None,
+                        note=f"{(eski_ad.short_name if eski_ad else eski_kod)} ({eski_kod}) → "
+                             f"{(yeni_ad.short_name if yeni_ad else '124')} (124) "
+                             f"[Cihaz İade Prosedürü: {return_reason}]",
+                    )
 
             db.commit()
             return json.dumps({

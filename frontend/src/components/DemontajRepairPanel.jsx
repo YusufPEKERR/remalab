@@ -683,28 +683,28 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
         </div>
       </div>
 
-      {/* ── Onarım Takımları + Karar ── */}
-      <div className="bg-[#C6CEE2] dark:bg-[#181a24] rounded-2xl border border-slate-200 dark:border-[#1e222d] shadow-sm overflow-hidden px-5 py-4">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-2">
-              <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Onarım Takımları</label>
-              {totalRepairPrice > 0 && (
-                <span
-                  className={`text-[11px] font-bold px-2 py-0.5 rounded-md border ${totalPriceBadgeInfo.bg}`}
-                  title={`Teklif parçalarının toplam fiyatı (${totalPriceBadgeInfo.statusText})`}
-                >
-                  Toplam: {totalRepairPrice.toFixed(2)} {device?.currency || ''}
-                </span>
-              )}
-            </div>
-            <div className="flex flex-wrap gap-2">
+      {/* ── Onarım Takımları + Karar ──
+          DÜZEN: tek satıra sıkıştırılmıyor. Takım rozetleri, fiyat özeti ve karar
+          butonları farklı genişliklerde olduğu için hepsi aynı flex satırındayken
+          buton daralıp metni sarıyor, uyarı kutusu da araya sıkışıyordu. Artık:
+            üst satır  → takımlar (esner) + fiyat özeti (sabit)
+            alt satır  → aksiyon butonları, sağa yaslı, eşit yükseklikte
+          Uyarı kutusu kendi tam genişlikli satırında duruyor. */}
+      <div className="bg-[#C6CEE2] dark:bg-[#181a24] rounded-2xl border border-slate-200 dark:border-[#1e222d] shadow-sm overflow-hidden px-5 py-4 space-y-3">
+
+        {/* Üst satır: takımlar + fiyat özeti */}
+        <div className="flex flex-col lg:flex-row lg:items-start gap-3">
+          <div className="flex-1 min-w-0">
+            <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-500 uppercase tracking-widest mb-2">
+              Onarım Takımları
+            </label>
+            <div className="flex flex-wrap gap-1.5">
               {missionGroups.map(mg => {
                 const active = activeMissionGroupCodes.has(mg.code);
                 return (
                   <span
                     key={mg.code}
-                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border ${active ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30" : "bg-slate-50 dark:bg-slate-800/50 text-slate-400 border-slate-200 dark:border-slate-700"}`}
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border ${active ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30" : "bg-white/50 dark:bg-slate-800/50 text-slate-400 border-slate-200 dark:border-slate-700"}`}
                   >
                     {active ? <CheckCircle size={11} /> : null} {takimAdi(mg.code, null) || mg.short_name}
                   </span>
@@ -712,24 +712,53 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
               })}
             </div>
           </div>
+
+          {/* Fiyat özeti: toplam ve (varsa) limit yan yana, tek blokta. */}
+          {totalRepairPrice > 0 && (
+            <div className="shrink-0 flex items-center gap-4 px-3.5 py-2 rounded-xl bg-white/60 dark:bg-[#12141c] border border-slate-200 dark:border-[#1e222d]">
+              <div>
+                <div className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Toplam</div>
+                <div className={`text-sm font-extrabold tabular-nums ${isPriceExceeded ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+                  {(decisionPreview?.total_price ?? totalRepairPrice).toFixed(2)} {device?.currency || ''}
+                </div>
+              </div>
+              {decisionPreview?.target_price > 0 && (
+                <>
+                  <div className="w-px h-8 bg-slate-200 dark:bg-[#1e222d]" />
+                  <div>
+                    <div className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Hedef Limit</div>
+                    <div className="text-sm font-extrabold tabular-nums text-slate-600 dark:text-slate-300">
+                      {decisionPreview.target_price.toFixed(2)} {device?.currency || ''}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Uyarı: kendi satırında, tam genişlik - butonu daraltmıyor. */}
+        {isPriceExceeded && (
+          <div className="flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3.5 py-2 text-xs text-amber-700 dark:text-amber-300">
+            <AlertTriangle size={15} className="shrink-0 text-amber-500" />
+            <span>
+              <strong>Hedef fiyat aşıldı.</strong> Cihaz üretime aktarılamaz, müşteri onayına gönderilecek.
+            </span>
+          </div>
+        )}
+
+        {/* Alt satır: aksiyonlar */}
+        <div className="flex flex-wrap items-center justify-end gap-2">
           {hasActiveDgd && (
             <button
               onClick={handleApplyDgdReturn}
               disabled={!hasAccess || returningDgd}
               title="Aktif DGD işçiliğini DGDDEC (iade işçiliği) koduna dönüştürür"
-              className="px-5 py-3 rounded-xl border-2 border-amber-500 text-amber-600 dark:text-amber-400 text-sm font-semibold transition-colors shadow-lg disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 shrink-0 hover:bg-amber-50 dark:hover:bg-amber-500/10"
+              className="h-11 px-4 rounded-xl border border-amber-500/60 text-amber-600 dark:text-amber-400 text-sm font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-2 hover:bg-amber-50 dark:hover:bg-amber-500/10"
             >
               <Ban size={16} />
               {returningDgd ? "İşleniyor..." : "İade Et"}
             </button>
-          )}
-          {isPriceExceeded && (
-            <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl px-3 py-2 flex items-center gap-2 text-amber-700 dark:text-amber-300 text-xs shrink-0 max-w-sm">
-              <AlertTriangle className="w-4 h-4 shrink-0 text-amber-500" />
-              <span>
-                <strong>Hedef Fiyat Aşıldı:</strong> Toplam <strong>{(decisionPreview?.total_price || totalRepairPrice).toFixed(2)} TL</strong> &gt; Limit <strong>{(decisionPreview?.target_price || 0).toFixed(2)} TL</strong> (Müşteri Onayına Gönderilecek)
-              </span>
-            </div>
           )}
           <button
             onClick={handleSubmitDecision}
@@ -745,12 +774,12 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
                 : (isProductionReady
                   ? "Cihazı üretime aktarır ve parça barkodlarını basar."
                   : (isPriceExceeded
-                    ? `Parça toplam fiyatı (${(decisionPreview?.total_price || totalRepairPrice).toFixed(2)} TL), hedef limitini (${(decisionPreview?.target_price || 0).toFixed(2)} TL) aştı — cihaz Müşteri Onayına gönderilecek.`
+                    ? `Parça toplam fiyatı (${(decisionPreview?.total_price || totalRepairPrice).toFixed(2)} ${device?.currency || 'TL'}), hedef limitini (${(decisionPreview?.target_price || 0).toFixed(2)} ${device?.currency || 'TL'}) aştı — cihaz Müşteri Onayına gönderilecek.`
                     : "Cihazı müşteri onayına gönderir ve parça barkodlarını basar.")))}
-            className={`px-5 py-3 rounded-xl text-white text-sm font-semibold transition-colors shadow-lg disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 shrink-0 ${isProductionReady ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20" : (isPriceExceeded ? "bg-amber-600 hover:bg-amber-700 shadow-amber-500/20" : "bg-violet-600 hover:bg-violet-700 shadow-violet-500/20")}`}
+            className={`h-11 px-5 rounded-xl text-white text-sm font-bold transition-colors shadow-lg disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-2 whitespace-nowrap ${isProductionReady ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20" : "bg-violet-600 hover:bg-violet-700 shadow-violet-500/20"}`}
           >
             {isProductionReady ? <CheckCircle size={16} /> : <AlertTriangle size={16} />}
-            {deciding ? "İşleniyor..." : isProductionReady ? "Üretime Aktar" : (isPriceExceeded ? "Müşteri Onayına Gönder (Hedef Fiyat Aşıldı)" : "Müşteri Onayı Alınacak")}
+            {deciding ? "İşleniyor..." : isProductionReady ? "Üretime Aktar" : "Müşteri Onayı Al"}
           </button>
         </div>
       </div>
