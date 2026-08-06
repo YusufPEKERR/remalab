@@ -572,7 +572,23 @@ const TechnicianRepairOperations = () => {
   const [supplyStatuses, setSupplyStatuses] = useState([]);
   const [partStock, setPartStock] = useState({}); // { [item_code]: quantity }
   const [partPrices, setPartPrices] = useState({}); // { [item_code]: price } - Müşteri Fiyat Matrisi
+  const [decisionPreview, setDecisionPreview] = useState(null);
   const searchRef = useRef(null);
+
+  useEffect(() => {
+    if (!device?.imei) {
+      setDecisionPreview(null);
+      return;
+    }
+    api.getDismantleDecisionPreview(device.imei).then(res => {
+      if (res && res.success) {
+        setDecisionPreview(res);
+      }
+    });
+  }, [device?.imei, repairs]);
+
+  const isPriceExceeded = !!decisionPreview?.price_limit_exceeded;
+  const targetPrice = decisionPreview?.target_price;
 
   // Görev grupları MioCreate.xlsx MissionGroup sayfasından seed edilen
   // organization.mission_groups tablosundan gelir (üretim/onarım ile ilgili olanlar).
@@ -1332,6 +1348,14 @@ const TechnicianRepairOperations = () => {
                 Toplam: {totalRepairPrice.toFixed(2)} {device?.currency || ''}
               </span>
             )}
+            {targetPrice !== undefined && targetPrice < 9000 && (
+              <span
+                className={`text-[11px] font-bold px-2 py-0.5 rounded-md border ${isPriceExceeded ? 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/30' : 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-500/20'}`}
+                title={`Müşteri Hedef Fiyat Matrisindeki Limiti: ${targetPrice.toFixed(2)} TL`}
+              >
+                Hedef Limit: {targetPrice.toFixed(2)} {device?.currency || 'TL'} {isPriceExceeded ? '⚠️ (Aşıldı)' : '✓'}
+              </span>
+            )}
           </h3>
           <div className="flex flex-wrap items-center gap-2">
               <button onClick={() => setShowAddModal(true)} disabled={!hasAccess || !device} className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold transition-colors shadow-sm flex items-center gap-1.5 cursor-pointer">
@@ -1422,6 +1446,17 @@ const TechnicianRepairOperations = () => {
               </button>
           </div>
         </div>
+
+        {isPriceExceeded && (
+          <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-2.5 mx-5 mt-3 flex items-center gap-3 text-amber-700 dark:text-amber-300 text-xs shrink-0">
+            <AlertTriangle className="w-4 h-4 shrink-0 text-amber-500" />
+            <div>
+              <span className="font-bold block">⚠️ Müşteri Hedef Fiyat Limiti Aşıldı</span>
+              Cihazdaki parça fiyatları toplamı (<strong>{(decisionPreview?.total_price || totalRepairPrice).toFixed(2)} TL</strong>), 
+              Müşteri Hedef Fiyat Matrisindeki hedef limiti (<strong>{targetPrice?.toFixed(2)} TL</strong>) aştığı için cihaz <strong>Müşteri Onayına (106)</strong> aktarılmıştır.
+            </div>
+          </div>
+        )}
 
         {/* Repair Navigation Tabs */}
         {groupedRepairs.length > 0 && (
