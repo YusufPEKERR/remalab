@@ -146,7 +146,9 @@ export const barkodFontuHazirMi = () => fontKullanilabilir;
 export async function barkodFontunuYukle() {
   try {
     if (!document.fonts) return (fontKullanilabilir = false);
-    await document.fonts.load(`16px "${BARKOD_FONTU}"`, "*0123456789ABC*");
+    // Başlangıç/bitiş karakterleri de örnek metne konur ki Chromium onların
+    // gliflerini de basımdan önce yüklesin (bkz. barkodCiz - parantez kullanılıyor).
+    await document.fonts.load(`16px "${BARKOD_FONTU}"`, "()*0123456789ABC");
     fontKullanilabilir = document.fonts.check(`16px "${BARKOD_FONTU}"`);
   } catch (_e) {
     fontKullanilabilir = false;
@@ -185,14 +187,21 @@ function barkodCiz(deger, yukseklik, kalinlik) {
   if (!v) return '<div style="font-size:7px">Barkod değeri yok</div>';
 
   const punto = (Number(yukseklik) || 60) / CUBUK_ORANI;
-  const genislik = (v.length + 2) * KARAKTER_ORANI * punto;   // *DEĞER* -> +2 karakter
-  // Code 39 başlangıç/bitiş karakteri: değer YILDIZLAR ARASINA alınmazsa okuyucu
-  // barkodu hiç görmez.
+  const genislik = (v.length + 2) * KARAKTER_ORANI * punto;   // (DEĞER) -> +2 karakter
+  // Code 39 BAŞLANGIÇ/BİTİŞ karakteri. Değer bu karakterlerin arasına alınmazsa
+  // okuyucu barkodu hiç görmez.
+  //
+  // Yıldız yerine PARANTEZ kullanılıyor: IDAHC39M yazı tipinde "(" ve ")" glifleri
+  // yıldızla BİREBİR AYNI çubuk desenini taşır (aynı kontur x kenarları: 2, 58, 245,
+  // 301, 366, 544, 609, 786, 852, 908 - fontTools ile doğrulandı), tek farkı taban
+  // çizgisinin altında okunur karakter ÇİZMEMELERİ. Yani barkod aynı şekilde okunur,
+  // etikette artık "*" görünmez. Okuyucu yine ham değeri döner - parantez de yıldız
+  // gibi yalnızca çerçevedir, veriye karışmaz.
   return `<div style="font-family:'${BARKOD_FONTU}';font-size:${punto.toFixed(2)}px;`
        + `line-height:${SATIR_ORANI};height:${(punto * SATIR_ORANI).toFixed(2)}px;`
        + `width:${genislik.toFixed(2)}px;max-width:100%;margin:0 auto;`
        + `white-space:nowrap;text-align:center;color:#000;font-weight:400;`
-       + `letter-spacing:0">*${v}*</div>`;
+       + `letter-spacing:0">(${v})</div>`;
 }
 
 const kacisla = (s) => String(s == null ? "" : s)

@@ -731,30 +731,11 @@ const TechnicianRepairOperations = () => {
     return refreshed;
   }, [device]);
 
-  // ARA TESTE GÖNDER (109 → 138)
-  // Cihazın tüm onarımları bitti mi: iptal edilmemiş her kaydın tamamlanmış (1002) olması.
-  // Hiç aktif onarım yoksa izin verilmez - üzerinde hiç iş yapılmamış cihaz yanlışlıkla
-  // Ara Test'e düşmesin.
-  const [sendingToTest, setSendingToTest] = useState(false);
-  const allRepairsDone = useMemo(() => {
-    const aktif = repairs.filter(r => !r.isCancelled);
-    return aktif.length > 0 && aktif.every(r => r.statusCode === 1002);
-  }, [repairs]);
-
-  const handleSendToIntermediateTest = useCallback(async () => {
-    if (!device || sendingToTest) return;
-    setSendingToTest(true);
-    const res = await api.sendToIntermediateTest(device.imei, getCurrentUser()?.username).catch(() => null);
-    setSendingToTest(false);
-    if (!res || !res.success) {
-      showNotif("error", "Ara Teste Gönderilemedi", res?.message || "İşlem başarısız oldu.");
-      return;
-    }
-    showNotif("success", "Ara Teste Gönderildi", res.message);
-    // Statü yerel olarak da güncellenir; buton hemen kaybolsun, cihaz yeniden aranmasın.
-    setDevice(d => (d ? { ...d, serviceStatus: 138 } : d));
-  }, [device, sendingToTest, showNotif]);
-
+  // ARA TESTE GEÇİŞ (109 → 138) OTOMATİKTİR — ayrı buton YOK.
+  // İş sırasının en altındaki onarım (L1/L2) tamamlanınca cihazda açık kayıt kalmaz
+  // ve backend cihazı kendiliğinden Ara Test Bekleniyor (138) statüsüne alır
+  // (bkz. web_bridge._auto_send_to_intermediate_test). Tamamlama yanıtındaki
+  // autoSentToTest alanı geçişin yapıldığını söyler; ekran statüyü ona göre günceller.
   // Backend'e kalıcı olarak yazar (warehouse.repair_records) ve ardından
   // güncel listeyi tekrar çeker — sayfa yenilense/cihaz tekrar aransa da kaybolmaz.
   const handleAddRepair = useCallback(async (missionGroupCode, warrantyCode, notes, partItemCode, itemFaultCode, isPartAdd = false) => {
@@ -850,6 +831,27 @@ const TechnicianRepairOperations = () => {
     showNotif("success", res.assigned ? "Teknisyen Atandı" : "Atama Kaldırıldı", res.message || "");
   }, [assignTarget, refreshRepairs, showNotif]);
 
+  // ── Onarıma Devam Et (1002 → 1001) ──────────────────────────
+  // Ara/Son test başarısız olup cihaz üretime döndüğünde SADECE L1/L2 onarımları
+  // otomatik açılır (bkz. web_bridge.TEST_FAIL_REOPEN_GROUPS). Kamera/L3/Ekran/Kasa
+  // onarımlarının bitiş testi zaten onaylandığı için "Onarım Tamamlandı" kalır;
+  // gerçekten yeniden çalışılacaksa teknisyen buradan bilinçli olarak açar.
+  // assignTechnicianToRepair KULLANILMAZ: onun kapsamı 1002/1003 kayıtları dışlar,
+  // tamamlanmış onarımda hiçbir satırı güncellemez.
+  const handleContinueRepair = useCallback(async (repairId) => {
+    const res = await api.updateRepairStatus(repairId, 1001, getCurrentUser()?.username);
+    if (!res || !res.success) {
+      showNotif("error", "Onarım Açılamadı", res?.message || "İşlem başarısız oldu.");
+      return;
+    }
+    await refreshRepairs();
+    const applied = res.appliedCode != null ? Number(res.appliedCode) : 1001;
+    showNotif("success", "Onarım Yeniden Açıldı",
+      applied === 1004
+        ? "Kayıt açıldı ancak sırası gelmediği için beklemede (üst seviye onarımlar sürüyor)."
+        : "Onarım teknisyende açık iş olarak yeniden görünüyor.");
+  }, [refreshRepairs, showNotif]);
+
   const handleAdvanceStatus = useCallback(async (repairId, newStatus) => {
     // 1001 "Teknisyene Atandı" doğrudan set EDİLMEZ — önce teknisyen seçtirilir.
     // Statüyü, atama işlemiyle birlikte backend tek transaction içinde yazar.
@@ -871,6 +873,14 @@ const TechnicianRepairOperations = () => {
     const applied = res.appliedCode != null ? Number(res.appliedCode) : Number(newStatus);
     if (applied !== Number(newStatus)) {
       await refreshRepairs();
+    }
+    // Son onarım kapandıysa backend cihazı Ara Test'e (138) almış olabilir; ekrandaki
+    // statü rozeti cihaz yeniden aranmadan da doğru görünsün.
+    if (res.autoSentToTest) {
+      setDevice(d => (d ? { ...d, serviceStatus: 138 } : d));
+      showNotif("success", "Ara Teste Gönderildi", res.message ||
+        "Cihazın tüm onarımları tamamlandı — Ara Test Bekleniyor (138).");
+      return;
     }
     const statusLabel = REPAIR_STATUS[applied]?.label || applied;
     showNotif("success", "Statü Güncellendi", res.message || `${applied} - ${statusLabel}`);
@@ -1339,24 +1349,9 @@ const TechnicianRepairOperations = () => {
               >
                 <Package size={14} /> Parça Ekle
               </button>
-              {/* ARA TESTE GÖNDER (109 → 138). Cihazın tüm onarımları bitince teknisyen
-                  ekrandan ayrılmadan cihazı Ara Test'e verebilsin diye buraya kondu;
-                  eskiden yalnızca menüdeki "Ara Test için Teslim al" ekranından yapılıyordu.
-                  Buton yalnızca cihaz 109'dayken görünür. Açık onarım varsa pasif kalır -
-                  asıl denetim backend'de (send_to_intermediate_test), burası sadece
-                  gereksiz tıklamayı önler. */}
-              {device && device.serviceStatus === 109 && (
-                <button
-                  onClick={handleSendToIntermediateTest}
-                  disabled={!hasAccess || sendingToTest || !allRepairsDone}
-                  title={allRepairsDone
-                    ? "Cihazı Ara Test Bekleniyor (138) statüsüne alır"
-                    : "Önce tüm onarımların tamamlanması gerekiyor"}
-                  className="px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold transition-colors shadow-sm flex items-center gap-1.5 cursor-pointer"
-                >
-                  <ArrowRightLeft size={14} /> {sendingToTest ? "Gönderiliyor..." : "Ara Teste Gönder"}
-                </button>
-              )}
+              {/* "Ara Teste Gönder" butonu KALDIRILDI: son onarım tamamlanınca cihaz
+                  109 → 138 geçişini kendiliğinden yapıyor
+                  (bkz. web_bridge._auto_send_to_intermediate_test). */}
               {/* Bu ekranda etiket yazdırma YOK. Barkod, Demontaj'da "Üretime Aktar"
                   anında ve Son Test Sonuç ekranında basılıyor. */}
               {/* 1004 (sırada bekliyor) kayda da teknisyen atanabilir: iş önden
@@ -1409,6 +1404,18 @@ const TechnicianRepairOperations = () => {
                 >
                   <Clock size={14} /> Bitiş Testinde
                 </span>
+              )}
+              {/* Tamamlanmış onarımı yeniden açar. Testten dönen cihazda L1/L2
+                  dışındaki gruplar 1002 kaldığı için tek açma yolu budur. */}
+              {selectedRepair && selectedRepair.statusCode === 1002 && (
+                <button
+                  onClick={() => handleContinueRepair(selectedRepair.id)}
+                  disabled={!hasAccess}
+                  className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold transition-colors shadow-sm flex items-center gap-1.5 cursor-pointer"
+                  title="Tamamlanmış bu onarımı yeniden aç (teknisyende açık iş olarak görünür)"
+                >
+                  <Play size={14} /> Onarıma Devam Et
+                </button>
               )}
               <button onClick={handleReturnDevice} disabled={!hasAccess || !device} className="px-3.5 py-2 rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold transition-colors shadow-sm flex items-center gap-1.5 cursor-pointer">
                 <AlertTriangle size={14} /> İade Edilecek

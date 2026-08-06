@@ -10926,7 +10926,9 @@ class WebBridge(QObject):
         from models.repair_record import RepairRecord
         from models.phonecheck_test_result import PhonecheckTestResult
         from services.state_machine_service import StateMachineService
+        from sqlalchemy import text
         db = SessionLocal()
+        geri_donen = 0
         try:
             entry = db.query(BatchEntry).filter(BatchEntry.id == int(entry_id)).first()
             if not entry:
@@ -11025,10 +11027,24 @@ class WebBridge(QObject):
                     **fault_row_kwargs
                 ))
 
-                db.query(RepairRecord).filter(
-                    RepairRecord.service_record_id.in_(repair_refs),
-                    RepairRecord.repair_result_type_code == 1002
-                ).update({"repair_result_type_code": 1001}, synchronize_session=False)
+                # ARA TESTTEN DÖNÜŞTE YALNIZCA L1/L2 ONARIMI TEKNİSYENE GERİ GİDER.
+                # Kural yalnızca ARA TEST (138) için geçerlidir; Son Test (125)
+                # dönüşünde hiçbir onarım kendiliğinden açılmaz.
+                # Kamera / L3 / Ekran / Kasa onarımlarının ONARIM BİTİŞ TESTİ zaten
+                # ayrıca yapılıp onaylanmıştır (bkz. COMPLETION_TEST_DEPARTMENTS ve
+                # submit_completion_test); testten dönen cihazda onları da otomatik
+                # açmak, onaylanmış işi geçersiz kılıyor ve teknisyene bitmiş onarımı
+                # yeniden kuyruğa sokuyordu. Onlar 1002 (Tamamlandı) kalır; gerçekten
+                # yeniden çalışılacaksa teknisyen "Onarıma Devam Et" ile bilinçli
+                # olarak açar (update_repair_status → 1001).
+                if int(current_statu_code) == self.TEST_FAIL_REOPEN_SOURCE_STATU:
+                    geri_donen = db.execute(text("""
+                        UPDATE warehouse.repair_records
+                           SET repair_result_type_code = 1001, updated_at = NOW()
+                         WHERE service_record_id = ANY(:refs)
+                           AND repair_result_type_code = 1002
+                           AND UPPER(TRIM(COALESCE(department_mission, ''))) = ANY(:gruplar)
+                    """), {"refs": repair_refs, "gruplar": list(self.TEST_FAIL_REOPEN_GROUPS)}).rowcount or 0
 
                 target_statu_code = fail_statu_code
             else:
@@ -11050,12 +11066,28 @@ class WebBridge(QObject):
                 staff=getattr(entry, "created_by", None),
                 note=f"{old_name} ({current_statu_code}) → {new_name} ({target_statu_code})",
             )
+            # Geri açılan L1/L2 onarımları sıraya tekrar girer (üst seviyede açık iş
+            # varsa 1004'te bekler).
+            if geri_donen:
+                db.flush()
+                for _ref in repair_refs:
+                    self._sync_hierarchy_wait(db, _ref)
             db.commit()
 
+            mesaj = f"{device_label} {old_name} ({current_statu_code}) statüsünden {new_name} ({target_statu_code}) statüsüne alındı."
+            if result == "fail" and int(current_statu_code) == self.TEST_FAIL_REOPEN_SOURCE_STATU:
+                mesaj += (f" {geri_donen} L1/L2 onarımı teknisyene geri gönderildi."
+                          if geri_donen else
+                          " Cihazda geri açılacak L1/L2 onarımı yok; tamamlanmış onarımlar "
+                          "gerekiyorsa 'Onarıma Devam Et' ile elle açılabilir.")
+            elif result == "fail":
+                mesaj += (" Onarımlar otomatik açılmadı; yeniden çalışılacak kayıt varsa "
+                          "'Onarıma Devam Et' ile açılmalıdır.")
             return json.dumps({
                 "success": True,
                 "new_statu_code": target_statu_code,
-                "message": f"{device_label} {old_name} ({current_statu_code}) statüsünden {new_name} ({target_statu_code}) statüsüne alındı."
+                "reopenedRepairs": geri_donen,
+                "message": mesaj
             })
         except Exception as e:
             db.rollback()
@@ -13562,6 +13594,17 @@ class WebBridge(QObject):
     # "zaten test aşamasında" kabul edip tekrar işlemez.
     COMPLETION_TEST_PENDING_CODE = 1006
 
+    # ARA TEST (138) BAŞARISIZ OLUP CİHAZ ÜRETİME (109) GERİ DÖNDÜĞÜNDE otomatik
+    # olarak teknisyene geri açılan (1002 → 1001) görev grupları. Yalnızca L1/L2:
+    # diğer gruplar onarım bitiş testinden ayrıca geçip onaylandığı için tamamlanmış
+    # (1002) kalır, gerekiyorsa "Onarıma Devam Et" ile elle açılır.
+    TEST_FAIL_REOPEN_GROUPS = ("L1REPAIR", "L2REPAIR")
+    # Otomatik geri açma YALNIZCA ara testten dönüşte çalışır. Son Test (125) de
+    # başarısızlıkta cihazı 109'a döndürür ama orada hiçbir onarım kendiliğinden
+    # açılmaz - o aşamada tüm onarımlar testlerinden geçmiştir, yeniden çalışılacak
+    # kayıt varsa teknisyen "Onarıma Devam Et" ile bilinçli olarak açar.
+    TEST_FAIL_REOPEN_SOURCE_STATU = 138
+
     def _needs_completion_test(self, department_mission):
         """Verilen görev grubu (department_mission) bir onarım bitiş testi
         gerektiriyor mu? Kamera / L3 / Ekran / Kasa için True döner."""
@@ -13644,6 +13687,56 @@ class WebBridge(QObject):
         """), params).rowcount or 0
 
         return bekleyen, serbest
+
+    # ── SON ONARIM BİTİNCE OTOMATİK ARA TESTE GÖNDER (109 → 138) ─────────
+    # İş sırasının en altındaki grup (L1/L2) bitince cihazda açık onarım kalmaz;
+    # o an cihaz kendiliğinden Ara Test Bekleniyor (138) statüsüne geçer. Ayrı bir
+    # "Ara Teste Gönder" butonu YOKTUR - teknisyen onarımı tamamlar, gerisi otomatik.
+    def _auto_send_to_intermediate_test(self, db, service_record_id, username=""):
+        """Cihazın TÜM onarımları kapandıysa ve cihaz 109'daysa 138'e alır.
+        COMMIT ETMEZ - çağıran kendi transaction'ında commit eder.
+        Döner: geçiş yapıldıysa (eski_kod, 138), yapılmadıysa None."""
+        from models.batch_entry import BatchEntry
+        from models.service_statu import ServiceStatu
+        from services.state_machine_service import StateMachineService
+        from sqlalchemy import text as _t
+
+        be = self._resolve_batch_entry_by_ref(db, service_record_id)
+        if not be or be["statu_code"] is None or int(be["statu_code"]) != 109:
+            return None
+
+        # Açık onarım = tamamlanmamış (1002) ve iptal edilmemiş (1003) her kayıt.
+        # 1004 (sırada bekliyor) ve 1006 (bitiş testinde) de AÇIK sayılır - cihaz
+        # onlar bitmeden teste gitmemeli.
+        refs = [str(service_record_id)]
+        for ek in (be["service_id"], be["imei_number"]):
+            if ek and str(ek).strip() not in refs:
+                refs.append(str(ek).strip())
+        acik = db.execute(_t("""
+            SELECT count(*) FROM warehouse.repair_records
+             WHERE service_record_id = ANY(:refs)
+               AND COALESCE(repair_result_type_code, 0) NOT IN (1002, 1003)
+        """), {"refs": refs}).scalar() or 0
+        if acik:
+            return None
+
+        if not StateMachineService(db).validate_transition(109, 138):
+            return None
+
+        entry = db.query(BatchEntry).filter(BatchEntry.id == int(be["id"])).first()
+        if not entry:
+            return None
+        entry.statu_code = 138
+        eski_ad = db.query(ServiceStatu).filter_by(code=109).first()
+        yeni_ad = db.query(ServiceStatu).filter_by(code=138).first()
+        self._record_statu_change(
+            db, entry.id, entry.imei_number, 109, 138,
+            staff=(username or "").strip() or getattr(entry, "created_by", None),
+            note=f"{(eski_ad.short_name if eski_ad else '109')} (109) → "
+                 f"{(yeni_ad.short_name if yeni_ad else '138')} (138) "
+                 f"[son onarım tamamlandı - otomatik]",
+        )
+        return (109, 138)
 
     def _ensure_hierarchy_wait_sync(self):
         """Açılışta bir kez: mevcut tüm cihazların onarımlarını sıraya göre
@@ -13777,10 +13870,12 @@ class WebBridge(QObject):
 
             # Tek commit: kısmi kapatma yapiliyor ama yazma atomik olmali.
             # Kapanan kayıtlar bir alt seviyenin sırasını açmış olabilir.
+            otomatik = None
             if kapanan:
                 db.flush()
                 for _ref in {r.service_record_id for r in kayitlar if r.service_record_id}:
                     self._sync_hierarchy_wait(db, _ref)
+                    otomatik = self._auto_send_to_intermediate_test(db, _ref, username) or otomatik
             db.commit()
 
             return json.dumps({
@@ -13790,6 +13885,7 @@ class WebBridge(QObject):
                 "total": len(kayitlar),
                 "completed": kapanan,
                 "skipped": len(kayitlar) - kapanan,
+                "autoSentToTest": bool(otomatik),
                 "results": sonuclar,
             }, ensure_ascii=False)
         except Exception as e:
@@ -13996,8 +14092,20 @@ class WebBridge(QObject):
             # olabilir; senkron o kayıtları 1004'ten çıkarır.
             db.flush()
             self._sync_hierarchy_wait(db, rec.service_record_id)
+            # Son onarım da kapandıysa cihaz kendiliğinden Ara Test'e geçer.
+            otomatik = None
+            if target_code in (1002, 1003):
+                otomatik = self._auto_send_to_intermediate_test(db, rec.service_record_id, username)
             db.commit()
-            return json.dumps({"success": True, "appliedCode": target_code, "message": applied_message}, ensure_ascii=False)
+            if otomatik:
+                applied_message = ((applied_message + " ") if applied_message else "") + \
+                    "Cihazın tüm onarımları tamamlandı — Ara Test Bekleniyor (138) statüsüne alındı."
+            return json.dumps({
+                "success": True,
+                "appliedCode": target_code,
+                "autoSentToTest": bool(otomatik),
+                "message": applied_message,
+            }, ensure_ascii=False)
         except Exception as e:
             db.rollback()
             return json.dumps({"success": False, "message": str(e)}, ensure_ascii=False)
@@ -14179,12 +14287,17 @@ class WebBridge(QObject):
             # başarısızsa kayıt tekrar açıldı, alt seviye yeniden beklemeye girer.
             db.flush()
             self._sync_hierarchy_wait(db, rec.service_record_id)
+            # Bitiş testi başarılıysa ve cihazın son açık onarımı buysa Ara Test'e geçer.
+            otomatik = self._auto_send_to_intermediate_test(db, rec.service_record_id, username) if is_pass else None
             db.commit()
             db.refresh(rec)
+            if otomatik:
+                mesaj += " Cihazın tüm onarımları tamamlandı — Ara Test Bekleniyor (138) statüsüne alındı."
             return json.dumps({
                 "success": True,
                 "result": "pass" if is_pass else "fail",
                 "newStatusCode": rec.repair_result_type_code,
+                "autoSentToTest": bool(otomatik),
                 "message": mesaj,
             }, ensure_ascii=False)
         except Exception as e:

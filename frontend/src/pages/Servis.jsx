@@ -121,8 +121,14 @@ function InfoPanel({ fields = {} }) {
 function DataTable({ columns, rows = [], rowKeys, emptyLabel = 'Kayıt bulunamadı' }) {
   const keys = rowKeys || columns;
   return (
-    <div className="overflow-hidden border border-[#DCE1F1] dark:border-[#1e222d] rounded-xl bg-[#F5F7FC] dark:bg-[#12141c]">
-      <table className="w-full text-xs text-left whitespace-nowrap">
+    /* YATAY KAYDIRMA: hücreler whitespace-nowrap olduğu için uzun açıklamalar
+       (özellikle Durum sekmesindeki "Text" sütunu - bitiş testi notları, geri
+       dönüş sayıları) tablo genişliğini aşıyor. Kapsayıcı eskiden overflow-hidden
+       idi; taşan kısım kırpılıyor, kaydırma çubuğu HİÇ çıkmıyor ve satırın sonu
+       okunamıyordu. min-w-max tabloya doğal genişliğini verir, overflow-x-auto da
+       kaydırma çubuğunu getirir. Kısa tablolar w-full ile yine tam genişlik kalır. */
+    <div className="overflow-x-auto border border-[#DCE1F1] dark:border-[#1e222d] rounded-xl bg-[#F5F7FC] dark:bg-[#12141c]">
+      <table className="w-full min-w-max text-xs text-left whitespace-nowrap">
         <thead className="bg-[#F5F7FC] dark:bg-[#181a24] text-[#5A6685] dark:text-[#8892B5] font-semibold uppercase tracking-wider border-b border-[#DCE1F1] dark:border-[#1e222d]">
           <tr>
             {columns.map((col) => (

@@ -42,8 +42,9 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
 
   // Tablodan tıklanarak seçilen satır. "PARÇA EKLE" bu satırın onarımını hedef alır.
   const [selectedRepairId, setSelectedRepairId] = useState(null);
-  // Parça barkod etiketi. Ayrı buton ve soru YOK: "Üretime Aktar" başarılı olur
-  // olmaz etiketler doğrudan varsayılan yazıcıya basılır.
+  // Parça barkod etiketi. Ayrı buton ve soru YOK: karar butonu ("Üretime Aktar"
+  // ya da "Müşteri Onayı Alınacak") başarılı olur olmaz etiketler doğrudan
+  // varsayılan yazıcıya basılır.
   const [etiketBas, setEtiketBas] = useState(false);
   // Seçili onarıma parça ekleme modu: { code, name }. Doluyken Onarım Takımı sabitlenir,
   // eklenen parça YENİ onarım açmaz, aynı görev grubuna ikinci bir satır olarak yazılır.
@@ -318,10 +319,14 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
     setDeciding(false);
     if (res && res.success) {
       showNotif("success", res.decision === "URETIME_AKTAR" ? "Üretime Aktarıldı" : "Müşteri Onayına Gönderildi", res.message || "");
-      // Aktarım başarılıysa etiketler SORULMADAN basılır. onRefresh() listeyi
-      // tazeleyeceği için tetikleme ONDAN ÖNCE yapılır; aksi halde etiket bileşeni
-      // parçaları henüz yenilenmiş listeden okuyup boş basıyor.
-      if (res.decision === "URETIME_AKTAR") setEtiketBas(true);
+      // Karar başarılıysa etiketler SORULMADAN basılır - HER İKİ kararda da
+      // (URETIME_AKTAR ve MUSTERI_ONAYI). Müşteri onayına giden cihazın da
+      // parçaları fiziksel olarak ayrılıyor, barkodu o anda basılmalı; eskiden
+      // yalnızca üretime aktarımda basılıyor, onay yolundaki cihaz etiketsiz
+      // kalıyordu. onRefresh() listeyi tazeleyeceği için tetikleme ONDAN ÖNCE
+      // yapılır; aksi halde etiket bileşeni parçaları henüz yenilenmiş listeden
+      // okuyup boş basıyor.
+      setEtiketBas(true);
       await onRefresh();
     } else {
       showNotif("error", "İşlem Başarısız", res?.message || "Statü güncellenemedi.");
@@ -665,7 +670,9 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
               ? `Cihaz artık demontaj aşamasında değil${statusLabel ? ` (${statusLabel})` : ""} — bu işlem yapılamaz.`
               : (!hasNonDgdRepairs
                 ? "Cihazda sadece otomatik DGD işçiliği var - önce en az bir gerçek onarım/parça ekleyin."
-                : "")}
+                : (allPlanned
+                  ? "Cihazı üretime aktarır ve parça barkodlarını basar."
+                  : "Cihazı müşteri onayına gönderir ve parça barkodlarını basar."))}
             className={`px-5 py-3 rounded-xl text-white text-sm font-semibold transition-colors shadow-lg disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 shrink-0 ${allPlanned ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20" : "bg-violet-600 hover:bg-violet-700 shadow-violet-500/20"}`}
           >
             {allPlanned ? <CheckCircle size={16} /> : <AlertTriangle size={16} />}
