@@ -1697,7 +1697,7 @@ class WebBridge(QObject):
             # kotulestirdi, bu yuzden orijinal haline geri donuldu.
             query = text(f"""
                 SELECT
-                    i.id, i.code, i.short_name, i.color, i.item_type, i.item_category, i.enabled,
+                    i.id, p.id AS part_id, i.code, i.short_name, i.color, i.item_type, i.item_category, i.enabled,
                     p.brand, p.model,
                     (SELECT string_agg(icm.mission, ', ') FROM warehouse.item_category_mission icm WHERE icm.item_category = i.item_category OR icm.item_category = i.code) AS department
                 FROM warehouse.item i
@@ -1708,10 +1708,18 @@ class WebBridge(QObject):
             """)
             params['limit'] = limit
             params['offset'] = offset
-            
+
             rows = db.execute(query, params).mappings().all()
-            
-            parts_list = [map_item_to_part(row) for row in rows]
+
+            # id alani warehouse.parts.id (integer) olmali - update_part/delete_part
+            # bunu int()'e cevirip warehouse.parts.id'ye karsi calisiyor. warehouse.item.id
+            # (uuid) buraya sizdirilirsa Guncelle/Sil butonlari "invalid literal for int()"
+            # ile her seferinde patliyordu (bkz. get_parts()'taki ayni duzeltme).
+            parts_list = []
+            for row in rows:
+                d = dict(row)
+                d["id"] = d.pop("part_id")
+                parts_list.append(map_item_to_part(d))
             
             return json.dumps({
                 "success": True, 
@@ -11976,6 +11984,7 @@ class WebBridge(QObject):
         part_item_code/item_fault_code/operation_type_code opsiyoneldir (Demontaj ekranının
         'Parça'/'Arıza Tespiti'/'İşlem' seçimleri)."""
         import uuid
+        from sqlalchemy import text
         from models.repair_record import RepairRecord
         db = SessionLocal()
         try:
@@ -12045,6 +12054,16 @@ class WebBridge(QObject):
                 RepairRecord.assigned_technician != "",
             ).order_by(RepairRecord.assigned_at.desc()).first()
 
+            # DGD gerçek bir stok kalemi değildir, depodan hiçbir zaman fiziksel çıkışı olmaz -
+            # bu yüzden Depo Durum'u baştan "Talepsiz (Depo çıkışı yapılmaz)" olarak sabitlenir.
+            # (open_device_for_dismantle'daki otomatik atama aynı kuralı zaten uyguluyor; burası
+            # bir teknisyen DGD kodunu elle onarım olarak eklerse aynı sonucu garanti eder.)
+            dgd_supply_status = None
+            if part_code:
+                part_cat = db.execute(text("SELECT item_category FROM warehouse.parts WHERE item_code = :c"), {"c": part_code}).scalar()
+                if (part_cat or "").strip().upper() == "DGD":
+                    dgd_supply_status = "Talepsiz"
+
             rec = RepairRecord(
                 id=uuid.uuid4(),
                 service_record_id=service_ref,
@@ -12058,6 +12077,7 @@ class WebBridge(QObject):
                 assigned_technician=atanmis.assigned_technician if atanmis else None,
                 assigned_by=atanmis.assigned_by if atanmis else None,
                 assigned_at=_dt.datetime.utcnow() if atanmis else None,
+                supply_status_code=dgd_supply_status,
             )
             db.add(rec)
             # Yeni onarım sıraya girer: üst seviyede açık iş varsa kayıt doğrudan
@@ -12170,6 +12190,10 @@ class WebBridge(QObject):
                 warranty_code="OOW",
                 part_item_code=dgd_item_code,
                 notes="Flow otomatik DGD ataması",
+                # DGD gerçek bir stok kalemi değildir, depodan hiçbir zaman fiziksel çıkışı
+                # olmaz - bu yüzden Depo Durum'u baştan "Talepsiz (Depo çıkışı yapılmaz)"
+                # olarak sabitlenir, "Depodan parça talep edilebilir" kuyruğuna hiç düşmez.
+                supply_status_code="Talepsiz",
             )
             db.add(rec)
             db.commit()
