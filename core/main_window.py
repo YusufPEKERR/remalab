@@ -40,6 +40,74 @@ class WebSocketTransport(QWebChannelAbstractTransport):
             print(f"[ERROR] WebSocket transport parse error: {e}")
 
 
+import re
+import shutil
+import subprocess
+
+def ensure_frontend_dist_integrity():
+    """frontend/dist/index.html dosyasının ve içerisinde referans gösterilen
+    /assets/*.js ve /assets/*.css derleme paketlerinin diskte var olduğunu doğrular.
+    Eğer index.html yoksa veya referans gösterdiği paketler diskte yoksa (ör. git pull sonrası
+    mismatch), npm run build çalıştırarak veya index.html referanslarını diskteki mevcut
+    asset'ler ile eşleştirerek uygulamayı otomatik onarır (self-healing)."""
+    try:
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        frontend_dir = os.path.join(base_dir, "frontend")
+        dist_dir = os.path.join(frontend_dir, "dist")
+        index_html_path = os.path.join(dist_dir, "index.html")
+
+        needs_rebuild = False
+
+        if not os.path.exists(index_html_path):
+            print("[WARN] frontend/dist/index.html bulunamadı! Otomatik derleme gerekiyor.")
+            needs_rebuild = True
+        else:
+            with open(index_html_path, "r", encoding="utf-8", errors="ignore") as f:
+                content = f.read()
+
+            referenced_assets = re.findall(r'assets/([a-zA-Z0-9_\-\.]+)', content)
+            missing_assets = []
+            for asset_name in referenced_assets:
+                asset_file = os.path.join(dist_dir, "assets", asset_name)
+                if not os.path.exists(asset_file):
+                    missing_assets.append(asset_name)
+
+            if missing_assets:
+                print(f"[WARN] frontend/dist/index.html referans verdiği {missing_assets} dosyaları diskte eksik! Otomatik onarım başlatılıyor.")
+                needs_rebuild = True
+
+        if needs_rebuild:
+            npm_path = shutil.which("npm") or shutil.which("npm.cmd")
+            if npm_path:
+                print("[INFO] Node.js/npm tespit edildi. Frontend derlemesi başlatılıyor (npm run build)...")
+                res = subprocess.run("npm run build", shell=True, cwd=frontend_dir)
+                if res.returncode == 0:
+                    print("[SUCCESS] Frontend arayüzü başarıyla derlendi ve onarıldı.")
+                    return True
+                else:
+                    print("[ERROR] npm run build hata ile sonuçlandı.")
+            else:
+                print("[WARN] Sunucuda npm bulunamadı. Diskteki mevcut asset'ler ile index.html onarılmaya çalışılıyor...")
+                assets_dir = os.path.join(dist_dir, "assets")
+                if os.path.exists(assets_dir) and os.path.exists(index_html_path):
+                    js_files = [f for f in os.listdir(assets_dir) if f.startswith("index-") and f.endswith(".js")]
+                    css_files = [f for f in os.listdir(assets_dir) if f.startswith("index-") and f.endswith(".css")]
+                    if js_files:
+                        actual_js = js_files[0]
+                        with open(index_html_path, "r", encoding="utf-8") as f:
+                            html_text = f.read()
+                        new_html = re.sub(r'assets/index-[a-zA-Z0-9_\-]+\.js', f'assets/{actual_js}', html_text)
+                        if css_files:
+                            new_html = re.sub(r'assets/index-[a-zA-Z0-9_\-]+\.css', f'assets/{css_files[0]}', new_html)
+                        with open(index_html_path, "w", encoding="utf-8") as f:
+                            f.write(new_html)
+                        print(f"[SUCCESS] index.html referansı diskteki {actual_js} ile eşleştirilerek onarıldı.")
+                        return True
+    except Exception as e:
+        print(f"[WARN] ensure_frontend_dist_integrity hatası: {e}")
+    return False
+
+
 class CustomRequestHandler(http.server.SimpleHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
@@ -69,7 +137,25 @@ class CustomRequestHandler(http.server.SimpleHTTPRequestHandler):
             return os.path.join(cache_dir, rel_path)
         if path.endswith('/favicon.svg') and path != '/favicon.svg':
             path = '/favicon.svg'
-        return super().translate_path(path)
+
+        translated = super().translate_path(path)
+
+        # Eğer istenen dosya /assets/ altında bir .js veya .css ise ve diskte YOKSA,
+        # aynı klasördeki eşleşen mevcut .js/.css dosyasını servis et (404 / 'Uygulama başlatılıyor' kilitlenmelerini önler)
+        if not os.path.exists(translated) and '/assets/' in path:
+            filename = os.path.basename(path)
+            parent_dir = os.path.dirname(translated)
+            if os.path.exists(parent_dir):
+                if filename.startswith('index-') and filename.endswith('.js'):
+                    matches = [f for f in os.listdir(parent_dir) if f.startswith('index-') and f.endswith('.js')]
+                    if matches:
+                        return os.path.join(parent_dir, matches[0])
+                elif filename.startswith('index-') and filename.endswith('.css'):
+                    matches = [f for f in os.listdir(parent_dir) if f.startswith('index-') and f.endswith('.css')]
+                    if matches:
+                        return os.path.join(parent_dir, matches[0])
+
+        return translated
 
     def do_GET(self):
         target_file = self.translate_path(self.path)
@@ -106,6 +192,7 @@ class _ThreadingHTTPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
 
 def _start_static_server(directory, preferred_port=5175):
     """dist/ klasörünü 127.0.0.1'de sabit bir portta servis eder (localStorage origin tutarlılığı için)."""
+    ensure_frontend_dist_integrity()
     handler = functools.partial(CustomRequestHandler, directory=directory)
     for port in range(preferred_port, preferred_port + 20):
         try:

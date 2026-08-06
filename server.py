@@ -72,19 +72,12 @@ class HeadlessServer(QObject):
         else:
             print("[ERROR] WebSocket sunucusu 5174 portunda başlatılamadı! Lütfen Görev Yöneticisi'nden eski python süreçlerini sonlandırın.")
 
-        # Frontend dist dizinini kontrol et ve Web Sunucusunu başlat
+        # Frontend dist dizinini kontrol et, eksik/uyumsuz paket varsa otomatik onar ve Web Sunucusunu başlat
+        from core.main_window import ensure_frontend_dist_integrity
+        ensure_frontend_dist_integrity()
+
         base_dir = os.path.dirname(os.path.abspath(__file__))
         dist_dir = os.path.join(base_dir, "frontend", "dist")
-
-        if not os.path.exists(dist_dir):
-            import shutil
-            if shutil.which("npm"):
-                print("[INFO] Frontend dist klasoru bulunamadi, otomatik derleniyor...")
-                import subprocess
-                frontend_dir = os.path.join(base_dir, "frontend")
-                subprocess.run("npm run build", shell=True, cwd=frontend_dir)
-            else:
-                print("[WARN] Frontend dist klasoru bulunamadi ve sunucuda npm bulunamadi.")
 
         if os.path.exists(dist_dir):
             self.http_server, self.http_port = _start_frontend_http_server(dist_dir, 80)

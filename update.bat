@@ -100,7 +100,12 @@ cd ..
 goto FINISHED
 
 :NO_NPM
-echo [INFO] Sunucuda npm bulunamadi. Hazir derlenmis (dist) arayuz kullaniliyor.
+echo [INFO] Sunucuda npm bulunamadi. Hazir arayuz kontrol edilip otomatik onariliyor...
+if exist .venv\Scripts\python.exe (
+    .venv\Scripts\python.exe -c "import sys; sys.path.insert(0, '.'); from core.main_window import ensure_frontend_dist_integrity; ensure_frontend_dist_integrity()"
+) else (
+    python -c "import sys; sys.path.insert(0, '.'); from core.main_window import ensure_frontend_dist_integrity; ensure_frontend_dist_integrity()"
+)
 
 :FINISHED
 echo.
