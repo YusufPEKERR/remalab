@@ -143,6 +143,9 @@ export default function DataManagement() {
       if (res && res.success === false) {
         throw new Error(res.message || "Tüm tablolar dışa aktarılamadı.");
       }
+      if (res && res.message) {
+        alert(res.message);
+      }
     } catch (err) {
       console.error(err);
       alert("Tüm tablolar dışa aktarılırken hata oluştu: " + err.message);

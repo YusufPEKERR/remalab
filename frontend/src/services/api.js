@@ -1751,7 +1751,20 @@ export const api = {
         const backend = await getBackend();
         return new Promise((resolve) => {
             if (backend.get_production_runs) {
-                backend.get_production_runs((res) => resolve(JSON.parse(res)));
+                backend.get_production_runs(async (resStr) => {
+                    try {
+                        const res = JSON.parse(resStr);
+                        if (res.fetch_url) {
+                            const fetchRes = await fetch(res.fetch_url, { cache: 'no-store' });
+                            const jsonData = await fetchRes.json();
+                            resolve(jsonData);
+                        } else {
+                            resolve(res);
+                        }
+                    } catch (e) {
+                        resolve({ success: false, message: e.message });
+                    }
+                });
             } else {
                 resolve({ success: true, production_runs: [] });
             }
@@ -2156,7 +2169,20 @@ export const api = {
         const backend = await getBackend();
         return new Promise((resolve) => {
             if (backend.get_item_boms) {
-                backend.get_item_boms((res) => resolve(JSON.parse(res)));
+                backend.get_item_boms(async (resStr) => {
+                    try {
+                        const res = JSON.parse(resStr);
+                        if (res.fetch_url) {
+                            const fetchRes = await fetch(res.fetch_url, { cache: 'no-store' });
+                            const jsonData = await fetchRes.json();
+                            resolve(jsonData);
+                        } else {
+                            resolve(res);
+                        }
+                    } catch (e) {
+                        resolve({ success: false, message: e.message });
+                    }
+                });
             } else {
                 resolve({ success: true, item_boms: [] });
             }

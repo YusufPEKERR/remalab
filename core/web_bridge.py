@@ -55,7 +55,7 @@ def clear_api_cache(session=None):
     """Veritabanında değişiklik olduğunda cache'i temizler, böylece UI sadece yeni veriyi bekler."""
     dirs = get_cache_dirs()
     for d in dirs:
-        for filename in ["parts.json", "stock.json", "critical.json", "price_matrix_items.json", "price_matrix_prices.json"]:
+        for filename in ["parts.json", "stock.json", "critical.json", "price_matrix_items.json", "price_matrix_prices.json", "item_boms.json", "production_runs.json"]:
             path = os.path.join(d, filename)
             if os.path.exists(path):
                 try: 
@@ -1403,6 +1403,34 @@ class WebBridge(QObject):
             # Marka + Model (get_price_matrix_models, get_price_matrix_categories,
             # get_price_matrix_items - modele göre daraltma) birlikte sorgulanıyor.
             db.execute(text("CREATE INDEX IF NOT EXISTS idx_parts_brand_upper_model ON warehouse.parts (UPPER(brand), model);"))
+            # service_id, batch_entries/service_records/work_orders'ı birbirine bağlayan
+            # asıl join anahtarı (bkz. _ensure_service_id_columns) ama şimdiye kadar hiç
+            # indekslenmemişti - get_repair_supply_requests, get_deliverable_parts_for_device
+            # ve benzeri Slot'larda b.service_id::text = rr.service_record_id ile sorgulanıyor.
+            db.execute(text("CREATE INDEX IF NOT EXISTS idx_batch_entries_service_id ON warehouse.batch_entries (service_id);"))
+            db.execute(text("CREATE INDEX IF NOT EXISTS idx_service_records_service_id ON warehouse.service_records (service_id);"))
+            db.execute(text("CREATE INDEX IF NOT EXISTS idx_work_orders_service_id ON warehouse.work_orders (service_id);"))
+            # Parça/batch arama kutularındaki ILIKE '%...%' (baştan joker) aramaları düz
+            # indeksle hızlanmaz - trigram (pg_trgm) GIN indeksi gerekir. get_batch_entries/
+            # lookup_batch_entry her sütunu AYRI AYRI ILIKE ile OR'ladığından (tek bir
+            # birleşik metin değil) her sütun kendi trigram indeksine sahip olmalı ki
+            # planlayıcı bitmap OR ile birleştirebilsin. ÖNEMLİ: bu sorguların hepsi Türkçe
+            # 'I' hatasını önlemek için `COLLATE "C" ILIKE` kullanıyor (bkz. dosya başındaki
+            # PRICE_MATRIX_PRODUCT_TYPE_CASE_SQL notu) - indeks COLLATE "C" ifade indeksi
+            # olarak KURULMAZSA planlayıcı onu asla seçmez (canlı EXPLAIN ile doğrulandı:
+            # COLLATE'siz gin_trgm_ops indeksi sorguyla eşleşmiyor, sessizce Seq Scan'e
+            # düşüyor). Bu yüzden her sütun (col COLLATE "C") ifadesi üzerinden indekslenir.
+            db.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm;"))
+            db.execute(text('CREATE INDEX IF NOT EXISTS idx_item_code_trgm_c ON warehouse.item USING GIN ((code COLLATE "C") gin_trgm_ops);'))
+            db.execute(text('CREATE INDEX IF NOT EXISTS idx_item_short_name_trgm_c ON warehouse.item USING GIN ((short_name COLLATE "C") gin_trgm_ops);'))
+            db.execute(text('CREATE INDEX IF NOT EXISTS idx_be_customer_no_trgm_c ON warehouse.batch_entries USING GIN ((customer_no COLLATE "C") gin_trgm_ops);'))
+            db.execute(text('CREATE INDEX IF NOT EXISTS idx_be_customer_name_trgm_c ON warehouse.batch_entries USING GIN ((customer_name COLLATE "C") gin_trgm_ops);'))
+            db.execute(text('CREATE INDEX IF NOT EXISTS idx_be_imei_trgm_c ON warehouse.batch_entries USING GIN ((imei_number COLLATE "C") gin_trgm_ops);'))
+            db.execute(text('CREATE INDEX IF NOT EXISTS idx_be_serial_trgm_c ON warehouse.batch_entries USING GIN ((serial_number COLLATE "C") gin_trgm_ops);'))
+            db.execute(text('CREATE INDEX IF NOT EXISTS idx_be_internal_id_trgm_c ON warehouse.batch_entries USING GIN ((internal_id COLLATE "C") gin_trgm_ops);'))
+            db.execute(text('CREATE INDEX IF NOT EXISTS idx_be_batch_no_trgm_c ON warehouse.batch_entries USING GIN ((batch_no COLLATE "C") gin_trgm_ops);'))
+            db.execute(text('CREATE INDEX IF NOT EXISTS idx_be_model_trgm_c ON warehouse.batch_entries USING GIN ((model COLLATE "C") gin_trgm_ops);'))
+            db.execute(text('CREATE INDEX IF NOT EXISTS idx_be_defects_trgm_c ON warehouse.batch_entries USING GIN ((defects COLLATE "C") gin_trgm_ops);'))
             db.commit()
         except Exception as e:
             db.rollback()
@@ -1765,6 +1793,13 @@ class WebBridge(QObject):
         çalışıp ~9 saniyeye çıkıyordu (bkz. get_parts_paginated'daki not) - o sütun bu arama
         bileşenlerinde hiç kullanılmadığından burada tamamen atlanır, sorgu 0.6 saniyeye iner.
 
+        Bu ekranların HEPSİ aynı, sık değişmeyen 30K+ satırlık katalogu istediğinden ve
+        önceden hiç cache kullanılmıyordu (her açılışta yeniden sorgulanıyordu), diğer büyük
+        tablolarda (get_stock_status, get_critical_stock) zaten kullanılan dosya-cache deseni
+        burada da uygulanır - parts.json zaten clear_api_cache() listesinde olduğundan (bkz.
+        dosya başı) herhangi bir commit'te otomatik geçersiz kılınır, ayrı bir invalidation
+        eklemeye gerek yoktur.
+
         ÖNEMLİ - iki AYRI ID uzayı: warehouse.item.id UUID'dir, warehouse.parts.id ise
         integer'dır (warehouse.stock.part_id / stock_movements.part_id BUNA referans verir).
         get_parts_paginated (Parts.jsx'in kendi veri tablosu için) kasıtlı olarak i.id
@@ -1775,6 +1810,12 @@ class WebBridge(QObject):
         int()" ile patlıyordu. Bu yüzden burada id p.id (parts.id, integer) olarak döndürülür
         ve eşleşen bir parts satırı olmayan item kayıtları (stok tutulamayacakları için
         zaten Inbound/Outbound'da kullanılamazlar) INNER JOIN ile hariç tutulur."""
+        filename = "parts.json"
+        path = os.path.join(get_cache_dirs()[0], filename)
+        fetch_url = f"/api_cache/{filename}"
+        if os.path.exists(path):
+            return json.dumps({"success": True, "fetch_url": fetch_url})
+
         from sqlalchemy import text
         from core.mapper import map_item_to_part
         db = SessionLocal()
@@ -1787,7 +1828,9 @@ class WebBridge(QObject):
                 ORDER BY i.short_name ASC
             """)).mappings().all()
             parts_list = [map_item_to_part(row) for row in rows]
-            return json.dumps({"success": True, "parts": parts_list, "total_count": len(parts_list)})
+            json_data = json.dumps({"success": True, "parts": parts_list, "total_count": len(parts_list)})
+            write_to_cache(filename, json_data)
+            return json.dumps({"success": True, "fetch_url": fetch_url})
         except Exception as e:
             print(f"[WebBridge] get_parts error: {e}")
             return json.dumps({"success": False, "message": str(e)})
@@ -1797,8 +1840,17 @@ class WebBridge(QObject):
     @Slot(result=str)
     def get_item_boms(self):
         """Tüm ItemBOM (Recipe) kayıtlarını, parent ve child parça bilgileriyle birlikte
-        getirir. item_bom küçük bir tablo olduğu için (get_parts/get_products/get_stock'un
-        aksine) dosya cache'i kullanılmaz, doğrudan sorgulanır."""
+        getirir. item_bom tablosunun kendisi küçüktür ama fonksiyon ayrıca 30K+ satırlık
+        warehouse.parts üzerinde indekslenemeyen bir ILIKE OR taraması da yapıyor (aşağıda) -
+        bu yüzden diğer büyük-katalog Slot'larıyla (get_parts, get_stock_status) aynı
+        dosya-cache desenini kullanır; item_boms.json clear_api_cache() listesinde olduğundan
+        herhangi bir commit'te otomatik geçersiz kılınır."""
+        filename = "item_boms.json"
+        path = os.path.join(get_cache_dirs()[0], filename)
+        fetch_url = f"/api_cache/{filename}"
+        if os.path.exists(path):
+            return json.dumps({"success": True, "fetch_url": fetch_url})
+
         from sqlalchemy import text
         db = SessionLocal()
         try:
@@ -1848,7 +1900,9 @@ class WebBridge(QObject):
                         "materials": []
                     }
 
-            return json.dumps({"success": True, "item_boms": list(bom_map.values())}, ensure_ascii=False)
+            json_data = json.dumps({"success": True, "item_boms": list(bom_map.values())}, ensure_ascii=False)
+            write_to_cache(filename, json_data)
+            return json.dumps({"success": True, "fetch_url": fetch_url})
         except Exception as e:
             print(f"[WebBridge] get_item_boms hatası: {e}")
             return json.dumps({"success": False, "message": str(e)})
@@ -2439,45 +2493,71 @@ class WebBridge(QObject):
                     
             if not safe_ids:
                 return json.dumps({"success": False, "message": "Seçilen parçaların tamamının stokta ürünü var. Önce stok miktarlarını sıfırlayınız."})
-                
-            queries = [
-                "DELETE FROM warehouse.stock WHERE part_id = :id",
-                # İrsaliye geçmişi korunsun diye hareket kayıtları silinmiyor, sadece
-                # silinen parçaya olan referans temizleniyor; ekranda isim anlık
-                # görüntüsü + "(silindi)" ibaresiyle gösterilir.
-                "UPDATE warehouse.stock_movements SET part_id = NULL, part_name_snapshot = :snapshot_name WHERE part_id = :id",
-                "DELETE FROM warehouse.inbound_entries WHERE part_id = :id",
-                "DELETE FROM warehouse.outbound_entries WHERE part_id = :id",
-                "DELETE FROM warehouse.work_order_parts WHERE part_id = :id",
-                "DELETE FROM warehouse.production_materials WHERE part_id = :id",
-                "DELETE FROM warehouse.bom_items WHERE part_id = :id OR parent_item_id = :id",
-                "DELETE FROM warehouse.item_bom WHERE part_id = :id OR parent_item_id = :id",
-                "DELETE FROM warehouse.part_supplier_prices WHERE part_id = :id",
-                "DELETE FROM warehouse.part_suppliers WHERE part_id = :id",
-                "UPDATE warehouse.production_runs SET target_part_id = NULL WHERE target_part_id = :id",
-                "UPDATE warehouse.work_orders SET target_part_id = NULL WHERE target_part_id = :id",
-                "DELETE FROM warehouse.parts WHERE id = :id"
-            ]
 
-            for pid in safe_ids:
-                part_row = db.execute(text("""
-                    SELECT item_code, brand, model, color, part_category, name
-                    FROM warehouse.parts WHERE id = :id
-                """), {"id": pid}).mappings().first()
-                snapshot_name = _build_part_display_name(
-                    part_row.get("brand") if part_row else None,
-                    part_row.get("model") if part_row else None,
-                    part_row.get("color") if part_row else None,
-                    part_row.get("part_category") if part_row else None,
-                    part_row.get("name") if part_row else None,
-                    part_row.get("item_code") if part_row else None,
+            # Eskiden safe_ids üzerinde Python döngüsüyle parça başına 1 SELECT + 13
+            # DELETE/UPDATE çalıştırılıyordu (N parça için ~15*N round-trip - 200+ parçalık
+            # bir toplu silmede binlerce sorguya çıkıyordu). Aynı sonucu tek seferde
+            # part_id = ANY(:ids) ile veren toplu sorgulara çevrildi (bu oturumdaki
+            # bulk_import_* Slot'larında zaten kullanılan desenin aynısı).
+            part_rows = db.execute(text("""
+                SELECT id, item_code, brand, model, color, part_category, name
+                FROM warehouse.parts WHERE id = ANY(:ids)
+            """), {"ids": safe_ids}).mappings().all()
+            snapshot_by_id = {
+                r["id"]: _build_part_display_name(
+                    r.get("brand"), r.get("model"), r.get("color"),
+                    r.get("part_category"), r.get("name"), r.get("item_code"),
                 )
-                for q in queries:
-                    try:
-                        with db.begin_nested():
-                            db.execute(text(q), {"id": pid, "snapshot_name": snapshot_name})
-                    except Exception as ex:
-                        logging.warning(f"delete_parts_bulk subquery bypass: {ex}")
+                for r in part_rows
+            }
+
+            queries_by_ids = [
+                "DELETE FROM warehouse.stock WHERE part_id = ANY(:ids)",
+                "DELETE FROM warehouse.inbound_entries WHERE part_id = ANY(:ids)",
+                "DELETE FROM warehouse.outbound_entries WHERE part_id = ANY(:ids)",
+                "DELETE FROM warehouse.work_order_parts WHERE part_id = ANY(:ids)",
+                "DELETE FROM warehouse.production_materials WHERE part_id = ANY(:ids)",
+                "DELETE FROM warehouse.bom_items WHERE part_id = ANY(:ids) OR parent_item_id = ANY(:ids)",
+                "DELETE FROM warehouse.item_bom WHERE part_id = ANY(:ids) OR parent_item_id = ANY(:ids)",
+                "DELETE FROM warehouse.part_supplier_prices WHERE part_id = ANY(:ids)",
+                "DELETE FROM warehouse.part_suppliers WHERE part_id = ANY(:ids)",
+                "UPDATE warehouse.production_runs SET target_part_id = NULL WHERE target_part_id = ANY(:ids)",
+                "UPDATE warehouse.work_orders SET target_part_id = NULL WHERE target_part_id = ANY(:ids)",
+            ]
+            for q in queries_by_ids:
+                try:
+                    with db.begin_nested():
+                        db.execute(text(q), {"ids": safe_ids})
+                except Exception as ex:
+                    logging.warning(f"delete_parts_bulk subquery bypass: {ex}")
+
+            # İrsaliye geçmişi korunsun diye hareket kayıtları silinmiyor, sadece silinen
+            # parçaya olan referans temizleniyor; ekranda isim anlık görüntüsü +
+            # "(silindi)" ibaresiyle gösterilir. Her parçanın snapshot adı farklı olduğundan
+            # tek bir UPDATE ... FROM (VALUES ...) ile tüm parçalar için aynı anda yazılır.
+            try:
+                with db.begin_nested():
+                    values_params = {}
+                    values_sql_parts = []
+                    for i, pid in enumerate(safe_ids):
+                        values_sql_parts.append(f"(:id{i}, :name{i})")
+                        values_params[f"id{i}"] = pid
+                        values_params[f"name{i}"] = snapshot_by_id.get(pid) or ""
+                    values_sql = ", ".join(values_sql_parts)
+                    db.execute(text(f"""
+                        UPDATE warehouse.stock_movements sm
+                        SET part_id = NULL, part_name_snapshot = v.snapshot_name
+                        FROM (VALUES {values_sql}) AS v(part_id, snapshot_name)
+                        WHERE sm.part_id = v.part_id
+                    """), values_params)
+            except Exception as ex:
+                logging.warning(f"delete_parts_bulk stock_movements snapshot bypass: {ex}")
+
+            try:
+                with db.begin_nested():
+                    db.execute(text("DELETE FROM warehouse.parts WHERE id = ANY(:ids)"), {"ids": safe_ids})
+            except Exception as ex:
+                logging.warning(f"delete_parts_bulk final delete bypass: {ex}")
 
             db.commit()
             clear_api_cache()
@@ -6140,7 +6220,20 @@ class WebBridge(QObject):
 
     @Slot(result=str)
     def get_production_runs(self):
-        """Tüm üretilen cihaz kayıtlarını, benzersiz seri numaraları (Cihaz Kimlik ID) ve tükettikleri malzemelerle birlikte getirir."""
+        """Tüm üretilen cihaz kayıtlarını, benzersiz seri numaraları (Cihaz Kimlik ID) ve tükettikleri malzemelerle birlikte getirir.
+
+        Frontend (WorkOrders.jsx) TÜM listeyi bellekte tutup hem sayfalama hem de
+        "bu parça için son üretim" gibi client-side find() aramaları yaptığından gerçek
+        sunucu-taraflı sayfalamaya geçmek davranış değişikliği/regresyon riski taşır - onun
+        yerine diğer büyük-katalog Slot'larıyla (get_parts, get_item_boms) aynı dosya-cache
+        deseni kullanılır; production_runs.json clear_api_cache() listesinde olduğundan her
+        commit'te (yeni üretim kaydı, iade vb.) otomatik geçersiz kılınır."""
+        filename = "production_runs.json"
+        path = os.path.join(get_cache_dirs()[0], filename)
+        fetch_url = f"/api_cache/{filename}"
+        if os.path.exists(path):
+            return json.dumps({"success": True, "fetch_url": fetch_url})
+
         from sqlalchemy import text
         db = SessionLocal()
         try:
@@ -6227,7 +6320,9 @@ class WebBridge(QObject):
                     "created_at": u["created_at"].strftime("%Y-%m-%d %H:%M") if u["created_at"] else "",
                     "materials": unit_materials
                 })
-            return json.dumps({"success": True, "production_runs": result})
+            json_data = json.dumps({"success": True, "production_runs": result})
+            write_to_cache(filename, json_data)
+            return json.dumps({"success": True, "fetch_url": fetch_url})
         except Exception as e:
             return json.dumps({"success": False, "message": str(e)})
         finally:
@@ -8053,31 +8148,45 @@ class WebBridge(QObject):
                 name = re.sub(r'[:\\/?*\[\]]', '_', name)
                 return name[:31]
                 
+            # Tek bir tablo (ör. customer_item_prices ~500 bin+ satır) tüm satırları
+            # fetchall() ile belleğe çekip pandas DataFrame'e kopyaladığından, çok büyük
+            # tablolarda bellek/timeout sorununa yol açabiliyordu. Devasa tablolar burada
+            # satır sayısına göre TABLO_SATIR_LIMITI ile sınırlanır (veri kaybı sessiz
+            # değildir - kesilen tablolar için mesajda kullanıcıya bildirilir).
+            TABLO_SATIR_LIMITI = 50000
+            kesilen_tablolar = []
+
             with get_db() as db:
                 tables_query = text('''
-                    SELECT table_schema, table_name 
-                    FROM information_schema.tables 
-                    WHERE table_schema IN ('public', 'warehouse', 'auth') 
+                    SELECT table_schema, table_name
+                    FROM information_schema.tables
+                    WHERE table_schema IN ('public', 'warehouse', 'auth')
                       AND table_type = 'BASE TABLE'
                 ''')
                 tables_result = db.execute(tables_query).fetchall()
 
                 with pd.ExcelWriter(file_path, engine='openpyxl') as writer:
                     used_sheet_names = set()
-                    
+
                     for schema, t_name in tables_result:
-                        query = text(f'SELECT * FROM "{schema}"."{t_name}"')
-                        result = db.execute(query).fetchall()
+                        row_count = db.execute(text(f'SELECT COUNT(*) FROM "{schema}"."{t_name}"')).scalar() or 0
+                        if row_count > TABLO_SATIR_LIMITI:
+                            query = text(f'SELECT * FROM "{schema}"."{t_name}" LIMIT :lim')
+                            result = db.execute(query, {"lim": TABLO_SATIR_LIMITI}).fetchall()
+                            kesilen_tablolar.append(f"{t_name} ({TABLO_SATIR_LIMITI}/{row_count})")
+                        else:
+                            query = text(f'SELECT * FROM "{schema}"."{t_name}"')
+                            result = db.execute(query).fetchall()
                         keys = result[0]._mapping.keys() if result else []
                         data = [dict(zip(keys, row)) for row in result]
-                        
+
                         for row in data:
                             for k, v in row.items():
                                 if hasattr(v, 'isoformat'):
                                     row[k] = v.isoformat()
-                                    
+
                         cleaned_name = clean_sheet_name(t_name)
-                        
+
                         # Aynı isim çakışmasını önle
                         original_clean = cleaned_name
                         suffix = 1
@@ -8085,12 +8194,12 @@ class WebBridge(QObject):
                             suffix_str = f"_{suffix}"
                             cleaned_name = f"{original_clean[:31-len(suffix_str)]}{suffix_str}"
                             suffix += 1
-                            
+
                         used_sheet_names.add(cleaned_name)
-                        
+
                         df = pd.DataFrame(data)
                         df.to_excel(writer, sheet_name=cleaned_name, index=False)
-                    
+
             try:
                 style_excel_file(file_path)
             except:
@@ -8098,7 +8207,12 @@ class WebBridge(QObject):
                 
             # Dosyayı otomatik aç (Windows)
             os.startfile(file_path)
-            
+
+            if kesilen_tablolar:
+                return json.dumps({
+                    "success": True,
+                    "message": "Bazı büyük tablolar satır sınırı nedeniyle kesildi: " + ", ".join(kesilen_tablolar)
+                }, ensure_ascii=False)
             return json.dumps({"success": True})
         except Exception as e:
             return json.dumps({"success": False, "message": str(e)})
@@ -9620,6 +9734,7 @@ class WebBridge(QObject):
             added_count = 0
             skipped_active_count = 0
             insert_rows = []
+            update_rows = []
             for r in rows:
                 imei = (r["imei_number"] or "").strip()
                 serial = (r["serial_number"] or "").strip()
@@ -9639,9 +9754,12 @@ class WebBridge(QObject):
                     if r["currency"] and existing["currency"] != r["currency"].upper():
                         changed_fields["currency"] = r["currency"].upper()
                     if changed_fields:
-                        changed_fields["updated_at"] = datetime.now()
-                        set_clause = ", ".join(f"{k} = :{k}" for k in changed_fields)
-                        db.execute(text(f"UPDATE warehouse.batch_entries SET {set_clause} WHERE id = :id"), {**changed_fields, "id": existing["id"]})
+                        update_rows.append({
+                            "id": existing["id"],
+                            "customer_name": changed_fields.get("customer_name", existing["customer_name"]),
+                            "customer_no": changed_fields.get("customer_no", existing["customer_no"]),
+                            "currency": changed_fields.get("currency", existing["currency"]),
+                        })
                 else:
                     # Bu cihaz (IMEI/seri no) başka bir kaynaktan zaten aktif bir servis
                     # döngüsündeyse (statü 128 değilse) senkronizasyon bu satırı atlar -
@@ -9676,6 +9794,28 @@ class WebBridge(QObject):
                         "updated_at": datetime.now(),
                     })
                     added_count += 1
+
+            # Eskiden by_batch_no/by_imei/... ile eslesen HER musteri icin ayri bir
+            # UPDATE calisiyordu (musteri sayisi kadar round-trip). Degisen alanlar
+            # Python tarafinda ayni sekilde tespit edilir (changed_fields), ama yazim
+            # artik delete_parts_bulk'taki VALUES deseniyle aynı şekilde TEK sorguda yapılır.
+            if update_rows:
+                values_sql = ", ".join(
+                    f"(:id{i}, :customer_name{i}, :customer_no{i}, :currency{i})" for i in range(len(update_rows))
+                )
+                params = {"sync_ts": datetime.now()}
+                for i, u in enumerate(update_rows):
+                    params[f"id{i}"] = u["id"]
+                    params[f"customer_name{i}"] = u["customer_name"]
+                    params[f"customer_no{i}"] = u["customer_no"]
+                    params[f"currency{i}"] = u["currency"]
+                db.execute(text(f"""
+                    UPDATE warehouse.batch_entries be
+                    SET customer_name = v.customer_name, customer_no = v.customer_no,
+                        currency = v.currency, updated_at = :sync_ts
+                    FROM (VALUES {values_sql}) AS v(id, customer_name, customer_no, currency)
+                    WHERE be.id = v.id
+                """), params)
 
             if insert_rows:
                 db.execute(text("""
@@ -11426,7 +11566,7 @@ class WebBridge(QObject):
                    OR LOWER(TRIM(rr.service_record_id)) = LOWER(:term)
                    OR EXISTS (
                        SELECT 1 FROM warehouse.batch_entries be
-                       WHERE (be.service_id IS NOT NULL AND strpos(rr.service_record_id, be.service_id::text) > 0)
+                       WHERE (be.service_id IS NOT NULL AND be.service_id::text = rr.service_record_id)
                          AND (LOWER(TRIM(be.imei_number)) = LOWER(:term) OR LOWER(TRIM(be.serial_number)) = LOWER(:term) OR LOWER(TRIM(be.internal_id)) = LOWER(:term))
                    )
                 ORDER BY rr.created_at DESC
@@ -11603,7 +11743,7 @@ class WebBridge(QObject):
                     LOWER(TRIM(rr.service_record_id)) = LOWER(:term) OR
                     EXISTS (
                         SELECT 1 FROM warehouse.batch_entries be
-                        WHERE (be.service_id IS NOT NULL AND strpos(rr.service_record_id, be.service_id::text) > 0)
+                        WHERE (be.service_id IS NOT NULL AND be.service_id::text = rr.service_record_id)
                           AND (LOWER(TRIM(be.imei_number)) = LOWER(:term) OR LOWER(TRIM(be.serial_number)) = LOWER(:term) OR LOWER(TRIM(be.internal_id)) = LOWER(:term))
                     )
                   )
@@ -11618,7 +11758,7 @@ class WebBridge(QObject):
                         LOWER(TRIM(rr.service_record_id)) = LOWER(:term) OR
                         EXISTS (
                             SELECT 1 FROM warehouse.batch_entries be
-                            WHERE (be.service_id IS NOT NULL AND strpos(rr.service_record_id, be.service_id::text) > 0)
+                            WHERE (be.service_id IS NOT NULL AND be.service_id::text = rr.service_record_id)
                               AND (LOWER(TRIM(be.imei_number)) = LOWER(:term) OR LOWER(TRIM(be.serial_number)) = LOWER(:term) OR LOWER(TRIM(be.internal_id)) = LOWER(:term))
                         )
                       )
@@ -11722,7 +11862,7 @@ class WebBridge(QObject):
                 LEFT JOIN warehouse.batch_entries be ON LOWER(TRIM(be.imei_number)) = LOWER(TRIM(rr.service_record_id))
                     OR LOWER(TRIM(be.serial_number)) = LOWER(TRIM(rr.service_record_id))
                     OR LOWER(TRIM(be.internal_id)) = LOWER(TRIM(rr.service_record_id))
-                    OR (be.service_id IS NOT NULL AND strpos(rr.service_record_id, be.service_id::text) > 0)
+                    OR (be.service_id IS NOT NULL AND be.service_id::text = rr.service_record_id)
                 WHERE UPPER(TRIM(rr.department_mission)) = :dept
                 ORDER BY rr.created_at ASC
             """), {"dept": dept}).mappings().all()
@@ -14257,7 +14397,7 @@ class WebBridge(QObject):
                 LEFT JOIN warehouse.batch_entries be ON LOWER(TRIM(be.imei_number)) = LOWER(TRIM(rr.service_record_id))
                     OR LOWER(TRIM(be.serial_number)) = LOWER(TRIM(rr.service_record_id))
                     OR LOWER(TRIM(be.internal_id)) = LOWER(TRIM(rr.service_record_id))
-                    OR (be.service_id IS NOT NULL AND strpos(rr.service_record_id, be.service_id::text) > 0)
+                    OR (be.service_id IS NOT NULL AND be.service_id::text = rr.service_record_id)
                 WHERE UPPER(TRIM(rr.department_mission)) = :dept
                   AND rr.repair_result_type_code = :pending
                 ORDER BY rr.updated_at ASC, rr.created_at ASC
@@ -14983,6 +15123,13 @@ class WebBridge(QObject):
         db = SessionLocal()
         try:
             rows = db.execute(text("""
+                WITH good_stock_qty AS (
+                    SELECT s.part_id, SUM(s.quantity) AS qty
+                    FROM warehouse.stock s
+                    JOIN warehouse.locations l ON l.id = s.location_id
+                    WHERE l.kind = 'good_stock'
+                    GROUP BY s.part_id
+                )
                 SELECT
                     rr.id, rr.department_mission, rr.notes, rr.part_item_code, rr.item_fault_code,
                     rr.supply_status_code, rr.supply_requested_by, rr.supply_requested_at,
@@ -14994,16 +15141,12 @@ class WebBridge(QObject):
                     rrt.is_cancelled AS repair_is_cancelled,
                     be.imei_number, be.model AS device_model, be.batch_no, be.customer_name,
                     p.id AS part_id,
-                    (
-                        SELECT COALESCE(SUM(s.quantity), 0)
-                        FROM warehouse.stock s
-                        JOIN warehouse.locations l ON l.id = s.location_id
-                        WHERE s.part_id = p.id AND l.kind = 'good_stock'
-                    ) AS stock_qty
+                    COALESCE(gsq.qty, 0) AS stock_qty
                 FROM warehouse.repair_records rr
                 LEFT JOIN organization.mission_groups mg ON mg.code = rr.department_mission
                 LEFT JOIN warehouse.item it ON it.code = rr.part_item_code
                 LEFT JOIN warehouse.parts p ON p.item_code = rr.part_item_code
+                LEFT JOIN good_stock_qty gsq ON gsq.part_id = p.id
                 LEFT JOIN warehouse.item_fault fault ON fault.code = rr.item_fault_code
                 LEFT JOIN warehouse.item_supply_status sup ON sup.code = rr.supply_status_code
                 LEFT JOIN warehouse.repair_result_type rrt ON rrt.code = rr.repair_result_type_code
@@ -15264,6 +15407,13 @@ class WebBridge(QObject):
             parts_info_map = {}
             if part_codes:
                 sql = text("""
+                    WITH good_stock_qty AS (
+                        SELECT s.part_id, SUM(s.quantity) AS qty
+                        FROM warehouse.stock s
+                        JOIN warehouse.locations l ON l.id = s.location_id
+                        WHERE l.kind = 'good_stock'
+                        GROUP BY s.part_id
+                    )
                     SELECT
                         p.id,
                         p.item_code,
@@ -15276,13 +15426,9 @@ class WebBridge(QObject):
                         p.stock_tracking_type,
                         mg.code AS repair_team_code,
                         mg.short_name AS repair_team_name,
-                        (
-                            SELECT COALESCE(SUM(s.quantity), 0)
-                            FROM warehouse.stock s
-                            JOIN warehouse.locations l ON l.id = s.location_id
-                            WHERE s.part_id = p.id AND l.kind = 'good_stock'
-                        ) AS good_stock_qty
+                        COALESCE(gsq.qty, 0) AS good_stock_qty
                     FROM warehouse.parts p
+                    LEFT JOIN good_stock_qty gsq ON gsq.part_id = p.id
                     LEFT JOIN LATERAL (
                         SELECT
                             -- COLLATE "C": veritabani ICU/tr-TR ile kurulu (datlocale='tr-TR'),
