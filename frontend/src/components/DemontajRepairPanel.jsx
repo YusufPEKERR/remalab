@@ -294,6 +294,20 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
   const hasNonDgdRepairs = activeRepairs.some(r => (r.itemCategory || "").toUpperCase() !== "DGD");
   const allPlanned = hasRepairs && (isNoApprovalFlow || activeRepairs.every(r => r.itemCategory && approvedCategoriesLower.has(r.itemCategory.toLowerCase())));
 
+  const [decisionPreview, setDecisionPreview] = useState(null);
+
+  useEffect(() => {
+    if (!device?.imei) return;
+    api.getDismantleDecisionPreview(device.imei).then(res => {
+      if (res && res.success) {
+        setDecisionPreview(res);
+      }
+    });
+  }, [device?.imei, repairs]);
+
+  const isPriceExceeded = !!decisionPreview?.price_limit_exceeded;
+  const isProductionReady = decisionPreview ? (decisionPreview.decision === "URETIME_AKTAR") : (allPlanned && !isPriceExceeded);
+
   // Teklif Parçaları tablosundaki "Fiyat" sütunu: görünen tüm parça kodları için Müşteri
   // Fiyat Matrisi fiyatını TEK seferde çeker (get_prices_for_items), parça başına ayrı
   // çağrı yapmaz.
@@ -686,6 +700,14 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
               {returningDgd ? "İşleniyor..." : "İade Et"}
             </button>
           )}
+          {isPriceExceeded && (
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl px-3 py-2 flex items-center gap-2 text-amber-700 dark:text-amber-300 text-xs shrink-0 max-w-sm">
+              <AlertTriangle className="w-4 h-4 shrink-0 text-amber-500" />
+              <span>
+                <strong>Hedef Fiyat Aşıldı:</strong> Toplam <strong>{(decisionPreview?.total_price || totalRepairPrice).toFixed(2)} TL</strong> &gt; Limit <strong>{(decisionPreview?.target_price || 0).toFixed(2)} TL</strong> (Müşteri Onayına Gönderilecek)
+              </span>
+            </div>
+          )}
           <button
             onClick={handleSubmitDecision}
             /* statusAllowsParts: cihaz DEMONTAJ aşamasında mı. Eskiden kontrol
@@ -697,13 +719,15 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
               ? `Cihaz artık demontaj aşamasında değil${statusLabel ? ` (${statusLabel})` : ""} — bu işlem yapılamaz.`
               : (!hasNonDgdRepairs
                 ? "Cihazda sadece otomatik DGD işçiliği var - önce en az bir gerçek onarım/parça ekleyin."
-                : (allPlanned
+                : (isProductionReady
                   ? "Cihazı üretime aktarır ve parça barkodlarını basar."
-                  : "Cihazı müşteri onayına gönderir ve parça barkodlarını basar."))}
-            className={`px-5 py-3 rounded-xl text-white text-sm font-semibold transition-colors shadow-lg disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 shrink-0 ${allPlanned ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20" : "bg-violet-600 hover:bg-violet-700 shadow-violet-500/20"}`}
+                  : (isPriceExceeded
+                    ? `Parça toplam fiyatı (${(decisionPreview?.total_price || totalRepairPrice).toFixed(2)} TL), hedef limitini (${(decisionPreview?.target_price || 0).toFixed(2)} TL) aştı — cihaz Müşteri Onayına gönderilecek.`
+                    : "Cihazı müşteri onayına gönderir ve parça barkodlarını basar.")))}
+            className={`px-5 py-3 rounded-xl text-white text-sm font-semibold transition-colors shadow-lg disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 shrink-0 ${isProductionReady ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20" : (isPriceExceeded ? "bg-amber-600 hover:bg-amber-700 shadow-amber-500/20" : "bg-violet-600 hover:bg-violet-700 shadow-violet-500/20")}`}
           >
-            {allPlanned ? <CheckCircle size={16} /> : <AlertTriangle size={16} />}
-            {deciding ? "İşleniyor..." : allPlanned ? "Üretime Aktar" : "Müşteri Onayı Alınacak"}
+            {isProductionReady ? <CheckCircle size={16} /> : <AlertTriangle size={16} />}
+            {deciding ? "İşleniyor..." : isProductionReady ? "Üretime Aktar" : (isPriceExceeded ? "Müşteri Onayına Gönder (Hedef Fiyat Aşıldı)" : "Müşteri Onayı Alınacak")}
           </button>
         </div>
       </div>

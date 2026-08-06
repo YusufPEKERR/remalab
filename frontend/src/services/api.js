@@ -1148,6 +1148,17 @@ export const api = {
         });
     },
 
+    getDismantleDecisionPreview: async (imei) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_dismantle_decision_preview) {
+                backend.get_dismantle_decision_preview(String(imei || ''), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false, message: 'Bridge slot not available' });
+            }
+        });
+    },
+
     updateRepairStatus: async (repairId, newStatusCode, username) => {
         const backend = await getBackend();
         return new Promise((resolve) => {

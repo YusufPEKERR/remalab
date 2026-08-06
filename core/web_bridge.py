@@ -13474,6 +13474,26 @@ class WebBridge(QObject):
                     "screen": screen_result, "power": power_result,
                 }).mappings().first()
 
+                if not target_row:
+                    target_row = db.execute(text("""
+                        SELECT target_price FROM warehouse.customer_target_prices
+                        WHERE customer_code = :customer_code AND product_family_code = :pfc
+                          AND screen_test_result = :screen
+                        ORDER BY id ASC LIMIT 1
+                    """), {
+                        "customer_code": customer_code, "pfc": fam["code"],
+                        "screen": screen_result,
+                    }).mappings().first()
+
+                if not target_row:
+                    target_row = db.execute(text("""
+                        SELECT target_price FROM warehouse.customer_target_prices
+                        WHERE customer_code = :customer_code AND product_family_code = :pfc
+                        ORDER BY id ASC LIMIT 1
+                    """), {
+                        "customer_code": customer_code, "pfc": fam["code"],
+                    }).mappings().first()
+
                 if target_row:
                     target_price = float(target_row["target_price"])
 
@@ -13505,6 +13525,33 @@ class WebBridge(QObject):
             "price_limit_exceeded": price_limit_exceeded,
             "price_limit_note": price_limit_note,
         }
+
+    @Slot(str, result=str)
+    def get_dismantle_decision_preview(self, imei):
+        """Demontaj Teknisyeni ekranı için anlık karar önizlemesi döner.
+        Kategori onayı + Müşteri Hedef Fiyat Matrisi limit kontrolünü içerir."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            imei = (imei or "").strip()
+            if not imei:
+                return json.dumps({"success": False, "message": "IMEI boş olamaz."})
+
+            entry = db.execute(text("""
+                SELECT id, statu_code, flow, service_id, customer_no, model, screen_test, power_test
+                FROM warehouse.batch_entries
+                WHERE LOWER(TRIM(imei_number)) = LOWER(:imei)
+                ORDER BY id DESC LIMIT 1
+            """), {"imei": imei}).mappings().first()
+            if not entry:
+                return json.dumps({"success": False, "message": "Bu IMEI için Batch Girişi kaydı bulunamadı."})
+
+            decision = self._compute_dismantle_decision(db, imei, entry)
+            return json.dumps({"success": True, **decision})
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
 
     @Slot(str, str, result=str)
     def submit_dismantle_decision(self, imei, username):
