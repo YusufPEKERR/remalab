@@ -13338,6 +13338,12 @@ class WebBridge(QObject):
             if not repair_rows:
                 return json.dumps({"success": False, "message": "Önce en az bir onarım eklemelisiniz."})
 
+            # DGD, Flow'a göre otomatik eklenen bir işçilik satırıdır - teknisyenin bilinçli
+            # olarak eklediği bir onarım/parça değildir. Aktif kayıtların HEPSİ DGD ise
+            # (gerçek bir onarım hiç eklenmemişse) Üretime Aktar engellenir.
+            if all((r["item_category"] or "").strip().upper() == "DGD" for r in repair_rows):
+                return json.dumps({"success": False, "message": "Cihazda sadece otomatik DGD işçiliği var. Üretime Aktarmadan önce en az bir gerçek onarım/parça eklemelisiniz."})
+
             # Ham flow KODA çevrilir: alanda 7644 cihaz kısa adı ("Refurbish") tutuyor,
             # kural ve kategori tablosu ise kodu ("To refurbish") kullanıyor. Ham değerle
             # karşılaştırılınca bu cihazların HEPSİ gereksiz yere müşteri onayına düşüyordu.

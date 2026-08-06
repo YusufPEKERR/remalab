@@ -287,6 +287,10 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
   // backend'deki submit_dismantle_decision de aynı şekilde is_cancelled kayıtları hariç tutar.
   const activeRepairs = repairs.filter(r => !r.isCancelled);
   const hasRepairs = activeRepairs.length > 0;
+  // DGD, Flow'a göre otomatik eklenen bir işçilik satırıdır - teknisyenin BİLİNÇLİ
+  // olarak eklediği bir onarım değildir. Sadece DGD varken "Üretime Aktar" yapılması
+  // engellenir - cihaza gerçek bir onarım/parça eklenmeden üretime geçilemez.
+  const hasNonDgdRepairs = activeRepairs.some(r => (r.itemCategory || "").toUpperCase() !== "DGD");
   const allPlanned = hasRepairs && (isNoApprovalFlow || activeRepairs.every(r => r.itemCategory && approvedCategoriesLower.has(r.itemCategory.toLowerCase())));
 
   // Teklif Parçaları tablosundaki "Fiyat" sütunu: görünen tüm parça kodları için Müşteri
@@ -305,6 +309,10 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
 
   const handleSubmitDecision = useCallback(async () => {
     if (!device?.imei || !hasRepairs || deciding) return;
+    if (!hasNonDgdRepairs) {
+      showNotif("warning", "Onarım Ekleyiniz", "Cihazda sadece otomatik DGD işçiliği var - Üretime Aktarmadan önce en az bir gerçek onarım/parça eklemelisiniz.");
+      return;
+    }
     setDeciding(true);
     const res = await api.submitDismantleDecision(device.imei, getCurrentUser()?.username);
     setDeciding(false);
@@ -318,7 +326,7 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
     } else {
       showNotif("error", "İşlem Başarısız", res?.message || "Statü güncellenemedi.");
     }
-  }, [device, hasRepairs, deciding, onRefresh, showNotif]);
+  }, [device, hasRepairs, hasNonDgdRepairs, deciding, onRefresh, showNotif]);
 
   // Cihaz onarılamayıp müşteriye iade edilecekse: aktif DGD işçilik satırlarını (Flow'a göre
   // otomatik eklenen, henüz DGDDEC'e dönüşmemiş) tek bir DGDDEC (iade işçiliği) satırına
@@ -652,10 +660,12 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
                edilmiyordu; cihaz 106/107'ye (müşteri onayı) geçtikten sonra bile
                buton basılabiliyor, backend "bu okutmaya uygun statü değil" hatası
                döndürüyordu. Artık buton o statülerde pasif ve sebebini söylüyor. */
-            disabled={!hasAccess || !hasRepairs || deciding || !statusAllowsParts}
+            disabled={!hasAccess || !hasRepairs || !hasNonDgdRepairs || deciding || !statusAllowsParts}
             title={!statusAllowsParts
               ? `Cihaz artık demontaj aşamasında değil${statusLabel ? ` (${statusLabel})` : ""} — bu işlem yapılamaz.`
-              : ""}
+              : (!hasNonDgdRepairs
+                ? "Cihazda sadece otomatik DGD işçiliği var - önce en az bir gerçek onarım/parça ekleyin."
+                : "")}
             className={`px-5 py-3 rounded-xl text-white text-sm font-semibold transition-colors shadow-lg disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 shrink-0 ${allPlanned ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20" : "bg-violet-600 hover:bg-violet-700 shadow-violet-500/20"}`}
           >
             {allPlanned ? <CheckCircle size={16} /> : <AlertTriangle size={16} />}
