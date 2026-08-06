@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Database, Download, Upload, FileSpreadsheet, AlertTriangle, Eye, RefreshCw, Save, XCircle } from 'lucide-react';
+import { Database, Download, Upload, FileSpreadsheet, AlertTriangle, Eye, RefreshCw, XCircle } from 'lucide-react';
 import { api } from '../services/api';
 import ExcelMappingModal from '../components/ExcelMappingModal';
 
@@ -58,8 +58,6 @@ export default function DataManagement() {
   const [selectedColumns, setSelectedColumns] = useState([]);
   const [previewData, setPreviewData] = useState([]);
   const [previewLoading, setPreviewLoading] = useState(false);
-  const [editingCell, setEditingCell] = useState(null);
-  const [editingValue, setEditingValue] = useState("");
 
   useEffect(() => {
     fetchTables();
@@ -121,30 +119,6 @@ export default function DataManagement() {
     setSelectedColumns(prev => 
       prev.includes(col) ? prev.filter(c => c !== col) : [...prev, col]
     );
-  };
-
-  const handleDoubleClick = (rowIndex, colName, value) => {
-    setEditingCell({ rowIndex, colName });
-    setEditingValue(value || "");
-  };
-
-  const handleInputSubmit = () => {
-    if (editingCell) {
-      const { rowIndex, colName } = editingCell;
-      const newData = [...previewData];
-      newData[rowIndex] = { ...newData[rowIndex], [colName]: editingValue };
-      setPreviewData(newData);
-      setEditingCell(null);
-    }
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter') handleInputSubmit();
-    if (e.key === 'Escape') setEditingCell(null);
-  };
-
-  const handleGlobalSave = () => {
-    alert("Değişiklikler başarıyla kaydedildi!");
   };
 
   const handleGlobalCancel = () => {
@@ -322,14 +296,7 @@ export default function DataManagement() {
                     <Eye size={20} className="text-slate-400" /> 3. Veri Önizleme
                   </h3>
                   <div className="flex items-center gap-2.5">
-                    <button 
-                      onClick={handleGlobalSave}
-                      className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-sm font-semibold flex items-center gap-2 transition-all shadow-lg shadow-emerald-500/20 hover:scale-[1.02] active:scale-[0.98]"
-                      title="Değişiklikleri Kaydet"
-                    >
-                      <Save size={16} /> Kaydet
-                    </button>
-                    <button 
+                    <button
                       onClick={handleGlobalCancel}
                       className="px-4 py-2 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-sm font-semibold flex items-center gap-2 transition-all shadow-lg shadow-rose-500/20 hover:scale-[1.02] active:scale-[0.98]"
                       title="Seçimi İptal Et"
@@ -398,29 +365,14 @@ export default function DataManagement() {
                         ) : (
                           previewData.map((row, idx) => (
                             <tr key={idx} className="hover:bg-slate-100 dark:hover:bg-[#1e222d] text-slate-700 dark:text-slate-300 transition-colors">
-                              {selectedColumns.map(col => {
-                                const isEditing = editingCell?.rowIndex === idx && editingCell?.colName === col;
-                                return (
-                                  <td 
-                                    key={col} 
-                                    className="px-4 py-3 font-medium text-slate-800 dark:text-slate-200"
-                                    onDoubleClick={() => handleDoubleClick(idx, col, row[col])}
-                                  >
-                                    {isEditing ? (
-                                      <input
-                                        autoFocus
-                                        value={editingValue}
-                                        onChange={(e) => setEditingValue(e.target.value)}
-                                        onBlur={handleInputSubmit}
-                                        onKeyDown={handleKeyDown}
-                                        className="bg-[#EFF1FA] dark:bg-[#12141c] text-blue-400 border border-blue-500/50 rounded px-2 py-1 w-full focus:outline-none"
-                                      />
-                                    ) : (
-                                      row[col] || '-'
-                                    )}
-                                  </td>
-                                );
-                              })}
+                              {selectedColumns.map(col => (
+                                <td
+                                  key={col}
+                                  className="px-4 py-3 font-medium text-slate-800 dark:text-slate-200"
+                                >
+                                  {row[col] || '-'}
+                                </td>
+                              ))}
                             </tr>
                           ))
                         )}

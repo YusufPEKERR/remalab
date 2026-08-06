@@ -134,12 +134,16 @@ SYSTEM_TRANSFER_RULES = {
 # 'Akıllı Telefon', 'Dizüstü Bilgisayar', 'Bluetooth Kulaklık' vb.) o var olan referans
 # tablosundan JOIN ile çeker, kendi metnini uydurmaz. get_price_matrix_* fonksiyonları
 # arasında tutarlı kalması için tek bir yerde tanımlanır.
+# NOT: `model COLLATE "C"` — sunucu veritabanı ICU "tr-TR" locale'iyle kurulu olduğundan
+# düz ILIKE, değer büyük 'I' içerdiğinde (örn. "IPAD PRO") case-insensitive eşleşmeyi
+# sessizce kaçırıyor (Postgres lower()'ı Türkçe kurallarına göre 'I'yı noktasız 'ı'ya
+# çeviriyor). COLLATE "C" bunu locale'den bağımsız (ASCII) davranmaya zorluyor.
 PRICE_MATRIX_PRODUCT_TYPE_CASE_SQL = """
     CASE
-        WHEN model ILIKE '%iPad%' OR model ILIKE '%Tab %' OR model ILIKE 'Tab %' OR model ILIKE '%Tablet%' THEN 'TABLET'
-        WHEN model ILIKE '%Watch%' THEN 'SMARTWATCH'
-        WHEN model ILIKE '%MacBook%' OR model ILIKE '%Laptop%' OR model ILIKE '%Notebook%' THEN 'LAPTOP'
-        WHEN model ILIKE '%AirPods%' OR model ILIKE '%Buds%' OR model ILIKE '%Kulaklık%' OR model ILIKE '%Earphone%' OR model ILIKE '%Headphone%' THEN 'EARPHONE'
+        WHEN model COLLATE "C" ILIKE '%iPad%' OR model COLLATE "C" ILIKE '%Tab %' OR model COLLATE "C" ILIKE 'Tab %' OR model COLLATE "C" ILIKE '%Tablet%' THEN 'TABLET'
+        WHEN model COLLATE "C" ILIKE '%Watch%' THEN 'SMARTWATCH'
+        WHEN model COLLATE "C" ILIKE '%MacBook%' OR model COLLATE "C" ILIKE '%Laptop%' OR model COLLATE "C" ILIKE '%Notebook%' THEN 'LAPTOP'
+        WHEN model COLLATE "C" ILIKE '%AirPods%' OR model COLLATE "C" ILIKE '%Buds%' OR model COLLATE "C" ILIKE '%Kulaklık%' OR model COLLATE "C" ILIKE '%Earphone%' OR model COLLATE "C" ILIKE '%Headphone%' THEN 'EARPHONE'
         ELSE 'SMART PHONE'
     END
 """
@@ -1659,7 +1663,7 @@ class WebBridge(QObject):
             where_clauses = ["1=1"]
             params = {}
             if search_term:
-                where_clauses.append("(i.code ILIKE :search OR i.short_name ILIKE :search)")
+                where_clauses.append('(i.code COLLATE "C" ILIKE :search OR i.short_name COLLATE "C" ILIKE :search)')
                 params['search'] = f"%{search_term}%"
             if filter_category:
                 where_clauses.append("i.item_category = :cat")
@@ -1850,7 +1854,7 @@ class WebBridge(QObject):
             params = {"limit": page_size, "offset": offset}
 
             if search_term and str(search_term).strip():
-                where_clauses.append("(b.parent_product_code ILIKE :search OR b.child_item_code ILIKE :search OR i.short_name ILIKE :search)")
+                where_clauses.append('(b.parent_product_code COLLATE "C" ILIKE :search OR b.child_item_code COLLATE "C" ILIKE :search OR i.short_name COLLATE "C" ILIKE :search)')
                 params["search"] = f"%{str(search_term).strip()}%"
 
             if model_filter and str(model_filter).strip():
@@ -6696,12 +6700,12 @@ class WebBridge(QObject):
             params = {}
 
             if search_term and str(search_term).strip():
-                where_clauses.append("(pmf.code ILIKE :search OR pm.short_name ILIKE :search OR b.short_name ILIKE :search)")
+                where_clauses.append('(pmf.code COLLATE "C" ILIKE :search OR pm.short_name COLLATE "C" ILIKE :search OR b.short_name COLLATE "C" ILIKE :search)')
                 params["search"] = f"%{str(search_term).strip()}%"
 
             # ILIKE Smart Phone check (Esnek)
             if category_filter and str(category_filter).strip():
-                where_clauses.append("(pmf.short_name ILIKE :category OR :category ILIKE '%phone%' OR :category ILIKE '%telefon%' AND pmf.short_name ILIKE '%phone%')")
+                where_clauses.append('(pmf.short_name COLLATE "C" ILIKE :category OR CAST(:category AS TEXT) COLLATE "C" ILIKE \'%phone%\' OR CAST(:category AS TEXT) COLLATE "C" ILIKE \'%telefon%\' AND pmf.short_name COLLATE "C" ILIKE \'%phone%\')')
                 params["category"] = f"%{str(category_filter).strip()}%"
 
             where_sql = "WHERE " + " AND ".join(where_clauses)
@@ -7256,9 +7260,9 @@ class WebBridge(QObject):
             if search:
                 search_clause = """
                     AND (
-                        p.item_code ILIKE :q OR p.name ILIKE :q OR p.brand ILIKE :q OR
-                        p.model ILIKE :q OR p.color ILIKE :q OR p.part_category ILIKE :q OR
-                        l.name ILIKE :q OR CAST(s.id AS TEXT) ILIKE :q
+                        p.item_code COLLATE "C" ILIKE :q OR p.name COLLATE "C" ILIKE :q OR p.brand COLLATE "C" ILIKE :q OR
+                        p.model COLLATE "C" ILIKE :q OR p.color COLLATE "C" ILIKE :q OR p.part_category COLLATE "C" ILIKE :q OR
+                        l.name COLLATE "C" ILIKE :q OR CAST(s.id AS TEXT) ILIKE :q
                     )
                 """
                 params["q"] = f"%{search}%"
@@ -8617,14 +8621,14 @@ class WebBridge(QObject):
                     params["exact_term"] = term_raw
                 else:
                     where_clauses.append("""(
-                        customer_no ILIKE :search OR 
-                        customer_name ILIKE :search OR 
-                        imei_number ILIKE :search OR 
-                        serial_number ILIKE :search OR 
-                        internal_id ILIKE :search OR 
-                        batch_no ILIKE :search OR 
-                        model ILIKE :search OR 
-                        defects ILIKE :search
+                        customer_no COLLATE "C" ILIKE :search OR
+                        customer_name COLLATE "C" ILIKE :search OR
+                        imei_number COLLATE "C" ILIKE :search OR
+                        serial_number COLLATE "C" ILIKE :search OR
+                        internal_id COLLATE "C" ILIKE :search OR
+                        batch_no COLLATE "C" ILIKE :search OR
+                        model COLLATE "C" ILIKE :search OR
+                        defects COLLATE "C" ILIKE :search
                     )""")
                     params["search"] = term_like
 
@@ -8989,6 +8993,15 @@ class WebBridge(QObject):
         from models.batch_entry import BatchEntry
         from sqlalchemy import func, or_
 
+        # Sunucu veritabanı ICU "tr-TR" locale'iyle oluşturulmuş; bu yüzden SQL lower()
+        # büyük 'I'yi normal 'i' değil noktasız 'ı'ya çeviriyor (Python'un .lower()'ı ise
+        # her zaman normal 'i' verir). "INT-..." gibi harf içeren internal_id/batch_no
+        # değerlerinde bu eşleşmeyi sessizce bozup var olan cihazı bulamıyor, güncelleme
+        # yerine mükerrer kayıt oluşturuyordu. .collate("C") ile lower()'ı locale'den
+        # bağımsız (ASCII) davranmaya zorluyoruz.
+        def ci(col):
+            return func.lower(func.trim(col).collate("C"))
+
         imei = (d.get("imei_number") or "").strip()
         serial = (d.get("serial_number") or "").strip()
         internal = (d.get("internal_id") or "").strip()
@@ -9002,11 +9015,11 @@ class WebBridge(QObject):
 
         conds = []
         if imei:
-            conds.append(func.lower(func.trim(BatchEntry.imei_number)) == imei.lower())
+            conds.append(ci(BatchEntry.imei_number) == imei.lower())
         if serial:
-            conds.append(func.lower(func.trim(BatchEntry.serial_number)) == serial.lower())
+            conds.append(ci(BatchEntry.serial_number) == serial.lower())
         if internal:
-            conds.append(func.lower(func.trim(BatchEntry.internal_id)) == internal.lower())
+            conds.append(ci(BatchEntry.internal_id) == internal.lower())
 
         target = None
         if conds:
@@ -9017,7 +9030,7 @@ class WebBridge(QObject):
 
         if batch_no:
             batch_exists = db.query(BatchEntry).filter(
-                func.lower(func.trim(BatchEntry.batch_no)) == batch_no.lower()
+                ci(BatchEntry.batch_no) == batch_no.lower()
             ).first()
             if not batch_exists:
                 return {"ok": False, "created": False, "message": f"Batch numarası ({batch_no}) sistemde tanımlı değil, içe aktarılmadı."}
@@ -9427,11 +9440,11 @@ class WebBridge(QObject):
             # 2. Search in warehouse.batch_entries (ILIKE Partial Match)
             if not entry and len(term) >= 3:
                 entry = db.query(BatchEntry).filter(
-                    (BatchEntry.imei_number.ilike(f"%{term}%")) |
-                    (BatchEntry.serial_number.ilike(f"%{term}%")) |
-                    (BatchEntry.internal_id.ilike(f"%{term}%")) |
-                    (BatchEntry.batch_no.ilike(f"%{term}%")) |
-                    (BatchEntry.customer_no.ilike(f"%{term}%"))
+                    (BatchEntry.imei_number.collate("C").ilike(f"%{term}%")) |
+                    (BatchEntry.serial_number.collate("C").ilike(f"%{term}%")) |
+                    (BatchEntry.internal_id.collate("C").ilike(f"%{term}%")) |
+                    (BatchEntry.batch_no.collate("C").ilike(f"%{term}%")) |
+                    (BatchEntry.customer_no.collate("C").ilike(f"%{term}%"))
                 ).order_by(BatchEntry.id.desc()).first()
 
             if entry:
@@ -9498,10 +9511,10 @@ class WebBridge(QObject):
                    OR LOWER(TRIM(COALESCE(code, ''))) = LOWER(:t)
                    OR LOWER(TRIM(CONCAT('BATCH-MIO-', id))) = LOWER(:t)
                    OR (LENGTH(:t) >= 3 AND (
-                       COALESCE(imei_number, '') ILIKE :t_like OR
-                       COALESCE(serial_number, '') ILIKE :t_like OR
-                       COALESCE(internal_id, '') ILIKE :t_like OR
-                       COALESCE(code, '') ILIKE :t_like
+                       COALESCE(imei_number, '') COLLATE "C" ILIKE :t_like OR
+                       COALESCE(serial_number, '') COLLATE "C" ILIKE :t_like OR
+                       COALESCE(internal_id, '') COLLATE "C" ILIKE :t_like OR
+                       COALESCE(code, '') COLLATE "C" ILIKE :t_like
                    ))
                 ORDER BY id DESC LIMIT 1
             """), {"t": term, "t_like": f"%{term}%"}).mappings().first()
@@ -12527,7 +12540,7 @@ class WebBridge(QObject):
             clauses = []
             params = {}
             if search:
-                clauses.append("(item_code ILIKE :s OR name ILIKE :s)")
+                clauses.append('(item_code COLLATE "C" ILIKE :s OR name COLLATE "C" ILIKE :s)')
                 params["s"] = f"%{search}%"
             if brand == "__DGD__":
                 clauses.append("item_category = 'DGD'")

@@ -338,42 +338,60 @@ export default function BatchEntry() {
   };
 
   // AŞAMA 2 — ONAYDAN SONRA: sadece geçerli satırları içe aktar.
+  // Eskiden burada "mevcut kaydı bul" araması `records` (ekrandaki sayfalı, en fazla
+  // 100 satırlık genel liste) üzerinden yapılıyordu — düzenlenen batch'in cihazları o
+  // sayfada değilse (büyük batch'lerde neredeyse hep öyle) eşleşme bulunamıyor ve
+  // GÜNCELLEME yerine sessizce MÜKERRER kayıt oluşturuluyordu. bulk_process_batch_entries
+  // (asıl "Excel'den İçe Aktar" akışının da kullandığı toplu uç nokta, bkz. handleExcelImport)
+  // eşleşmeyi TÜM veritabanına karşı IMEI/Seri/Internal ID ile sunucu tarafında yapıyor,
+  // bu yüzden hem doğru satırı günceller hem de N ayrı round-trip yerine tek çağrı kullanır.
   const handleConfirmExcelImport = async () => {
     setLoading(true);
-    let updatedCount = 0;
-    let createdCount = 0;
+    const bulkRes = await api.bulkProcessBatchEntries(importValidRows);
+    setLoading(false);
 
-    for (const item of importValidRows) {
-      if (item.id) {
-        const res = await api.updateBatchEntry(item.id, item);
-        if (res.success) updatedCount++;
-      } else {
-        // Fallback for new items imported via Excel that lack IDs
-        const clean = (val) => (val || '').toString().trim().toLowerCase();
-        const existing = records.find(r =>
-          (item.imei_number && clean(item.imei_number) && clean(r.imei_number) === clean(item.imei_number)) ||
-          (item.serial_number && clean(item.serial_number) && clean(r.serial_number) === clean(item.serial_number)) ||
-          (item.internal_id && clean(item.internal_id) && clean(r.internal_id) === clean(item.internal_id))
-        );
-        if (existing) {
-          const res = await api.updateBatchEntry(existing.id, item);
-          if (res.success) updatedCount++;
+    let createdCount = 0;
+    let updatedCount = 0;
+    const failedRows = [];
+
+    if (bulkRes && bulkRes.success && Array.isArray(bulkRes.results)) {
+      bulkRes.results.forEach((r, idx) => {
+        if (r.ok) {
+          if (r.created) createdCount++; else updatedCount++;
         } else {
-          const res = await api.createBatchEntry(item);
-          if (res.success) createdCount++;
+          failedRows.push({ row: idx + 1, data: importValidRows[idx], message: r.message || 'İçe aktarılamadı.' });
         }
-      }
+      });
+    } else {
+      alert("İçe aktarma sırasında beklenmeyen bir hata oluştu: " + (bulkRes?.message || ''));
     }
 
-    setLoading(false);
+    if (failedRows.length > 0) {
+      const dump = failedRows.map(f => ({
+        satir: f.row,
+        customer_no: f.data.customer_no || '',
+        customer_name: f.data.customer_name || '',
+        batch_no: f.data.batch_no || '',
+        internal_id: f.data.internal_id || '',
+        imei_number: f.data.imei_number || '',
+        serial_number: f.data.serial_number || '',
+        model: f.data.model || '',
+        gb: f.data.gb || '',
+        color: f.data.color || '',
+        hata_nedeni: f.message
+      }));
+      await api.exportTableToExcel(dump, `Batch_Import_Hatalari_Aktarim_${failedRows.length}.xlsx`);
+    }
+
     fetchRecords();
     handleFetchBatchSummary();
 
+    const totalFailed = importInvalidRows.length + failedRows.length;
     let msg = 'İçe aktarma tamamlandı:\n';
     msg += `• ${createdCount} yeni kayıt eklendi.\n`;
     if (updatedCount > 0) msg += `• ${updatedCount} kayıt güncellendi.\n`;
-    if (importInvalidRows.length > 0) {
-      msg += `• ${importInvalidRows.length} hatalı satır aktarılmadı (Excel dökümü indirildi).`;
+    if (totalFailed > 0) {
+      msg += `• ${totalFailed} hatalı satır aktarılmadı (Excel dökümü indirildi).`;
     }
     alert(msg);
 
