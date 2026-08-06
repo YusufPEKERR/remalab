@@ -768,6 +768,25 @@ const TechnicianRepairOperations = () => {
       return false;
     }
 
+    // Cihaz zaten Üretimdeyse (109), yeni onarım backend'de otomatik olarak Hedef Fiyat
+    // Matrisi limitine karşı yeniden değerlendirilir (bkz. add_repair_record'ın
+    // reopened_for_decision dalı): toplam fiyat limiti aşıyorsa cihaz Müşteri Onayına (106)
+    // gönderilir, aşmıyorsa Üretimde (109) kalır — ayrı bir "Üretime Aktar" ekranına gitmeye
+    // gerek yok. Buradaki serviceStatus güncellemesi olmadan ekran hâlâ 109'daymış gibi
+    // davranmaya devam eder ve teknisyen cihazın Müşteri Onayına gönderildiğini fark etmez.
+    if (res.reopened_for_decision && res.new_statu_code != null) {
+      setDevice(d => (d ? { ...d, serviceStatus: res.new_statu_code } : d));
+      if (res.price_limit_exceeded) {
+        showNotif(
+          "error",
+          "Müşteri Onayına Gönderildi",
+          `Toplam parça fiyatı (${(res.total_price ?? 0).toFixed(2)}) hedef limiti (${(res.target_price ?? 0).toFixed(2)}) aştı — cihaz artık üretimde değil, Müşteri Onayı bekliyor.`
+        );
+      } else {
+        showNotif("success", "Limit İçinde", `Toplam parça fiyatı ${(res.total_price ?? 0).toFixed(2)} — hedef limit (${(res.target_price ?? 0).toFixed(2)}) aşılmadı, cihaz üretimde devam ediyor.`);
+      }
+    }
+
     const refreshed = await refreshRepairs();
 
     // Yeni eklenen onarım grubunu listede otomatik seçili duruma getir
@@ -965,6 +984,16 @@ const TechnicianRepairOperations = () => {
   // ── Selected repair group ────────────────────────────────────
   const selectedGroup = groupedRepairs[selectedRepairIdx] || null;
   const selectedRepair = selectedGroup?.active || null;
+
+  // Cihazdaki TÜM aktif (iptal edilmemiş) onarımların toplam fiyatı — Hedef Fiyat
+  // Matrisi limit kontrolü de (backend, _compute_dismantle_decision) grup ayrımı yapmadan
+  // aynı şekilde cihaz genelinde topluyor, bu yüzden burada da tek bir grup değil TÜM
+  // repairs listesi kullanılır.
+  const totalRepairPrice = useMemo(() => {
+    return repairs
+      .filter(r => !r.isCancelled && r.partItemCode && partPrices[r.partItemCode] !== undefined)
+      .reduce((sum, r) => sum + partPrices[r.partItemCode], 0);
+  }, [repairs, partPrices]);
 
   // "Onarımı Tamamla" iki şartı birden ister (backend'de update_repair_status
   // aynı iki kontrolü tekrar yapar; burası yalnızca butonu erkenden kilitler):
@@ -1285,6 +1314,14 @@ const TechnicianRepairOperations = () => {
             <Wrench size={16} className="text-slate-400" />
             Onarım Detay
             {repairs.length > 0 && <span className="text-[11px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md">{repairs.length} kayıt</span>}
+            {totalRepairPrice > 0 && (
+              <span
+                className="text-[11px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 px-2 py-0.5 rounded-md"
+                title="Cihazdaki tüm aktif onarımların toplam fiyatı"
+              >
+                Toplam: {totalRepairPrice.toFixed(2)} {device?.currency || ''}
+              </span>
+            )}
           </h3>
           <div className="flex flex-wrap items-center gap-2">
               <button onClick={() => setShowAddModal(true)} disabled={!hasAccess || !device} className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold transition-colors shadow-sm flex items-center gap-1.5 cursor-pointer">

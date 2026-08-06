@@ -12102,16 +12102,20 @@ class WebBridge(QObject):
 
             # Karar sonrası yeniden onarım: Cihaz demontaj kararını (Müşteri Onayı / Üretime
             # Aktar) geçip Üretim aşamasına (109) alındıktan sonra teknisyen YENİ bir onarım
-            # eklerse, bu onarımın da müşteri onayına veya üretime yönlendirilebilmesi için
-            # cihazı Demontaj karar aşamasına (105 - Awaiting production planning acceptance)
-            # geri çekeriz. Böylece Servis Onarım ekranında "Müşteri Onayına Gönder / Üretime
-            # Aktar" kararı yeniden görünür ve submit_dismantle_decision tekrar çalıştırılabilir.
+            # eklerse, cihazı Demontaj karar aşamasına (105) geri çeker VE AYNI ÇAĞRIDA
+            # _compute_dismantle_decision ile yeniden karar veririz - teknisyen ayrı bir ekrana
+            # (Demontaj Teknisyeni yetkisi gerektiren "Üretime Aktar") gitmek zorunda kalmadan,
+            # yeni toplam fiyat Hedef Fiyat Matrisi limitini aşıyorsa cihaz otomatik Müşteri
+            # Onayına (106), aşmıyorsa otomatik geri Üretime (109) taşınır. Burada AYRI bir
+            # yetki kontrolü YOK: bu, kullanıcının kendi ekleme eyleminin sistemsel/otomatik bir
+            # sonucudur, TEC_DISMANTLE yetkisi gerektiren manuel bir "karar verme" eylemi değil.
             # Sadece karar SONRASI statüden (109) geri çekilir; normal ilk demontaj (104/105)
             # sırasında eklenen onarımlar statüyü değiştirmez. Geçiş yalnızca state machine'in
             # izin verdiği durumda (109->105) uygulanır.
             REOPEN_DECISION_FROM = {109}
             RESET_TARGET_STATU = 105
             reopened = False
+            redecision = None
             try:
                 from services.state_machine_service import StateMachineService
                 from models.batch_entry import BatchEntry
@@ -12128,11 +12132,33 @@ class WebBridge(QObject):
                             )
                             db.commit()
                             reopened = True
+
+                            entry_row = {
+                                "flow": be.flow, "service_id": be.service_id,
+                                "customer_no": be.customer_no, "model": be.model,
+                                "screen_test": be.screen_test, "power_test": be.power_test,
+                            }
+                            decision = self._compute_dismantle_decision(db, be.imei_number, entry_row)
+                            if decision["ok"]:
+                                trans = json.loads(self.execute_batch_entry_statu_transition(
+                                    str(be.id), RESET_TARGET_STATU, decision["target_statu_code"]))
+                                if trans.get("success"):
+                                    redecision = {
+                                        "new_statu_code": decision["target_statu_code"],
+                                        "decision": decision["decision"],
+                                        "price_limit_exceeded": decision["price_limit_exceeded"],
+                                        "total_price": decision["total_price"],
+                                        "target_price": decision["target_price"],
+                                        "message": (trans.get("message") or "") + decision["price_limit_note"],
+                                    }
             except Exception as reopen_err:
                 db.rollback()
                 print(f"[WebBridge] add_repair_record statü geri çekme hatası: {reopen_err}")
 
-            return json.dumps({"success": True, "id": str(rec.id), "reopened_for_decision": reopened})
+            response = {"success": True, "id": str(rec.id), "reopened_for_decision": reopened}
+            if redecision:
+                response.update(redecision)
+            return json.dumps(response, ensure_ascii=False)
         except Exception as e:
             db.rollback()
             return json.dumps({"success": False, "message": str(e)})
@@ -13329,6 +13355,117 @@ class WebBridge(QObject):
         finally:
             db.close()
 
+    def _compute_dismantle_decision(self, db, imei, entry):
+        """submit_dismantle_decision'ın SAF karar hesaplaması: statü mutasyonu YAPMAZ,
+        sadece kategori onayı + Müşteri Hedef Fiyat Matrisi limit kontrolünü hesaplayıp
+        hedef statüyü (109/106) döner. entry: flow/service_id/customer_no/model/
+        screen_test/power_test alanlarını taşıyan bir dict ya da RowMapping.
+
+        Hem submit_dismantle_decision'dan (Demontaj ekranının manuel "Karar Ver" butonu,
+        TEC_DISMANTLE yetkisi gerektirir) HEM DE add_repair_record'ın otomatik yeniden-karar
+        dalından (bkz. REOPEN_DECISION_FROM — üretimdeki bir cihaza yeni onarım eklenince)
+        çağrılan TEK, paylaşılan karar mantığıdır."""
+        from sqlalchemy import text
+
+        repair_refs = [imei] if imei else []
+        if entry["service_id"]:
+            repair_refs.append(str(entry["service_id"]))
+
+        repair_rows = db.execute(text("""
+            SELECT rr.id, rr.part_item_code, p.item_category
+            FROM warehouse.repair_records rr
+            LEFT JOIN warehouse.parts p ON p.item_code = rr.part_item_code
+            LEFT JOIN warehouse.repair_result_type rrt ON rrt.code = rr.repair_result_type_code
+            WHERE rr.service_record_id = ANY(:refs) AND COALESCE(rrt.is_cancelled, FALSE) = FALSE
+        """), {"refs": repair_refs}).mappings().all()
+
+        if not repair_rows:
+            return {"ok": False, "message": "Önce en az bir onarım eklemelisiniz."}
+
+        if all((r["item_category"] or "").strip().upper() == "DGD" for r in repair_rows):
+            return {"ok": False, "message": "Cihazda sadece otomatik DGD işçiliği var. Üretime Aktarmadan önce en az bir gerçek onarım/parça eklemelisiniz."}
+
+        flow = self._kanonik_flow(db, entry["flow"])
+        if flow.lower() in self.ONAY_GEREKTIRMEYEN_FLOWLAR:
+            all_approved = True
+        else:
+            approved_categories = set()
+            if flow:
+                cat_rows = db.execute(text("""
+                    SELECT DISTINCT item_category FROM warehouse.service_request_item_category
+                    WHERE LOWER(TRIM(service_request_type)) = LOWER(:flow) AND is_customer_approved = TRUE
+                """), {"flow": flow}).fetchall()
+                approved_categories = {c[0].strip().lower() for c in cat_rows if c[0]}
+
+            all_approved = flow and all(
+                (r["item_category"] or "").strip().lower() in approved_categories
+                for r in repair_rows
+            )
+
+        DEFAULT_TARGET_PRICE = 9999.0
+        customer_code = (entry["customer_no"] or "").strip()
+        model_text = (entry["model"] or "").strip()
+
+        target_price = None
+        if customer_code and model_text:
+            fam = db.execute(text("""
+                SELECT code FROM warehouse.product_family
+                WHERE LOWER(code) = LOWER(:m) OR LOWER(short_name) = LOWER(:m)
+                LIMIT 1
+            """), {"m": model_text}).mappings().first()
+            if fam:
+                def _map_test_result(raw):
+                    v = (raw or "").strip().upper()
+                    if v in ("BAŞARILI", "BASARILI"):
+                        return "OK"
+                    if v in ("BAŞARISIZ", "BASARISIZ"):
+                        return "NOK"
+                    return "BOŞ"
+
+                screen_result = _map_test_result(entry["screen_test"])
+                power_result = _map_test_result(entry["power_test"])
+
+                target_row = db.execute(text("""
+                    SELECT target_price FROM warehouse.customer_target_prices
+                    WHERE customer_code = :customer_code AND product_family_code = :pfc
+                      AND screen_test_result = :screen AND power_test_result = :power
+                """), {
+                    "customer_code": customer_code, "pfc": fam["code"],
+                    "screen": screen_result, "power": power_result,
+                }).mappings().first()
+
+                if target_row:
+                    target_price = float(target_row["target_price"])
+
+        if target_price is None:
+            target_price = DEFAULT_TARGET_PRICE
+
+        total_price = 0.0
+        for r in repair_rows:
+            p = self._get_effective_price(db, r["part_item_code"], customer_code)
+            if p is not None:
+                total_price += p
+
+        price_limit_exceeded = total_price > target_price
+        all_approved = all_approved and not price_limit_exceeded
+        target_statu_code = 109 if all_approved else 106
+
+        price_limit_note = ""
+        if price_limit_exceeded:
+            price_limit_note = (f" (Toplam parça fiyatı {total_price:.2f}, "
+                                 f"hedef limit {target_price:.2f} aşıldı.)")
+
+        return {
+            "ok": True,
+            "all_approved": all_approved,
+            "target_statu_code": target_statu_code,
+            "decision": "URETIME_AKTAR" if all_approved else "MUSTERI_ONAYI",
+            "total_price": total_price,
+            "target_price": target_price,
+            "price_limit_exceeded": price_limit_exceeded,
+            "price_limit_note": price_limit_note,
+        }
+
     @Slot(str, str, result=str)
     def submit_dismantle_decision(self, imei, username):
         """Demontaj Teknisyeni'nin bir cihaza eklediği onarım kayıtlarını, cihazın Flow'una
@@ -13374,126 +13511,26 @@ class WebBridge(QObject):
                 if required and required not in user_missions:
                     return json.dumps({"success": False, "message": f"Bu işlem için '{required}' yetkisi gerekiyor."})
 
-            # rr.service_record_id hem eski (IMEI ile yazılmış) hem yeni (service_id ile
-            # yazılmış) kayıtlarla eşleşsin diye ikisi de aranır - bkz. get_repair_operations_by_imei.
-            repair_refs = [imei]
-            if entry["service_id"]:
-                repair_refs.append(str(entry["service_id"]))
+            decision = self._compute_dismantle_decision(db, imei, entry)
+            if not decision["ok"]:
+                return json.dumps({"success": False, "message": decision["message"]})
 
-            repair_rows = db.execute(text("""
-                SELECT rr.id, rr.part_item_code, p.item_category
-                FROM warehouse.repair_records rr
-                LEFT JOIN warehouse.parts p ON p.item_code = rr.part_item_code
-                LEFT JOIN warehouse.repair_result_type rrt ON rrt.code = rr.repair_result_type_code
-                WHERE rr.service_record_id = ANY(:refs) AND COALESCE(rrt.is_cancelled, FALSE) = FALSE
-            """), {"refs": repair_refs}).mappings().all()
-            if not repair_rows:
-                return json.dumps({"success": False, "message": "Önce en az bir onarım eklemelisiniz."})
-
-            # DGD, Flow'a göre otomatik eklenen bir işçilik satırıdır - teknisyenin bilinçli
-            # olarak eklediği bir onarım/parça değildir. Aktif kayıtların HEPSİ DGD ise
-            # (gerçek bir onarım hiç eklenmemişse) Üretime Aktar engellenir.
-            if all((r["item_category"] or "").strip().upper() == "DGD" for r in repair_rows):
-                return json.dumps({"success": False, "message": "Cihazda sadece otomatik DGD işçiliği var. Üretime Aktarmadan önce en az bir gerçek onarım/parça eklemelisiniz."})
-
-            # Ham flow KODA çevrilir: alanda 7644 cihaz kısa adı ("Refurbish") tutuyor,
-            # kural ve kategori tablosu ise kodu ("To refurbish") kullanıyor. Ham değerle
-            # karşılaştırılınca bu cihazların HEPSİ gereksiz yere müşteri onayına düşüyordu.
-            flow = self._kanonik_flow(db, entry["flow"])
-            # To RMA ve To refurbish akışlarında müşteri onayı hiç aranmaz, kategoriden
-            # bağımsız olarak her zaman doğrudan Üretime Aktarılır.
-            if flow.lower() in self.ONAY_GEREKTIRMEYEN_FLOWLAR:
-                all_approved = True
-            else:
-                approved_categories = set()
-                if flow:
-                    cat_rows = db.execute(text("""
-                        SELECT DISTINCT item_category FROM warehouse.service_request_item_category
-                        WHERE LOWER(TRIM(service_request_type)) = LOWER(:flow) AND is_customer_approved = TRUE
-                    """), {"flow": flow}).fetchall()
-                    approved_categories = {c[0].strip().lower() for c in cat_rows if c[0]}
-
-                all_approved = flow and all(
-                    (r["item_category"] or "").strip().lower() in approved_categories
-                    for r in repair_rows
-                )
-
-            # ── Müşteri Hedef Fiyat Matrisi limit kontrolü ──────────────────────
-            # Eklenen onarımların (işçilik dahil, repair_rows zaten hepsini kapsıyor) toplam
-            # parça fiyatı - _get_effective_price ile AYNI kural (önce customer_item_prices,
-            # yoksa item.satis) - hedef fiyatı aşarsa, kategori onaylı olsa BİLE cihaz zorla
-            # Müşteri Onayına gönderilir. customer_target_prices'taki kurallar İSTİSNAİ olarak
-            # tanımlanmış kabul edilir: müşteri+model+test kombinasyonu için özel bir kural
-            # varsa o kullanılır, YOKSA DEFAULT_TARGET_PRICE (varsayılan limit) devreye girer -
-            # yani limit kontrolü HER ZAMAN uygulanır, sadece kural yoksa varsayılan eşik
-            # kullanılır (eskiden kural yoksa kontrol tamamen atlanıyordu).
-            DEFAULT_TARGET_PRICE = 9999.0
-            price_limit_exceeded = False
-            price_limit_info = None
-            customer_code = (entry["customer_no"] or "").strip()
-            model_text = (entry["model"] or "").strip()
-
-            target_price = None
-            if customer_code and model_text:
-                fam = db.execute(text("""
-                    SELECT code FROM warehouse.product_family
-                    WHERE LOWER(code) = LOWER(:m) OR LOWER(short_name) = LOWER(:m)
-                    LIMIT 1
-                """), {"m": model_text}).mappings().first()
-                if fam:
-                    def _map_test_result(raw):
-                        v = (raw or "").strip().upper()
-                        if v in ("BAŞARILI", "BASARILI"):
-                            return "OK"
-                        if v in ("BAŞARISIZ", "BASARISIZ"):
-                            return "NOK"
-                        return "BOŞ"
-
-                    screen_result = _map_test_result(entry["screen_test"])
-                    power_result = _map_test_result(entry["power_test"])
-
-                    target_row = db.execute(text("""
-                        SELECT target_price FROM warehouse.customer_target_prices
-                        WHERE customer_code = :customer_code AND product_family_code = :pfc
-                          AND screen_test_result = :screen AND power_test_result = :power
-                    """), {
-                        "customer_code": customer_code, "pfc": fam["code"],
-                        "screen": screen_result, "power": power_result,
-                    }).mappings().first()
-
-                    if target_row:
-                        target_price = float(target_row["target_price"])
-
-            if target_price is None:
-                target_price = DEFAULT_TARGET_PRICE
-
-            total_price = 0.0
-            for r in repair_rows:
-                p = self._get_effective_price(db, r["part_item_code"], customer_code)
-                if p is not None:
-                    total_price += p
-            if total_price > target_price:
-                price_limit_exceeded = True
-                price_limit_info = {"total_price": total_price, "target_price": target_price}
-
-            all_approved = all_approved and not price_limit_exceeded
-            target_statu_code = 109 if all_approved else 106
+            all_approved = decision["all_approved"]
+            target_statu_code = decision["target_statu_code"]
+            price_limit_exceeded = decision["price_limit_exceeded"]
 
             # Cihaz zaten hedef statüdeyse (örn. Müşteri Onayına gönderilmiş 106'da bir cihaza
             # yeni onarım eklenip karar tekrar verilirse hedef yine 106 olur) idempotent kabul
             # edilir; aksi halde execute_batch_entry_statu_transition geçersiz 106->106 geçişi
             # deneyip "bu okutmaya uygun statü değil" hatası verirdi. Cihaz zaten doğru statüde,
             # eklenen yeni onarım da aynı müşteri onayı kapsamına dahil olur.
-            price_limit_note = ""
-            if price_limit_exceeded and price_limit_info:
-                price_limit_note = (f" (Toplam parça fiyatı {price_limit_info['total_price']:.2f}, "
-                                     f"hedef limit {price_limit_info['target_price']:.2f} aşıldı.)")
+            price_limit_note = decision["price_limit_note"]
 
             if int(entry["statu_code"]) == int(target_statu_code):
                 return json.dumps({
                     "success": True,
                     "new_statu_code": target_statu_code,
-                    "decision": "URETIME_AKTAR" if all_approved else "MUSTERI_ONAYI",
+                    "decision": decision["decision"],
                     "priceLimitExceeded": price_limit_exceeded,
                     "message": (("Cihaz zaten Üretim aşamasında; yeni onarım bu kapsama eklendi."
                                  if all_approved else
@@ -13503,7 +13540,7 @@ class WebBridge(QObject):
 
             result_json = self.execute_batch_entry_statu_transition(str(entry["id"]), int(entry["statu_code"]), int(target_statu_code))
             result = json.loads(result_json)
-            result["decision"] = "URETIME_AKTAR" if all_approved else "MUSTERI_ONAYI"
+            result["decision"] = decision["decision"]
             result["priceLimitExceeded"] = price_limit_exceeded
             if price_limit_note and result.get("message"):
                 result["message"] = result["message"] + price_limit_note
