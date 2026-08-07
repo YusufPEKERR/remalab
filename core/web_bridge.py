@@ -10815,14 +10815,61 @@ class WebBridge(QObject):
 
             # Kritik parca orijinallik kontrolu (Ana Kamera / Batarya / Eski Pil).
             # Her kayit icin HER ZAMAN 3 satir doner; veri yoksa "unknown" (gri).
-            from services.phonecheck_service import parse_all_parts, parse_critical_parts
+            from services.phonecheck_service import parse_all_parts, parse_critical_parts, MAX_FAILED_ATTEMPTS
+
+            # ── TEST ADLANDIRMA ──────────────────────────────────────────────
+            # phonecheck_test_results.test_stage bir STATÜ GEÇİŞİ kodudur ("103_104").
+            # Ekranda ham geçiş kodu ya da geçişin adı ("Üretime teslim edilecek")
+            # görünüyordu; oysa kullanıcı için anlamlı olan TESTİN KENDİSİDİR.
+            # Aşama -> test türü eşlemesi (başarılı/başarısız aynı türe düşer, ikisi
+            # de aynı testin denemeleridir):
+            TEST_TURU = {
+                "102_103": "İlk Test",
+                "103_104": "Giriş Test",      # üretime teslim öncesi giriş testi
+                "138_124": "Ara Test",
+                "138_109": "Ara Test",        # ara test BAŞARISIZ - cihaz üretime döner
+                "125_126": "Son Test",
+                "125_109": "Son Test",        # son test BAŞARISIZ - cihaz üretime döner
+            }
+            BASARILI = ("yes", "true", "1", "ok", "pass")
+
+            # Başarısız denemeler test türü bazında KRONOLOJİK sayılır: 1., 2., 3. …
+            # Sınır MAX_FAILED_ATTEMPTS (10) - phonecheck_service aynı sabiti kullanıp
+            # hak dolduğunda yeni başarısız kayıt yazmayı reddeder, bu yüzden sayaç
+            # ekranda da "n/10" olarak gösterilir.
+            def _test_adi_hesapla(satirlar):
+                sayac, adlar = {}, {}
+                # Kronolojik sıra: numaralandırma eskiden yeniye doğru gitmeli.
+                for s in sorted(satirlar, key=lambda x: (x.fetched_at or _dt.datetime.min)):
+                    stage = (s.test_stage or "").strip()
+                    tur = TEST_TURU.get(stage)
+                    if not tur:
+                        # AUTO_LOOKUP ve tanımsız aşamalar: otomatik Phonecheck sorgusu.
+                        adlar[s.id] = ("Otomatik Sorgu" if stage == "AUTO_LOOKUP" else (stage or "Test"), None)
+                        continue
+                    basarili = (s.working or "").strip().lower() in BASARILI
+                    if basarili:
+                        adlar[s.id] = (f"{tur} Sonucu", True)
+                    else:
+                        sayac[tur] = sayac.get(tur, 0) + 1
+                        n = sayac[tur]
+                        adlar[s.id] = (f"{n}. Başarısız {tur} Sonucu ({n}/{MAX_FAILED_ATTEMPTS})", False)
+                return adlar
+
+            test_adlari = _test_adi_hesapla(rows)
 
             items = []
             for r in rows:
                 raw_parts = getattr(r, "parts", None)
                 critical, parts_remark = parse_critical_parts(raw_parts)
                 all_parts, _ = parse_all_parts(raw_parts)
+                ad, basarili = test_adlari.get(r.id, ("Test", None))
                 items.append({
+                    # Satırın hangi test olduğu. Ekranda ilk sütun.
+                    "testAdi": ad,
+                    "testBasarili": basarili,          # True/False/None (otomatik sorgu)
+                    "testStage": (r.test_stage or ""),
+                    "attemptNo": r.attempt_no if r.attempt_no is not None else "",
                     "deviceUpdatedD": fmt(r.fetched_at),
                     "grade": r.grade or "",
                     "partInfoRemark": r.notes or "",
@@ -14432,15 +14479,37 @@ class WebBridge(QObject):
 
             target_code = int(new_status_code)
 
+            # ── İŞLEM SEVİYESİ = ONARIM, PARÇA DEĞİL ─────────────────────────
+            # repair_records'ta her satır bir PARÇADIR; bir onarım = aynı cihaz
+            # (service_record_id) + aynı görev grubu (department_mission) altındaki
+            # TÜM satırlardır. Atama zaten böyle çalışıyor (assign_technician_to_repair),
+            # tamamlama ise yalnızca TIKLANAN SATIRI kapatıyordu.
+            #
+            # Sonuç: teknisyen "Onarımı Tamamla" deyince ekranda grup bitmiş görünüyor
+            # ama grubun diğer parça satırları 1001'de kalıyordu. O satırlar açık
+            # sayıldığı için alt seviyedeki L1/L2 onarımı "Yüksek Seviye Onarımını
+            # Bekliyor" (1004) durumunda takılı kalıyor, cihaz da Ara Test'e geçemiyordu.
+            # Artık grup bir bütün olarak işlenir - ekrandaki davranışla aynı
+            # (completeBlockReason zaten grubun TÜM parçalarına bakıyor).
+            grup_kayitlari = db.query(RepairRecord).filter(
+                RepairRecord.service_record_id == rec.service_record_id,
+                RepairRecord.department_mission == rec.department_mission,
+                ~RepairRecord.repair_result_type_code.in_([1002, 1003]),
+            ).all()
+            if rec not in grup_kayitlari:      # zaten kapalı kayda tekrar basıldıysa
+                grup_kayitlari = [rec]
+
             # Tamamlama sartlari TEK YERDE toplandi (_repair_completion_blocker).
             # Hizli Onarim Bitis ekrani da ayni yardimciyi cagirir - kural iki yerde
             # ayri yazilirsa zamanla ayrisir ve ayni onarim bir ekrandan kapanip
-            # digerinden kapanmaz.
+            # digerinden kapanmaz. Engel HER SATIR için ayrı sorulur; biri bile
+            # engelliyse hiçbiri kapanmaz - yarım kapanmış onarım oluşmasın.
             applied_message = ""
             if target_code == 1002:
-                engel = self._repair_completion_blocker(db, rec)
-                if engel:
-                    return json.dumps({"success": False, "message": engel}, ensure_ascii=False)
+                for k in grup_kayitlari:
+                    engel = self._repair_completion_blocker(db, k)
+                    if engel:
+                        return json.dumps({"success": False, "message": engel}, ensure_ascii=False)
                 # Kamera / L3 / Ekran / Kasa: "Onarımı Tamamla" kaydı 1002 yapmaz,
                 # önce bitiş testine (1006) aktarır. Nihai 1002/1001 kararı Onarım
                 # Bitiş Testi ekranından (submit_completion_test) verilir.
@@ -14450,13 +14519,18 @@ class WebBridge(QObject):
                 else:
                     applied_message = "Onarım tamamlandı."
             elif target_code == 1003:
-                engel = self._repair_cancellation_blocker(db, rec)
-                if engel:
-                    return json.dumps({"success": False, "message": engel}, ensure_ascii=False)
+                for k in grup_kayitlari:
+                    engel = self._repair_cancellation_blocker(db, k)
+                    if engel:
+                        return json.dumps({"success": False, "message": engel}, ensure_ascii=False)
 
-            rec.repair_result_type_code = target_code
-            # Kapanış zamanı: kapanınca yazılır, yeniden açılınca temizlenir.
-            rec.closed_at = _dt.datetime.utcnow() if target_code in (1002, 1003) else None
+            for k in grup_kayitlari:
+                k.repair_result_type_code = target_code
+                # Kapanış zamanı: kapanınca yazılır, yeniden açılınca temizlenir.
+                k.closed_at = _dt.datetime.utcnow() if target_code in (1002, 1003) else None
+            if len(grup_kayitlari) > 1:
+                applied_message = (applied_message or "Statü güncellendi.") + \
+                    f" ({len(grup_kayitlari)} parça kaydı)"
             # Bu onarım kapandıysa (1002/1003) bir alt seviyenin sırası gelmiş
             # olabilir; senkron o kayıtları 1004'ten çıkarır.
             db.flush()
@@ -14472,6 +14546,7 @@ class WebBridge(QObject):
             return json.dumps({
                 "success": True,
                 "appliedCode": target_code,
+                "affected": len(grup_kayitlari),
                 "autoSentToTest": bool(otomatik),
                 "message": applied_message,
             }, ensure_ascii=False)

@@ -31,8 +31,28 @@ const INFO_FIELDS = [
 
 const HISTORY_COLUMNS = ['Date', 'StaffName', 'Statü', 'Text'];
 const HISTORY_ROW_KEYS = ['date', 'staffName', 'statu', 'text'];
-const PHONECHECK_COLUMNS = ['DeviceUpdatedD', 'Grade', 'Kritik Parçalar', 'Parts', 'Failed', 'PartInfoRemark', 'StationID', 'Version', 'BatteryCycle'];
-const PHONECHECK_ROW_KEYS = ['deviceUpdatedD', 'grade', 'criticalParts', 'parts', 'failed', 'partInfoRemark', 'stationID', 'version', 'batteryCycle'];
+// İlk sütun TESTİN ADIDIR. Eskiden satırın hangi teste ait olduğu hiçbir yerde
+// yazmıyordu; kayıtlar ham statü geçişiyle (103_104 = "Üretime teslim edilecek")
+// ilişkiliydi ve ekranda ayırt edilemiyordu. Ad backend'de test_stage + sonuçtan
+// üretilir (bkz. get_phonecheck_history_by_imei): "Giriş Test Sonucu",
+// "Son Test Sonucu", "1. Başarısız Son Test Sonucu (1/10)" …
+const PHONECHECK_COLUMNS = ['Test', 'DeviceUpdatedD', 'Grade', 'Kritik Parçalar', 'Parts', 'Failed', 'PartInfoRemark', 'StationID', 'Version', 'BatteryCycle'];
+const PHONECHECK_ROW_KEYS = ['testAdi', 'deviceUpdatedD', 'grade', 'criticalParts', 'parts', 'failed', 'partInfoRemark', 'stationID', 'version', 'batteryCycle'];
+
+// Test adı rozeti: başarılı yeşil, başarısız kırmızı, otomatik sorgu gri.
+function TestAdiBadge({ ad, basarili }) {
+  const tone = basarili === true
+    ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-500/40'
+    : basarili === false
+      ? 'bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-300 dark:border-rose-500/40'
+      : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-300 dark:border-slate-600';
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold border whitespace-nowrap ${tone}`}>
+      <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70" />
+      {ad}
+    </span>
+  );
+}
 
 // ─── KRİTİK PARÇA ORİJİNALLİK ROZETLERİ ──────────────────────────────
 // Kaynak: Phonecheck "Parts" alanı (bkz. phonecheck_service.parse_critical_parts).
@@ -414,18 +434,21 @@ export default function Servis() {
                 <div>
                   <div className="flex flex-wrap items-center justify-between mb-3">
                     <h3 className="text-sm font-semibold text-[#12141c] dark:text-[#F6F8FF] flex items-center gap-2">
-                      <Download size={16} className="text-[#8894D8]" /> PhoneCheck Cihaz Test Verisi
+                      <Download size={16} className="text-[#8894D8]" /> Test Sonuçları
                     </h3>
                     <span className="text-xs font-semibold text-[#5A6685] dark:text-[#8892B5]">Toplam: {phonecheckRows.length} Kayıt</span>
                   </div>
                   {/* criticalParts backend'den dizi gelir; DataTable hücreyi olduğu gibi
                       bastığı için rozetlere burada, render sırasında çevriliyor
-                      (state'te JSX tutulmuyor). */}
+                      (state'te JSX tutulmuyor). testAdi de aynı sebeple burada rozete
+                      dönüşür - "Giriş Test Sonucu", "Son Test Sonucu",
+                      "1. Başarısız Son Test Sonucu (1/10)" gibi. */}
                   <DataTable
                     columns={PHONECHECK_COLUMNS}
                     rowKeys={PHONECHECK_ROW_KEYS}
                     rows={phonecheckRows.map((r, i) => ({
                       ...r,
+                      testAdi: <TestAdiBadge key={`t${i}`} ad={r.testAdi} basarili={r.testBasarili} />,
                       criticalParts: <CriticalPartsChips key={`c${i}`} items={r.criticalParts} />,
                       parts: <PartsSummary key={`p${i}`} remark={r.partsRemark} all={r.parts} />,
                     }))}
