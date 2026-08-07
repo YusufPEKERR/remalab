@@ -11330,9 +11330,8 @@ class WebBridge(QObject):
                     **fault_row_kwargs
                 ))
 
-                # ARA TESTTEN DÖNÜŞTE YALNIZCA L1/L2 ONARIMI TEKNİSYENE GERİ GİDER.
-                # Kural yalnızca ARA TEST (138) için geçerlidir; Son Test (125)
-                # dönüşünde hiçbir onarım kendiliğinden açılmaz.
+                # TESTTEN DÖNÜŞTE YALNIZCA L1/L2 ONARIMI TEKNİSYENE GERİ GİDER.
+                # Hem Ara Test (138) hem Son Test (125) başarısızlığında geçerlidir.
                 # Kamera / L3 / Ekran / Kasa onarımlarının ONARIM BİTİŞ TESTİ zaten
                 # ayrıca yapılıp onaylanmıştır (bkz. COMPLETION_TEST_DEPARTMENTS ve
                 # submit_completion_test); testten dönen cihazda onları da otomatik
@@ -11340,7 +11339,7 @@ class WebBridge(QObject):
                 # yeniden kuyruğa sokuyordu. Onlar 1002 (Tamamlandı) kalır; gerçekten
                 # yeniden çalışılacaksa teknisyen "Onarıma Devam Et" ile bilinçli
                 # olarak açar (update_repair_status → 1001).
-                if int(current_statu_code) == self.TEST_FAIL_REOPEN_SOURCE_STATU:
+                if int(current_statu_code) in self.TEST_FAIL_REOPEN_SOURCE_STATUS:
                     geri_donen = db.execute(text("""
                         UPDATE warehouse.repair_records
                            SET repair_result_type_code = 1001, closed_at = NULL, updated_at = NOW()
@@ -11378,7 +11377,7 @@ class WebBridge(QObject):
             db.commit()
 
             mesaj = f"{device_label} {old_name} ({current_statu_code}) statüsünden {new_name} ({target_statu_code}) statüsüne alındı."
-            if result == "fail" and int(current_statu_code) == self.TEST_FAIL_REOPEN_SOURCE_STATU:
+            if result == "fail" and int(current_statu_code) in self.TEST_FAIL_REOPEN_SOURCE_STATUS:
                 mesaj += (f" {geri_donen} L1/L2 onarımı teknisyene geri gönderildi."
                           if geri_donen else
                           " Cihazda geri açılacak L1/L2 onarımı yok; tamamlanmış onarımlar "
@@ -13961,16 +13960,15 @@ class WebBridge(QObject):
     # "zaten test aşamasında" kabul edip tekrar işlemez.
     COMPLETION_TEST_PENDING_CODE = 1006
 
-    # ARA TEST (138) BAŞARISIZ OLUP CİHAZ ÜRETİME (109) GERİ DÖNDÜĞÜNDE otomatik
-    # olarak teknisyene geri açılan (1002 → 1001) görev grupları. Yalnızca L1/L2:
-    # diğer gruplar onarım bitiş testinden ayrıca geçip onaylandığı için tamamlanmış
+    # TEST BAŞARISIZ OLUP CİHAZ ÜRETİME (109) GERİ DÖNDÜĞÜNDE otomatik olarak
+    # teknisyene geri açılan (1002 → 1001) görev grupları. Yalnızca L1/L2: diğer
+    # gruplar onarım bitiş testinden ayrıca geçip onaylandığı için tamamlanmış
     # (1002) kalır, gerekiyorsa "Onarıma Devam Et" ile elle açılır.
     TEST_FAIL_REOPEN_GROUPS = ("L1REPAIR", "L2REPAIR")
-    # Otomatik geri açma YALNIZCA ara testten dönüşte çalışır. Son Test (125) de
-    # başarısızlıkta cihazı 109'a döndürür ama orada hiçbir onarım kendiliğinden
-    # açılmaz - o aşamada tüm onarımlar testlerinden geçmiştir, yeniden çalışılacak
-    # kayıt varsa teknisyen "Onarıma Devam Et" ile bilinçli olarak açar.
-    TEST_FAIL_REOPEN_SOURCE_STATU = 138
+    # Kuralın geçerli olduğu test adımları: Ara Test (138) ve Son Test (125).
+    # İkisi de başarısızlıkta cihazı 109'a döndürür ve ikisinde de cihazı yeniden
+    # ele alacak olan L1/L2 ekibidir; bu yüzden davranış aynıdır.
+    TEST_FAIL_REOPEN_SOURCE_STATUS = (138, 125)
 
     def _needs_completion_test(self, department_mission):
         """Verilen görev grubu (department_mission) bir onarım bitiş testi
