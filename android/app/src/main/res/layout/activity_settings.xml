@@ -24,6 +24,14 @@
             android:src="@drawable/ic_arrow_back"
             app:tint="@color/text_primary" />
 
+        <ImageView
+            android:id="@+id/imgSettingsLogo"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_marginStart="8dp"
+            android:contentDescription="Uygulama Logosu"
+            android:src="@drawable/uygulama_amblemi" />
+
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"

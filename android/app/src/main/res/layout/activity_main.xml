@@ -36,6 +36,16 @@
             android:paddingHorizontal="8dp"
             android:paddingVertical="4dp">
 
+            <!-- App Logo -->
+            <ImageView
+                android:id="@+id/imgLogo"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:layout_marginStart="4dp"
+                android:layout_marginEnd="6dp"
+                android:contentDescription="Uygulama Logosu"
+                android:src="@drawable/uygulama_amblemi" />
+
             <!-- Spinner Site Switcher -->
             <Spinner
                 android:id="@+id/siteSpinner"
