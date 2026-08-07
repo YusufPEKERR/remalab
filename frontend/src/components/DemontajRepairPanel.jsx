@@ -35,6 +35,7 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
   const [returningDgd, setReturningDgd] = useState(false);
   const [togglingDgdId, setTogglingDgdId] = useState(null);
   const [partPrices, setPartPrices] = useState({}); // { [item_code]: price } - Müşteri Fiyat Matrisi
+  const [labourPrices, setLabourPrices] = useState({}); // { [item_code]: price } - Müşteri İşçilik Fiyatı Matrisi
   const [editingRepairId, setEditingRepairId] = useState(null);
   const [deletingRepairId, setDeletingRepairId] = useState(null);
   const editingRepairIdRef = useRef(null);
@@ -334,6 +335,13 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
         setPartPrices(prev => ({ ...prev, ...res.prices }));
       }
     });
+    // İşçilik Fiyatı sütunu: aynı parça kodları için Müşteri İşçilik Fiyatı Matrisi'nden
+    // (customer_labour_prices) müşteriye özel işçilik fiyatını çeker. Eşleşme yoksa "—".
+    api.getLabourPricesForItems(codes, device.customerNo).then(res => {
+      if (res && res.success) {
+        setLabourPrices(prev => ({ ...prev, ...res.prices }));
+      }
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [repairs, device?.customerNo]);
 
@@ -602,6 +610,8 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
                   <tr className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">
                     <th className="text-left px-4 py-2.5">Parça kodu</th>
                     <th className="text-right px-3 py-2.5">Fiyat</th>
+                    <th className="text-center px-3 py-2.5">İşçilik Seviyesi</th>
+                    <th className="text-right px-3 py-2.5">İşçilik Fiyatı</th>
                     <th className="text-left px-3 py-2.5">Onarım Takımı</th>
                     <th className="text-left px-3 py-2.5">Teknisyen</th>
                     <th className="text-left px-3 py-2.5">Ücret Tipi</th>
@@ -635,6 +645,20 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
                       <td className="px-3 py-2 text-right text-xs font-semibold text-slate-700 dark:text-slate-200">
                         {r.partItemCode && partPrices[r.partItemCode] !== undefined
                           ? `${partPrices[r.partItemCode].toFixed(2)} ${device?.currency || ''}`.trim()
+                          : <span className="text-slate-400 font-normal">—</span>}
+                      </td>
+                      {/* İşçilik Seviyesi: parçanın kategorisinden (item_category.item_labour) gelir.
+                          DGD satırı zaten işçilik kaydı olduğundan seviye gösterilmez. */}
+                      <td className="px-3 py-2 text-center text-xs">
+                        {r.itemCategory !== "DGD" && r.labourLevel
+                          ? <span className="inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold bg-cyan-50 dark:bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-200 dark:border-cyan-500/30">{r.labourLevel}</span>
+                          : <span className="text-slate-400 font-normal">—</span>}
+                      </td>
+                      {/* İşçilik Fiyatı: Müşteri İşçilik Fiyatı Matrisi'nden (customer_labour_prices)
+                          müşteriye özel değer. Eşleşme yoksa "—". */}
+                      <td className="px-3 py-2 text-right text-xs font-semibold text-slate-700 dark:text-slate-200">
+                        {r.partItemCode && labourPrices[r.partItemCode] !== undefined
+                          ? `${labourPrices[r.partItemCode].toFixed(2)} ${device?.currency || ''}`.trim()
                           : <span className="text-slate-400 font-normal">—</span>}
                       </td>
                       <td className="px-3 py-2 text-xs text-slate-700 dark:text-slate-300">

@@ -986,6 +986,132 @@ export const api = {
         });
     },
 
+    // ── Müşteri İşçilik Fiyatı Matrisi ───────────────────────────
+    // Müşteri Fiyat Matrisi (getPriceMatrix*) wrapper'larının birebir ikizi; tek fark
+    // çağrılan backend Slot'unun customer_labour_prices tablosunu okuması/yazmasıdır.
+    getLabourMatrixCustomers: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_labour_matrix_customers((res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    getLabourMatrixBrands: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_labour_matrix_brands((res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    getLabourMatrixProductTypes: async (brand) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_labour_matrix_product_types(String(brand || ''), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    getLabourMatrixModels: async (brand, productType) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_labour_matrix_models(String(brand || ''), String(productType || ''), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    getLabourMatrixCategories: async (brand, model, productType) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_labour_matrix_categories(String(brand || ''), String(model || ''), String(productType || ''), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    getLabourMatrixItems: async (search, brand, category, model, productType) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_labour_matrix_items(String(search || ''), String(brand || ''), String(category || ''), String(model || ''), String(productType || ''), async (resStr) => {
+                try {
+                    const res = JSON.parse(resStr);
+                    if (res.fetch_url) {
+                        const fetchRes = await fetch(res.fetch_url, { cache: 'no-store' });
+                        const jsonData = await fetchRes.json();
+                        resolve(jsonData);
+                    } else {
+                        resolve(res);
+                    }
+                } catch (e) {
+                    resolve({ success: false, message: e.message });
+                }
+            });
+        });
+    },
+
+    getLabourMatrix: async (brand, category, model, productType) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_labour_matrix(String(brand || ''), String(category || ''), String(model || ''), String(productType || ''), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    saveLabourMatrixBatch: async (rows, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.save_labour_matrix_batch(JSON.stringify(rows || []), String(username || ''), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    bulkImportLabourMatrix: async (rows, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.bulk_import_labour_matrix(JSON.stringify(rows || []), String(username || ''), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    getLabourPricesForItems: async (itemCodes, customerCode) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            const csv = Array.isArray(itemCodes) ? itemCodes.join(',') : String(itemCodes || '');
+            backend.get_labour_prices_for_items(csv, String(customerCode || ''), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    // ── Seviye Bazlı İşçilik Fiyatlandırması (pricing.xlsx 3 tablo) ──
+    // Üç küçük matris: Seviye / Parça Sırası / DGD. Her biri {customers, prices:[{customer_code,key,price}]}.
+    getLevelLabourMatrix: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_level_labour_matrix((res) => resolve(JSON.parse(res)));
+        });
+    },
+    saveLevelLabourMatrixBatch: async (rows, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.save_level_labour_matrix_batch(JSON.stringify(rows || []), String(username || ''), (res) => resolve(JSON.parse(res)));
+        });
+    },
+    getPartorderLabourMatrix: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_partorder_labour_matrix((res) => resolve(JSON.parse(res)));
+        });
+    },
+    savePartorderLabourMatrixBatch: async (rows, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.save_partorder_labour_matrix_batch(JSON.stringify(rows || []), String(username || ''), (res) => resolve(JSON.parse(res)));
+        });
+    },
+    getDgdLabourMatrix: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_dgd_labour_matrix((res) => resolve(JSON.parse(res)));
+        });
+    },
+    saveDgdLabourMatrixBatch: async (rows, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.save_dgd_labour_matrix_batch(JSON.stringify(rows || []), String(username || ''), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
     // ── Müşteri Hedef Fiyat Matrisi ──────────────────────────────
     getTargetPriceCustomers: async () => {
         const backend = await getBackend();

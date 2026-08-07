@@ -56,7 +56,7 @@ def clear_api_cache(session=None):
     """Veritabanında değişiklik olduğunda cache'i temizler, böylece UI sadece yeni veriyi bekler."""
     dirs = get_cache_dirs()
     for d in dirs:
-        for filename in ["parts.json", "stock.json", "critical.json", "price_matrix_items.json", "price_matrix_prices.json", "item_boms.json", "production_runs.json"]:
+        for filename in ["parts.json", "stock.json", "critical.json", "price_matrix_items.json", "price_matrix_prices.json", "labour_matrix_items.json", "labour_matrix_prices.json", "item_boms.json", "production_runs.json"]:
             path = os.path.join(d, filename)
             if os.path.exists(path):
                 try: 
@@ -11753,6 +11753,7 @@ class WebBridge(QObject):
                        -- HER cihazda "Aktif onarim kaydi yok" gorunuyordu.
                        mg.short_name AS mission_group_name,
                        it.short_name AS part_name, pp.item_category AS item_category,
+                       ic.item_labour AS labour_level,
                        pp.stock_tracking_type, pp.id AS part_id,
                        fault.short_name AS fault_name,
                        opt.short_name AS operation_type_name,
@@ -11777,6 +11778,7 @@ class WebBridge(QObject):
                 LEFT JOIN warehouse.repair_item_operation_type opt ON opt.code = rr.operation_type_code
                 LEFT JOIN warehouse.item_supply_status sup ON sup.code = rr.supply_status_code
                 LEFT JOIN warehouse.users au_tek ON au_tek.username = rr.assigned_technician
+                LEFT JOIN warehouse.item_category ic ON ic.short_name = pp.item_category OR ic.code = pp.item_category
                 WHERE rr.service_record_id = ANY(:refs)
                    OR LOWER(TRIM(rr.service_record_id)) = LOWER(:term)
                    OR EXISTS (
@@ -11815,6 +11817,7 @@ class WebBridge(QObject):
                     "partItemCode": r["part_item_code"] or "",
                     "partName": r["part_name"] or "",
                     "itemCategory": r["item_category"] or "",
+                    "labourLevel": r["labour_level"] or "",
                     "stockTrackingType": tracking_type,
                     "isStoksuz": is_stoksuz,
                     "isDelivered": is_delivered,
@@ -13546,6 +13549,35 @@ class WebBridge(QObject):
             db.close()
 
     @Slot(str, str, result=str)
+    def get_labour_prices_for_items(self, item_codes_csv, customer_code):
+        """get_prices_for_items'in İŞÇİLİK ikizi - onarım ekranlarındaki 'İşçilik Fiyatı'
+        sütunu için, bir onarım grubundaki her parçanın müşteriye özel işçilik fiyatını
+        tek sorguda getirir. Kaynak: warehouse.customer_labour_prices (Müşteri İşçilik
+        Fiyatı Matrisi). get_prices_for_items'ten farkı: İŞÇİLİKTE genel varsayılan (item.satis
+        gibi) YOKTUR - matriste eşleşme yoksa o parça haritaya girmez, UI '—' gösterir."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            item_codes = list({c.strip() for c in (item_codes_csv or "").split(",") if c.strip()})
+            customer_code = (customer_code or "").strip()
+            if not item_codes or not customer_code:
+                return json.dumps({"success": True, "prices": {}})
+
+            prices = {}
+            rows = db.execute(text("""
+                SELECT item_code, price FROM warehouse.customer_labour_prices
+                WHERE customer_code = :customer_code AND item_code = ANY(:codes)
+            """), {"customer_code": customer_code, "codes": item_codes}).mappings().all()
+            for r in rows:
+                prices[r["item_code"]] = float(r["price"])
+
+            return json.dumps({"success": True, "prices": prices})
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, result=str)
     def get_effective_price(self, item_code, customer_code):
         """item_code x customer_code için geçerli fiyatı döner: önce customer_item_prices'tan,
         yoksa warehouse.item.satis'ten (global varsayılan). Şu an sadece lookup Slot'u olarak
@@ -13575,6 +13607,565 @@ class WebBridge(QObject):
             return json.dumps({"success": False, "message": str(e)})
         finally:
             db.close()
+
+    # --- MÜŞTERİ İŞÇİLİK FİYATI MATRİSİ ---
+    # Müşteri Fiyat Matrisi'nin (customer_item_prices) birebir yapısal ikizidir; tek fark
+    # fiyatların ayrı bir tabloda (warehouse.customer_labour_prices) tutulmasıdır. Satır
+    # kaynağı (warehouse.parts + DGD işçilik kodları), marka/ürün tipi/model/kategori
+    # daraltma filtreleri ve tüm davranış Müşteri Fiyat Matrisi ile aynıdır - bu yüzden
+    # aynı yardımcılar (PRICE_MATRIX_PRODUCT_TYPE_CASE_SQL) ve aynı sorgu desenleri kullanılır.
+
+    @Slot(result=str)
+    def get_labour_matrix_customers(self):
+        """İşçilik fiyatı matrisinin sütunlarını oluşturan müşteri listesini döner - kaynak
+        get_price_matrix_customers ile aynı (warehouse.customers)."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            rows = db.execute(text("""
+                SELECT code, short_name, currency FROM warehouse.customers
+                WHERE code IS NOT NULL ORDER BY short_name
+            """)).mappings().all()
+            items = [{"code": r["code"], "short_name": r["short_name"] or r["code"], "currency": r["currency"] or ""} for r in rows]
+            return json.dumps({"success": True, "customers": items}, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(result=str)
+    def get_labour_matrix_brands(self):
+        """İşçilik fiyatı matrisinde önce seçilecek marka listesini döner - get_price_matrix_brands
+        ile birebir aynı (warehouse.parts.brand büyük/küçük harf duyarsız gruplama + '__DGD__'
+        sözde-markası). Marka seçimi ilk ve zorunlu adımdır."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            rows = db.execute(text("""
+                SELECT brand, COUNT(*) AS cnt
+                FROM warehouse.parts
+                WHERE brand IS NOT NULL AND brand != '' AND COALESCE(item_category, '') != 'DGD'
+                GROUP BY brand
+            """)).mappings().all()
+
+            grouped = {}
+            for r in rows:
+                raw = (r["brand"] or "").strip()
+                if not raw:
+                    continue
+                key = raw.upper()
+                g = grouped.setdefault(key, {"label": raw, "label_count": 0, "count": 0})
+                g["count"] += r["cnt"]
+                if r["cnt"] > g["label_count"]:
+                    g["label_count"] = r["cnt"]
+                    g["label"] = raw
+
+            brands = sorted(
+                [{"value": key, "label": g["label"], "count": g["count"]} for key, g in grouped.items()],
+                key=lambda b: b["label"]
+            )
+
+            dgd_count = db.execute(text(
+                "SELECT COUNT(*) FROM warehouse.parts WHERE item_category = 'DGD'"
+            )).scalar() or 0
+            if dgd_count:
+                brands.append({"value": "__DGD__", "label": "İşçilik (DGD)", "count": dgd_count})
+
+            return json.dumps({"success": True, "brands": brands}, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
+    def get_labour_matrix_product_types(self, brand=""):
+        """İşçilik fiyatı matrisinde markanın yanındaki 'Ürün Tipi' filtresinin seçeneklerini
+        döner - get_price_matrix_product_types ile birebir aynı (PRICE_MATRIX_PRODUCT_TYPE_CASE_SQL
+        + warehouse.product_category JOIN). '__DGD__' için ürün tipi ayrımı yoktur."""
+        from sqlalchemy import text
+        brand = (brand or "").strip()
+        if brand == "__DGD__":
+            return json.dumps({"success": True, "product_types": []}, ensure_ascii=False)
+
+        db = SessionLocal()
+        try:
+            params = {}
+            clause = "WHERE COALESCE(item_category, '') != 'DGD'"
+            if brand:
+                clause += " AND UPPER(brand) = UPPER(:brand)"
+                params["brand"] = brand
+            rows = db.execute(text(f"""
+                SELECT sub.product_type AS value, COALESCE(pc.short_name, sub.product_type) AS label, sub.cnt
+                FROM (
+                    SELECT {PRICE_MATRIX_PRODUCT_TYPE_CASE_SQL} AS product_type, COUNT(*) AS cnt
+                    FROM warehouse.parts
+                    {clause}
+                    GROUP BY product_type
+                ) sub
+                LEFT JOIN warehouse.product_category pc ON pc.code = sub.product_type
+                ORDER BY sub.cnt DESC
+            """), params).mappings().all()
+            product_types = [{"value": r["value"], "label": r["label"], "count": r["cnt"]} for r in rows]
+            return json.dumps({"success": True, "product_types": product_types}, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, result=str)
+    def get_labour_matrix_models(self, brand="", product_type=""):
+        """Seçili marka (+ opsiyonel ürün tipi) için cihaz modeli listesini döner -
+        get_price_matrix_models ile birebir aynı (warehouse.parts.model + warehouse.product_family
+        short_name eşleme)."""
+        from sqlalchemy import text
+        brand = (brand or "").strip()
+        product_type = (product_type or "").strip()
+        if not brand or brand == "__DGD__":
+            return json.dumps({"success": True, "models": []}, ensure_ascii=False)
+
+        db = SessionLocal()
+        try:
+            params = {"brand": brand}
+            clause = "WHERE UPPER(parts.brand) = UPPER(:brand) AND parts.model IS NOT NULL AND parts.model != ''"
+            if product_type:
+                clause += f" AND ({PRICE_MATRIX_PRODUCT_TYPE_CASE_SQL}) = :product_type"
+                params["product_type"] = product_type
+            rows = db.execute(text(f"""
+                SELECT parts.model AS value, COALESCE(pf.short_name, parts.model) AS label, COUNT(*) AS cnt
+                FROM warehouse.parts
+                LEFT JOIN warehouse.product_family pf
+                    ON UPPER(pf.code) = UPPER(parts.model) AND UPPER(pf.brand) = UPPER(parts.brand)
+                {clause}
+                GROUP BY parts.model, pf.short_name
+                ORDER BY label
+            """), params).mappings().all()
+            models = [{"value": r["value"], "label": r["label"], "count": r["cnt"]} for r in rows]
+            return json.dumps({"success": True, "models": models}, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, str, result=str)
+    def get_labour_matrix_categories(self, brand="", model="", product_type=""):
+        """Seçili marka (+ opsiyonel ürün tipi/model) için item_category listesini döner -
+        get_price_matrix_categories ile birebir aynı. '__DGD__' için kategori ayrımı yoktur."""
+        from sqlalchemy import text
+        brand = (brand or "").strip()
+        model = (model or "").strip()
+        product_type = (product_type or "").strip()
+        if brand == "__DGD__":
+            return json.dumps({"success": True, "categories": []}, ensure_ascii=False)
+
+        db = SessionLocal()
+        try:
+            params = {}
+            clause = "WHERE item_category IS NOT NULL AND item_category != '' AND item_category != 'DGD'"
+            if brand:
+                clause += " AND UPPER(brand) = UPPER(:brand)"
+                params["brand"] = brand
+            if model:
+                clause += " AND model = :model"
+                params["model"] = model
+            if product_type:
+                clause += f" AND ({PRICE_MATRIX_PRODUCT_TYPE_CASE_SQL}) = :product_type"
+                params["product_type"] = product_type
+            rows = db.execute(text(f"""
+                SELECT item_category, COUNT(*) AS cnt
+                FROM warehouse.parts
+                {clause}
+                GROUP BY item_category
+                ORDER BY item_category
+            """), params).mappings().all()
+            categories = [{"value": r["item_category"], "label": r["item_category"], "count": r["cnt"]} for r in rows]
+            return json.dumps({"success": True, "categories": categories}, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, str, str, str, result=str)
+    def get_labour_matrix_items(self, search="", brand="", category="", model="", product_type=""):
+        """İşçilik fiyatı matrisinin satırlarını oluşturan item_code listesini döner (fiziksel
+        parçalar + DGD işçilik kodları), her satırda 'İşçilik'/'Parça' etiketiyle -
+        get_price_matrix_items ile birebir aynı. Hiç filtre yoksa kendi cache dosyasına
+        (labour_matrix_items.json) yazar; Müşteri Fiyat Matrisi'nin cache'iyle çakışmaz."""
+        from sqlalchemy import text
+        search = (search or "").strip()
+        brand = (brand or "").strip()
+        category = (category or "").strip()
+        model = (model or "").strip()
+        product_type = (product_type or "").strip()
+        unfiltered = not search and not brand and not category and not model and not product_type
+
+        if unfiltered:
+            filename = "labour_matrix_items.json"
+            path = os.path.join(get_cache_dirs()[0], filename)
+            fetch_url = f"/api_cache/{filename}"
+            if os.path.exists(path):
+                return json.dumps({"success": True, "fetch_url": fetch_url})
+
+        db = SessionLocal()
+        try:
+            clauses = []
+            params = {}
+            if search:
+                clauses.append('(item_code COLLATE "C" ILIKE :s OR name COLLATE "C" ILIKE :s)')
+                params["s"] = f"%{search}%"
+            if brand == "__DGD__":
+                clauses.append("item_category = 'DGD'")
+            elif brand:
+                clauses.append("UPPER(brand) = UPPER(:brand)")
+                params["brand"] = brand
+            if model:
+                clauses.append("model = :model")
+                params["model"] = model
+            if product_type:
+                clauses.append(f"({PRICE_MATRIX_PRODUCT_TYPE_CASE_SQL}) = :product_type")
+                params["product_type"] = product_type
+            if category:
+                clauses.append("item_category = :category")
+                params["category"] = category
+            clause = ("WHERE " + " AND ".join(clauses)) if clauses else ""
+
+            rows = db.execute(text(f"""
+                SELECT item_code, name,
+                       CASE WHEN item_category = 'DGD' THEN 'İşçilik' ELSE 'Parça' END AS item_type
+                FROM warehouse.parts
+                {clause}
+                ORDER BY item_type, item_code
+            """), params).mappings().all()
+            items = [{"item_code": r["item_code"], "name": r["name"] or "", "item_type": r["item_type"]} for r in rows if r["item_code"]]
+
+            if unfiltered:
+                json_data = json.dumps({"success": True, "items": items}, ensure_ascii=False)
+                write_to_cache("labour_matrix_items.json", json_data)
+                fetch_url = f"/api_cache/labour_matrix_items.json"
+                return json.dumps({"success": True, "fetch_url": fetch_url})
+
+            return json.dumps({"success": True, "items": items}, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, str, str, result=str)
+    def get_labour_matrix(self, brand="", category="", model="", product_type=""):
+        """warehouse.customer_labour_prices'taki (item_code, customer_code, price) satırlarını
+        döner - get_price_matrix ile birebir aynı desen, tek fark okunan tablo. Hiç filtre
+        yoksa kendi cache dosyasına (labour_matrix_prices.json) yazar."""
+        from sqlalchemy import text
+        brand = (brand or "").strip()
+        category = (category or "").strip()
+        model = (model or "").strip()
+        product_type = (product_type or "").strip()
+        unfiltered = not brand and not category and not model and not product_type
+
+        if unfiltered:
+            filename = "labour_matrix_prices.json"
+            path = os.path.join(get_cache_dirs()[0], filename)
+            fetch_url = f"/api_cache/{filename}"
+            if os.path.exists(path):
+                return json.dumps({"success": True, "fetch_url": fetch_url})
+
+        db = SessionLocal()
+        try:
+            if unfiltered:
+                rows = db.execute(text(
+                    "SELECT item_code, customer_code, price FROM warehouse.customer_labour_prices"
+                )).mappings().all()
+            else:
+                clauses = []
+                params = {}
+                if brand == "__DGD__":
+                    clauses.append("item_category = 'DGD'")
+                elif brand:
+                    clauses.append("UPPER(brand) = UPPER(:brand)")
+                    params["brand"] = brand
+                if model:
+                    clauses.append("model = :model")
+                    params["model"] = model
+                if product_type:
+                    clauses.append(f"({PRICE_MATRIX_PRODUCT_TYPE_CASE_SQL}) = :product_type")
+                    params["product_type"] = product_type
+                if category:
+                    clauses.append("item_category = :category")
+                    params["category"] = category
+                clause = ("WHERE " + " AND ".join(clauses)) if clauses else ""
+
+                rows = db.execute(text(f"""
+                    SELECT clp.item_code, clp.customer_code, clp.price
+                    FROM warehouse.customer_labour_prices clp
+                    JOIN warehouse.parts ON parts.item_code = clp.item_code
+                    {clause}
+                """), params).mappings().all()
+
+            items = [{"item_code": r["item_code"], "customer_code": r["customer_code"], "price": float(r["price"])} for r in rows]
+
+            if unfiltered:
+                json_data = json.dumps({"success": True, "prices": items}, ensure_ascii=False)
+                write_to_cache("labour_matrix_prices.json", json_data)
+                fetch_url = f"/api_cache/labour_matrix_prices.json"
+                return json.dumps({"success": True, "fetch_url": fetch_url})
+
+            return json.dumps({"success": True, "prices": items}, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, result=str)
+    def save_labour_matrix_batch(self, rows_json, username):
+        """İşçilik fiyatı matrisi ızgarasındaki tüm 'kirli' hücreleri TEK transaction'da
+        warehouse.customer_labour_prices'a kaydeder - save_price_matrix_batch ile birebir aynı
+        (null/boş fiyat SİLER, dolu fiyat upsert edilir)."""
+        import uuid
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            try:
+                rows = json.loads(rows_json) if rows_json else []
+            except (TypeError, ValueError):
+                return json.dumps({"success": False, "message": "Geçersiz veri formatı."})
+
+            updated_count = 0
+            deleted_count = 0
+            for row in rows:
+                item_code = (row.get("item_code") or "").strip()
+                customer_code = (row.get("customer_code") or "").strip()
+                price = row.get("price", None)
+                if not item_code or not customer_code:
+                    continue
+                if price is None or price == "":
+                    result = db.execute(text("""
+                        DELETE FROM warehouse.customer_labour_prices
+                        WHERE item_code = :item_code AND customer_code = :customer_code
+                    """), {"item_code": item_code, "customer_code": customer_code})
+                    deleted_count += result.rowcount
+                else:
+                    db.execute(text("""
+                        INSERT INTO warehouse.customer_labour_prices (id, item_code, customer_code, price, updated_by, updated_at)
+                        VALUES (:id, :item_code, :customer_code, :price, :username, now())
+                        ON CONFLICT (item_code, customer_code)
+                        DO UPDATE SET price = EXCLUDED.price, updated_by = EXCLUDED.updated_by, updated_at = now()
+                    """), {"id": str(uuid.uuid4()), "item_code": item_code, "customer_code": customer_code, "price": float(price), "username": username or None})
+                    updated_count += 1
+
+            db.commit()
+            return json.dumps({"success": True, "updated_count": updated_count, "deleted_count": deleted_count})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, result=str)
+    def bulk_import_labour_matrix(self, rows_json, username):
+        """Müşteri İşçilik Fiyatı Matrisi için toplu (Excel) içe aktarma - bulk_import_price_matrix
+        ile birebir aynı (geçersiz satırlar atlanır/raporlanır, geçerliler kaydedilir; chunk'lı
+        çok-satırlı INSERT + ON CONFLICT upsert), tek fark yazılan tablo (customer_labour_prices)."""
+        import uuid
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            try:
+                rows = json.loads(rows_json or "[]")
+            except (ValueError, TypeError):
+                return json.dumps({"success": False, "message": "Geçersiz dosya verisi.", "errors": []})
+            if not rows:
+                return json.dumps({"success": False, "message": "Dosyada içe aktarılacak satır bulunamadı.", "errors": []})
+
+            valid_item_codes = {r[0] for r in db.execute(text("SELECT item_code FROM warehouse.parts")).all()}
+
+            customers = db.execute(text("SELECT code, short_name FROM warehouse.customers WHERE code IS NOT NULL")).mappings().all()
+            customer_by_code = {c["code"].strip().lower(): c["code"] for c in customers}
+            customer_by_name = {(c["short_name"] or "").strip().lower(): c["code"] for c in customers if c["short_name"]}
+
+            errors = []
+            valid_rows = []
+            seen_keys_in_file = {}
+
+            for idx, row in enumerate(rows):
+                row_num = idx + 2
+                row = row or {}
+
+                def get_val(key):
+                    v = row.get(key)
+                    return str(v).strip() if v is not None else ""
+
+                item_code = get_val("item_code")
+                musteri_raw = get_val("musteri")
+                price_raw = get_val("fiyat")
+
+                if not item_code:
+                    errors.append({"row": row_num, "field": "Parça Kodu", "message": "Parça Kodu boş olamaz."})
+                elif item_code not in valid_item_codes:
+                    errors.append({"row": row_num, "field": "Parça Kodu", "message": f"\"{item_code}\" sistemde tanımlı bir parça/işçilik kodu değil."})
+
+                if not musteri_raw:
+                    errors.append({"row": row_num, "field": "Müşteri", "message": "Müşteri boş olamaz."})
+
+                customer_code = customer_by_code.get(musteri_raw.lower()) or customer_by_name.get(musteri_raw.lower())
+                if musteri_raw and not customer_code:
+                    errors.append({"row": row_num, "field": "Müşteri", "message": f"\"{musteri_raw}\" sistemde tanımlı bir müşteri değil (kod veya ad ile eşleşmedi)."})
+
+                price_val = None
+                if not price_raw:
+                    errors.append({"row": row_num, "field": "Fiyat", "message": "Fiyat boş olamaz."})
+                else:
+                    try:
+                        price_val = float(price_raw.replace(",", "."))
+                    except ValueError:
+                        errors.append({"row": row_num, "field": "Fiyat", "message": f"\"{price_raw}\" sayısal değil."})
+
+                # Geniş formatta aynı item_code+müşteri birden fazla kez geçebilir - hata değil,
+                # son değer kazanır (aşağıda dedup ile). Aynı zamanda Postgres'in ON CONFLICT
+                # "row a second time" kısıtını da karşılar.
+                if item_code in valid_item_codes and customer_code and price_val is not None:
+                    valid_rows.append({"item_code": item_code, "customer_code": customer_code, "price": price_val})
+
+            if not valid_rows:
+                return json.dumps({"success": False, "message": f"{len(errors)} satırda hata bulundu, kaydedilecek geçerli satır yok.", "errors": errors[:200]}, ensure_ascii=False)
+
+            deduped = {}
+            for r in valid_rows:
+                deduped[(r["item_code"], r["customer_code"])] = r["price"]
+            dedup_rows = [{"item_code": k[0], "customer_code": k[1], "price": v} for k, v in deduped.items()]
+
+            CHUNK_SIZE = 1000
+            for chunk_start in range(0, len(dedup_rows), CHUNK_SIZE):
+                chunk = dedup_rows[chunk_start:chunk_start + CHUNK_SIZE]
+                values_clauses = []
+                params = {"username": username or None}
+                for j, r in enumerate(chunk):
+                    values_clauses.append(f"(:id{j}, :item_code{j}, :customer_code{j}, :price{j}, :username, now())")
+                    params[f"id{j}"] = str(uuid.uuid4())
+                    params[f"item_code{j}"] = r["item_code"]
+                    params[f"customer_code{j}"] = r["customer_code"]
+                    params[f"price{j}"] = r["price"]
+                chunk_sql = text(f"""
+                    INSERT INTO warehouse.customer_labour_prices (id, item_code, customer_code, price, updated_by, updated_at)
+                    VALUES {', '.join(values_clauses)}
+                    ON CONFLICT (item_code, customer_code)
+                    DO UPDATE SET price = EXCLUDED.price, updated_by = EXCLUDED.updated_by, updated_at = now()
+                """)
+                db.execute(chunk_sql, params)
+
+            db.commit()
+            if errors:
+                return json.dumps({
+                    "success": True,
+                    "message": f"{len(dedup_rows)} fiyat içe aktarıldı, {len(errors)} satır atlandı (hatalı).",
+                    "imported": len(dedup_rows), "skipped": len(errors), "errors": errors[:200],
+                }, ensure_ascii=False)
+            return json.dumps({"success": True, "message": f"{len(dedup_rows)} fiyat başarıyla içe aktarıldı.", "imported": len(dedup_rows)})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": f"İçe aktarma hatası: {str(e)}", "errors": []})
+        finally:
+            db.close()
+
+    # --- SEVİYE BAZLI İŞÇİLİK FİYATLANDIRMASI (pricing.xlsx 3 tablo) ---
+    # pricing.xlsx'teki üç fiyat tablosu (Seviye / Parça Sırası / DGD) için üç KÜÇÜK matris.
+    # Hepsi (customer_code, <key>, price) yapısında; satır = warehouse.customers müşterisi,
+    # sütun = SABİT bir anahtar kümesi (frontend'de tanımlı). Bu tablolar küçük olduğundan
+    # (19 müşteri × birkaç sütun) parça matrisindeki marka filtresi/sanallaştırma/cache
+    # DESENLERİNE gerek yoktur - doğrudan sorgulanır. Üçü de aşağıdaki iki yardımcıyı paylaşır.
+
+    def _get_labour_price_matrix(self, table, key_col):
+        """Küçük bir işçilik fiyat matrisini (customer_code, <key_col>, price) döner + müşteri
+        listesini. table/key_col ÇAĞIRAN Slot tarafından sabit verilir (kullanıcı girdisi DEĞİL),
+        SQL enjeksiyonu riski yoktur."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            customers = db.execute(text("""
+                SELECT code, short_name, currency FROM warehouse.customers
+                WHERE code IS NOT NULL ORDER BY short_name
+            """)).mappings().all()
+            cust_list = [{"code": r["code"], "short_name": r["short_name"] or r["code"], "currency": r["currency"] or ""} for r in customers]
+            rows = db.execute(text(
+                f"SELECT customer_code, {key_col} AS k, price FROM warehouse.{table}"
+            )).mappings().all()
+            prices = [{"customer_code": r["customer_code"], "key": r["k"], "price": float(r["price"])} for r in rows]
+            return json.dumps({"success": True, "customers": cust_list, "prices": prices}, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    def _save_labour_price_matrix(self, table, key_col, uq_name, rows_json, username):
+        """Küçük işçilik fiyat matrisinin 'kirli' hücrelerini TEK transaction'da upsert/delete eder.
+        rows: [{customer_code, key, price}] - price null/boş -> o hücre SİLİNİR, doluysa upsert.
+        table/key_col/uq_name ÇAĞIRAN Slot tarafından sabit verilir (kullanıcı girdisi DEĞİL)."""
+        import uuid
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            try:
+                rows = json.loads(rows_json) if rows_json else []
+            except (TypeError, ValueError):
+                return json.dumps({"success": False, "message": "Geçersiz veri formatı."})
+
+            updated_count = 0
+            deleted_count = 0
+            for row in rows:
+                customer_code = (row.get("customer_code") or "").strip()
+                key = (row.get("key") or "").strip()
+                price = row.get("price", None)
+                if not customer_code or not key:
+                    continue
+                if price is None or price == "":
+                    result = db.execute(text(
+                        f"DELETE FROM warehouse.{table} WHERE customer_code = :cc AND {key_col} = :k"
+                    ), {"cc": customer_code, "k": key})
+                    deleted_count += result.rowcount
+                else:
+                    db.execute(text(f"""
+                        INSERT INTO warehouse.{table} (id, customer_code, {key_col}, price, updated_by, updated_at)
+                        VALUES (:id, :cc, :k, :price, :username, now())
+                        ON CONFLICT ON CONSTRAINT {uq_name}
+                        DO UPDATE SET price = EXCLUDED.price, updated_by = EXCLUDED.updated_by, updated_at = now()
+                    """), {"id": str(uuid.uuid4()), "cc": customer_code, "k": key, "price": float(price), "username": username or None})
+                    updated_count += 1
+
+            db.commit()
+            return json.dumps({"success": True, "updated_count": updated_count, "deleted_count": deleted_count})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(result=str)
+    def get_level_labour_matrix(self):
+        """Seviye İşçilik Fiyatı matrisi (pricing.xlsx Tablo 1): müşteri × Repair Level."""
+        return self._get_labour_price_matrix("customer_level_labour_prices", "level_key")
+
+    @Slot(str, str, result=str)
+    def save_level_labour_matrix_batch(self, rows_json, username):
+        return self._save_labour_price_matrix(
+            "customer_level_labour_prices", "level_key", "uq_customer_level_labour_price", rows_json, username)
+
+    @Slot(result=str)
+    def get_partorder_labour_matrix(self):
+        """Parça Sırası İşçilik Ücreti matrisi (pricing.xlsx Tablo 2): müşteri × ('1-5'/'6+')."""
+        return self._get_labour_price_matrix("customer_partorder_labour_prices", "order_key")
+
+    @Slot(str, str, result=str)
+    def save_partorder_labour_matrix_batch(self, rows_json, username):
+        return self._save_labour_price_matrix(
+            "customer_partorder_labour_prices", "order_key", "uq_customer_partorder_labour_price", rows_json, username)
+
+    @Slot(result=str)
+    def get_dgd_labour_matrix(self):
+        """DGD İşçilik Fiyatı matrisi (pricing.xlsx Tablo 3): müşteri × DGD durumu."""
+        return self._get_labour_price_matrix("customer_dgd_labour_prices", "dgd_key")
+
+    @Slot(str, str, result=str)
+    def save_dgd_labour_matrix_batch(self, rows_json, username):
+        return self._save_labour_price_matrix(
+            "customer_dgd_labour_prices", "dgd_key", "uq_customer_dgd_labour_price", rows_json, username)
 
     def _get_effective_price(self, db, item_code, customer_code):
         """get_effective_price Slot'unun DB oturumu paylaşan iç hali (aynı kural: önce
