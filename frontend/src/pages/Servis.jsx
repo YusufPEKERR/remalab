@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, ClipboardCheck, Wrench, FlaskConical, Download, AlertTriangle, RefreshCw, Cpu } from 'lucide-react';
+import { Search, ClipboardCheck, Wrench, FlaskConical, Download, AlertTriangle, RefreshCw, Cpu, CheckCircle2, XCircle, Clock } from 'lucide-react';
 import { api } from '../services/api';
 
 const TABS = [
@@ -96,6 +96,97 @@ function CriticalPartsChips({ items }) {
     </div>
   );
 }
+// ─── TEST SONUÇ ÖZETİ (Giriş / Son test) ─────────────────────────────
+// Giriş testi = İlk test (103→104), Phonecheck'ten otomatik çekilir.
+// Son test    = 125→126 (başarılı) / 125→109 (başarısız).
+// Başarısız testler Test 1, Test 2... diye listelenir (giriş: Phonecheck 'Failed';
+// son test: manuel notlardaki 'Hatalı Parçalar'). Kaynak: get_test_summary_by_imei.
+const TEST_RESULT_TONE = {
+  pass: { label: 'Başarılı', cls: 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-500/40', Icon: CheckCircle2 },
+  fail: { label: 'Başarısız', cls: 'bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-300 dark:border-rose-500/40', Icon: XCircle },
+  pending: { label: 'Bekliyor', cls: 'bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-500/40', Icon: Clock },
+};
+
+// seq = cihazın YAPTIĞI testler arasında bu testin akış sırasındaki numarası
+// (Giriş → Ara → Son). Yapılmamış testte seq = null (numarasız "Yapılmadı").
+function TestSummaryCard({ title, data, seq }) {
+  const done = data && data.done;
+  const tone = done ? (TEST_RESULT_TONE[data.result] || TEST_RESULT_TONE.pending) : null;
+  const failed = (data && data.failedTests) || [];
+  return (
+    <div className="flex-1 min-w-[240px] border border-[#DCE1F1] dark:border-[#1e222d] rounded-xl bg-[#F5F7FC] dark:bg-[#12141c] p-4">
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <div className="flex items-center gap-2 min-w-0">
+          {seq != null && (
+            <span className="inline-flex items-center justify-center shrink-0 w-6 h-6 rounded-md text-[11px] font-bold border bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-500/30" title={`${seq}. test`}>
+              {seq}
+            </span>
+          )}
+          <span className="text-xs font-semibold text-[#5A6685] dark:text-[#8892B5] uppercase tracking-wider truncate">{title}</span>
+        </div>
+        {done ? (
+          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold border whitespace-nowrap ${tone.cls}`}>
+            <tone.Icon size={12} /> {tone.label}
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold border whitespace-nowrap bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-300 dark:border-slate-600">
+            Yapılmadı
+          </span>
+        )}
+      </div>
+      {done && seq != null && (
+        <div className="text-[11px] font-semibold text-blue-700 dark:text-blue-400 mb-1">{seq}. Test</div>
+      )}
+      {done && data.date && (
+        <div className="text-[11px] text-[#5A6685] dark:text-[#8892B5] mb-2">{data.date}</div>
+      )}
+      {done && data.result === 'fail' && failed.length > 0 && (
+        <ol className="space-y-1 mt-2">
+          {failed.map((t, i) => (
+            <li key={i} className="text-xs text-rose-700 dark:text-rose-400 flex gap-2">
+              <span className="font-bold shrink-0">Test {i + 1}:</span>
+              <span className="break-all">{t}</span>
+            </li>
+          ))}
+        </ol>
+      )}
+      {done && data.result === 'fail' && failed.length === 0 && (
+        <div className="text-[11px] italic text-[#5A6685] dark:text-[#8892B5]">Başarısız testlerin detayı kayıtlı değil.</div>
+      )}
+      {done && data.result === 'fail' && data.description && (
+        <div className="text-[11px] text-[#5A6685] dark:text-[#8892B5] mt-2 pt-2 border-t border-[#DCE1F1] dark:border-[#1e222d]">
+          <span className="font-semibold">Açıklama:</span> {data.description}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TestSummary({ summary }) {
+  if (!summary || !summary.success) return null;
+  // Akış sırası: Giriş → Ara → Son. Numara yalnızca YAPILMIŞ testler sayılarak verilir,
+  // yani ara test yapılmadıysa Son = 2, yapıldıysa Son = 3 olur.
+  const ordered = [
+    { title: 'Giriş Testi Sonucu', data: summary.girisTest },
+    { title: 'Ara Test', data: summary.araTest },
+    { title: 'Son Test', data: summary.sonTest },
+  ];
+  let counter = 0;
+  return (
+    <div>
+      <h3 className="text-sm font-semibold text-[#12141c] dark:text-[#F6F8FF] flex items-center gap-2 mb-3">
+        <FlaskConical size={16} className="text-[#8894D8]" /> Test Sonuç Özeti
+      </h3>
+      <div className="flex flex-wrap gap-3">
+        {ordered.map(({ title, data }) => {
+          const seq = data && data.done ? ++counter : null;
+          return <TestSummaryCard key={title} title={title} data={data} seq={seq} />;
+        })}
+      </div>
+    </div>
+  );
+}
+
 const DETECTED_PART_COLUMNS = ['Id', 'name', 'Status', 'FactorySerial', 'notice', 'CurrentSerial', 'Test'];
 const DETECTED_PART_ROW_KEYS = ['id', 'name', 'status', 'factorySerial', 'notice', 'currentSerial', 'test'];
 const SUB_REPAIR_COLUMNS = ['MissionGroup', 'RepairStatu', 'TEC', 'RepairStartTime', 'RepairFinishTime', 'QAC', 'TestResult'];
@@ -174,6 +265,7 @@ export default function Servis() {
   const [detectedParts, setDetectedParts] = useState([]);
   const [repairRecords, setRepairRecords] = useState([]);
   const [statusHistory, setStatusHistory] = useState([]);
+  const [testSummary, setTestSummary] = useState(null);
 
   const handleSearch = async (e) => {
     e.preventDefault();
@@ -185,21 +277,24 @@ export default function Servis() {
     setDetectedParts([]);
     setRepairRecords([]);
     setStatusHistory([]);
+    setTestSummary(null);
     const res = await api.getServiceInfoByImei(imei.trim());
     if (res.success) {
       setSearchedImei(imei.trim());
       setFields(res.fields);
       setStatuName(res.statu_name || '');
-      const [pcRes, partsRes, repairRes, historyRes] = await Promise.all([
+      const [pcRes, partsRes, repairRes, historyRes, summaryRes] = await Promise.all([
         api.getPhonecheckHistoryByImei(imei.trim()),
         api.getDetectedPartsByImei(imei.trim()),
         api.getRepairRecordsByImei(imei.trim()),
         api.getStatusHistoryByImei(imei.trim()),
+        api.getTestSummaryByImei(imei.trim()),
       ]);
       if (pcRes.success) setPhonecheckRows(pcRes.items || []);
       if (partsRes.success) setDetectedParts(partsRes.items || []);
       if (repairRes.success) setRepairRecords(repairRes.items || []);
       if (historyRes.success) setStatusHistory(historyRes.items || []);
+      if (summaryRes.success) setTestSummary(summaryRes);
     } else {
       setSearchedImei('');
       setSearchError(res.message || 'Cihaz bulunamadı.');
@@ -310,6 +405,7 @@ export default function Servis() {
             <div className="h-full flex overflow-hidden">
               <InfoPanel fields={fields} />
               <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                <TestSummary summary={testSummary} />
                 <div>
                   <div className="flex flex-wrap items-center justify-between mb-3">
                     <h3 className="text-sm font-semibold text-[#12141c] dark:text-[#F6F8FF] flex items-center gap-2">

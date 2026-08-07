@@ -1309,6 +1309,17 @@ export const api = {
         });
     },
 
+    getTestSummaryByImei: async (term) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_test_summary_by_imei) {
+                backend.get_test_summary_by_imei(String(term), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false, message: "Backend eksik (get_test_summary_by_imei)" });
+            }
+        });
+    },
+
     getStatusHistoryByImei: async (term) => {
         const backend = await getBackend();
         return new Promise((resolve) => {

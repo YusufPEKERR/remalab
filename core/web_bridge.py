@@ -10836,6 +10836,132 @@ class WebBridge(QObject):
         finally:
             db.close()
 
+    @staticmethod
+    def _parse_failed_tests(failed_raw, notes=None, manual_reason=None):
+        """Başarısız test/arıza adlarını düz bir listeye çevirir. Önce Phonecheck 'failed'
+        kolonuna bakar (giriş testi otomatik çekilir), boşsa manuel Son Test notlarındaki
+        'Hatalı Parçalar:' bölümünü ayrıştırır. Liste, arayüzde Test 1, Test 2... diye
+        gösterilir. Girdi biçimleri: "['a','b']", "a, b", "a; b" desteklenir."""
+        import re
+
+        def split_items(s):
+            s = (s or "").strip()
+            if not s:
+                return []
+            s = s.strip("[]")
+            out = []
+            for p in re.split(r"[;,]", s):
+                p = p.strip().strip("'\"").strip()
+                if p and p.lower() not in ("none", "null"):
+                    out.append(p)
+            return out
+
+        items = split_items(failed_raw)
+        if items:
+            return items
+        # Manuel Son Test: notlardaki "Hatalı Parçalar: ..." satırı
+        blob = (notes or "") + "\n" + (manual_reason or "")
+        m = re.search(r"Hatalı Parçalar\s*:?(.*)", blob)
+        if m:
+            return split_items(m.group(1).split("\n")[0])
+        return []
+
+    @Slot(str, result=str)
+    def get_test_summary_by_imei(self, term):
+        """Servis Cihaz Sorgulama > Test sekmesi üst özeti. Cihazın GİRİŞ TESTİ (İlk test,
+        stage 103_104 - Phonecheck'ten) ve SON TESTİ (125_126 başarılı / 125_109 başarısız)
+        sonucunu özetler. Başarısız testlerde kalan test/arıza listesi (Test 1, Test 2...)
+        da döner. Mevcut tabloları ETKİLEMEZ - yalnızca okuyup özetler."""
+        from models.phonecheck_test_result import PhonecheckTestResult
+        db = SessionLocal()
+        try:
+            term = (term or "").strip()
+            if not term:
+                return json.dumps({"success": False, "message": "IMEI boş olamaz."})
+
+            entry = self._find_batch_entry_by_term(db, term)
+            lookup_imei = ((entry.imei_number or entry.serial_number) if entry else None) or term
+            lookup_imei = lookup_imei.strip()
+
+            def block(stages):
+                r = (db.query(PhonecheckTestResult)
+                     .filter(PhonecheckTestResult.imei == lookup_imei,
+                             PhonecheckTestResult.test_stage.in_(stages))
+                     .order_by(PhonecheckTestResult.fetched_at.desc())
+                     .first())
+                if not r:
+                    return {"done": False, "result": None, "failedTests": [], "date": "", "description": ""}
+                working = (r.working or "").strip().lower()
+                failed_list = self._parse_failed_tests(r.failed, r.notes, r.manual_reason)
+                if failed_list or working == "no":
+                    result = "fail"
+                elif working == "pending":
+                    result = "pending"
+                elif working == "yes":
+                    result = "pass"
+                else:
+                    # working boş: başarısız kanıt yoksa başarılı say (manuel başarılı kayıt)
+                    result = "fail" if failed_list else "pass"
+                return {
+                    "done": True,
+                    "result": result,
+                    "failedTests": failed_list,
+                    "date": r.fetched_at.strftime("%Y-%m-%d %H:%M") if r.fetched_at else "",
+                    "description": "",
+                }
+
+            def son_test_fault_detail():
+                """Son Test BAŞARISIZ ise hatalı test çiftlerini (Test 1..Test 10) ve
+                açıklamayı yapısal test_result_faults tablosundan döner: her (hatali_parca,
+                hata) çifti bir 'Test N' satırıdır. En güncel kayıt esas alınır."""
+                from models.test_result_fault import TestResultFault
+                fr = None
+                if entry is not None:
+                    fr = (db.query(TestResultFault)
+                          .filter(TestResultFault.service_id == entry.id)
+                          .order_by(TestResultFault.created_at.desc())
+                          .first())
+                if fr is None:
+                    fr = (db.query(TestResultFault)
+                          .filter(TestResultFault.imei_number == lookup_imei)
+                          .order_by(TestResultFault.created_at.desc())
+                          .first())
+                if fr is None:
+                    return [], ""
+                tests = []
+                for i in range(1, 11):
+                    parca = (getattr(fr, f"hatali_parca{i}", None) or "").strip()
+                    hata = (getattr(fr, f"hata{i}", None) or "").strip()
+                    if not parca and not hata:
+                        continue
+                    tests.append(f"{parca}: {hata}" if parca and hata else (parca or hata))
+                return tests, (fr.description or "").strip()
+
+            # Akış sırası: Giriş (İlk test 103_104) -> Ara (138_124/138_109) -> Son (125_126/125_109).
+            # "Kaçıncı test" numarası bu sıraya göre, YAPILMIŞ testler sayılarak frontend'de verilir.
+            giris = block(["103_104"])
+            ara = block(["138_124", "138_109"])
+            son = block(["125_126", "125_109"])
+
+            # Son Test başarısızsa hatalı testleri (Test 1..10) ve açıklamayı yapısal
+            # test_result_faults tablosundan al (notlardan ayrıştırmak yerine).
+            if son.get("done") and son.get("result") == "fail":
+                fault_tests, fault_desc = son_test_fault_detail()
+                if fault_tests:
+                    son["failedTests"] = fault_tests
+                son["description"] = fault_desc
+
+            return json.dumps({
+                "success": True,
+                "girisTest": giris,
+                "araTest": ara,
+                "sonTest": son,
+            }, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
     @Slot(str, result=str)
     def get_phonecheck_stored_by_imei(self, term):
         """Cihaza ait EN GÜNCEL phonecheck_test_results kaydını (yerel tablo) TÜM alanlarıyla
@@ -13294,6 +13420,8 @@ class WebBridge(QObject):
                 price_val = float(target_price)
             except (TypeError, ValueError):
                 return json.dumps({"success": False, "message": "Hedef fiyat sayısal olmalıdır."})
+            if price_val < 0:
+                return json.dumps({"success": False, "message": "Hedef fiyat negatif olamaz."})
 
             case_sql = PRICE_MATRIX_PRODUCT_TYPE_CASE_SQL.replace("model", "short_name")
             fam = db.execute(text(f"""
@@ -13340,6 +13468,8 @@ class WebBridge(QObject):
                 price_val = float(target_price)
             except (TypeError, ValueError):
                 return json.dumps({"success": False, "message": "Hedef fiyat sayısal olmalıdır."})
+            if price_val < 0:
+                return json.dumps({"success": False, "message": "Hedef fiyat negatif olamaz."})
 
             result = db.execute(text("""
                 UPDATE warehouse.customer_target_prices
@@ -13437,6 +13567,9 @@ class WebBridge(QObject):
                 else:
                     try:
                         price_val = float(str(price_raw).replace(",", "."))
+                        if price_val < 0:
+                            price_val = None
+                            errors.append({"row": row_num, "field": "Hedef Fiyat", "message": f"\"{price_raw}\" negatif olamaz."})
                     except ValueError:
                         errors.append({"row": row_num, "field": "Hedef Fiyat", "message": f"\"{price_raw}\" sayısal değil."})
 

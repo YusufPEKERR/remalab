@@ -72,7 +72,9 @@ const AddRuleModal = ({ customers, onClose, onSave, submitting }) => {
   }, [selectedBrand]);
 
   const selectedModelInfo = models.find(m => m.value === selectedModel);
-  const canSave = customerCode && selectedModel && targetPrice.trim() !== '' && !submitting;
+  const priceNum = parseFloat(targetPrice);
+  const priceInvalid = targetPrice.trim() !== '' && (Number.isNaN(priceNum) || priceNum < 0);
+  const canSave = customerCode && selectedModel && targetPrice.trim() !== '' && !priceInvalid && !submitting;
 
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm">
@@ -130,7 +132,17 @@ const AddRuleModal = ({ customers, onClose, onSave, submitting }) => {
           </div>
           <div>
             <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Hedef Fiyat *</label>
-            <input type="number" step="0.01" value={targetPrice} onChange={e => setTargetPrice(e.target.value)} placeholder="0.00" className={inputClass} />
+            <input
+              type="number" step="0.01" min="0" value={targetPrice}
+              onChange={e => setTargetPrice(e.target.value)}
+              placeholder="0.00"
+              className={`${inputClass} ${priceInvalid ? 'border-red-400 dark:border-red-500/60 focus:ring-red-500' : ''}`}
+            />
+            {priceInvalid && (
+              <p className="mt-1.5 text-xs font-medium text-red-500 dark:text-red-400 flex items-center gap-1">
+                <AlertCircle size={13} /> Hedef fiyat negatif olamaz.
+              </p>
+            )}
           </div>
         </div>
         <div className="px-5 pb-5 pt-2 flex gap-3">
@@ -200,6 +212,11 @@ export default function CustomerTargetPriceMatrix() {
   };
 
   const saveEdit = async (id) => {
+    const priceNum = parseFloat(editingPrice);
+    if (editingPrice.trim() === '' || Number.isNaN(priceNum) || priceNum < 0) {
+      alert('Hedef fiyat negatif olamaz ve geçerli bir sayı olmalıdır.');
+      return;
+    }
     const res = await api.updateCustomerTargetPrice(id, editingPrice, getCurrentUser()?.username);
     if (res.success) {
       setEditingId(null);
@@ -394,7 +411,7 @@ export default function CustomerTargetPriceMatrix() {
                     <td className="px-4 py-2.5 text-right">
                       {editingId === rule.id ? (
                         <input
-                          type="number" step="0.01" autoFocus value={editingPrice}
+                          type="number" step="0.01" min="0" autoFocus value={editingPrice}
                           onChange={e => setEditingPrice(e.target.value)}
                           onKeyDown={e => { if (e.key === 'Enter') saveEdit(rule.id); if (e.key === 'Escape') setEditingId(null); }}
                           className="w-24 text-right px-2 py-1 rounded-lg border border-blue-300 dark:border-blue-500/40 bg-white dark:bg-[#12141c] text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
