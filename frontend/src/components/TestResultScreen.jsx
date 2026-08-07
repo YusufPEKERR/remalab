@@ -153,7 +153,7 @@ export default function TestResultScreen({
     try {
       const scanData = await resolveEntry(failImei);
       const res = await api.submitTestResult(
-        scanData.entry_id, sourceStatuCode, successStatuCode, failStatuCode, 'fail', description.trim(), selectedFaultLabels
+        scanData.entry_id, sourceStatuCode, successStatuCode, failStatuCode, 'fail', description.trim(), selectedFaultLabels, logExitTest
       );
       if (res.success) {
         showNotification('success', res.message);

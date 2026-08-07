@@ -10928,6 +10928,7 @@ class WebBridge(QObject):
         sonucunu özetler. Başarısız testlerde kalan test/arıza listesi (Test 1, Test 2...)
         da döner. Mevcut tabloları ETKİLEMEZ - yalnızca okuyup özetler."""
         from models.phonecheck_test_result import PhonecheckTestResult
+        from services.phonecheck_service import MAX_FAILED_ATTEMPTS
         db = SessionLocal()
         try:
             term = (term or "").strip()
@@ -10938,14 +10939,20 @@ class WebBridge(QObject):
             lookup_imei = ((entry.imei_number or entry.serial_number) if entry else None) or term
             lookup_imei = lookup_imei.strip()
 
-            def block(stages):
+            def block(stages, fail_stage=None):
+                # En yeni kayıt: fetched_at'e göre, eşit/NULL olduğunda id (insert sırası)
+                # ile kesinleştirilir — yoksa yeni manuel test eskisinin arkasına düşüp
+                # özet "güncellenmiyor" gibi görünüyordu.
                 r = (db.query(PhonecheckTestResult)
                      .filter(PhonecheckTestResult.imei == lookup_imei,
                              PhonecheckTestResult.test_stage.in_(stages))
-                     .order_by(PhonecheckTestResult.fetched_at.desc())
+                     .order_by(PhonecheckTestResult.fetched_at.desc().nullslast(),
+                               PhonecheckTestResult.id.desc())
                      .first())
                 if not r:
-                    return {"done": False, "result": None, "failedTests": [], "date": "", "description": ""}
+                    return {"done": False, "result": None, "failedTests": [],
+                            "date": "", "description": "", "attemptNo": None,
+                            "maxAttempts": MAX_FAILED_ATTEMPTS}
                 working = (r.working or "").strip().lower()
                 failed_list = self._parse_failed_tests(r.failed, r.notes, r.manual_reason)
                 if failed_list or working == "no":
@@ -10957,12 +10964,32 @@ class WebBridge(QObject):
                 else:
                     # working boş: başarısız kanıt yoksa başarılı say (manuel başarılı kayıt)
                     result = "fail" if failed_list else "pass"
+                # KAÇINCI TEST: son/ara testin kronolojik deneme numarası.
+                # Geçmiş ekranındaki "(n/10)" ile aynı mantık: bu kaydın tarihine kadar
+                # olan başarısız (fail aşaması) kayıtları sayılır (attempt_no eski
+                # kayıtlarda boş olabildiği için kayıt sayımı daha güvenilir).
+                #   - Başarısız test:  o başarısızlığın sırası  = fail kayıt sayısı.
+                #   - Başarılı test:   önceki başarısız deneme sayısı + 1
+                #                      (ör. 4 başarısız sonra onay = 5. testte onay).
+                attempt_no = None
+                if fail_stage and result in ("fail", "pass"):
+                    # id <= r.id: insert sırası kronolojiktir; fetched_at NULL olsa da
+                    # doğru sayar. Bu kaydın tarihine kadarki başarısız deneme sayısı.
+                    fail_before = (db.query(PhonecheckTestResult)
+                                   .filter(PhonecheckTestResult.imei == lookup_imei,
+                                           PhonecheckTestResult.test_stage == fail_stage,
+                                           PhonecheckTestResult.id <= r.id)
+                                   .count())
+                    attempt_no = fail_before if result == "fail" else (fail_before + 1)
+                    attempt_no = attempt_no or None
                 return {
                     "done": True,
                     "result": result,
                     "failedTests": failed_list,
                     "date": r.fetched_at.strftime("%Y-%m-%d %H:%M") if r.fetched_at else "",
                     "description": "",
+                    "attemptNo": attempt_no,
+                    "maxAttempts": MAX_FAILED_ATTEMPTS,
                 }
 
             def son_test_fault_detail():
@@ -10995,8 +11022,8 @@ class WebBridge(QObject):
             # Akış sırası: Giriş (İlk test 103_104) -> Ara (138_124/138_109) -> Son (125_126/125_109).
             # "Kaçıncı test" numarası bu sıraya göre, YAPILMIŞ testler sayılarak frontend'de verilir.
             giris = block(["103_104"])
-            ara = block(["138_124", "138_109"])
-            son = block(["125_126", "125_109"])
+            ara = block(["138_124", "138_109"], fail_stage="138_109")
+            son = block(["125_126", "125_109"], fail_stage="125_109")
 
             # Son Test başarısızsa hatalı testleri (Test 1..10) ve açıklamayı yapısal
             # test_result_faults tablosundan al (notlardan ayrıştırmak yerine).
@@ -11304,7 +11331,8 @@ class WebBridge(QObject):
                     pc = PhonecheckService(db)
                     stage = pc.build_stage(current_statu_code, success_statu_code)
                     imei = entry.imei_number or ""
-                    timestamp = __import__("datetime").datetime.now().strftime('%d.%m.%Y %H:%M')
+                    now_dt = __import__("datetime").datetime.now()
+                    timestamp = now_dt.strftime('%d.%m.%Y %H:%M')
                     auto_note = f"[{timestamp}] Test olumlu — {device_label}"
                     db.add(PhonecheckTestResult(
                         imei=imei,
@@ -11314,7 +11342,10 @@ class WebBridge(QObject):
                         notes=auto_note,
                         is_manual=True,
                         manual_reason=auto_note,
-                        manual_entered_by=getattr(entry, "created_by", None)
+                        manual_entered_by=getattr(entry, "created_by", None),
+                        # Özet "en yeni kayıt"ı fetched_at'e göre seçiyor; NULL kalırsa
+                        # yeni test eskisinin arkasına düşüp güncellenmiyordu.
+                        fetched_at=now_dt,
                     ))
                 target_statu_code = success_statu_code
             elif result == "fail":
@@ -11338,7 +11369,8 @@ class WebBridge(QObject):
                     if pc.failed_limit_reached(imei, stage):
                         return json.dumps({"success": False, "message": f"Bu cihaz için bu test adımında en fazla {MAX_FAILED_ATTEMPTS} başarısız deneme hakkı var, hak doldu."})
 
-                    timestamp = __import__("datetime").datetime.now().strftime('%d.%m.%Y %H:%M')
+                    now_dt = __import__("datetime").datetime.now()
+                    timestamp = now_dt.strftime('%d.%m.%Y %H:%M')
                     fail_note = f"[{timestamp}] Test Başarısız — {description.strip()}\nHatalı Parçalar: " + "; ".join(fault_lines)
                     db.add(PhonecheckTestResult(
                         imei=imei,
@@ -11348,7 +11380,9 @@ class WebBridge(QObject):
                         notes=fail_note,
                         is_manual=True,
                         manual_reason=fail_note,
-                        manual_entered_by=getattr(entry, "created_by", None)
+                        manual_entered_by=getattr(entry, "created_by", None),
+                        # bkz. yukarıdaki başarılı kayıt: en yeni test seçilebilsin diye.
+                        fetched_at=now_dt,
                     ))
 
                 timestamp = __import__("datetime").datetime.now().strftime('%d.%m.%Y %H:%M')

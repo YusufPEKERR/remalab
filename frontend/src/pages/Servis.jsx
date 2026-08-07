@@ -160,6 +160,17 @@ function TestSummaryCard({ title, data, seq }) {
       {done && data.date && (
         <div className="text-[11px] text-[#5A6685] dark:text-[#8892B5] mb-2">{data.date}</div>
       )}
+      {done && data.result === 'fail' && data.attemptNo != null && data.attemptNo !== '' && (
+        <div className="mb-2 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold border bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-300 dark:border-rose-500/40">
+          <XCircle size={12} /> {data.attemptNo}. testte başarısız
+          {data.maxAttempts ? ` (${data.attemptNo}/${data.maxAttempts})` : ''}
+        </div>
+      )}
+      {done && data.result === 'pass' && data.attemptNo > 1 && (
+        <div className="mb-2 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold border bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-500/40">
+          <CheckCircle2 size={12} /> {data.attemptNo}. testte onaylandı
+        </div>
+      )}
       {done && data.result === 'fail' && failed.length > 0 && (
         <ol className="space-y-1 mt-2">
           {failed.map((t, i) => (
