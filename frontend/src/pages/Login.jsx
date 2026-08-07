@@ -10,6 +10,7 @@ import { useTheme } from '../context/ThemeContext';
 import amblem from '../assets/Uygulama-Amblemi.png';
 // Giris kartindaki rozet icin "PR" isaretli amblem varyanti
 import amblemPr from '../assets/Uygulama-Amblemi-Pr.png';
+import logoDark from '../assets/karanlik-mod.png';
 
 /* ════════════ TEMA-2 PALETİ (kurumsal banner görselinden) ════════════ */
 const T = {
@@ -249,7 +250,7 @@ export default function Login() {
             Genislik 'auto': gorsel 566x441 (en/boy 1.3), yukseklikten olcekleniyor. */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, position: 'relative', zIndex: 10 }}>
           <img
-            src="/karanlık-mod.png"
+            src={logoDark}
             alt="Remalab Teknoloji"
             style={{ height: 104, width: 'auto', objectFit: 'contain', filter: 'drop-shadow(0 6px 20px rgba(22,32,74,0.55))' }}
           />

@@ -8,6 +8,8 @@ import {
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useTheme } from '../context/ThemeContext';
+import logoLight from '../assets/logo.png';
+import logoDark from '../assets/karanlik-mod.png';
 
 export default function MainLayout() {
   const navigate = useNavigate();
@@ -410,8 +412,8 @@ export default function MainLayout() {
         </button>
 
         <div className="flex items-center justify-center pb-6 pt-10 border-b border-[#DCE1F1]/80 dark:border-[#1e222d]/80">
-          <img src="/logo.png" alt="Remalab Logo" className="h-36 w-full object-contain drop-shadow-md scale-110 dark:hidden" />
-          <img src="/karanlık-mod.png" alt="Remalab Logo" className="h-36 w-full object-contain drop-shadow-md scale-110 hidden dark:block" />
+          <img src={logoLight} alt="Remalab Logo" className="h-36 w-full object-contain drop-shadow-md scale-110 dark:hidden" />
+          <img src={logoDark} alt="Remalab Logo" className="h-36 w-full object-contain drop-shadow-md scale-110 hidden dark:block" />
         </div>
         
         <div className="flex-1 overflow-y-auto py-6 space-y-5 scrollbar-thin scrollbar-thumb-[#1e222d] scrollbar-track-transparent">
