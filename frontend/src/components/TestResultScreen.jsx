@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef } from 'react';
-import { CheckCircle, AlertTriangle, X, ClipboardCheck, Undo2, Barcode } from 'lucide-react';
+import { CheckCircle, AlertTriangle, X, ClipboardCheck, Undo2, Barcode, Search } from 'lucide-react';
 import { api } from '../services/api';
 import { FAULT_CATALOG } from '../constants/faultCatalog';
 import EtiketYazdirModal from './EtiketYazdirModal';
@@ -40,6 +40,7 @@ export default function TestResultScreen({
   const [failImei, setFailImei] = useState('');
   const [description, setDescription] = useState('');
   const [selectedFaultIds, setSelectedFaultIds] = useState([]);
+  const [faultSearch, setFaultSearch] = useState('');
   const [successLoading, setSuccessLoading] = useState(false);
   const [failLoading, setFailLoading] = useState(false);
   const [notification, setNotification] = useState(null);
@@ -62,6 +63,35 @@ export default function TestResultScreen({
     });
     return labels;
   }, [selectedFaultIds]);
+
+  // Seçilen hatalar, çarpı ile silinebilen kutucuklar (çip) olarak gösterilir.
+  const selectedFaultChips = useMemo(() => {
+    const set = new Set(selectedFaultIds);
+    const chips = [];
+    FAULT_CATALOG.forEach(({ category, items }) => {
+      items.forEach((text) => {
+        const id = `${category}::${text}`;
+        if (set.has(id)) chips.push({ id, category, text });
+      });
+    });
+    return chips;
+  }, [selectedFaultIds]);
+
+  // Arama: kategori veya hata metninde geçen öğeleri filtreler. Boşsa tüm katalog.
+  const filteredCatalog = useMemo(() => {
+    const q = faultSearch.trim().toLocaleLowerCase('tr');
+    if (!q) return FAULT_CATALOG;
+    return FAULT_CATALOG
+      .map(({ category, items }) => ({
+        category,
+        items: items.filter(text =>
+          `${category} ${text}`.toLocaleLowerCase('tr').includes(q)),
+      }))
+      .filter(g => g.items.length > 0);
+  }, [faultSearch]);
+
+  const removeFault = (id) =>
+    setSelectedFaultIds(prev => prev.filter(f => f !== id));
 
   const showNotification = (type, message) => {
     setNotification({ type, message });
@@ -160,6 +190,7 @@ export default function TestResultScreen({
         setFailImei('');
         setDescription('');
         setSelectedFaultIds([]);
+        setFaultSearch('');
       } else {
         showNotification('error', res.message);
       }
@@ -311,8 +342,30 @@ export default function TestResultScreen({
                   </span>
                 )}
               </div>
+              {/* Arama: hata/parça adında ara (ör. "kamera camı çizik"). */}
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#5A6685] pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Hata ara... (ör. kamera camı çizik)"
+                  className="w-full bg-[#FFFFFF] dark:bg-[#1e222d] border border-[#DCE1F1] dark:border-[#2e3545] text-[#12141c] dark:text-[#F6F8FF] placeholder-[#5A6685] rounded-xl pl-9 pr-9 py-2.5 text-xs sm:text-sm font-medium focus:outline-none focus:border-rose-500 transition-all"
+                  value={faultSearch}
+                  onChange={e => setFaultSearch(e.target.value)}
+                  disabled={failLoading}
+                />
+                {faultSearch && (
+                  <button type="button" onClick={() => setFaultSearch('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#5A6685] hover:text-rose-500">
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
               <div className="w-full bg-[#F5F7FC] dark:bg-[#181a24] border border-[#DCE1F1] dark:border-[#1e222d] rounded-xl p-4 max-h-72 overflow-y-auto space-y-4">
-                {FAULT_CATALOG.map(({ category, items }) => (
+                {filteredCatalog.length === 0 ? (
+                  <div className="text-[11px] italic text-[#5A6685] dark:text-[#8892B5] py-2 text-center">
+                    "{faultSearch}" ile eşleşen hata bulunamadı.
+                  </div>
+                ) : filteredCatalog.map(({ category, items }) => (
                   <div key={category}>
                     <h4 className="text-xs font-bold text-rose-400 mb-1.5 flex items-center gap-1.5 uppercase tracking-wider">
                       <span className="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
@@ -338,6 +391,28 @@ export default function TestResultScreen({
                 ))}
               </div>
             </div>
+
+            {/* Seçilen hatalar: çarpı ile silinebilen kutucuklar. */}
+            {selectedFaultChips.length > 0 && (
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-[#5A6685] dark:text-[#8892B5]">
+                  Seçilen Hatalar ({selectedFaultChips.length})
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {selectedFaultChips.map(({ id, category, text }) => (
+                    <span key={id}
+                      className="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-lg text-[11px] font-medium border bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-500/30">
+                      <span><span className="font-bold">{category}:</span> {text}</span>
+                      <button type="button" onClick={() => removeFault(id)}
+                        title="Kaldır"
+                        className="shrink-0 rounded-md p-0.5 hover:bg-rose-200 dark:hover:bg-rose-500/30 transition-colors">
+                        <X size={12} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="space-y-1.5">
               <label className="block text-xs font-bold text-[#5A6685] dark:text-[#8892B5]">
