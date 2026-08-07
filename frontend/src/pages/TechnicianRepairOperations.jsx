@@ -749,7 +749,7 @@ const TechnicianRepairOperations = () => {
     // Bağlı bir servis iş emri varsa onun id'si, yoksa doğrudan cihazın IMEI'si kullanılır
     // (get_repair_operations_by_imei bu durumda onarımı yine aynı IMEI ile bulup gösterir).
     const deviceRef = device.workOrderId || device.imei;
-    const res = await api.addRepairRecord(deviceRef, missionGroupCode, warrantyCode, notes, getCurrentUser()?.username, partItemCode, itemFaultCode, "");
+    const res = await api.addRepairRecord(deviceRef, missionGroupCode, warrantyCode, notes, getCurrentUser()?.username, partItemCode, itemFaultCode, "", "production");
     if (!res || !res.success) {
       showNotif("error", isPartAdd ? "Parça Eklenemedi" : "Onarım Eklenemedi", res?.message || "Kayıt başarısız oldu.");
       return false;

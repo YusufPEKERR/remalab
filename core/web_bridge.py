@@ -12532,6 +12532,10 @@ class WebBridge(QObject):
 
     @Slot(str, str, str, str, str, str, str, str, result=str)
     def add_repair_record(self, device_ref, mission_group_code, warranty_code, notes, username, part_item_code="", item_fault_code="", operation_type_code=""):
+=======
+    @Slot(str, str, str, str, str, str, str, str, str, result=str)
+    def add_repair_record(self, device_ref, mission_group_code, warranty_code, notes, username, part_item_code="", item_fault_code="", operation_type_code="", source=""):
+>>>>>>> 51eeaeb (feat: updates to repair operations, dismantle panel and bridge methods)
         """Bir cihaza yeni bir alt onarım kaydı (warehouse.repair_records) ekler.
         Servis Onarımları ekranındaki 'Onarım Ekle' aksiyonunun kalıcı karşılığıdır.
         device_ref, bağlı bir servis iş emri varsa work_order_id'dir; yoksa cihazın IMEI'sidir.
@@ -12628,6 +12632,39 @@ class WebBridge(QObject):
                     return json.dumps({
                         "success": False,
                         "message": f"Bu cihazda zaten aktif bir {opposing_label} onarımı var. Aynı cihaza hem {team_label} hem {opposing_label} onarımı eklenemez."
+                    }, ensure_ascii=False)
+
+            # ÜST SEVİYE ONARIMLARI (L2/L3 + departman onarımları Batarya/Kamera/Ekran/Kasa),
+            # ancak cihazda L1 (demontaj = DISMANTLE) onarımı 1001 ("Onarıma Devam Et" /
+            # Onarımda) durumundayken eklenebilir. L1 devam etmeden hiçbir üst seviye onarım
+            # açılamaz. (L1REPAIR ve DISMANTLE/DGD bu kurala takılmaz - onlar L1 seviyesidir.)
+            # Kural YALNIZCA "Üretim Kaydını Görüntüle" (technician-repair) ekranından
+            # eklemede geçerlidir. "Üretime Aktar" (demontaj) ekranı source="dismantle"
+            # gönderir; orada parça ekleme serbesttir (demontaj zaten L1'in yapıldığı yerdir).
+            UPPER_LEVEL_TEAMS = {"L2REPAIR", "L3REPAIR", "BATTERY", "CAMERA", "DISPLAY", "CASE"}
+            if team_code in UPPER_LEVEL_TEAMS and (source or "").strip().lower() != "dismantle":
+                # L1'i cihazın TÜM olası referanslarında ara. Onarım kayıtları IMEI /
+                # service_id / work_order_id altında tutulabildiği için tek service_ref ile
+                # aramak (ör. "Üretim Kaydını Görüntüle"/technician-repair ekranı workOrderId
+                # geçince) L1 zaten 1001'deyken bile bulamayıp YANLIŞ bloklayabiliyordu.
+                l1_refs = {str(service_ref), str(device_ref).strip()}
+                for _r in (device_ref, service_ref):
+                    _batch = self._resolve_batch_entry_by_ref(db, _r)
+                    if _batch:
+                        if _batch["service_id"]:
+                            l1_refs.add(str(_batch["service_id"]))
+                        if _batch["imei_number"]:
+                            l1_refs.add(str(_batch["imei_number"]).strip())
+                l1_refs = [r for r in l1_refs if r]
+                l1_active = db.query(RepairRecord).filter(
+                    RepairRecord.service_record_id.in_(l1_refs),
+                    RepairRecord.department_mission == "DISMANTLE",
+                    RepairRecord.repair_result_type_code == 1001,
+                ).first()
+                if not l1_active:
+                    return json.dumps({
+                        "success": False,
+                        "message": "L1 (demontaj) onarımı 'Devam Et' (Onarımda) durumunda olmadan üst seviye onarım (L2/L3, Batarya/Kamera/Ekran/Kasa) eklenemez. Önce L1 onarımını başlatın."
                     }, ensure_ascii=False)
 
             # ZATEN ATANMIŞ BİR GRUBA EKLENEN PARÇA, TEKNİSYENİ DEVRALIR.
@@ -12842,7 +12879,7 @@ class WebBridge(QObject):
                 return json.dumps({"success": False, "message": "İptal edilmiş bir onarımın takımı değiştirilemez."})
             is_dgd = (row["item_category"] == "DGD") or str(row["department_mission"] or "").upper() == "DISMANTLE"
             if not is_dgd:
-                return json.dumps({"success": False, "message": "Bu işlem sadece DGD (otomatik demontaj işçiliği) satırları için geçerlidir."})
+                return json.dumps({"success": False, "message": "Bu işlem sadece DGD (otomatik L1 işçiliği) satırları için geçerlidir."})
 
             new_team = "L1REPAIR" if row["department_mission"] == "L2REPAIR" else "L2REPAIR"
             db.execute(text("""

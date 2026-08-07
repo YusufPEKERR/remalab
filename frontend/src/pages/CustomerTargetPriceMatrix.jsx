@@ -316,7 +316,7 @@ export default function CustomerTargetPriceMatrix() {
               Müşteri Hedef Fiyat Matrisi
             </h1>
             <p className="text-sm text-[#4A5A9E] dark:text-slate-300 leading-relaxed">
-              Demontaj'da eklenen parçaların toplam fiyatı, müşteri + model + test sonucuna göre buradaki limiti aşarsa cihaz otomatik Müşteri Onayına gider.
+              L1'de eklenen parçaların toplam fiyatı, müşteri + model + test sonucuna göre buradaki limiti aşarsa cihaz otomatik Müşteri Onayına gider.
             </p>
           </div>
           <div className="flex items-center gap-3 shrink-0 flex-wrap">

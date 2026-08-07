@@ -375,7 +375,7 @@ export default function EtiketTasarimi() {
                   Kâğıda gidecek olan, yazıcı seçimiyle aynı pencerede gösterilir. Tasarım
                   etikete sığmayıp bölünüyorsa etiket harcamadan orada uyarı çıkar.
                   <strong className="text-slate-600 dark:text-slate-300"> Tüm basım
-                  noktalarında geçerlidir</strong> — Demontaj → "Üretime Aktar" dahil.
+                  noktalarında geçerlidir</strong> — L1 → "Üretime Aktar" dahil.
                   Barkod okutup beklemeden basmak istiyorsanız bu kutuyu kapatın; o zaman
                   hiçbir pencere açılmaz.
                 </span>

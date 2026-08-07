@@ -78,7 +78,7 @@ export default function FlowDgdMapping() {
               Flow → DGD İşçilik Kodu Eşleşmesi
             </h1>
             <p className="text-sm text-[#4A5A9E] dark:text-slate-300 leading-relaxed">
-              Her Flow (akış) değeri, Demontaj ekranında cihaza otomatik eklenecek DGD işçilik kodunu 1:1 belirler.
+              Her Flow (akış) değeri, L1 ekranında cihaza otomatik eklenecek DGD işçilik kodunu 1:1 belirler.
             </p>
           </div>
         </div>

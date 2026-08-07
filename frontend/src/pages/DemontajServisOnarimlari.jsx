@@ -261,7 +261,7 @@ const DemontajServisOnarimlari = () => {
               Üretime Aktar
             </h1>
             <p className="text-sm text-[#4A5A9E] dark:text-slate-300 leading-relaxed">
-              Cihaz demontaj işlemlerini yapın, sökülen ve sağlam parçaları depolara ve DOA lokasyonlarına yönlendirin.
+              Cihaz L1 işlemlerini yapın, sökülen ve sağlam parçaları depolara ve DOA lokasyonlarına yönlendirin.
             </p>
           </div>
         </div>

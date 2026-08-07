@@ -178,7 +178,7 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
   const handleAddRow = useCallback(async () => {
     if (!device || !faultCode || !missionGroupCode || adding) return;
     if (!statusAllowsParts) {
-      showNotif("warning", "Statü Uygun Değil", "Bu cihaz Demontaj aşamasında olmadığı için parça eklenemez/güncellenemez.");
+      showNotif("warning", "Statü Uygun Değil", "Bu cihaz L1 aşamasında olmadığı için parça eklenemez/güncellenemez.");
       return;
     }
     setAdding(true);
@@ -192,7 +192,7 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
         )
       : await api.addRepairRecord(
           device.workOrderId || device.imei, missionGroupCode, warrantyCode, description, username,
-          selectedPart?.item_code || "", faultCode, ""
+          selectedPart?.item_code || "", faultCode, "", "dismantle"
         );
 
     setAdding(false);
@@ -483,7 +483,7 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
               <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 text-rose-700 dark:text-rose-400 text-xs">
                 <Ban size={14} className="shrink-0 mt-0.5" />
                 <span>
-                  Cihaz Demontaj aşamasında değil{statusLabel ? ` (mevcut statü: ${statusLabel})` : ""} — bu statüde parça eklenemez veya güncellenemez.
+                  Cihaz L1 aşamasında değil{statusLabel ? ` (mevcut statü: ${statusLabel})` : ""} — bu statüde parça eklenemez veya güncellenemez.
                 </span>
               </div>
             )}
@@ -668,7 +668,7 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
                             type="button"
                             onClick={() => hasAccess && statusAllowsParts && !r.isCancelled && handleEditRow(r)}
                             disabled={!hasAccess || !statusAllowsParts || r.isCancelled}
-                            title={statusAllowsParts ? "Düzenle" : "Cihaz Demontaj aşamasında değil"}
+                            title={statusAllowsParts ? "Düzenle" : "Cihaz L1 aşamasında değil"}
                             className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                           >
                             <Pencil size={14} />
@@ -778,7 +778,7 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
                döndürüyordu. Artık buton o statülerde pasif ve sebebini söylüyor. */
             disabled={!hasAccess || !hasRepairs || !hasNonDgdRepairs || deciding || !statusAllowsParts}
             title={!statusAllowsParts
-              ? `Cihaz artık demontaj aşamasında değil${statusLabel ? ` (${statusLabel})` : ""} — bu işlem yapılamaz.`
+              ? `Cihaz artık L1 aşamasında değil${statusLabel ? ` (${statusLabel})` : ""} — bu işlem yapılamaz.`
               : (!hasNonDgdRepairs
                 ? "Cihazda sadece otomatik DGD işçiliği var - önce en az bir gerçek onarım/parça ekleyin."
                 : (isProductionReady

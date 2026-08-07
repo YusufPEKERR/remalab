@@ -1054,12 +1054,12 @@ export const api = {
         });
     },
 
-    addRepairRecord: async (workOrderId, missionGroupCode, warrantyCode, notes, username, partItemCode, itemFaultCode, operationTypeCode) => {
+    addRepairRecord: async (workOrderId, missionGroupCode, warrantyCode, notes, username, partItemCode, itemFaultCode, operationTypeCode, source = "") => {
         const backend = await getBackend();
         return new Promise((resolve) => {
             backend.add_repair_record(
                 String(workOrderId), String(missionGroupCode), String(warrantyCode || ''), String(notes || ''), String(username || ''),
-                String(partItemCode || ''), String(itemFaultCode || ''), String(operationTypeCode || ''),
+                String(partItemCode || ''), String(itemFaultCode || ''), String(operationTypeCode || ''), String(source || ''),
                 (res) => resolve(JSON.parse(res))
             );
         });
