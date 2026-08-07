@@ -129,7 +129,7 @@ export default function MainLayout() {
       colorTheme: 'blue',
       items: [
         { name: 'Kontrol Paneli', icon: LayoutDashboard, path: '/dashboard' },
-        { name: 'Servis', icon: Search, path: '/servis' },
+        { name: 'Arama', icon: Search, path: '/servis' },
         { name: 'Statü Kontrol', icon: Zap, path: '/statu-kontrol' }
       ]
     },
