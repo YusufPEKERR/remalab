@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RemaLab WMS — Geliştirme Raporu — YusufPEKERR</title>
+<style>
+  :root {
+    --bg:#0f1219; --panel:#161b26; --panel2:#1c2230; --text:#e6e9ef; --muted:#9aa4b2;
+    --border:#2a3242; --accent:#4c8dff; --accent2:#7c5cff; --code:#0b0e14; --th:#212b36;
+    --green:#3ddc84; --warn:#ffb454;
+  }
+  * { box-sizing:border-box; }
+  html { scroll-behavior:smooth; }
+  body { margin:0; background:var(--bg); color:var(--text);
+    font:16px/1.7 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; }
+  .wrap { max-width:1080px; margin:0 auto; padding:48px 28px 120px; }
+  h1,h2,h3,h4 { line-height:1.25; font-weight:700; scroll-margin-top:20px; }
+  h1 { font-size:2.1rem; margin:.2em 0 .6em;
+    background:linear-gradient(90deg,var(--accent),var(--accent2));
+    -webkit-background-clip:text; background-clip:text; color:transparent; }
+  h2 { font-size:1.5rem; margin-top:2.2em; padding-bottom:.35em; border-bottom:1px solid var(--border); }
+  h3 { font-size:1.2rem; margin-top:1.8em; color:#cdd6e4; }
+  h4 { font-size:1.03rem; margin-top:1.4em; color:#cdd6e4; }
+  a { color:var(--accent); text-decoration:none; }
+  a:hover { text-decoration:underline; }
+  p, li { color:var(--text); }
+  blockquote { margin:1.2em 0; padding:.6em 1.1em; border-left:4px solid var(--accent);
+    background:var(--panel); border-radius:0 8px 8px 0; color:#c9d2df; }
+  blockquote p { margin:.4em 0; }
+  code { font-family:"JetBrains Mono",Consolas,Menlo,monospace; font-size:.88em;
+    background:var(--panel2); padding:.15em .45em; border-radius:5px; color:#ffd9a0; }
+  pre { background:var(--code); border:1px solid var(--border); border-radius:10px;
+    padding:16px 18px; overflow-x:auto; }
+  pre code { background:none; padding:0; color:#c8e1ff; font-size:.85em; line-height:1.6; }
+  table { border-collapse:collapse; width:100%; margin:1.2em 0; font-size:.92rem;
+    display:block; overflow-x:auto; }
+  th,td { border:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top; }
+  th { background:var(--th); color:#fff; font-weight:600; white-space:nowrap; }
+  tr:nth-child(even) td { background:var(--panel); }
+  tr:hover td { background:var(--panel2); }
+  hr { border:none; border-top:1px solid var(--border); margin:2.6em 0; }
+  ul,ol { padding-left:1.4em; }
+  li { margin:.25em 0; }
+  .headerbar { display:flex; align-items:center; gap:14px; margin-bottom:8px; }
+  .badge { display:inline-block; font-size:.72rem; letter-spacing:.08em; text-transform:uppercase;
+    background:var(--panel2); color:var(--muted); border:1px solid var(--border);
+    padding:4px 10px; border-radius:999px; }
+  .toc { background:var(--panel); border:1px solid var(--border); border-radius:12px;
+    padding:14px 20px; margin:1.4em 0 2.4em; }
+  .toc > ul { margin:.3em 0; }
+  .toc .toctitle { font-weight:700; color:#fff; font-size:1rem; }
+  ::selection { background:rgba(76,141,255,.35); }
+  .headerlink { opacity:0; margin-left:.4em; font-size:.8em; }
+  h2:hover .headerlink, h3:hover .headerlink { opacity:.6; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="headerbar">
+    <span class="badge">RemaLab WMS</span>
+    <span class="badge">Geliştirme Raporu — YusufPEKERR</span>
+  </div>
+  <h1 id="gelistirme-raporu-yusufpekerr">Geliştirme Raporu — YusufPEKERR<a class="headerlink" href="#gelistirme-raporu-yusufpekerr" title="Permanent link">#</a></h1>
+<p><strong>Dönem:</strong> 31 Temmuz 2026 – 6 Ağustos 2026
+<strong>Kapsam:</strong> <code>git log --author=Yusuf</code> ile bu tarih aralığında <code>remalab</code> deposuna düşen tüm commit'ler</p>
+<hr />
+<h2 id="ozet">Özet<a class="headerlink" href="#ozet" title="Permanent link">#</a></h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Toplam commit</td>
+<td><strong>70</strong></td>
+</tr>
+<tr>
+<td>Eklenen satır</td>
+<td><strong>8.867</strong></td>
+</tr>
+<tr>
+<td>Silinen satır</td>
+<td><strong>31.560</strong></td>
+</tr>
+<tr>
+<td>Aktif gün</td>
+<td>4 (3–6 Ağustos)</td>
+</tr>
+<tr>
+<td>İlk commit</td>
+<td>3 Ağustos 13:34 — <code>413d927</code></td>
+</tr>
+<tr>
+<td>Son commit</td>
+<td>6 Ağustos 15:47 — <code>72defd3</code></td>
+</tr>
+</tbody>
+</table>
+<p>31 Temmuz – 2 Ağustos arasında bu geliştiriciye ait commit <strong>yoktur</strong>; çalışma 3 Ağustos öğleden sonra başlamıştır.</p>
+<h3 id="gunluk-daglm">Günlük dağılım<a class="headerlink" href="#gunluk-daglm" title="Permanent link">#</a></h3>
+<table>
+<thead>
+<tr>
+<th>Tarih</th>
+<th>Commit</th>
+<th>Ana odak</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>3 Ağustos</td>
+<td>24</td>
+<td>Android sarmalayıcı, macOS derleme zinciri, DGD modülü</td>
+</tr>
+<tr>
+<td>4 Ağustos</td>
+<td>20</td>
+<td>Parça Teslim yeniden tasarımı, parça geri alma, performans</td>
+</tr>
+<tr>
+<td>5 Ağustos</td>
+<td>11</td>
+<td>Müşteri Hedef Fiyat Matrisi, Batch Girişi düzeltmeleri</td>
+</tr>
+<tr>
+<td>6 Ağustos</td>
+<td>15</td>
+<td>Hedef fiyat limitinin karar akışına bağlanması, İrsaliye stok çıkışı</td>
+</tr>
+</tbody>
+</table>
+<h3 id="en-cok-dokunulan-dosyalar">En çok dokunulan dosyalar<a class="headerlink" href="#en-cok-dokunulan-dosyalar" title="Permanent link">#</a></h3>
+<table>
+<thead>
+<tr>
+<th>Dosya</th>
+<th>Commit</th>
+<th>Satır</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>core/web_bridge.py</code></td>
+<td>24</td>
+<td>+2.890 / −3.325</td>
+</tr>
+<tr>
+<td><code>frontend/src/services/api.js</code></td>
+<td>12</td>
+<td>+386 / −1.131</td>
+</tr>
+<tr>
+<td><code>frontend/src/pages/ParcaTeslim.jsx</code></td>
+<td>5</td>
+<td>+897 / −744</td>
+</tr>
+<tr>
+<td><code>frontend/src/pages/CustomerPriceMatrix.jsx</code></td>
+<td>4</td>
+<td>+792 / −110</td>
+</tr>
+<tr>
+<td><code>mac/build_mac_app.sh</code></td>
+<td>14</td>
+<td>+115 / −79</td>
+</tr>
+<tr>
+<td><code>frontend/src/components/DemontajRepairPanel.jsx</code></td>
+<td>7</td>
+<td>+174 / −14</td>
+</tr>
+<tr>
+<td><code>frontend/src/pages/TechnicianRepairOperations.jsx</code></td>
+<td>6</td>
+<td>+208 / −115</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>Silinen satırın eklenenden yüksek olması beklenen bir sonuçtur: <code>Parts.jsx</code>, <code>Irsaliye.jsx</code>, <code>DataManagement.jsx</code>, <code>Products.jsx</code> gibi sayfalarda büyük sadeleştirme/yeniden yazım yapılmış, ayrıca üretilmiş <code>frontend/dist</code> varlıkları her derlemede yenilenmiştir.</p>
+</blockquote>
+<hr />
+<h2 id="1-musteri-fiyatlandrma-modulu">1. Müşteri Fiyatlandırma Modülü<a class="headerlink" href="#1-musteri-fiyatlandrma-modulu" title="Permanent link">#</a></h2>
+<p>Dönemin en kapsamlı işi. İki ayrı ama bağlantılı matris kurulmuştur.</p>
+<h3 id="11-musteri-fiyat-matrisi-parca-bazl-sats-fiyat">1.1 Müşteri Fiyat Matrisi (parça bazlı satış fiyatı)<a class="headerlink" href="#11-musteri-fiyat-matrisi-parca-bazl-sats-fiyat" title="Permanent link">#</a></h3>
+<ul>
+<li><strong>Yeni sayfa:</strong> <code>frontend/src/pages/CustomerPriceMatrix.jsx</code></li>
+<li><strong>Yeni model:</strong> <code>models/customer_item_price.py</code> → <code>warehouse.customer_item_prices</code></li>
+<li><strong>Kural:</strong> bir parçanın müşteriye özel fiyatı varsa o, yoksa <code>warehouse.item.satis</code> kullanılır.</li>
+</ul>
+<p>Eklenen köprü metotları:</p>
+<pre><code>get_price_matrix(brand, category, model, product_type)
+get_price_matrix_brands / _categories / _models / _product_types / _customers / _items
+get_effective_price(item_code, customer_code)
+get_prices_for_items(item_codes_csv, customer_code)     ← toplu okuma, N+1 çağrıyı bitirir
+save_price_matrix_batch(rows_json, username)
+bulk_import_price_matrix(rows_json, username)           ← Excel içe aktarma
+</code></pre>
+<p><code>get_prices_for_items</code> sayesinde Demontaj ekranındaki teklif tablosu parça başına ayrı çağrı yapmak yerine tüm fiyatları tek istekte çeker.</p>
+<h3 id="12-musteri-hedef-fiyat-matrisi-onarm-butce-limiti">1.2 Müşteri Hedef Fiyat Matrisi (onarım bütçe limiti)<a class="headerlink" href="#12-musteri-hedef-fiyat-matrisi-onarm-butce-limiti" title="Permanent link">#</a></h3>
+<ul>
+<li><strong>Yeni sayfa:</strong> <code>frontend/src/pages/CustomerTargetPriceMatrix.jsx</code></li>
+<li><strong>Yeni model:</strong> <code>models/customer_target_price.py</code> → <code>warehouse.customer_target_prices</code></li>
+<li><strong>Anahtar:</strong> müşteri + ürün ailesi + ekran testi sonucu + güç testi sonucu → hedef fiyat</li>
+</ul>
+<p>Eklenen köprü metotları:</p>
+<pre><code>get_customer_target_prices(customer_code)
+create_customer_target_price(...) / update_customer_target_price(...) / delete_customer_target_price(...)
+get_target_price_customers / _brands / _models
+bulk_import_customer_target_prices(rows_json, username)
+</code></pre>
+<p>Marka ve ürün tipi bilgisi <code>product_family_code</code>'dan türetilir; Müşteri Fiyat Matrisi ile aynı yardımcılar kullanıldığı için iki ekranın marka/model listeleri tutarlı kalır.</p>
+<h3 id="13-limitin-karar-aksna-baglanmas-6-agustos">1.3 Limitin karar akışına bağlanması (6 Ağustos)<a class="headerlink" href="#13-limitin-karar-aksna-baglanmas-6-agustos" title="Permanent link">#</a></h3>
+<p>Matris yalnızca veri girişi olarak kalmamış, Demontaj kararına bağlanmıştır:</p>
+<ul>
+<li><code>_compute_dismantle_decision(db, imei, entry)</code> — <strong>saf karar hesabı</strong>, statü değiştirmez. Kategori onayı + hedef fiyat limitini birlikte değerlendirip hedef statüyü (109 Üretime Aktar / 106 Müşteri Onayı) döner. Hem <code>submit_dismantle_decision</code> hem <code>add_repair_record</code>'ın yeniden-karar dalı bu tek fonksiyonu çağırır, kural iki yerde ayrışmaz.</li>
+<li><code>get_dismantle_decision_preview(imei)</code> — aynı hesabı <strong>yazma yapmadan</strong> ekrana açar. Demontaj paneli her onarım ekleme/silme sonrası çağırıp karar butonunu (Üretime Aktar / Müşteri Onayı Al) ve toplam/limit rozetini anlık günceller.</li>
+<li><code>_get_effective_price(db, item_code, customer_code)</code> — <code>get_effective_price</code> Slot'unun oturum paylaşan iç sürümü; limit kontrolü için toplam parça tutarını hesaplar.</li>
+<li>Kategori onaylı olsa bile toplam tutar limiti aşarsa karar <strong>zorla</strong> Müşteri Onayına çevrilir.</li>
+<li>Kural bulunamazsa <code>DEFAULT_TARGET_PRICE = 9999</code> varsayılanı devreye girer.</li>
+</ul>
+<p>İlgili commit'ler: <code>6ecb486</code>, <code>2f5f312</code>, <code>1e9d00f</code>, <code>72defd3</code>.</p>
+<hr />
+<h2 id="2-dgd-demontaj-gerektirmeyen-durum-modulu">2. DGD (Demontaj Gerektirmeyen Durum) Modülü<a class="headerlink" href="#2-dgd-demontaj-gerektirmeyen-durum-modulu" title="Permanent link">#</a></h2>
+<ul>
+<li><strong>Yeni sayfa:</strong> <code>frontend/src/pages/FlowDgdMapping.jsx</code></li>
+<li><strong>Yeni model:</strong> <code>models/flow_dgd_mapping.py</code> → akış (flow) ↔ DGD işçilik kalemi eşlemesi</li>
+<li><strong>Köprü:</strong> <code>get_flow_dgd_mappings</code>, <code>create_flow_dgd_mapping</code>, <code>update_flow_dgd_mapping</code>, <code>delete_flow_dgd_mapping</code></li>
+</ul>
+<p>Akışa göre otomatik DGD işçilik satırı eklenmesi, <code>apply_dgd_return(device_ref, username)</code> ile aktif DGD kayıtlarının iade işçiliğine (<code>DGDDEC</code>) dönüştürülmesi ve <code>toggle_dgd_repair_team(repair_id, username)</code> ile DGD satırının onarım takımı arasında taşınması bu modülle geldi.</p>
+<p>Ana commit: <code>6e1f9a3</code> — <em>"DGD modulu, Musteri Fiyat Matrisi ve arayuz guncellemeleri"</em>.</p>
+<hr />
+<h2 id="3-parca-teslim-ekran-yeniden-tasarm-ve-parca-geri-alma">3. Parça Teslim Ekranı — Yeniden Tasarım ve Parça Geri Alma<a class="headerlink" href="#3-parca-teslim-ekran-yeniden-tasarm-ve-parca-geri-alma" title="Permanent link">#</a></h2>
+<p>4 Ağustos'un tamamı bu ekrana ayrılmış; <code>ParcaTeslim.jsx</code> beş commit'te +897 / −744 satır değişmiş.</p>
+<p><strong>Arayüz sadeleştirmesi (adım adım):</strong></p>
+<ol>
+<li><code>3940488</code> — teslim edilebilir / teslim edilmiş parçalar sekmeli tek kartta birleştirildi</li>
+<li><code>74abb74</code> — sekmeler kaldırıldı, satır içi "Teslim Edildi" durumu ve "Parçayı Geri Al" butonuyla <strong>tek liste</strong>ye indirildi</li>
+<li><code>e5f057f</code> — "Depo/Teslim" kartı ile "Cihaz Parçaları" kartı tek kontrol paneline birleştirildi</li>
+<li><code>e08e0c4</code> — seçili parça kutusu ayrı bir blok olmaktan çıkıp liste satırının içine alındı</li>
+</ol>
+<p><strong>İşlevsel eklemeler:</strong></p>
+<ul>
+<li><code>915dfc4</code> — <strong>Parçayı Geri Alma</strong>: teslim edilmiş parçanın Good Stock veya DOA Stock'a iade edilmesi (<code>return_delivered_part</code>)</li>
+<li><code>301f0a9</code> — DGD işçilik kalemleri ve stok takipsiz kalemler Parça Teslim listesinden elendi</li>
+<li><code>22cbe9c</code> — <code>return_delivered_part</code> içindeki UUID→int dönüşüm hatası giderildi</li>
+<li><code>get_deliverable_parts_for_device</code>, <code>get_delivered_parts_for_device</code> metotları eklendi</li>
+</ul>
+<p>Ayrıca <strong>Cihaz İade Prosedürü</strong> (<code>execute_device_return</code>) ve iptal koruması (<code>_repair_cancellation_blocker</code>) bu dönemde yazıldı: stok takipli bir parça hâlâ "Stoktan Çıktı" durumundayken cihaz iadesi tamamen reddedilir, parçanın önce depoya dönmesi zorunludur.</p>
+<hr />
+<h2 id="4-platform-ve-dagtm">4. Platform ve Dağıtım<a class="headerlink" href="#4-platform-ve-dagtm" title="Permanent link">#</a></h2>
+<h3 id="41-android-sarmalayc-yeni">4.1 Android sarmalayıcı (yeni)<a class="headerlink" href="#41-android-sarmalayc-yeni" title="Permanent link">#</a></h3>
+<p><code>413d927</code> ile <code>android/</code> dizini sıfırdan oluşturuldu — 5 Java sınıfı, 4 layout, 10 vektör ikon, <code>sites.json</code> site tanımları, <code>build_apk.bat</code>. Özellikler: çoklu site tanımı ve site ayarları ekranı, iki parmak hareketi, üst barın otomatik gizlenmesi.</p>
+<h3 id="42-macos-derleme-zinciri">4.2 macOS derleme zinciri<a class="headerlink" href="#42-macos-derleme-zinciri" title="Permanent link">#</a></h3>
+<p><code>mac/build_mac_app.sh</code> 14 commit'te elden geçirildi. Çözülen sorunlar:</p>
+<ul>
+<li><strong>LaunchServices Error −10661</strong> — boşluklu paket adı yerine <code>ERPWebApp</code> kullanıldı (<code>f57c9ec</code>, <code>bcee923</code>)</li>
+<li><strong>Intel A1708 desteği</strong> — PyInstaller'a <code>--target-architecture x86_64</code>, Intel Homebrew Python'u ile saf x86_64 PyQt6 wheel üretimi (<code>95f01cb</code>, <code>1e727f1</code>, <code>3438234</code>)</li>
+<li><strong>QtWebEngine kararlılığı</strong> — <code>AA_ShareOpenGLContexts</code>, Chromium bayrakları, <code>QtWebEngineProcess</code> için 755 izinleri, çökme günlüğü yazıcı (<code>6b9c91a</code>, <code>e30b4ad</code>, <code>a2309f1</code>)</li>
+<li><strong>Paketleme</strong> — <code>--collect-all</code> / <code>--hidden-import</code> bayrakları, ICNS dönüşüm hatasına yol açan PNG <code>--icon</code> bayrağının kaldırılması, arşivleme için <code>ditto</code></li>
+<li><strong>CI</strong> — <code>.github/workflows/build_mac.yml</code> eklendi; <code>macos-13</code> etiketi <code>macos-15-intel</code> ile değiştirildi (<code>541146c</code>)</li>
+</ul>
+<h3 id="43-sunucu-ve-guncelleme-altyaps">4.3 Sunucu ve güncelleme altyapısı<a class="headerlink" href="#43-sunucu-ve-guncelleme-altyaps" title="Permanent link">#</a></h3>
+<ul>
+<li><code>00b19c8</code> — <code>server.py</code> çalışırken 5174 portunu tutan zombi Python süreçlerini otomatik temizliyor</li>
+<li><code>9dc6093</code> — <code>qwebchannel.js</code> yükleme ve tarayıcı bağlantısı takılma sorunu giderildi</li>
+<li><code>58eb647</code> — zararsız socket timeout günlükleri filtrelendi</li>
+<li><code>e0357cf</code> — <code>update.bat</code> artık açıkça <code>origin/main</code>'i fetch edip reset ediyor</li>
+<li><code>5bc996f</code> — <strong>frontend varlık uyuşmazlığı için kalıcı kendi kendini onarma</strong>: içerik-hash'li chunk'lar eskidiğinde uygulama 404 alıp boş açılmak yerine kendini toparlıyor (<code>core/main_window.py</code> +89 satır)</li>
+<li><code>d937d29</code> — varsayılan ERP sunucu adresi Windows / Mac / Android uygulamalarında <code>http://10.200.246.238</code> olarak birleştirildi</li>
+<li><code>79bcf0e</code> — Mac'te üst araç çubuğu varsayılan gizli, kısayolla açılıp kapanıyor</li>
+</ul>
+<hr />
+<h2 id="5-performans">5. Performans<a class="headerlink" href="#5-performans" title="Permanent link">#</a></h2>
+<p><code>c7758d6</code> — Müşteri Fiyat Matrisi'nin yavaşlığı ve <code>get_critical_stock</code> önbellek hatası giderildi, eksik indeksler eklendi:</p>
+<pre><code class="language-sql">idx_product_bom_node_parent          (parent_product_code)
+idx_product_bom_node_parent_lower    (LOWER(TRIM(parent_product_code)))
+idx_product_bom_node_child           (child_item_code)
+idx_parts_brand_upper                (UPPER(brand))
+idx_parts_item_category              (item_category)
+</code></pre>
+<hr />
+<h2 id="6-toplu-veri-aktarm-excel">6. Toplu Veri Aktarımı (Excel)<a class="headerlink" href="#6-toplu-veri-aktarm-excel" title="Permanent link">#</a></h2>
+<p>Veri Yönetimi tarafına eklenen toplu içe aktarma metotları:</p>
+<pre><code>bulk_import_parts / bulk_import_products / bulk_import_product_bom
+bulk_import_inbound_entries / bulk_process_batch_entries
+bulk_import_price_matrix / bulk_import_customer_target_prices
+bulk_insert_table_data(schema, table_name, rows_json)
+</code></pre>
+<p><code>350aa12</code> ve <code>6e8163f</code> ile Batch Girişi ve İrsaliye tarafındaki Excel içe aktarma akışları yeniden yazıldı: eksik alanlı satırlar sessizce atlanmak yerine toplanıp kullanıcıya hata listesi olarak gösteriliyor (<code>importing</code> / <code>importErrors</code> durumları).</p>
+<hr />
+<h2 id="7-diger-ekran-duzeltmeleri">7. Diğer Ekran Düzeltmeleri<a class="headerlink" href="#7-diger-ekran-duzeltmeleri" title="Permanent link">#</a></h2>
+<table>
+<thead>
+<tr>
+<th>Commit</th>
+<th>Ekran</th>
+<th>Değişiklik</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>c038f06</code></td>
+<td>İrsaliye</td>
+<td>Stok Çıkışı Yap modalına <strong>Kaynak Depo</strong> ve <strong>Hedef Depo</strong> seçimleri eklendi</td>
+</tr>
+<tr>
+<td><code>2c75d6a</code></td>
+<td>İrsaliye</td>
+<td>Çıkış modalinde Kaynak Depo yerine Hedef Depo gösterilmesi düzeltildi</td>
+</tr>
+<tr>
+<td><code>d9c60c9</code></td>
+<td>Batch Girişi</td>
+<td><code>setAutoFilledMessage</code> ReferenceError giderildi</td>
+</tr>
+<tr>
+<td><code>626e660</code></td>
+<td>Batch Girişi</td>
+<td>Model seçimi combobox'a çevrildi</td>
+</tr>
+<tr>
+<td><code>872a779</code></td>
+<td>Üretim Kaydı</td>
+<td>Teknisyen onarım operasyonları ve köprü güncellemeleri</td>
+</tr>
+<tr>
+<td><code>4c03291</code></td>
+<td>Altyapı</td>
+<td><code>web_bridge.py</code> için <code>sys.path</code> yedeği — <code>config</code> modülü çözümleme hatası</td>
+</tr>
+<tr>
+<td><code>fddd1be</code></td>
+<td>Altyapı</td>
+<td><code>core/web_bridge.py</code> içindeki çift başlık SyntaxError'u</td>
+</tr>
+</tbody>
+</table>
+<p>Ayrıca <code>open_device_for_dismantle(imei, username)</code> ile cihazın demontaja açılması, <code>add_outbound_entry(...)</code> ile hedef lokasyonlu stok çıkışı eklendi.</p>
+<hr />
+<h2 id="notlar">Notlar<a class="headerlink" href="#notlar" title="Permanent link">#</a></h2>
+<ul>
+<li>Bu rapor yalnızca commit geçmişinden üretilmiştir; kod incelemesi ya da test sonucu içermez.</li>
+<li><code>frontend/dist</code> altındaki değişiklikler derleme çıktısıdır, elle yazılmış kod değildir (26 commit'te güncellenmiş).</li>
+<li>Aynı dosyalarda aynı dönemde başka geliştiriciler de çalışmıştır; burada yalnızca <code>YusufPEKERR</code> imzalı commit'ler listelenmiştir.</li>
+</ul>
+</div>
+</body>
+</html>

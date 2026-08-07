@@ -14774,16 +14774,34 @@ class WebBridge(QObject):
         atamayı yapan kimi seçtiğini görsün.
 
         mission_code boş gelirse tüm aktif kullanıcılar döner.
-        Açık iş = o kullanıcıya atanmış, statüsü 1002 (Tamamlandı) / 1003 (İptal) OLMAYAN kayıtlar."""
+
+        AÇIK İŞ = teknisyenin ÜZERİNDE HÂLÂ İŞ OLAN onarımları. Sayım iki noktada
+        düzeltildi:
+
+        1) BİTMİŞ İŞ SAYILMAZ. Eskiden yalnızca 1002/1003 eleniyordu; oysa Kamera /
+           L3 / Ekran / Kasa gruplarında "Onarımı Tamamla" kaydı 1002 YAPMAZ, önce
+           1006'ya (Onarım Testi Bekleniyor) alır - kararı ayrı bir ekranda test
+           görevlisi verir. Teknisyen işini bitirmiş olduğu hâlde kayıt açık iş
+           sayılmaya devam ediyor, sayaç hiç düşmüyordu. 1005 (Müşteri Onayı
+           Bekliyor) de teknisyende değil müşteride bekler. İkisi de elenir.
+           Elenmeyenler bilinçli: 1004 (sırası gelmemiş - kuyrukta duran iş),
+           1007 (testten kaldı, teknisyene geri döndü), 1008 (parça bekliyor).
+
+        2) PARÇA DEĞİL ONARIM SAYILIR. repair_records'ta her satır bir PARÇADIR;
+           atama ise onarım (service_record_id + department_mission) seviyesindedir.
+           Satır sayılınca 4 parçalı tek bir onarım "4 açık iş" görünüyor, teknisyen
+           yükü olduğundan kat kat fazla okunuyordu."""
         from sqlalchemy import text
         db = SessionLocal()
         try:
             code = (mission_code or "").strip()
 
             open_jobs_sql = """
-                (SELECT COUNT(*) FROM warehouse.repair_records rr
+                (SELECT COUNT(DISTINCT (rr.service_record_id, rr.department_mission))
+                   FROM warehouse.repair_records rr
                   WHERE rr.assigned_technician = u.username
-                    AND COALESCE(rr.repair_result_type_code, 0) NOT IN (1002, 1003)) AS open_jobs
+                    AND COALESCE(rr.repair_result_type_code, 0)
+                        NOT IN (1002, 1003, 1005, 1006)) AS open_jobs
             """
 
             if not code:

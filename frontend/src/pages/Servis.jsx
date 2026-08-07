@@ -394,7 +394,12 @@ export default function Servis() {
           ) : activeTab === 'durum' ? (
             <div className="h-full flex overflow-hidden">
               <InfoPanel fields={fields} />
-              <div className="flex-1 overflow-auto p-6 space-y-4">
+              {/* min-w-0 ZORUNLU: flex öğesinin varsayılan min-width'i "auto"dur, yani
+                  öğe içeriğinden küçülemez. Bu panel içerikten (geniş tablodan) büyüyüp
+                  dışarıdaki overflow-hidden kapsayıcı tarafından kırpılıyor, tablo
+                  overflow-x-auto'ya sahip olsa bile kaydırma çubuğu HİÇ çıkmıyordu.
+                  min-w-0 ile panel genişliği sabitleniyor, taşan tablo kendi içinde kayıyor. */}
+              <div className="flex-1 min-w-0 overflow-auto p-6 space-y-4">
                 <h3 className="text-sm font-semibold text-[#12141c] dark:text-[#F6F8FF] flex items-center gap-2">
                   <ClipboardCheck size={16} className="text-[#8894D8]" /> Statü Geçmişi Kayıtları
                 </h3>
@@ -404,7 +409,7 @@ export default function Servis() {
           ) : activeTab === 'test' ? (
             <div className="h-full flex overflow-hidden">
               <InfoPanel fields={fields} />
-              <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              <div className="flex-1 min-w-0 overflow-y-auto p-6 space-y-6">
                 <TestSummary summary={testSummary} />
                 <div>
                   <div className="flex flex-wrap items-center justify-between mb-3">
@@ -439,7 +444,7 @@ export default function Servis() {
           ) : (
             <div className="h-full flex overflow-hidden">
               <InfoPanel fields={fields} />
-              <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              <div className="flex-1 min-w-0 overflow-y-auto p-6 space-y-6">
                 <div>
                   <div className="flex flex-wrap items-center justify-between mb-3">
                     <h3 className="text-sm font-semibold text-[#12141c] dark:text-[#F6F8FF]">Alt Onarımlar</h3>
