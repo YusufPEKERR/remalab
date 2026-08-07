@@ -15,6 +15,7 @@ import http.server
 import socketserver
 import threading
 import json
+import gzip
 
 from core.web_bridge import WebBridge
 
@@ -162,6 +163,30 @@ class CustomRequestHandler(http.server.SimpleHTTPRequestHandler):
         if not os.path.exists(target_file) and not self.path.startswith('/api_cache/'):
             if not self.path.startswith('/assets/') and not self.path.endswith('.js') and not self.path.endswith('.css') and not self.path.endswith('.png') and not self.path.endswith('.svg'):
                 self.path = '/index.html'
+                target_file = self.translate_path(self.path)
+
+        # Ağ üzerinden IP ile bağlanan kullanıcılar için statik paketleri (JS/CSS/JSON)
+        # bellek üzerinde Gzip ile sıkıştırarak servis et - transfer süresini %70-80 düşürür
+        accept_encoding = self.headers.get("Accept-Encoding", "")
+        if "gzip" in accept_encoding and os.path.isfile(target_file):
+            ext = os.path.splitext(target_file)[1].lower()
+            if ext in [".js", ".css", ".json", ".html", ".svg", ".txt"]:
+                try:
+                    with open(target_file, "rb") as f:
+                        raw_bytes = f.read()
+                    compressed = gzip.compress(raw_bytes, compresslevel=6)
+
+                    self.send_response(200)
+                    self.send_header("Content-Type", self.guess_type(target_file))
+                    self.send_header("Content-Encoding", "gzip")
+                    self.send_header("Content-Length", str(len(compressed)))
+                    self.send_header("Vary", "Accept-Encoding")
+                    self.end_headers()
+                    self.wfile.write(compressed)
+                    return
+                except Exception:
+                    pass
+
         super().do_GET()
 
     def end_headers(self):
