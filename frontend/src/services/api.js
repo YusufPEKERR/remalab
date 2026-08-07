@@ -1503,6 +1503,28 @@ export const api = {
         });
     },
 
+    getServiceRepairDetails: async (workOrderId) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_service_repair_details) {
+                backend.get_service_repair_details(String(workOrderId), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false, message: 'Servis bağlantısı yok.' });
+            }
+        });
+    },
+
+    saveServiceRepairDetails: async (workOrderId, detailsJson) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.save_service_repair_details) {
+                backend.save_service_repair_details(String(workOrderId), detailsJson, (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false, message: 'Servis bağlantısı yok.' });
+            }
+        });
+    },
+
     // ==========================
     // PRODUCTION WORK ORDER (Yarı Mamul Üretim İş Emri)
     // ==========================

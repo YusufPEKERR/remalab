@@ -140,8 +140,7 @@ export default function ImeiTracker() {
         stages: repairData.stages,
         price: calculateTotalPrice()
       };
-      const res = await api.saveServiceRepairDetails(workOrderId, JSON.stringify(payload));
-      const data = JSON.parse(res);
+      const data = await api.saveServiceRepairDetails(workOrderId, JSON.stringify(payload));
       if (data.success) {
         alert('Onarım bilgileri başarıyla kaydedildi!');
         handleSearch();
@@ -193,8 +192,7 @@ export default function ImeiTracker() {
           setRecipeMaterials(res.recipe_materials || []);
           
           if (res.work_order_type === 'SERVICE' && res.work_order_id) {
-              const repRes = await api.getServiceRepairDetails(res.work_order_id);
-              const repData = JSON.parse(repRes);
+              const repData = await api.getServiceRepairDetails(res.work_order_id);
               if (repData.success) {
                   if (!repData.diagnostics.parts_extra) {
                       repData.diagnostics.parts_extra = {};
