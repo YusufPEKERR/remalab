@@ -123,12 +123,12 @@ export default function CustomerPriceMatrix() {
 
   useEffect(() => { loadStatic(); }, [loadStatic]);
 
-  // Varsayılan görünüm (hiçbir filtre seçilmeden) TÜM katalogdur - parçalar VE işçilik
-  // (DGD) kodları dahil, ne varsa gösterilir. Marka/model/kategori/ürün tipi sadece
-  // isteğe bağlı daraltma filtreleridir, artık zorunlu değildir. Bu, filtresiz haldeyken
-  // bile hızlı kalır çünkü hem items hem prices filtresiz çağrıldığında backend'de
-  // api_cache/*.json + fetch_url deseniyle (QWebChannel yerine HTTP ile) döner, tablo da
-  // sanallaştırılmış (virtualized) render edildiğinden binlerce satır DOM'u zorlamaz.
+  // Marka seçilmeden TÜM katalogu (parçalar + işçilik/DGD, 30 bin+ satır) filtresiz
+  // çekmek denendi - cache ve sanallaştırmaya (virtualization) rağmen ilk giriş gözle
+  // görülür şekilde yavaş kalıyordu (tek seferlik büyük JSON indirme + parse maliyeti).
+  // Bu yüzden artık marka ZORUNLU: hiçbir marka seçilmemişken bu fonksiyon hiç
+  // çağrılmaz (bkz. aşağıdaki useEffect'teki guard), tablo boş/"marka seçin" durumunda
+  // kalır. Marka seçildikten sonra ürün tipi/model/kategoriyle daha da daraltılabilir.
   const loadItems = useCallback(async (brand, productType, model, category) => {
     setItemsLoading(true);
     try {
@@ -156,6 +156,11 @@ export default function CustomerPriceMatrix() {
   }, []);
 
   useEffect(() => {
+    if (!selectedBrand) {
+      setItems([]);
+      setPrices({});
+      return;
+    }
     loadItems(selectedBrand, selectedProductType, selectedModel, selectedCategory);
   }, [selectedBrand, selectedProductType, selectedModel, selectedCategory, loadItems]);
 
@@ -297,7 +302,9 @@ export default function CustomerPriceMatrix() {
 
   const handleRefresh = async () => {
     await loadStatic();
-    await loadItems(selectedBrand, selectedProductType, selectedModel, selectedCategory);
+    if (selectedBrand) {
+      await loadItems(selectedBrand, selectedProductType, selectedModel, selectedCategory);
+    }
   };
 
   const handleSave = async () => {
@@ -478,7 +485,7 @@ export default function CustomerPriceMatrix() {
               Müşteri Fiyat Matrisi
             </h1>
             <p className="text-sm text-[#4A5A9E] dark:text-slate-300 leading-relaxed">
-              Varsayılan olarak tüm parçalar ve işçilik (DGD) kodları listelenir; isterseniz marka, ürün tipi, model ve/veya kategoriyle daraltın.
+              Tabloyu görüntülemek için önce bir marka seçin; isterseniz ürün tipi, model ve/veya kategoriyle daha da daraltın.
               Boş hücre, genel (item.satis) fiyata geri düşer.
             </p>
           </div>
@@ -596,6 +603,8 @@ export default function CustomerPriceMatrix() {
             <tbody className="divide-y divide-slate-700/30">
               {loading ? (
                 <tr><td colSpan={customers.length + 1} className="px-6 py-8 text-center"><RefreshCw className="animate-spin mx-auto text-blue-400" /></td></tr>
+              ) : !selectedBrand ? (
+                <tr><td colSpan={customers.length + 1} className="px-6 py-8 text-center text-slate-500">Tabloyu görüntülemek için yukarıdan bir marka seçin.</td></tr>
               ) : totalRows === 0 ? (
                 <tr><td colSpan={customers.length + 1} className="px-6 py-8 text-center text-slate-500">Kayıt bulunamadı.</td></tr>
               ) : (
