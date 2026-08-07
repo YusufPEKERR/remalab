@@ -9697,6 +9697,14 @@ class WebBridge(QObject):
                 FROM warehouse.customers
             """)).mappings().all()
 
+            # IMEI/Seri No/Internal ID'nin ÜÇÜ DE boş olan satır saf bir müşteri/firma
+            # kaydıdır (sadece isim+kod+döviz) - gerçek bir cihazı temsil etmediğinden Batch
+            # Girişi'nde karşılığı olamaz. Eskiden bunlar da senkronize ediliyordu: kullanıcı
+            # böyle bir "hayalet" batch'i silse bile bir sonraki ekran açılışında
+            # (get_batch_summary -> bu fonksiyon) aynı müşteri satırından yeniden
+            # yaratılıyordu - silinemez gibi görünüyordu.
+            rows = [r for r in rows if (r["imei_number"] or "").strip() or (r["serial_number"] or "").strip() or (r["internal_id"] or "").strip()]
+
             valid_flow_values = self._get_flow_values(db)
 
             batch_nos = [f"BATCH-MIO-{r['id']}" for r in rows]
