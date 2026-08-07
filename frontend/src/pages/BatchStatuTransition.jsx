@@ -277,7 +277,9 @@ const BatchStatuTransition = () => {
   const attemptLabel = (pc) => `${pc.attempt_no || 1}. deneme`;
 
   // Kaynak→hedef statü geçişini uygular ve sonucu loglar.
-  const applyTransition = async (entryId, cihazBilgisi = null) => {
+  // aciklama: etiketin "Açıklama / Durum" alanına önceden yazılacak metin. Test
+  // verisi elle doldurulduğunda oradaki zorunlu açıklama buraya taşınır.
+  const applyTransition = async (entryId, cihazBilgisi = null, aciklama = "") => {
     const data = await api.executeBatchEntryStatuTransition(
       entryId,
       transition.parent_statu,
@@ -289,7 +291,7 @@ const BatchStatuTransition = () => {
       appendLog("success", data.message);
       setDeviceInfo((prev) => (prev ? { ...prev, statuCode: transition.child_statu, statuName: null } : prev));
       const etiketTuru = ETIKET_SORULAN_KODLAR[transition.code];
-      if (etiketTuru) setEtiketSorusu({ tur: etiketTuru, cihaz: cihazBilgisi });
+      if (etiketTuru) setEtiketSorusu({ tur: etiketTuru, cihaz: cihazBilgisi, aciklama });
     } else {
       showNotification("error", data.message);
       appendLog("error", data.message);
@@ -318,7 +320,9 @@ const BatchStatuTransition = () => {
 
       appendLog("warning", `${stageLabel(manualModal.testStage, transition)} verisi elle dolduruldu: ${reason}`);
       setManualModal(null);
-      await applyTransition(manualModal.entryId, { imei: manualModal.imei });
+      // Etiket bu yolda da dolu basılsın: cihaz alanları okutma anından taşınır,
+      // Açıklama ise burada yazılan zorunlu gerekçedir.
+      await applyTransition(manualModal.entryId, manualModal.cihaz, reason);
     } catch (err) {
       console.error(err);
       showNotification("error", "Manuel kayıt sırasında beklenmeyen bir hata oluştu.");
@@ -376,6 +380,16 @@ const BatchStatuTransition = () => {
             testStage: pcData.test_stage,
             fields: pcData.manual_fields || [],
             entryId: scanData.entry_id,
+            cihaz: {
+              imei: scanData.imei,
+              internalId: scanData.internal_id || "",
+              serialNo: scanData.serial_number || "",
+              brand: scanData.brand || "",
+              model: scanData.model || "",
+              gb: scanData.gb || "",
+              color: scanData.color || "",
+              productCode: scanData.batch_no || "",
+            },
           });
           showNotification("warning", pcData.message);
           appendLog("warning", pcData.message);
@@ -439,6 +453,7 @@ const BatchStatuTransition = () => {
         cihaz={etiketSorusu?.cihaz}
         tur={etiketSorusu?.tur || "teslim"}
         soruMetni="Barkod yazdırmak ister misiniz?"
+        varsayilanAciklama={etiketSorusu?.aciklama || ""}
         onKapat={() => setEtiketSorusu(null)}
       />
 

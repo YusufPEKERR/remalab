@@ -169,6 +169,7 @@ export default function EtiketYazdirModal({
   ekEtiketler = false,     // Demontaj: kontrol + "x" etiketlerini de bas
   otomatik = false,        // true: soru sorma, açılır açılmaz bas ve kapan
   sablonUstuneYaz = null,  // Etiket Tasarımı ekranındaki deneme basımı için
+  varsayilanAciklama = "", // Açıklama alanının açılıştaki değeri (yalnızca "teslim")
 }) {
   const [form, setForm] = useState({ aciklama: "", lokasyon: "", referans: "" });
   const [yazdiriliyor, setYazdiriliyor] = useState(false);
@@ -187,13 +188,18 @@ export default function EtiketYazdirModal({
   // olduğu için yazı tipi gelmeden çizilen barkodlar SVG'ye düşmüş olurdu.
   const [fontDurumu, setFontDurumu] = useState(0);
 
+  // Açılışta Açıklama, çağıran ekranın verdiği değerle dolar. "Üretime teslim
+  // edilecek"te cihaz Phonecheck'te bulunamayınca test verisi elle doldurulur ve
+  // orada ZORUNLU bir açıklama yazılır ("KAPANIP AÇILIYOR TEST EDİLEMEDİ" gibi);
+  // etikete basılması istenen de odur, kullanıcı aynı metni iki kez yazmasın.
   useEffect(() => {
     if (!acik) { setForm({ aciklama: "", lokasyon: "", referans: "" }); setEngel(""); setSonuc(""); }
     else {
+      setForm(f => ({ ...f, aciklama: varsayilanAciklama || "" }));
       setKenarPayi(secilenKenarPayi());
       barkodFontunuYukle().then(() => setFontDurumu(n => n + 1));
     }
-  }, [acik]);
+  }, [acik, varsayilanAciklama]);
 
   useEffect(() => {
     if (!yazdiriliyor) return;
@@ -467,16 +473,22 @@ export default function EtiketYazdirModal({
 
         {tur === "teslim" && (
           <div className="px-5 pt-5 pb-1 grid grid-cols-1 sm:grid-cols-2 gap-3 shrink-0">
+            {/* Açıklama BURADA YAZILMAZ: testte girilen zorunlu açıklama neyse etikete
+                o basılır. Aynı metnin iki kez yazılması, ikisinin farklı olması ve
+                etikette testtekinden başka bir şey görünmesi böylece imkânsız. */}
             <div className="sm:col-span-2">
-              <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Açıklama / Durum</label>
-              <input type="text" autoFocus value={form.aciklama}
-                onChange={(e) => setForm(f => ({ ...f, aciklama: e.target.value }))}
-                placeholder="ör. KAPANIP AÇILIYOR TEST EDİLEMEDİ"
-                className="w-full bg-slate-50 dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" />
+              <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">
+                Açıklama / Durum <span className="font-normal text-slate-400">· testte girilen</span>
+              </label>
+              <div className="w-full bg-slate-100 dark:bg-[#0f111a] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm min-h-[38px] flex items-center">
+                {form.aciklama
+                  ? <span className="text-slate-800 dark:text-slate-200 break-words">{form.aciklama}</span>
+                  : <span className="text-slate-400 italic">Testte açıklama girilmedi</span>}
+              </div>
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Lokasyon</label>
-              <input type="text" value={form.lokasyon}
+              <input type="text" autoFocus value={form.lokasyon}
                 onChange={(e) => setForm(f => ({ ...f, lokasyon: e.target.value }))}
                 placeholder="ör. İST11"
                 className="w-full bg-slate-50 dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" />
