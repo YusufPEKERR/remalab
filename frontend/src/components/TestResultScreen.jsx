@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef } from 'react';
-import { CheckCircle, AlertTriangle, X, ClipboardCheck, Undo2 } from 'lucide-react';
+import { CheckCircle, AlertTriangle, X, ClipboardCheck, Undo2, Barcode } from 'lucide-react';
 import { api } from '../services/api';
 import { FAULT_CATALOG } from '../constants/faultCatalog';
 import EtiketYazdirModal from './EtiketYazdirModal';
@@ -46,6 +46,9 @@ export default function TestResultScreen({
   // "Test Başarılı" onayından SONRA gösterilen PhoneCheck test bilgisi. { imei, data } | null
   const [successPcInfo, setSuccessPcInfo] = useState(null);
   const [etiketCihazi, setEtiketCihazi] = useState(null);
+  // Barkod artık onay sonrası otomatik açılmaz; kullanıcı "Barkod Yazdır" butonuna
+  // basınca modal açılır (isteğe bağlı barkod çıkarma).
+  const [etiketModalAcik, setEtiketModalAcik] = useState(false);
   const successInputRef = useRef(null);
 
   const selectedFaultLabels = useMemo(() => {
@@ -107,8 +110,10 @@ export default function TestResultScreen({
         } catch (_e) {
           setSuccessPcInfo({ imei: scanData.imei, data: null });
         }
-        // Test başarılıysa cihaz etiketi sorulur (yalnızca Son Test ekranında).
+        // Test başarılıysa cihaz barkodu için buton hazırlanır (yalnızca Son Test
+        // ekranında). Otomatik açılmaz; kullanıcı butona basınca yazdırılır.
         if (etiketSor) {
+          setEtiketModalAcik(false);
           setEtiketCihazi({
             imei: scanData.imei,
             internalId: scanData.internal_id || '',
@@ -170,11 +175,10 @@ export default function TestResultScreen({
       <NotificationToast notification={notification} onClose={() => setNotification(null)} />
 
       <EtiketYazdirModal
-        acik={!!etiketCihazi}
+        acik={etiketModalAcik}
         cihaz={etiketCihazi}
         tur="cihaz"
-        soruMetni="Test başarılı. Barkod yazdırmak ister misiniz?"
-        onKapat={() => setEtiketCihazi(null)}
+        onKapat={() => setEtiketModalAcik(false)}
       />
 
       {/* ════════════════ HERO BANNER ════════════════ */}
@@ -229,6 +233,22 @@ export default function TestResultScreen({
               <CheckCircle size={16} /> {successLoading ? 'İşleniyor...' : 'Test Başarılı'}
             </button>
           </form>
+
+          {/* Onay sonrası ISTEĞE BAĞLI barkod: otomatik açılmaz, kullanıcı basınca yazdırılır. */}
+          {etiketSor && etiketCihazi && (
+            <div className="px-6 pb-5 -mt-2">
+              <button
+                type="button"
+                onClick={() => setEtiketModalAcik(true)}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl transition-all font-semibold text-xs cursor-pointer flex items-center justify-center gap-2 shadow-md"
+              >
+                <Barcode size={16} /> Barkod Yazdır
+              </button>
+              <p className="mt-2 text-[10px] text-center text-[#5A6685] dark:text-[#8892B5]">
+                Son test onaylandı · <span className="font-mono">{etiketCihazi.imei}</span> — barkod isteğe bağlıdır
+              </p>
+            </div>
+          )}
 
           {/* Onaydan SONRA gösterilen PhoneCheck test bilgisi (Son teste kabulde artık çekilmiyor). */}
           {successPcInfo && (
