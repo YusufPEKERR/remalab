@@ -134,9 +134,20 @@ export function mevcutParcaSiniflari(mevcutKategoriler = []) {
   return bulunan;
 }
 
+// Cihazda halihazırda duran (iptal edilmemiş) parça KODLARI. "Aynı parça iki kez
+// eklenemez" kuralı için kullanılır; karşılaştırma backend'deki gibi tam eşleşmedir
+// (add_repair_record part_item_code'u birebir karşılaştırır).
+export function mevcutParcaKodlari(kodlar = []) {
+  return new Set(kodlar.map(k => String(k || "").trim()).filter(Boolean));
+}
+
 // Bir parça satırı için engel metni ("" ise seçilebilir). PartSelectCombobox'a
-// doğrudan engelSebebi olarak verilir.
-export function parcaEngeli(part, mevcutlar) {
+// doğrudan engelSebebi olarak verilir. İki sebep var:
+//   1) parça cihaza zaten eklenmiş  2) başka bir parçayla çakışıyor
+// İkisi de backend'de ayrıca uygulanır; burası kullanıcı seçmeden önce görsün diye.
+export function parcaEngeli(part, mevcutlar, mevcutKodlar = null) {
+  const kod = String(part?.item_code || "").trim();
+  if (kod && mevcutKodlar && mevcutKodlar.has(kod)) return "Bu parça zaten ekli";
   if (!mevcutlar || mevcutlar.length === 0) return "";
   const sinif = parcaKisitSinifi(part?.item_category || part?.part_category);
   if (!sinif) return "";

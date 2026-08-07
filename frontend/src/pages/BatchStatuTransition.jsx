@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { ScanLine, CheckCircle, AlertTriangle, Info, X, ArrowRight, History, ClipboardEdit } from "lucide-react";
+import { ScanLine, CheckCircle, AlertTriangle, Info, X, ArrowRight, History, ClipboardEdit, Tag, Printer } from "lucide-react";
 import { api } from "../services/api";
 import EtiketYazdirModal from "../components/EtiketYazdirModal";
 
@@ -81,15 +81,19 @@ const HIDDEN_MANUAL_FIELDS = ['model', 'memory', 'serial', 'color', 'notes'];
 const GRADE_OPTIONS = ['A', 'B', 'C', 'C++', 'C+', 'C-', 'C-P', 'D', 'D+'];
 
 // ─── PHONECHECK MANUEL DOLDURMA MODALI ───
-const ManualTestModal = ({ open, imei, stageName, fields, onClose, onSubmit, saving }) => {
+const ManualTestModal = ({ open, imei, stageName, fields, onClose, onSubmit, saving, etiketBasilacak = false }) => {
   const [reason, setReason] = useState("");
   const [values, setValues] = useState({});
   const [modelOptions, setModelOptions] = useState([]);
+  const [lokasyon, setLokasyon] = useState("");
+  const [referans, setReferans] = useState("");
 
   useEffect(() => {
     if (open) {
       setReason("");
       setValues({});
+      setLokasyon("");
+      setReferans("");
       api.getProductFamilies().then((res) => {
         if (res && res.success) setModelOptions(res.product_families || []);
       });
@@ -109,7 +113,9 @@ const ManualTestModal = ({ open, imei, stageName, fields, onClose, onSubmit, sav
         <div className="p-5 border-b border-slate-200 dark:border-slate-700/50 flex items-start gap-3">
           <ClipboardEdit size={20} className="text-amber-500 mt-0.5 shrink-0" />
           <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-slate-900 dark:text-slate-100">Test Verisini Elle Doldur</h3>
+            <h3 className="font-semibold text-slate-900 dark:text-slate-100">
+              {etiketBasilacak ? "Test Verisi ve Barkod" : "Test Verisini Elle Doldur"}
+            </h3>
             <p className="text-sm text-slate-400 mt-0.5">
               {imei} · {stageName} — Phonecheck'te bulunamadı
             </p>
@@ -123,6 +129,9 @@ const ManualTestModal = ({ open, imei, stageName, fields, onClose, onSubmit, sav
           <div>
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
               Açıklama <span className="text-red-500">*</span>
+              {etiketBasilacak && (
+                <span className="ml-1 font-normal text-xs text-slate-400">— etikete de basılır</span>
+              )}
             </label>
             <textarea
               rows={3}
@@ -198,6 +207,43 @@ const ManualTestModal = ({ open, imei, stageName, fields, onClose, onSubmit, sav
               </div>
             ))}
           </div>
+
+          {/* BARKOD ALANLARI AYNI FORMDA. Eskiden kayıt sonrası ayrı bir etiket
+              penceresi açılıp Lokasyon/Referans orada isteniyordu; kullanıcı arka
+              arkaya iki form dolduruyordu. Artık tek form: Açıklama zaten etikete
+              basılan metin, Lokasyon ve Referans da burada alınır ve "Kaydet ve
+              Barkod Yazdır" tek adımda kaydedip yazdırır. */}
+          {etiketBasilacak && (
+            <div className="border-t border-slate-200 dark:border-slate-700/50 pt-4 flex flex-col gap-3">
+              <div className="flex items-center gap-2">
+                <Tag size={15} className="text-blue-500 shrink-0" />
+                <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Barkod Bilgileri</h4>
+                <span className="text-[11px] text-slate-400">— yukarıdaki açıklama etikete basılır</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Lokasyon</label>
+                  <input
+                    type="text"
+                    value={lokasyon}
+                    onChange={(e) => setLokasyon(e.target.value)}
+                    placeholder="ör. İST11"
+                    className="w-full bg-slate-50 dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Referans Kodu</label>
+                  <input
+                    type="text"
+                    value={referans}
+                    onChange={(e) => setReferans(e.target.value)}
+                    placeholder="ör. 016-GR03-REF-O"
+                    className="w-full bg-slate-50 dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="p-5 border-t border-slate-200 dark:border-slate-700/50 flex justify-end gap-3">
@@ -208,11 +254,12 @@ const ManualTestModal = ({ open, imei, stageName, fields, onClose, onSubmit, sav
             Vazgeç
           </button>
           <button
-            onClick={() => onSubmit(reason, values)}
+            onClick={() => onSubmit(reason, values, { lokasyon, referans })}
             disabled={reasonEmpty || workingEmpty || saving}
-            className="bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-xl text-sm font-medium transition-all shadow-lg shadow-blue-900/20"
+            className="bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-xl text-sm font-medium transition-all shadow-lg shadow-blue-900/20 flex items-center gap-2"
           >
-            {saving ? "Kaydediliyor..." : "Kaydet ve Devam Et"}
+            {etiketBasilacak && <Printer size={15} />}
+            {saving ? "Kaydediliyor..." : etiketBasilacak ? "Kaydet ve Barkod Yazdır" : "Kaydet ve Devam Et"}
           </button>
         </div>
       </div>
@@ -277,9 +324,10 @@ const BatchStatuTransition = () => {
   const attemptLabel = (pc) => `${pc.attempt_no || 1}. deneme`;
 
   // Kaynak→hedef statü geçişini uygular ve sonucu loglar.
-  // aciklama: etiketin "Açıklama / Durum" alanına önceden yazılacak metin. Test
-  // verisi elle doldurulduğunda oradaki zorunlu açıklama buraya taşınır.
-  const applyTransition = async (entryId, cihazBilgisi = null, aciklama = "") => {
+  // etiketForm: etiket alanlarının önceden dolu gelecek değerleri. Test verisi elle
+  // doldurulduğunda Açıklama/Lokasyon/Referans aynı formdan gelir; o durumda etiket
+  // penceresi kullanıcıya HİÇ soru sormaz, doğrudan basar (otomatik).
+  const applyTransition = async (entryId, cihazBilgisi = null, etiketForm = null) => {
     const data = await api.executeBatchEntryStatuTransition(
       entryId,
       transition.parent_statu,
@@ -291,7 +339,12 @@ const BatchStatuTransition = () => {
       appendLog("success", data.message);
       setDeviceInfo((prev) => (prev ? { ...prev, statuCode: transition.child_statu, statuName: null } : prev));
       const etiketTuru = ETIKET_SORULAN_KODLAR[transition.code];
-      if (etiketTuru) setEtiketSorusu({ tur: etiketTuru, cihaz: cihazBilgisi, aciklama });
+      if (etiketTuru) setEtiketSorusu({
+        tur: etiketTuru,
+        cihaz: cihazBilgisi,
+        form: etiketForm || null,
+        otomatik: !!etiketForm,
+      });
     } else {
       showNotification("error", data.message);
       appendLog("error", data.message);
@@ -300,7 +353,7 @@ const BatchStatuTransition = () => {
   };
 
   // Manuel doldurma formu gönderildiğinde: kaydı yaz, sonra geçişi uygula.
-  const handleManualSubmit = async (reason, values) => {
+  const handleManualSubmit = async (reason, values, etiket = {}) => {
     if (!manualModal) return;
     setSavingManual(true);
     try {
@@ -321,8 +374,13 @@ const BatchStatuTransition = () => {
       appendLog("warning", `${stageLabel(manualModal.testStage, transition)} verisi elle dolduruldu: ${reason}`);
       setManualModal(null);
       // Etiket bu yolda da dolu basılsın: cihaz alanları okutma anından taşınır,
-      // Açıklama ise burada yazılan zorunlu gerekçedir.
-      await applyTransition(manualModal.entryId, manualModal.cihaz, reason);
+      // Açıklama burada yazılan zorunlu gerekçedir, Lokasyon/Referans da aynı
+      // formdan gelir. Form dolu geldiği için etiket penceresi soru sormaz.
+      await applyTransition(manualModal.entryId, manualModal.cihaz, {
+        aciklama: reason,
+        lokasyon: etiket.lokasyon || "",
+        referans: etiket.referans || "",
+      });
     } catch (err) {
       console.error(err);
       showNotification("error", "Manuel kayıt sırasında beklenmeyen bir hata oluştu.");
@@ -453,7 +511,8 @@ const BatchStatuTransition = () => {
         cihaz={etiketSorusu?.cihaz}
         tur={etiketSorusu?.tur || "teslim"}
         soruMetni="Barkod yazdırmak ister misiniz?"
-        varsayilanAciklama={etiketSorusu?.aciklama || ""}
+        varsayilanForm={etiketSorusu?.form || null}
+        otomatik={!!etiketSorusu?.otomatik}
         onKapat={() => setEtiketSorusu(null)}
       />
 
@@ -463,6 +522,7 @@ const BatchStatuTransition = () => {
         stageName={stageLabel(manualModal?.testStage, transition)}
         fields={manualModal?.fields}
         saving={savingManual}
+        etiketBasilacak={!!ETIKET_SORULAN_KODLAR[transition?.code]}
         onClose={() => { setManualModal(null); inputRef.current?.focus(); }}
         onSubmit={handleManualSubmit}
       />

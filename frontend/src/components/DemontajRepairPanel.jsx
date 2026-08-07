@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Plus, Package, Wrench, CheckCircle, AlertTriangle, Pencil, Ban, X, User, ArrowLeftRight } from "lucide-react";
 import { api } from "../services/api";
 import PartSelectCombobox from "./PartSelectCombobox";
-import { mevcutParcaSiniflari, parcaEngeli } from "../constants/parcaCakismaKurallari";
+import { mevcutParcaSiniflari, mevcutParcaKodlari, parcaEngeli } from "../constants/parcaCakismaKurallari";
 import EtiketYazdirModal from "./EtiketYazdirModal";
 
 function getCurrentUser() {
@@ -302,6 +302,12 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
     () => mevcutParcaSiniflari(activeRepairs.map(r => r.itemCategory).filter(Boolean)),
     [repairs]  // eslint-disable-line react-hooks/exhaustive-deps
   );
+  // Cihaza zaten girilmiş parça kodları — "aynı parça iki kez eklenemez" kuralının
+  // ekran karşılığı. İptal edilmiş kayıtlar sayılmaz, o parça yeniden eklenebilir.
+  const ekliKodlar = useMemo(
+    () => mevcutParcaKodlari(activeRepairs.map(r => r.partItemCode).filter(Boolean)),
+    [repairs]  // eslint-disable-line react-hooks/exhaustive-deps
+  );
 
   const [decisionPreview, setDecisionPreview] = useState(null);
 
@@ -506,7 +512,7 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
             )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <PartSelectCombobox parts={parts} value={selectedPartId} onChange={setSelectedPartId} placeholder="Parça seçiniz..." labelMode="category" disabled={!!editingRepairId}
-                engelSebebi={p => parcaEngeli(p, parcaSiniflari)} />
+                engelSebebi={p => parcaEngeli(p, parcaSiniflari, ekliKodlar)} />
               <select
                 value={faultCode}
                 onChange={e => setFaultCode(e.target.value)}

@@ -169,7 +169,11 @@ export default function EtiketYazdirModal({
   ekEtiketler = false,     // Demontaj: kontrol + "x" etiketlerini de bas
   otomatik = false,        // true: soru sorma, açılır açılmaz bas ve kapan
   sablonUstuneYaz = null,  // Etiket Tasarımı ekranındaki deneme basımı için
-  varsayilanAciklama = "", // Açıklama alanının açılıştaki değeri (yalnızca "teslim")
+  // Etiket alanlarının açılıştaki değerleri (yalnızca "teslim"):
+  // { aciklama, lokasyon, referans }. "Test Verisini Elle Doldur" formu üçünü de
+  // kendi içinde topladığı için oradan geldiğinde bu pencere hiç soru sormaz
+  // (otomatik=true ile doğrudan basar) - kullanıcı iki ayrı form doldurmasın.
+  varsayilanForm = null,
 }) {
   const [form, setForm] = useState({ aciklama: "", lokasyon: "", referans: "" });
   const [yazdiriliyor, setYazdiriliyor] = useState(false);
@@ -188,18 +192,22 @@ export default function EtiketYazdirModal({
   // olduğu için yazı tipi gelmeden çizilen barkodlar SVG'ye düşmüş olurdu.
   const [fontDurumu, setFontDurumu] = useState(0);
 
-  // Açılışta Açıklama, çağıran ekranın verdiği değerle dolar. "Üretime teslim
-  // edilecek"te cihaz Phonecheck'te bulunamayınca test verisi elle doldurulur ve
-  // orada ZORUNLU bir açıklama yazılır ("KAPANIP AÇILIYOR TEST EDİLEMEDİ" gibi);
-  // etikete basılması istenen de odur, kullanıcı aynı metni iki kez yazmasın.
+  // Açılışta form, çağıran ekranın verdiği değerlerle dolar. "Üretime teslim
+  // edilecek"te cihaz Phonecheck'te bulunamayınca test verisi elle doldurulur;
+  // orada yazılan ZORUNLU açıklama ("KAPANIP AÇILIYOR TEST EDİLEMEDİ" gibi) ve
+  // aynı formdaki Lokasyon/Referans doğrudan buraya taşınır.
   useEffect(() => {
     if (!acik) { setForm({ aciklama: "", lokasyon: "", referans: "" }); setEngel(""); }
     else {
-      setForm(f => ({ ...f, aciklama: varsayilanAciklama || "" }));
+      setForm({
+        aciklama: varsayilanForm?.aciklama || "",
+        lokasyon: varsayilanForm?.lokasyon || "",
+        referans: varsayilanForm?.referans || "",
+      });
       setKenarPayi(secilenKenarPayi());
       barkodFontunuYukle().then(() => setFontDurumu(n => n + 1));
     }
-  }, [acik, varsayilanAciklama]);
+  }, [acik, varsayilanForm]);
 
   useEffect(() => {
     if (!yazdiriliyor) return;

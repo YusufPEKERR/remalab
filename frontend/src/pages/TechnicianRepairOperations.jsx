@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { api } from "../services/api";
 import PartSelectCombobox from "../components/PartSelectCombobox";
-import { mevcutParcaSiniflari, parcaEngeli } from "../constants/parcaCakismaKurallari";
+import { mevcutParcaSiniflari, mevcutParcaKodlari, parcaEngeli } from "../constants/parcaCakismaKurallari";
 
 // Flow'a göre otomatik eklenen DGD işçilik kaydı DISMANTLE görev grubuyla oluşur
 // (bkz. WebBridge.open_device_for_dismantle) ve ekranlarda "Demontaj" görünürdü;
@@ -139,7 +139,7 @@ const StatusBadge = ({ code }) => {
 // eklenen parça YENİ bir onarım açmaz, verilen görev grubuna ikinci/üçüncü bir parça
 // satırı olarak yazılır. Grup bu modda değiştirilemez - değiştirilebilseydi kayıt
 // başka bir onarıma giderdi ve "seçili onarıma ekleme" anlamını yitirirdi.
-const AddRepairModal = ({ onClose, onAdd, missionGroups, device, mevcutKategoriler = [], lockedMissionGroupCode = "", lockedMissionGroupName = "" }) => {
+const AddRepairModal = ({ onClose, onAdd, missionGroups, device, mevcutKategoriler = [], mevcutKodlar = [], lockedMissionGroupCode = "", lockedMissionGroupName = "" }) => {
   const [parts, setParts] = useState([]);
   const [partsWarning, setPartsWarning] = useState(null);
   const [itemFaults, setItemFaults] = useState([]);
@@ -184,9 +184,10 @@ const AddRepairModal = ({ onClose, onAdd, missionGroups, device, mevcutKategoril
   const selectedPart = parts.find(p => String(p.id) === String(selectedPartId));
   const selectedItemCategory = selectedPart?.item_category || "";
 
-  // Çakışan parçalar listede kilitlenir (bkz. parcaCakismaKurallari.js). Backend
-  // aynı kuralı ayrıca uygular.
+  // Cihazda zaten duran ve çakışan parçalar listede kilitlenir
+  // (bkz. parcaCakismaKurallari.js). Backend aynı kuralları ayrıca uygular.
   const parcaSiniflari = useMemo(() => mevcutParcaSiniflari(mevcutKategoriler), [mevcutKategoriler]);
+  const ekliKodlar = useMemo(() => mevcutParcaKodlari(mevcutKodlar), [mevcutKodlar]);
 
   useEffect(() => {
     if (!selectedItemCategory) { setItemFaults([]); setFaultCode(""); return; }
@@ -249,7 +250,7 @@ const AddRepairModal = ({ onClose, onAdd, missionGroups, device, mevcutKategoril
           )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <PartSelectCombobox parts={parts} value={selectedPartId} onChange={setSelectedPartId} placeholder="Parça seçiniz..." labelMode="category" disabled={false}
-              engelSebebi={p => parcaEngeli(p, parcaSiniflari)} />
+              engelSebebi={p => parcaEngeli(p, parcaSiniflari, ekliKodlar)} />
             <select
               value={faultCode}
               onChange={e => setFaultCode(e.target.value)}
@@ -844,6 +845,10 @@ const TechnicianRepairOperations = () => {
   // gerçekten yeniden çalışılacaksa teknisyen buradan bilinçli olarak açar.
   // assignTechnicianToRepair KULLANILMAZ: onun kapsamı 1002/1003 kayıtları dışlar,
   // tamamlanmış onarımda hiçbir satırı güncellemez.
+  // "ONARIMA DEVAM ET" — ara/son testten dönen, tamamlanmış (1002) bir onarımı
+  // yeniden açar. Hedef 1001 "Teknisyen Atandı": kayıt teknisyenini korur ve
+  // doğrudan onun açık işi olarak geri gelir. Backend grubun TÜM kapalı parça
+  // satırlarını birlikte açar, tek parça yarım açık kalmaz.
   const handleContinueRepair = useCallback(async (repairId) => {
     const res = await api.updateRepairStatus(repairId, 1001, getCurrentUser()?.username);
     if (!res || !res.success) {
@@ -1067,6 +1072,12 @@ const TechnicianRepairOperations = () => {
     () => repairs.filter(r => !r.isCancelled).map(r => r.itemCategory).filter(Boolean),
     [repairs]
   );
+  // Cihaza zaten girilmiş parça kodları — "aynı parça iki kez eklenemez" kuralının
+  // ekran karşılığı. İptal edilmiş kayıtlar sayılmaz, o parça yeniden eklenebilir.
+  const mevcutKodlar = useMemo(
+    () => repairs.filter(r => !r.isCancelled).map(r => r.partItemCode).filter(Boolean),
+    [repairs]
+  );
 
   // Seçili gruptaki her parça kodu için Good Stock'ta kaç adet olduğunu çeker - Onarım
   // Parçaları'ndaki 'Depo Parça' sütunu ve 'Depodan parça talep edilebilir' otomatik
@@ -1144,7 +1155,7 @@ const TechnicianRepairOperations = () => {
       <NotificationToast notification={notification} onClose={() => setNotification(null)} />
 
       {/* Add Repair Modal */}
-      {showAddModal && <AddRepairModal onClose={() => setShowAddModal(false)} onAdd={handleAddRepair} missionGroups={missionGroups} device={device} mevcutKategoriler={mevcutKategoriler} />}
+      {showAddModal && <AddRepairModal onClose={() => setShowAddModal(false)} onAdd={handleAddRepair} missionGroups={missionGroups} device={device} mevcutKategoriler={mevcutKategoriler} mevcutKodlar={mevcutKodlar} />}
       {showAddPartModal && selectedGroup && (
         <AddRepairModal
           onClose={() => setShowAddPartModal(false)}
@@ -1152,6 +1163,7 @@ const TechnicianRepairOperations = () => {
           missionGroups={missionGroups}
           device={device}
           mevcutKategoriler={mevcutKategoriler}
+          mevcutKodlar={mevcutKodlar}
           lockedMissionGroupCode={selectedGroup.active.missionGroupCode || selectedGroup.key}
           lockedMissionGroupName={takimAdi(selectedGroup.active.missionGroupCode, selectedGroup.active.missionGroup)}
         />
@@ -1382,12 +1394,18 @@ const TechnicianRepairOperations = () => {
               </button>
               {/* Yeni onarım AÇMADAN, seçili onarıma ikinci bir parça satırı ekler.
                   Görev grubu seçili onarımdan gelir ve modalda değiştirilemez. */}
+              {/* TAMAMLANMIŞ onarıma parça eklenemez: eklenen parça onarımı sessizce
+                  yeniden açar. Devam edilecekse önce "Onarıma Devam Et". Backend
+                  (add_repair_record) aynı kuralı ayrıca uygular. */}
               <button
                 onClick={() => setShowAddPartModal(true)}
-                disabled={!hasAccess || !device || !selectedGroup || selectedGroup.active.isCancelled}
-                title={selectedGroup
-                  ? `'${takimAdi(selectedGroup.active.missionGroupCode, selectedGroup.active.missionGroup)}' onarımına yeni bir parça ekler (yeni onarım açmaz)`
-                  : "Önce alttaki listeden bir onarım seçin"}
+                disabled={!hasAccess || !device || !selectedGroup || selectedGroup.active.isCancelled
+                          || selectedGroup.active.statusCode === 1002}
+                title={!selectedGroup
+                  ? "Önce alttaki listeden bir onarım seçin"
+                  : selectedGroup.active.statusCode === 1002
+                    ? "Bu onarım tamamlanmış — parça eklenemez. Önce 'Onarıma Devam Et' ile yeniden açın."
+                    : `'${takimAdi(selectedGroup.active.missionGroupCode, selectedGroup.active.missionGroup)}' onarımına yeni bir parça ekler (yeni onarım açmaz)`}
                 className="px-3.5 py-2 rounded-xl bg-white dark:bg-[#181a24] border border-blue-200 dark:border-blue-500/30 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-bold transition-colors shadow-sm flex items-center gap-1.5 cursor-pointer"
               >
                 <Package size={14} /> Parça Ekle

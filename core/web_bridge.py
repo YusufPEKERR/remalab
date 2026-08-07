@@ -12530,6 +12530,43 @@ class WebBridge(QObject):
         return ((sinif_a, sinif_b) in cls.PARCA_CAKISMA_CIFTLERI
                 or (sinif_b, sinif_a) in cls.PARCA_CAKISMA_CIFTLERI)
 
+    def _parca_cakisma_engeli(self, db, service_ref, part_code, part_cat=None, haric_id=None):
+        """Cihaza girilmek istenen parça, orada duran bir parçayla çakışıyor mu?
+        Çakışıyorsa kullanıcıya gösterilecek mesajı, çakışmıyorsa None döner.
+
+        Kural cihaz genelindedir (onarım grubundan bağımsız) ve iptal edilmiş (1003)
+        kayıtlar sayılmaz. haric_id: DÜZENLEME sırasında satırın KENDİSİ hariç
+        tutulur - yoksa "aynı sınıftan bir tane" kuralı (ör. batarya flexi) satırın
+        kendi kendisiyle çakıştığını söyler ve hiçbir düzenlemeye izin vermez.
+
+        Hem add_repair_record hem update_repair_record bunu çağırır; kural iki yerde
+        ayrı yazılırsa Düzenle yolundan kuralsız parça girilebilir hâle gelir."""
+        from sqlalchemy import text
+        if not part_code:
+            return None
+        if part_cat is None:
+            part_cat = db.execute(
+                text("SELECT item_category FROM warehouse.parts WHERE item_code = :c"),
+                {"c": part_code},
+            ).scalar()
+        yeni_sinif = self._parca_kisit_sinifi(part_cat)
+        if not yeni_sinif:
+            return None
+        mevcutlar = db.execute(text("""
+            SELECT COALESCE(NULLIF(TRIM(p.item_category), ''), rr.item_category) AS kategori
+              FROM warehouse.repair_records rr
+              LEFT JOIN warehouse.parts p ON p.item_code = rr.part_item_code
+             WHERE rr.service_record_id = :ref
+               AND COALESCE(rr.repair_result_type_code, 0) <> 1003
+               AND (CAST(:haric AS text) IS NULL OR CAST(rr.id AS text) <> CAST(:haric AS text))
+        """), {"ref": service_ref, "haric": str(haric_id) if haric_id else None}).fetchall()
+        for (mevcut_kat,) in mevcutlar:
+            if self._parcalar_cakisiyor_mu(yeni_sinif, self._parca_kisit_sinifi(mevcut_kat)):
+                return (f"'{(part_cat or part_code).strip()}' eklenemez: bu cihazda zaten "
+                        f"'{(mevcut_kat or '').strip()}' onarımı var. Bu iki parça aynı "
+                        f"cihaza birlikte girilemez.")
+        return None
+
     @Slot(str, str, str, str, str, str, str, str, result=str)
     def add_repair_record(self, device_ref, mission_group_code, warranty_code, notes, username, part_item_code="", item_fault_code="", operation_type_code=""):
 =======
@@ -12583,6 +12620,33 @@ class WebBridge(QObject):
                                    f"mevcut satırı düzenleyin veya iptal edip yeniden ekleyin."
                     }, ensure_ascii=False)
 
+            # TAMAMLANMIŞ ONARIMA PARÇA EKLENEMEZ. Görev grubunun bu cihazdaki tüm
+            # kayıtları kapanmışsa (en az biri 1002 ve hiçbiri açık değilse) o onarım
+            # bitmiştir; üzerine parça eklemek onu sessizce yeniden açar - iş bitmiş
+            # sayılıp ara teste gitmiş bir cihaza fark edilmeden yeni parça girer.
+            # Gerçekten devam edilecekse önce "Onarıma Devam Et" ile açılmalı.
+            # Yalnızca İPTAL (1003) kayıt varsa engel YOK: iptal edilen bir onarım
+            # yeniden kurulabilir. Bitiş testindeki (1006) kayıt da açık sayılır.
+            grup_kodu = mission_group_code.strip()
+            grup_durum = db.execute(text("""
+                SELECT COUNT(*) FILTER (WHERE repair_result_type_code = 1002) AS tamamlanan,
+                       COUNT(*) FILTER (WHERE COALESCE(repair_result_type_code, 0)
+                                              NOT IN (1002, 1003))              AS acik
+                  FROM warehouse.repair_records
+                 WHERE service_record_id = :ref
+                   AND UPPER(TRIM(COALESCE(department_mission, ''))) = UPPER(:grup)
+            """), {"ref": service_ref, "grup": grup_kodu}).mappings().first()
+            if grup_durum and grup_durum["tamamlanan"] and not grup_durum["acik"]:
+                grup_adi = db.execute(text("""
+                    SELECT short_name FROM organization.mission_groups WHERE code = :c LIMIT 1
+                """), {"c": grup_kodu}).scalar() or grup_kodu
+                return json.dumps({
+                    "success": False,
+                    "message": f"'{grup_adi}' onarımı tamamlanmış durumda; tamamlanmış bir "
+                               f"onarıma parça eklenemez. Devam edilecekse önce "
+                               f"'Onarıma Devam Et' ile onarımı yeniden açın.",
+                }, ensure_ascii=False)
+
             # BAZI PARÇALAR BİRBİRİNİ DIŞLAR (bkz. PARCA_CAKISMA_CIFTLERI). LCD komple
             # ekran modülüdür; ön cam, ön çerçeve, arka aydınlatma ve dokunmatik cam zaten
             # onun içinde gelir. Batarya flexinden de cihaza yalnızca bir tane girilir.
@@ -12596,24 +12660,9 @@ class WebBridge(QObject):
                     text("SELECT item_category FROM warehouse.parts WHERE item_code = :c"),
                     {"c": part_code},
                 ).scalar()
-                yeni_sinif = self._parca_kisit_sinifi(part_cat)
-                if yeni_sinif:
-                    mevcutlar = db.execute(text("""
-                        SELECT COALESCE(NULLIF(TRIM(p.item_category), ''), rr.item_category) AS kategori
-                          FROM warehouse.repair_records rr
-                          LEFT JOIN warehouse.parts p ON p.item_code = rr.part_item_code
-                         WHERE rr.service_record_id = :ref
-                           AND COALESCE(rr.repair_result_type_code, 0) <> 1003
-                    """), {"ref": service_ref}).fetchall()
-                    for (mevcut_kat,) in mevcutlar:
-                        var_sinif = self._parca_kisit_sinifi(mevcut_kat)
-                        if self._parcalar_cakisiyor_mu(yeni_sinif, var_sinif):
-                            return json.dumps({
-                                "success": False,
-                                "message": f"'{(part_cat or part_code).strip()}' eklenemez: bu cihazda zaten "
-                                           f"'{(mevcut_kat or '').strip()}' onarımı var. Bu iki parça aynı "
-                                           f"cihaza birlikte girilemez.",
-                            }, ensure_ascii=False)
+                cakisma = self._parca_cakisma_engeli(db, service_ref, part_code, part_cat)
+                if cakisma:
+                    return json.dumps({"success": False, "message": cakisma}, ensure_ascii=False)
 
             # L1REPAIR ve L2REPAIR aynı cihazda birlikte olamaz: biri varsa diğeri eklenemez.
             # Yalnızca aktif (iptal edilmemiş, 1003 değil) kayıtlar sayılır - iptal edilmiş bir
@@ -13932,10 +13981,20 @@ class WebBridge(QObject):
                 if required and required not in user_missions:
                     return json.dumps({"success": False, "message": f"Bu işlem için '{required}' yetkisi gerekiyor."})
 
+            # PARÇA ÇAKIŞMA KURALLARI BURADA DA GEÇERLİ. Bu yol eskiden kuralsızdı:
+            # ekleme sırasında engellenen bir parça, satırı Düzenle ile değiştirerek
+            # cihaza girilebiliyordu. Satırın kendisi hariç tutulur, yoksa "aynı
+            # sınıftan bir tane" kuralı satırı kendisiyle çakıştırırdı.
+            yeni_parca = part_item_code.strip() if part_item_code else None
+            cakisma = self._parca_cakisma_engeli(db, rec.service_record_id, yeni_parca,
+                                                 haric_id=rec.id)
+            if cakisma:
+                return json.dumps({"success": False, "message": cakisma}, ensure_ascii=False)
+
             rec.department_mission = mission_group_code.strip()
             rec.warranty_code = warranty_code.strip() if warranty_code else "OOW"
             rec.notes = notes.strip() if notes else None
-            rec.part_item_code = part_item_code.strip() if part_item_code else None
+            rec.part_item_code = yeni_parca
             rec.item_fault_code = item_fault_code.strip() if item_fault_code else None
             rec.operation_type_code = operation_type_code.strip() if operation_type_code else None
             db.commit()
@@ -14238,6 +14297,11 @@ class WebBridge(QObject):
     # (bkz. warehouse.repair_result_type). Tamamlama işlemi bu statüdeki kayıtları
     # "zaten test aşamasında" kabul edip tekrar işlemez.
     COMPLETION_TEST_PENDING_CODE = 1006
+
+    # Kapalı bir onarımı yeniden AÇAN hedef statüler (1000 Teknisyene Atanacak,
+    # 1001 Teknisyen Atandı). update_repair_status bunlarda grubun KAPALI satırlarını
+    # işler; kapatmada tam tersi geçerlidir.
+    REOPEN_CODES = (1000, 1001)
 
     # TEST BAŞARISIZ OLUP CİHAZ ÜRETİME (109) GERİ DÖNDÜĞÜNDE otomatik olarak
     # teknisyene geri açılan (1002 → 1001) görev grupları. Yalnızca L1/L2: diğer
@@ -14723,10 +14787,18 @@ class WebBridge(QObject):
             # Bekliyor" (1004) durumunda takılı kalıyor, cihaz da Ara Test'e geçemiyordu.
             # Artık grup bir bütün olarak işlenir - ekrandaki davranışla aynı
             # (completeBlockReason zaten grubun TÜM parçalarına bakıyor).
+            #
+            # YENİDEN AÇMADA KAPSAM TERSİNE DÖNER. Kapatırken (1002/1003) grubun AÇIK
+            # satırları işlenir; "Onarıma Devam Et" gibi yeniden açmalarda (1000/1001)
+            # ise işlenmesi gereken tam da KAPALI satırlardır. İkisi aynı süzgeçle
+            # yapılırsa yeniden açma yalnız tıklanan satırı açar, grubun kalanı
+            # "Onarım Tamamlandı"da kalırdı. İptal edilenler (1003) hiçbir zaman
+            # kendiliğinden geri açılmaz.
+            haric = [1003] if target_code in self.REOPEN_CODES else [1002, 1003]
             grup_kayitlari = db.query(RepairRecord).filter(
                 RepairRecord.service_record_id == rec.service_record_id,
                 RepairRecord.department_mission == rec.department_mission,
-                ~RepairRecord.repair_result_type_code.in_([1002, 1003]),
+                ~RepairRecord.repair_result_type_code.in_(haric),
             ).all()
             if rec not in grup_kayitlari:      # zaten kapalı kayda tekrar basıldıysa
                 grup_kayitlari = [rec]
