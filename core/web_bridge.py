@@ -9,6 +9,7 @@ import json
 from PySide6.QtCore import QObject, Slot, Signal
 import logging
 import datetime as _dt
+import re as _re
 
 # Türkiye kalıcı olarak UTC+3'tür (2016'dan beri yaz saati uygulaması yok), bu yüzden
 # sabit offset güvenli ve tzdata bağımlılığı gerektirmez. Bazı zaman sütunları naive
@@ -12399,6 +12400,136 @@ class WebBridge(QObject):
         finally:
             db.close()
 
+    # PARÇA ÇAKIŞMA KURALLARI - hangi ikilinin aynı cihazda BİRLİKTE olamayacağı.
+    #
+    # Parça kategorisi (warehouse.parts.item_category) serbest metin olduğu için önce bir
+    # SINIFA indirgenir, kural bu sınıflar arasında tanımlanır. Hiçbir sınıfa girmeyen
+    # kategoriler None döner ve hiçbir kurala takılmaz.
+    #   LCD              -> "LCD", "LCD with Frame", "LCD ORIGINAL", "LCD without panel"
+    #   FRONT_GLASS      -> "Front Glass", "Front Glass + OCA"
+    #   FRONT_GLASS_POL  -> "Front Glass with POL"   (kendi sınıfı: Touch Glass ile de çakışır)
+    #   FRONT_BEZEL      -> "Front Bezel"
+    #   BACKLIGHT        -> "Backlight"
+    #   TOUCH_GLASS      -> "Touch Glass", "iPAD Touch Glass"
+    #   BATTERY_FLEX     -> "Battery Flex", "Cracked Battery Flex", "Diag-Battery Flex",
+    #                       "Ti-Battery Flex"
+    #   MAIN_CAMERA      -> "Main Camera" (komple arka kamera modülü)
+    #   MAIN_CAMERA_LENS -> büyütme oranı yazan tekil objektifler: "5x Main Camera",
+    #                       "Main Camera_R_5x", "Main Camera_R_1x", "Main Camera_R_0,5x"
+    #   BACK_COVER       -> "Back Cover"
+    #   BACK_GLASS       -> "Back Glass"
+    #   MIDDLE_FRAME     -> "Middle Frame"
+    #   FRONT_CAMERA     -> "Front Camera"      (üçü de tam ad eşleşmesiyle ayrılır;
+    #   FRONT_CAMERA_Y   -> "Front Camera_Y"     "Front Camera Repair/Tag-On Flex"
+    #   FRONT_CAMERA_R   -> "Front Camera_R"     bunlara girmez)
+    #   KOMBO_FLEX       -> On-Off / Volume Key / Receiver / Flash / NFC flexleri ve
+    #                       bunların "+" ile birleştirilmiş paketleri. Hepsi aynı fiziksel
+    #                       takımın farklı satış kombinasyonu olduğu için cihaza yalnızca
+    #                       BİR tanesi girilir (ör. "Volume Key FPC + On-Off FPC" alındıysa
+    #                       ayrıca "On-Off FPC" alınmaz).
+    # "LCD CONNECTOR" bir bağlantı soketidir (L3 lehim işi), ekran modülü değil - dışarıda
+    # bırakılır. "Back Glass" arka kapaktır, "Front Glass" ön ekiyle karışmaz.
+    # "Battery" ve "Battery Connector" batarya flexi DEĞİLDİR, sınıfa girmez.
+    # "Main Camera Glass" objektif camıdır, kamera modülü değil - sınıfa girmez.
+    # "LCD with Frame" ekrandır, "Middle Frame" ile karışmaz (ön ek eşleşmesi).
+    #
+    # ÇAKIŞMA LİSTESİ. Yalnızca burada YAZAN ikililer engellenir; yazmayanlar birlikte
+    # girilebilir (ör. Front Glass + Front Bezel serbesttir). Kural simetriktir: çift
+    # hangi sırayla yazılırsa yazılsın iki yönde de geçerlidir. Bir sınıfın KENDİSİYLE
+    # eşleşmesi "bu sınıftan yalnızca bir tane girilebilir" demektir. Yeni bir kısıt
+    # eklemek için buraya tek satır eklemek yeterli - aynı liste frontend'de
+    # constants/parcaCakismaKurallari.js içinde de var, ikisi birlikte güncellenmeli.
+    PARCA_CAKISMA_CIFTLERI = (
+        ("LCD", "FRONT_GLASS"),
+        ("LCD", "FRONT_GLASS_POL"),
+        ("LCD", "FRONT_BEZEL"),
+        ("LCD", "BACKLIGHT"),
+        ("LCD", "TOUCH_GLASS"),
+        ("TOUCH_GLASS", "FRONT_GLASS_POL"),
+        ("BATTERY_FLEX", "BATTERY_FLEX"),   # cihaza yalnızca bir batarya flexi girilebilir
+        ("MAIN_CAMERA", "MAIN_CAMERA_LENS"),
+        ("BACK_COVER", "MIDDLE_FRAME"),
+        ("BACK_COVER", "BACK_GLASS"),
+        ("FRONT_CAMERA", "FRONT_CAMERA_R"),
+        ("FRONT_CAMERA_Y", "FRONT_CAMERA_R"),
+        ("FRONT_GLASS", "FRONT_GLASS_POL"),
+        ("KOMBO_FLEX", "KOMBO_FLEX"),       # bu gruptan cihaza yalnızca bir tane girilebilir
+    )
+
+    # KOMBO_FLEX kategorileri "+" ile birleşik yazılır ("Volume Key FPC + On-Off FPC").
+    # Kategori, "+" ile parçalanıp her parçası tanınıyorsa VE en az bir ÇEKİRDEK parça
+    # içeriyorsa gruba girer. Böylece yeni model kombinasyonları (ör. "Volume Key FPC +
+    # Flash FPC") listeye elle eklenmeden kendiliğinden kapsanır.
+    # ÇEKİRDEK: kuralın konusu olan parçalar. YARDIMCI: yalnız başına gruba sokmayan,
+    # ama bir çekirdeğin yanında paketlenebilen parçalar - "Wifi Antenna" tek başına
+    # bu kuralla ilgisizdir, "Receiver + Wifi Antenna" ise Receiver yüzünden dahildir.
+    # "NFC IC200VB111", "NFC-F60V2" gibi ÇİP kodları tanınmadığı için gruba GİRMEZ;
+    # onlar L3 lehim kalemidir, flex değil.
+    KOMBO_FLEX_CEKIRDEK = frozenset({
+        "ON-OFF FPC", "VOLUME KEY FPC", "RECEIVER",
+        "FLASH FPC", "FLASH FLEX", "NFC", "NFC FLEX", "NFC ANTENNA",
+    })
+    KOMBO_FLEX_YARDIMCI = frozenset({"WIFI ANTENNA"})
+
+    @classmethod
+    def _kombo_flex_mi(cls, kat):
+        parcalar = [p.strip() for p in kat.split("+")]
+        if not all(p in cls.KOMBO_FLEX_CEKIRDEK or p in cls.KOMBO_FLEX_YARDIMCI for p in parcalar):
+            return False
+        return any(p in cls.KOMBO_FLEX_CEKIRDEK for p in parcalar)
+
+    # Büyütme oranı işareti: "5x", "1x", "0,5x", "0.5x". Sayı+X'in kendi başına bir
+    # parça olması gerekir; "MAX", "XR" gibi model adlarına takılmasın diye harflerle
+    # bitişik olanlar sayılmaz.
+    _BUYUTME_ORANI = _re.compile(r"(?<![A-Z0-9])\d+(?:[.,]\d+)?X(?![A-Z0-9])")
+
+    @classmethod
+    def _parca_kisit_sinifi(cls, item_category):
+        kat = " ".join(str(item_category or "").split()).upper()
+        if not kat:
+            return None
+        if kat.startswith("LCD") and "CONNECTOR" not in kat:
+            return "LCD"
+        # iPAD Touch Glass gibi ön eki farklı olanlar da sayılsın diye içerik araması.
+        if "TOUCH GLASS" in kat:
+            return "TOUCH_GLASS"
+        # "Cracked/Diag-/Ti-" ön ekleri de aynı sınıf: hepsi batarya flexi.
+        if "BATTERY FLEX" in kat:
+            return "BATTERY_FLEX"
+        # Objektif önce sorulur: "5x Main Camera" hem MAIN CAMERA içerir hem oran taşır.
+        if "MAIN CAMERA" in kat and cls._BUYUTME_ORANI.search(kat):
+            return "MAIN_CAMERA_LENS"
+        if kat == "MAIN CAMERA":
+            return "MAIN_CAMERA"
+        if kat.startswith("BACK COVER"):
+            return "BACK_COVER"
+        if kat.startswith("BACK GLASS"):
+            return "BACK_GLASS"
+        if kat.startswith("MIDDLE FRAME"):
+            return "MIDDLE_FRAME"
+        # Tam ad eşleşmesi: "Front Camera Repair Flex" / "Front Camera Tag-On Flex"
+        # ayrı parçalardır, bu kurala girmemeli.
+        if kat in ("FRONT CAMERA", "FRONT CAMERA_Y", "FRONT CAMERA_R"):
+            return {"FRONT CAMERA": "FRONT_CAMERA",
+                    "FRONT CAMERA_Y": "FRONT_CAMERA_Y",
+                    "FRONT CAMERA_R": "FRONT_CAMERA_R"}[kat]
+        if cls._kombo_flex_mi(kat):
+            return "KOMBO_FLEX"
+        if kat.startswith("FRONT GLASS"):
+            return "FRONT_GLASS_POL" if "POL" in kat.split() else "FRONT_GLASS"
+        if kat.startswith("FRONT BEZEL"):
+            return "FRONT_BEZEL"
+        if kat.startswith(("BACKLIGHT", "BACK LIGHT")):
+            return "BACKLIGHT"
+        return None
+
+    @classmethod
+    def _parcalar_cakisiyor_mu(cls, sinif_a, sinif_b):
+        if not sinif_a or not sinif_b:
+            return False
+        return ((sinif_a, sinif_b) in cls.PARCA_CAKISMA_CIFTLERI
+                or (sinif_b, sinif_a) in cls.PARCA_CAKISMA_CIFTLERI)
+
     @Slot(str, str, str, str, str, str, str, str, result=str)
     def add_repair_record(self, device_ref, mission_group_code, warranty_code, notes, username, part_item_code="", item_fault_code="", operation_type_code=""):
         """Bir cihaza yeni bir alt onarım kaydı (warehouse.repair_records) ekler.
@@ -12448,6 +12579,38 @@ class WebBridge(QObject):
                                    f"mevcut satırı düzenleyin veya iptal edip yeniden ekleyin."
                     }, ensure_ascii=False)
 
+            # BAZI PARÇALAR BİRBİRİNİ DIŞLAR (bkz. PARCA_CAKISMA_CIFTLERI). LCD komple
+            # ekran modülüdür; ön cam, ön çerçeve, arka aydınlatma ve dokunmatik cam zaten
+            # onun içinde gelir. Batarya flexinden de cihaza yalnızca bir tane girilir.
+            # Çakışan iki parça birlikte girilirse aynı iş iki kez ücretlendirilir ve
+            # depodan gereksiz parça çıkar. Kural cihaz genelindedir (onarım grubundan
+            # bağımsız) ve hem Demontaj "Üretime Aktar" hem "Üretim Kaydını Görüntüle"
+            # ekranını kapsar - ikisi de bu servisi çağırır.
+            part_cat = None
+            if part_code:
+                part_cat = db.execute(
+                    text("SELECT item_category FROM warehouse.parts WHERE item_code = :c"),
+                    {"c": part_code},
+                ).scalar()
+                yeni_sinif = self._parca_kisit_sinifi(part_cat)
+                if yeni_sinif:
+                    mevcutlar = db.execute(text("""
+                        SELECT COALESCE(NULLIF(TRIM(p.item_category), ''), rr.item_category) AS kategori
+                          FROM warehouse.repair_records rr
+                          LEFT JOIN warehouse.parts p ON p.item_code = rr.part_item_code
+                         WHERE rr.service_record_id = :ref
+                           AND COALESCE(rr.repair_result_type_code, 0) <> 1003
+                    """), {"ref": service_ref}).fetchall()
+                    for (mevcut_kat,) in mevcutlar:
+                        var_sinif = self._parca_kisit_sinifi(mevcut_kat)
+                        if self._parcalar_cakisiyor_mu(yeni_sinif, var_sinif):
+                            return json.dumps({
+                                "success": False,
+                                "message": f"'{(part_cat or part_code).strip()}' eklenemez: bu cihazda zaten "
+                                           f"'{(mevcut_kat or '').strip()}' onarımı var. Bu iki parça aynı "
+                                           f"cihaza birlikte girilemez.",
+                            }, ensure_ascii=False)
+
             # L1REPAIR ve L2REPAIR aynı cihazda birlikte olamaz: biri varsa diğeri eklenemez.
             # Yalnızca aktif (iptal edilmemiş, 1003 değil) kayıtlar sayılır - iptal edilmiş bir
             # L1/L2 onarımı bu kısıtlamayı artık tetiklemez.
@@ -12487,10 +12650,8 @@ class WebBridge(QObject):
             # (open_device_for_dismantle'daki otomatik atama aynı kuralı zaten uyguluyor; burası
             # bir teknisyen DGD kodunu elle onarım olarak eklerse aynı sonucu garanti eder.)
             dgd_supply_status = None
-            if part_code:
-                part_cat = db.execute(text("SELECT item_category FROM warehouse.parts WHERE item_code = :c"), {"c": part_code}).scalar()
-                if (part_cat or "").strip().upper() == "DGD":
-                    dgd_supply_status = "Talepsiz"
+            if part_code and (part_cat or "").strip().upper() == "DGD":
+                dgd_supply_status = "Talepsiz"
 
             rec = RepairRecord(
                 id=uuid.uuid4(),
@@ -16297,6 +16458,12 @@ class WebBridge(QObject):
             self.baski_etiket_sayisi = max(0, int(label_count))
         except (TypeError, ValueError):
             self.baski_etiket_sayisi = 0
+        # YENİ İŞ BAŞLIYOR - önceki işin sonucu silinir. Ekran basımdan sonra
+        # get_last_print_result'ı sürekli sorup "tamamlandı" görünce etiket
+        # penceresini kapatıyor; bayat bir "tamamlandı" kalırsa pencere daha iş
+        # yazıcıya gitmeden kapanır ve #etiket-baski DOM'dan silindiği için
+        # yazıcıya BOŞ sayfa gider. Bu çağrı her basımdan hemen önce yapılır.
+        self.son_yazdirma_sonucu = None
         return json.dumps({"success": True, "enabled": self.baski_onizleme_istendi},
                           ensure_ascii=False)
 

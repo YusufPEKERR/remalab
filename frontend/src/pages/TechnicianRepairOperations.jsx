@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { api } from "../services/api";
 import PartSelectCombobox from "../components/PartSelectCombobox";
+import { mevcutParcaSiniflari, parcaEngeli } from "../constants/parcaCakismaKurallari";
 
 // Flow'a göre otomatik eklenen DGD işçilik kaydı DISMANTLE görev grubuyla oluşur
 // (bkz. WebBridge.open_device_for_dismantle) ve ekranlarda "Demontaj" görünürdü;
@@ -138,7 +139,7 @@ const StatusBadge = ({ code }) => {
 // eklenen parça YENİ bir onarım açmaz, verilen görev grubuna ikinci/üçüncü bir parça
 // satırı olarak yazılır. Grup bu modda değiştirilemez - değiştirilebilseydi kayıt
 // başka bir onarıma giderdi ve "seçili onarıma ekleme" anlamını yitirirdi.
-const AddRepairModal = ({ onClose, onAdd, missionGroups, device, lockedMissionGroupCode = "", lockedMissionGroupName = "" }) => {
+const AddRepairModal = ({ onClose, onAdd, missionGroups, device, mevcutKategoriler = [], lockedMissionGroupCode = "", lockedMissionGroupName = "" }) => {
   const [parts, setParts] = useState([]);
   const [partsWarning, setPartsWarning] = useState(null);
   const [itemFaults, setItemFaults] = useState([]);
@@ -182,6 +183,10 @@ const AddRepairModal = ({ onClose, onAdd, missionGroups, device, lockedMissionGr
 
   const selectedPart = parts.find(p => String(p.id) === String(selectedPartId));
   const selectedItemCategory = selectedPart?.item_category || "";
+
+  // Çakışan parçalar listede kilitlenir (bkz. parcaCakismaKurallari.js). Backend
+  // aynı kuralı ayrıca uygular.
+  const parcaSiniflari = useMemo(() => mevcutParcaSiniflari(mevcutKategoriler), [mevcutKategoriler]);
 
   useEffect(() => {
     if (!selectedItemCategory) { setItemFaults([]); setFaultCode(""); return; }
@@ -243,7 +248,8 @@ const AddRepairModal = ({ onClose, onAdd, missionGroups, device, lockedMissionGr
             </div>
           )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <PartSelectCombobox parts={parts} value={selectedPartId} onChange={setSelectedPartId} placeholder="Parça seçiniz..." labelMode="category" disabled={false} />
+            <PartSelectCombobox parts={parts} value={selectedPartId} onChange={setSelectedPartId} placeholder="Parça seçiniz..." labelMode="category" disabled={false}
+              engelSebebi={p => parcaEngeli(p, parcaSiniflari)} />
             <select
               value={faultCode}
               onChange={e => setFaultCode(e.target.value)}
@@ -1054,6 +1060,14 @@ const TechnicianRepairOperations = () => {
     return null;
   }, [selectedRepair, selectedGroup]);
 
+  // Cihazda halihazırda duran (iptal edilmemiş) parça kategorileri. "Onarım Ekle" /
+  // "Parça Ekle" pencereleri LCD ↔ Front Glass / Front Bezel / Backlight kilidini
+  // buna bakarak kurar; kural cihaz genelindedir, seçili grupla sınırlı değil.
+  const mevcutKategoriler = useMemo(
+    () => repairs.filter(r => !r.isCancelled).map(r => r.itemCategory).filter(Boolean),
+    [repairs]
+  );
+
   // Seçili gruptaki her parça kodu için Good Stock'ta kaç adet olduğunu çeker - Onarım
   // Parçaları'ndaki 'Depo Parça' sütunu ve 'Depodan parça talep edilebilir' otomatik
   // durumu bunu kullanır. warehouse.stock ~30 bin satır olduğundan sadece görünen
@@ -1130,13 +1144,14 @@ const TechnicianRepairOperations = () => {
       <NotificationToast notification={notification} onClose={() => setNotification(null)} />
 
       {/* Add Repair Modal */}
-      {showAddModal && <AddRepairModal onClose={() => setShowAddModal(false)} onAdd={handleAddRepair} missionGroups={missionGroups} device={device} />}
+      {showAddModal && <AddRepairModal onClose={() => setShowAddModal(false)} onAdd={handleAddRepair} missionGroups={missionGroups} device={device} mevcutKategoriler={mevcutKategoriler} />}
       {showAddPartModal && selectedGroup && (
         <AddRepairModal
           onClose={() => setShowAddPartModal(false)}
           onAdd={handleAddRepair}
           missionGroups={missionGroups}
           device={device}
+          mevcutKategoriler={mevcutKategoriler}
           lockedMissionGroupCode={selectedGroup.active.missionGroupCode || selectedGroup.key}
           lockedMissionGroupName={takimAdi(selectedGroup.active.missionGroupCode, selectedGroup.active.missionGroup)}
         />

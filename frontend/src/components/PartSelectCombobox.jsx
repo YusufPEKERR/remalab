@@ -1,7 +1,11 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { Search, ChevronDown, Check, X } from 'lucide-react';
 
-export default function PartSelectCombobox({ parts = [], value, onChange, placeholder = "Parça seçiniz veya arayın...", labelMode = "full", disabled = false }) {
+// engelSebebi: (part) => "" | "engel açıklaması". Boş olmayan bir metin dönen parça
+// listede görünür ama seçilemez, yanında sebebi yazar. Parçayı listeden büsbütün
+// çıkarmak yerine kilitli göstermek bilinçli: kullanıcı parçanın var olduğunu ama
+// neden alınamadığını görsün.
+export default function PartSelectCombobox({ parts = [], value, onChange, placeholder = "Parça seçiniz veya arayın...", labelMode = "full", disabled = false, engelSebebi = null }) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const containerRef = useRef(null);
@@ -111,21 +115,27 @@ export default function PartSelectCombobox({ parts = [], value, onChange, placeh
             ) : (
               filteredParts.map((p) => {
                 const isSelected = String(p.id) === String(value);
+                const engel = (typeof engelSebebi === 'function' ? engelSebebi(p) : '') || '';
                 return (
                   <button
                     key={p.id}
                     type="button"
-                    onClick={() => handleSelect(String(p.id))}
+                    disabled={!!engel}
+                    title={engel || undefined}
+                    onClick={() => !engel && handleSelect(String(p.id))}
                     className={`w-full text-left px-3.5 py-2 text-xs flex flex-wrap items-center justify-between transition-colors fast-transition ${
-                      isSelected
-                        ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 font-semibold'
-                        : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#1e222d]'
+                      engel
+                        ? 'text-slate-400 dark:text-slate-600 cursor-not-allowed bg-slate-50/60 dark:bg-black/20'
+                        : isSelected
+                          ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 font-semibold'
+                          : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#1e222d]'
                     }`}
                   >
                     <div className="truncate pr-2">
-                      <div className="font-medium truncate">{formatPartLabel(p)}</div>
+                      <div className={`font-medium truncate ${engel ? 'line-through' : ''}`}>{formatPartLabel(p)}</div>
+                      {engel && <div className="text-[10px] text-amber-500 truncate mt-0.5">{engel}</div>}
                     </div>
-                    {isSelected && <Check size={14} className="text-blue-500 shrink-0" />}
+                    {isSelected && !engel && <Check size={14} className="text-blue-500 shrink-0" />}
                   </button>
                 );
               })

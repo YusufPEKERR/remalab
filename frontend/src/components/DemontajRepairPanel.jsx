@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Plus, Package, Wrench, CheckCircle, AlertTriangle, Pencil, Ban, X, User, ArrowLeftRight } from "lucide-react";
 import { api } from "../services/api";
 import PartSelectCombobox from "./PartSelectCombobox";
+import { mevcutParcaSiniflari, parcaEngeli } from "../constants/parcaCakismaKurallari";
 import EtiketYazdirModal from "./EtiketYazdirModal";
 
 function getCurrentUser() {
@@ -294,6 +295,14 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
   const hasNonDgdRepairs = activeRepairs.some(r => (r.itemCategory || "").toUpperCase() !== "DGD");
   const allPlanned = hasRepairs && (isNoApprovalFlow || activeRepairs.every(r => r.itemCategory && approvedCategoriesLower.has(r.itemCategory.toLowerCase())));
 
+  // Çakışan parçalar listede kilitlenir (bkz. parcaCakismaKurallari.js). Backend
+  // (add_repair_record) aynı kuralı ayrıca uygular; burası yalnızca kullanıcı seçmeden
+  // önce görsün diye.
+  const parcaSiniflari = useMemo(
+    () => mevcutParcaSiniflari(activeRepairs.map(r => r.itemCategory).filter(Boolean)),
+    [repairs]  // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
   const [decisionPreview, setDecisionPreview] = useState(null);
 
   useEffect(() => {
@@ -496,7 +505,8 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
               </div>
             )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <PartSelectCombobox parts={parts} value={selectedPartId} onChange={setSelectedPartId} placeholder="Parça seçiniz..." labelMode="category" disabled={!!editingRepairId} />
+              <PartSelectCombobox parts={parts} value={selectedPartId} onChange={setSelectedPartId} placeholder="Parça seçiniz..." labelMode="category" disabled={!!editingRepairId}
+                engelSebebi={p => parcaEngeli(p, parcaSiniflari)} />
               <select
                 value={faultCode}
                 onChange={e => setFaultCode(e.target.value)}

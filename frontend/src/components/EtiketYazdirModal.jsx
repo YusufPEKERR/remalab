@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useRef, useState } from "react";
+import { useMemo, useEffect, useRef, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { api } from "../services/api";
 import { VARSAYILAN_SABLONLAR, sablonuDoldur, barkodFontunuYukle }
@@ -173,8 +173,8 @@ export default function EtiketYazdirModal({
 }) {
   const [form, setForm] = useState({ aciklama: "", lokasyon: "", referans: "" });
   const [yazdiriliyor, setYazdiriliyor] = useState(false);
+  const [mesgul, setMesgul] = useState(false);   // "Yazdır" kilidi (iş bitene kadar)
   const [engel, setEngel] = useState("");
-  const [sonuc, setSonuc] = useState("");
   const [sablon, setSablon] = useState(null);
   // Yazıcının gerçek basılabilir alanı (mm). Etiket yazıcıları sıfır kenar boşluğu
   // kabul etmediği için bu, medya ölçüsünden küçüktür; kutuyu buna göre kurmazsak
@@ -193,7 +193,7 @@ export default function EtiketYazdirModal({
   // orada ZORUNLU bir açıklama yazılır ("KAPANIP AÇILIYOR TEST EDİLEMEDİ" gibi);
   // etikete basılması istenen de odur, kullanıcı aynı metni iki kez yazmasın.
   useEffect(() => {
-    if (!acik) { setForm({ aciklama: "", lokasyon: "", referans: "" }); setEngel(""); setSonuc(""); }
+    if (!acik) { setForm({ aciklama: "", lokasyon: "", referans: "" }); setEngel(""); }
     else {
       setForm(f => ({ ...f, aciklama: varsayilanAciklama || "" }));
       setKenarPayi(secilenKenarPayi());
@@ -308,14 +308,6 @@ export default function EtiketYazdirModal({
     sigdir();
     window.print();
 
-    setTimeout(async () => {
-      try {
-        const r = await api.getLastPrintResult();
-        if (r && r.durum === "iptal") setYazdiriliyor(false);
-        else if (r && r.durum === "hata") { setYazdiriliyor(false); setEngel(r.mesaj || "Yazdırma başarısız."); }
-        else if (r && (r.durum === "gonderildi" || r.durum === "tamamlandi")) setSonuc(r.mesaj || "");
-      } catch (_e) { /* sessiz kal */ }
-    }, 2500);
   }, [olcu.widthMm, olcu.heightMm, otomatik]);
 
   // OTOMATİK BASIM (Demontaj → Üretime Aktar). Modal, iş GERÇEKTEN bitene kadar açık
@@ -329,28 +321,59 @@ export default function EtiketYazdirModal({
   const basildi = useRef(false);
   const zamanlayiciRef = useRef(null);
   const iptalRef = useRef(false);
+  // Basım sürerken "Yazdır" kilitli. Ayrı bir bayrak: yazdiriliyor 3 sn sonra
+  // kendiliğinden sönüyor (bildirim içindir), oysa kilit iş bitene kadar sürmeli.
+  const mesgulRef = useRef(false);
   const onKapatRef = useRef(onKapat);
   const yazdirRef = useRef(yazdir);
   useEffect(() => { onKapatRef.current = onKapat; }, [onKapat]);
   useEffect(() => { yazdirRef.current = yazdir; }, [yazdir]);
+  // İş sonuçlanana kadar bekler ve sonucu döner (yoksa null). Üst sınır, sonuç hiç
+  // gelmezse modalin sonsuza kadar açık kalmaması içindir. Bayat sonuç riski yok:
+  // set_print_preview her basımdan hemen önce önceki sonucu siliyor.
+  const sonucuBekle = useCallback(async () => {
+    const bitis = Date.now() + 180000;
+    while (!iptalRef.current && Date.now() < bitis) {
+      await new Promise(r => { zamanlayiciRef.current = setTimeout(r, 700); });
+      if (iptalRef.current) return null;
+      try {
+        const r = await api.getLastPrintResult();
+        if (r && (r.durum === "tamamlandi" || r.durum === "iptal" || r.durum === "hata")) return r;
+      } catch (_e) { /* sonuç okunamazsa beklemeye devam */ }
+    }
+    return null;
+  }, []);
+
+  // "YAZDIR" BUTONU. Basıldığı anda buton kilitlenir, iş bitince pencere KENDİ
+  // kapanır - aynı etiketin iki kez basılması ya da kullanıcının basılmış bir
+  // pencereyle baş başa kalması böylece mümkün değil. Pencere basımdan HEMEN
+  // sonra kapatılamaz: #etiket-baski DOM'dan silinince yazıcıya boş sayfa gider,
+  // bu yüzden iş sonuçlanana kadar (otomatik basımdaki gibi) beklenir.
+  // İptal ya da hata durumunda pencere açık kalır; iş basılmadığı için kullanıcı
+  // tekrar deneyebilsin.
+  const yazdirVeKapat = useCallback(async () => {
+    if (mesgulRef.current) return;
+    mesgulRef.current = true;
+    setMesgul(true);
+    try {
+      await yazdir();
+      const r = await sonucuBekle();
+      if (iptalRef.current) return;
+      if (!r || r.durum === "tamamlandi") {
+        if (onKapatRef.current) onKapatRef.current();
+        return;
+      }
+      if (r.durum === "hata") setEngel(r.mesaj || "Yazdırma başarısız.");
+      setYazdiriliyor(false);
+    } finally {
+      mesgulRef.current = false;
+      setMesgul(false);
+    }
+  }, [yazdir, sonucuBekle]);
+
   useEffect(() => {
     if (!acik || !otomatik || !cihaz || !barkodDegeri || !sablon || basildi.current) return;
     basildi.current = true;
-
-    // İş sonuçlanana kadar bekle. Üst sınır, sonuç hiç gelmezse modalin sonsuza
-    // kadar açık kalmaması içindir.
-    const sonucuBekle = async () => {
-      const bitis = Date.now() + 180000;
-      while (!iptalRef.current && Date.now() < bitis) {
-        await new Promise(r => { zamanlayiciRef.current = setTimeout(r, 700); });
-        if (iptalRef.current) return;
-        try {
-          const r = await api.getLastPrintResult();
-          if (r && (r.durum === "tamamlandi" || r.durum === "iptal" || r.durum === "hata")) return;
-        } catch (_e) { /* sonuç okunamazsa beklemeye devam */ }
-      }
-    };
-
     zamanlayiciRef.current = setTimeout(() => {
       yazdirRef.current()
         .then(sonucuBekle)
@@ -358,8 +381,13 @@ export default function EtiketYazdirModal({
           if (!iptalRef.current && onKapatRef.current) onKapatRef.current();
         });
     }, 350);
-  }, [acik, otomatik, cihaz, barkodDegeri, sablon]);
-  useEffect(() => { if (!acik) { basildi.current = false; iptalRef.current = false; } }, [acik]);
+  }, [acik, otomatik, cihaz, barkodDegeri, sablon, sonucuBekle]);
+  useEffect(() => {
+    if (!acik) {
+      basildi.current = false; iptalRef.current = false;
+      mesgulRef.current = false; setMesgul(false);
+    }
+  }, [acik]);
   useEffect(() => () => {
     iptalRef.current = true;
     if (zamanlayiciRef.current) clearTimeout(zamanlayiciRef.current);
@@ -441,8 +469,9 @@ export default function EtiketYazdirModal({
         ))}
       </div>
       {engel && bildirim("rgba(60,16,16,.96)", "rgba(255,80,80,.45)", <>⚠ {engel}</>)}
-      {sonuc && !engel && bildirim("rgba(16,48,32,.96)", "rgba(0,230,118,.4)", <>✓ {sonuc}</>)}
-      {yazdiriliyor && !sonuc && !engel && bildirim("rgba(17,20,28,.94)", "rgba(255,255,255,.14)",
+      {/* Başarı bildirimi YOK: iş bitince pencere zaten kapanıyor, bildirimi
+          gösterecek kimse kalmıyor. Ayakta kalan tek durum hata/iptal. */}
+      {yazdiriliyor && !engel && bildirim("rgba(17,20,28,.94)", "rgba(255,255,255,.14)",
         etiketVerileri.length > 1
           ? `${etiketVerileri.length} etiket hazır — yazıcı penceresi açılıyor...`
           : "Yazıcı penceresi açılıyor...")}
@@ -529,13 +558,13 @@ export default function EtiketYazdirModal({
               )}
           </p>
           <div className="flex gap-3 shrink-0">
-            <button onClick={onKapat}
-              className="px-5 py-2.5 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700/40 transition-colors">
+            <button onClick={onKapat} disabled={mesgul}
+              className="px-5 py-2.5 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700/40 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
               {soruMetni ? "Hayır" : "Kapat"}
             </button>
-            <button onClick={yazdir} disabled={!barkodDegeri}
+            <button onClick={yazdirVeKapat} disabled={!barkodDegeri || mesgul}
               className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors shadow-lg shadow-blue-900/20 flex items-center gap-2">
-              <Printer size={16} /> {soruMetni ? "Evet, Yazdır" : "Yazdır"}
+              <Printer size={16} /> {mesgul ? "Yazdırılıyor..." : (soruMetni ? "Evet, Yazdır" : "Yazdır")}
             </button>
           </div>
         </div>
