@@ -239,6 +239,14 @@ export default function EtiketYazdirModal({
     [onarimlar]
   );
 
+  // "Üretime teslim" etiketinde form EKSİKSİZ dolmadan basılamaz: barkod bir kez
+  // basılıp cihazla üretime gidiyor, yarım etiket sahada düzeltilemiyor. Açıklama
+  // burada yazılmaz (testten gelir), o yüzden yalnızca elle girilen iki alan aranır.
+  const eksikAlanlar = tur !== "teslim" ? [] : [
+    !form.lokasyon.trim() && "Lokasyon",
+    !form.referans.trim() && "Referans Kodu",
+  ].filter(Boolean);
+
   const olcu = sablon || VARSAYILAN_SABLONLAR[tur] || VARSAYILAN_SABLONLAR.parca;
   const barkodDegeri = ((cihaz && (cihaz.imei || cihaz.serialNo || cihaz.internalId)) || "")
     .trim().toUpperCase();
@@ -524,14 +532,18 @@ export default function EtiketYazdirModal({
               </div>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Lokasyon</label>
+              <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">
+                Lokasyon<span className="text-red-500"> *</span>
+              </label>
               <input type="text" autoFocus value={form.lokasyon}
                 onChange={(e) => setForm(f => ({ ...f, lokasyon: e.target.value }))}
                 placeholder="ör. İST11"
                 className="w-full bg-slate-50 dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">Referans Kodu</label>
+              <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">
+                Referans Kodu<span className="text-red-500"> *</span>
+              </label>
               <input type="text" value={form.referans}
                 onChange={(e) => setForm(f => ({ ...f, referans: e.target.value }))}
                 placeholder="ör. 016-GR03-REF-O"
@@ -555,7 +567,11 @@ export default function EtiketYazdirModal({
         <div className="px-5 py-4 border-t border-slate-200 dark:border-slate-700/50 bg-slate-50 dark:bg-[#181a24] flex justify-between items-center gap-3 shrink-0">
           <p className="text-[11px] leading-snug">
             {engel ? <span className="text-red-500 font-semibold">{engel}</span>
-              : barkodDegeri ? (
+              : eksikAlanlar.length > 0 ? (
+                <span className="text-amber-600 dark:text-amber-400 font-semibold">
+                  Eksik alan: {eksikAlanlar.join(", ")} — form tamamlanmadan yazdırılamaz.
+                </span>
+              ) : barkodDegeri ? (
                 <span className="text-slate-400">
                   <strong>Yazıcı seçim penceresi</strong> açılır · kağıt {olcu.widthMm} × {olcu.heightMm} mm
                 </span>
@@ -570,7 +586,7 @@ export default function EtiketYazdirModal({
               className="px-5 py-2.5 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700/40 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
               {soruMetni ? "Hayır" : "Kapat"}
             </button>
-            <button onClick={yazdirVeKapat} disabled={!barkodDegeri || mesgul}
+            <button onClick={yazdirVeKapat} disabled={!barkodDegeri || mesgul || eksikAlanlar.length > 0}
               className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors shadow-lg shadow-blue-900/20 flex items-center gap-2">
               <Printer size={16} /> {mesgul ? "Yazdırılıyor..." : (soruMetni ? "Evet, Yazdır" : "Yazdır")}
             </button>

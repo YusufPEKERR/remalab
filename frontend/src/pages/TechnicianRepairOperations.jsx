@@ -35,7 +35,10 @@ const REPAIR_STATUS = {
   1001: { label: "Teknisyene Atandı", color: "bg-blue-500", textColor: "text-blue-600 dark:text-blue-400", bgLight: "bg-blue-50 dark:bg-blue-500/10" },
   1002: { label: "Onarım Tamamlandı", color: "bg-emerald-500", textColor: "text-emerald-600 dark:text-emerald-400", bgLight: "bg-emerald-50 dark:bg-emerald-500/10" },
   1003: { label: "Onarım İptal Edildi", color: "bg-red-500", textColor: "text-red-600 dark:text-red-400", bgLight: "bg-red-50 dark:bg-red-500/10" },
-  1004: { label: "Yüksek Seviye Onarımını Bekliyor", color: "bg-violet-500", textColor: "text-violet-600 dark:text-violet-400", bgLight: "bg-violet-50 dark:bg-violet-500/10" },
+  // 1004'ün veritabanındaki adı "Yüksek Seviye Onarımını Bekliyor" ama rozete
+  // sığmıyor ve satırı taşırıyordu. Ekranın kendi çipi ve Onarım Havuzu zaten
+  // "Sırada Bekliyor" diyor; rozet de onlarla aynı metni kullanır.
+  1004: { label: "Sırada Bekliyor", color: "bg-violet-500", textColor: "text-violet-600 dark:text-violet-400", bgLight: "bg-violet-50 dark:bg-violet-500/10" },
   1005: { label: "Onarım Müşteri Onayı Bekliyor", color: "bg-amber-500", textColor: "text-amber-600 dark:text-amber-400", bgLight: "bg-amber-50 dark:bg-amber-500/10" },
   1006: { label: "Onarım Testi Bekleniyor", color: "bg-cyan-500", textColor: "text-cyan-600 dark:text-cyan-400", bgLight: "bg-cyan-50 dark:bg-cyan-500/10" },
   1007: { label: "Onarım Testi Başarısız", color: "bg-orange-500", textColor: "text-orange-600 dark:text-orange-400", bgLight: "bg-orange-50 dark:bg-orange-500/10" },

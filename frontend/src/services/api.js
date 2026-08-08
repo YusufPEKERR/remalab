@@ -2902,6 +2902,18 @@ export const api = {
         });
     },
 
+    // Phonecheck'ten gelen bir test kaydının BOŞ alanlarını elle tamamlar.
+    // savePhonecheckManual'dan farkı: yeni deneme açmaz, var olan satırı günceller.
+    completePhonecheckRecord: async (recordId, values, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.complete_phonecheck_record(
+                String(recordId), JSON.stringify(values || {}), String(username || ''),
+                (res) => resolve(JSON.parse(res))
+            );
+        });
+    },
+
     savePhonecheckManual: async (imei, testStage, manualReason, enteredBy, fields) => {
         const backend = await getBackend();
         return new Promise((resolve) => {

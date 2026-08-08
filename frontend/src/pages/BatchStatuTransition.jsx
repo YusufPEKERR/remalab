@@ -55,6 +55,20 @@ const stageLabel = (testStage, transition) =>
 // Diğer tüm statü geçiş ekranlarında da PhoneCheck sorgusu yapılmaz, kayıt doğrudan taşınır.
 const PHONECHECK_DRIVEN_CODES = ["103_104"];
 
+// Okutma yanıtından etikete gereken cihaz alanları. Üç yerde birden kullanılıyor
+// (manuel form, eksik alan tamamlama, doğrudan geçiş); tek yerde toplanmazsa
+// biri unutulduğunda etiket o yolda yarım basılıyor.
+const cihazBilgisi = (scanData) => ({
+  imei: scanData.imei,
+  internalId: scanData.internal_id || "",
+  serialNo: scanData.serial_number || "",
+  brand: scanData.brand || "",
+  model: scanData.model || "",
+  gb: scanData.gb || "",
+  color: scanData.color || "",
+  productCode: scanData.batch_no || "",
+});
+
 // Geçiş başarılı olduktan sonra etiket sorulan ekranlar.
 // 103_104 = "Üretime teslim edilecek": barkod basılır, kalan alanlar elle doldurulur.
 const ETIKET_SORULAN_KODLAR = { "103_104": "teslim" };
@@ -81,7 +95,13 @@ const HIDDEN_MANUAL_FIELDS = ['model', 'memory', 'serial', 'color', 'notes'];
 const GRADE_OPTIONS = ['A', 'B', 'C', 'C++', 'C+', 'C-', 'C-P', 'D', 'D+'];
 
 // ─── PHONECHECK MANUEL DOLDURMA MODALI ───
-const ManualTestModal = ({ open, imei, stageName, fields, onClose, onSubmit, saving, etiketBasilacak = false }) => {
+// tamamlamaModu: cihaz Phonecheck'te BULUNDU ama bazı alanları boş geldi. O zaman
+// "neden bulunamadı" açıklaması sorulmaz (cihaz bulundu); yalnızca eksik alanlar ve
+// barkod bilgileri istenir. Phonecheck'ten gelen değerler baslangicDegerleri ile
+// dolu gelir ve zaten "fields" listesinde olmadıkları için tekrar sorulmaz.
+const ManualTestModal = ({ open, imei, stageName, fields, onClose, onSubmit, saving,
+                          etiketBasilacak = false, tamamlamaModu = false,
+                          baslangicDegerleri = null }) => {
   const [reason, setReason] = useState("");
   const [values, setValues] = useState({});
   const [modelOptions, setModelOptions] = useState([]);
@@ -91,7 +111,7 @@ const ManualTestModal = ({ open, imei, stageName, fields, onClose, onSubmit, sav
   useEffect(() => {
     if (open) {
       setReason("");
-      setValues({});
+      setValues(baslangicDegerleri || {});
       setLokasyon("");
       setReferans("");
       api.getProductFamilies().then((res) => {
@@ -102,10 +122,21 @@ const ManualTestModal = ({ open, imei, stageName, fields, onClose, onSubmit, sav
 
   if (!open) return null;
 
+  // FORMUN TAMAMI ZORUNLU. Barkod bir kez basılıp cihazla birlikte üretime gidiyor;
+  // yarım doldurulmuş etiket sahada düzeltilemiyor. Bu yüzden hem test verisi hem
+  // barkod alanları eksiksiz olmadan kaydedilemez. Eksik alanlar butonun üstünde
+  // adıyla listelenir - kullanıcı hangi alanın kaldığını aramasın.
+  const gorunenAlanlar = (fields || []).filter((f) => !HIDDEN_MANUAL_FIELDS.includes(f));
+  const eksikler = [];
+  if (!tamamlamaModu && !reason.trim()) eksikler.push("Açıklama");
+  for (const f of gorunenAlanlar) {
+    if (!String(values[f] || "").trim()) eksikler.push(MANUAL_FIELD_LABELS[f] || f);
+  }
+  if (etiketBasilacak) {
+    if (!lokasyon.trim()) eksikler.push("Lokasyon");
+    if (!referans.trim()) eksikler.push("Referans Kodu");
+  }
   const reasonEmpty = !reason.trim();
-  // "Çalışıyor mu" boş bırakılırsa deneme başarısız sayılır ve 10 hak sınırı
-  // doğru işlemez; bu yüzden zorunlu.
-  const workingEmpty = (fields || []).includes("working") && !values.working;
 
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-4">
@@ -114,10 +145,13 @@ const ManualTestModal = ({ open, imei, stageName, fields, onClose, onSubmit, sav
           <ClipboardEdit size={20} className="text-amber-500 mt-0.5 shrink-0" />
           <div className="flex-1 min-w-0">
             <h3 className="font-semibold text-slate-900 dark:text-slate-100">
-              {etiketBasilacak ? "Test Verisi ve Barkod" : "Test Verisini Elle Doldur"}
+              {tamamlamaModu ? "Eksik Test Alanları ve Barkod"
+                : etiketBasilacak ? "Test Verisi ve Barkod" : "Test Verisini Elle Doldur"}
             </h3>
             <p className="text-sm text-slate-400 mt-0.5">
-              {imei} · {stageName} — Phonecheck'te bulunamadı
+              {imei} · {stageName} — {tamamlamaModu
+                ? "Phonecheck'ten gelmeyen alanlar"
+                : "Phonecheck'te bulunamadı"}
             </p>
           </div>
           <button onClick={onClose} className="p-1 rounded-md hover:bg-black/5 dark:hover:bg-white/5">
@@ -126,32 +160,36 @@ const ManualTestModal = ({ open, imei, stageName, fields, onClose, onSubmit, sav
         </div>
 
         <div className="p-5 overflow-y-auto flex flex-col gap-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-              Açıklama <span className="text-red-500">*</span>
-              {etiketBasilacak && (
-                <span className="ml-1 font-normal text-xs text-slate-400">— etikete de basılır</span>
+          {/* Açıklama yalnızca cihaz Phonecheck'te BULUNAMADIĞINDA sorulur; orada
+              "neden bulunamadı" gerekçesidir. Cihaz bulunup sadece bazı alanları
+              eksik geldiyse böyle bir gerekçe yok, alan hiç gösterilmez. */}
+          {!tamamlamaModu && (
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                Açıklama <span className="text-red-500">*</span>
+                {etiketBasilacak && (
+                  <span className="ml-1 font-normal text-xs text-slate-400">— etikete de basılır</span>
+                )}
+              </label>
+              <textarea
+                rows={3}
+                autoFocus
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder="Cihazın neden Phonecheck'te bulunmadığını açıklayın (zorunlu)"
+                className="w-full bg-slate-50 dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 resize-none"
+              />
+              {reasonEmpty && (
+                <p className="text-xs text-red-500 mt-1">Bu alan zorunludur, boş bırakılamaz.</p>
               )}
-            </label>
-            <textarea
-              rows={3}
-              autoFocus
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="Cihazın neden Phonecheck'te bulunmadığını açıklayın (zorunlu)"
-              className="w-full bg-slate-50 dark:bg-[#181a24] border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 resize-none"
-            />
-            {reasonEmpty && (
-              <p className="text-xs text-red-500 mt-1">Bu alan zorunludur, boş bırakılamaz.</p>
-            )}
-          </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {(fields || []).filter((f) => !HIDDEN_MANUAL_FIELDS.includes(f)).map((f) => (
               <div key={f} className={f === "notes" ? "col-span-2" : ""}>
                 <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
-                  {MANUAL_FIELD_LABELS[f] || f}
-                  {f === "working" && <span className="text-red-500"> *</span>}
+                  {MANUAL_FIELD_LABELS[f] || f}<span className="text-red-500"> *</span>
                 </label>
                 {f === "working" ? (
                   <select
@@ -222,7 +260,9 @@ const ManualTestModal = ({ open, imei, stageName, fields, onClose, onSubmit, sav
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Lokasyon</label>
+                  <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
+                    Lokasyon<span className="text-red-500"> *</span>
+                  </label>
                   <input
                     type="text"
                     value={lokasyon}
@@ -232,7 +272,9 @@ const ManualTestModal = ({ open, imei, stageName, fields, onClose, onSubmit, sav
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Referans Kodu</label>
+                  <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
+                    Referans Kodu<span className="text-red-500"> *</span>
+                  </label>
                   <input
                     type="text"
                     value={referans}
@@ -246,7 +288,12 @@ const ManualTestModal = ({ open, imei, stageName, fields, onClose, onSubmit, sav
           )}
         </div>
 
-        <div className="p-5 border-t border-slate-200 dark:border-slate-700/50 flex justify-end gap-3">
+        <div className="p-5 border-t border-slate-200 dark:border-slate-700/50 flex flex-wrap justify-end items-center gap-3">
+          {eksikler.length > 0 && (
+            <p className="text-xs text-amber-600 dark:text-amber-400 mr-auto max-w-[60%]">
+              Eksik alan: <span className="font-semibold">{eksikler.join(", ")}</span>
+            </p>
+          )}
           <button
             onClick={onClose}
             className="px-5 py-2.5 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/40 transition-colors"
@@ -255,7 +302,7 @@ const ManualTestModal = ({ open, imei, stageName, fields, onClose, onSubmit, sav
           </button>
           <button
             onClick={() => onSubmit(reason, values, { lokasyon, referans })}
-            disabled={reasonEmpty || workingEmpty || saving}
+            disabled={eksikler.length > 0 || saving}
             className="bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-xl text-sm font-medium transition-all shadow-lg shadow-blue-900/20 flex items-center gap-2"
           >
             {etiketBasilacak && <Printer size={15} />}
@@ -357,13 +404,16 @@ const BatchStatuTransition = () => {
     if (!manualModal) return;
     setSavingManual(true);
     try {
-      const res = await api.savePhonecheckManual(
-        manualModal.imei,
-        manualModal.testStage,
-        reason,
-        localStorage.getItem("username") || "",
-        values
-      );
+      // İki ayrı yol: cihaz Phonecheck'te BULUNAMADIYSA yeni bir manuel test kaydı
+      // yazılır; BULUNDU ama alanları eksik geldiyse var olan kayıt tamamlanır.
+      // İkincisinde yeni kayıt açılsaydı attempt_no artar, aynı test adımı iki
+      // denemeymiş gibi görünür ve 10 deneme hakkı boşuna tükenirdi.
+      const res = manualModal.tamamlamaModu
+        ? await api.completePhonecheckRecord(
+            manualModal.recordId, values, localStorage.getItem("username") || "")
+        : await api.savePhonecheckManual(
+            manualModal.imei, manualModal.testStage, reason,
+            localStorage.getItem("username") || "", values);
 
       if (!res.success) {
         showNotification("error", res.message);
@@ -371,13 +421,17 @@ const BatchStatuTransition = () => {
         return;
       }
 
-      appendLog("warning", `${stageLabel(manualModal.testStage, transition)} verisi elle dolduruldu: ${reason}`);
+      appendLog("warning", manualModal.tamamlamaModu
+        ? `${stageLabel(manualModal.testStage, transition)} verisinin eksik alanları elle tamamlandı: ${(res.updated || []).join(", ")}`
+        : `${stageLabel(manualModal.testStage, transition)} verisi elle dolduruldu: ${reason}`);
       setManualModal(null);
       // Etiket bu yolda da dolu basılsın: cihaz alanları okutma anından taşınır,
       // Açıklama burada yazılan zorunlu gerekçedir, Lokasyon/Referans da aynı
       // formdan gelir. Form dolu geldiği için etiket penceresi soru sormaz.
       await applyTransition(manualModal.entryId, manualModal.cihaz, {
-        aciklama: reason,
+        // Tamamlama modunda "neden bulunamadı" açıklaması yok; etiketin açıklama
+        // alanı da bu yüzden boş basılır.
+        aciklama: manualModal.tamamlamaModu ? "" : reason,
         lokasyon: etiket.lokasyon || "",
         referans: etiket.referans || "",
       });
@@ -438,16 +492,7 @@ const BatchStatuTransition = () => {
             testStage: pcData.test_stage,
             fields: pcData.manual_fields || [],
             entryId: scanData.entry_id,
-            cihaz: {
-              imei: scanData.imei,
-              internalId: scanData.internal_id || "",
-              serialNo: scanData.serial_number || "",
-              brand: scanData.brand || "",
-              model: scanData.model || "",
-              gb: scanData.gb || "",
-              color: scanData.color || "",
-              productCode: scanData.batch_no || "",
-            },
+            cihaz: cihazBilgisi(scanData),
           });
           showNotification("warning", pcData.message);
           appendLog("warning", pcData.message);
@@ -464,20 +509,32 @@ const BatchStatuTransition = () => {
           const attempt = pcData.attempt_no ? ` (${attemptLabel(pcData)})` : "";
           appendLog("success", `${stageLabel(pcData.test_stage, transition)} verisi Phonecheck'ten alındı${attempt}.`);
         }
+
+        // Cihaz Phonecheck'te BULUNDU ama bazı alanları boş geldi. Aynı formu
+        // aç: Phonecheck'ten gelenler DOLU gelir, yalnızca boş kalanlar elle
+        // doldurulur. Kayıt zaten yazıldı; form yeni deneme açmaz, o satırı
+        // tamamlar (complete_phonecheck_record).
+        if (pcData.needs_completion) {
+          setManualModal({
+            imei: scanData.imei,
+            testStage: pcData.test_stage,
+            fields: pcData.missing_fields || [],
+            baslangicDegerleri: pcData.values || {},
+            recordId: pcData.record_id,
+            tamamlamaModu: true,
+            entryId: scanData.entry_id,
+            cihaz: cihazBilgisi(scanData),
+          });
+          const msg = "Phonecheck verisi eksik geldi; kalan alanları doldurun.";
+          showNotification("warning", msg);
+          appendLog("warning", msg);
+          return;
+        }
       }
 
       // 3. Adım: bu ekranın sabit kaynak→hedef geçişini uygula.
       // Parti şu an bu geçişin kaynak statüsünde değilse backend "uygun statü değil" hatası döner.
-      await applyTransition(scanData.entry_id, {
-        imei: scanData.imei,
-        internalId: scanData.internal_id || "",
-        serialNo: scanData.serial_number || "",
-        brand: scanData.brand || "",
-        model: scanData.model || "",
-        gb: scanData.gb || "",
-        color: scanData.color || "",
-        productCode: scanData.batch_no || "",
-      });
+      await applyTransition(scanData.entry_id, cihazBilgisi(scanData));
     } catch (err) {
       console.error(err);
       showNotification("error", "Sistem Hatası: sorgu sırasında beklenmeyen bir hata oluştu.");
@@ -523,6 +580,8 @@ const BatchStatuTransition = () => {
         fields={manualModal?.fields}
         saving={savingManual}
         etiketBasilacak={!!ETIKET_SORULAN_KODLAR[transition?.code]}
+        tamamlamaModu={!!manualModal?.tamamlamaModu}
+        baslangicDegerleri={manualModal?.baslangicDegerleri || null}
         onClose={() => { setManualModal(null); inputRef.current?.focus(); }}
         onSubmit={handleManualSubmit}
       />

@@ -10218,6 +10218,53 @@ class WebBridge(QObject):
         finally:
             db.close()
 
+    # Phonecheck cihazı bulsa bile boş dönebildiği ve etikette/raporda gerekli olan
+    # alanlar. Ekranda gizlenen alanlar (model/hafıza/seri/renk/not - bkz.
+    # HIDDEN_MANUAL_FIELDS) buraya girmez: onlar zaten sorulmuyor.
+    PHONECHECK_TAMAMLANACAK_ALANLAR = ("working", "grade")
+
+    @Slot(str, str, str, result=str)
+    def complete_phonecheck_record(self, record_id, values_json, username=""):
+        """Phonecheck'ten gelen bir test kaydının BOŞ alanlarını elle tamamlar.
+
+        save_phonecheck_manual'dan farkı: YENİ kayıt açmaz, var olan satırı günceller.
+        Yeni kayıt açsaydı attempt_no artar, cihaz aynı test adımında iki denemeymiş
+        gibi görünür ve 10 deneme sınırı boşuna tükenirdi. Yalnızca gerçekten boş
+        olan alanlar yazılır - Phonecheck'ten gelen veri elle ezilmez."""
+        from models.phonecheck_test_result import PhonecheckTestResult
+        db = SessionLocal()
+        try:
+            rec = db.query(PhonecheckTestResult).filter(
+                PhonecheckTestResult.id == record_id).first()
+            if not rec:
+                return json.dumps({"success": False, "message": "Test kaydı bulunamadı."})
+            try:
+                values = json.loads(values_json or "{}")
+            except (TypeError, ValueError):
+                values = {}
+            yazilan = []
+            for alan in self.PHONECHECK_TAMAMLANACAK_ALANLAR:
+                if str(getattr(rec, alan, "") or "").strip():
+                    continue                      # Phonecheck doldurmuş, dokunma
+                deger = str(values.get(alan, "") or "").strip()
+                if deger:
+                    setattr(rec, alan, deger)
+                    yazilan.append(alan)
+            if yazilan:
+                # Elle tamamlanmış bir kayıt olduğu iz bırakmalı: raporda bu satırın
+                # tamamen Phonecheck verisi olmadığı görülsün.
+                mevcut_not = (rec.manual_reason or "").strip()
+                ek = f"Elle tamamlanan alanlar: {', '.join(yazilan)}"
+                rec.manual_reason = f"{mevcut_not} | {ek}" if mevcut_not else ek
+                rec.manual_entered_by = username or rec.manual_entered_by
+                db.commit()
+            return json.dumps({"success": True, "updated": yazilan}, ensure_ascii=False)
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
     @Slot(str, int, int, str, result=str)
     def fetch_phonecheck_test(self, term, current_statu_code, target_statu_code, note=""):
         """Belirtilen statü geçişi için Phonecheck'ten test verisini çeker ve kaydeder.
@@ -10254,6 +10301,17 @@ class WebBridge(QObject):
             if note:
                 record.notes = note
                 db.commit()
+            # PHONECHECK'TEN GELMEYEN ALANLAR ELLE TAMAMLANIR. Cihaz bulunsa bile
+            # Phonecheck bazı alanları boş döndürebiliyor (ör. Grade girilmemiş).
+            # Bu alanlar boş kalırsa etiket eksik basılıyor. Ekran, boş kalanları
+            # aynı formda sorar; DOLU gelenler yeniden yazdırılmaz, önceden dolu
+            # gelir. Yanıt success=True kalır: test kaydı zaten yazıldı, yalnızca
+            # tamamlanması gereken alanlar bildirilir (yeni deneme AÇILMAZ).
+            eksik = [f for f in self.PHONECHECK_TAMAMLANACAK_ALANLAR
+                     if not str(getattr(record, f, "") or "").strip()]
+            dolu = {f: str(getattr(record, f, "") or "")
+                    for f in self.PHONECHECK_TAMAMLANACAK_ALANLAR
+                    if str(getattr(record, f, "") or "").strip()}
             return json.dumps({
                 "success": True,
                 "test_stage": stage,
@@ -10263,6 +10321,9 @@ class WebBridge(QObject):
                 "working": record.working,
                 "grade": record.grade,
                 "failed": record.failed,
+                "needs_completion": bool(eksik),
+                "missing_fields": eksik,
+                "values": dolu,
             })
         except Exception as e:
             db.rollback()
@@ -12570,12 +12631,8 @@ class WebBridge(QObject):
                         f"cihaza birlikte girilemez.")
         return None
 
-    @Slot(str, str, str, str, str, str, str, str, result=str)
-    def add_repair_record(self, device_ref, mission_group_code, warranty_code, notes, username, part_item_code="", item_fault_code="", operation_type_code=""):
-=======
     @Slot(str, str, str, str, str, str, str, str, str, result=str)
     def add_repair_record(self, device_ref, mission_group_code, warranty_code, notes, username, part_item_code="", item_fault_code="", operation_type_code="", source=""):
->>>>>>> 51eeaeb (feat: updates to repair operations, dismantle panel and bridge methods)
         """Bir cihaza yeni bir alt onarım kaydı (warehouse.repair_records) ekler.
         Servis Onarımları ekranındaki 'Onarım Ekle' aksiyonunun kalıcı karşılığıdır.
         device_ref, bağlı bir servis iş emri varsa work_order_id'dir; yoksa cihazın IMEI'sidir.
@@ -14925,6 +14982,13 @@ class WebBridge(QObject):
     # testi), 1007, 1008 zaten kendi kapılarında bekliyor - onlara dokunulmaz.
     HIERARCHY_MOVABLE_CODES = (1000, 1001)
 
+    # İÇİNDE PARÇA OLMAYAN ONARIM SEVİYELENDİRMEYE GİRMEZ. Parçası seçilmemiş bir
+    # kayıt henüz tanımlanmış bir iş değildir; onu "üst seviyede açık iş" saymak,
+    # alttaki ekibi hiç yapılmayacak bir işin arkasında sonsuza kadar bekletir.
+    # Böyle bir kayıt kimseyi BEKLETMEZ - ama kendisi hâlâ üst seviyeleri bekler,
+    # çünkü sırası geldiğinde yapılacak gerçek bir onarımdır.
+    _HIERARCHY_PART_FILTER = "COALESCE(TRIM(rr2.part_item_code), '') <> ''"
+
     # Bir cihazın açık onarımları arasındaki EN YÜKSEK grup sırası. Beklemeye
     # alma ve serbest bırakma kararlarının ikisi de bunu ölçüt alır; iki sorguda
     # ayrı yazılırsa zamanla ayrışır.
@@ -14935,6 +14999,7 @@ class WebBridge(QObject):
          WHERE rr2.service_record_id = rr.service_record_id
            AND COALESCE(rr2.repair_result_type_code, 0) NOT IN (1002, 1003)
            AND mg2.order_number IS NOT NULL
+           AND COALESCE(TRIM(rr2.part_item_code), '') <> ''
     """
 
     def _sync_hierarchy_wait(self, db, service_record_id=None):
@@ -14991,8 +15056,29 @@ class WebBridge(QObject):
     # İş sırasının en altındaki grup (L1/L2) bitince cihazda açık onarım kalmaz;
     # o an cihaz kendiliğinden Ara Test Bekleniyor (138) statüsüne geçer. Ayrı bir
     # "Ara Teste Gönder" butonu YOKTUR - teknisyen onarımı tamamlar, gerisi otomatik.
+    # "İÇİNE PARÇA GİRİLMEMİŞ ONARIM" ölçütü (SQL parçası, rr diye takma ad bekler).
+    #
+    # Demontaj'ın otomatik açtığı DGD satırının part_item_code'u DOLUDUR - akışın
+    # DGD işçilik kodunu taşır. Bu yüzden "parça kodu boş" demek yetmez: DGD
+    # kategorisindeki kalemler İŞÇİLİKTİR, cihaza takılan bir parça değildir ve
+    # depodan hiç çıkışı olmaz. Ölçüt iki durumu birden kapsar:
+    #   1) parça kodu hiç girilmemiş,
+    #   2) girilen kod bir DGD işçilik kalemi.
+    _PARCA_GIRILMEMIS_KOSULU = """
+        (COALESCE(TRIM(rr.part_item_code), '') = ''
+         OR EXISTS (SELECT 1 FROM warehouse.parts p
+                     WHERE p.item_code = rr.part_item_code
+                       AND UPPER(TRIM(COALESCE(p.item_category, ''))) = 'DGD'))
+    """
+
     def _auto_send_to_intermediate_test(self, db, service_record_id, username=""):
         """Cihazın TÜM onarımları kapandıysa ve cihaz 109'daysa 138'e alır.
+
+        Gerçek parçası olan onarımların hepsi kapandığında, içine parça girilmemiş
+        onarımlar (Demontaj'ın otomatik açtığı DGD/"L1 Onarımı" satırı ve parça
+        kodu hiç girilmemiş kayıtlar) kendiliğinden 1002 yapılır - yoksa cihaz
+        onların arkasında takılı kalırdı. Bkz. _PARCA_GIRILMEMIS_KOSULU.
+
         COMMIT ETMEZ - çağıran kendi transaction'ında commit eder.
         Döner: geçiş yapıldıysa (eski_kod, 138), yapılmadıysa None."""
         from models.batch_entry import BatchEntry
@@ -15011,6 +15097,37 @@ class WebBridge(QObject):
         for ek in (be["service_id"], be["imei_number"]):
             if ek and str(ek).strip() not in refs:
                 refs.append(str(ek).strip())
+        # İÇİNE PARÇA GİRİLMEYEN ONARIM CİHAZI TUTMAZ. Demontaj her cihaza akışa
+        # göre bir DGD işçilik satırı açıyor (ekranda "L1 Onarımı"); teknisyen
+        # içine bir parça girmezse bu satır sonsuza kadar açık kalıyor, cihazda
+        # "açık onarım var" sayıldığı için Ara Test'e otomatik geçiş hiç
+        # tetiklenmiyor ve cihaz üretimde takılı kalıyordu. Gerçek parçası olan
+        # BÜTÜN onarımlar kapandığında bu satırlar kendiliğinden tamamlanır.
+        #
+        # Tamamlama engelleri (teknisyen ataması, parça teslimi) BİLEREK aranmaz:
+        # ortada teslim edilecek parça yok ve bu, kullanıcının bastığı bir buton
+        # değil sistemin kendi kapanışı. İz kalsın diye nota yazılır.
+        parcali_acik = db.execute(_t(f"""
+            SELECT count(*) FROM warehouse.repair_records rr
+             WHERE rr.service_record_id = ANY(:refs)
+               AND COALESCE(rr.repair_result_type_code, 0) NOT IN (1002, 1003)
+               AND NOT {self._PARCA_GIRILMEMIS_KOSULU}
+        """), {"refs": refs}).scalar() or 0
+        if parcali_acik:
+            return None
+
+        db.execute(_t(f"""
+            UPDATE warehouse.repair_records rr
+               SET repair_result_type_code = 1002,
+                   closed_at = NOW(),
+                   updated_at = NOW(),
+                   notes = TRIM(BOTH ' ' FROM COALESCE(rr.notes, '') ||
+                                ' [parça girilmedi - diğer onarımlar bitince otomatik tamamlandı]')
+             WHERE rr.service_record_id = ANY(:refs)
+               AND COALESCE(rr.repair_result_type_code, 0) NOT IN (1002, 1003)
+               AND {self._PARCA_GIRILMEMIS_KOSULU}
+        """), {"refs": refs})
+
         acik = db.execute(_t("""
             SELECT count(*) FROM warehouse.repair_records
              WHERE service_record_id = ANY(:refs)
@@ -15300,7 +15417,8 @@ class WebBridge(QObject):
                 SELECT order_number FROM organization.mission_groups WHERE code = :c LIMIT 1
             """), {"c": my_group}).scalar()
             if my_order is not None:
-                onceki = db.execute(text("""
+                # Parçasız kayıtlar sayılmaz - bkz. _HIERARCHY_PART_FILTER.
+                onceki = db.execute(text(f"""
                     SELECT mg.short_name, mg.order_number, count(*) AS adet
                       FROM warehouse.repair_records rr2
                       JOIN organization.mission_groups mg ON mg.code = rr2.department_mission
@@ -15308,6 +15426,7 @@ class WebBridge(QObject):
                        AND rr2.repair_result_type_code NOT IN (1002, 1003)
                        AND mg.order_number IS NOT NULL
                        AND mg.order_number > :ord
+                       AND {self._HIERARCHY_PART_FILTER}
                      GROUP BY mg.short_name, mg.order_number
                      ORDER BY mg.order_number DESC
                 """), {"ref": rec.service_record_id, "ord": my_order}).mappings().all()
