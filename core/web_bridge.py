@@ -318,6 +318,21 @@ class WebBridge(QObject):
         except Exception:
             pass  # ısıtma yapılamazsa rozet sadece ilk seferinde yavaş olur
 
+    @Slot(int, result=str)
+    def get_qc_data(self, limit=8000):
+        """QC (Kalite Kontrol) ekranı için erp_reporting (analitik) DB'sinden
+        Fail1 kayıtlarını ve üretim pass/fail özetini çeker. Remalab operasyon
+        DB'sinden ayrı, kendi bağlantısını kullanır (core/qc_reporting.py).
+
+        DB erişilemezse frontend demo veriye düşer (success=False döneriz)."""
+        try:
+            from core.qc_reporting import fetch_qc_data
+            data = fetch_qc_data(limit=limit or 8000)
+            return json.dumps(data, ensure_ascii=False, default=str)
+        except Exception as e:
+            print(f"[WebBridge] get_qc_data hatası: {e}")
+            return json.dumps({"success": False, "source": "db", "error": str(e)})
+
     @Slot(result=str)
     def get_schema_introspection(self):
         """
@@ -12630,7 +12645,6 @@ class WebBridge(QObject):
                         f"'{(mevcut_kat or '').strip()}' onarımı var. Bu iki parça aynı "
                         f"cihaza birlikte girilemez.")
         return None
-
     @Slot(str, str, str, str, str, str, str, str, str, result=str)
     def add_repair_record(self, device_ref, mission_group_code, warranty_code, notes, username, part_item_code="", item_fault_code="", operation_type_code="", source=""):
         """Bir cihaza yeni bir alt onarım kaydı (warehouse.repair_records) ekler.

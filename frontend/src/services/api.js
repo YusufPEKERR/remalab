@@ -173,6 +173,29 @@ export const api = {
         });
     },
 
+    // QC (Kalite Kontrol) — erp_reporting analitik DB'sinden Fail1 + üretim özeti.
+    // Backend yoksa/DB erişilemezse success:false döner; QC ekranı demo veriye düşer.
+    getQcData: async (limit = 8000) => {
+        try {
+            const backend = await getBackend();
+            if (!backend || typeof backend.get_qc_data !== 'function') {
+                return { success: false, error: 'backend yok (mock)' };
+            }
+            return await new Promise((resolve) => {
+                try {
+                    backend.get_qc_data(limit, (res) => {
+                        try { resolve(JSON.parse(res)); }
+                        catch (e) { resolve({ success: false, error: 'parse hatası' }); }
+                    });
+                } catch (e) {
+                    resolve({ success: false, error: String(e) });
+                }
+            });
+        } catch (e) {
+            return { success: false, error: String(e) };
+        }
+    },
+
     dropSchemaTable: async (tableName, confirmName, username) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
