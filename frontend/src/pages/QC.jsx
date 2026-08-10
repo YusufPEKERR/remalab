@@ -203,6 +203,7 @@ export default function QC() {
   const [rawFails, setRawFails] = useState(QC_FAILS);
   const [prodSum, setProdSum] = useState(demoProdSummary);
   const [source, setSource] = useState('demo');   // 'demo' | 'db'
+  const [sourceLabel, setSourceLabel] = useState('canlı');
   const [loading, setLoading] = useState(true);
   const [dbError, setDbError] = useState('');
 
@@ -214,6 +215,7 @@ export default function QC() {
         setRawFails(res.fails);
         if (res.prod_summary) setProdSum(res.prod_summary);
         setSource('db');
+        setSourceLabel(res.source || 'canlı');
         setDbError('');
       } else {
         setSource('demo');
@@ -305,8 +307,8 @@ export default function QC() {
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {source === 'db' ? (
-            <span className="text-xs font-mono px-3 py-1.5 rounded-lg border border-green-400/40 bg-green-50 dark:bg-green-500/10 text-green-600 dark:text-green-400 flex items-center gap-1.5" title="erp_reporting @ 192.168.0.64">
-              <Database className="w-3.5 h-3.5" />CANLI · erp_reporting · {rawFails.length} kayıt
+            <span className="text-xs font-mono px-3 py-1.5 rounded-lg border border-green-400/40 bg-green-50 dark:bg-green-500/10 text-green-600 dark:text-green-400 flex items-center gap-1.5" title="canlı veritabanı">
+              <Database className="w-3.5 h-3.5" />CANLI · {sourceLabel} · {rawFails.length} kayıt
             </span>
           ) : (
             <span className="text-xs font-mono px-3 py-1.5 rounded-lg border border-amber-300/40 bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center gap-1.5"
