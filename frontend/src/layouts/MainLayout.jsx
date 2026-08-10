@@ -4,7 +4,7 @@ import {
   LogOut, LayoutDashboard, Users, Package, Settings, Bell,
   Warehouse, FileText, BarChart2, Box, Truck, MapPin,
   CheckCircle, Search, AlertTriangle, Zap, RefreshCw, Sun, Moon, Database, Building2, Wrench, ClipboardList, PackagePlus, Tags, ChevronDown, ChevronRight, Menu, X, Layers, FileSpreadsheet,
-  Boxes, ClipboardCheck, Cog, Repeat, DollarSign, Target
+  Boxes, ClipboardCheck, Cog, Repeat, DollarSign, Target, ShieldCheck
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useTheme } from '../context/ThemeContext';
@@ -129,6 +129,7 @@ export default function MainLayout() {
       colorTheme: 'blue',
       items: [
         { name: 'Kontrol Paneli', icon: LayoutDashboard, path: '/dashboard' },
+        { name: 'QC', icon: ShieldCheck, path: '/qc' },
         { name: 'Arama', icon: Search, path: '/servis' },
         { name: 'Statü Kontrol', icon: Zap, path: '/statu-kontrol' }
       ]
@@ -286,6 +287,8 @@ export default function MainLayout() {
       // GENEL BAKIŞ
       case '/dashboard':
         return { color: '#00B2FF' }; // Rich Royal Blue
+      case '/qc':
+        return { color: '#06B6D4' }; // Cyan (Quality Control)
       case '/statu-kontrol':
         return { color: '#2C8CA8' }; // Darker Cyan
       

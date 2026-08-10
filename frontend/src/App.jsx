@@ -75,6 +75,7 @@ const StatuKontrol = dayanikliLazy(() => import('./pages/StatuKontrol'));
 const ParcaTeslim = dayanikliLazy(() => import('./pages/ParcaTeslim'));
 const DepartmentRepairPool = dayanikliLazy(() => import('./pages/DepartmentRepairPool'));
 const OnarimBitisTesti = dayanikliLazy(() => import('./pages/OnarimBitisTesti'));
+const QC = dayanikliLazy(() => import('./pages/QC'));
 
 function RouteLoading() {
   return (
@@ -99,6 +100,7 @@ function App() {
             {/* Protected Routes (Wrapped in MainLayout) */}
             <Route element={<MainLayout />}>
               <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/qc" element={<QC />} />
               <Route path="/statu-kontrol" element={<StatuKontrol />} />
 
               {/* DEPO */}
