@@ -171,15 +171,25 @@ function TestSummaryCard({ title, data, seq }) {
           <CheckCircle2 size={12} /> {data.attemptNo}. testte onaylandı
         </div>
       )}
+      {/* Bu kart TEK bir teste aittir (Giriş/Ara/Son). failed listesi de o TEK testte
+          bildirilen arızalardır — ayrı test denemeleri DEĞİL. Eskiden her arıza
+          "Test 1, Test 2..." diye etiketlenip sanki farklı testlermiş gibi görünüyordu.
+          Aynı testte seçilen birden çok arıza artık o testin altında "Hata 1, Hata 2..."
+          olarak tek grupta listelenir. */}
       {done && data.result === 'fail' && failed.length > 0 && (
-        <ol className="space-y-1 mt-2">
-          {failed.map((t, i) => (
-            <li key={i} className="text-xs text-rose-700 dark:text-rose-400 flex gap-2">
-              <span className="font-bold shrink-0">Test {i + 1}:</span>
-              <span className="break-all">{t}</span>
-            </li>
-          ))}
-        </ol>
+        <div className="mt-2">
+          <div className="text-[11px] font-semibold text-[#5A6685] dark:text-[#8892B5] mb-1">
+            Bildirilen Hatalar ({failed.length})
+          </div>
+          <ol className="space-y-1">
+            {failed.map((t, i) => (
+              <li key={i} className="text-xs text-rose-700 dark:text-rose-400 flex gap-2">
+                <span className="font-bold shrink-0">Hata {i + 1}:</span>
+                <span className="break-all">{t}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
       )}
       {done && data.result === 'fail' && failed.length === 0 && (
         <div className="text-[11px] italic text-[#5A6685] dark:text-[#8892B5]">Başarısız testlerin detayı kayıtlı değil.</div>
