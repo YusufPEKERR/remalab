@@ -10584,9 +10584,18 @@ class WebBridge(QObject):
                         .filter((BatchEntryStatuHistory.batch_entry_id == entry.id)
                                 | (BatchEntryStatuHistory.imei == lookup_imei))
                         .all())
+            # Text sütunu YALNIZCA açıklamadır. batch_entry_statu_history.note alanı
+            # normal geçişlerde otomatik statü oku ile doluyor ("... (125) → ... (109)",
+            # bazen "Manuel/idari düzeltme: ..." önekiyle). Bu ok, Statü sütununu tekrar
+            # eder; açıklama değildir. Gerçek açıklamalar (ör. "[Cihaz İade Prosedürü: ...]"
+            # gibi köşeli parantezli notlar) korunur, saf geçiş okları boşa çıkarılır.
+            _ARROW_NOTE = re.compile(
+                r"^(?:Manuel/idari düzeltme:\s*)?[^\[\]]*\(\d+\)\s*→\s*[^\[\]]*\(\d+\)$")
             for r in log_rows:
-                events.append((3, r.created_at, r.new_statu_code, r.staff_name or "",
-                               r.note or f"{label(r.old_statu_code)} → {label(r.new_statu_code)}"))
+                note = (r.note or "").strip()
+                if _ARROW_NOTE.match(note):
+                    note = ""
+                events.append((3, r.created_at, r.new_statu_code, r.staff_name or "", note))
 
             # 2) Phonecheck test adımlarından geriye dönük yeniden kurma.
             #    test_stage 'AAA_BBB' => cihaz o anda BBB statüsüne geçmiştir.
@@ -10598,14 +10607,15 @@ class WebBridge(QObject):
                 parts = stage.split("_")
                 if len(parts) == 2 and parts[1].isdigit():
                     new_code = int(parts[1])
-                    src = label(int(parts[0])) if parts[0].isdigit() else parts[0]
+                    # Text yalnızca açıklama içindir; "Test adımı: A → B" statü sütununu
+                    # tekrar ettiği için buraya yazılmaz (boş bırakılır).
                     events.append((2, r.fetched_at, new_code, getattr(r, "manual_entered_by", "") or "",
-                                   f"Test adımı: {src} → {label(new_code)}"))
+                                   ""))
 
             # 3) Uç noktalar: güncel statü + kayıt (100). Log/phonecheck boşsa da her zaman görünür.
             last_update = entry.statu_update_time or entry.updated_at
             events.append((1, last_update, entry.statu_code, "",
-                           f"Güncel durum: {label(entry.statu_code)}"))
+                           ""))
             events.append((0, entry.created_at, 100, entry.created_by or "",
                            "Parti/cihaz sisteme kaydedildi."))
 
@@ -10663,23 +10673,31 @@ class WebBridge(QObject):
             BASARILI = {"yes", "true", "1", "ok", "pass", "passed", "başarılı", "basarili"}
             BASARISIZ = {"no", "false", "0", "fail", "failed", "başarısız", "basarisiz"}
 
+            # test_stage kodundan HANGİ test olduğunu belirle (Statü sütununda gösterilir):
+            #   103_104 = Giriş Testi · 138_* = Ara Test · 125_* = Son Test.
+            def _test_adi(stage):
+                s = (stage or "").strip()
+                if s == "103_104":
+                    return "Giriş Testi"
+                if s in ("138_124", "138_109"):
+                    return "Ara Test"
+                if s in ("125_126", "125_109"):
+                    return "Son Test"
+                return "Test"
+
             for r in pc_rows:
                 stage = (r.test_stage or "").strip()
-                bolum = stage.split("_")
-                if len(bolum) == 2 and bolum[0].isdigit() and bolum[1].isdigit():
-                    asama = f"{label(int(bolum[0]))} → {label(int(bolum[1]))}"
-                else:
-                    asama = stage or "Test"
+                tadi = _test_adi(stage)
 
                 calisiyor = (r.working or "").strip().lower()
                 if calisiyor in BASARILI:
-                    sonuc = "TEST PASS"
+                    sonuc = f"{tadi} PASS"
                 elif calisiyor in BASARISIZ:
                     # Başarısız testte cihaz 109'a, onarımlar da teknisyene geri döner
                     # (bkz. submit_test_result: 1002 kayıtlar 1001'e çekilir).
-                    sonuc = "TEST FAIL — teknisyene geri gönderildi"
+                    sonuc = f"{tadi} FAIL — teknisyene geri gönderildi"
                 else:
-                    sonuc = "Test kaydı"
+                    sonuc = f"{tadi} kaydı"
 
                 # Tekrar denemeler ayırt edilsin, ama ilk denemede gereksiz kalabalık olmasın.
                 deneme = ""
@@ -10689,14 +10707,17 @@ class WebBridge(QObject):
                 # TEXT SÜTUNU YALNIZCA AÇIKLAMADIR. Eskiden aşama adı ("İlk test bekleniyor
                 # (103) → İlk test tamamlandı (104)") buraya yazılıyordu; statü sütunuyla
                 # tekrar ediyor ve asıl gerekçeyi gölgeliyordu.
+                # Text yalnızca YAPILAN AÇIKLAMADIR: hatalı parçalar / başarısız kalemler
+                # buraya YAZILMAZ (kullanıcı isteği). Açıklama yoksa Text boş kalır.
                 aciklama = (getattr(r, "manual_reason", None) or r.notes or "").strip()
-                if not aciklama and (r.failed or "").strip():
-                    aciklama = f"Başarısız kalemler: {r.failed.strip()}"
                 # Notun başındaki "[05.08.2026 15:32] Test Başarısız — " gibi damga/etiket
                 # kırpılır: tarih zaten Date sütununda, sonuç da Statü sütununda yazıyor.
                 aciklama = re.sub(r"^\[[^\]]*\]\s*", "", aciklama)
                 aciklama = re.sub(r"^Test\s+(Başarısız|Basarisiz|Başarılı|Basarili|olumlu|olumsuz)\s*[—\-:]\s*",
                                   "", aciklama, flags=re.IGNORECASE)
+                # "Hatalı Parçalar: ..." bölümü açıklamanın içine gömülü geliyor; Text'te
+                # yalnızca yapılan açıklama kalsın diye bu kısım ve sonrası kırpılır.
+                aciklama = re.split(r"\s*/?\s*Hatal[ıi] Par[çc]alar\s*:?", aciklama, flags=re.IGNORECASE)[0]
 
                 aciklama = aciklama.strip()
                 # FAIL satırlarında sebep, statü sütununda da parantez içinde görünür;
