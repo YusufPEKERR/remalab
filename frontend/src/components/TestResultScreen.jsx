@@ -50,6 +50,17 @@ export default function TestResultScreen({
   // Barkod artık onay sonrası otomatik açılmaz; kullanıcı "Barkod Yazdır" butonuna
   // basınca modal açılır (isteğe bağlı barkod çıkarma).
   const [etiketModalAcik, setEtiketModalAcik] = useState(false);
+  // "Seri Yazdır": işaretliyse okutulan HER başarılı cihazda barkod yazdırma ekranı
+  // otomatik açılır (sıra sıra); kaldırılınca yalnızca elle "Barkod Yazdır" ile açılır.
+  // Barkod İÇERİĞİ değişmez (yine IMEI). Tercih localStorage'da saklanır (kaldırana kadar).
+  const [seriYazdir, setSeriYazdir] = useState(() => {
+    try { return localStorage.getItem('sonTestSeriYazdir') === '1'; } catch (_e) { return false; }
+  });
+  const toggleSeriYazdir = (e) => {
+    const v = e.target.checked;
+    setSeriYazdir(v);
+    try { localStorage.setItem('sonTestSeriYazdir', v ? '1' : '0'); } catch (_e) { /* önemsiz */ }
+  };
   const successInputRef = useRef(null);
 
   const selectedFaultLabels = useMemo(() => {
@@ -143,7 +154,6 @@ export default function TestResultScreen({
         // Test başarılıysa cihaz barkodu için buton hazırlanır (yalnızca Son Test
         // ekranında). Otomatik açılmaz; kullanıcı butona basınca yazdırılır.
         if (etiketSor) {
-          setEtiketModalAcik(false);
           setEtiketCihazi({
             imei: scanData.imei,
             internalId: scanData.internal_id || '',
@@ -154,6 +164,9 @@ export default function TestResultScreen({
             color: scanData.color || '',
             productCode: scanData.batch_no || '',
           });
+          // "Seri Yazdır" açıksa barkod ekranı bu cihaz için OTOMATİK gelsin (sıra sıra);
+          // kapalıysa elle "Barkod Yazdır"a basılana kadar açılmasın. Modal onaysız basmaz.
+          setEtiketModalAcik(seriYazdir);
         }
       } else {
         showNotification('error', res.message);
@@ -265,19 +278,39 @@ export default function TestResultScreen({
             </button>
           </form>
 
-          {/* Onay sonrası ISTEĞE BAĞLI barkod: otomatik açılmaz, kullanıcı basınca yazdırılır. */}
-          {etiketSor && etiketCihazi && (
-            <div className="px-6 pb-5 -mt-2">
-              <button
-                type="button"
-                onClick={() => setEtiketModalAcik(true)}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl transition-all font-semibold text-xs cursor-pointer flex items-center justify-center gap-2 shadow-md"
-              >
-                <Barcode size={16} /> Barkod Yazdır
-              </button>
-              <p className="mt-2 text-[10px] text-center text-[#5A6685] dark:text-[#8892B5]">
-                Son test onaylandı · <span className="font-mono">{etiketCihazi.imei}</span> — barkod isteğe bağlıdır
-              </p>
+          {/* Barkod yazdırma alanı. "Seri Yazdır" işaretliyse okutulan HER başarılı
+              cihazda yazdırma ekranı otomatik açılır (barkod içeriği değişmez, yine IMEI);
+              kapalıysa yalnızca "Barkod Yazdır" ile elle açılır. Hiçbir durumda onaysız basılmaz. */}
+          {etiketSor && (
+            <div className="px-6 pb-5 -mt-2 space-y-3">
+              <label className="flex items-center gap-2.5 cursor-pointer select-none text-xs font-semibold text-[#12141c] dark:text-[#F6F8FF]">
+                <input
+                  type="checkbox"
+                  checked={seriYazdir}
+                  onChange={toggleSeriYazdir}
+                  className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                />
+                Seri Yazdır
+                <span className="font-normal text-[10px] text-[#5A6685] dark:text-[#8892B5]">
+                  — okutulan her cihazda barkod ekranı otomatik açılır (kaldırana kadar)
+                </span>
+              </label>
+
+              {etiketCihazi && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setEtiketModalAcik(true)}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl transition-all font-semibold text-xs cursor-pointer flex items-center justify-center gap-2 shadow-md"
+                  >
+                    <Barcode size={16} /> Barkod Yazdır
+                  </button>
+                  <p className="text-[10px] text-center text-[#5A6685] dark:text-[#8892B5]">
+                    Son test onaylandı · <span className="font-mono">{etiketCihazi.imei}</span>
+                    {seriYazdir ? ' — seri yazdırma açık, ekran otomatik geldi' : ' — barkod isteğe bağlıdır'}
+                  </p>
+                </>
+              )}
             </div>
           )}
 
