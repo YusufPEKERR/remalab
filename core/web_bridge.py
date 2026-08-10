@@ -14890,21 +14890,32 @@ class WebBridge(QObject):
         """Demontaj Teknisyeni'nin bir cihaza eklediği onarım kayıtlarını, cihazın Flow'una
         (Akış Durumu, warehouse.batch_entries.flow - warehouse.service_request_type.code ile
         aynı değer kümesi: 'To repair', 'To refurbish', 'Battery only', 'To RMA') göre
-        warehouse.service_request_item_category'de tanımlı, o flow için önceden onaylanmış
-        (is_customer_approved=TRUE) parça kategorileriyle karşılaştırır. Eklenen onarımların
-        HEPSİ bu flow için onaylı kategorilerdeyse cihazı 109'a (Üretime Aktar) taşır; flow'un
-        desteklemediği/onaylı olmayan bir kategoriden parça eklenmişse 106'ya (Müşteri Onayına
-        Gönder) taşır. İstisna: 'To RMA' ve 'To refurbish' akışlarında müşteri onayı hiç
-        aranmaz, kategoriden bağımsız her zaman doğrudan 109'a (Üretime Aktar) taşınır.
-        Gerçek statü geçişi mevcut, doğrulanmış execute_batch_entry_statu_transition
-        üzerinden yapılır.
+        değerlendirip cihazı 109'a (Üretime Aktar) ya da 106'ya (Müşteri Onayına) taşır.
+        Gerçek statü geçişi mevcut, doğrulanmış execute_batch_entry_statu_transition ile yapılır.
 
-        Ayrıca Müşteri Hedef Fiyat Matrisi limit kontrolü HER ZAMAN uygulanır (bkz. aşağıdaki
-        blok): kategori onaylı olsa bile, eklenen parçaların toplam fiyatı hedef fiyatı
-        aşıyorsa karar zorla Müşteri Onayına çevrilir. customer_target_prices'taki kurallar
-        istisnai kabul edilir - müşteri+model+test kombinasyonu için özel bir kural tanımlıysa
-        o kullanılır, tanımlı değilse DEFAULT_TARGET_PRICE (varsayılan 9999) limit olarak
-        kullanılır."""
+        KARAR KURALLARI (iki bağımsız kapı: KATEGORİ ve FİYAT):
+
+        ┌─────────────────────────┬───────────────────┬──────────────┬──────────────────────────┐
+        │ Flow                    │ Kategori kontrolü │ Fiyat limiti │ Sonuç                    │
+        ├─────────────────────────┼───────────────────┼──────────────┼──────────────────────────┤
+        │ To RMA / To refurbish   │ YOK (atlanır)     │ VAR          │ Fiyat aşarsa 106,        │
+        │ (ONAY_GEREKTIRMEYEN_    │                   │              │ aşmıyorsa 109            │
+        │  FLOWLAR)               │                   │              │                          │
+        ├─────────────────────────┼───────────────────┼──────────────┼──────────────────────────┤
+        │ To repair / Battery     │ VAR               │ VAR          │ Kategori uygun VE fiyat  │
+        │ only                    │ (uygun olmayan    │              │ OK → 109; biri bile      │
+        │                         │  kategori → 106)  │              │ değilse → 106            │
+        └─────────────────────────┴───────────────────┴──────────────┴──────────────────────────┘
+
+        - KATEGORİ kapısı: warehouse.service_request_item_category'de o flow için
+          is_customer_approved=TRUE tanımlı kategoriler. Eklenen onarımların HEPSİ onaylı
+          kategorideyse geçer. YALNIZCA 'To repair' / 'Battery only' için işler; 'To RMA' /
+          'To refurbish' bu kapıyı ATLAR (kategori onayı aranmaz).
+        - FİYAT kapısı (Müşteri Hedef Fiyat Matrisi): TÜM akışlarda uygulanır (To RMA /
+          To refurbish dahil). Eklenen parçaların toplam fiyatı hedef fiyatı aşıyorsa karar
+          Müşteri Onayına (106) çevrilir. customer_target_prices'ta müşteri+model+test
+          kombinasyonu için özel kural varsa o, yoksa DEFAULT_TARGET_PRICE (varsayılan 9999)
+          limit olarak kullanılır."""
         from sqlalchemy import text
         db = SessionLocal()
         try:
