@@ -40,8 +40,8 @@ WITH f AS (
   WHERE coalesce(v.part, '') <> ''
 )
 SELECT
-  coalesce(nullif(b.product_family, ''), nullif(b.model, ''),
-           nullif(pc.model, ''), 'Bilinmiyor')                    AS product_family_name,
+  coalesce(nullif(dl.product_family_name, ''), nullif(dl.product_model_name, ''),
+           'Bilinmiyor')                                          AS product_family_name,
   CASE
     WHEN f.part ILIKE '%%kamera%%'                                        THEN 'Kamera Onarımı'
     WHEN f.part ILIKE '%%ekran%%' OR f.part ILIKE '%%lcd%%' OR f.part ILIKE '%%display%%' THEN 'Ekran Onarımı'
@@ -57,16 +57,8 @@ SELECT
   coalesce(nullif(u.fullname, ''), f.created_by, '—')             AS teststaff_fullname,
   f.created_at                                                    AS create_time
 FROM f
-LEFT JOIN warehouse.batch_entries b
-       ON b.service_id::text = f.service_id::text
-       OR b.imei_number = f.imei_number
-       OR b.internal_id = f.internal_id
+LEFT JOIN warehouse.device_lookup dl ON dl.imei = f.imei_number
 LEFT JOIN warehouse.users u ON u.username = f.created_by
-LEFT JOIN LATERAL (
-    SELECT model FROM warehouse.phonecheck_test_results p
-    WHERE p.imei = f.imei_number
-    ORDER BY p.fetched_at DESC NULLS LAST LIMIT 1
-) pc ON true
 ORDER BY f.created_at DESC
 LIMIT %s
 """
@@ -86,6 +78,51 @@ CROSS JOIN LATERAL (VALUES
 ) AS v(part)
 WHERE coalesce(v.part,'') <> ''
 """
+
+
+# Cihaz doğrulama / zenginleştirme VIEW'ı — batch_entries + service_records +
+# phonecheck birleşiminden imei bazında tek kayıt (modeli dolu olan öncelikli).
+# QC ürün ailesini buradan doğrular; deploy-safe olması için her çağrıda idempotent
+# garanti edilir (CREATE OR REPLACE VIEW).
+_DEVICE_LOOKUP_DDL = r"""
+CREATE OR REPLACE VIEW warehouse.device_lookup AS
+WITH src AS (
+  SELECT imei_number AS imei, service_id::text AS service_id, internal_id, serial_number,
+         nullif(btrim(brand),'') AS brand, nullif(btrim(model),'') AS model,
+         nullif(btrim(gb),'') AS memory, nullif(btrim(color),'') AS color,
+         1 AS prio, 'batch_entries' AS source, updated_at AS ts
+  FROM warehouse.batch_entries WHERE coalesce(imei_number,'')<>''
+  UNION ALL
+  SELECT imei_number, service_id::text, NULL, nullif(btrim(imei_serial),''),
+         nullif(btrim(brand),''), nullif(btrim(model),''), nullif(btrim(memory),''), nullif(btrim(color),''),
+         2, 'service_records', created_at
+  FROM warehouse.service_records WHERE coalesce(imei_number,'')<>''
+  UNION ALL
+  SELECT imei, NULL, NULL, nullif(btrim(serial),''),
+         NULL, nullif(btrim(model),''), nullif(btrim(memory),''), nullif(btrim(color),''),
+         3, 'phonecheck', fetched_at
+  FROM warehouse.phonecheck_test_results WHERE coalesce(imei,'')<>''
+)
+SELECT DISTINCT ON (imei)
+  imei, service_id, internal_id, serial_number,
+  coalesce(brand, CASE WHEN model ILIKE 'iphone%' OR model ILIKE 'ipad%' OR model ILIKE 'apple%' THEN 'Apple' END) AS brand,
+  btrim(regexp_replace(coalesce(model,''), '\s*(8|16|32|64|128|256|512|1024)\s*(GB|TB)\b.*$', '', 'i')) AS product_family_name,
+  model AS product_model_name,
+  memory, color, source, ts AS last_seen
+FROM src
+ORDER BY imei, (model IS NULL), prio, ts DESC NULLS LAST;
+"""
+
+
+def _ensure_device_lookup(conn):
+    """device_lookup VIEW'ının var olduğunu garanti eder (idempotent, deploy-safe)."""
+    try:
+        cur = conn.cursor()
+        cur.execute(_DEVICE_LOOKUP_DDL)
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        print(f"[qc_reporting] device_lookup VIEW oluşturulamadı: {e}")
 
 
 def _connect():
@@ -108,6 +145,7 @@ def fetch_qc_data(limit=8000):
         limit = 8000
     conn = _connect()
     try:
+        _ensure_device_lookup(conn)      # VIEW yoksa oluştur (deploy-safe)
         cur = conn.cursor()
         cur.execute(_FAILS_SQL, (limit,))
         rows = cur.fetchall()
