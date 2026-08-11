@@ -56,7 +56,9 @@ def clear_api_cache(session=None):
     """Veritabanında değişiklik olduğunda cache'i temizler, böylece UI sadece yeni veriyi bekler."""
     dirs = get_cache_dirs()
     for d in dirs:
-        for filename in ["parts.json", "stock.json", "critical.json", "price_matrix_items.json", "price_matrix_prices.json", "labour_matrix_items.json", "labour_matrix_prices.json", "item_boms.json", "production_runs.json"]:
+        # labour_matrix_*.json listeden çıkarıldı: "Müşteri İşçilik Fiyatı Matrisi" ekranı
+        # kaldırıldı (işçilik artık seviye modelinden hesaplanıyor), o önbellek üretilmiyor.
+        for filename in ["parts.json", "stock.json", "critical.json", "price_matrix_items.json", "price_matrix_prices.json", "item_boms.json", "production_runs.json"]:
             path = os.path.join(d, filename)
             if os.path.exists(path):
                 try: 
@@ -1085,10 +1087,60 @@ class WebBridge(QObject):
         db.execute(_text(sql))
         return True
 
+    # --- İADE BAYRAĞI (batch_entries.repair_is_cancelled) ---
+    # Cihaz onarılmadan müşteriye iade ediliyorsa faturada "full functional değil" sayılır
+    # ve yüksek teşhis ücreti uygulanır. Bunun İKİ yolu vardır:
+    #   1) cihazın TÜM onarımları iptal edilmiş  (parça hiç takılmamış/geri alınmış)
+    #   2) bu bayrak                              (parça takılıp faturalanmış OLSA BİLE
+    #                                              cihaz çalışmıyor ve iade ediliyor)
+    # İkincisi olmadan, onarım görmüş ama çalışmayan cihaz sistemde ifade edilemiyordu.
+    #
+    # 124'e normal yoldan da gelinir (138->124 Ara Test), bu yüzden hedef statüye değil
+    # GEÇİŞİN KENDİSİNE bakılır.
+    _IADE_GECISLERI = frozenset({
+        (106, 124),   # Müşteri Onayı Geldi (Red)
+        (136, 124),   # İade Edilecek - Müşteri Reddetti
+    })
+    _URETIM_STATUSU = 109   # Production in Progress
+
+    def _iade_bayragi_guncelle(self, db, entry_id, old_code, new_code):
+        """İade kararını statü geçişinden türetir. Cihaz üretime (109) yeniden katılırsa
+        bayrak TEMİZLENİR - iade kararı geri alınmış, cihaz tekrar onarım sürecindedir."""
+        if entry_id is None or new_code is None:
+            return
+        try:
+            eski = int(old_code) if old_code is not None else None
+            yeni = int(new_code)
+        except (TypeError, ValueError):
+            return
+
+        if (eski, yeni) in self._IADE_GECISLERI:
+            deger = True
+        elif yeni == self._URETIM_STATUSU:
+            deger = False
+        else:
+            return
+
+        from sqlalchemy import text as _text
+        try:
+            db.execute(_text("""
+                UPDATE warehouse.batch_entries
+                   SET repair_is_cancelled = :v
+                 WHERE id = :id AND repair_is_cancelled IS DISTINCT FROM :v
+            """), {"v": deger, "id": int(entry_id)})
+        except Exception as e:
+            # Bayrak yalnızca faturalandırmayı etkiler; yazılamazsa statü geçişini
+            # düşürmek yerine hata loglanır (geçişin kendisi geri alınamaz bir iştir).
+            print(f"[WebBridge] iade bayrağı güncellenemedi (entry {entry_id}): {e}")
+
     def _record_statu_change(self, db, entry_id, imei, old_code, new_code, staff=None, note=None):
         """Bir statü geçişini history tablosuna ekler (COMMIT ETMEZ — çağıran commit eder,
         böylece geçişle aynı transaction'da atomik kalır). Log yazımı asla asıl işlemi
-        bozmamalı; hata olursa sessizce yutulur."""
+        bozmamalı; hata olursa sessizce yutulur.
+
+        Aynı yerden iade bayrağı da bakımı yapılır: bu metot TÜM statü geçişlerinden
+        çağrıldığı için kancayı tek noktada tutmayı sağlar."""
+        self._iade_bayragi_guncelle(db, entry_id, old_code, new_code)
         try:
             from models.batch_entry_statu_history import BatchEntryStatuHistory
             db.add(BatchEntryStatuHistory(
@@ -12200,6 +12252,7 @@ class WebBridge(QObject):
                     rr.notes,
                     rr.created_at,
                     rr.updated_at,
+                    rr.closed_at,
                     be.imei_number,
                     be.serial_number,
                     be.internal_id,
@@ -12221,14 +12274,30 @@ class WebBridge(QObject):
                     OR LOWER(TRIM(be.internal_id)) = LOWER(TRIM(rr.service_record_id))
                     OR (be.service_id IS NOT NULL AND be.service_id::text = rr.service_record_id)
                 WHERE UPPER(TRIM(rr.department_mission)) = :dept
-                ORDER BY rr.created_at ASC
+                ORDER BY rr.created_at DESC
             """), {"dept": dept}).mappings().all()
 
             # Tarih/saat Türkiye yerel saatinde ve gg.aa.yyyy SS:DD formatında (bkz. fmt_tr_datetime).
             fmt = fmt_tr_datetime
 
+            # Tamamlanan VE iptal edilen onarımlar GÜNLÜK yenilenir: yalnızca BUGÜN (TR yerel)
+            # kapanmış (tamamlanan/iptal) onarımlar listede ve teknisyen kutularında kalır;
+            # ertesi güne geçildiğinde önceki günden kalanlar düşer. (Aktif onarımlar her zaman kalır.)
+            today_tr = _dt.datetime.now(_TR_TZ).date()
+
+            def _tr_date(dt):
+                if not dt:
+                    return None
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=_dt.timezone.utc)
+                return dt.astimezone(_TR_TZ).date()
+
             items = []
             for r in rows:
+                if bool(r["is_success"]) or bool(r["is_cancelled"]):
+                    comp_date = _tr_date(r["closed_at"] or r["updated_at"])
+                    if comp_date and comp_date != today_tr:
+                        continue  # önceki günlerden kalan tamamlanmış/iptal onarım
                 product_info = " ".join(filter(None, [r["model"], r["gb"], r["color"]])) or "-"
                 items.append({
                     "repairId": str(r["repair_id"]),
@@ -12260,6 +12329,7 @@ class WebBridge(QObject):
                     "productInfo": product_info,
                     "customerName": r["customer_name"] or "",
                     "batchStatusCode": r["batch_status_code"],
+                    "createdAtRaw": r["created_at"].timestamp() if r["created_at"] else 0,
                 })
 
             return json.dumps({"success": True, "items": items}, ensure_ascii=False)
@@ -13683,35 +13753,6 @@ class WebBridge(QObject):
             db.close()
 
     @Slot(str, str, result=str)
-    def get_labour_prices_for_items(self, item_codes_csv, customer_code):
-        """get_prices_for_items'in İŞÇİLİK ikizi - onarım ekranlarındaki 'İşçilik Fiyatı'
-        sütunu için, bir onarım grubundaki her parçanın müşteriye özel işçilik fiyatını
-        tek sorguda getirir. Kaynak: warehouse.customer_labour_prices (Müşteri İşçilik
-        Fiyatı Matrisi). get_prices_for_items'ten farkı: İŞÇİLİKTE genel varsayılan (item.satis
-        gibi) YOKTUR - matriste eşleşme yoksa o parça haritaya girmez, UI '—' gösterir."""
-        from sqlalchemy import text
-        db = SessionLocal()
-        try:
-            item_codes = list({c.strip() for c in (item_codes_csv or "").split(",") if c.strip()})
-            customer_code = (customer_code or "").strip()
-            if not item_codes or not customer_code:
-                return json.dumps({"success": True, "prices": {}})
-
-            prices = {}
-            rows = db.execute(text("""
-                SELECT item_code, price FROM warehouse.customer_labour_prices
-                WHERE customer_code = :customer_code AND item_code = ANY(:codes)
-            """), {"customer_code": customer_code, "codes": item_codes}).mappings().all()
-            for r in rows:
-                prices[r["item_code"]] = float(r["price"])
-
-            return json.dumps({"success": True, "prices": prices})
-        except Exception as e:
-            return json.dumps({"success": False, "message": str(e)})
-        finally:
-            db.close()
-
-    @Slot(str, str, result=str)
     def get_effective_price(self, item_code, customer_code):
         """item_code x customer_code için geçerli fiyatı döner: önce customer_item_prices'tan,
         yoksa warehouse.item.satis'ten (global varsayılan). Şu an sadece lookup Slot'u olarak
@@ -13739,463 +13780,6 @@ class WebBridge(QObject):
             return json.dumps({"success": True, "price": None, "source": "none"})
         except Exception as e:
             return json.dumps({"success": False, "message": str(e)})
-        finally:
-            db.close()
-
-    # --- MÜŞTERİ İŞÇİLİK FİYATI MATRİSİ ---
-    # Müşteri Fiyat Matrisi'nin (customer_item_prices) birebir yapısal ikizidir; tek fark
-    # fiyatların ayrı bir tabloda (warehouse.customer_labour_prices) tutulmasıdır. Satır
-    # kaynağı (warehouse.parts + DGD işçilik kodları), marka/ürün tipi/model/kategori
-    # daraltma filtreleri ve tüm davranış Müşteri Fiyat Matrisi ile aynıdır - bu yüzden
-    # aynı yardımcılar (PRICE_MATRIX_PRODUCT_TYPE_CASE_SQL) ve aynı sorgu desenleri kullanılır.
-
-    @Slot(result=str)
-    def get_labour_matrix_customers(self):
-        """İşçilik fiyatı matrisinin sütunlarını oluşturan müşteri listesini döner - kaynak
-        get_price_matrix_customers ile aynı (warehouse.customers)."""
-        from sqlalchemy import text
-        db = SessionLocal()
-        try:
-            rows = db.execute(text("""
-                SELECT code, short_name, currency FROM warehouse.customers
-                WHERE code IS NOT NULL ORDER BY short_name
-            """)).mappings().all()
-            items = [{"code": r["code"], "short_name": r["short_name"] or r["code"], "currency": r["currency"] or ""} for r in rows]
-            return json.dumps({"success": True, "customers": items}, ensure_ascii=False)
-        except Exception as e:
-            return json.dumps({"success": False, "message": str(e)})
-        finally:
-            db.close()
-
-    @Slot(result=str)
-    def get_labour_matrix_brands(self):
-        """İşçilik fiyatı matrisinde önce seçilecek marka listesini döner - get_price_matrix_brands
-        ile birebir aynı (warehouse.parts.brand büyük/küçük harf duyarsız gruplama + '__DGD__'
-        sözde-markası). Marka seçimi ilk ve zorunlu adımdır."""
-        from sqlalchemy import text
-        db = SessionLocal()
-        try:
-            rows = db.execute(text("""
-                SELECT brand, COUNT(*) AS cnt
-                FROM warehouse.parts
-                WHERE brand IS NOT NULL AND brand != '' AND COALESCE(item_category, '') != 'DGD'
-                GROUP BY brand
-            """)).mappings().all()
-
-            grouped = {}
-            for r in rows:
-                raw = (r["brand"] or "").strip()
-                if not raw:
-                    continue
-                key = raw.upper()
-                g = grouped.setdefault(key, {"label": raw, "label_count": 0, "count": 0})
-                g["count"] += r["cnt"]
-                if r["cnt"] > g["label_count"]:
-                    g["label_count"] = r["cnt"]
-                    g["label"] = raw
-
-            brands = sorted(
-                [{"value": key, "label": g["label"], "count": g["count"]} for key, g in grouped.items()],
-                key=lambda b: b["label"]
-            )
-
-            dgd_count = db.execute(text(
-                "SELECT COUNT(*) FROM warehouse.parts WHERE item_category = 'DGD'"
-            )).scalar() or 0
-            if dgd_count:
-                brands.append({"value": "__DGD__", "label": "İşçilik (DGD)", "count": dgd_count})
-
-            return json.dumps({"success": True, "brands": brands}, ensure_ascii=False)
-        except Exception as e:
-            return json.dumps({"success": False, "message": str(e)})
-        finally:
-            db.close()
-
-    @Slot(str, result=str)
-    def get_labour_matrix_product_types(self, brand=""):
-        """İşçilik fiyatı matrisinde markanın yanındaki 'Ürün Tipi' filtresinin seçeneklerini
-        döner - get_price_matrix_product_types ile birebir aynı (PRICE_MATRIX_PRODUCT_TYPE_CASE_SQL
-        + warehouse.product_category JOIN). '__DGD__' için ürün tipi ayrımı yoktur."""
-        from sqlalchemy import text
-        brand = (brand or "").strip()
-        if brand == "__DGD__":
-            return json.dumps({"success": True, "product_types": []}, ensure_ascii=False)
-
-        db = SessionLocal()
-        try:
-            params = {}
-            clause = "WHERE COALESCE(item_category, '') != 'DGD'"
-            if brand:
-                clause += " AND UPPER(brand) = UPPER(:brand)"
-                params["brand"] = brand
-            rows = db.execute(text(f"""
-                SELECT sub.product_type AS value, COALESCE(pc.short_name, sub.product_type) AS label, sub.cnt
-                FROM (
-                    SELECT {PRICE_MATRIX_PRODUCT_TYPE_CASE_SQL} AS product_type, COUNT(*) AS cnt
-                    FROM warehouse.parts
-                    {clause}
-                    GROUP BY product_type
-                ) sub
-                LEFT JOIN warehouse.product_category pc ON pc.code = sub.product_type
-                ORDER BY sub.cnt DESC
-            """), params).mappings().all()
-            product_types = [{"value": r["value"], "label": r["label"], "count": r["cnt"]} for r in rows]
-            return json.dumps({"success": True, "product_types": product_types}, ensure_ascii=False)
-        except Exception as e:
-            return json.dumps({"success": False, "message": str(e)})
-        finally:
-            db.close()
-
-    @Slot(str, str, result=str)
-    def get_labour_matrix_models(self, brand="", product_type=""):
-        """Seçili marka (+ opsiyonel ürün tipi) için cihaz modeli listesini döner -
-        get_price_matrix_models ile birebir aynı (warehouse.parts.model + warehouse.product_family
-        short_name eşleme)."""
-        from sqlalchemy import text
-        brand = (brand or "").strip()
-        product_type = (product_type or "").strip()
-        if not brand or brand == "__DGD__":
-            return json.dumps({"success": True, "models": []}, ensure_ascii=False)
-
-        db = SessionLocal()
-        try:
-            params = {"brand": brand}
-            clause = "WHERE UPPER(parts.brand) = UPPER(:brand) AND parts.model IS NOT NULL AND parts.model != ''"
-            if product_type:
-                clause += f" AND ({PRICE_MATRIX_PRODUCT_TYPE_CASE_SQL}) = :product_type"
-                params["product_type"] = product_type
-            rows = db.execute(text(f"""
-                SELECT parts.model AS value, COALESCE(pf.short_name, parts.model) AS label, COUNT(*) AS cnt
-                FROM warehouse.parts
-                LEFT JOIN warehouse.product_family pf
-                    ON UPPER(pf.code) = UPPER(parts.model) AND UPPER(pf.brand) = UPPER(parts.brand)
-                {clause}
-                GROUP BY parts.model, pf.short_name
-                ORDER BY label
-            """), params).mappings().all()
-            models = [{"value": r["value"], "label": r["label"], "count": r["cnt"]} for r in rows]
-            return json.dumps({"success": True, "models": models}, ensure_ascii=False)
-        except Exception as e:
-            return json.dumps({"success": False, "message": str(e)})
-        finally:
-            db.close()
-
-    @Slot(str, str, str, result=str)
-    def get_labour_matrix_categories(self, brand="", model="", product_type=""):
-        """Seçili marka (+ opsiyonel ürün tipi/model) için item_category listesini döner -
-        get_price_matrix_categories ile birebir aynı. '__DGD__' için kategori ayrımı yoktur."""
-        from sqlalchemy import text
-        brand = (brand or "").strip()
-        model = (model or "").strip()
-        product_type = (product_type or "").strip()
-        if brand == "__DGD__":
-            return json.dumps({"success": True, "categories": []}, ensure_ascii=False)
-
-        db = SessionLocal()
-        try:
-            params = {}
-            clause = "WHERE item_category IS NOT NULL AND item_category != '' AND item_category != 'DGD'"
-            if brand:
-                clause += " AND UPPER(brand) = UPPER(:brand)"
-                params["brand"] = brand
-            if model:
-                clause += " AND model = :model"
-                params["model"] = model
-            if product_type:
-                clause += f" AND ({PRICE_MATRIX_PRODUCT_TYPE_CASE_SQL}) = :product_type"
-                params["product_type"] = product_type
-            rows = db.execute(text(f"""
-                SELECT item_category, COUNT(*) AS cnt
-                FROM warehouse.parts
-                {clause}
-                GROUP BY item_category
-                ORDER BY item_category
-            """), params).mappings().all()
-            categories = [{"value": r["item_category"], "label": r["item_category"], "count": r["cnt"]} for r in rows]
-            return json.dumps({"success": True, "categories": categories}, ensure_ascii=False)
-        except Exception as e:
-            return json.dumps({"success": False, "message": str(e)})
-        finally:
-            db.close()
-
-    @Slot(str, str, str, str, str, result=str)
-    def get_labour_matrix_items(self, search="", brand="", category="", model="", product_type=""):
-        """İşçilik fiyatı matrisinin satırlarını oluşturan item_code listesini döner (fiziksel
-        parçalar + DGD işçilik kodları), her satırda 'İşçilik'/'Parça' etiketiyle -
-        get_price_matrix_items ile birebir aynı. Hiç filtre yoksa kendi cache dosyasına
-        (labour_matrix_items.json) yazar; Müşteri Fiyat Matrisi'nin cache'iyle çakışmaz."""
-        from sqlalchemy import text
-        search = (search or "").strip()
-        brand = (brand or "").strip()
-        category = (category or "").strip()
-        model = (model or "").strip()
-        product_type = (product_type or "").strip()
-        unfiltered = not search and not brand and not category and not model and not product_type
-
-        if unfiltered:
-            filename = "labour_matrix_items.json"
-            path = os.path.join(get_cache_dirs()[0], filename)
-            fetch_url = f"/api_cache/{filename}"
-            if os.path.exists(path):
-                return json.dumps({"success": True, "fetch_url": fetch_url})
-
-        db = SessionLocal()
-        try:
-            clauses = []
-            params = {}
-            if search:
-                clauses.append('(item_code COLLATE "C" ILIKE :s OR name COLLATE "C" ILIKE :s)')
-                params["s"] = f"%{search}%"
-            if brand == "__DGD__":
-                clauses.append("item_category = 'DGD'")
-            elif brand:
-                clauses.append("UPPER(brand) = UPPER(:brand)")
-                params["brand"] = brand
-            if model:
-                clauses.append("model = :model")
-                params["model"] = model
-            if product_type:
-                clauses.append(f"({PRICE_MATRIX_PRODUCT_TYPE_CASE_SQL}) = :product_type")
-                params["product_type"] = product_type
-            if category:
-                clauses.append("item_category = :category")
-                params["category"] = category
-            clause = ("WHERE " + " AND ".join(clauses)) if clauses else ""
-
-            rows = db.execute(text(f"""
-                SELECT item_code, name,
-                       CASE WHEN item_category = 'DGD' THEN 'İşçilik' ELSE 'Parça' END AS item_type
-                FROM warehouse.parts
-                {clause}
-                ORDER BY item_type, item_code
-            """), params).mappings().all()
-            items = [{"item_code": r["item_code"], "name": r["name"] or "", "item_type": r["item_type"]} for r in rows if r["item_code"]]
-
-            if unfiltered:
-                json_data = json.dumps({"success": True, "items": items}, ensure_ascii=False)
-                write_to_cache("labour_matrix_items.json", json_data)
-                fetch_url = f"/api_cache/labour_matrix_items.json"
-                return json.dumps({"success": True, "fetch_url": fetch_url})
-
-            return json.dumps({"success": True, "items": items}, ensure_ascii=False)
-        except Exception as e:
-            return json.dumps({"success": False, "message": str(e)})
-        finally:
-            db.close()
-
-    @Slot(str, str, str, str, result=str)
-    def get_labour_matrix(self, brand="", category="", model="", product_type=""):
-        """warehouse.customer_labour_prices'taki (item_code, customer_code, price) satırlarını
-        döner - get_price_matrix ile birebir aynı desen, tek fark okunan tablo. Hiç filtre
-        yoksa kendi cache dosyasına (labour_matrix_prices.json) yazar."""
-        from sqlalchemy import text
-        brand = (brand or "").strip()
-        category = (category or "").strip()
-        model = (model or "").strip()
-        product_type = (product_type or "").strip()
-        unfiltered = not brand and not category and not model and not product_type
-
-        if unfiltered:
-            filename = "labour_matrix_prices.json"
-            path = os.path.join(get_cache_dirs()[0], filename)
-            fetch_url = f"/api_cache/{filename}"
-            if os.path.exists(path):
-                return json.dumps({"success": True, "fetch_url": fetch_url})
-
-        db = SessionLocal()
-        try:
-            if unfiltered:
-                rows = db.execute(text(
-                    "SELECT item_code, customer_code, price FROM warehouse.customer_labour_prices"
-                )).mappings().all()
-            else:
-                clauses = []
-                params = {}
-                if brand == "__DGD__":
-                    clauses.append("item_category = 'DGD'")
-                elif brand:
-                    clauses.append("UPPER(brand) = UPPER(:brand)")
-                    params["brand"] = brand
-                if model:
-                    clauses.append("model = :model")
-                    params["model"] = model
-                if product_type:
-                    clauses.append(f"({PRICE_MATRIX_PRODUCT_TYPE_CASE_SQL}) = :product_type")
-                    params["product_type"] = product_type
-                if category:
-                    clauses.append("item_category = :category")
-                    params["category"] = category
-                clause = ("WHERE " + " AND ".join(clauses)) if clauses else ""
-
-                rows = db.execute(text(f"""
-                    SELECT clp.item_code, clp.customer_code, clp.price
-                    FROM warehouse.customer_labour_prices clp
-                    JOIN warehouse.parts ON parts.item_code = clp.item_code
-                    {clause}
-                """), params).mappings().all()
-
-            items = [{"item_code": r["item_code"], "customer_code": r["customer_code"], "price": float(r["price"])} for r in rows]
-
-            if unfiltered:
-                json_data = json.dumps({"success": True, "prices": items}, ensure_ascii=False)
-                write_to_cache("labour_matrix_prices.json", json_data)
-                fetch_url = f"/api_cache/labour_matrix_prices.json"
-                return json.dumps({"success": True, "fetch_url": fetch_url})
-
-            return json.dumps({"success": True, "prices": items}, ensure_ascii=False)
-        except Exception as e:
-            return json.dumps({"success": False, "message": str(e)})
-        finally:
-            db.close()
-
-    @Slot(str, str, result=str)
-    def save_labour_matrix_batch(self, rows_json, username):
-        """İşçilik fiyatı matrisi ızgarasındaki tüm 'kirli' hücreleri TEK transaction'da
-        warehouse.customer_labour_prices'a kaydeder - save_price_matrix_batch ile birebir aynı
-        (null/boş fiyat SİLER, dolu fiyat upsert edilir)."""
-        import uuid
-        from sqlalchemy import text
-        db = SessionLocal()
-        try:
-            try:
-                rows = json.loads(rows_json) if rows_json else []
-            except (TypeError, ValueError):
-                return json.dumps({"success": False, "message": "Geçersiz veri formatı."})
-
-            updated_count = 0
-            deleted_count = 0
-            for row in rows:
-                item_code = (row.get("item_code") or "").strip()
-                customer_code = (row.get("customer_code") or "").strip()
-                price = row.get("price", None)
-                if not item_code or not customer_code:
-                    continue
-                if price is None or price == "":
-                    result = db.execute(text("""
-                        DELETE FROM warehouse.customer_labour_prices
-                        WHERE item_code = :item_code AND customer_code = :customer_code
-                    """), {"item_code": item_code, "customer_code": customer_code})
-                    deleted_count += result.rowcount
-                else:
-                    db.execute(text("""
-                        INSERT INTO warehouse.customer_labour_prices (id, item_code, customer_code, price, updated_by, updated_at)
-                        VALUES (:id, :item_code, :customer_code, :price, :username, now())
-                        ON CONFLICT (item_code, customer_code)
-                        DO UPDATE SET price = EXCLUDED.price, updated_by = EXCLUDED.updated_by, updated_at = now()
-                    """), {"id": str(uuid.uuid4()), "item_code": item_code, "customer_code": customer_code, "price": float(price), "username": username or None})
-                    updated_count += 1
-
-            db.commit()
-            return json.dumps({"success": True, "updated_count": updated_count, "deleted_count": deleted_count})
-        except Exception as e:
-            db.rollback()
-            return json.dumps({"success": False, "message": str(e)})
-        finally:
-            db.close()
-
-    @Slot(str, str, result=str)
-    def bulk_import_labour_matrix(self, rows_json, username):
-        """Müşteri İşçilik Fiyatı Matrisi için toplu (Excel) içe aktarma - bulk_import_price_matrix
-        ile birebir aynı (geçersiz satırlar atlanır/raporlanır, geçerliler kaydedilir; chunk'lı
-        çok-satırlı INSERT + ON CONFLICT upsert), tek fark yazılan tablo (customer_labour_prices)."""
-        import uuid
-        from sqlalchemy import text
-        db = SessionLocal()
-        try:
-            try:
-                rows = json.loads(rows_json or "[]")
-            except (ValueError, TypeError):
-                return json.dumps({"success": False, "message": "Geçersiz dosya verisi.", "errors": []})
-            if not rows:
-                return json.dumps({"success": False, "message": "Dosyada içe aktarılacak satır bulunamadı.", "errors": []})
-
-            valid_item_codes = {r[0] for r in db.execute(text("SELECT item_code FROM warehouse.parts")).all()}
-
-            customers = db.execute(text("SELECT code, short_name FROM warehouse.customers WHERE code IS NOT NULL")).mappings().all()
-            customer_by_code = {c["code"].strip().lower(): c["code"] for c in customers}
-            customer_by_name = {(c["short_name"] or "").strip().lower(): c["code"] for c in customers if c["short_name"]}
-
-            errors = []
-            valid_rows = []
-            seen_keys_in_file = {}
-
-            for idx, row in enumerate(rows):
-                row_num = idx + 2
-                row = row or {}
-
-                def get_val(key):
-                    v = row.get(key)
-                    return str(v).strip() if v is not None else ""
-
-                item_code = get_val("item_code")
-                musteri_raw = get_val("musteri")
-                price_raw = get_val("fiyat")
-
-                if not item_code:
-                    errors.append({"row": row_num, "field": "Parça Kodu", "message": "Parça Kodu boş olamaz."})
-                elif item_code not in valid_item_codes:
-                    errors.append({"row": row_num, "field": "Parça Kodu", "message": f"\"{item_code}\" sistemde tanımlı bir parça/işçilik kodu değil."})
-
-                if not musteri_raw:
-                    errors.append({"row": row_num, "field": "Müşteri", "message": "Müşteri boş olamaz."})
-
-                customer_code = customer_by_code.get(musteri_raw.lower()) or customer_by_name.get(musteri_raw.lower())
-                if musteri_raw and not customer_code:
-                    errors.append({"row": row_num, "field": "Müşteri", "message": f"\"{musteri_raw}\" sistemde tanımlı bir müşteri değil (kod veya ad ile eşleşmedi)."})
-
-                price_val = None
-                if not price_raw:
-                    errors.append({"row": row_num, "field": "Fiyat", "message": "Fiyat boş olamaz."})
-                else:
-                    try:
-                        price_val = float(price_raw.replace(",", "."))
-                    except ValueError:
-                        errors.append({"row": row_num, "field": "Fiyat", "message": f"\"{price_raw}\" sayısal değil."})
-
-                # Geniş formatta aynı item_code+müşteri birden fazla kez geçebilir - hata değil,
-                # son değer kazanır (aşağıda dedup ile). Aynı zamanda Postgres'in ON CONFLICT
-                # "row a second time" kısıtını da karşılar.
-                if item_code in valid_item_codes and customer_code and price_val is not None:
-                    valid_rows.append({"item_code": item_code, "customer_code": customer_code, "price": price_val})
-
-            if not valid_rows:
-                return json.dumps({"success": False, "message": f"{len(errors)} satırda hata bulundu, kaydedilecek geçerli satır yok.", "errors": errors[:200]}, ensure_ascii=False)
-
-            deduped = {}
-            for r in valid_rows:
-                deduped[(r["item_code"], r["customer_code"])] = r["price"]
-            dedup_rows = [{"item_code": k[0], "customer_code": k[1], "price": v} for k, v in deduped.items()]
-
-            CHUNK_SIZE = 1000
-            for chunk_start in range(0, len(dedup_rows), CHUNK_SIZE):
-                chunk = dedup_rows[chunk_start:chunk_start + CHUNK_SIZE]
-                values_clauses = []
-                params = {"username": username or None}
-                for j, r in enumerate(chunk):
-                    values_clauses.append(f"(:id{j}, :item_code{j}, :customer_code{j}, :price{j}, :username, now())")
-                    params[f"id{j}"] = str(uuid.uuid4())
-                    params[f"item_code{j}"] = r["item_code"]
-                    params[f"customer_code{j}"] = r["customer_code"]
-                    params[f"price{j}"] = r["price"]
-                chunk_sql = text(f"""
-                    INSERT INTO warehouse.customer_labour_prices (id, item_code, customer_code, price, updated_by, updated_at)
-                    VALUES {', '.join(values_clauses)}
-                    ON CONFLICT (item_code, customer_code)
-                    DO UPDATE SET price = EXCLUDED.price, updated_by = EXCLUDED.updated_by, updated_at = now()
-                """)
-                db.execute(chunk_sql, params)
-
-            db.commit()
-            if errors:
-                return json.dumps({
-                    "success": True,
-                    "message": f"{len(dedup_rows)} fiyat içe aktarıldı, {len(errors)} satır atlandı (hatalı).",
-                    "imported": len(dedup_rows), "skipped": len(errors), "errors": errors[:200],
-                }, ensure_ascii=False)
-            return json.dumps({"success": True, "message": f"{len(dedup_rows)} fiyat başarıyla içe aktarıldı.", "imported": len(dedup_rows)})
-        except Exception as e:
-            db.rollback()
-            return json.dumps({"success": False, "message": f"İçe aktarma hatası: {str(e)}", "errors": []})
         finally:
             db.close()
 
@@ -14273,8 +13857,20 @@ class WebBridge(QObject):
 
     @Slot(result=str)
     def get_level_labour_matrix(self):
-        """Seviye İşçilik Fiyatı matrisi (pricing.xlsx Tablo 1): müşteri × Repair Level."""
-        return self._get_labour_price_matrix("customer_level_labour_prices", "level_key")
+        """Seviye İşçilik Fiyatı matrisi (pricing.xlsx Tablo 1): müşteri × Repair Level.
+
+        Sütunlar EKRANDA SABİT DEĞİL, warehouse.item_labour'dan gelir: seviye eklendiğinde
+        ya da kapatıldığında matris kendiliğinden uyar. (Level 1M bu yüzden kapatılabildi -
+        eskiden sütun listesi frontend'de sabit kodluydu ve Level 1M hiç görünmediği için
+        fiyatı hiç girilememişti, ona bağlı Front Camera 0 € faturalanıyordu.)"""
+        veri = json.loads(self._get_labour_price_matrix("customer_level_labour_prices", "level_key"))
+        if veri.get("success"):
+            db = SessionLocal()
+            try:
+                veri["level_keys"] = self._aktif_seviye_kodlari(db)
+            finally:
+                db.close()
+        return json.dumps(veri, ensure_ascii=False)
 
     @Slot(str, str, result=str)
     def save_level_labour_matrix_batch(self, rows_json, username):
@@ -14300,6 +13896,1035 @@ class WebBridge(QObject):
     def save_dgd_labour_matrix_batch(self, rows_json, username):
         return self._save_labour_price_matrix(
             "customer_dgd_labour_prices", "dgd_key", "uq_customer_dgd_labour_price", rows_json, username)
+
+    # --- İŞÇİLİK SEVİYELERİ VE KATEGORİ KURALLARI ---
+    # Fiyatlandırmanın üç katmanı vardır ve üçü de aynı ekrandan yönetilir:
+    #   1) SEVİYE TANIMI  warehouse.item_labour        - hangi seviyeler var, baskınlık sırası
+    #   2) KURAL          warehouse.item_category      - hangi parça kategorisi hangi seviyede
+    #   3) FİYAT          customer_*_labour_prices     - seviye/sıra/DGD başına müşteri fiyatı
+    # Eskiden yalnızca 3. katman yönetilebiliyordu; 1 ve 2 sadece MioCreate.xlsx'ten
+    # tohumlanıp SQL ile değiştirilebiliyordu. Aşağıdaki Slot'lar ikisini de ekrana açar.
+
+    def _aktif_seviye_kodlari(self, db):
+        """enabled=true seviyelerin kodları, baskınlığa göre artan sırada."""
+        from sqlalchemy import text
+        return [r[0] for r in db.execute(text("""
+            SELECT code FROM warehouse.item_labour
+             WHERE enabled AND COALESCE(TRIM(code), '') <> ''
+             ORDER BY order_number NULLS LAST, code
+        """)).all()]
+
+    @Slot(result=str)
+    def get_item_labours(self):
+        """İşçilik seviyeleri + her seviyenin kaç kategori ve kaç müşteri fiyatı taşıdığı.
+
+        Kullanım sayıları arayüzün "bu seviyeyi kapatırsan 52 kategori sahipsiz kalır"
+        uyarısını verebilmesi için döner; kapatma/silme kararını save_item_labours doğrular."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            rows = db.execute(text("""
+                SELECT il.code, il.order_number, il.short_name, il.enabled,
+                       COALESCE(k.toplam, 0) AS kategori_sayisi,
+                       COALESCE(k.aktif, 0)  AS aktif_kategori,
+                       COALESCE(f.adet, 0)   AS fiyat_sayisi
+                  FROM warehouse.item_labour il
+                  LEFT JOIN (
+                        SELECT TRIM(item_labour) AS lc,
+                               COUNT(*) AS toplam,
+                               COUNT(*) FILTER (WHERE enabled) AS aktif
+                          FROM warehouse.item_category
+                         WHERE COALESCE(TRIM(item_labour), '') <> ''
+                         GROUP BY 1
+                  ) k ON k.lc = il.code
+                  LEFT JOIN (
+                        SELECT level_key, COUNT(*) AS adet
+                          FROM warehouse.customer_level_labour_prices GROUP BY 1
+                  ) f ON f.level_key = il.code
+                 ORDER BY il.order_number NULLS LAST, il.code
+            """)).mappings().all()
+            return json.dumps({"success": True, "labours": [{
+                "code": r["code"] or "",
+                "order_number": r["order_number"],
+                "short_name": r["short_name"] or "",
+                "enabled": bool(r["enabled"]),
+                "kategori_sayisi": int(r["kategori_sayisi"]),
+                "aktif_kategori": int(r["aktif_kategori"]),
+                "fiyat_sayisi": int(r["fiyat_sayisi"]),
+            } for r in rows]}, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, result=str)
+    def save_item_labours(self, rows_json, username):
+        """Seviye tanımlarını toplu kaydeder. rows: [{code, order_number, short_name,
+        enabled, sil?}].
+
+        Korumalar - hepsi tek transaction içinde, biri bile ihlal edilirse hiçbiri yazılmaz:
+          * Bir seviye AKTİF kategori taşırken kapatılamaz (kategoriler fiyatsız kalırdı).
+          * Herhangi bir kategori ya da fiyat satırı bağlıyken silinemez.
+          * order_number zorunludur; baskınlık ondan okunur.
+        Aynı order_number iki seviyede kullanılabilir ama fiyat belirsizleşeceğinden
+        uyarı olarak döner (engellenmez - kullanıcı bilinçli isteyebilir)."""
+        import uuid as _uuid
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            try:
+                rows = json.loads(rows_json) if rows_json else []
+            except (TypeError, ValueError):
+                return json.dumps({"success": False, "message": "Geçersiz veri formatı."})
+            if not rows:
+                return json.dumps({"success": True, "updated_count": 0, "deleted_count": 0, "warnings": []})
+
+            kullanim = {r["lc"]: (r["toplam"], r["aktif"]) for r in db.execute(text("""
+                SELECT TRIM(item_labour) AS lc, COUNT(*) AS toplam,
+                       COUNT(*) FILTER (WHERE enabled) AS aktif
+                  FROM warehouse.item_category
+                 WHERE COALESCE(TRIM(item_labour), '') <> ''
+                 GROUP BY 1
+            """)).mappings().all()}
+            fiyatli = {r[0] for r in db.execute(text(
+                "SELECT DISTINCT level_key FROM warehouse.customer_level_labour_prices")).all()}
+
+            updated = deleted = 0
+            for row in rows:
+                code = (row.get("code") or "").strip()
+                if not code:
+                    continue
+                toplam, aktif = kullanim.get(code, (0, 0))
+
+                if row.get("sil"):
+                    if toplam:
+                        return json.dumps({"success": False, "message":
+                            f"'{code}' silinemez: {toplam} kategori bu seviyeye bağlı. "
+                            f"Önce o kategorileri başka bir seviyeye taşıyın."})
+                    if code in fiyatli:
+                        return json.dumps({"success": False, "message":
+                            f"'{code}' silinemez: seviye fiyat matrisinde tanımlı fiyatları var. "
+                            f"Önce Seviye sekmesinden o sütunu boşaltın."})
+                    deleted += db.execute(text(
+                        "DELETE FROM warehouse.item_labour WHERE code = :c"), {"c": code}).rowcount
+                    continue
+
+                enabled = bool(row.get("enabled", True))
+                if not enabled and aktif:
+                    return json.dumps({"success": False, "message":
+                        f"'{code}' kapatılamaz: {aktif} aktif kategori bu seviyeye bağlı ve "
+                        f"fiyatsız kalırdı. Önce o kategorileri başka bir seviyeye taşıyın."})
+
+                order_number = row.get("order_number")
+                if order_number is None or str(order_number).strip() == "":
+                    return json.dumps({"success": False, "message":
+                        f"'{code}' için sıra numarası zorunlu - baskınlık ondan okunur."})
+                try:
+                    order_number = int(order_number)
+                except (TypeError, ValueError):
+                    return json.dumps({"success": False, "message":
+                        f"'{code}' için sıra numarası tam sayı olmalı."})
+
+                db.execute(text("""
+                    INSERT INTO warehouse.item_labour
+                           (id, code, order_number, language, short_name, item_type, enabled)
+                    VALUES (:id, :c, :o, 'tr', :sn, 'SparePartLabour', :en)
+                    ON CONFLICT (code) DO UPDATE
+                       SET order_number = EXCLUDED.order_number,
+                           short_name   = EXCLUDED.short_name,
+                           enabled      = EXCLUDED.enabled
+                """), {"id": str(_uuid.uuid4()), "c": code, "o": order_number,
+                       "sn": (row.get("short_name") or code).strip(), "en": enabled})
+                updated += 1
+
+            uyarilar = [f"Sıra {r['order_number']} birden fazla seviyede kullanılıyor "
+                        f"({r['kodlar']}); aynı baskınlıktaki seviyeler arasında fiyat belirsizleşir."
+                        for r in db.execute(text("""
+                            SELECT order_number, string_agg(code, ', ' ORDER BY code) AS kodlar
+                              FROM warehouse.item_labour
+                             WHERE enabled AND order_number IS NOT NULL
+                             GROUP BY order_number HAVING COUNT(*) > 1
+                        """)).mappings().all()]
+
+            db.commit()
+            self._invalidate_cache("part_categories")
+            return json.dumps({"success": True, "updated_count": updated,
+                               "deleted_count": deleted, "warnings": uyarilar}, ensure_ascii=False)
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(result=str)
+    def get_category_labours(self):
+        """Kategori → seviye kuralları + atanabilecek seviye listesi.
+
+        Bu tablo makro (Createinvoice) ile MioCreate.xlsx'in birleştirilmiş hâlidir:
+        makronun listelerinde ADI AÇIKÇA geçen kategorilerde makro, geri kalanda Mio
+        belirleyicidir. Buradan yapılan her değişiklik doğrudan fiyatlandırmayı etkiler."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            rows = db.execute(text("""
+                SELECT ic.code, ic.short_name, ic.enabled,
+                       COALESCE(TRIM(ic.item_labour), '') AS item_labour,
+                       string_agg(DISTINCT icm.mission, ', ') AS missions
+                  FROM warehouse.item_category ic
+                  LEFT JOIN warehouse.item_category_mission icm
+                    -- büyük/küçük harf duyarsız: 'Gps Antenna' ile 'GPS Antenna' eşleşmeliydi
+                    ON LOWER(TRIM(icm.item_category)) IN
+                       (LOWER(TRIM(COALESCE(ic.short_name, ''))), LOWER(TRIM(COALESCE(ic.code, ''))))
+                 GROUP BY ic.code, ic.short_name, ic.enabled, ic.item_labour
+                 ORDER BY ic.code
+            """)).mappings().all()
+            return json.dumps({
+                "success": True,
+                "labours": self._aktif_seviye_kodlari(db),
+                "categories": [{
+                    "code": r["code"] or "",
+                    "short_name": r["short_name"] or "",
+                    "enabled": bool(r["enabled"]),
+                    "item_labour": r["item_labour"],
+                    "missions": r["missions"] or "",
+                } for r in rows],
+            }, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, result=str)
+    def save_category_labours(self, rows_json, username):
+        """Kategori → seviye eşlemesini toplu günceller. rows: [{code, item_labour}].
+
+        Boş item_labour izinlidir ve "bu kategori işçilik doğurmaz" demektir (DGD ve SW-Up
+        böyledir - DGD zaten işçilik kaleminin kendisidir). Bunun dışında verilen seviye
+        item_labour tablosunda AKTİF olarak tanımlı olmak zorundadır; aksi hâlde kategori
+        fiyatlandırılamayan bir seviyeye bağlanırdı."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            try:
+                rows = json.loads(rows_json) if rows_json else []
+            except (TypeError, ValueError):
+                return json.dumps({"success": False, "message": "Geçersiz veri formatı."})
+            if not rows:
+                return json.dumps({"success": True, "updated_count": 0})
+
+            gecerli = set(self._aktif_seviye_kodlari(db))
+            updated = 0
+            bilinmeyen = []
+            for row in rows:
+                code = (row.get("code") or "").strip()
+                labour = (row.get("item_labour") or "").strip()
+                if not code:
+                    continue
+                if labour and labour not in gecerli:
+                    return json.dumps({"success": False, "message":
+                        f"'{labour}' geçerli bir aktif işçilik seviyesi değil "
+                        f"(kategori: {code}). Seviyeler sekmesinden önce tanımlayın."})
+                n = db.execute(text("""
+                    UPDATE warehouse.item_category
+                       SET item_labour = NULLIF(:l, '')
+                     WHERE code = :c
+                """), {"l": labour, "c": code}).rowcount
+                if n:
+                    updated += n
+                else:
+                    bilinmeyen.append(code)
+
+            db.commit()
+            self._invalidate_cache("part_categories")
+            sonuc = {"success": True, "updated_count": updated}
+            if bilinmeyen:
+                sonuc["message"] = f"Bulunamayan kategori atlandı: {', '.join(bilinmeyen[:10])}"
+            return json.dumps(sonuc, ensure_ascii=False)
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    # --- ONARIM SEVİYESİ HESABI ---
+    # Cihazın seviyesi = kullanılan parçaların bağlı olduğu seviyeler içinde
+    # item_labour.order_number'ı EN BÜYÜK olan. Fiyatlandırmanın girdisidir:
+    # ilk parçanın işçiliği bu seviyenin customer_level_labour_prices fiyatıdır.
+    #
+    # parts.item_category ile item_category eşlemesi BÜYÜK/KÜÇÜK HARF DUYARSIZ yapılır;
+    # sahada 'Gps Antenna' yazılmış parçalar 'GPS Antenna' kategorisine bağlanamıyor ve
+    # seviyesiz kalıyordu. LATERAL, önce code sonra short_name eşleşmesini tercih ederek
+    # her parça için EN FAZLA BİR kategori döndürür (düz OR JOIN satırı katlayabiliyordu).
+    _SEVIYE_PARCA_SQL = """
+        SELECT rr.id,
+               rr.part_item_code,
+               rr.department_mission,
+               rr.repair_result_type_code,
+               rr.created_at,
+               COALESCE(pp.item_category, '') AS item_category,
+               COALESCE(ic.code, '')          AS kategori_kodu,
+               COALESCE(TRIM(ic.item_labour), '') AS seviye,
+               il.order_number,
+               -- Ücret tipi: IW = Ücretsiz Onarım, OOW = Ücretli Onarım. Kod BOŞ ise
+               -- ücretli sayılır - aksi hâlde ücret tipi hiç seçilmemiş eski kayıtların
+               -- tamamı bedavaya düşer ve fatura sessizce sıfırlanırdı.
+               COALESCE(w.is_paid_for, TRUE) AS ucretli
+          FROM warehouse.repair_records rr
+          LEFT JOIN warehouse.repair_result_type rrt ON rrt.code = rr.repair_result_type_code
+          LEFT JOIN warehouse.repair_item_warranty w ON w.code = rr.warranty_code
+          LEFT JOIN warehouse.parts pp ON pp.item_code = rr.part_item_code
+          LEFT JOIN LATERAL (
+                SELECT c.code, c.item_labour
+                  FROM warehouse.item_category c
+                 WHERE LOWER(TRIM(c.code))       = LOWER(TRIM(COALESCE(pp.item_category, '')))
+                    OR LOWER(TRIM(c.short_name)) = LOWER(TRIM(COALESCE(pp.item_category, '')))
+                 ORDER BY (LOWER(TRIM(c.code)) = LOWER(TRIM(COALESCE(pp.item_category, '')))) DESC
+                 LIMIT 1
+          ) ic ON TRUE
+          LEFT JOIN warehouse.item_labour il
+                 ON il.code = TRIM(COALESCE(ic.item_labour, '')) AND il.enabled
+         WHERE rr.service_record_id = ANY(:refs)
+           AND COALESCE(rrt.is_cancelled, FALSE) = FALSE
+         ORDER BY il.order_number DESC NULLS LAST, rr.created_at
+    """
+
+    # Parça girilmemiş ama onarılmış cihaza işlenen kategori (makronun "Mechanical Repair"
+    # kuralı). Seviye SABİT DEĞİL - bu kategorinin item_category'deki seviyesinden okunur,
+    # yani Kategori→Seviye sekmesinden değiştirilirse kural da onu takip eder. Kategori
+    # ya da seviyesi kapatılırsa kural kendiliğinden devre dışı kalır.
+    _MEKANIK_ONARIM_KATEGORI = "Mechanical Repair"
+
+    def _mekanik_onarim_parcasi(self, db, kategori_kodu, urun_ailesi, model):
+        """Cihazın modeline ait 'Mechanical Repair' parçasının kodunu bulur.
+
+        Fiyat listesinde kalem adı '<model> Mechanical Repair' biçiminde tutulur; buradaki
+        model cihazın TAM modeli değil kısa adıdır ('iPhone 16 Pro' ↔ 'iPhone 16 Pro 256GB').
+        Bu yüzden önce ürün ailesiyle birebir eşleşme, olmazsa cihaz modelinin başına uyan
+        EN UZUN parça modeli aranır. Eşleşme yoksa None döner ve kalem fiyatsız kalır."""
+        from sqlalchemy import text
+        aile = " ".join(str(urun_ailesi or "").split())
+        tam = " ".join(str(model or "").split())
+        if not aile and not tam:
+            return None
+        return db.execute(text("""
+            SELECT p.item_code
+              FROM warehouse.parts p
+              JOIN warehouse.item_category ic
+                ON LOWER(TRIM(ic.code)) = LOWER(TRIM(COALESCE(p.item_category, '')))
+                OR LOWER(TRIM(ic.short_name)) = LOWER(TRIM(COALESCE(p.item_category, '')))
+             WHERE ic.code = :kat
+               AND COALESCE(TRIM(p.model), '') <> ''
+               AND (LOWER(TRIM(p.model)) = LOWER(:aile)
+                    OR LOWER(:tam) LIKE LOWER(TRIM(p.model)) || '%')
+             ORDER BY (LOWER(TRIM(p.model)) = LOWER(:aile)) DESC, LENGTH(p.model) DESC
+             LIMIT 1
+        """), {"kat": kategori_kodu, "aile": aile, "tam": tam}).scalar()
+
+    def _mekanik_onarim_kategorisi(self, db):
+        """'Mechanical Repair' kategorisini ve bağlı olduğu aktif seviyeyi döner."""
+        from sqlalchemy import text
+        return db.execute(text("""
+            SELECT ic.code, ic.short_name, TRIM(ic.item_labour) AS seviye, il.order_number
+              FROM warehouse.item_category ic
+              JOIN warehouse.item_labour il
+                ON il.code = TRIM(COALESCE(ic.item_labour, '')) AND il.enabled
+             WHERE ic.enabled
+               AND LOWER(TRIM(ic.short_name)) = LOWER(:ad)
+             LIMIT 1
+        """), {"ad": self._MEKANIK_ONARIM_KATEGORI}).mappings().first()
+
+    def _cihaz_onarim_seviyesi(self, db, repair_refs, flow=None):
+        """Bir cihazın onarım seviyesini ve seviyeye katkı veren parçaları hesaplar.
+
+        İptal edilmiş onarımlar sayılmaz. Seviyesi olmayan satırlar (DGD ve SW-Up gibi
+        'işçilik yok' kategoriler, kategorisi çözülemeyen parçalar) seviyeyi BELİRLEMEZ
+        ama listede 'seviyesiz' olarak döner ki eksik eşleme görünür kalsın.
+
+        GERÇEK PARÇA GİRİLMEMİŞ CİHAZ (yalnızca DGD satırı olan) bedava geçmez - makro
+        böyle bir satırın açıklamasına kendisi "<model> Mechanical Repair" yazıp seviyeyi
+        zorla Level 1 yapar. İki istisnası vardır ve ikisi de burada korunur:
+          * cihaz onarılamamışsa (tüm onarımları iptal) -> Level 0
+          * RMA GİRİŞİ ise (flow='To RMA', müşterinin bize iade ettiği cihaz)
+            makro "No Fault Found" yazar -> Level 0
+        flow YALNIZCA bu kuralda ve DGD muafiyetinde okunur."""
+        from sqlalchemy import text
+        rows = db.execute(text(self._SEVIYE_PARCA_SQL), {"refs": list(repair_refs)}).mappings().all()
+
+        parcalar = [{
+            "repair_id": str(r["id"]),
+            "part_item_code": r["part_item_code"] or "",
+            "department_mission": r["department_mission"] or "",
+            "item_category": r["item_category"],
+            "kategori_kodu": r["kategori_kodu"],
+            "seviye": r["seviye"],
+            "order_number": r["order_number"],
+            "created_at": r["created_at"].isoformat() if r["created_at"] else "",
+            "ucretli": bool(r["ucretli"]),
+        } for r in rows]
+
+        # Cihaz onarılabilmiş mi? İPTALLER DE dahil tüm onarımlara bakılır; yukarıdaki
+        # parça sorgusu iptalleri elediği için ayrı sorgu gerekir.
+        durum = db.execute(text("""
+            SELECT COUNT(*) AS toplam,
+                   COUNT(*) FILTER (WHERE COALESCE(rrt.is_cancelled, FALSE)) AS iptal
+              FROM warehouse.repair_records rr
+              LEFT JOIN warehouse.repair_result_type rrt ON rrt.code = rr.repair_result_type_code
+             WHERE rr.service_record_id = ANY(:refs)
+        """), {"refs": list(repair_refs)}).mappings().first()
+        toplam_onarim = int(durum["toplam"] or 0)
+
+        # Cihaz kartındaki iade bayrağı + akış + model bilgisi tek sorguda okunur.
+        cihaz = db.execute(text("""
+            SELECT flow, model, product_family,
+                   COALESCE(repair_is_cancelled, FALSE) AS iade
+              FROM warehouse.batch_entries
+             WHERE imei_number = ANY(:refs) OR service_id::text = ANY(:refs) LIMIT 1
+        """), {"refs": list(repair_refs)}).mappings().first()
+
+        # İADE = cihaz onarılmadan müşteriye dönüyor. İki yoldan da olur:
+        #   * tüm onarımları iptal edilmiş, ya da
+        #   * repair_is_cancelled bayrağı (parça takılıp faturalanmış olsa bile).
+        onarilamadi = (toplam_onarim > 0 and int(durum["iptal"] or 0) == toplam_onarim) \
+            or bool(cihaz and cihaz["iade"])
+
+        if flow is None:
+            flow = cihaz["flow"] if cihaz else None
+        rma_girisi = self._kanonik_flow(db, flow).strip().lower() == "to rma"
+
+        # ÜCRETSİZ (IW) parçalar fatura hesabının TAMAMEN dışındadır: fiyatı da işçiliği de
+        # yansımaz, seviyeyi de belirlemez, sıra da almaz. Aksi hâlde bedava yapılan bir
+        # işlem cihazı üst seviyeye çıkarıp diğer parçaların işçiliğini pahalılaştırırdı.
+        seviyeliler = [p for p in parcalar if p["order_number"] is not None and p["ucretli"]]
+        mekanik_kategori = None
+        if seviyeliler:
+            en_baskin = max(seviyeliler, key=lambda p: p["order_number"])
+            seviye, sira = en_baskin["seviye"], en_baskin["order_number"]
+        elif parcalar:
+            # Parça VAR ama hepsi ücretsiz: cihaz onarıldı, sadece faturalanmıyor.
+            # "Mechanical Repair" kuralı burada devreye GİRMEZ - o kural parça hiç
+            # girilmemiş cihazlar içindir.
+            seviye, sira = "Level 0", 0
+        elif onarilamadi or rma_girisi:
+            seviye, sira = "Level 0", 0
+        else:
+            # Parça girilmemiş ama cihaz onarılmış: makronun "Mechanical Repair" kuralı.
+            # Seviye o kategorinin kendi seviyesinden gelir, burada sabitlenmez.
+            mekanik_kategori = self._mekanik_onarim_kategorisi(db)
+            if mekanik_kategori:
+                seviye, sira = mekanik_kategori["seviye"], mekanik_kategori["order_number"]
+            else:
+                seviye, sira = "Level 0", 0
+
+        return {
+            "seviye": seviye,
+            "order_number": sira,
+            "parcalar": parcalar,
+            "onarilamadi": onarilamadi,
+            "rma_girisi": rma_girisi,
+            # Dolu ise seviye parçalardan değil, "parça girilmemiş ama iş yapılmış"
+            # kuralından geldi; fatura bu kategoriyi ayrı bir kalem olarak gösterir.
+            "mekanik_onarim": bool(mekanik_kategori),
+            "mekanik_kategori": dict(mekanik_kategori) if mekanik_kategori else None,
+            "model": (cihaz["model"] if cihaz else "") or "",
+            "product_family": (cihaz["product_family"] if cihaz else "") or "",
+            "seviyeli_parca": len(seviyeliler),
+            "seviyesiz_parca": len(parcalar) - len(seviyeliler),
+            # Kategorisi item_category'de bulunamayan parçalar: fiyatlandırmada sessizce
+            # kaybolurlar, bu yüzden ayrıca sayılır.
+            "kategorisiz_parca": sum(1 for p in parcalar
+                                     if p["item_category"] and not p["kategori_kodu"]),
+        }
+
+    @Slot(str, result=str)
+    def get_repair_level(self, term):
+        """Bir cihazın (IMEI ya da servis kayıt no) onarım seviyesini döner."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            term = (term or "").strip()
+            if not term:
+                return json.dumps({"success": False, "message": "IMEI ya da servis no gerekli."})
+
+            refs = [term]
+            # service_id uuid, term ise serbest metin (IMEI olabilir) - karşılaştırma
+            # ::text üzerinden yapılmalı, yoksa Postgres uuid'ye cast etmeye çalışıp
+            # "invalid input syntax for type uuid" ile patlar.
+            be = db.execute(text("""
+                SELECT service_id, customer_no, flow FROM warehouse.batch_entries
+                 WHERE imei_number = :t OR service_id::text = :t LIMIT 1
+            """), {"t": term}).mappings().first()
+            if be and be["service_id"]:
+                refs.append(str(be["service_id"]))
+
+            sonuc = self._cihaz_onarim_seviyesi(db, refs, flow=(be["flow"] if be else None))
+            sonuc["success"] = True
+            sonuc["customer_code"] = (be["customer_no"] or "").strip() if be else ""
+            return json.dumps(sonuc, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    # --- FATURA HESABI ---
+    # Cihaz başına nihai tutar. Createinvoice makrosunun fiyat mantığının birebir karşılığı:
+    #   1. parça      -> cihazın SEVİYE fiyatı        (customer_level_labour_prices)
+    #   2.-5. parça   -> '1-5' tarifesi               (customer_partorder_labour_prices)
+    #   6.+ parça     -> '6+' tarifesi                (aynı tablo, düşük tarife)
+    #   + DGD/test ücreti                             (customer_dgd_labour_prices)
+    #   + her parçanın kendi fiyatı                   (customer_item_prices)
+    # Parça sırası repair_records.created_at'e göredir - ilk eklenen parça 1. parçadır.
+    _ILK_DILIM_SON_SIRA = 5   # 1..5 -> '1-5', 6 ve sonrası -> '6+'
+
+    # Battery Cell kuralının tanıdığı kategoriler (makrodaki flexList ile aynı küme).
+    _BATARYA_FLEXLERI = frozenset({
+        "battery flex", "cracked battery flex", "diag-battery flex", "ti-battery flex",
+    })
+
+    @classmethod
+    def _batarya_flexi_mi(cls, kategori):
+        return " ".join(str(kategori or "").split()).lower() in cls._BATARYA_FLEXLERI
+
+    @staticmethod
+    def _batarya_hucresi_mi(kategori):
+        return " ".join(str(kategori or "").split()).lower() == "battery cell"
+
+    def _cihaz_fatura_hesabi(self, db, repair_refs, customer_code, flow=None):
+        """Bir cihazın parça + işçilik + DGD kırılımını ve toplamını hesaplar.
+
+        Faturalanabilir parça = gerçek parça kodu olan VE kategorisi bir işçilik seviyesine
+        bağlı olan onarım satırı. DGD ve SW-Up gibi 'işçilik yok' kategoriler ile kategorisi
+        çözülemeyen satırlar listede görünür ama sıraya girmez, işçilik doğurmaz.
+
+        DGD/test ücreti iki aşamalı belirlenir - makronun yapısıyla aynı:
+          1) Cihaz FULL FUNCTIONAL mı? TÜM onarımları iptal edilmişse onarılamamıştır,
+             full functional DEĞİLDİR -> not_full_functional ücreti. Bu dalda flow'a
+             HİÇ bakılmaz.
+          2) Full functional ise: cihaz RMA GİRİŞİ mi (flow='To RMA', yani müşterinin
+             BİZE iade ettiği cihaz)? Öyleyse teşhis ücreti alınmaz -> 0.
+             Değilse full_functional ücreti (batarya değişimlerinde ch_bat_replacement).
+
+        DİKKAT - benzeyen İKİ AYRI kavram, karıştırılmamalı:
+          * flow='To RMA'                -> RMA GİRİŞİ: MÜŞTERİNİN bize iade ettiği cihaz.
+          * tüm onarımları iptal edilmiş -> İADE: BİZİM müşteriye iade ettiğimiz cihaz.
+          İkisi farklı yönlerdir; 'iade' kelimesi YALNIZCA ikincisi için kullanılır.
+        Birincisi ücreti sıfırlar, ikincisi ücreti yükseltir; ikisi farklı dallarda."""
+        from sqlalchemy import text
+
+        customer_code = (customer_code or "").strip()
+        seviye_bilgi = self._cihaz_onarim_seviyesi(db, repair_refs, flow=flow)
+
+        def _tarife(tablo, anahtar_kolon):
+            if not customer_code:
+                return {}
+            return {r[0]: float(r[1]) for r in db.execute(text(
+                f"SELECT {anahtar_kolon}, price FROM warehouse.{tablo} WHERE customer_code = :c"
+            ), {"c": customer_code}).all()}
+
+        seviye_fiyat = _tarife("customer_level_labour_prices", "level_key")
+        sira_fiyat = _tarife("customer_partorder_labour_prices", "order_key")
+        dgd_fiyat_tablosu = _tarife("customer_dgd_labour_prices", "dgd_key")
+
+        onarilamadi = seviye_bilgi["onarilamadi"]
+        rma_girisi = seviye_bilgi["rma_girisi"]
+        seviye = seviye_bilgi["seviye"]
+
+        if onarilamadi:
+            dgd_durum, dgd_ucret = "not_full_functional", dgd_fiyat_tablosu.get("not_full_functional", 0.0)
+        elif rma_girisi:
+            # RMA girişi (müşterinin bize iade ettiği cihaz): teşhis ücreti alınmaz.
+            dgd_durum, dgd_ucret = "rma_muaf", 0.0
+        else:
+            # Batarya değişimlerinde ayrı (düşük) test ücreti tanımlı olan müşterilerde o
+            # kullanılır - makroda CH'ye özel sabitlenmişti, burada "fiyatı tanımlıysa
+            # geçerli" kuralına genellendi ki müşteri eklendiğinde kod değişmesin.
+            dgd_durum = "full_functional"
+            if seviye.startswith("Bat.Replacement") and "ch_bat_replacement" in dgd_fiyat_tablosu:
+                dgd_durum = "ch_bat_replacement"
+            dgd_ucret = dgd_fiyat_tablosu.get(dgd_durum, 0.0)
+
+        # --- Parça satırları: eklenme sırasına göre numaralandırılır
+        parcalar = sorted(seviye_bilgi["parcalar"], key=lambda p: (p["created_at"] or "", p["repair_id"]))
+
+        # BATARYA FLEX'İ ASLA 1. PARÇA OLMAZ.
+        # 1. yuva seviye ücretini taşır; Battery Cell ile birlikte gelen flex'in işçiliği
+        # sıfırlandığı için flex oraya denk gelirse seviye ücreti tamamen kaybolurdu
+        # (ölçüldü: aynı üç parça, sırası yüzünden 28,60 yerine 13,70). Bu yüzden flex
+        # 1. sıradaysa ilk flex OLMAYAN faturalanabilir parçayla yer değiştirir.
+        # Toplamı değiştirmez - yalnızca hangi ücretin hangi satırda görüneceğini düzeltir.
+        def _fatura_edilir(p):
+            return bool(p["part_item_code"]) and p["order_number"] is not None and p["ucretli"]
+
+        _fatura_ix = [i for i, p in enumerate(parcalar) if _fatura_edilir(p)]
+        if _fatura_ix and self._batarya_flexi_mi(parcalar[_fatura_ix[0]]["item_category"]):
+            for j in _fatura_ix[1:]:
+                if not self._batarya_flexi_mi(parcalar[j]["item_category"]):
+                    i0 = _fatura_ix[0]
+                    parcalar[i0], parcalar[j] = parcalar[j], parcalar[i0]
+                    break
+
+        satirlar = []
+        sira = 0
+        parca_toplam = iscilik_toplam = 0.0
+        fiyatsiz = []
+
+        for p in parcalar:
+            # Ücretsiz (IW) parça faturaya girmez: ne fiyatı ne işçiliği yansır, sıra da
+            # almaz. Satır listede DURUR ki faturada "bu parça değişti ama ücretsiz"
+            # görünsün - sadece tutarları sıfırdır.
+            faturalanabilir = (bool(p["part_item_code"]) and p["order_number"] is not None
+                               and p["ucretli"])
+            parca_fiyat = None
+            if p["part_item_code"] and p["ucretli"]:
+                parca_fiyat = self._get_effective_price(db, p["part_item_code"], customer_code)
+            elif p["part_item_code"]:
+                parca_fiyat = 0.0
+
+            iscilik = 0.0
+            iscilik_kaynak = ""
+            if faturalanabilir:
+                sira += 1
+                if sira == 1:
+                    iscilik = seviye_fiyat.get(seviye, 0.0)
+                    iscilik_kaynak = f"seviye: {seviye}"
+                else:
+                    anahtar = "1-5" if sira <= self._ILK_DILIM_SON_SIRA else "6+"
+                    iscilik = sira_fiyat.get(anahtar, 0.0)
+                    iscilik_kaynak = f"parça sırası: {anahtar}"
+                iscilik_toplam += iscilik
+
+            if parca_fiyat is not None:
+                parca_toplam += parca_fiyat
+            elif p["part_item_code"] and faturalanabilir:
+                fiyatsiz.append(p["part_item_code"])
+
+            satirlar.append({
+                **p,
+                "sira": sira if faturalanabilir else None,
+                "faturalanabilir": faturalanabilir,
+                "parca_fiyat": parca_fiyat,
+                "iscilik_fiyat": iscilik,
+                "iscilik_kaynak": iscilik_kaynak,
+            })
+
+        # BATTERY CELL KURALI: hücre ve onun flex'i tek operasyonda değişir, işçilik iki
+        # kez alınmaz. Cihazda "Battery Cell" varsa, batarya flex'lerinin İŞÇİLİĞİ
+        # sıfırlanır - flex KAÇINCI SIRADA olursa olsun, birden fazlaysa hepsi.
+        #
+        # Sıfırlanan yalnızca ÜCRETTİR: parça fiyatı yerinde kalır, çünkü flex fiziksel
+        # olarak takılmış ve stoktan çıkmıştır.
+        #
+        # Sıralar YENİDEN NUMARALANMAZ: sıfırlanan satır yuvasını korur, arkasındaki
+        # parçaların tarifesi değişmez.
+        #
+        # (Makro burada yalnızca 1. yuvaya bakıp flex oradaysa hücreyi sıfırlıyordu;
+        #  sahadaki kural konumdan bağımsız olarak hep flex'i sıfırlamak.)
+        faturalanan = [s for s in satirlar if s["faturalanabilir"]]
+        if any(self._batarya_hucresi_mi(s["item_category"]) for s in faturalanan):
+            for s in faturalanan:
+                if self._batarya_flexi_mi(s["item_category"]) and s["iscilik_fiyat"]:
+                    iscilik_toplam -= s["iscilik_fiyat"]
+                    s["iscilik_fiyat"] = 0.0
+                    s["iscilik_kaynak"] = "Battery Cell ile birlikte - işçilik alınmadı"
+
+        # Parça girilmemiş ama onarılmış cihaz: makro açıklamaya "<model> Mechanical Repair"
+        # yazıp seviye işçiliğini yine de faturalar. Faturada AYRI BİR KALEM olarak, gerçek
+        # 'Mechanical Repair' kategorisiyle görünür; parça fiyatı yoktur (stoktan bir şey
+        # çıkmamıştır), yanında yalnızca o cihazın seviye işçiliği durur.
+        mek = seviye_bilgi.get("mekanik_kategori")
+        if mek:
+            sira = 1
+            iscilik = seviye_fiyat.get(seviye, 0.0)
+            iscilik_toplam += iscilik
+            # Mekanik onarımın da bir PARÇA FİYATI olabilir: fiyat listesinde cihazın
+            # modeline ait bir "Mechanical Repair" kalemi tanımlıysa o tutar faturaya
+            # girer. Müşteriye özel bir istisna DEĞİLDİR - fiyat matrisinde tanımlıysa
+            # uygulanır, tanımlı değilse 0 kalır.
+            mek_kod = self._mekanik_onarim_parcasi(
+                db, mek["code"], seviye_bilgi.get("product_family"), seviye_bilgi.get("model"))
+            mek_fiyat = self._get_effective_price(db, mek_kod, customer_code) if mek_kod else None
+            if mek_fiyat:
+                parca_toplam += mek_fiyat
+            satirlar.append({
+                "repair_id": "", "part_item_code": mek_kod or "", "department_mission": "",
+                "item_category": mek["short_name"], "kategori_kodu": mek["code"],
+                "seviye": seviye, "order_number": seviye_bilgi["order_number"],
+                "created_at": "", "sira": 1, "faturalanabilir": True,
+                "ucretli": True,
+                "parca_fiyat": mek_fiyat, "iscilik_fiyat": iscilik,
+                "iscilik_kaynak": f"seviye: {seviye} (parça girilmedi)",
+            })
+
+        return {
+            "musteri": customer_code,
+            "seviye": seviye,
+            "order_number": seviye_bilgi["order_number"],
+            "onarilamadi": onarilamadi,
+            "rma_girisi": seviye_bilgi["rma_girisi"],
+            "mekanik_onarim": seviye_bilgi["mekanik_onarim"],
+            "mekanik_kategori": (seviye_bilgi["mekanik_kategori"] or {}).get("short_name", ""),
+            "satirlar": satirlar,
+            "parca_sayisi": sira,
+            "parca_toplam": round(parca_toplam, 2),
+            "iscilik_toplam": round(iscilik_toplam, 2),
+            "dgd_durum": dgd_durum,
+            "dgd_ucret": round(dgd_ucret, 2),
+            # sw_update makronun AU sütununun karşılığı: şimdilik her zaman 0, ileride
+            # yazılım güncelleme ücreti buraya girecek.
+            "sw_update": 0.0,
+            "genel_toplam": round(parca_toplam + iscilik_toplam + dgd_ucret, 2),
+            "fiyatsiz_parcalar": fiyatsiz,
+            "kategorisiz_parca": seviye_bilgi["kategorisiz_parca"],
+        }
+
+    @Slot(str, result=str)
+    def get_device_invoice(self, term):
+        """Bir cihazın (IMEI ya da servis no) fatura kırılımı."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            term = (term or "").strip()
+            if not term:
+                return json.dumps({"success": False, "message": "IMEI ya da servis no gerekli."})
+            be = db.execute(text("""
+                SELECT service_id, customer_no, customer_name, model, imei_number, flow
+                  FROM warehouse.batch_entries
+                 WHERE imei_number = :t OR service_id::text = :t LIMIT 1
+            """), {"t": term}).mappings().first()
+            refs = [term]
+            if be and be["service_id"]:
+                refs.append(str(be["service_id"]))
+
+            sonuc = self._cihaz_fatura_hesabi(db, refs, (be["customer_no"] if be else "") or "",
+                                              flow=(be["flow"] if be else None))
+            sonuc.update({
+                "success": True,
+                "imei": (be["imei_number"] if be else "") or term,
+                "customer_name": (be["customer_name"] if be else "") or "",
+                "model": (be["model"] if be else "") or "",
+            })
+            return json.dumps(sonuc, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    # --- MÜŞTERİYE SEVK / FATURALANDIRMA ---
+    # Fatura MÜŞTERİ BAZINDA kesilir çünkü her müşterinin cari hesabı ayrıdır.
+    # Faturalandırılacak küme = o müşterinin sevk bekleyen (127) tüm cihazları.
+    # "Faturalandır" tek işlemde: fatura kaydını yazar, CSV'yi üretip saklar ve
+    # cihazları 128'e (Released = çıkış yapıldı) alır.
+    _FATURA_KAYNAK_STATU = 127   # Awaiting shipment to customer
+    _FATURA_HEDEF_STATU = 128    # Released
+    _FATURA_MIN_PARCA_SUTUNU = 10  # makro da 10 parça yuvası basar
+
+    def _faturalanacak_cihazlar(self, db, customer_code=None):
+        """Sevk bekleyen (127) cihazları hesaplanmış fatura kırılımlarıyla döner."""
+        from sqlalchemy import text
+        sql = """
+            SELECT be.id, be.imei_number, be.service_id, be.customer_no, be.customer_name,
+                   be.model, be.flow, be.currency, be.statu_code
+              FROM warehouse.batch_entries be
+             WHERE be.statu_code = :statu
+        """
+        params = {"statu": self._FATURA_KAYNAK_STATU}
+        if customer_code:
+            sql += " AND COALESCE(TRIM(be.customer_no), '') = :cc"
+            params["cc"] = customer_code.strip()
+        sql += " ORDER BY be.customer_no, be.imei_number"
+
+        sonuc = []
+        for be in db.execute(text(sql), params).mappings().all():
+            refs = [be["imei_number"]] if be["imei_number"] else []
+            if be["service_id"]:
+                refs.append(str(be["service_id"]))
+            if not refs:
+                continue
+            f = self._cihaz_fatura_hesabi(db, refs, be["customer_no"] or "", flow=be["flow"])
+            sonuc.append({"entry": be, "fatura": f})
+        return sonuc
+
+    def _fatura_csv_uret(self, kayitlar, fatura_no, musteri_adi):
+        """Makronun invoice sayfası düzeninde CSV üretir: cihaz başına TEK satır, parçalar
+        yan yana (ad / fiyat / işçilik üçlüsü), sonda toplamlar.
+
+        Türkçe Excel'de çift tıklamayla düzgün açılsın diye ayraç ';', ondalık ',' ve
+        dosya başında UTF-8 BOM kullanılır."""
+        import csv as _csv
+        import io as _io
+
+        # Parça yuvalarına GERÇEK PARÇA satırları girer. DGD ve SW-Up gibi 'işçilik yok'
+        # satırları buraya konmaz - DGD'nin zaten kendi sütunu var, makro da parça
+        # yuvalarına onu koymuyor. ÜCRETSİZ parçalar ise yuvada GÖRÜNÜR (fiyat 0,
+        # işçilik 0): cihaza takıldılar, sadece faturalanmadılar.
+        for k in kayitlar:
+            k["kalemler"] = [s for s in k["fatura"]["satirlar"]
+                             if s["faturalanabilir"]
+                             or (s["part_item_code"] and s["order_number"] is not None)]
+
+        azami = max([len(k["kalemler"]) for k in kayitlar] or [0])
+        parca_sutunu = max(self._FATURA_MIN_PARCA_SUTUNU, azami)
+
+        def _s(x):
+            """Sayıyı Türkçe ondalıkla metne çevirir; None -> boş."""
+            return "" if x is None else f"{float(x):.2f}".replace(".", ",")
+
+        baslik = ["Fatura No", "Müşteri", "IMEI", "Servis No", "Model", "Akış",
+                  "Seviye", "Test Durumu"]
+        for i in range(1, parca_sutunu + 1):
+            baslik += [f"Parça {i}", f"Parça {i} Fiyat", f"Parça {i} İşçilik"]
+        baslik += ["Parça Toplam", "İşçilik Toplam", "DGD", "SW Update", "GENEL TOPLAM"]
+
+        tampon = _io.StringIO()
+        yazici = _csv.writer(tampon, delimiter=";", lineterminator="\r\n")
+        yazici.writerow(baslik)
+
+        for k in kayitlar:
+            be, f = k["entry"], k["fatura"]
+            satir = [fatura_no, musteri_adi, be["imei_number"] or "",
+                     str(be["service_id"] or ""), be["model"] or "", be["flow"] or "",
+                     f["seviye"], f["dgd_durum"]]
+            for i in range(parca_sutunu):
+                if i < len(k["kalemler"]):
+                    s = k["kalemler"][i]
+                    satir += [s["item_category"] or s["part_item_code"] or "",
+                              _s(s["parca_fiyat"]), _s(s["iscilik_fiyat"])]
+                else:
+                    satir += ["", "", ""]
+            satir += [_s(f["parca_toplam"]), _s(f["iscilik_toplam"]), _s(f["dgd_ucret"]),
+                      _s(f["sw_update"]), _s(f["genel_toplam"])]
+            yazici.writerow(satir)
+
+        # Toplam satırı - muhasebe dosyayı açar açmaz genel toplamı görsün.
+        toplam = ["TOPLAM", musteri_adi, f"{len(kayitlar)} cihaz", "", "", "", "", ""]
+        toplam += [""] * (parca_sutunu * 3)
+        toplam += [_s(sum(k["fatura"]["parca_toplam"] for k in kayitlar)),
+                   _s(sum(k["fatura"]["iscilik_toplam"] for k in kayitlar)),
+                   _s(sum(k["fatura"]["dgd_ucret"] for k in kayitlar)),
+                   _s(0),
+                   _s(sum(k["fatura"]["genel_toplam"] for k in kayitlar))]
+        yazici.writerow(toplam)
+
+        return "﻿" + tampon.getvalue()
+
+    @Slot(result=str)
+    def get_invoiceable_devices(self):
+        """Sevk bekleyen (127) cihazlar, müşteriye göre gruplanmış + geçmiş faturalar."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            gruplar = {}
+            for k in self._faturalanacak_cihazlar(db):
+                be, f = k["entry"], k["fatura"]
+                kod = (be["customer_no"] or "").strip() or "(müşterisiz)"
+                g = gruplar.setdefault(kod, {
+                    "customer_code": kod,
+                    "customer_name": be["customer_name"] or kod,
+                    "currency": be["currency"] or "",
+                    "devices": [], "parts_total": 0.0, "labour_total": 0.0,
+                    "dgd_total": 0.0, "grand_total": 0.0, "missing_price_count": 0,
+                })
+                eksik = len(f["fiyatsiz_parcalar"]) + (
+                    1 if f["parca_sayisi"] and not f["iscilik_toplam"] else 0)
+                g["devices"].append({
+                    "imei": be["imei_number"] or "",
+                    "service_id": str(be["service_id"] or ""),
+                    "model": be["model"] or "",
+                    "flow": be["flow"] or "",
+                    "seviye": f["seviye"],
+                    "dgd_durum": f["dgd_durum"],
+                    "parca_toplam": f["parca_toplam"],
+                    "iscilik_toplam": f["iscilik_toplam"],
+                    "dgd_ucret": f["dgd_ucret"],
+                    "genel_toplam": f["genel_toplam"],
+                    "eksik_fiyat": eksik,
+                })
+                g["parts_total"] += f["parca_toplam"]
+                g["labour_total"] += f["iscilik_toplam"]
+                g["dgd_total"] += f["dgd_ucret"]
+                g["grand_total"] += f["genel_toplam"]
+                g["missing_price_count"] += eksik
+
+            for g in gruplar.values():
+                for alan in ("parts_total", "labour_total", "dgd_total", "grand_total"):
+                    g[alan] = round(g[alan], 2)
+                g["device_count"] = len(g["devices"])
+
+            return json.dumps({
+                "success": True,
+                "groups": sorted(gruplar.values(), key=lambda g: g["customer_name"]),
+            }, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(int, result=str)
+    def get_invoices(self, limit=200):
+        """Kesilmiş faturalar, en güncel en üstte."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            rows = db.execute(text("""
+                SELECT id, invoice_no, customer_code, customer_name, currency, device_count,
+                       parts_total, labour_total, dgd_total, grand_total,
+                       missing_price_count, created_by, created_at
+                  FROM warehouse.invoices
+                 ORDER BY created_at DESC
+                 LIMIT :lim
+            """), {"lim": int(limit or 200)}).mappings().all()
+            return json.dumps({"success": True, "invoices": [{
+                "id": str(r["id"]), "invoice_no": r["invoice_no"],
+                "customer_code": r["customer_code"], "customer_name": r["customer_name"] or "",
+                "currency": r["currency"] or "", "device_count": int(r["device_count"] or 0),
+                "parts_total": float(r["parts_total"] or 0),
+                "labour_total": float(r["labour_total"] or 0),
+                "dgd_total": float(r["dgd_total"] or 0),
+                "grand_total": float(r["grand_total"] or 0),
+                "missing_price_count": int(r["missing_price_count"] or 0),
+                "created_by": r["created_by"] or "",
+                "created_at": r["created_at"].isoformat() if r["created_at"] else "",
+            } for r in rows]}, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, result=str)
+    def create_invoice(self, customer_code, username):
+        """Bir müşterinin sevk bekleyen cihazlarını faturalandırır.
+
+        TEK transaction: fatura + cihaz satırları yazılır, CSV saklanır, cihazlar 128'e
+        alınır ve her geçiş history'ye loglanır. Herhangi biri patlarsa hiçbiri yazılmaz -
+        yarım fatura ya da faturalanmadan çıkış yapmış cihaz oluşmaz.
+
+        Fiyatı bulunamayan kalemler 0 olarak geçer ve sayısı faturada saklanır; kullanıcı
+        arayüzde zaten uyarılıp onaylamıştır."""
+        import uuid as _uuid
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            customer_code = (customer_code or "").strip()
+            if not customer_code:
+                return json.dumps({"success": False, "message": "Müşteri seçilmedi."})
+
+            kayitlar = self._faturalanacak_cihazlar(db, customer_code)
+            if not kayitlar:
+                return json.dumps({"success": False, "message":
+                    "Bu müşteride sevk bekleyen (127) cihaz yok."})
+
+            ilk = kayitlar[0]["entry"]
+            musteri_adi = ilk["customer_name"] or customer_code
+            yil = str(_dt.datetime.now().year)
+            sira = db.execute(text("""
+                SELECT COALESCE(MAX(CAST(NULLIF(split_part(invoice_no, '-', 3), '') AS integer)), 0) + 1
+                  FROM warehouse.invoices
+                 WHERE customer_code = :c AND split_part(invoice_no, '-', 2) = :y
+            """), {"c": customer_code, "y": yil}).scalar() or 1
+            fatura_no = f"{customer_code}-{yil}-{int(sira):04d}"
+
+            csv_icerik = self._fatura_csv_uret(kayitlar, fatura_no, musteri_adi)
+            eksik = sum(len(k["fatura"]["fiyatsiz_parcalar"]) for k in kayitlar)
+            fatura_id = str(_uuid.uuid4())
+
+            db.execute(text("""
+                INSERT INTO warehouse.invoices
+                    (id, invoice_no, customer_code, customer_name, currency, device_count,
+                     parts_total, labour_total, dgd_total, grand_total, missing_price_count,
+                     csv_content, created_by, created_at)
+                VALUES (:id, :no, :cc, :cn, :cur, :adet, :pt, :lt, :dt, :gt, :eksik,
+                        :csv, :who, now())
+            """), {
+                "id": fatura_id, "no": fatura_no, "cc": customer_code, "cn": musteri_adi,
+                "cur": ilk["currency"] or "",
+                "adet": len(kayitlar),
+                "pt": round(sum(k["fatura"]["parca_toplam"] for k in kayitlar), 2),
+                "lt": round(sum(k["fatura"]["iscilik_toplam"] for k in kayitlar), 2),
+                "dt": round(sum(k["fatura"]["dgd_ucret"] for k in kayitlar), 2),
+                "gt": round(sum(k["fatura"]["genel_toplam"] for k in kayitlar), 2),
+                "eksik": eksik, "csv": csv_icerik, "who": username or None,
+            })
+
+            for k in kayitlar:
+                be, f = k["entry"], k["fatura"]
+                db.execute(text("""
+                    INSERT INTO warehouse.invoice_devices
+                        (id, invoice_id, imei_number, service_id, model, flow,
+                         repair_level, dgd_status, parts_total, labour_total, dgd_fee, grand_total)
+                    VALUES (:id, :inv, :imei, :sid, :model, :flow, :lvl, :dgd,
+                            :pt, :lt, :df, :gt)
+                """), {
+                    "id": str(_uuid.uuid4()), "inv": fatura_id,
+                    "imei": be["imei_number"], "sid": str(be["service_id"] or ""),
+                    "model": be["model"], "flow": be["flow"],
+                    "lvl": f["seviye"], "dgd": f["dgd_durum"],
+                    "pt": f["parca_toplam"], "lt": f["iscilik_toplam"],
+                    "df": f["dgd_ucret"], "gt": f["genel_toplam"],
+                })
+                db.execute(text("""
+                    UPDATE warehouse.batch_entries
+                       SET statu_code = :yeni, statu_update_time = now(), updated_at = now()
+                     WHERE id = :id
+                """), {"yeni": self._FATURA_HEDEF_STATU, "id": be["id"]})
+                self._record_statu_change(
+                    db, be["id"], be["imei_number"],
+                    self._FATURA_KAYNAK_STATU, self._FATURA_HEDEF_STATU,
+                    staff=username, note=f"Faturalandırıldı ({fatura_no})")
+
+            db.commit()
+            return json.dumps({
+                "success": True, "invoice_id": fatura_id, "invoice_no": fatura_no,
+                "customer_name": musteri_adi, "device_count": len(kayitlar),
+                "grand_total": round(sum(k["fatura"]["genel_toplam"] for k in kayitlar), 2),
+                "missing_price_count": eksik,
+            }, ensure_ascii=False)
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
+    def save_invoice_file(self, invoice_id):
+        """Saklanmış fatura CSV'sini kullanıcının seçtiği yere yazar ve açar.
+
+        İçerik YENİDEN HESAPLANMAZ - fatura kesildiği andaki dosya neyse o verilir."""
+        from PySide6.QtWidgets import QFileDialog, QApplication
+        from sqlalchemy import text
+        import os
+        db = SessionLocal()
+        try:
+            row = db.execute(text("""
+                SELECT invoice_no, customer_name, csv_content, created_at
+                  FROM warehouse.invoices WHERE id = :id
+            """), {"id": (invoice_id or "").strip()}).mappings().first()
+            if not row:
+                return json.dumps({"success": False, "message": "Fatura bulunamadı."})
+            if not row["csv_content"]:
+                return json.dumps({"success": False, "message": "Bu faturanın dosyası saklanmamış."})
+
+            tarih = row["created_at"].strftime("%Y%m%d") if row["created_at"] else ""
+            ad = "".join(c for c in (row["customer_name"] or "") if c.isalnum() or c in " _-").strip()
+            onerilen = f"{row['invoice_no']}_{ad}_{tarih}.csv".replace(" ", "_")
+
+            main_win = getattr(QApplication.instance(), "main_window", None)
+            yol, _ = QFileDialog.getSaveFileName(
+                main_win, "Faturayı Kaydet", onerilen, "CSV Dosyası (*.csv)")
+            if not yol:
+                return json.dumps({"success": False, "cancelled": True,
+                                   "message": "İşlem iptal edildi."})
+
+            # BOM zaten içerikte; utf-8-sig ile yazsak iki kez eklenirdi.
+            with open(yol, "w", encoding="utf-8", newline="") as f:
+                f.write(row["csv_content"])
+            try:
+                os.startfile(yol)
+            except Exception as e:
+                print(f"[WebBridge] fatura dosyası açılamadı: {e}")
+            return json.dumps({"success": True, "path": yol}, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
 
     def _get_effective_price(self, db, item_code, customer_code):
         """get_effective_price Slot'unun DB oturumu paylaşan iç hali (aynı kural: önce
@@ -14874,11 +15499,12 @@ class WebBridge(QObject):
         if target_price is None:
             target_price = DEFAULT_TARGET_PRICE
 
-        total_price = 0.0
-        for r in repair_rows:
-            p = self._get_effective_price(db, r["part_item_code"], customer_code)
-            if p is not None:
-                total_price += p
+        # Hedef fiyat karşılaştırması NİHAİ FATURA TUTARI üzerinden yapılır: parça fiyatı
+        # + işçilik (1. parça seviye tarifesi, sonrakiler parça sırası tarifesi) + DGD/test
+        # ücreti. Eskiden yalnızca parça fiyatları toplanıyordu; müşteriye kesilecek tutar
+        # limitin altında görünüp faturada üstüne çıkabiliyordu.
+        fatura = self._cihaz_fatura_hesabi(db, repair_refs, customer_code, flow=entry["flow"])
+        total_price = fatura["genel_toplam"]
 
         price_limit_exceeded = total_price > target_price
         all_approved = all_approved and not price_limit_exceeded
@@ -14886,8 +15512,10 @@ class WebBridge(QObject):
 
         price_limit_note = ""
         if price_limit_exceeded:
-            price_limit_note = (f" (Toplam parça fiyatı {total_price:.2f}, "
-                                 f"hedef limit {target_price:.2f} aşıldı.)")
+            price_limit_note = (f" (Toplam {total_price:.2f} = parça {fatura['parca_toplam']:.2f}"
+                                f" + işçilik {fatura['iscilik_toplam']:.2f}"
+                                f" + DGD {fatura['dgd_ucret']:.2f}; "
+                                f"hedef limit {target_price:.2f} aşıldı.)")
 
         return {
             "ok": True,
@@ -14898,6 +15526,14 @@ class WebBridge(QObject):
             "target_price": target_price,
             "price_limit_exceeded": price_limit_exceeded,
             "price_limit_note": price_limit_note,
+            # Kırılım: Demontaj panelinin fiyat özeti ve Üretim Kaydı ekranının işçilik
+            # sütunu aynı hesaptan beslenir, ikinci bir yerde tekrar hesaplanmaz.
+            "repair_level": fatura["seviye"],
+            "parts_total": fatura["parca_toplam"],
+            "labour_total": fatura["iscilik_toplam"],
+            "dgd_fee": fatura["dgd_ucret"],
+            "dgd_status": fatura["dgd_durum"],
+            "invoice_lines": fatura["satirlar"],
         }
 
     @Slot(str, result=str)
@@ -16609,7 +17245,32 @@ class WebBridge(QObject):
                                f"ekranından geri alma işlemini tamamladıktan sonra tekrar deneyin."
                 }, ensure_ascii=False)
 
-            # 2. Engel yok: cihaza bağlı tüm AKTİF onarımları iptal et.
+            # 2. SERT ENGEL: TAMAMLANMIŞ ve içinde GERÇEK PARÇA olan onarım var mı?
+            # Parçası takılıp onarımı tamamlanmış cihaz iade edilemez: parça fiziksel
+            # olarak cihazın içinde ve faturalanmış durumdadır. Aşağıdaki iptal yalnızca
+            # AKTİF onarımları kapsadığı için bu satırlar 1002 olarak kalır; engel
+            # olmasaydı cihaz hem parçaları faturalanmış hem iade edilmiş olurdu.
+            # DGD satırları gerçek parça sayılmaz - onlar işçilik kalemidir.
+            tamamlanan = db.execute(text("""
+                SELECT rr.part_item_code, COALESCE(it.short_name, p.name, rr.part_item_code) AS ad
+                  FROM warehouse.repair_records rr
+                  LEFT JOIN warehouse.parts p ON p.item_code = rr.part_item_code
+                  LEFT JOIN warehouse.item it ON it.code = rr.part_item_code
+                 WHERE rr.service_record_id = ANY(:refs)
+                   AND rr.repair_result_type_code = 1002
+                   AND COALESCE(TRIM(rr.part_item_code), '') <> ''
+                   AND UPPER(TRIM(COALESCE(p.item_category, ''))) <> 'DGD'
+            """), {"refs": refs}).mappings().all()
+            if tamamlanan:
+                adlar = ", ".join(f"'{ad}'" for ad in dict.fromkeys(r["ad"] for r in tamamlanan))
+                return json.dumps({
+                    "success": False,
+                    "message": f"Bu cihaz iade edilemez: parçası takılıp onarımı tamamlanmış "
+                               f"{len(tamamlanan)} kayıt var ({adlar}). Parçası takılmış bir cihaz "
+                               f"iadeye çıkarılamaz; önce ilgili onarımların geri alınması gerekir."
+                }, ensure_ascii=False)
+
+            # 3. Engel yok: cihaza bağlı tüm AKTİF onarımları iptal et.
             db.execute(text("""
                 UPDATE warehouse.repair_records
                 SET repair_result_type_code = 1003, closed_at = now(), updated_at = now()
@@ -16631,6 +17292,18 @@ class WebBridge(QObject):
             else:
                 db.rollback()
                 return json.dumps({"success": False, "message": "Cihaz kaydı (batch entry) bulunamadı."})
+
+            # İADE BAYRAĞI - burada AÇIKÇA yazılır, geçişten türetilmez.
+            # _iade_bayragi_guncelle yalnızca (106->124) ve (136->124) çiftlerini tanır;
+            # bu prosedür ise cihazı HERHANGİ bir statüden 124'e çekebildiği için o kurala
+            # takılmaz. Ayrıca yukarıdaki iptal yalnızca AKTİF onarımları kapsar: zaten
+            # 1002 (Onarım Tamamlandı) olan satırlar tamamlanmış kalır, dolayısıyla
+            # "tüm onarımlar iptal" ölçütü de bu cihazlarda çalışmaz. Bayrak olmadan
+            # parçası takılıp faturalanmış bir iade cihazı "full functional" görünürdü.
+            if entry:
+                db.execute(text("""
+                    UPDATE warehouse.batch_entries SET repair_is_cancelled = TRUE WHERE id = :id
+                """), {"id": entry["id"]})
 
             # GEÇİŞ GÜNLÜĞÜNE YAZ. Bu adım eksikti: statü doğrudan 124'e çekiliyor ama
             # batch_entry_statu_history'ye hiç kayıt düşmüyordu. Sonuç: Servis > Durum

@@ -54,8 +54,8 @@ const Departments = dayanikliLazy(() => import('./pages/Departments'));
 const FlowDgdMapping = dayanikliLazy(() => import('./pages/FlowDgdMapping'));
 const CustomerPriceMatrix = dayanikliLazy(() => import('./pages/CustomerPriceMatrix'));
 const CustomerTargetPriceMatrix = dayanikliLazy(() => import('./pages/CustomerTargetPriceMatrix'));
-const CustomerLabourPriceMatrix = dayanikliLazy(() => import('./pages/CustomerLabourPriceMatrix'));
 const LabourPricingMatrices = dayanikliLazy(() => import('./pages/LabourPricingMatrices'));
+const MusteriSevkFatura = dayanikliLazy(() => import('./pages/MusteriSevkFatura'));
 const ServiceRecords = dayanikliLazy(() => import('./pages/ServiceRecords'));
 const BatchEntry = dayanikliLazy(() => import('./pages/BatchEntry'));
 const DataManagement = dayanikliLazy(() => import('./pages/DataManagement'));
@@ -127,8 +127,8 @@ function App() {
               <Route path="/flow-dgd-mapping" element={<FlowDgdMapping />} />
               <Route path="/customer-price-matrix" element={<CustomerPriceMatrix />} />
               <Route path="/customer-target-price-matrix" element={<CustomerTargetPriceMatrix />} />
-              <Route path="/customer-labour-price-matrix" element={<CustomerLabourPriceMatrix />} />
               <Route path="/labour-pricing-matrices" element={<LabourPricingMatrices />} />
+              <Route path="/musteri-sevk-fatura" element={<MusteriSevkFatura />} />
               <Route path="/service-records" element={<ServiceRecords />} />
               <Route path="/data-management" element={<DataManagement />} />
 

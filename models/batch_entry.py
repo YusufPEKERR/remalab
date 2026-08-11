@@ -32,6 +32,12 @@ class BatchEntry(Base):
     power_test = Column(String(100), nullable=True)
     flow = Column(String(100), default='Refurbish')
     statu_code = Column(Integer, default=100)
+    # Cihaz ONARILMADAN müşteriye iade ediliyor mu?
+    # True olur : müşteri onayı/red ekranında RED geldiğinde (106->124, 136->124)
+    # False olur: cihaz üretime (109) yeniden katıldığında - iade kararı geri alınmış olur
+    # Faturada "full functional değil" sayılmanın ikinci yoludur: tüm onarımların iptal
+    # edilmesi gerekmez, parçalar takılıp faturalanmış olsa da cihaz iade sayılabilir.
+    repair_is_cancelled = Column(Boolean, nullable=False, default=False)
     service_id = Column(UUID(as_uuid=True), nullable=True)  # bkz. WebBridge._ensure_service_id_columns
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
