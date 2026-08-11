@@ -88,10 +88,11 @@ export default function TestResultScreen({
     return chips;
   }, [selectedFaultIds]);
 
-  // Arama: kategori veya hata metninde geçen öğeleri filtreler. Boşsa tüm katalog.
+  // Arama: kategori veya hata metninde geçen öğeleri filtreler.
+  // Aramadan HİÇBİR öğe listelenmez; kullanıcı arayınca yalnızca eşleşenler gelir.
   const filteredCatalog = useMemo(() => {
     const q = faultSearch.trim().toLocaleLowerCase('tr');
-    if (!q) return FAULT_CATALOG;
+    if (!q) return [];
     return FAULT_CATALOG
       .map(({ category, items }) => ({
         category,
@@ -396,7 +397,9 @@ export default function TestResultScreen({
               <div className="w-full bg-[#F5F7FC] dark:bg-[#181a24] border border-[#DCE1F1] dark:border-[#1e222d] rounded-xl p-4 max-h-72 overflow-y-auto space-y-4">
                 {filteredCatalog.length === 0 ? (
                   <div className="text-[11px] italic text-[#5A6685] dark:text-[#8892B5] py-2 text-center">
-                    "{faultSearch}" ile eşleşen hata bulunamadı.
+                    {faultSearch.trim()
+                      ? `"${faultSearch}" ile eşleşen hata bulunamadı.`
+                      : 'Hatalı parça / hata kodu görmek için yukarıdan arama yapın.'}
                   </div>
                 ) : filteredCatalog.map(({ category, items }) => (
                   <div key={category}>
