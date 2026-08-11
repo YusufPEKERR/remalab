@@ -11481,6 +11481,160 @@ class WebBridge(QObject):
         finally:
             db.close()
 
+    @Slot(str, str, str, result=str)
+    def get_test_report_records(self, start_date="", end_date="", search_term=""):
+        """Test Raporu ekranı için Giriş Testi (103_104) HARİÇ Ara Test ve Son Test
+        sonuçlarını, batch_entries IMEI/Model verileri ve repair_records onarım
+        teknisyen isimleriyle birleştirerek döner."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            user_map = self._get_user_fullname_map(db)
+
+            query_sql = """
+                SELECT 
+                    ptr.id AS test_id,
+                    ptr.test_stage,
+                    ptr.working,
+                    ptr.failed AS phonecheck_failed,
+                    ptr.manual_reason,
+                    ptr.notes,
+                    ptr.fetched_at,
+                    ptr.imei AS ptr_imei,
+                    ptr.serial AS ptr_serial,
+                    be.imei_number,
+                    be.internal_id,
+                    be.serial_number,
+                    be.model,
+                    trf.hatali_parca1, trf.hata1, trf.hatali_parca2, trf.hata2,
+                    trf.hatali_parca3, trf.hata3, trf.hatali_parca4, trf.hata4,
+                    trf.hatali_parca5, trf.hata5, trf.description AS fault_desc,
+                    (
+                        SELECT rr.assigned_technician 
+                        FROM warehouse.repair_records rr 
+                        WHERE (LOWER(TRIM(rr.service_record_id)) = LOWER(TRIM(be.imei_number)) 
+                            OR LOWER(TRIM(rr.service_record_id)) = LOWER(TRIM(be.internal_id)) 
+                            OR (be.service_id IS NOT NULL AND rr.service_record_id = be.service_id::text))
+                          AND rr.assigned_technician IS NOT NULL AND TRIM(rr.assigned_technician) != ''
+                        ORDER BY rr.updated_at DESC, rr.id DESC LIMIT 1
+                    ) AS assigned_tech
+                FROM warehouse.phonecheck_test_results ptr
+                LEFT JOIN warehouse.batch_entries be ON 
+                    LOWER(TRIM(be.imei_number)) = LOWER(TRIM(ptr.imei)) 
+                    OR LOWER(TRIM(be.serial_number)) = LOWER(TRIM(ptr.serial))
+                    OR (be.service_id IS NOT NULL AND be.service_id::text = ptr.imei)
+                LEFT JOIN LATERAL (
+                    SELECT * FROM warehouse.test_result_faults f 
+                    WHERE (f.service_id = be.id 
+                        OR LOWER(TRIM(f.imei_number)) = LOWER(TRIM(ptr.imei))
+                        OR (f.internal_id IS NOT NULL AND be.internal_id IS NOT NULL AND LOWER(TRIM(f.internal_id)) = LOWER(TRIM(be.internal_id))))
+                    ORDER BY ABS(EXTRACT(EPOCH FROM (f.created_at - ptr.fetched_at))) ASC 
+                    LIMIT 1
+                ) trf ON true
+                WHERE ptr.test_stage != '103_104'
+            """
+
+            params = {}
+            if start_date:
+                query_sql += " AND ptr.fetched_at >= :start_date"
+                params["start_date"] = f"{start_date} 00:00:00"
+            if end_date:
+                query_sql += " AND ptr.fetched_at <= :end_date"
+                params["end_date"] = f"{end_date} 23:59:59"
+
+            query_sql += " ORDER BY ptr.fetched_at DESC LIMIT 500"
+
+            rows = db.execute(text(query_sql), params).mappings().all()
+
+            fmt = fmt_tr_datetime
+            items = []
+            s_clean = (search_term or "").strip().lower()
+
+            for r in rows:
+                imei = r["imei_number"] or r["ptr_imei"] or "-"
+                internal_id = r["internal_id"] or "-"
+                seri_no = r["serial_number"] or r["ptr_serial"] or "-"
+                model = r["model"] or "-"
+                test_id = f"#{r['test_id']}"
+                
+                stage = (r["test_stage"] or "").strip()
+                if stage in ("109_110", "110_109", "138_124", "124_138", "138_109", "109_138"):
+                    test_tipi = "Ara Test"
+                elif stage in ("124_125", "125_126", "158_159", "125_109", "109_125"):
+                    test_tipi = "Son Test"
+                else:
+                    test_tipi = f"Test ({stage})"
+
+                w = (r["working"] or "").strip().lower()
+                if w in ("yes", "true", "1", "pass", "passed", "başarılı"):
+                    test_sonuc = "Başarılı (Pass1)"
+                    is_pass = True
+                elif w in ("no", "false", "0", "fail", "failed", "başarısız"):
+                    test_sonuc = "Başarısız (Fail1)"
+                    is_pass = False
+                else:
+                    test_sonuc = "Beklemede"
+                    is_pass = None
+
+                # Hatalı parçalar ve detaylar YALNIZCA test BAŞARISIZ olduğunda gösterilir
+                fp_list = []
+                detay_parts = []
+                if is_pass is False:
+                    if r["phonecheck_failed"]:
+                        fp_list.append(str(r["phonecheck_failed"]).strip())
+                    for i in range(1, 6):
+                        part_val = str(r[f"hatali_parca{i}"] or "").strip()
+                        hata_val = str(r[f"hata{i}"] or "").strip()
+                        if part_val and part_val not in fp_list:
+                            fp_list.append(part_val)
+                        if hata_val and hata_val not in detay_parts:
+                            detay_parts.append(hata_val)
+
+                    import re
+                    for val in (r["fault_desc"], r["manual_reason"], r["notes"]):
+                        if val:
+                            txt = str(val).strip()
+                            # Tarih ve IMEI numaralarını temizle
+                            txt = re.sub(r'\b\d{14,16}\b', '', txt)
+                            txt = re.sub(r'\b\d{4}-\d{2}-\d{2}(\s+\d{2}:\d{2}(:\d{2})?)?\b', '', txt)
+                            txt = re.sub(r'\b\d{2}\.\d{2}\.\d{4}(\s+\d{2}:\d{2}(:\d{2})?)?\b', '', txt)
+                            txt = re.sub(r'[\s\-\|/]+', ' ', txt).strip(' -|/:,')
+                            if txt and txt not in detay_parts:
+                                detay_parts.append(txt)
+
+                failed_parts = ", ".join(filter(None, fp_list)) or "-"
+                failed_detay = " | ".join(filter(None, detay_parts)) or "-"
+
+                tech_raw = (r["assigned_tech"] or "").strip()
+                teknisyen_ismi = user_map.get(tech_raw.lower(), tech_raw) if tech_raw else "Atanmadı"
+
+                if s_clean:
+                    searchable = f"{imei} {internal_id} {seri_no} {model} {test_id} {test_tipi} {test_sonuc} {failed_parts} {failed_detay} {teknisyen_ismi}".lower()
+                    if s_clean not in searchable:
+                        continue
+
+                items.append({
+                    "id": r["test_id"],
+                    "imei": imei,
+                    "internalid": internal_id,
+                    "seri_no": seri_no,
+                    "model": model,
+                    "test_id": test_id,
+                    "test_tipi": test_tipi,
+                    "test_sonuc": test_sonuc,
+                    "is_pass": is_pass,
+                    "failed_parts": failed_parts,
+                    "failed_detay": failed_detay,
+                    "teknisyen_ismi": teknisyen_ismi,
+                    "tarih": fmt(r["fetched_at"]) if r["fetched_at"] else "-"
+                })
+
+            return json.dumps({"success": True, "items": items}, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
     @Slot(str, int, int, int, str, str, str, bool, result=str)
     @Slot(str, int, int, int, str, str, str, bool, str, result=str)
     def submit_test_result(self, entry_id, current_statu_code, success_statu_code, fail_statu_code, result, description, faults_json, log_exit_test=False, username=""):

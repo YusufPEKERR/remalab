@@ -58,6 +58,7 @@ const LabourPricingMatrices = dayanikliLazy(() => import('./pages/LabourPricingM
 const MusteriSevkFatura = dayanikliLazy(() => import('./pages/MusteriSevkFatura'));
 const ServiceRecords = dayanikliLazy(() => import('./pages/ServiceRecords'));
 const BatchEntry = dayanikliLazy(() => import('./pages/BatchEntry'));
+const TestRaporu = dayanikliLazy(() => import('./pages/TestRaporu'));
 const DataManagement = dayanikliLazy(() => import('./pages/DataManagement'));
 const ItemBOM = dayanikliLazy(() => import('./pages/ItemBOM'));
 const ServiceTransition = dayanikliLazy(() => import('./pages/ServiceTransition'));
@@ -123,6 +124,7 @@ function App() {
               <Route path="/users" element={<Users />} />
               <Route path="/batch-entry" element={<BatchEntry />} />
               <Route path="/settings" element={<Settings />} />
+              <Route path="/test-raporu" element={<TestRaporu />} />
               <Route path="/departments" element={<Departments />} />
               <Route path="/flow-dgd-mapping" element={<FlowDgdMapping />} />
               <Route path="/customer-price-matrix" element={<CustomerPriceMatrix />} />

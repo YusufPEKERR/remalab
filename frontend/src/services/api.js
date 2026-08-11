@@ -2923,6 +2923,22 @@ export const api = {
         });
     },
 
+    getTestReportRecords: async (startDate = "", endDate = "", searchTerm = "") => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_test_report_records) {
+                backend.get_test_report_records(
+                    String(startDate || ""),
+                    String(endDate || ""),
+                    String(searchTerm || ""),
+                    (res) => resolve(JSON.parse(res))
+                );
+            } else {
+                resolve({ success: false, message: "Backend eksik (get_test_report_records)" });
+            }
+        });
+    },
+
     // Phonecheck'ten gelen bir test kaydının BOŞ alanlarını elle tamamlar.
     // savePhonecheckManual'dan farkı: yeni deneme açmaz, var olan satırı günceller.
     completePhonecheckRecord: async (recordId, values, username) => {

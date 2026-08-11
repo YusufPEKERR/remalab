@@ -4,7 +4,7 @@ import {
   LogOut, LayoutDashboard, Users, Package, Settings, Bell,
   Warehouse, FileText, BarChart2, Box, Truck, MapPin,
   CheckCircle, Search, AlertTriangle, Zap, RefreshCw, Sun, Moon, Database, Building2, Wrench, ClipboardList, PackagePlus, Tags, ChevronDown, ChevronRight, Menu, X, Layers, FileSpreadsheet,
-  Boxes, ClipboardCheck, Cog, Repeat, DollarSign, Target, ShieldCheck, Receipt
+  Boxes, ClipboardCheck, Cog, Repeat, DollarSign, Target, ShieldCheck, Receipt, FileCheck2
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useTheme } from '../context/ThemeContext';
@@ -142,7 +142,8 @@ export default function MainLayout() {
         { name: 'Parça Teslim', icon: PackagePlus, path: '/parca-teslim' },
         { name: 'İrsaliye', icon: FileText, path: '/irsaliye' },
         { name: 'İş Emirleri', icon: ClipboardList, path: '/work-orders' },
-        { name: 'Raporlar', icon: BarChart2, path: '/raporlar' }
+        { name: 'Raporlar', icon: BarChart2, path: '/raporlar' },
+        { name: 'Test Raporu', icon: FileCheck2, path: '/test-raporu' }
       ]
     },
     {
