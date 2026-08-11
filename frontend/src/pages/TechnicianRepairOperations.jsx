@@ -612,6 +612,18 @@ const TechnicianRepairOperations = () => {
     });
   }, []);
 
+  // MÜŞTERİ ONAYI KARARI. Üretime Aktar ekranındaki BASE kriterlerin aynısı; karar
+  // backend'de tek yerde veriliyor (bkz. _compute_dismantle_decision), burada yalnızca
+  // okunuyor. Cihaz ya da onarımlar değiştikçe tazelenir.
+  const [onayKarari, setOnayKarari] = useState(null);
+  useEffect(() => {
+    if (!device?.imei) { setOnayKarari(null); return; }
+    api.getDismantleDecisionPreview(device.imei).then(res => {
+      setOnayKarari(res && res.success ? res : null);
+    }).catch(() => setOnayKarari(null));
+  }, [device?.imei, repairs]);
+  const onayGerekiyor = onayKarari?.decision === "MUSTERI_ONAYI";
+
   const showNotif = useCallback((type, title, message) => {
     setNotification({ type, title, message });
     if (type !== "error") setTimeout(() => setNotification(null), 4000);
@@ -781,23 +793,19 @@ const TechnicianRepairOperations = () => {
       return false;
     }
 
-    // Cihaz zaten Üretimdeyse (109), yeni onarım backend'de otomatik olarak Hedef Fiyat
-    // Matrisi limitine karşı yeniden değerlendirilir (bkz. add_repair_record'ın
-    // reopened_for_decision dalı): toplam fiyat limiti aşıyorsa cihaz Müşteri Onayına (106)
-    // gönderilir, aşmıyorsa Üretimde (109) kalır — ayrı bir "Üretime Aktar" ekranına gitmeye
-    // gerek yok. Buradaki serviceStatus güncellemesi olmadan ekran hâlâ 109'daymış gibi
-    // davranmaya devam eder ve teknisyen cihazın Müşteri Onayına gönderildiğini fark etmez.
-    if (res.reopened_for_decision && res.new_statu_code != null) {
-      setDevice(d => (d ? { ...d, serviceStatus: res.new_statu_code } : d));
-      if (res.price_limit_exceeded) {
-        showNotif(
-          "warning",
-          "Müşteri Hedef Fiyat Limiti Aşıldı",
-          `Cihazın toplam tutarı (${(res.total_price ?? 0).toFixed(2)} TL = parça + işçilik + DGD), Müşteri Hedef Fiyat Matrisindeki hedef limiti (${(res.target_price ?? 0).toFixed(2)} TL) aştığı için cihaz Müşteri Onayına (106) aktarılmıştır.`
-        );
-      } else {
-        showNotif("success", "Limit İçinde", `Toplam tutar ${(res.total_price ?? 0).toFixed(2)} TL (parça + işçilik + DGD) — hedef limit (${(res.target_price ?? 0).toFixed(2)} TL) aşılmadı, cihaz üretimde devam ediyor.`);
-      }
+    // PARÇA EKLEMEK STATÜ DEĞİŞTİRMEZ. Backend yalnızca kararı hesaplayıp döner
+    // (bkz. add_repair_record). Teknisyen tespitini yapıp gereken TÜM parçaları
+    // girer; cihazı onaya göndermek isterse alttaki "Müşteriye Aktar" butonuna basar.
+    // Burada sadece durum bildirilir - onay iki sebepten gerekebilir ve HANGİSİ
+    // olduğu yazılır (kriter dışı kategori / hedef fiyat aşımı / ikisi birden).
+    if (res.approvalRequired) {
+      showNotif(
+        "warning",
+        res.approvalReasons?.length === 2 ? "Müşteri Onayı Gerekiyor (kategori + fiyat)"
+          : res.approvalReasons?.[0] === "fiyat" ? "Hedef Fiyat Limiti Aşıldı"
+          : "Kriter Dışı Parça Kategorisi",
+        `${res.approvalReasonText || ""} — cihazı onaya göndermek için alttaki "Müşteriye Aktar" butonunu kullanın.`
+      );
     }
 
     const refreshed = await refreshRepairs();
@@ -1013,6 +1021,31 @@ const TechnicianRepairOperations = () => {
       + `${takimAdi(repair.missionGroupCode, repair.missionGroup)} onarımından silindi.`
     );
   }, [refreshRepairs, showNotif]);
+
+  // ── Müşteriye Aktar (109 → 106) ───────────────────────────────
+  // Kararı bu ekran VERMEZ, backend'deki ortak motora sorar; kural gerçekten onay
+  // gerektirmiyorsa cihaz üretimde kalır. Cihaz onaya gidince bu ekranda görünmez
+  // olur (ekran yalnızca 109'u açar), bu yüzden ekran temizlenir.
+  const [onayaGonderiliyor, setOnayaGonderiliyor] = useState(false);
+  const handleSendToCustomerApproval = useCallback(async () => {
+    if (!device?.imei || onayaGonderiliyor) return;
+    setOnayaGonderiliyor(true);
+    const res = await api.sendDeviceToCustomerApproval(device.imei, getCurrentUser()?.username);
+    setOnayaGonderiliyor(false);
+    if (!res || !res.success) {
+      showNotif("error", "Gönderilemedi", res?.message || "İşlem başarısız oldu.");
+      return;
+    }
+    if (Number(res.new_statu_code) !== 106) {
+      showNotif("success", "Onay Gerekmiyor", res.message || "Cihaz üretimde kaldı.");
+      return;
+    }
+    showNotif("success", "Müşteri Onayına Gönderildi",
+      `${device.imei} Müşteri Onayına (106) aktarıldı. Cihaz onaydan dönene kadar bu ekranda görüntülenemez.`);
+    setDevice(null);
+    setRepairs([]);
+    setOnayKarari(null);
+  }, [device, onayaGonderiliyor, showNotif]);
 
   // ── Toggle Repair Charge Type ─────────────────────────────────
   // warehouse.repair_records.warranty_code'a kalıcı olarak yazar (IW=Ücretsiz, OOW=Ücretli).
@@ -1694,6 +1727,7 @@ const TechnicianRepairOperations = () => {
                     <th className="text-left px-3 py-2.5">Açıklama</th>
                     {/* "Durum" sütunu YOK: statü zaten üstteki Onarım Detay
                         satırında/sekmesinde görünüyor, burada tekrar edilmiyor. */}
+                    <th className="text-center px-3 py-2.5">Müşteri Onayı</th>
                     <th className="text-center px-3 py-2.5">İşlemler</th>
                   </tr>
                 </thead>
@@ -1751,6 +1785,26 @@ const TechnicianRepairOperations = () => {
                         )}
                       </td>
                       <td className="px-3 py-2.5 text-xs text-slate-500 dark:text-slate-400">{r.notes || "N/A"}</td>
+                      {/* MÜŞTERİ ONAYI. Üç durum: onaylı / onay bekliyor / gerekmiyor.
+                          "Onay bekliyor" backend'de anlık hesaplanır - kaydın kategorisi
+                          akışa uymuyor ya da cihazın toplamı hedef limiti aşıyor
+                          (bkz. web_bridge._onay_engeli). O kayda parça teslim edilemez,
+                          bulunduğu onarım tamamlanamaz. */}
+                      <td className="px-3 py-2.5 text-center">
+                        {r.onayBekliyor ? (
+                          <span className="inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-500/30"
+                                title="Bu parça müşteri onayı bekliyor: depodan çekilemez, onarımı tamamlanamaz.">
+                            Onay Bekliyor
+                          </span>
+                        ) : r.customerApproved ? (
+                          <span className="inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30"
+                                title="Müşteri onayı alınmış. Bu parça için tekrar onay istenmez.">
+                            Onaylı
+                          </span>
+                        ) : (
+                          <span className="text-[11px] text-slate-400" title="Bu parça için müşteri onayı gerekmiyor.">—</span>
+                        )}
+                      </td>
                       {/* Parça bazında silme. DGD satırında düğme hiç çizilmez:
                           Flow'un eklediği işçilik satırı elle silinemez, grubun son
                           gerçek parçası gidince kendiliğinden iptale düşer
@@ -1807,6 +1861,42 @@ const TechnicianRepairOperations = () => {
               />
               <p className="text-[10px] text-slate-400 mt-1.5">Anakart / Security çip tanımlayıcısı</p>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════
+           SECTION 5: MÜŞTERİYE AKTAR
+           YALNIZCA onay gerektiğinde görünür. Karar bu ekranda değil, Üretime Aktar
+           ekranıyla AYNI motorda veriliyor (bkz. _compute_dismantle_decision);
+           burada sadece sonucu ve SEBEBİNİ gösteriyoruz.
+           Parça eklemek statüyü değiştirmez - cihazı onaya taşıyan tek şey bu buton.
+         ═══════════════════════════════════════════════════════════ */}
+      {device && onayGerekiyor && (
+        <div className="rounded-2xl border border-violet-200 dark:border-violet-500/30 bg-violet-50/60 dark:bg-violet-500/5 shadow-sm overflow-hidden">
+          <div className="px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-violet-700 dark:text-violet-300 flex items-center gap-2">
+                <AlertTriangle size={16} /> Bu cihaz müşteri onayı gerektiriyor
+              </p>
+              <p className="text-xs text-violet-700/80 dark:text-violet-300/80 mt-1 leading-relaxed">
+                {onayKarari?.onay_sebep_metni || "Kriter dışı parça ya da hedef fiyat aşımı."}
+              </p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1.5">
+                Daha önce onaylanmış parçalar için tekrar onay istenmez. Eklemeniz gereken
+                diğer parçaları girdikten sonra bu butona basın.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleSendToCustomerApproval}
+              disabled={!hasAccess || onayaGonderiliyor}
+              title="Cihazı Müşteri Onayına (106) gönderir."
+              className="shrink-0 h-11 px-5 rounded-xl bg-violet-600 hover:bg-violet-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-bold transition-colors shadow-lg shadow-violet-500/20 inline-flex items-center gap-2 cursor-pointer"
+            >
+              <ArrowRightLeft size={16} />
+              {onayaGonderiliyor ? "Gönderiliyor..." : "Müşteriye Aktar"}
+            </button>
           </div>
         </div>
       )}

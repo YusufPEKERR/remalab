@@ -1133,14 +1133,70 @@ class WebBridge(QObject):
             # düşürmek yerine hata loglanır (geçişin kendisi geri alınamaz bir iştir).
             print(f"[WebBridge] iade bayrağı güncellenemedi (entry {entry_id}): {e}")
 
+    # MÜŞTERİ ONAYININ KAYDA İŞLENDİĞİ GEÇİŞLER.
+    # İade bayrağıyla aynı mantık: onay kararı hedef statüden değil GEÇİŞİN
+    # KENDİSİNDEN türetilir. 109'a başka yollardan da gelinir (105->109 doğrudan
+    # üretim, 138->109 ara testten dönüş); onlar müşteri onayı değildir ve hiçbir
+    # kaydı onaylı yapmamalıdır.
+    _ONAY_GECISLERI = frozenset({
+        (106, 109),   # Müşteri Onayı Geldi - cihaz üretime girer
+        (136, 109),   # İade Edilmeyecek - Müşteri Onayı Geldi
+    })
+
+    def _onay_bayragi_guncelle(self, db, entry_id, imei, old_code, new_code, staff=None):
+        """Cihaz müşteri onayından üretime geçtiğinde o cihazın İPTAL EDİLMEMİŞ tüm
+        onarım kayıtlarını onaylı işaretler. Onay kayıt bazında hatırlanır: bir daha
+        aynı parça için onay istenmez (bkz. _compute_dismantle_decision).
+
+        Red (106/136 -> 124) hiçbir şeyi işaretlemez; onaysız kalan kayıtlar onaysız
+        kalmaya devam eder."""
+        if entry_id is None or new_code is None:
+            return
+        try:
+            eski = int(old_code) if old_code is not None else None
+            yeni = int(new_code)
+        except (TypeError, ValueError):
+            return
+        if (eski, yeni) not in self._ONAY_GECISLERI:
+            return
+
+        from sqlalchemy import text as _text
+        try:
+            # Kayıtlar IMEI ya da service_id altında tutulabiliyor; ikisi de aranır.
+            refs = [r for r in [imei, None] if r]
+            sid = db.execute(_text(
+                "SELECT service_id::text FROM warehouse.batch_entries WHERE id = :id"
+            ), {"id": int(entry_id)}).scalar()
+            if sid:
+                refs.append(sid)
+            if not refs:
+                return
+            db.execute(_text("""
+                UPDATE warehouse.repair_records rr
+                   SET customer_approved = TRUE,
+                       customer_approved_at = NOW(),
+                       customer_approved_by = :who
+                  FROM warehouse.repair_result_type rrt
+                 WHERE rrt.code = rr.repair_result_type_code
+                   AND rr.service_record_id = ANY(:refs)
+                   AND COALESCE(rrt.is_cancelled, FALSE) = FALSE
+                   AND COALESCE(rr.customer_approved, FALSE) = FALSE
+            """), {"refs": refs, "who": (staff or "")[:100] or "MÜŞTERİ ONAYI"})
+        except Exception as e:
+            # Bayrak yazılamazsa statü geçişi geri alınmaz (geçiş geri alınamaz bir
+            # iştir); hata loglanır. En kötü sonuç: kayıt onaysız kalır ve bir kez
+            # daha onay istenir - veri kaybı değil.
+            print(f"[WebBridge] onay bayrağı güncellenemedi (entry {entry_id}): {e}")
+
     def _record_statu_change(self, db, entry_id, imei, old_code, new_code, staff=None, note=None):
         """Bir statü geçişini history tablosuna ekler (COMMIT ETMEZ — çağıran commit eder,
         böylece geçişle aynı transaction'da atomik kalır). Log yazımı asla asıl işlemi
         bozmamalı; hata olursa sessizce yutulur.
 
-        Aynı yerden iade bayrağı da bakımı yapılır: bu metot TÜM statü geçişlerinden
-        çağrıldığı için kancayı tek noktada tutmayı sağlar."""
+        Aynı yerden iade bayrağı ve müşteri onayı bayrağı da bakımı yapılır: bu metot
+        TÜM statü geçişlerinden çağrıldığı için kancayı tek noktada tutmayı sağlar."""
         self._iade_bayragi_guncelle(db, entry_id, old_code, new_code)
+        self._onay_bayragi_guncelle(db, entry_id, imei, old_code, new_code, staff)
         try:
             from models.batch_entry_statu_history import BatchEntryStatuHistory
             db.add(BatchEntryStatuHistory(
@@ -11458,6 +11514,33 @@ class WebBridge(QObject):
                     "message": f"{device_label} mevcut statüsü {statu_name(actual_code)} ({actual_code}) — bu okutmaya uygun statü değil."
                 })
 
+            # MÜŞTERİ ONAYINA GİRİŞ TEK KAPIDAN GEÇER.
+            # Bir cihaz hangi ekrandan ve hangi statüden gelirse gelsin, 106'ya ancak
+            # Üretime Aktar ekranındaki BASE kriterler (kategori kapısı + hedef fiyat
+            # kapısı) gerçekten onay gerektiriyorsa girer. Kural burada duruyor çünkü
+            # 106'ya taşıyan tüm yollar bu slottan geçiyor:
+            #   - Üretime Aktar butonu (submit_dismantle_decision)
+            #   - Üretim Kaydını Görüntüle'deki "Müşteriye Aktar" (send_device_to_customer_approval)
+            #   - Toplu barkod ekranı /statu-gecis/TEC_DISMANTLE/105_106
+            # İSTİSNA: Statü Kontrol ekranı (admin_set_batch_entry_statu) bu slotu
+            # KULLANMAZ, statüyü doğrudan yazar - idari/test amaçlı bilinçli arka kapı.
+            if int(target_statu_code) == 106:
+                _k = self._compute_dismantle_decision(db, entry.imei_number, {
+                    "flow": entry.flow, "service_id": entry.service_id,
+                    "customer_no": entry.customer_no, "model": entry.model,
+                    "screen_test": entry.screen_test, "power_test": entry.power_test,
+                })
+                if not _k.get("ok"):
+                    return json.dumps({"success": False, "message": _k.get("message")},
+                                      ensure_ascii=False)
+                if _k["decision"] != "MUSTERI_ONAYI":
+                    return json.dumps({
+                        "success": False,
+                        "message": (f"{device_label} müşteri onayına gönderilemez: parça kategorilerinin "
+                                    "hepsi cihazın akışında onaylı ve hedef fiyat limiti aşılmıyor "
+                                    "(ya da onayları daha önce alınmış).")
+                    }, ensure_ascii=False)
+
             old_name = statu_name(current_statu_code)
             new_name = statu_name(target_statu_code)
 
@@ -12105,6 +12188,7 @@ class WebBridge(QObject):
                        -- NoSuchColumnError firlatiyor, metod success:false donuyor ve arayuzde
                        -- HER cihazda "Aktif onarim kaydi yok" gorunuyordu.
                        mg.short_name AS mission_group_name,
+                       COALESCE(rr.customer_approved, FALSE) AS customer_approved,
                        it.short_name AS part_name, pp.item_category AS item_category,
                        ic.item_labour AS labour_level,
                        pp.stock_tracking_type, pp.id AS part_id,
@@ -12162,6 +12246,24 @@ class WebBridge(QObject):
             )
             dgd_takim_adi = "L2 Onarımı" if cihaz_l2de else "L1 Onarımı"
 
+            # ONAY BEKLEYEN KAYITLAR - ekranda rozet olarak gösterilir. Cihaz başına
+            # TEK hesap yapılır; satır başına _onay_engeli çağırmak aynı fatura
+            # hesabını onarım sayısı kadar tekrarlardı.
+            onay_bekleyen_idler = set()
+            try:
+                _be = self._resolve_batch_entry_by_ref(db, term)
+                if _be:
+                    _entry = db.execute(text("""
+                        SELECT flow, service_id, customer_no, model, screen_test, power_test
+                          FROM warehouse.batch_entries WHERE id = :id
+                    """), {"id": int(_be["id"])}).mappings().first()
+                    if _entry:
+                        _karar = self._compute_dismantle_decision(db, _be["imei_number"], _entry)
+                        if _karar.get("ok"):
+                            onay_bekleyen_idler = set(_karar.get("onay_bekleyen_kayitlar") or [])
+            except Exception as _e:
+                print(f"[WebBridge] onay rozeti hesaplanamadı ({term}): {_e}")
+
             repairs = []
             for r in repair_rows:
                 tracking_type = (r["stock_tracking_type"] or "Stok Takipli").strip() if r["part_item_code"] else "Stoksuz"
@@ -12197,6 +12299,9 @@ class WebBridge(QObject):
                     "stockTrackingType": tracking_type,
                     "isStoksuz": is_stoksuz,
                     "isDelivered": is_delivered,
+                    # Müşteri onayı: onaylı / onay bekliyor / gerekmiyor.
+                    "customerApproved": bool(r["customer_approved"]),
+                    "onayBekliyor": str(r["id"]) in onay_bekleyen_idler,
                     "faultCode": r["item_fault_code"] or "",
                     "faultName": r["fault_name"] or r["item_fault_code"] or "",
                     "operationTypeCode": r["operation_type_code"] or "",
@@ -13009,6 +13114,50 @@ ORDER BY imei, departman, durum;
         return ((sinif_a, sinif_b) in cls.PARCA_CAKISMA_CIFTLERI
                 or (sinif_b, sinif_a) in cls.PARCA_CAKISMA_CIFTLERI)
 
+    # L1 (demontaj) dışındaki onarım takımları. DISMANTLE ve L1REPAIR bu kuralın
+    # DIŞINDADIR - onlar L1 seviyesidir, kendilerini bekleyemezler.
+    UPPER_LEVEL_TEAMS = frozenset({"L2REPAIR", "L3REPAIR", "BATTERY", "CAMERA", "DISPLAY", "CASE"})
+
+    def _cihaz_referanslari(self, db, device_ref):
+        """Bir cihazın onarım kayıtlarının tutulabileceği TÜM referansları döner
+        (IMEI, service_id, verilen ham ref). Kayıtlar tek bir anahtar altında
+        toplanmıyor; tek ref ile arayan kurallar kaydı bulamayıp yanlış karar veriyordu."""
+        refs = {str(device_ref).strip()}
+        b = self._resolve_batch_entry_by_ref(db, device_ref)
+        if b:
+            if b["service_id"]:
+                refs.add(str(b["service_id"]))
+            if b["imei_number"]:
+                refs.add(str(b["imei_number"]).strip())
+        return [r for r in refs if r]
+
+    def _l1_baslamadi_engeli(self, db, device_ref, team_code, islem_adi):
+        """L1 (demontaj) onarımı HİÇ BAŞLAMAMIŞKEN üst seviye onarımlarda işlem
+        yapılmasını engeller; engel yoksa None döner.
+
+        Cihazı açan, parçaları söken L1 teknisyenidir. O işe başlamadan üst ekibe iş
+        açmak ya da o işleri oynatmak, henüz açılmamış cihaza iş atamak demektir.
+
+        Engellenen TEK durum 1000 (Teknisyene Atanacak). 1001 (onarımda), 1002 (bitti)
+        ve 1004 (sırada) kabul edilir - L1 bir kez başladıysa kural sağlanmıştır.
+        Hiç DISMANTLE kaydı yoksa engel YOKTUR: aksi halde DGD satırı doğmamış cihazda
+        hiçbir üst seviye işlem yapılamaz, çıkış yolu kalmazdı."""
+        from models.repair_record import RepairRecord
+        if (team_code or "").strip().upper() not in self.UPPER_LEVEL_TEAMS:
+            return None
+        kayitlar = db.query(RepairRecord).filter(
+            RepairRecord.service_record_id.in_(self._cihaz_referanslari(db, device_ref)),
+            RepairRecord.department_mission == "DISMANTLE",
+            RepairRecord.repair_result_type_code != 1003,
+        ).all()
+        if not kayitlar:
+            return None
+        if all(int(k.repair_result_type_code or 0) == 1000 for k in kayitlar):
+            return (f"L1 (demontaj) onarımı henüz başlamamış (Teknisyene Atanacak). "
+                    f"Üst seviye onarımlarda (L2/L3, Batarya/Kamera/Ekran/Kasa) {islem_adi} — "
+                    f"önce L1 onarımını bir teknisyene atayın.")
+        return None
+
     def _parca_cakisma_engeli(self, db, service_ref, part_code, part_cat=None, haric_id=None):
         """Cihaza girilmek istenen parça, orada duran bir parçayla çakışıyor mu?
         Çakışıyorsa kullanıcıya gösterilecek mesajı, çakışmıyorsa None döner.
@@ -13164,31 +13313,10 @@ ORDER BY imei, departman, durum;
             # Kural YALNIZCA "Üretim Kaydını Görüntüle" (technician-repair) ekranından
             # eklemede geçerlidir. "Üretime Aktar" (demontaj) ekranı source="dismantle"
             # gönderir; orada parça ekleme serbesttir (demontaj zaten L1'in yapıldığı yerdir).
-            UPPER_LEVEL_TEAMS = {"L2REPAIR", "L3REPAIR", "BATTERY", "CAMERA", "DISPLAY", "CASE"}
-            if team_code in UPPER_LEVEL_TEAMS and (source or "").strip().lower() != "dismantle":
-                # L1'i cihazın TÜM olası referanslarında ara. Onarım kayıtları IMEI /
-                # service_id / work_order_id altında tutulabildiği için tek service_ref ile
-                # aramak (ör. "Üretim Kaydını Görüntüle"/technician-repair ekranı workOrderId
-                # geçince) L1 zaten 1001'deyken bile bulamayıp YANLIŞ bloklayabiliyordu.
-                l1_refs = {str(service_ref), str(device_ref).strip()}
-                for _r in (device_ref, service_ref):
-                    _batch = self._resolve_batch_entry_by_ref(db, _r)
-                    if _batch:
-                        if _batch["service_id"]:
-                            l1_refs.add(str(_batch["service_id"]))
-                        if _batch["imei_number"]:
-                            l1_refs.add(str(_batch["imei_number"]).strip())
-                l1_refs = [r for r in l1_refs if r]
-                l1_active = db.query(RepairRecord).filter(
-                    RepairRecord.service_record_id.in_(l1_refs),
-                    RepairRecord.department_mission == "DISMANTLE",
-                    RepairRecord.repair_result_type_code == 1001,
-                ).first()
-                if not l1_active:
-                    return json.dumps({
-                        "success": False,
-                        "message": "L1 (demontaj) onarımı 'Devam Et' (Onarımda) durumunda olmadan üst seviye onarım (L2/L3, Batarya/Kamera/Ekran/Kasa) eklenemez. Önce L1 onarımını başlatın."
-                    }, ensure_ascii=False)
+            if (source or "").strip().lower() != "dismantle":
+                _engel = self._l1_baslamadi_engeli(db, device_ref, team_code, "onarım/parça eklenemez")
+                if _engel:
+                    return json.dumps({"success": False, "message": _engel}, ensure_ascii=False)
 
             # ZATEN ATANMIŞ BİR GRUBA EKLENEN PARÇA, TEKNİSYENİ DEVRALIR.
             # Yeni kayıt normalde 1000 (Teknisyene Atanacak) / teknisyensiz doğar. Grup
@@ -13213,10 +13341,33 @@ ORDER BY imei, departman, durum;
             if part_code and (part_cat or "").strip().upper() == "DGD":
                 dgd_supply_status = "Talepsiz"
 
+            # ONAY DEVRALMA: aynı cihazda AYNI KATEGORİ için müşteri onayı daha önce
+            # alınmışsa yeni kayıt onaylı doğar, ikinci kez onay istenmez.
+            # Senaryo: teknisyen onaylanmış parçayı siler (kayıt 1003 olur, onay bilgisi
+            # üstünde kalır) ve yerine aynı kategoriden parça ekler. Kayıt bazlı hafıza
+            # bunu "yeni ve onaysız" sayıp cihazı gereksiz yere tekrar onaya gönderiyordu.
+            # Eşleşme KATEGORİ üzerinden: müşteri o kategorinin kullanılmasına onay
+            # vermiştir, aynı kategorideki başka bir parça kodu da bu onayın kapsamındadır.
+            # İptal edilmiş (1003) kayıtlar da sayılır - onayı onlar taşıyor.
+            devralinan_onay = False
+            _kat = (part_cat or "").strip()
+            if _kat:
+                devralinan_onay = bool(db.execute(text("""
+                    SELECT 1 FROM warehouse.repair_records rr
+                     LEFT JOIN warehouse.parts p ON p.item_code = rr.part_item_code
+                     WHERE rr.service_record_id = ANY(:refs)
+                       AND COALESCE(rr.customer_approved, FALSE) = TRUE
+                       AND LOWER(TRIM(COALESCE(p.item_category, rr.item_category, ''))) = LOWER(TRIM(:kat))
+                     LIMIT 1
+                """), {"refs": self._cihaz_referanslari(db, device_ref), "kat": _kat}).scalar())
+
             rec = RepairRecord(
                 id=uuid.uuid4(),
                 service_record_id=service_ref,
                 department_mission=mission_group_code.strip(),
+                customer_approved=devralinan_onay,
+                customer_approved_at=_dt.datetime.utcnow() if devralinan_onay else None,
+                customer_approved_by="DEVRALINDI" if devralinan_onay else None,
                 repair_result_type_code=1001 if atanmis else 1000,
                 warranty_code=warranty_code.strip() if warranty_code else "OOW",
                 notes=notes.strip() if notes else None,
@@ -13236,68 +13387,167 @@ ORDER BY imei, departman, durum;
             self._sync_hierarchy_wait(db, service_ref)
             db.commit()
 
-            # Karar sonrası yeniden onarım: Cihaz demontaj kararını (Müşteri Onayı / Üretime
-            # Aktar) geçip Üretim aşamasına (109) alındıktan sonra teknisyen YENİ bir onarım
-            # eklerse, cihazı Demontaj karar aşamasına (105) geri çeker VE AYNI ÇAĞRIDA
-            # _compute_dismantle_decision ile yeniden karar veririz - teknisyen ayrı bir ekrana
-            # (Demontaj Teknisyeni yetkisi gerektiren "Üretime Aktar") gitmek zorunda kalmadan,
-            # yeni toplam fiyat Hedef Fiyat Matrisi limitini aşıyorsa cihaz otomatik Müşteri
-            # Onayına (106), aşmıyorsa otomatik geri Üretime (109) taşınır. Burada AYRI bir
-            # yetki kontrolü YOK: bu, kullanıcının kendi ekleme eyleminin sistemsel/otomatik bir
-            # sonucudur, TEC_DISMANTLE yetkisi gerektiren manuel bir "karar verme" eylemi değil.
-            # Sadece karar SONRASI statüden (109) geri çekilir; normal ilk demontaj (104/105)
-            # sırasında eklenen onarımlar statüyü değiştirmez. Geçiş yalnızca state machine'in
-            # izin verdiği durumda (109->105) uygulanır.
-            REOPEN_DECISION_FROM = {109}
-            RESET_TARGET_STATU = 105
-            reopened = False
-            redecision = None
+            # PARÇA EKLEMEK STATÜ DEĞİŞTİRMEZ.
+            # Eskiden burada cihaz üretimdeyse (109) otomatik olarak 105'e çekilip
+            # yeniden karar veriliyor, gerekiyorsa 106'ya (Müşteri Onayı) fırlatılıyordu.
+            # Bu akışı fiilen kırıyordu: teknisyen tek parça eklemez, tespitini yapıp
+            # gereken parçaların hepsini girer. İlk parça onay gerektiren cinstense cihaz
+            # o anda 106'ya gidiyor, Üretim Kaydını Görüntüle ekranı 106'daki cihazı
+            # açmadığı için teknisyen KALAN parçaları hiç giremiyordu.
+            #
+            # Artık karar yalnızca HESAPLANIR ve çağırana bildirilir; statüyü değiştirme
+            # kararı kullanıcıya aittir (Üretim Kaydını Görüntüle'deki "Müşteriye Aktar"
+            # butonu → send_device_to_customer_approval). Onay alınmamış parça bu arada
+            # depodan çekilemez ve bulunduğu onarım tamamlanamaz (bkz. _onay_engeli),
+            # yani cihaz onaydan geçmeden ilerleyemez.
+            karar_ozeti = None
             try:
-                from services.state_machine_service import StateMachineService
-                from models.batch_entry import BatchEntry
                 be_ref = self._resolve_batch_entry_by_ref(db, device_ref)
-                if be_ref and be_ref["statu_code"] is not None:
-                    cur = int(be_ref["statu_code"])
-                    if cur in REOPEN_DECISION_FROM and StateMachineService(db).validate_transition(cur, RESET_TARGET_STATU):
-                        be = db.query(BatchEntry).filter(BatchEntry.id == int(be_ref["id"])).first()
-                        if be:
-                            be.statu_code = RESET_TARGET_STATU
-                            self._record_statu_change(
-                                db, be.id, be.imei_number, cur, RESET_TARGET_STATU,
-                                note="Yeni onarım eklendi — karar için demontaj aşamasına geri çekildi (109 → 105)",
-                            )
-                            db.commit()
-                            reopened = True
-
-                            entry_row = {
-                                "flow": be.flow, "service_id": be.service_id,
-                                "customer_no": be.customer_no, "model": be.model,
-                                "screen_test": be.screen_test, "power_test": be.power_test,
+                if be_ref:
+                    _entry = db.execute(text("""
+                        SELECT flow, service_id, customer_no, model, screen_test, power_test
+                          FROM warehouse.batch_entries WHERE id = :id
+                    """), {"id": int(be_ref["id"])}).mappings().first()
+                    if _entry:
+                        _k = self._compute_dismantle_decision(db, be_ref["imei_number"], _entry)
+                        if _k.get("ok"):
+                            karar_ozeti = {
+                                "decision": _k["decision"],
+                                "approvalRequired": _k["decision"] == "MUSTERI_ONAYI",
+                                "approvalReasons": _k["onay_sebepleri"],
+                                "approvalReasonText": _k["onay_sebep_metni"],
+                                "price_limit_exceeded": _k["price_limit_exceeded"],
+                                "total_price": _k["total_price"],
+                                "target_price": _k["target_price"],
                             }
-                            decision = self._compute_dismantle_decision(db, be.imei_number, entry_row)
-                            if decision["ok"]:
-                                trans = json.loads(self.execute_batch_entry_statu_transition(
-                                    str(be.id), RESET_TARGET_STATU, decision["target_statu_code"]))
-                                if trans.get("success"):
-                                    redecision = {
-                                        "new_statu_code": decision["target_statu_code"],
-                                        "decision": decision["decision"],
-                                        "price_limit_exceeded": decision["price_limit_exceeded"],
-                                        "total_price": decision["total_price"],
-                                        "target_price": decision["target_price"],
-                                        "message": (trans.get("message") or "") + decision["price_limit_note"],
-                                    }
-            except Exception as reopen_err:
-                db.rollback()
-                print(f"[WebBridge] add_repair_record statü geri çekme hatası: {reopen_err}")
+            except Exception as karar_err:
+                print(f"[WebBridge] add_repair_record karar hesabı başarısız: {karar_err}")
 
-            response = {"success": True, "id": str(rec.id), "reopened_for_decision": reopened}
-            if redecision:
-                response.update(redecision)
+            response = {"success": True, "id": str(rec.id)}
+            if karar_ozeti:
+                response.update(karar_ozeti)
             return json.dumps(response, ensure_ascii=False)
         except Exception as e:
             db.rollback()
             return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    # Karar sonrası yeniden değerlendirme yalnızca ÜRETİMDEKİ (109) cihaz için yapılır.
+    # 105'teki cihazın kararı zaten verilmemiştir; 106/107'deki cihaz zaten onay
+    # kapsamındadır ve oradan geri çekmek onay sürecini bozar.
+    REOPEN_DECISION_FROM = {109}
+    RESET_TARGET_STATU = 105
+
+    def _uretimden_karar_yenile(self, db, device_ref, note):
+        """Üretimdeki (109) cihazı karar aşamasına (105) geri çekip kararı yeniden
+        hesaplar ve sonuca göre 106 (Müşteri Onayı) ya da 109'a (Üretim) taşır.
+        Döner: (geri_cekildi, karar_ozeti|None).
+
+        109 -> 106 geçişi state machine'de TANIMLI DEĞİLDİR; izinli olan tek yol
+        109 -> 105 -> 106'dır. Bu yüzden ara adım atlanamaz.
+
+        Hem add_repair_record'dan (parça/onarım eklenince otomatik) hem de
+        send_device_to_customer_approval'dan (Üretim Kaydını Görüntüle ekranındaki
+        buton) çağrılır - iki yol da aynı kararı aynı kurallarla vermeli."""
+        from services.state_machine_service import StateMachineService
+        from models.batch_entry import BatchEntry
+        reopened, redecision = False, None
+        try:
+            be_ref = self._resolve_batch_entry_by_ref(db, device_ref)
+            if not be_ref or be_ref["statu_code"] is None:
+                return False, None
+            cur = int(be_ref["statu_code"])
+            if cur not in self.REOPEN_DECISION_FROM:
+                return False, None
+            if not StateMachineService(db).validate_transition(cur, self.RESET_TARGET_STATU):
+                return False, None
+
+            be = db.query(BatchEntry).filter(BatchEntry.id == int(be_ref["id"])).first()
+            if not be:
+                return False, None
+            be.statu_code = self.RESET_TARGET_STATU
+            self._record_statu_change(db, be.id, be.imei_number, cur,
+                                      self.RESET_TARGET_STATU, note=note)
+            db.commit()
+            reopened = True
+
+            entry_row = {
+                "flow": be.flow, "service_id": be.service_id,
+                "customer_no": be.customer_no, "model": be.model,
+                "screen_test": be.screen_test, "power_test": be.power_test,
+            }
+            decision = self._compute_dismantle_decision(db, be.imei_number, entry_row)
+            if decision["ok"]:
+                trans = json.loads(self.execute_batch_entry_statu_transition(
+                    str(be.id), self.RESET_TARGET_STATU, decision["target_statu_code"]))
+                if trans.get("success"):
+                    redecision = {
+                        "new_statu_code": decision["target_statu_code"],
+                        "decision": decision["decision"],
+                        "price_limit_exceeded": decision["price_limit_exceeded"],
+                        "total_price": decision["total_price"],
+                        "target_price": decision["target_price"],
+                        "message": (trans.get("message") or "") + decision["price_limit_note"],
+                    }
+        except Exception as e:
+            db.rollback()
+            print(f"[WebBridge] karar yenileme hatası ({device_ref}): {e}")
+        return reopened, redecision
+
+    @Slot(str, str, result=str)
+    def send_device_to_customer_approval(self, term, username):
+        """Üretim Kaydını Görüntüle ekranındaki 'Müşteri Onayı Al' butonu.
+
+        Cihazı Müşteri Onayına (106) taşır - ama kararı KENDİ vermez, ortak karar
+        motoruna sorar. Kural gerçekten onay gerektirmiyorsa cihaz 109'da kalır ve
+        işlem "onay gerekmiyor" diye döner; buton yanlışlıkla basılsa bile cihaz
+        gereksiz yere onaya düşmez.
+
+        Cihaz zaten 106/107/136'daysa (parça eklenince otomatik gönderilmiş olabilir)
+        idempotent davranır."""
+        db = SessionLocal()
+        try:
+            term = (term or "").strip()
+            if not term:
+                return json.dumps({"success": False, "message": "Cihaz referansı boş olamaz."})
+            be = self._resolve_batch_entry_by_ref(db, term)
+            if not be:
+                return json.dumps({"success": False, "message": "Cihaz bulunamadı."})
+
+            mevcut = int(be["statu_code"] or 0)
+            if mevcut in (106, 107, 136):
+                return json.dumps({
+                    "success": True, "alreadyPending": True, "new_statu_code": mevcut,
+                    "message": "Cihaz zaten müşteri onayı sürecinde."
+                }, ensure_ascii=False)
+
+            reopened, karar = self._uretimden_karar_yenile(
+                db, term, note="Müşteri Onayı Al — üretimden karar aşamasına çekildi (109 → 105)")
+            if not reopened:
+                return json.dumps({
+                    "success": False,
+                    "message": f"Cihaz üretim aşamasında değil (statü {mevcut}); müşteri onayına gönderilemez."
+                }, ensure_ascii=False)
+            if not karar:
+                return json.dumps({"success": False, "message": "Karar hesaplanamadı."})
+
+            onaya_gitti = int(karar["new_statu_code"]) == 106
+            return json.dumps({
+                "success": True,
+                "new_statu_code": karar["new_statu_code"],
+                "decision": karar["decision"],
+                "price_limit_exceeded": karar["price_limit_exceeded"],
+                "total_price": karar["total_price"],
+                "target_price": karar["target_price"],
+                "message": ("Cihaz Müşteri Onayına (106) gönderildi." + (karar.get("message") or ""))
+                           if onaya_gitti else
+                           ("Bu cihaz için müşteri onayı gerekmiyor — tüm parçalar akışa uygun, "
+                            "limit aşılmıyor ya da onayları daha önce alınmış. Cihaz üretimde kaldı."),
+            }, ensure_ascii=False)
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)}, ensure_ascii=False)
         finally:
             db.close()
 
@@ -15971,7 +16221,8 @@ ORDER BY imei, departman, durum;
             repair_refs.append(str(entry["service_id"]))
 
         repair_rows = db.execute(text("""
-            SELECT rr.id, rr.part_item_code, p.item_category
+            SELECT rr.id, rr.part_item_code, p.item_category,
+                   COALESCE(rr.customer_approved, FALSE) AS customer_approved
             FROM warehouse.repair_records rr
             LEFT JOIN warehouse.parts p ON p.item_code = rr.part_item_code
             LEFT JOIN warehouse.repair_result_type rrt ON rrt.code = rr.repair_result_type_code
@@ -15986,7 +16237,15 @@ ORDER BY imei, departman, durum;
         # üretime aktarılabilir. Böyle bir cihaz Level 1 (mekanik onarım) olarak
         # faturalanır ve parça etiketi basılmaz.
 
+        # MÜŞTERİ ONAYI ALINMIŞ KAYIT YENİDEN DEĞERLENDİRİLMEZ.
+        # Onay kayıt bazında hatırlanıyor (repair_records.customer_approved). Kategori
+        # kapısı yalnızca ONAYLANMAMIŞ kayıtlara bakar; yoksa müşteri bir kez onay
+        # verdikten sonra cihaza yeni bir parça eklenince eski parçalar için de
+        # yeniden onay istenmiş olurdu.
+        onaysiz_kayitlar = [r for r in repair_rows if not r["customer_approved"]]
+
         flow = self._kanonik_flow(db, entry["flow"])
+        kategorisi_uygunsuz = []
         if flow.lower() in self.ONAY_GEREKTIRMEYEN_FLOWLAR:
             all_approved = True
         else:
@@ -15998,10 +16257,11 @@ ORDER BY imei, departman, durum;
                 """), {"flow": flow}).fetchall()
                 approved_categories = {c[0].strip().lower() for c in cat_rows if c[0]}
 
-            all_approved = flow and all(
-                (r["item_category"] or "").strip().lower() in approved_categories
-                for r in repair_rows
-            )
+            kategorisi_uygunsuz = [
+                r for r in onaysiz_kayitlar
+                if (r["item_category"] or "").strip().lower() not in approved_categories
+            ]
+            all_approved = bool(flow) and not kategorisi_uygunsuz
 
         DEFAULT_TARGET_PRICE = 9999.0
         customer_code = (entry["customer_no"] or "").strip()
@@ -16077,8 +16337,51 @@ ORDER BY imei, departman, durum;
         total_price = fatura["genel_toplam"]
 
         price_limit_exceeded = total_price > target_price
-        all_approved = all_approved and not price_limit_exceeded
+
+        # FİYAT KAPISI DA ONAY HAFIZASINA TABİDİR. Toplam yine TÜM aktif kayıtlar
+        # üzerinden hesaplanır - müşteriye kesilecek fatura bütündür - ama limit
+        # aşımı cihazı ancak ortada ONAYLANMAMIŞ bir kayıt varsa 106'ya çevirir.
+        # Hepsi onaylıysa cihaz limitin üstünde olsa bile üretimde kalır; müşteri o
+        # tutara zaten onay vermiştir.
+        limit_onay_gerektiriyor = price_limit_exceeded and bool(onaysiz_kayitlar)
+        all_approved = all_approved and not limit_onay_gerektiriyor
         target_statu_code = 109 if all_approved else 106
+
+        # ONAY BEKLEYEN KAYITLAR - hangi kaydın depo çıkışının ve tamamlanmasının
+        # kapalı olduğunu belirler (bkz. _onay_engeli). Fonksiyon SAF kalır: burada
+        # yalnızca hesaplanır, veriye YAZILMAZ. Aynı fonksiyonu
+        # get_dismantle_decision_preview de çağırıyor ve o slot ekran her
+        # tazelendiğinde çalışıyor; buraya konacak bir yazma önizlemeyi veri
+        # değiştiren bir işleme dönüştürürdü.
+        onay_bekleyen = {str(r["id"]) for r in kategorisi_uygunsuz}
+        if limit_onay_gerektiriyor:
+            onay_bekleyen |= {str(r["id"]) for r in onaysiz_kayitlar}
+
+        # ONAY SEBEBİ. İki case var ve ekranda HANGİSİ olduğu yazmalı: kriter dışı
+        # kategori mi, hedef fiyat aşımı mı, yoksa ikisi birden mi. Tek bir "onay
+        # gerekiyor" bilgisi kullanıcıya neyi düzelteceğini söylemiyordu.
+        onay_sebepleri = []
+        if kategorisi_uygunsuz:
+            onay_sebepleri.append("kategori")
+        if limit_onay_gerektiriyor:
+            onay_sebepleri.append("fiyat")
+
+        sebep_parcalari = []
+        if kategorisi_uygunsuz:
+            _adlar = []
+            for r in kategorisi_uygunsuz:
+                ad = (r["item_category"] or r["part_item_code"] or "?").strip()
+                if ad not in _adlar:
+                    _adlar.append(ad)
+            sebep_parcalari.append(
+                f"Cihazın akışında ({flow}) önceden onaylı olmayan parça kategorisi: "
+                f"{', '.join(_adlar)}")
+        if limit_onay_gerektiriyor:
+            sebep_parcalari.append(
+                f"Hedef fiyat aşımı: toplam {total_price:.2f} "
+                f"(parça {fatura['parca_toplam']:.2f} + işçilik {fatura['iscilik_toplam']:.2f} "
+                f"+ DGD {fatura['dgd_ucret']:.2f}), hedef limit {target_price:.2f}")
+        onay_sebep_metni = " • ".join(sebep_parcalari)
 
         price_limit_note = ""
         if price_limit_exceeded:
@@ -16096,6 +16399,12 @@ ORDER BY imei, departman, durum;
             "target_price": target_price,
             "price_limit_exceeded": price_limit_exceeded,
             "price_limit_note": price_limit_note,
+            # Onay bekleyen kayıt id'leri (string). Boşsa cihazda onay engeli yok.
+            "onay_bekleyen_kayitlar": sorted(onay_bekleyen),
+            # Onay neden gerekiyor: "kategori", "fiyat" ya da ikisi. Ekrandaki mesaj
+            # ve buton açıklaması bundan beslenir.
+            "onay_sebepleri": onay_sebepleri,
+            "onay_sebep_metni": onay_sebep_metni,
             # Kırılım: Demontaj panelinin fiyat özeti ve Üretim Kaydı ekranının işçilik
             # sütunu aynı hesaptan beslenir, ikinci bir yerde tekrar hesaplanmaz.
             "repair_level": fatura["seviye"],
@@ -16608,6 +16917,54 @@ ORDER BY imei, departman, durum;
             db.close()
 
     # Qt slotu DEĞİLDİR - açık bir DB oturumu alan dahili yardımcı.
+    def _onay_engeli(self, db, rec):
+        """Kayıt müşteri onayı beklediği için işlem yapılamıyorsa sebebi döner,
+        aksi halde None.
+
+        ONAY DURUMU SAKLANMAZ, ANLIK HESAPLANIR. Bir kayıt şu koşulda onay bekler:
+
+            customer_approved = false  VE  ( kategorisi akışın onaylı listesinde değil
+                                             VEYA cihazın güncel toplamı hedef limiti aşıyor )
+
+        Karar anında bir "onay bekliyor" bayrağı yazılsaydı kör noktası olurdu: cihaz
+        106'dayken eklenen kayıt için yeniden karar hesabı hiç çalışmıyor
+        (REOPEN_DECISION_FROM yalnızca 109'u kapsar), o kayıt hiç işaretlenmez ve
+        depodan çekilebilirdi. Anlık hesapta böyle bir boşluk yok.
+
+        Onay geldiğinde kayıt customer_approved olur ve buradan bir daha geçmez -
+        cihazın toplamı limitin üstünde kalsa bile."""
+        if rec is None or bool(getattr(rec, "customer_approved", False)):
+            return None
+        from sqlalchemy import text
+        try:
+            be = self._resolve_batch_entry_by_ref(db, rec.service_record_id)
+            if not be:
+                return None
+            entry = db.execute(text("""
+                SELECT flow, service_id, customer_no, model, screen_test, power_test
+                  FROM warehouse.batch_entries WHERE id = :id
+            """), {"id": int(be["id"])}).mappings().first()
+            if not entry:
+                return None
+            karar = self._compute_dismantle_decision(db, be["imei_number"], entry)
+            if not karar.get("ok"):
+                return None
+            if str(rec.id) not in set(karar.get("onay_bekleyen_kayitlar") or []):
+                return None
+            if karar.get("price_limit_exceeded"):
+                return ("Bu parça için müşteri onayı alınmamış: cihazın toplam tutarı "
+                        f"({karar['total_price']:.2f}) hedef limiti "
+                        f"({karar['target_price']:.2f}) aşıyor. Cihaz müşteri onayından "
+                        "geçmeden bu parça kullanılamaz.")
+            return ("Bu parça için müşteri onayı alınmamış: parça kategorisi cihazın "
+                    "akışında önceden onaylı değil. Cihaz müşteri onayından geçmeden "
+                    "bu parça kullanılamaz.")
+        except Exception as e:
+            # Engel hesaplanamıyorsa işlemi kilitleme - onay kuralı bir güvenlik
+            # kontrolüdür, hesap hatası yüzünden üretimi durdurmak daha kötüdür.
+            print(f"[WebBridge] onay engeli hesaplanamadı (repair {getattr(rec, 'id', '?')}): {e}")
+            return None
+
     def _repair_completion_blocker(self, db, rec):
         """Bir onarım kaydının 1002 (Tamamlandı) yapılmasını ENGELLEYEN sebebi döner;
         engel yoksa None.
@@ -16642,6 +16999,12 @@ ORDER BY imei, departman, durum;
         ).scalar()
         if (_kategori or "").strip().upper() == "DGD":
             return None
+
+        # 0.5) MÜŞTERİ ONAYI. Onay alınmamış, akışa uymayan ya da limiti aşıran bir
+        # parçanın bulunduğu onarım tamamlanamaz - önce cihazın onaydan geçmesi gerekir.
+        _onay = self._onay_engeli(db, rec)
+        if _onay:
+            return "Bu onarım tamamlanamaz! " + _onay
 
         # 1) Teknisyen ataması
         if not (rec.assigned_technician or "").strip():
@@ -16697,7 +17060,12 @@ ORDER BY imei, departman, durum;
             # onayı (107→136) adımından HİÇ geçmez (bkz. state_machine_service
             # is_battery_only özel işleme). Kanonik kod ("Battery only ") TRIM+lower
             # ile "battery only"e indirgenir.
-            NO_APPROVAL_FLOWS = {"to refurbish", "to rma", "battery only"}
+            # BASE KURALLA AYNI LİSTE OLMALI. Eskiden burada "battery only" de vardı;
+            # oysa karar motoru (ONAY_GEREKTIRMEYEN_FLOWLAR) bu akışı onay gerektiren
+            # akış sayıyor ve kategori kapısını çalıştırıyor. İki liste ayrışınca
+            # Battery only cihaz müşteri onayına gönderilebiliyor ama 106'da beklerken
+            # onarımı kapatılabiliyordu. Tek kaynak: ONAY_GEREKTIRMEYEN_FLOWLAR.
+            NO_APPROVAL_FLOWS = self.ONAY_GEREKTIRMEYEN_FLOWLAR
 
             # Onay GEREKTİREN akışlarda (ör. "To repair") engel yalnızca cihaz HÂLÂ
             # onay bekleyen bir statüde PARK EDERKEN çıkmalı. Onay kararı verildiğinde
@@ -16796,6 +17164,22 @@ ORDER BY imei, departman, durum;
                     return json.dumps({"success": False, "message": f"Bu işlem için '{required}' yetkisi gerekiyor."})
 
             target_code = int(new_status_code)
+
+            # TAMAMLANMIŞ ONARIM İPTAL EDİLEMEZ. Grup kapsamı zaten 1002'leri hariç
+            # tutuyor, ama tıklanan kaydın kendisi 1002 ise tek elemanlı gruba düşüp
+            # iptal ediliyordu. Yeniden açmak için önce "Onarıma Devam Et" gerekir.
+            if target_code == 1003 and int(rec.repair_result_type_code or 0) == 1002:
+                return json.dumps({
+                    "success": False,
+                    "message": "Tamamlanmış onarım iptal edilemez. Önce 'Onarıma Devam Et' ile yeniden açın."
+                }, ensure_ascii=False)
+
+            # L1 başlamadan üst seviye onarım başlatılamaz ("Onarıma Devam Et" / atama).
+            if target_code in self.REOPEN_CODES:
+                _l1 = self._l1_baslamadi_engeli(db, rec.service_record_id,
+                                                rec.department_mission, "onarım başlatılamaz")
+                if _l1:
+                    return json.dumps({"success": False, "message": _l1}, ensure_ascii=False)
 
             # ── İŞLEM SEVİYESİ = ONARIM, PARÇA DEĞİL ─────────────────────────
             # repair_records'ta her satır bir PARÇADIR; bir onarım = aynı cihaz
@@ -16944,6 +17328,22 @@ ORDER BY imei, departman, durum;
             if int(rec.repair_result_type_code or 0) == 1003:
                 return json.dumps({"success": False, "message": "Bu parça zaten silinmiş."})
 
+            # TAMAMLANMIŞ ONARIMIN PARÇASI SİLİNEMEZ. Onarım kapandıysa iş fiilen
+            # yapılmış, parça cihaza takılmıştır; kaydı geri almak fatura ve stok
+            # tarafını gerçeklikten koparır. Ekranda düğme zaten pasif ama @Slot'a
+            # doğrudan da çağrılabildiği için asıl kural burada.
+            if int(rec.repair_result_type_code or 0) == 1002:
+                return json.dumps({
+                    "success": False,
+                    "message": "Tamamlanmış onarımın parçası silinemez. Önce 'Onarıma Devam Et' ile onarımı yeniden açın."
+                }, ensure_ascii=False)
+
+            # L1 başlamadan üst seviye onarımlarda parça silinemez.
+            _l1 = self._l1_baslamadi_engeli(db, rec.service_record_id,
+                                            rec.department_mission, "parça silinemez")
+            if _l1:
+                return json.dumps({"success": False, "message": _l1}, ensure_ascii=False)
+
             # Depoya iade edilmemiş parça kuralı: iptal ile aynı engel.
             engel = self._repair_cancellation_blocker(db, rec)
             if engel:
@@ -16955,16 +17355,22 @@ ORDER BY imei, departman, durum;
 
             # Bu satırın kapanmasıyla bir alt seviyenin sırası gelmiş olabilir.
             self._sync_hierarchy_wait(db, rec.service_record_id)
-            # Cihazda açık iş kalmadıysa Ara Test'e geçiş yine kendiliğinden olur -
-            # DGD satırı açık kaldığı sürece bu tetiklenmez, kural gereği öyle olmalı.
-            otomatik = self._auto_send_to_intermediate_test(db, rec.service_record_id, username)
+
+            # PARÇA SİLMEK CİHAZI ARA TESTE GÖNDERMEZ.
+            # Burada _auto_send_to_intermediate_test çağrılıyordu; cihazın tek gerçek
+            # parçası silindiğinde açık iş kalmadığı için cihaz 109'dan 138'e geçiyordu.
+            # Silme bir DÜZENLEME işlemidir, tamamlama değil: teknisyen çoğu zaman
+            # yanlış girdiği parçayı silip yerine doğrusunu ekleyecektir. Cihaz 138'e
+            # kaçınca Üretim Kaydını Görüntüle onu artık açmıyor (yalnızca 109) ve
+            # teknisyen yeni parçayı giremiyordu.
+            # Ara Teste geçiş yerini korudu: onarım TAMAMLANDIĞINDA (update_repair_status)
+            # kendiliğinden oluyor. Geriye yalnızca DGD kalmışsa teknisyen onu
+            # "Onarımı Tamamla" ile kapatır, geçiş oradan tetiklenir.
             db.commit()
 
             return json.dumps({
                 "success": True,
-                "autoSentToTest": bool(otomatik),
-                "message": "Parça silindi." + (
-                    " Cihazın tüm onarımları kapandı — Ara Test Bekleniyor (138)." if otomatik else "")
+                "message": "Parça silindi."
             }, ensure_ascii=False)
         except Exception as e:
             db.rollback()
@@ -17610,6 +18016,13 @@ ORDER BY imei, departman, durum;
 
             if rec.supply_status_code in ("Stoktan Çıktı", "TESLIMEDILDI", "Teslim Edildi"):
                 return json.dumps({"success": False, "message": "Bu parça zaten teslim edilmiş."}, ensure_ascii=False)
+
+            # Müşteri onayı alınmamış parça depodan çıkamaz - deliver_part_to_device
+            # ile aynı kural, iki teslim yolu da aynı kapıdan geçmeli.
+            _onay = self._onay_engeli(db, rec)
+            if _onay:
+                return json.dumps({"success": False, "message": "Parça teslim edilemez! " + _onay},
+                                  ensure_ascii=False)
 
             code = rec.part_item_code.strip()
             tracked = self._is_part_stock_tracked(db, code)
@@ -18284,6 +18697,20 @@ ORDER BY imei, departman, durum;
                 ORDER BY created_at
                 LIMIT 1
             """), {"refs": refs, "code": code}).mappings().first()
+
+            # MÜŞTERİ ONAYI ALINMAMIŞ PARÇA DEPODAN ÇIKAMAZ.
+            # Ekran kilitli göstermiyor olabilir ve @Slot'a doğrudan da çağrılabildiği
+            # için kural burada. Cihaz onaya düşmüşken parçanın stoktan çıkması,
+            # müşteri reddederse (cihaz 124'e iade) boşa harcanmış parça demek.
+            if pending:
+                from models.repair_record import RepairRecord
+                _rec = db.query(RepairRecord).filter(RepairRecord.id == pending["id"]).first()
+                _onay = self._onay_engeli(db, _rec)
+                if _onay:
+                    return json.dumps({
+                        "success": False,
+                        "message": "Parça teslim edilemez! " + _onay
+                    }, ensure_ascii=False)
 
             if not pending:
                 # Görev grubu sırası: kayıt 1004'te (sırası gelmedi) ise teslim

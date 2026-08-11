@@ -35,8 +35,18 @@ class RepairRecord(Base):
     assigned_by = Column(String(100), nullable=True) # Atamayı kim yaptı
     assigned_at = Column(DateTime, nullable=True) # Atama ne zaman yapıldı
 
+    # MÜŞTERİ ONAYI - kayıt bazında. Cihaz Müşteri Onayı'ndan üretime geçtiğinde
+    # (106->109 / 136->109) o cihazın açık kayıtlarının tamamına yazılır, bkz.
+    # WebBridge._onay_bayragi_guncelle. Bir kez onaylanan kayıt için bir daha onay
+    # istenmez; onaylanmamış kayıt ise kategorisi akışa uymuyorsa ya da cihazın
+    # toplamı hedef limiti aşıyorsa depodan parça çekilmesini ve onarımın
+    # tamamlanmasını engeller (bkz. WebBridge._onay_engeli).
+    customer_approved = Column(Boolean, nullable=False, default=False)
+    customer_approved_at = Column(DateTime, nullable=True)
+    customer_approved_by = Column(String(100), nullable=True)
+
     notes = Column(Text, nullable=True)
-    
+
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
     # Onarımın KAPANDIĞI an (1002 Tamamlandı / 1003 İptal). Kayıt yeniden açılırsa

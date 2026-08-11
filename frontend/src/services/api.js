@@ -1330,6 +1330,15 @@ export const api = {
         });
     },
 
+    // Üretim Kaydını Görüntüle'deki "Müşteri Onayı Al" butonu. Kararı kendi vermez,
+    // backend ortak karar motoruna sorar (bkz. send_device_to_customer_approval).
+    sendDeviceToCustomerApproval: async (term, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.send_device_to_customer_approval(String(term), String(username || ''), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
     getDismantleDecisionPreview: async (imei) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
