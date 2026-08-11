@@ -306,17 +306,6 @@ export default function QC() {
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {source === 'db' ? (
-            <span className="text-xs font-mono px-3 py-1.5 rounded-lg border border-green-400/40 bg-green-50 dark:bg-green-500/10 text-green-600 dark:text-green-400 flex items-center gap-1.5" title="canlı veritabanı">
-              <Database className="w-3.5 h-3.5" />CANLI · {sourceLabel} · {rawFails.length} kayıt
-            </span>
-          ) : (
-            <span className="text-xs font-mono px-3 py-1.5 rounded-lg border border-amber-300/40 bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center gap-1.5"
-                  title={dbError ? `DB'ye ulaşılamadı: ${dbError}` : 'demo veri'}>
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />DEMO VERİ · {rawFails.length} kayıt
-            </span>
-          )}
-          {range && <span className="text-xs font-mono px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400">{range}</span>}
           <button onClick={loadData} disabled={loading}
             className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-100 flex items-center gap-1.5 disabled:opacity-50">
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />Yenile

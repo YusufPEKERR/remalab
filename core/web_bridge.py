@@ -12210,6 +12210,7 @@ class WebBridge(QObject):
                     rr.notes,
                     rr.created_at,
                     rr.updated_at,
+                    rr.closed_at,
                     be.imei_number,
                     be.serial_number,
                     be.internal_id,
@@ -12231,14 +12232,30 @@ class WebBridge(QObject):
                     OR LOWER(TRIM(be.internal_id)) = LOWER(TRIM(rr.service_record_id))
                     OR (be.service_id IS NOT NULL AND be.service_id::text = rr.service_record_id)
                 WHERE UPPER(TRIM(rr.department_mission)) = :dept
-                ORDER BY rr.created_at ASC
+                ORDER BY rr.created_at DESC
             """), {"dept": dept}).mappings().all()
 
             # Tarih/saat Türkiye yerel saatinde ve gg.aa.yyyy SS:DD formatında (bkz. fmt_tr_datetime).
             fmt = fmt_tr_datetime
 
+            # Tamamlanan VE iptal edilen onarımlar GÜNLÜK yenilenir: yalnızca BUGÜN (TR yerel)
+            # kapanmış (tamamlanan/iptal) onarımlar listede ve teknisyen kutularında kalır;
+            # ertesi güne geçildiğinde önceki günden kalanlar düşer. (Aktif onarımlar her zaman kalır.)
+            today_tr = _dt.datetime.now(_TR_TZ).date()
+
+            def _tr_date(dt):
+                if not dt:
+                    return None
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=_dt.timezone.utc)
+                return dt.astimezone(_TR_TZ).date()
+
             items = []
             for r in rows:
+                if bool(r["is_success"]) or bool(r["is_cancelled"]):
+                    comp_date = _tr_date(r["closed_at"] or r["updated_at"])
+                    if comp_date and comp_date != today_tr:
+                        continue  # önceki günlerden kalan tamamlanmış/iptal onarım
                 product_info = " ".join(filter(None, [r["model"], r["gb"], r["color"]])) or "-"
                 items.append({
                     "repairId": str(r["repair_id"]),
@@ -12270,6 +12287,7 @@ class WebBridge(QObject):
                     "productInfo": product_info,
                     "customerName": r["customer_name"] or "",
                     "batchStatusCode": r["batch_status_code"],
+                    "createdAtRaw": r["created_at"].timestamp() if r["created_at"] else 0,
                 })
 
             return json.dumps({"success": True, "items": items}, ensure_ascii=False)

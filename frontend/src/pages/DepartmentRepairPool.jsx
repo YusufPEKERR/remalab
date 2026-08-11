@@ -44,6 +44,12 @@ const cihazEtiketi = (deger) => {
     : { etiket: "Servis kaydı", metin: v };
 };
 
+// Teknisyen kutusu içi sıralama: önce ONARIMDA olanlar, sonra TAMAMLANDI, en altta İPTAL.
+const durumSirasi = (item) =>
+  (item.isCancelled || Number(item.statusCode) === 1003) ? 2
+    : (item.isSuccess || Number(item.statusCode) === 1002) ? 1
+      : 0;
+
 const DepartmentRepairPool = () => {
   const { deptCode } = useParams();
   const navigate = useNavigate();
@@ -62,6 +68,7 @@ const DepartmentRepairPool = () => {
   const [scanInputs, setScanInputs] = useState({});
   const [assigningUser, setAssigningUser] = useState(null);
   const [message, setMessage] = useState(null);
+  const [search, setSearch] = useState('');
 
   const fetchPoolData = useCallback(async () => {
     setLoading(true);
@@ -119,8 +126,36 @@ const DepartmentRepairPool = () => {
     }
   };
 
-  // Tüm aktif (iptal edilmemiş ve tamamlanmamış) onarımlar
-  const poolItems = items.filter(item => !item.isCancelled && !item.isSuccess);
+  // Tüm aktif (iptal edilmemiş ve tamamlanmamış) onarımlar — en son eklenen en üstte
+  // (backend sırasından bağımsız garanti: ham zaman damgasına göre azalan).
+  const poolItems = items
+    .filter(item => !item.isCancelled && !item.isSuccess)
+    .slice()
+    .sort((a, b) => (b.createdAtRaw || 0) - (a.createdAtRaw || 0));
+
+  // Arama: imei, cihaz, müşteri, parti, arıza, işlem/parça ve teknisyen üzerinde
+  const aramaSorgu = search.trim().toLowerCase();
+  const eslesiyorMu = (item) =>
+    !aramaSorgu ||
+    [
+      item.imei, item.productInfo, item.customerName, item.batchNo,
+      item.faultName, item.operationTypeName, item.operationTypeCode,
+      item.partName, item.assignedTechnicianName, item.assignedTechnician,
+    ].some(alan => (alan ?? '').toString().toLowerCase().includes(aramaSorgu));
+
+  const filteredPool = poolItems.filter(eslesiyorMu);
+
+  // Teknisyen kartları da aramadan etkilenir: ismi eşleşen YA DA üzerinde eşleşen
+  // cihaz bulunan teknisyenler gösterilir; kart içindeki cihaz listesi de filtrelenir.
+  const teknisyenIsmiEslesti = (tech) =>
+    [tech.fullname, tech.username].some(a => (a ?? '').toString().toLowerCase().includes(aramaSorgu));
+  const visibleTechnicians = aramaSorgu
+    ? technicians.filter(
+        (tech) =>
+          teknisyenIsmiEslesti(tech) ||
+          items.some((item) => item.assignedTechnician === tech.username && eslesiyorMu(item))
+      )
+    : technicians;
 
   return (
     <div className="p-6 space-y-6 max-w-[1600px] mx-auto">
@@ -172,6 +207,27 @@ const DepartmentRepairPool = () => {
             );
           })}
         </div>
+
+        {/* ── Sayfa Geneli Onarım Arama ── */}
+        <div className="relative mt-4">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Onarım ara — IMEI, cihaz, müşteri, parti, arıza, işlem/parça veya teknisyen..."
+            className="w-full pl-10 pr-10 py-2.5 bg-slate-50 dark:bg-[#171a26] border border-slate-200 dark:border-[#1e222d] rounded-xl text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:border-blue-500 focus:bg-white dark:focus:bg-[#12141c] transition-all"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer text-sm"
+              title="Aramayı temizle"
+            >
+              ✕
+            </button>
+          )}
+        </div>
       </div>
 
       {/* ── Bildirim Mesajı ───────────────────────────────────────── */}
@@ -190,17 +246,27 @@ const DepartmentRepairPool = () => {
       <div className="space-y-3">
         <h2 className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
           <User size={16} className="text-blue-500" />
-          Departman Teknisyenleri ve Anlık Atama Kutuları ({technicians.length})
+          Departman Teknisyenleri ve Anlık Atama Kutuları ({visibleTechnicians.length})
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {technicians.length === 0 ? (
+          {visibleTechnicians.length === 0 ? (
             <div className="col-span-full p-6 text-center text-slate-400 bg-white dark:bg-[#12141c] rounded-2xl border border-slate-200 dark:border-[#1e222d] text-xs italic">
-              Bu departmana atanmış kayıtlı teknisyen bulunamadı.
+              {aramaSorgu
+                ? `“${search}” aramasıyla eşleşen teknisyen veya cihaz bulunamadı.`
+                : 'Bu departmana atanmış kayıtlı teknisyen bulunamadı.'}
             </div>
           ) : (
-            technicians.map((tech) => {
-              const techAssignedItems = items.filter(item => item.assignedTechnician === tech.username);
+            visibleTechnicians.map((tech) => {
+              const techAllAssigned = items.filter(item => item.assignedTechnician === tech.username);
+              // Arama filtresi + durum sırası (onarımda → tamamlandı → iptal).
+              // sort kararlı olduğundan aynı durum grubunda backend sırası (en yeni önce) korunur.
+              const techAssignedItems = (aramaSorgu ? techAllAssigned.filter(eslesiyorMu) : techAllAssigned)
+                .slice()
+                .sort((a, b) =>
+                  durumSirasi(a) - durumSirasi(b) ||
+                  (b.createdAtRaw || 0) - (a.createdAtRaw || 0)
+                );
               const isScanning = assigningUser === tech.username;
 
               return (
@@ -249,24 +315,48 @@ const DepartmentRepairPool = () => {
                   <div className="border-t border-slate-100 dark:border-[#1e222d] pt-2 space-y-1.5 max-h-[160px] overflow-y-auto">
                     {techAssignedItems.length === 0 ? (
                       <p className="text-[11px] text-slate-400 italic text-center py-2">
-                        Henüz üzerine cihaz atanmadı
+                        {aramaSorgu && techAllAssigned.length > 0
+                          ? 'Bu aramayla eşleşen cihaz yok'
+                          : 'Henüz üzerine cihaz atanmadı'}
                       </p>
                     ) : (
-                      techAssignedItems.map((item) => (
-                        <div 
-                          key={item.repairId}
-                          className="p-2 rounded-lg bg-slate-50 dark:bg-[#171a26] flex items-center justify-between text-[11px]"
-                        >
-                          <div>
-                            <div className="font-bold text-slate-700 dark:text-slate-200">
-                              {item.productInfo}
+                      techAssignedItems.map((item) => {
+                        const tamamlandi = item.isSuccess || Number(item.statusCode) === 1002;
+                        const iptal = item.isCancelled || Number(item.statusCode) === 1003;
+                        const bitisTesti = Number(item.statusCode) === 1006;
+                        return (
+                          <div
+                            key={item.repairId}
+                            className="p-2 rounded-lg bg-slate-50 dark:bg-[#171a26] flex items-center justify-between gap-2 text-[11px]"
+                          >
+                            <div className="min-w-0">
+                              <div className="font-bold text-slate-700 dark:text-slate-200 truncate">
+                                {item.productInfo}
+                              </div>
+                              <div className="text-[10px] text-slate-400 font-mono truncate">
+                                {item.imei}
+                              </div>
                             </div>
-                            <div className="text-[10px] text-slate-400 font-mono">
-                              {item.imei}
-                            </div>
+                            {tamamlandi ? (
+                              <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/20">
+                                <CheckCircle2 size={11} /> Tamamlandı
+                              </span>
+                            ) : iptal ? (
+                              <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20">
+                                <XCircle size={11} /> İptal
+                              </span>
+                            ) : bitisTesti ? (
+                              <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20">
+                                <ClipboardCheck size={11} /> Bitiş Testinde
+                              </span>
+                            ) : (
+                              <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                                <Clock size={11} /> Onarımda
+                              </span>
+                            )}
                           </div>
-                        </div>
-                      ))
+                        );
+                      })
                     )}
                   </div>
                 </div>
@@ -278,13 +368,13 @@ const DepartmentRepairPool = () => {
 
       {/* ── 2. DEPARTMAN ONARIM HAVUZU LİSTESİ ── */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
             <Clock size={16} className="text-amber-500" />
-            Departman Onarım Havuzu (Giriş Tarihi Sırasıyla En Eskiden En Yeniye)
+            Departman Onarım Havuzu (Giriş Tarihi Sırasıyla En Yeniden En Eskiye)
           </h2>
-          <span className="text-xs font-semibold text-slate-500">
-            Toplam {poolItems.length} cihaz
+          <span className="text-xs font-semibold text-slate-500 whitespace-nowrap">
+            {aramaSorgu ? `${filteredPool.length} / ${poolItems.length}` : `Toplam ${poolItems.length}`} cihaz
           </span>
         </div>
 
@@ -316,8 +406,14 @@ const DepartmentRepairPool = () => {
                       Bu departmanda henüz kayıtlı onarım bulunmuyor.
                     </td>
                   </tr>
+                ) : filteredPool.length === 0 ? (
+                  <tr>
+                    <td colSpan="7" className="px-4 py-12 text-center text-slate-400 dark:text-slate-600 italic">
+                      “{search}” aramasıyla eşleşen onarım bulunamadı.
+                    </td>
+                  </tr>
                 ) : (
-                  poolItems.map((item, idx) => (
+                  filteredPool.map((item, idx) => (
                     <tr
                       key={item.repairId}
                       className="hover:bg-slate-50/80 dark:hover:bg-[#171a26]/50 transition-colors"
