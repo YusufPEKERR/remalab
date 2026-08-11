@@ -1171,22 +1171,113 @@ class WebBridge(QObject):
                 refs.append(sid)
             if not refs:
                 return
+            # ZAMAN DAMGASI PYTHON'DAN, SQL NOW()'DAN DEĞİL.
+            # repair_records.created_at model tarafında datetime.utcnow() ile yazılıyor
+            # (UTC). Buraya SQL NOW() konulursa sunucunun YEREL saati (UTC+3) yazılır ve
+            # "onaydan sonra eklenmiş kayıt" karşılaştırması 3 saat boyunca yanlış sonuç
+            # verir: onay sonrası eklenen parça bile onaydan önce görünür.
+            simdi = _dt.datetime.utcnow()
             db.execute(_text("""
                 UPDATE warehouse.repair_records rr
                    SET customer_approved = TRUE,
-                       customer_approved_at = NOW(),
+                       customer_approved_at = :simdi,
                        customer_approved_by = :who
                   FROM warehouse.repair_result_type rrt
                  WHERE rrt.code = rr.repair_result_type_code
                    AND rr.service_record_id = ANY(:refs)
                    AND COALESCE(rrt.is_cancelled, FALSE) = FALSE
                    AND COALESCE(rr.customer_approved, FALSE) = FALSE
-            """), {"refs": refs, "who": (staff or "")[:100] or "MÜŞTERİ ONAYI"})
+            """), {"refs": refs, "simdi": simdi, "who": (staff or "")[:100] or "MÜŞTERİ ONAYI"})
+
+            # ONAYIN FOTOĞRAFI: müşterinin onayladığı TUTAR ve AN. Fiyat kapısı bunu
+            # ölçüt alır - kategori onayından bağımsız olarak, onaylanan tutarın üstüne
+            # çıkıldığında yeniden onay istenir (bkz. _compute_dismantle_decision).
+            try:
+                _be = db.execute(_text("""
+                    SELECT flow, customer_no FROM warehouse.batch_entries WHERE id = :id
+                """), {"id": int(entry_id)}).mappings().first()
+                _fatura = self._cihaz_fatura_hesabi(
+                    db, refs, (_be["customer_no"] or "").strip() if _be else "",
+                    flow=_be["flow"] if _be else None)
+                db.execute(_text("""
+                    UPDATE warehouse.batch_entries
+                       SET customer_approved_total = :t, customer_approved_at = :simdi
+                     WHERE id = :id
+                """), {"t": float(_fatura["genel_toplam"]), "simdi": simdi, "id": int(entry_id)})
+            except Exception as _fe:
+                print(f"[WebBridge] onaylanan tutar yazılamadı (entry {entry_id}): {_fe}")
         except Exception as e:
             # Bayrak yazılamazsa statü geçişi geri alınmaz (geçiş geri alınamaz bir
             # iştir); hata loglanır. En kötü sonuç: kayıt onaysız kalır ve bir kez
             # daha onay istenir - veri kaybı değil.
             print(f"[WebBridge] onay bayrağı güncellenemedi (entry {entry_id}): {e}")
+
+    # Onay bekleyen onarım kaydının statüsü. warehouse.repair_result_type'ta tanımlı
+    # ("Onarım Müşteri Onayı Bekliyor") ama hiçbir kod yolu yazmıyordu.
+    ONAY_BEKLEME_KODU = 1005
+    APPROVAL_STATUSES = frozenset({106, 107, 136})
+
+    def _onay_bekleme_statusu_guncelle(self, db, entry_id, imei, old_code, new_code):
+        """Cihaz müşteri onayı döngüsüne girdiğinde ONAY BEKLEYEN kayıtları 1005'e alır,
+        döngüden çıktığında geri açar.
+
+        Neden yalnızca onay bekleyenler: cihazda onaydan geçmiş ya da hiç onay
+        gerektirmeyen kayıtlar da olabilir. Müşteri Onay/Red ekranında hangi parçanın
+        onay beklediği bu statüden okunur.
+
+        Cihaz 106/107/136'dayken Üretim Kaydını Görüntüle (yalnızca 109) ve Üretime
+        Aktar (105) ekranlarında AÇILAMAZ; dolayısıyla 1005 yalnızca onay ekranında
+        görünür ve oradaki listeyi bozmaz."""
+        from sqlalchemy import text as _t
+        if new_code is None:
+            return
+        try:
+            yeni = int(new_code)
+        except (TypeError, ValueError):
+            return
+        try:
+            refs = [r for r in [imei] if r]
+            sid = db.execute(_t(
+                "SELECT service_id::text FROM warehouse.batch_entries WHERE id = :id"
+            ), {"id": int(entry_id)}).scalar()
+            if sid:
+                refs.append(sid)
+            if not refs:
+                return
+
+            if yeni == 106:
+                entry = db.execute(_t("""
+                    SELECT flow, service_id, customer_no, model, screen_test, power_test
+                      FROM warehouse.batch_entries WHERE id = :id
+                """), {"id": int(entry_id)}).mappings().first()
+                if not entry:
+                    return
+                karar = self._compute_dismantle_decision(db, imei, entry)
+                bekleyen = list(karar.get("onay_bekleyen_kayitlar") or []) if karar.get("ok") else []
+                if bekleyen:
+                    db.execute(_t("""
+                        UPDATE warehouse.repair_records
+                           SET repair_result_type_code = :kod, updated_at = NOW()
+                         WHERE id::text = ANY(:idler)
+                           AND COALESCE(repair_result_type_code, 0) NOT IN (1002, 1003)
+                    """), {"kod": self.ONAY_BEKLEME_KODU, "idler": bekleyen})
+
+            elif yeni not in self.APPROVAL_STATUSES:
+                # Döngüden çıkıldı (onay 109, red 124 ya da başka bir yol): 1005'te
+                # kalan kayıt olmasın. Teknisyeni varsa 1001'e, yoksa 1000'e döner -
+                # _sync_hierarchy_wait ile aynı kural, sıra gerekiyorsa o 1004'e alır.
+                db.execute(_t("""
+                    UPDATE warehouse.repair_records
+                       SET repair_result_type_code = CASE
+                               WHEN COALESCE(TRIM(assigned_technician), '') <> '' THEN 1001
+                               ELSE 1000 END,
+                           updated_at = NOW()
+                     WHERE service_record_id = ANY(:refs)
+                       AND repair_result_type_code = :kod
+                """), {"refs": refs, "kod": self.ONAY_BEKLEME_KODU})
+                self._sync_hierarchy_wait(db, refs[0])
+        except Exception as e:
+            print(f"[WebBridge] onay bekleme statüsü güncellenemedi (entry {entry_id}): {e}")
 
     def _record_statu_change(self, db, entry_id, imei, old_code, new_code, staff=None, note=None):
         """Bir statü geçişini history tablosuna ekler (COMMIT ETMEZ — çağıran commit eder,
@@ -1197,6 +1288,9 @@ class WebBridge(QObject):
         TÜM statü geçişlerinden çağrıldığı için kancayı tek noktada tutmayı sağlar."""
         self._iade_bayragi_guncelle(db, entry_id, old_code, new_code)
         self._onay_bayragi_guncelle(db, entry_id, imei, old_code, new_code, staff)
+        # Onay bayrağından SONRA: 109'a dönüşte kayıtlar önce onaylı işaretlenir,
+        # sonra 1005'ten geri açılır. Ters sırada 1005 kaydı onaysız kalırdı.
+        self._onay_bekleme_statusu_guncelle(db, entry_id, imei, old_code, new_code)
         try:
             from models.batch_entry_statu_history import BatchEntryStatuHistory
             db.add(BatchEntryStatuHistory(
@@ -1612,6 +1706,27 @@ class WebBridge(QObject):
             # UPDATE'ler). Depo durumu değişikliği, sıra senkronu gibi sonraki her yazma
             # damgayı ileri kaydırıyor, geçmişte onarımın bittiği an yanlış görünüyordu.
             self._ddl_kolon(db, "ALTER TABLE warehouse.repair_records ADD COLUMN IF NOT EXISTS closed_at TIMESTAMP;")
+
+            # MÜŞTERİ ONAYI HAFIZASI (kayıt bazında).
+            # Bir kez onaylanan kayıt için tekrar onay istenmez; onaylanmamış kayıt ise
+            # kategorisi akışa uymuyorsa ya da tutar onaylanan tutarın üstüne çıkmışsa
+            # depo çıkışını ve onarım tamamlamayı engeller (bkz. _onay_engeli).
+            self._ddl_kolon(db, "ALTER TABLE warehouse.repair_records ADD COLUMN IF NOT EXISTS customer_approved BOOLEAN NOT NULL DEFAULT FALSE;")
+            self._ddl_kolon(db, "ALTER TABLE warehouse.repair_records ADD COLUMN IF NOT EXISTS customer_approved_at TIMESTAMP;")
+            self._ddl_kolon(db, "ALTER TABLE warehouse.repair_records ADD COLUMN IF NOT EXISTS customer_approved_by VARCHAR(100);")
+            # GERİ DOLUM - yalnızca kolonun ilk eklendiği çalıştırmada anlamlıdır.
+            # Takip bugünden başlar: aksi halde üretimdeki her cihazın parçası bir anda
+            # "onay bekliyor" sayılır, depo çıkışı ve onarım tamamlama sistem genelinde
+            # kilitlenirdi. Bundan sonra doğan kayıtlar doğru şekilde onaysız başlar.
+            db.execute(text("""
+                UPDATE warehouse.repair_records
+                   SET customer_approved = TRUE,
+                       customer_approved_at = COALESCE(customer_approved_at, created_at),
+                       customer_approved_by = COALESCE(customer_approved_by, 'GERI-DOLUM')
+                 WHERE customer_approved IS NOT TRUE
+                   AND customer_approved_by IS NULL
+                   AND created_at < :sinir
+            """), {"sinir": _dt.datetime(2026, 8, 11, 12, 0, 0)})
             # Geçmiş kayıtlar için tek seferlik doldurma: kapanmış ama closed_at'i boş
             # olanlarda elde en iyi tahmin updated_at'tir. İdempotenttir - bir kez dolan
             # satır bir daha güncellenmez.
@@ -1646,6 +1761,12 @@ class WebBridge(QObject):
         db = SessionLocal()
         try:
             self._ddl_kolon(db, "ALTER TABLE warehouse.batch_entries ADD COLUMN IF NOT EXISTS customer_diagnosis TEXT;")
+            # MÜŞTERİ ONAYININ FOTOĞRAFI: onay geldiğinde (106->109 / 136->109) o andaki
+            # nihai fatura tutarı ve an. Fiyat kapısı bunu ölçüt alır - onaylanan tutarın
+            # üstüne çıkılmadıkça tekrar sorulmaz, çıkıldığında parçanın kategorisi onaylı
+            # olsa bile sorulur (bkz. _compute_dismantle_decision).
+            self._ddl_kolon(db, "ALTER TABLE warehouse.batch_entries ADD COLUMN IF NOT EXISTS customer_approved_total NUMERIC;")
+            self._ddl_kolon(db, "ALTER TABLE warehouse.batch_entries ADD COLUMN IF NOT EXISTS customer_approved_at TIMESTAMP;")
             db.commit()
         except Exception as e:
             db.rollback()
@@ -16220,14 +16341,31 @@ ORDER BY imei, departman, durum;
         if entry["service_id"]:
             repair_refs.append(str(entry["service_id"]))
 
+        # ONAY FOTOĞRAFI: müşterinin en son onayladığı tutar ve an.
+        # onay_ani'ndan SONRA doğan kayıt, müşterinin gördüğü listede yoktur - kategori
+        # onayını devralmış olsa bile fiyat kapısı açısından "yeni"dir.
+        onay_fotografi = db.execute(text("""
+            SELECT customer_approved_total, customer_approved_at
+              FROM warehouse.batch_entries
+             WHERE LOWER(TRIM(imei_number)) = LOWER(:i)
+                OR service_id::text = :sid
+             ORDER BY id DESC LIMIT 1
+        """), {"i": (imei or ""), "sid": str(entry["service_id"] or "")}).mappings().first()
+        onaylanan_tutar = (float(onay_fotografi["customer_approved_total"])
+                           if onay_fotografi and onay_fotografi["customer_approved_total"] is not None
+                           else None)
+        onay_ani = onay_fotografi["customer_approved_at"] if onay_fotografi else None
+
         repair_rows = db.execute(text("""
             SELECT rr.id, rr.part_item_code, p.item_category,
-                   COALESCE(rr.customer_approved, FALSE) AS customer_approved
+                   COALESCE(rr.customer_approved, FALSE) AS customer_approved,
+                   (COALESCE(rr.customer_approved, FALSE) = FALSE
+                    OR (:onay_ani IS NOT NULL AND rr.created_at > :onay_ani)) AS onay_kapsaminda_degil
             FROM warehouse.repair_records rr
             LEFT JOIN warehouse.parts p ON p.item_code = rr.part_item_code
             LEFT JOIN warehouse.repair_result_type rrt ON rrt.code = rr.repair_result_type_code
             WHERE rr.service_record_id = ANY(:refs) AND COALESCE(rrt.is_cancelled, FALSE) = FALSE
-        """), {"refs": repair_refs}).mappings().all()
+        """), {"refs": repair_refs, "onay_ani": onay_ani}).mappings().all()
 
         if not repair_rows:
             return {"ok": False, "message": "Önce en az bir onarım eklemelisiniz."}
@@ -16338,12 +16476,25 @@ ORDER BY imei, departman, durum;
 
         price_limit_exceeded = total_price > target_price
 
-        # FİYAT KAPISI DA ONAY HAFIZASINA TABİDİR. Toplam yine TÜM aktif kayıtlar
-        # üzerinden hesaplanır - müşteriye kesilecek fatura bütündür - ama limit
-        # aşımı cihazı ancak ortada ONAYLANMAMIŞ bir kayıt varsa 106'ya çevirir.
-        # Hepsi onaylıysa cihaz limitin üstünde olsa bile üretimde kalır; müşteri o
-        # tutara zaten onay vermiştir.
-        limit_onay_gerektiriyor = price_limit_exceeded and bool(onaysiz_kayitlar)
+        # FİYAT KAPISI KATEGORİ ONAYINDAN BAĞIMSIZDIR.
+        # Toplam yine TÜM aktif kayıtlar üzerinden hesaplanır - müşteriye kesilecek
+        # fatura bütündür. Limit aşımı iki şart birlikte sağlanınca onaya çevirir:
+        #
+        #   1) Müşterinin GÖRMEDİĞİ bir kayıt var: ya hiç onaylanmamış, ya da son
+        #      onaydan SONRA eklenmiş (kategori onayını devralmış olabilir).
+        #   2) Tutar, müşterinin onayladığı tutarın ÜSTÜNE çıkmış.
+        #
+        # Kategori onayı tek başına yeterli olsaydı, onaylı kategoriden çok daha pahalı
+        # bir parça eklendiğinde tutar fırlar ama onay devralındığı için hiç sorulmazdı
+        # (60 → 560 TL ölçüldü). İki şart birlikte şunu verir:
+        #   - tutar değişmediyse (silinip aynı fiyatlı parça eklendi) tekrar sorulmaz
+        #   - tutar yükseldiyse kategori ne olursa olsun sorulur
+        #   - hiç onay görmemiş cihazda (fotoğraf yok) limit aşımı doğrudan sorar
+        kapsam_disi_kayitlar = [r for r in repair_rows if r["onay_kapsaminda_degil"]]
+        tutar_artti = (onaylanan_tutar is None) or (total_price > onaylanan_tutar)
+        limit_onay_gerektiriyor = (price_limit_exceeded
+                                   and bool(kapsam_disi_kayitlar)
+                                   and tutar_artti)
         all_approved = all_approved and not limit_onay_gerektiriyor
         target_statu_code = 109 if all_approved else 106
 
@@ -16355,7 +16506,10 @@ ORDER BY imei, departman, durum;
         # değiştiren bir işleme dönüştürürdü.
         onay_bekleyen = {str(r["id"]) for r in kategorisi_uygunsuz}
         if limit_onay_gerektiriyor:
-            onay_bekleyen |= {str(r["id"]) for r in onaysiz_kayitlar}
+            # Fiyat sebebiyle bekleyenler: müşterinin onayladığı listede olmayan
+            # kayıtlar. Kategori onayını devralmış ama sonradan eklenmiş kayıt da
+            # buraya girer - tutarı yükselten odur.
+            onay_bekleyen |= {str(r["id"]) for r in kapsam_disi_kayitlar}
 
         # ONAY SEBEBİ. İki case var ve ekranda HANGİSİ olduğu yazmalı: kriter dışı
         # kategori mi, hedef fiyat aşımı mı, yoksa ikisi birden mi. Tek bir "onay
@@ -16377,10 +16531,12 @@ ORDER BY imei, departman, durum;
                 f"Cihazın akışında ({flow}) önceden onaylı olmayan parça kategorisi: "
                 f"{', '.join(_adlar)}")
         if limit_onay_gerektiriyor:
+            _ek = (f"; müşterinin onayladığı tutar {onaylanan_tutar:.2f}"
+                   if onaylanan_tutar is not None else "")
             sebep_parcalari.append(
                 f"Hedef fiyat aşımı: toplam {total_price:.2f} "
                 f"(parça {fatura['parca_toplam']:.2f} + işçilik {fatura['iscilik_toplam']:.2f} "
-                f"+ DGD {fatura['dgd_ucret']:.2f}), hedef limit {target_price:.2f}")
+                f"+ DGD {fatura['dgd_ucret']:.2f}), hedef limit {target_price:.2f}{_ek}")
         onay_sebep_metni = " • ".join(sebep_parcalari)
 
         price_limit_note = ""
@@ -16762,8 +16918,35 @@ ORDER BY imei, departman, durum;
         """Açılışta bir kez: mevcut tüm cihazların onarımlarını sıraya göre
         senkronlar. Kural sonradan eklendiği için geçmiş kayıtlar 1000/1001'de
         kalmıştı; bu tarama onları beklemeye alır. İdempotenttir."""
+        from sqlalchemy import text as _t
         db = SessionLocal()
         try:
+            # DGD SEVİYELENDİRMEYE GİRER. DISMANTLE'ın order_number'ı NULL'dı; sıra
+            # numarası olmayan grup _sync_hierarchy_wait tarafından hiç değerlendirilmiyor,
+            # bu yüzden üstünde açık Batarya/Kamera onarımı olsa bile DGD 1000/1001'de
+            # takılı kalıyordu. L1REPAIR/L2REPAIR ile aynı seviyeye (6) alınır - DGD
+            # zaten ekranda L1 olarak görünüyor ve L1 seviyesinde bir iştir.
+            db.execute(_t("""
+                UPDATE organization.mission_groups
+                   SET order_number = 6
+                 WHERE code = 'DISMANTLE' AND order_number IS DISTINCT FROM 6
+            """))
+
+            # AKIŞ ADLARINDAKİ SONDAKİ BOŞLUKLAR. service_request_item_category'de hem
+            # 'Battery only' hem 'Battery only ' vardı; ikisi ayrı akış gibi duruyor ve
+            # onaylı kategori listesi ikiye bölünüyordu. Sorgular TRIM'lediği için sorun
+            # görünmüyordu, ama TRIM'siz tek bir sorgu kuralı sessizce yarıya düşürür.
+            db.execute(_t("""
+                UPDATE warehouse.service_request_item_category
+                   SET service_request_type = TRIM(service_request_type)
+                 WHERE service_request_type <> TRIM(service_request_type)
+            """))
+            db.execute(_t("""
+                UPDATE warehouse.service_request_item_category
+                   SET item_category = TRIM(item_category)
+                 WHERE item_category <> TRIM(item_category)
+            """))
+            db.commit()
             bekleyen, serbest = self._sync_hierarchy_wait(db)
             db.commit()
             if bekleyen or serbest:
@@ -16933,7 +17116,10 @@ ORDER BY imei, departman, durum;
 
         Onay geldiğinde kayıt customer_approved olur ve buradan bir daha geçmez -
         cihazın toplamı limitin üstünde kalsa bile."""
-        if rec is None or bool(getattr(rec, "customer_approved", False)):
+        # customer_approved TEK BAŞINA muafiyet DEĞİLDİR: kategori onayını devralmış
+        # ama son onaydan sonra eklenmiş bir kayıt, tutarı yükseltmişse hâlâ onay
+        # bekliyordur. Karar tek yerde veriliyor, burada yalnızca sonucu soruyoruz.
+        if rec is None:
             return None
         from sqlalchemy import text
         try:
@@ -17257,9 +17443,14 @@ ORDER BY imei, departman, durum;
             # olabilir; senkron o kayıtları 1004'ten çıkarır.
             db.flush()
             self._sync_hierarchy_wait(db, rec.service_record_id)
-            # Son onarım da kapandıysa cihaz kendiliğinden Ara Test'e geçer.
+            # Son onarım TAMAMLANDIYSA cihaz kendiliğinden Ara Test'e geçer.
+            # İPTAL (1003) BU GEÇİŞİ TETİKLEMEZ. İptal bir düzenleme işlemidir: teknisyen
+            # çoğu zaman yanlış girdiği kaydı iptal edip yerine doğrusunu ekleyecektir.
+            # Cihaz o anda 138'e kaçınca Üretim Kaydını Görüntüle onu artık açmıyor
+            # (yalnızca 109) ve teknisyen yeni kaydı giremiyordu. Parça silme yolu
+            # (cancel_repair_part) da aynı sebeple tetiklemiyor - iki ekran aynı davranmalı.
             otomatik = None
-            if target_code in (1002, 1003):
+            if target_code == 1002:
                 otomatik = self._auto_send_to_intermediate_test(db, rec.service_record_id, username)
             db.commit()
             if otomatik:

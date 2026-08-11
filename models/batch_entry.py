@@ -38,6 +38,16 @@ class BatchEntry(Base):
     # Faturada "full functional değil" sayılmanın ikinci yoludur: tüm onarımların iptal
     # edilmesi gerekmez, parçalar takılıp faturalanmış olsa da cihaz iade sayılabilir.
     repair_is_cancelled = Column(Boolean, nullable=False, default=False)
+
+    # MÜŞTERİ ONAYININ FOTOĞRAFI. Cihaz onaydan üretime geçtiğinde (106->109 / 136->109)
+    # o andaki nihai fatura tutarı ve zaman damgası yazılır (bkz. _onay_bayragi_guncelle).
+    # Fiyat kapısı bunu ölçüt alır: müşterinin onayladığı tutarın ÜSTÜNE çıkılmadıkça
+    # yeniden onay istenmez, çıkıldığında parçanın kategorisi onaylı olsa bile istenir.
+    # Kategori onayı (repair_records.customer_approved) fiyat artışını göremiyordu:
+    # onaylı kategoriden çok daha pahalı bir parça eklendiğinde tutar fırlıyor ama
+    # kayıt onayı devraldığı için hiç sorulmuyordu.
+    customer_approved_total = Column(Numeric, nullable=True)
+    customer_approved_at = Column(DateTime, nullable=True)
     service_id = Column(UUID(as_uuid=True), nullable=True)  # bkz. WebBridge._ensure_service_id_columns
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

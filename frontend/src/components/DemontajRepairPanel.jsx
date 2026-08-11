@@ -227,17 +227,23 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
   // Onarım kaydı hiçbir zaman gerçekten silinmez - repair_result_type_code=1003
   // ("Onarım İptal Edildi") ile işaretlenir, listede "İptal Edildi" rozetiyle görünmeye
   // devam eder. Aynı kategoriye tekrar eklenen onarım her zaman yeni bir repair id alır.
+  //
+  // TEK KAYIT KAPSAMI. Eskiden updateRepairStatus(1003) çağrılıyordu; o slot onarımı
+  // BÜTÜN olarak işler (aynı cihaz + aynı görev grubundaki tüm açık satırlar), yani
+  // tek bir parçayı silmek isterken grubun tamamı kapanıyordu. Üretim Kaydını Görüntüle
+  // ekranı da aynı sebeple cancelRepairPart'a geçirildi - iki ekran aynı davranmalı.
+  // cancel_repair_part ayrıca DGD'yi ve tamamlanmış onarımı korur.
   const handleCancelRow = useCallback(async (repairId) => {
     setDeletingRepairId(repairId);
-    const res = await api.updateRepairStatus(repairId, "1003", getCurrentUser()?.username);
+    const res = await api.cancelRepairPart(repairId, getCurrentUser()?.username);
     setDeletingRepairId(null);
     if (!res || !res.success) {
-      showNotif("error", "İptal Edilemedi", res?.message || "İşlem başarısız oldu.");
+      showNotif("error", "Silinemedi", res?.message || "İşlem başarısız oldu.");
       return;
     }
     if (editingRepairId === repairId) resetToolbar();
     await onRefresh();
-    showNotif("success", "Onarım İptal Edildi", "Kayıt listede iptal edildi olarak görünmeye devam edecek.");
+    showNotif("success", "Parça Silindi", "Kayıt listede iptal edildi olarak görünmeye devam edecek.");
   }, [editingRepairId, onRefresh, showNotif, resetToolbar]);
 
   // Onarım Takımları — repairs içindeki benzersiz, iptal edilmemiş görev gruplarından türetilir.
@@ -880,12 +886,16 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
           )}
         </div>
 
-        {/* Uyarı: kendi satırında, tam genişlik - butonu daraltmıyor. */}
-        {isPriceExceeded && (
-          <div className="flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3.5 py-2 text-xs text-amber-700 dark:text-amber-300">
-            <AlertTriangle size={15} className="shrink-0 text-amber-500" />
+        {/* Uyarı: kendi satırında, tam genişlik - butonu daraltmıyor.
+            SEBEP BACKEND'DEN GELİR (onay_sebep_metni): onay iki sebepten gerekebilir -
+            kriter dışı parça kategorisi ve/veya hedef fiyat aşımı. Eskiden burada
+            yalnızca fiyat aşımı gösteriliyordu; kategori yüzünden onaya gidecek cihazda
+            hiçbir uyarı çıkmıyor, kullanıcı butonun neden mor olduğunu göremiyordu. */}
+        {!isProductionReady && decisionPreview?.onay_sebep_metni && (
+          <div className="flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3.5 py-2 text-xs text-amber-700 dark:text-amber-300">
+            <AlertTriangle size={15} className="shrink-0 mt-0.5 text-amber-500" />
             <span>
-              <strong>Hedef fiyat aşıldı.</strong> Cihaz üretime aktarılamaz, müşteri onayına gönderilecek.
+              <strong>Müşteri onayı gerekiyor.</strong> {decisionPreview.onay_sebep_metni}
             </span>
           </div>
         )}
