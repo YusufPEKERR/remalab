@@ -66,13 +66,14 @@ class StateMachineService:
 
         # KURAL 2: Eğer Test Sonucu Başarısız (Fail1 vb.) ise ve bu geçiş "isPositive" kuralı gerektiriyorsa,
         # işlemi NOK kabul edip 109 statüsüne atar.
+        # İSTİSNA: Giriş testi (103 -> 104) ilk kabul testidir; kusurlu cihaz da üretime geçer.
         test_result = None
         if test_result_code:
             test_result = self.db.query(ServiceTestResultType).filter_by(code=test_result_code).first()
 
         is_test_failed = test_result and not test_result.is_success and test_result.code != "NotRequired"
 
-        if is_test_failed:
+        if is_test_failed and (current_statu_code, target_statu_code) != (103, 104):
             # Test başarısız, 109 - Üretim Aşamasında'ya geri dön
             fallback_statu = 109
             return {

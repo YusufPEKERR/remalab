@@ -255,11 +255,12 @@ class PhonecheckService:
     def failed_attempt_count(self, imei: str, test_stage: str) -> int:
         """Bu cihazin bu test adimindaki basarisiz deneme sayisi.
 
-        Phonecheck kayitlarinda working alani her zaman dolu gelir (Yes/No/Pending),
-        bu yuzden yalnizca "No" sayilir. Manuel kayitlarda ise operator alani bos
-        birakabilir; bu durumda deneme SAYILIR - aksi halde bos birakilarak
-        MAX_FAILED_ATTEMPTS siniri sonsuza kadar asilabilirdi.
+        Giris testi (103_104) kabul testidir; kusurlu cihaz kabul edilse bile
+        basarisiz test sayilmaz ve hak sinirina takilmaz.
         """
+        if test_stage == "103_104":
+            return 0
+
         from sqlalchemy import or_, and_
 
         return self.db.query(PhonecheckTestResult).filter(

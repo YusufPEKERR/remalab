@@ -770,6 +770,29 @@ class WebBridge(QObject):
         finally:
             db.close()
 
+    def _get_user_fullname_map(self, db):
+        """Tüm kullanıcıların username -> fullname (ad soyad) haritasını döner."""
+        from sqlalchemy import text
+        try:
+            res = db.execute(text("SELECT username, fullname FROM warehouse.users WHERE fullname IS NOT NULL AND TRIM(fullname) != ''")).fetchall()
+            user_map = {row[0].strip().lower(): row[1].strip() for row in res if row[0]}
+        except Exception:
+            user_map = {}
+
+        # Sistem ve test script kullanıcıları için gösterim adı
+        system_aliases = {
+            "test-script": "SİSTEM",
+            "test-seed": "SİSTEM",
+            "test": "SİSTEM",
+            "system": "SİSTEM",
+            "script": "SİSTEM",
+            "io": "SİSTEM",
+        }
+        for k, name in system_aliases.items():
+            if k not in user_map:
+                user_map[k] = name
+        return user_map
+
     def _ensure_production_tables(self):
         """warehouse.production_runs ve production_materials tablolarını yoksa oluşturur."""
         from sqlalchemy import text
@@ -5277,6 +5300,7 @@ class WebBridge(QObject):
                         (StockMovement.description.like(f"%{wo_id_str_pad}%"))
                     ).order_by(StockMovement.created_at.desc()).all()
                 
+                user_map = self._get_user_fullname_map(db)
                 for mov, p, sloc, tloc in mov_rows:
                     source_name = sloc.name if sloc else "-"
                     target_name = tloc.name if tloc else "-"
@@ -5296,6 +5320,7 @@ class WebBridge(QObject):
                         elif mov.type == "Çıkış":
                             target_name = "Dış Kaynak"
                             
+                    cb_clean = (mov.created_by or "").strip().lower()
                     movements.append({
                         "id": mov.id,
                         "type": mov.type,
@@ -5303,7 +5328,7 @@ class WebBridge(QObject):
                         "part_name": p.name if p else (mov.part_name_snapshot or "Bilinmeyen Parça"),
                         "source_location": source_name,
                         "target_location": target_name,
-                        "created_by": mov.created_by or "-",
+                        "created_by": user_map.get(cb_clean, mov.created_by or "-"),
                         "created_at": mov.created_at.strftime("%Y-%m-%d %H:%M") if mov.created_at else "",
                         "description": mov.description or ""
                     })
@@ -7561,6 +7586,7 @@ class WebBridge(QObject):
 
         results = query.order_by(StockMovement.created_at.desc()).limit(limit).all()
 
+        user_map = self._get_user_fullname_map(db)
         res = []
         for mov, p, sloc, tloc in results:
             source_name = sloc.name if sloc else None
@@ -7583,6 +7609,9 @@ class WebBridge(QObject):
                     target_name = "Dış Kaynak"
                 else:
                     target_name = "Bilinmiyor"
+
+            cb_clean = (mov.created_by or "").strip().lower()
+            tec_clean = (mov.technician or "").strip().lower()
             res.append({
                 "id": mov.id,
                 "type": mov.type,
@@ -7594,8 +7623,8 @@ class WebBridge(QObject):
                 "source_location": source_name,
                 "target_location_id": mov.target_location_id,
                 "target_location": target_name,
-                "created_by": mov.created_by,
-                "technician": mov.technician or "-",
+                "created_by": user_map.get(cb_clean, mov.created_by or "-"),
+                "technician": user_map.get(tec_clean, mov.technician or "-"),
                 "description": mov.description or "-",
                 "unit_price": float(mov.unit_price) if mov.unit_price else None,
                 "created_at": mov.created_at.strftime("%Y-%m-%d %H:%M") if mov.created_at else ""
@@ -10135,7 +10164,8 @@ class WebBridge(QObject):
             db.close()
 
     @Slot(str, result=str)
-    def fetch_phonecheck_and_transition(self, imei):
+    @Slot(str, str, result=str)
+    def fetch_phonecheck_and_transition(self, imei, staff_name=""):
         """IMEI/Seri/Internal ID okutulduğunda partiyi bulur, Phonecheck'ten cihaz/test
         bilgisini ceker (IMEI varsa IMEI, yoksa Seri Numarasi ile sorgular), sonucu
         Pass1/Fail1'e cevirir ve batch_entries.statu_code'u Statumap akis semasina gore gunceller."""
@@ -10209,11 +10239,12 @@ class WebBridge(QObject):
             if not result.get("success"):
                 return json.dumps(result)
 
+            performing_staff = (staff_name or "").strip() or getattr(entry, "created_by", None)
             entry.statu_code = result["new_statu_code"]
             entry.is_success = (test_result_code == "Pass1")
             self._record_statu_change(
                 db, entry.id, entry.imei_number, old_statu_code, entry.statu_code,
-                staff=getattr(entry, "created_by", None),
+                staff=performing_staff,
                 note=f"Test sonucu ({test_result_code}) — {result.get('message') or ''}".strip(),
             )
             db.commit()
@@ -10641,9 +10672,20 @@ class WebBridge(QObject):
                 return dt.timestamp()
             ordered = sorted(best.values(), key=_sort_key, reverse=True)
 
+            ad_cache = self._get_user_fullname_map(db)
+
+            def tam_ad(kullanici):
+                k = (kullanici or "").strip()
+                if not k:
+                    return ""
+                kl = k.lower()
+                if "test-script" in kl or "test-seed" in kl or kl in ("test", "system", "script", "io"):
+                    return "SİSTEM"
+                return ad_cache.get(kl, k)
+
             satirlar = [(dt, {
                 "date": fmt(dt),
-                "staffName": staff,
+                "staffName": tam_ad(staff),
                 "statu": label(code),
                 "text": text,
             }) for (_prio, dt, code, staff, text) in ordered]
@@ -10657,18 +10699,6 @@ class WebBridge(QObject):
             #    Başarı/başarısızlık working alanından, başarısızlık gerekçesi ise
             #    manual_reason/notes'tan gelir (submit_test_result oraya "Test Başarısız —
             #    <açıklama> / Hatalı Parçalar: ..." metnini yazar).
-            ad_cache = {}
-
-            def tam_ad(kullanici):
-                k = (kullanici or "").strip()
-                if not k:
-                    return ""
-                if k not in ad_cache:
-                    r = db.execute(_sqltext(
-                        "SELECT fullname FROM warehouse.users WHERE username = :u LIMIT 1"
-                    ), {"u": k}).first()
-                    ad_cache[k] = (r[0].strip() if r and r[0] and r[0].strip() else k)
-                return ad_cache[k]
 
             BASARILI = {"yes", "true", "1", "ok", "pass", "passed", "başarılı", "basarili"}
             BASARISIZ = {"no", "false", "0", "fail", "failed", "başarısız", "basarisiz"}
@@ -10690,7 +10720,10 @@ class WebBridge(QObject):
                 tadi = _test_adi(stage)
 
                 calisiyor = (r.working or "").strip().lower()
-                if calisiyor in BASARILI:
+                if stage == "103_104":
+                    # Giriş testi ilk testtir; kusurlu cihazlarda "FAIL — teknisyene geri gönderildi" yazılmaz.
+                    sonuc = f"{tadi} PASS" if calisiyor in BASARILI else f"{tadi} Tamamlandı"
+                elif calisiyor in BASARILI:
                     sonuc = f"{tadi} PASS"
                 elif calisiyor in BASARISIZ:
                     # Başarısız testte cihaz 109'a, onarımlar da teknisyene geri döner
@@ -10701,7 +10734,7 @@ class WebBridge(QObject):
 
                 # Tekrar denemeler ayırt edilsin, ama ilk denemede gereksiz kalabalık olmasın.
                 deneme = ""
-                if getattr(r, "attempt_no", None) and r.attempt_no > 1:
+                if getattr(r, "attempt_no", None) and r.attempt_no > 1 and stage != "103_104":
                     deneme = f" ({r.attempt_no}. deneme)"
 
                 # TEXT SÜTUNU YALNIZCA AÇIKLAMADIR. Eskiden aşama adı ("İlk test bekleniyor
@@ -10946,7 +10979,9 @@ class WebBridge(QObject):
                         adlar[s.id] = ("Otomatik Sorgu" if stage == "AUTO_LOOKUP" else (stage or "Test"), None)
                         continue
                     basarili = (s.working or "").strip().lower() in BASARILI
-                    if basarili:
+                    if stage == "103_104" or tur == "Giriş Test":
+                        adlar[s.id] = ("Giriş Testi Sonucu", True)
+                    elif basarili:
                         adlar[s.id] = (f"{tur} Sonucu", True)
                     else:
                         sayac[tur] = sayac.get(tur, 0) + 1
@@ -11053,7 +11088,10 @@ class WebBridge(QObject):
                             "maxAttempts": MAX_FAILED_ATTEMPTS}
                 working = (r.working or "").strip().lower()
                 failed_list = self._parse_failed_tests(r.failed, r.notes, r.manual_reason)
-                if failed_list or working == "no":
+                if stages == ["103_104"]:
+                    # Giriş testi ilk testtir; yapılmıssa tamamlanmıs (pass) sayılır.
+                    result = "pending" if working == "pending" else "pass"
+                elif failed_list or working == "no":
                     result = "fail"
                 elif working == "pending":
                     result = "pending"
@@ -11334,7 +11372,8 @@ class WebBridge(QObject):
             db.close()
 
     @Slot(str, int, int, result=str)
-    def execute_batch_entry_statu_transition(self, entry_id, current_statu_code, target_statu_code):
+    @Slot(str, int, int, str, result=str)
+    def execute_batch_entry_statu_transition(self, entry_id, current_statu_code, target_statu_code, staff_name=""):
         """Partiyi belirtilen kaynak statüden hedef statüye taşır. Kaynak statü kaydın
         mevcut durumuyla eşleşmiyorsa veya geçiş kuralı tanımlı değilse hata döner."""
         from models.batch_entry import BatchEntry
@@ -11370,10 +11409,11 @@ class WebBridge(QObject):
             old_name = statu_name(current_statu_code)
             new_name = statu_name(target_statu_code)
 
+            performing_staff = (staff_name or "").strip() or getattr(entry, "created_by", None)
             entry.statu_code = target_statu_code
             self._record_statu_change(
                 db, entry.id, entry.imei_number, current_statu_code, target_statu_code,
-                staff=getattr(entry, "created_by", None),
+                staff=performing_staff,
                 note=f"{old_name} ({current_statu_code}) → {new_name} ({target_statu_code})",
             )
             db.commit()
@@ -11390,7 +11430,8 @@ class WebBridge(QObject):
             db.close()
 
     @Slot(str, int, int, int, str, str, str, bool, result=str)
-    def submit_test_result(self, entry_id, current_statu_code, success_statu_code, fail_statu_code, result, description, faults_json, log_exit_test=False):
+    @Slot(str, int, int, int, str, str, str, bool, str, result=str)
+    def submit_test_result(self, entry_id, current_statu_code, success_statu_code, fail_statu_code, result, description, faults_json, log_exit_test=False, username=""):
         """Ara Test / Son Test sonucunu işler.
         result='success' ise cihazı success_statu_code'a aktarır. log_exit_test=True ise (Son Test ekranı)
         açıklama zorunludur ve phonecheck_test_results'a "Çıkış Testi" olarak manuel kayıt düşülür.
@@ -11541,10 +11582,11 @@ class WebBridge(QObject):
             old_name = statu_name(current_statu_code)
             new_name = statu_name(target_statu_code)
 
+            performing_staff = (username or "").strip() or getattr(entry, "created_by", None)
             entry.statu_code = target_statu_code
             self._record_statu_change(
                 db, entry.id, entry.imei_number, current_statu_code, target_statu_code,
-                staff=getattr(entry, "created_by", None),
+                staff=performing_staff,
                 note=f"{old_name} ({current_statu_code}) → {new_name} ({target_statu_code})",
             )
             # Geri açılan L1/L2 onarımları sıraya tekrar girer (üst seviyede açık iş

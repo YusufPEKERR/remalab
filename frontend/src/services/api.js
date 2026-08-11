@@ -2,6 +2,15 @@
 
 let backendPromise = null;
 
+const getCurrentUsername = () => {
+    try {
+        const u = JSON.parse(localStorage.getItem('user') || sessionStorage.getItem('user') || '{}');
+        return u.username || '';
+    } catch {
+        return '';
+    }
+};
+
 const getMockBackend = () => ({
     login: (username, password, cb) => {
         setTimeout(() => {
@@ -2869,11 +2878,12 @@ export const api = {
         });
     },
 
-    executeBatchEntryStatuTransition: async (entryId, currentStatuCode, targetStatuCode) => {
+    executeBatchEntryStatuTransition: async (entryId, currentStatuCode, targetStatuCode, staffName = null) => {
         const backend = await getBackend();
+        const username = staffName || getCurrentUsername();
         return new Promise((resolve) => {
             backend.execute_batch_entry_statu_transition(
-                String(entryId), currentStatuCode, targetStatuCode,
+                String(entryId), currentStatuCode, targetStatuCode, String(username || ''),
                 (res) => resolve(JSON.parse(res))
             );
         });
@@ -2893,12 +2903,13 @@ export const api = {
     // logExitTest son parametredir ve Qt slotunda ZORUNLUDUR (@Slot(...,bool)).
     // Gönderilmezse QWebChannel argüman sayısı uyuşmadığı için çağrıyı hiç
     // yapmaz, callback tetiklenmez ve ekran "İşleniyor..." halinde kilitlenir.
-    submitTestResult: async (entryId, currentStatuCode, successStatuCode, failStatuCode, result, description, faultLines, logExitTest = false) => {
+    submitTestResult: async (entryId, currentStatuCode, successStatuCode, failStatuCode, result, description, faultLines, logExitTest = false, staffName = null) => {
         const backend = await getBackend();
+        const username = staffName || getCurrentUsername();
         return new Promise((resolve) => {
             backend.submit_test_result(
                 String(entryId), currentStatuCode, successStatuCode, failStatuCode, result, description || '', JSON.stringify(faultLines || []),
-                Boolean(logExitTest),
+                Boolean(logExitTest), String(username || ''),
                 (res) => resolve(JSON.parse(res))
             );
         });
@@ -2914,11 +2925,12 @@ export const api = {
         });
     },
 
-    fetchPhonecheckAndTransition: async (imei) => {
+    fetchPhonecheckAndTransition: async (imei, staffName = null) => {
         const backend = await getBackend();
+        const username = staffName || getCurrentUsername();
         return new Promise((resolve) => {
             if (backend.fetch_phonecheck_and_transition) {
-                backend.fetch_phonecheck_and_transition(String(imei), (res) => resolve(JSON.parse(res)));
+                backend.fetch_phonecheck_and_transition(String(imei), String(username || ''), (res) => resolve(JSON.parse(res)));
             } else {
                 resolve({ success: false, message: "Backend eksik (fetch_phonecheck_and_transition)" });
             }
