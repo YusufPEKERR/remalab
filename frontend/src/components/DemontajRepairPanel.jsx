@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { Plus, Package, Wrench, CheckCircle, AlertTriangle, Pencil, Ban, X, User, ArrowLeftRight } from "lucide-react";
+import { Plus, Package, Wrench, CheckCircle, AlertTriangle, Pencil, Ban, X, User, ArrowLeftRight, ChevronDown, ChevronRight } from "lucide-react";
 import { api } from "../services/api";
 import PartSelectCombobox from "./PartSelectCombobox";
 import { mevcutParcaSiniflari, mevcutParcaKodlari, parcaEngeli } from "../constants/parcaCakismaKurallari";
@@ -255,8 +255,11 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
   //
   // DİKKAT: yalnızca GÖRÜNEN ad değişir. Kayıttaki department_mission='DISMANTLE' olduğu
   // gibi kalır, dolayısıyla onarım havuzu yönlendirmesi ve tamamlama kuralları etkilenmez.
+  // Görev grubunun ekranda görünen adı. DGD (DISMANTLE) kendi takımı olmayan bir
+  // işçilik kaydıdır; cihaz L1'deyse "L1 Onarımı", L2'deyse "L2 Onarımı" görünür.
+  // Bu karar BACKEND'de veriliyor (get_repair_operations_by_imei → missionGroup);
+  // burada ayrıca hesaplanmaz, yoksa iki ayrı doğruluk kaynağı olur.
   const takimAdi = (kod, hazirAd) => {
-    if (kod === "DISMANTLE") return "L1 Onarımı";
     if (hazirAd) return hazirAd;
     if (!kod) return "";
     const mg = missionGroups.find(m => m.code === kod);
@@ -291,10 +294,10 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
   // backend'deki submit_dismantle_decision de aynı şekilde is_cancelled kayıtları hariç tutar.
   const activeRepairs = repairs.filter(r => !r.isCancelled);
   const hasRepairs = activeRepairs.length > 0;
-  // DGD, Flow'a göre otomatik eklenen bir işçilik satırıdır - teknisyenin BİLİNÇLİ
-  // olarak eklediği bir onarım değildir. Sadece DGD varken "Üretime Aktar" yapılması
-  // engellenir - cihaza gerçek bir onarım/parça eklenmeden üretime geçilemez.
-  const hasNonDgdRepairs = activeRepairs.some(r => (r.itemCategory || "").toUpperCase() !== "DGD");
+  // NOT: Eskiden "cihazda yalnızca DGD varsa Üretime Aktar yapılamaz" kuralı vardı.
+  // Kaldırıldı - parça takılmayan, yalnızca DGD işçiliği doğan cihaz da üretime
+  // aktarılabiliyor. Böyle bir cihazda parça etiketi basılmaz; yalnızca kontrol
+  // etiketleri + "x" basılır ve DGD kontrol etiketinde L1 olarak görünür.
   const allPlanned = hasRepairs && (isNoApprovalFlow || activeRepairs.every(r => r.itemCategory && approvedCategoriesLower.has(r.itemCategory.toLowerCase())));
 
   // Çakışan parçalar listede kilitlenir (bkz. parcaCakismaKurallari.js). Backend
@@ -368,6 +371,47 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
   }, [activeRepairs, partPrices]);
   const totalRepairPrice = decisionPreview?.total_price ?? yerelParcaToplami;
 
+  // ── ONARIM TAKIMINA GÖRE GRUPLAMA ──────────────────────────────
+  // Aynı onarım takımına birden çok parça girildiğinde tablo tek satırda "N parça"
+  // gösterir; satır açılınca parçalar tek tek görünür. Tek parçalı takımlar
+  // gruplanmaz, bugünkü gibi doğrudan satır olarak çizilir - tek parça için
+  // açılır-kapanır başlık gereksiz bir tıklama olurdu.
+  // ETİKETLER BUNDAN ETKİLENMEZ: barkod hâlâ onarım KAYDI başına basılır, iki
+  // parçalı bir takım iki etiket üretir (bkz. EtiketYazdirModal.acikOnarimlar).
+  const gruplananOnarimlar = useMemo(() => {
+    const sira = [];
+    const harita = new Map();
+    for (const r of repairs) {
+      // GRUPLAMA GÖRÜNEN ADA GÖRE yapılır, ham koda göre değil.
+      // Sebebi: DGD'nin takımı sabit değil. Kaydın department_mission'ı DISMANTLE
+      // (başlangıç), L1REPAIR ya da L2REPAIR olabilir - "L1/L2 Onarımına Al" düğmesi
+      // bunu değiştirir (bkz. handleToggleDgdTeam). DISMANTLE ise ekranda "L1 Onarımı"
+      // gösterilir (bkz. takimAdi). Ham koda bakan bir gruplama, ekranda ikisi de
+      // "L1 Onarımı" yazan DGD ve L1 satırlarını ayrı gruplara düşürüyordu.
+      // Ada göre gruplayınca kod ne olursa olsun ekrandaki adla tutarlı kalır.
+      const ad = takimAdi(r.missionGroupCode, r.missionGroup) || "?";
+      const anahtar = ad;
+      if (!harita.has(anahtar)) {
+        harita.set(anahtar, { anahtar, ad, satirlar: [] });
+        sira.push(anahtar);
+      }
+      harita.get(anahtar).satirlar.push(r);
+    }
+    return sira.map(a => harita.get(a));
+  }, [repairs]);
+
+  // Çok parçalı gruplar KAPALI başlar (istenen davranış: "tek satırda 2 parça"),
+  // tek parçalılar zaten grup başlığı almaz. Parça eklenip çıkarıldıkça grupların
+  // şekli değişeceği için durum o değiştiğinde sıfırlanır.
+  const grupImzasi = gruplananOnarimlar.map(g => `${g.anahtar}:${g.satirlar.length}`).join("|");
+  const [acikGruplar, setAcikGruplar] = useState(() => new Set());
+  useEffect(() => { setAcikGruplar(new Set()); }, [grupImzasi]);
+  const grupAc = (anahtar) => setAcikGruplar(prev => {
+    const s = new Set(prev);
+    s.has(anahtar) ? s.delete(anahtar) : s.add(anahtar);
+    return s;
+  });
+
   const totalPriceBadgeInfo = useMemo(() => {
     const status = device?.serviceStatus || device?.statuCode;
     const isPendingApproval = status === 106 || status === 136 || status === 1005 || isPriceExceeded;
@@ -393,10 +437,6 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
 
   const handleSubmitDecision = useCallback(async () => {
     if (!device?.imei || !hasRepairs || deciding) return;
-    if (!hasNonDgdRepairs) {
-      showNotif("warning", "Onarım Ekleyiniz", "Cihazda sadece otomatik DGD işçiliği var - Üretime Aktarmadan önce en az bir gerçek onarım/parça eklemelisiniz.");
-      return;
-    }
     setDeciding(true);
     const res = await api.submitDismantleDecision(device.imei, getCurrentUser()?.username);
     setDeciding(false);
@@ -421,7 +461,7 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
     } else {
       showNotif("error", "İşlem Başarısız", res?.message || "Statü güncellenemedi.");
     }
-  }, [device, hasRepairs, hasNonDgdRepairs, deciding, onRefresh, showNotif]);
+  }, [device, hasRepairs, deciding, onRefresh, showNotif]);
 
   // Cihaz onarılamayıp müşteriye iade edilecekse: aktif DGD işçilik satırlarını (Flow'a göre
   // otomatik eklenen, henüz DGDDEC'e dönüşmemiş) tek bir DGDDEC (iade işçiliği) satırına
@@ -453,6 +493,105 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
       showNotif("error", "Değiştirilemedi", res?.message || "İşlem başarısız oldu.");
     }
   }, [togglingDgdId, onRefresh, showNotif]);
+
+  // Tek bir onarım satırı. Grup başlığı altında ya da (tek parçalı takımlarda)
+  // doğrudan çizilir - iki yerde aynı JSX'i tutmamak için fonksiyona alındı.
+  const satirCiz = (r) => (
+                      <tr
+                        key={r.id}
+                        onClick={() => setSelectedRepairId(r.id)}
+                        className={`cursor-pointer transition-colors border-l-[3px] ${
+                          r.isCancelled
+                            ? "opacity-50 border-l-transparent"
+                            : editingRepairId === r.id
+                              ? "bg-indigo-50/50 dark:bg-indigo-500/10 border-l-indigo-500"
+                              : selectedRepairId === r.id
+                                ? "bg-blue-50 dark:bg-blue-500/5 border-l-blue-500"
+                                : "border-l-transparent hover:bg-slate-50 dark:hover:bg-[#12141c]"
+                        }`}
+                      >
+                        {/* DGD satırı fiziksel bir parça değil, Flow'a göre otomatik eklenen
+                            işçilik kaydıdır; parça kodu sütununda DGD kodu gösterilmez.
+                            Kod kayıtta (repair_records.part_item_code) olduğu gibi durur -
+                            iade/muhasebe tarafı onu kullanmaya devam eder. */}
+                        <td className="px-4 py-2 text-xs font-mono text-slate-700 dark:text-slate-300">
+                          {r.itemCategory === "DGD" ? "—" : (r.partItemCode || "N/A")}
+                        </td>
+                        <td className="px-3 py-2 text-right text-xs font-semibold text-slate-700 dark:text-slate-200">
+                          {r.partItemCode && partPrices[r.partItemCode] !== undefined
+                            ? `${partPrices[r.partItemCode].toFixed(2)} ${device?.currency || ''}`.trim()
+                            : <span className="text-slate-400 font-normal">—</span>}
+                        </td>
+                        {/* İşçilik Seviyesi: parçanın kategorisinden (item_category.item_labour) gelir.
+                            DGD satırı zaten işçilik kaydı olduğundan seviye gösterilmez. */}
+                        <td className="px-3 py-2 text-center text-xs">
+                          {r.itemCategory !== "DGD" && r.labourLevel
+                            ? <span className="inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold bg-cyan-50 dark:bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-200 dark:border-cyan-500/30">{r.labourLevel}</span>
+                            : <span className="text-slate-400 font-normal">—</span>}
+                        </td>
+                        {/* İşçilik Fiyatı: seviye modelinden, onarım kaydı bazında
+                            (bkz. iscilikSatirlari). Parça eklendikçe/çıkarıldıkça sıralar
+                            kayar ve bu değerler backend'de yeniden hesaplanır. */}
+                        <td className="px-3 py-2 text-right text-xs font-semibold text-slate-700 dark:text-slate-200">
+                          {iscilikSatirlari[r.id]?.faturalanabilir
+                            ? `${iscilikSatirlari[r.id].iscilik_fiyat.toFixed(2)} ${device?.currency || ''}`.trim()
+                            : <span className="text-slate-400 font-normal">—</span>}
+                        </td>
+                        <td className="px-3 py-2 text-xs text-slate-700 dark:text-slate-300">
+                          {takimAdi(r.missionGroupCode, r.missionGroup)}
+                          {r.isCancelled && <span className="ml-1.5 text-[10px] font-bold text-red-500">(İptal Edildi)</span>}
+                        </td>
+                        {/* Atama Üretim Teknisyeni ekranından yapılır; burası salt okunur. */}
+                        <td className="px-3 py-2 text-xs text-slate-700 dark:text-slate-300">
+                          {r.technician || r.assignedTechnicianName || r.assignedTechnician
+                            ? <span className="inline-flex items-center gap-1.5">
+                                <User size={11} className="text-blue-500 shrink-0" />
+                                {r.technician || r.assignedTechnicianName || r.assignedTechnician}
+                              </span>
+                            : <span className="italic text-slate-400 dark:text-slate-600">Atanmadı</span>}
+                        </td>
+                        <td className="px-3 py-2 text-xs">
+                          <span className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold border ${r.chargeType === "FREE" ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30" : "bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-500/30"}`}>
+                            {r.chargeType === "FREE" ? "Ücretsiz" : "Ücretli"}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-xs text-slate-700 dark:text-slate-300">{r.faultName || "N/A"}</td>
+                        <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">{r.notes || "N/A"}</td>
+                        <td className="px-3 py-2">
+                          <div className="flex items-center justify-center gap-2">
+                            {r.itemCategory === "DGD" && r.partItemCode !== "DGDDEC" && (
+                              <button
+                                type="button"
+                                onClick={() => hasAccess && !r.isCancelled && handleToggleDgdTeam(r)}
+                                disabled={!hasAccess || r.isCancelled || togglingDgdId === r.id}
+                                title={r.missionGroupCode === "L2REPAIR" ? "L1 Onarımına Al" : "L2 Onarımına Al"}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                              >
+                                <ArrowLeftRight size={14} />
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => hasAccess && statusAllowsParts && !r.isCancelled && handleEditRow(r)}
+                              disabled={!hasAccess || !statusAllowsParts || r.isCancelled}
+                              title={statusAllowsParts ? "Düzenle" : "Cihaz L1 aşamasında değil"}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                            >
+                              <Pencil size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => hasAccess && !r.isCancelled && handleCancelRow(r.id)}
+                              disabled={!hasAccess || r.isCancelled || deletingRepairId === r.id}
+                              title="İptal Et"
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                            >
+                              <Ban size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+  );
 
   return (
     <div className="flex-1 flex flex-col gap-4 min-h-0">
@@ -634,102 +773,46 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-[#1e222d]">
-                  {repairs.map(r => (
-                    <tr
-                      key={r.id}
-                      onClick={() => setSelectedRepairId(r.id)}
-                      className={`cursor-pointer transition-colors border-l-[3px] ${
-                        r.isCancelled
-                          ? "opacity-50 border-l-transparent"
-                          : editingRepairId === r.id
-                            ? "bg-indigo-50/50 dark:bg-indigo-500/10 border-l-indigo-500"
-                            : selectedRepairId === r.id
-                              ? "bg-blue-50 dark:bg-blue-500/5 border-l-blue-500"
-                              : "border-l-transparent hover:bg-slate-50 dark:hover:bg-[#12141c]"
-                      }`}
-                    >
-                      {/* DGD satırı fiziksel bir parça değil, Flow'a göre otomatik eklenen
-                          işçilik kaydıdır; parça kodu sütununda DGD kodu gösterilmez.
-                          Kod kayıtta (repair_records.part_item_code) olduğu gibi durur -
-                          iade/muhasebe tarafı onu kullanmaya devam eder. */}
-                      <td className="px-4 py-2 text-xs font-mono text-slate-700 dark:text-slate-300">
-                        {r.itemCategory === "DGD" ? "—" : (r.partItemCode || "N/A")}
-                      </td>
-                      <td className="px-3 py-2 text-right text-xs font-semibold text-slate-700 dark:text-slate-200">
-                        {r.partItemCode && partPrices[r.partItemCode] !== undefined
-                          ? `${partPrices[r.partItemCode].toFixed(2)} ${device?.currency || ''}`.trim()
-                          : <span className="text-slate-400 font-normal">—</span>}
-                      </td>
-                      {/* İşçilik Seviyesi: parçanın kategorisinden (item_category.item_labour) gelir.
-                          DGD satırı zaten işçilik kaydı olduğundan seviye gösterilmez. */}
-                      <td className="px-3 py-2 text-center text-xs">
-                        {r.itemCategory !== "DGD" && r.labourLevel
-                          ? <span className="inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold bg-cyan-50 dark:bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-200 dark:border-cyan-500/30">{r.labourLevel}</span>
-                          : <span className="text-slate-400 font-normal">—</span>}
-                      </td>
-                      {/* İşçilik Fiyatı: seviye modelinden, onarım kaydı bazında
-                          (bkz. iscilikSatirlari). Parça eklendikçe/çıkarıldıkça sıralar
-                          kayar ve bu değerler backend'de yeniden hesaplanır. */}
-                      <td className="px-3 py-2 text-right text-xs font-semibold text-slate-700 dark:text-slate-200">
-                        {iscilikSatirlari[r.id]?.faturalanabilir
-                          ? `${iscilikSatirlari[r.id].iscilik_fiyat.toFixed(2)} ${device?.currency || ''}`.trim()
-                          : <span className="text-slate-400 font-normal">—</span>}
-                      </td>
-                      <td className="px-3 py-2 text-xs text-slate-700 dark:text-slate-300">
-                        {takimAdi(r.missionGroupCode, r.missionGroup)}
-                        {r.isCancelled && <span className="ml-1.5 text-[10px] font-bold text-red-500">(İptal Edildi)</span>}
-                      </td>
-                      {/* Atama Üretim Teknisyeni ekranından yapılır; burası salt okunur. */}
-                      <td className="px-3 py-2 text-xs text-slate-700 dark:text-slate-300">
-                        {r.technician || r.assignedTechnicianName || r.assignedTechnician
-                          ? <span className="inline-flex items-center gap-1.5">
-                              <User size={11} className="text-blue-500 shrink-0" />
-                              {r.technician || r.assignedTechnicianName || r.assignedTechnician}
-                            </span>
-                          : <span className="italic text-slate-400 dark:text-slate-600">Atanmadı</span>}
-                      </td>
-                      <td className="px-3 py-2 text-xs">
-                        <span className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold border ${r.chargeType === "FREE" ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30" : "bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-500/30"}`}>
-                          {r.chargeType === "FREE" ? "Ücretsiz" : "Ücretli"}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2 text-xs text-slate-700 dark:text-slate-300">{r.faultName || "N/A"}</td>
-                      <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">{r.notes || "N/A"}</td>
-                      <td className="px-3 py-2">
-                        <div className="flex items-center justify-center gap-2">
-                          {r.itemCategory === "DGD" && r.partItemCode !== "DGDDEC" && (
-                            <button
-                              type="button"
-                              onClick={() => hasAccess && !r.isCancelled && handleToggleDgdTeam(r)}
-                              disabled={!hasAccess || r.isCancelled || togglingDgdId === r.id}
-                              title={r.missionGroupCode === "L2REPAIR" ? "L1 Onarımına Al" : "L2 Onarımına Al"}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                            >
-                              <ArrowLeftRight size={14} />
-                            </button>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => hasAccess && statusAllowsParts && !r.isCancelled && handleEditRow(r)}
-                            disabled={!hasAccess || !statusAllowsParts || r.isCancelled}
-                            title={statusAllowsParts ? "Düzenle" : "Cihaz L1 aşamasında değil"}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                          >
-                            <Pencil size={14} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => hasAccess && !r.isCancelled && handleCancelRow(r.id)}
-                            disabled={!hasAccess || r.isCancelled || deletingRepairId === r.id}
-                            title="İptal Et"
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                          >
-                            <Ban size={14} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                  {gruplananOnarimlar.flatMap(g => {
+                    // Tek parçalı takım: başlık yok, bugünkü gibi düz satır.
+                    if (g.satirlar.length < 2) return g.satirlar.map(satirCiz);
+                    const acik = acikGruplar.has(g.anahtar);
+                    const aktif = g.satirlar.filter(r => !r.isCancelled);
+                    // DGD bir PARÇA değil, Flow'a göre otomatik eklenen işçilik satırıdır;
+                    // "N parça" sayısına katılmaz, ayrıca belirtilir.
+                    const dgdVar = aktif.some(r => (r.itemCategory || "").toUpperCase() === "DGD");
+                    const parcaAdedi = aktif.filter(r => (r.itemCategory || "").toUpperCase() !== "DGD").length;
+                    const ozet = parcaAdedi
+                      ? `${parcaAdedi} parça${dgdVar ? " + DGD" : ""}`
+                      : (dgdVar ? "DGD işçiliği" : `${aktif.length} kayıt`);
+                    const parcaTut = aktif.reduce((t, r) =>
+                      t + (r.partItemCode && partPrices[r.partItemCode] !== undefined ? partPrices[r.partItemCode] : 0), 0);
+                    const iscilikTut = aktif.reduce((t, r) =>
+                      t + (iscilikSatirlari[r.id]?.faturalanabilir ? iscilikSatirlari[r.id].iscilik_fiyat : 0), 0);
+                    return [
+                      <tr
+                        key={`grup-${g.anahtar}`}
+                        onClick={() => grupAc(g.anahtar)}
+                        className="cursor-pointer border-l-[3px] border-l-transparent bg-slate-50/70 dark:bg-[#12141c] hover:bg-slate-100 dark:hover:bg-[#181a24] transition-colors"
+                      >
+                        <td colSpan={4} className="px-4 py-2">
+                          <span className="inline-flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-200">
+                            {acik ? <ChevronDown size={14} className="text-slate-400" />
+                                  : <ChevronRight size={14} className="text-slate-400" />}
+                            {g.ad}
+                            <span className="font-semibold text-slate-500">{ozet}</span>
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-xs text-slate-500" colSpan={2}>
+                          parça {parcaTut.toFixed(2)} · işçilik {iscilikTut.toFixed(2)} {device?.currency || ''}
+                        </td>
+                        <td colSpan={4} className="px-3 py-2 text-right text-[11px] text-slate-400">
+                          {acik ? "gizlemek için tıklayın" : "parçaları görmek için tıklayın"}
+                        </td>
+                      </tr>,
+                      ...(acik ? g.satirlar.map(satirCiz) : []),
+                    ];
+                  })}
                 </tbody>
               </table>
             )}
@@ -829,16 +912,14 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
                edilmiyordu; cihaz 106/107'ye (müşteri onayı) geçtikten sonra bile
                buton basılabiliyor, backend "bu okutmaya uygun statü değil" hatası
                döndürüyordu. Artık buton o statülerde pasif ve sebebini söylüyor. */
-            disabled={!hasAccess || !hasRepairs || !hasNonDgdRepairs || deciding || !statusAllowsParts}
+            disabled={!hasAccess || !hasRepairs || deciding || !statusAllowsParts}
             title={!statusAllowsParts
               ? `Cihaz artık L1 aşamasında değil${statusLabel ? ` (${statusLabel})` : ""} — bu işlem yapılamaz.`
-              : (!hasNonDgdRepairs
-                ? "Cihazda sadece otomatik DGD işçiliği var - önce en az bir gerçek onarım/parça ekleyin."
-                : (isProductionReady
-                  ? "Cihazı üretime aktarır ve parça barkodlarını basar."
-                  : (isPriceExceeded
-                    ? `Toplam tutar (${totalRepairPrice.toFixed(2)} ${device?.currency || 'TL'} = parça + işçilik + DGD), hedef limitini (${(decisionPreview?.target_price || 0).toFixed(2)} ${device?.currency || 'TL'}) aştı — cihaz Müşteri Onayına gönderilecek.`
-                    : "Cihazı müşteri onayına gönderir ve parça barkodlarını basar.")))}
+              : (isProductionReady
+                ? "Cihazı üretime aktarır ve parça barkodlarını basar."
+                : (isPriceExceeded
+                  ? `Toplam tutar (${totalRepairPrice.toFixed(2)} ${device?.currency || 'TL'} = parça + işçilik + DGD), hedef limitini (${(decisionPreview?.target_price || 0).toFixed(2)} ${device?.currency || 'TL'}) aştı — cihaz Müşteri Onayına gönderilecek.`
+                  : "Cihazı müşteri onayına gönderir ve parça barkodlarını basar."))}
             className={`h-11 px-5 rounded-xl text-white text-sm font-bold transition-colors shadow-lg disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-2 whitespace-nowrap ${isProductionReady ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20" : "bg-violet-600 hover:bg-violet-700 shadow-violet-500/20"}`}
           >
             {isProductionReady ? <CheckCircle size={16} /> : <AlertTriangle size={16} />}

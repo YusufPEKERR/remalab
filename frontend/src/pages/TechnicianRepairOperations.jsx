@@ -9,15 +9,13 @@ import { api } from "../services/api";
 import PartSelectCombobox from "../components/PartSelectCombobox";
 import { mevcutParcaSiniflari, mevcutParcaKodlari, parcaEngeli } from "../constants/parcaCakismaKurallari";
 
-// Flow'a göre otomatik eklenen DGD işçilik kaydı DISMANTLE görev grubuyla oluşur
-// (bkz. WebBridge.open_device_for_dismantle) ve ekranlarda "Demontaj" görünürdü;
-// sahada bu iş L1'e ait olduğu için L1 gösterilir. Yalnızca GÖRÜNEN ad değişir -
-// kayıttaki department_mission='DISMANTLE' durur, onarım havuzu yönlendirmesi ve
-// tamamlama kuralları etkilenmez. Aynı yardımcı DemontajRepairPanel'de de var.
-// Karşılaştırma KOD üzerinden yapılır: get_repair_operations_by_imei kodu
-// missionGroupCode, okunur adı missionGroup alanında döndürür.
-const takimAdi = (kod, hazirAd) =>
-  kod === "DISMANTLE" ? "L1 Onarımı" : (hazirAd || kod || "");
+// Görev grubunun ekranda görünen adı. DGD (department_mission='DISMANTLE') kendi
+// takımı olmayan bir işçilik kaydıdır; cihaz L1'deyse "L1 Onarımı", L2'deyse
+// "L2 Onarımı" olarak görünür. Bu karar BACKEND'de veriliyor
+// (get_repair_operations_by_imei → missionGroup); burada yalnızca gelen ad kullanılır.
+// Eskiden burada "DISMANTLE ise her zaman L1" diye sabitlenmişti ve cihaz L2'deyken
+// DGD yanlış adla, ayrı bir grup olarak görünüyordu.
+const takimAdi = (kod, hazirAd) => hazirAd || kod || "";
 
 function getCurrentUser() {
   try {
@@ -784,17 +782,22 @@ const TechnicianRepairOperations = () => {
 
     // Yeni eklenen onarım grubunu listede otomatik seçili duruma getir
     if (refreshed && refreshed.success && refreshed.repairs) {
+      // groupedRepairs ile AYNI anahtar (görünen ad) kullanılmalı; ham kodla
+      // aranırsa eklenen onarımın grubu bulunamaz ve yanlış sekme seçili kalır.
       const updatedRepairs = refreshed.repairs;
       const groups = [];
       const map = new Map();
       for (const r of updatedRepairs) {
-        const key = r.missionGroupCode || r.missionGroup;
+        const key = takimAdi(r.missionGroupCode, r.missionGroup) || r.missionGroupCode || "?";
         if (!map.has(key)) {
           map.set(key, true);
           groups.push(key);
         }
       }
-      const targetIdx = groups.indexOf(missionGroupCode);
+      const eklenen = updatedRepairs.find(r => r.missionGroupCode === missionGroupCode);
+      const targetIdx = eklenen
+        ? groups.indexOf(takimAdi(eklenen.missionGroupCode, eklenen.missionGroup) || eklenen.missionGroupCode)
+        : -1;
       if (targetIdx !== -1) {
         setSelectedRepairIdx(targetIdx);
       }
@@ -991,8 +994,12 @@ const TechnicianRepairOperations = () => {
   const groupedRepairs = useMemo(() => {
     const map = new Map();
     for (const r of repairs) {
-      const key = r.missionGroupCode || r.missionGroup;
-      if (!map.has(key)) map.set(key, { key, missionGroup: r.missionGroup, items: [] });
+      // Gruplama GÖRÜNEN ADA göre. Ham kodla gruplansaydı DGD (DISMANTLE) kendi başına
+      // bir grup olur, cihazın L1/L2 onarımının altına girmezdi - sahada "DGD L2'nin
+      // altında görünmüyor" olarak fark edildi. Ad backend'de zaten cihazın seviyesine
+      // göre çözülüyor (bkz. get_repair_operations_by_imei → dgd_takim_adi).
+      const key = takimAdi(r.missionGroupCode, r.missionGroup) || r.missionGroupCode || "?";
+      if (!map.has(key)) map.set(key, { key, missionGroup: key, items: [] });
       map.get(key).items.push(r);
     }
     return Array.from(map.values()).map(g => {

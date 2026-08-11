@@ -141,15 +141,24 @@ const yazdirmaCss = (mEn, mBoy, dondur, kenarPayi) => {
 `;
 };
 
-// Parça etiketlerinin ÖNÜNE basılan üç etiket (yalnızca Demontaj → Üretime Aktar).
-// Hiçbir parçaya karşılık gelmez ama sayıya dahildir: 33 parça -> 36 etiket.
+// Parça etiketlerinin ÖNÜNE basılan sabit etiketler (yalnızca Demontaj → Üretime Aktar).
+// Hiçbir parçaya karşılık gelmezler ama sayıya dahildirler.
 // "x" etiketinden İKİ adet basılır; anahtarlar farklı olmalı, React aynı anahtarlı
 // iki kardeşi tek düğüm sanıp ikincisini çizmez.
 const EK_ETIKETLER = [
-  { anahtar: "__kontrol", parca: "Ekran ( )   Batarya ( )   Kamera ( )   Kasa ( )   L3 ( )" },
   { anahtar: "__x", parca: "x" },
   { anahtar: "__x2", parca: "x" },
 ];
+
+// Onarım takımlarının KONTROL ETİKETİ kısaltmaları.
+// Görev gruplarının kendi kısa adları etikete uygun değil: "L1 Onarımı"/"Kasa Onarımı"
+// hem uzun, hem de DISMANTLE ile L1REPAIR aynı kısa adı ("L1 Onarımı") taşıyor.
+// Etiket 15x80 mm olduğundan burada kısaltılırlar.
+const TAKIM_KISALTMA = {
+  L1REPAIR: "L1", DISMANTLE: "L1", L2REPAIR: "L2", L3REPAIR: "L3",
+  CASE: "Kasa", CAMERA: "Kamera", DISPLAY: "Ekran", BATTERY: "Batarya",
+};
+
 
 // Seçilen yazıcı kağıt formu MAKİNEYE özeldir (aynı tasarım başka bilgisayarda
 // başka yazıcıya basılır), bu yüzden şablonla birlikte veritabanında değil
@@ -238,6 +247,34 @@ export default function EtiketYazdirModal({
     ),
     [onarimlar]
   );
+
+  // KONTROL ETİKETİ İÇERİĞİ - cihazdaki HER onarım için bir departman adı.
+  // Eskiden sabit bir metindi ve cihazda ne olduğuna hiç bakmıyordu; artık gerçek
+  // onarımlardan türer:
+  //   * DGD dahildir (takımı DISMANTLE -> "L1")
+  //   * eklenme sırası korunur
+  //   * TEKRARLAR AYNEN yazılır: iki L1 onarımı varsa "L1( ) L1( )"
+  //   * sığmayan isimler bir sonraki kontrol etiketine taşar
+  const kontrolEtiketleri = useMemo(() => {
+    const aktif = (onarimlar || []).filter(r => !r.isCancelled);
+    // DGD'nin (DISMANTLE) hangi seviyeye ait olduğu BACKEND'de çözülür ve missionGroup
+    // alanında "L1 Onarımı" / "L2 Onarımı" olarak gelir; burada yalnızca kısaltılır.
+    // Ham kodla eşleşme önce denenir (L2REPAIR -> L2), DISMANTLE için gelen ADA bakılır.
+    const adlar = aktif.map(r => {
+      const kod = String(r.missionGroupCode || "").trim().toUpperCase();
+      const gelenAd = String(r.missionGroup || "").trim();
+      const kisa = kod === "DISMANTLE"
+        ? (/L2/i.test(gelenAd) ? "L2" : "L1")
+        : (TAKIM_KISALTMA[kod] || gelenAd || kod || "?");
+      return `${kisa}( )`;
+    });
+    if (!adlar.length) return [];
+    // HEPSİ TEK ETİKETTE. Taşan isimleri ikinci bir kontrol etiketine bölmek
+    // denendi ama sahada işe yaramadı: teknisyen en baştaki etikete bakıyor,
+    // ikinciye geçen isimler gözden kaçıyor. Şablon içeriği kutuya sığdırdığı
+    // için uzun listede yazı küçülür, kırpılmaz.
+    return [{ anahtar: "__kontrol", parca: adlar.join("   ") }];
+  }, [onarimlar]);
 
   // "Üretime teslim" etiketinde form EKSİKSİZ dolmadan basılamaz: barkod bir kez
   // basılıp cihazla üretime gidiyor, yarım etiket sahada düzeltilemiyor. Açıklama
@@ -442,16 +479,25 @@ export default function EtiketYazdirModal({
 
     // Parça adı: item_category okunabilir adı tutuyor ("Back Glass", "Battery Flex"),
     // parts.name ise çoğu kayıtta item_code ile aynı.
-    const parcalar = acikOnarimlar.length
-      ? acikOnarimlar.map((r, i) => ({
-          anahtar: r.id || i, ...ortak,
-          parca: r.itemCategory || r.partName || r.partItemCode || r.missionGroup || "PARÇA",
-        }))
+    const parcalar = acikOnarimlar.map((r, i) => ({
+      anahtar: r.id || i, ...ortak,
+      parca: r.itemCategory || r.partName || r.partItemCode || r.missionGroup || "PARÇA",
+    }));
+
+    // Demontaj: kontrol etiket(ler)i + iki "x" + parça etiketleri.
+    // Cihazda gerçek parça yoksa (yalnızca DGD) parça etiketi BASILMAZ; "CİHAZ" yedeği
+    // burada devreye girmez, yoksa sadece-DGD cihazda gereksiz 4. etiket çıkardı.
+    if (ekEtiketler) {
+      return [
+        ...kontrolEtiketleri.map(e => ({ ...ortak, ...e })),
+        ...EK_ETIKETLER.map(e => ({ ...ortak, ...e })),
+        ...parcalar,
+      ];
+    }
+    return parcalar.length
+      ? parcalar
       : [{ anahtar: "cihaz", ...ortak, parca: ortak.urun || "CİHAZ" }];
-    return ekEtiketler
-      ? [...EK_ETIKETLER.map(e => ({ ...ortak, ...e })), ...parcalar]
-      : parcalar;
-  }, [cihaz, barkodDegeri, tur, acikOnarimlar, ekEtiketler, form]);
+  }, [cihaz, barkodDegeri, tur, acikOnarimlar, kontrolEtiketleri, ekEtiketler, form]);
 
   if (!acik || !cihaz || !sablon) return null;
 

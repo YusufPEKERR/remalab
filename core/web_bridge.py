@@ -12135,6 +12135,25 @@ class WebBridge(QObject):
             """), {"refs": repair_refs, "term": term}).mappings().all()
 
             repair_loc_id = _get_system_location_id(db, "repair_stock")
+
+            # DGD'nin (department_mission='DISMANTLE') KENDİ takımı yoktur; cihaz hangi
+            # seviyedeyse onun altında görünür. Varsayılan L1'dir, ama cihazda aktif bir
+            # L2 onarımı varsa L2 olarak gösterilir - aksi hâlde aynı cihazda hem
+            # "L1 Onarımı" (DGD) hem "L2 Onarımı" satırı yan yana duruyor ve DGD hiçbir
+            # gruba girmiyordu. L1REPAIR ile L2REPAIR aynı cihazda birlikte olamadığı
+            # için (bkz. add_repair_record → OPPOSING_REPAIR_TEAMS) en fazla biri bulunur.
+            #
+            # Yalnızca GÖRÜNEN ad değişir: kayıttaki department_mission='DISMANTLE' olduğu
+            # gibi kalır, onarım havuzu yönlendirmesi ve tamamlama kuralları etkilenmez.
+            # Ad burada, TEK kaynakta çözülür; ekranlar (Üretime Aktar / Üretim Kaydını
+            # Görüntüle) kendi başlarına DISMANTLE yorumlamaz.
+            cihaz_l2de = any(
+                (r["department_mission"] or "").strip().upper() == "L2REPAIR"
+                and not bool(r["is_cancelled"])
+                for r in repair_rows
+            )
+            dgd_takim_adi = "L2 Onarımı" if cihaz_l2de else "L1 Onarımı"
+
             repairs = []
             for r in repair_rows:
                 tracking_type = (r["stock_tracking_type"] or "Stok Takipli").strip() if r["part_item_code"] else "Stoksuz"
@@ -12154,7 +12173,11 @@ class WebBridge(QObject):
                 repairs.append({
                     "id": str(r["id"]),
                     "missionGroupCode": r["department_mission"] or "",
-                    "missionGroup": r["mission_group_name"] or r["department_mission"] or "-",
+                    "missionGroup": (
+                        dgd_takim_adi
+                        if (r["department_mission"] or "").strip().upper() == "DISMANTLE"
+                        else (r["mission_group_name"] or r["department_mission"] or "-")
+                    ),
                     "statusCode": r["repair_result_type_code"],
                     "statusName": r["result_name"] or str(r["repair_result_type_code"]),
                     "isCancelled": bool(r["is_cancelled"]),
@@ -15567,8 +15590,10 @@ class WebBridge(QObject):
         if not repair_rows:
             return {"ok": False, "message": "Önce en az bir onarım eklemelisiniz."}
 
-        if all((r["item_category"] or "").strip().upper() == "DGD" for r in repair_rows):
-            return {"ok": False, "message": "Cihazda sadece otomatik DGD işçiliği var. Üretime Aktarmadan önce en az bir gerçek onarım/parça eklemelisiniz."}
+        # NOT: Eskiden burada "cihazda yalnızca DGD varsa Üretime Aktarılamaz" engeli
+        # vardı. Kaldırıldı - parça takılmayan, yalnızca DGD işçiliği doğan cihaz da
+        # üretime aktarılabilir. Böyle bir cihaz Level 1 (mekanik onarım) olarak
+        # faturalanır ve parça etiketi basılmaz.
 
         flow = self._kanonik_flow(db, entry["flow"])
         if flow.lower() in self.ONAY_GEREKTIRMEYEN_FLOWLAR:
@@ -15806,6 +15831,7 @@ class WebBridge(QObject):
             result["priceLimitExceeded"] = price_limit_exceeded
             if price_limit_note and result.get("message"):
                 result["message"] = result["message"] + price_limit_note
+
             return json.dumps(result, ensure_ascii=False)
         except Exception as e:
             return json.dumps({"success": False, "message": str(e)})
@@ -16208,6 +16234,23 @@ class WebBridge(QObject):
         Kural iki yerde ayrı yazılırsa zamanla ayrışır ve aynı onarım bir ekrandan
         kapanıp diğerinden kapanmaz."""
         from sqlalchemy import text
+
+        # 0) İÇİNE GERÇEK PARÇA GİRİLMEMİŞ KAYIT HİÇBİR ENGELE TABİ DEĞİLDİR.
+        # Demontaj'ın akışa göre açtığı DGD işçilik satırı (ve parça kodu hiç
+        # girilmemiş kayıtlar) böyledir: ortada depodan çıkacak bir parça yoktur ve
+        # o satıra kimse teknisyen atamaz. Aşağıdaki iki kural onlarda hiçbir zaman
+        # sağlanamadığı için satır sonsuza kadar açık kalıyor, bulunduğu onarım
+        # grubunu ve cihazı kilitliyordu ("Onarım Tamamlandı" butonu tepkisiz).
+        # _auto_send_to_intermediate_test da aynı gerekçeyle bu satırları engel
+        # aramadan kapatır; kural iki yerde tutarlı olmalı.
+        if not (rec.part_item_code or "").strip():
+            return None
+        _kategori = db.execute(
+            text("SELECT item_category FROM warehouse.parts WHERE item_code = :c LIMIT 1"),
+            {"c": rec.part_item_code.strip()},
+        ).scalar()
+        if (_kategori or "").strip().upper() == "DGD":
+            return None
 
         # 1) Teknisyen ataması
         if not (rec.assigned_technician or "").strip():
@@ -16867,12 +16910,29 @@ class WebBridge(QObject):
 
             # Onarımın kapsamı: aynı cihaz kaydı + aynı görev grubu, tamamlanmamış/iptal
             # edilmemiş tüm satırlar. Parça kodu ölçüt DEĞİLDİR.
-            scope = """
-                WHERE service_record_id = :sr
-                  AND COALESCE(TRIM(department_mission), '') = COALESCE(TRIM(:dm), '')
-                  AND COALESCE(repair_result_type_code, 0) NOT IN (1002, 1003)
-            """
-            scope_params = {"sr": rec.service_record_id, "dm": rec.department_mission}
+            #
+            # DGD (department_mission='DISMANTLE') EKRANDA L1/L2 onarımının altında
+            # görünür ve onun bir parçasıdır; ham kod eşitliğiyle kapsam kurulunca
+            # atamanın dışında kalıyor, aynı onarımın satırları farklı teknisyenlere
+            # (biri atanmış, DGD atanmamış) dağılıyordu. L1REPAIR ile L2REPAIR aynı
+            # cihazda birlikte olamadığı için (bkz. OPPOSING_REPAIR_TEAMS) bu üçlüyü
+            # tek kapsam saymak L1 ve L2'yi yanlışlıkla birleştirmez.
+            L1_L2_GRUBU = ("DISMANTLE", "L1REPAIR", "L2REPAIR")
+            dm = (rec.department_mission or "").strip().upper()
+            if dm in L1_L2_GRUBU:
+                scope = """
+                    WHERE service_record_id = :sr
+                      AND UPPER(TRIM(COALESCE(department_mission, ''))) = ANY(:dms)
+                      AND COALESCE(repair_result_type_code, 0) NOT IN (1002, 1003)
+                """
+                scope_params = {"sr": rec.service_record_id, "dms": list(L1_L2_GRUBU)}
+            else:
+                scope = """
+                    WHERE service_record_id = :sr
+                      AND COALESCE(TRIM(department_mission), '') = COALESCE(TRIM(:dm), '')
+                      AND COALESCE(repair_result_type_code, 0) NOT IN (1002, 1003)
+                """
+                scope_params = {"sr": rec.service_record_id, "dm": rec.department_mission}
 
             # Atamayı kaldırma
             if not tech:
