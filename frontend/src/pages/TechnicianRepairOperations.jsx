@@ -582,7 +582,8 @@ const TechnicianRepairOperations = () => {
   const [supplyStatuses, setSupplyStatuses] = useState([]);
   const [partStock, setPartStock] = useState({}); // { [item_code]: quantity }
   const [partPrices, setPartPrices] = useState({}); // { [item_code]: price } - Müşteri Fiyat Matrisi
-  const [labourPrices, setLabourPrices] = useState({}); // { [item_code]: price } - Müşteri İşçilik Fiyatı Matrisi
+  // { [repair_id]: fatura satırı } - seviye modelinden gelen işçilik (bkz. aşağıdaki effect).
+  const [iscilikSatirlari, setIscilikSatirlari] = useState({});
   const searchRef = useRef(null);
 
   // Görev grupları MioCreate.xlsx MissionGroup sayfasından seed edilen
@@ -772,10 +773,10 @@ const TechnicianRepairOperations = () => {
         showNotif(
           "warning",
           "Müşteri Hedef Fiyat Limiti Aşıldı",
-          `Cihazdaki parça fiyatları toplamı (${(res.total_price ?? 0).toFixed(2)} TL), Müşteri Hedef Fiyat Matrisindeki hedef limiti (${(res.target_price ?? 0).toFixed(2)} TL) aştığı için cihaz Müşteri Onayına (106) aktarılmıştır.`
+          `Cihazın toplam tutarı (${(res.total_price ?? 0).toFixed(2)} TL = parça + işçilik + DGD), Müşteri Hedef Fiyat Matrisindeki hedef limiti (${(res.target_price ?? 0).toFixed(2)} TL) aştığı için cihaz Müşteri Onayına (106) aktarılmıştır.`
         );
       } else {
-        showNotif("success", "Limit İçinde", `Toplam parça fiyatı ${(res.total_price ?? 0).toFixed(2)} TL — hedef limit (${(res.target_price ?? 0).toFixed(2)} TL) aşılmadı, cihaz üretimde devam ediyor.`);
+        showNotif("success", "Limit İçinde", `Toplam tutar ${(res.total_price ?? 0).toFixed(2)} TL (parça + işçilik + DGD) — hedef limit (${(res.target_price ?? 0).toFixed(2)} TL) aşılmadı, cihaz üretimde devam ediyor.`);
       }
     }
 
@@ -1112,15 +1113,27 @@ const TechnicianRepairOperations = () => {
         setPartPrices(prev => ({ ...prev, ...res.prices }));
       }
     });
-    // İşçilik Fiyatı sütunu: aynı parça kodları için Müşteri İşçilik Fiyatı Matrisi'nden
-    // (customer_labour_prices) müşteriye özel işçilik fiyatını TEK seferde çeker.
-    api.getLabourPricesForItems(codes, device.customerNo).then(res => {
-      if (res && res.success) {
-        setLabourPrices(prev => ({ ...prev, ...res.prices }));
-      }
-    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedGroup, device?.customerNo]);
+
+  // İşçilik Fiyatı sütunu SEVİYE MODELİNDEN gelir: ilk parça eklenen parçalar içindeki
+  // EN BASKIN seviyenin fiyatını, 2.-5. parça '1-5', 6. ve sonrası '6+' tarifesini alır.
+  // Değer parça KODUNA değil ONARIM KAYDINA bağlı olduğundan (aynı parça başka sırada
+  // başka ücret doğurur) hesap backend'de yapılır ve satır satır buraya taşınır.
+  // Cihazın TAMAMI için hesaplanır - işçilik sırası gruba değil cihaza göredir.
+  useEffect(() => {
+    const ref = device?.imei || device?.serviceRecordId;
+    if (!ref) return;
+    api.getDeviceInvoice(ref).then(res => {
+      if (res && res.success) {
+        const m = {};
+        for (const s of (res.satirlar || [])) {
+          if (s.repair_id) m[s.repair_id] = s;
+        }
+        setIscilikSatirlari(m);
+      }
+    });
+  }, [device?.imei, device?.serviceRecordId, repairs]);
 
   // ── Statü-bazlı rol/yetki kontrolü ──────────────────────────
   // warehouse.service_statu.mission: her statü kodunun hangi rol (mission) tarafından
@@ -1674,11 +1687,12 @@ const TechnicianRepairOperations = () => {
                           ? <span className="inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold bg-cyan-50 dark:bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-200 dark:border-cyan-500/30">{r.labourLevel}</span>
                           : <span className="text-slate-400 font-normal">—</span>}
                       </td>
-                      {/* İşçilik Fiyatı: Müşteri İşçilik Fiyatı Matrisi'nden (customer_labour_prices)
-                          müşteriye özel değer. Eşleşme yoksa "—". */}
+                      {/* İşçilik Fiyatı: seviye modelinden, onarım kaydı bazında
+                          (bkz. iscilikSatirlari). Parça eklendikçe/çıkarıldıkça sıralar
+                          kayar ve bu değerler backend'de yeniden hesaplanır. */}
                       <td className="px-3 py-2.5 text-right text-xs font-semibold text-slate-700 dark:text-slate-200">
-                        {r.partItemCode && labourPrices[r.partItemCode] !== undefined
-                          ? `${labourPrices[r.partItemCode].toFixed(2)} ${device?.currency || ''}`.trim()
+                        {iscilikSatirlari[r.id]?.faturalanabilir
+                          ? `${iscilikSatirlari[r.id].iscilik_fiyat.toFixed(2)} ${device?.currency || ''}`.trim()
                           : <span className="text-slate-400 font-normal">—</span>}
                       </td>
                       <td className="px-3 py-2.5">

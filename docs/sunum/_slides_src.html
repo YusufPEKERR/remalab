@@ -1,0 +1,857 @@
+<title>RemaLab WMS — Sistem Sunumu</title>
+
+<style>
+/* ─────────────────────────────────────────────────────────────
+   Palet, uygulamanın kendi token'larından türetildi: deck
+   yazılımla aynı dünyada görünsün. #8892B5 / #5A6685 / #DCE1F1
+   doğrudan RemaLab arayüzünde kullanılan değerler.
+   Yapısal aksan: sinyal amberi — atölye gösterge paneli mantığı.
+   ───────────────────────────────────────────────────────────── */
+:root {
+  --ink:      #0F1118;
+  --panel:    #171A24;
+  --panel-2:  #1E2230;
+  --line:     #272B39;
+  --line-soft:#20242F;
+  --text:     #EDEFF5;
+  --muted:    #8892B5;
+  --signal:   #E9A13B;
+  --signal-d: #7A5416;
+  --done:     #34D399;
+  --wait:     #A78BFA;
+  --stop:     #F87171;
+  --live:     #60A5FA;
+
+  --mono: "Consolas", "Cascadia Mono", "SF Mono", ui-monospace, monospace;
+  --sans: "Segoe UI Variable Display", "Segoe UI", system-ui, -apple-system, sans-serif;
+
+  --pad: clamp(28px, 4.2vw, 76px);
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --ink: #F2F4F8; --panel: #FFFFFF; --panel-2: #F7F9FC;
+    --line: #DCE1F1; --line-soft: #E8ECF6;
+    --text: #12141C; --muted: #5A6685;
+    --signal: #B4761A; --signal-d: #E4C48A;
+    --done: #0E9F6E; --wait: #7C5CD6; --stop: #DC4C4C; --live: #2563EB;
+  }
+}
+:root[data-theme="dark"] {
+  --ink: #0F1118; --panel: #171A24; --panel-2: #1E2230;
+  --line: #272B39; --line-soft: #20242F;
+  --text: #EDEFF5; --muted: #8892B5;
+  --signal: #E9A13B; --signal-d: #7A5416;
+  --done: #34D399; --wait: #A78BFA; --stop: #F87171; --live: #60A5FA;
+}
+:root[data-theme="light"] {
+  --ink: #F2F4F8; --panel: #FFFFFF; --panel-2: #F7F9FC;
+  --line: #DCE1F1; --line-soft: #E8ECF6;
+  --text: #12141C; --muted: #5A6685;
+  --signal: #B4761A; --signal-d: #E4C48A;
+  --done: #0E9F6E; --wait: #7C5CD6; --stop: #DC4C4C; --live: #2563EB;
+}
+
+/* Projenin gerçek etiket barkod fontu (IDAHC39M Code 39).
+   Uygulamada olduğu gibi başlangıç/bitiş işareti PARANTEZ. */
+@font-face {
+  font-family: "LabelCode39";
+  src: url(data:font/woff;base64,__FONT_B64__) format("woff");
+  font-display: block;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--ink); color: var(--text);
+  font-family: var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Sunum kabuğu ───────────────────────────────────────────── */
+#rail {
+  position: fixed; top: 0; left: 0; height: 3px; z-index: 40;
+  background: var(--signal); width: 0; transition: width .25s ease;
+}
+#hud {
+  position: fixed; bottom: 14px; right: 18px; z-index: 40;
+  display: flex; align-items: center; gap: 14px;
+  font-family: var(--mono); font-size: 12px; color: var(--muted);
+  background: color-mix(in srgb, var(--panel) 86%, transparent);
+  border: 1px solid var(--line); border-radius: 999px;
+  padding: 7px 14px; backdrop-filter: blur(6px);
+}
+#hud b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+#hud button {
+  all: unset; cursor: pointer; padding: 2px 7px; border-radius: 6px;
+  color: var(--muted); font-family: var(--mono); font-size: 12px;
+}
+#hud button:hover { color: var(--signal); background: var(--panel-2); }
+#hud button:focus-visible { outline: 2px solid var(--signal); outline-offset: 1px; }
+
+.deck { }
+.slide {
+  min-height: 100vh; padding: var(--pad);
+  display: none; flex-direction: column; justify-content: center;
+  max-width: 1500px; margin: 0 auto;
+}
+.slide.on { display: flex; animation: rise .34s cubic-bezier(.2,.7,.3,1) both; }
+@keyframes rise { from { opacity: 0; transform: translateY(10px); } }
+@media (prefers-reduced-motion: reduce) {
+  .slide.on { animation: none; }
+  #rail { transition: none; }
+}
+
+/* ── Tipografi ──────────────────────────────────────────────── */
+.eyebrow {
+  display: flex; align-items: center; gap: 12px;
+  font-family: var(--mono); font-size: 12.5px; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--muted); margin-bottom: 22px;
+}
+.eyebrow .code {
+  color: var(--signal); font-weight: 700; letter-spacing: .06em;
+  font-variant-numeric: tabular-nums;
+}
+.eyebrow .bar { flex: 1; height: 1px; background: var(--line); }
+
+h1 {
+  font-size: clamp(38px, 6.4vw, 88px); line-height: 1.02; margin: 0 0 18px;
+  letter-spacing: -.028em; font-weight: 700; text-wrap: balance;
+}
+h2 {
+  font-size: clamp(27px, 3.5vw, 46px); line-height: 1.1; margin: 0 0 14px;
+  letter-spacing: -.02em; font-weight: 650; text-wrap: balance;
+}
+h3 {
+  font-size: clamp(15px, 1.35vw, 18px); margin: 0 0 8px; font-weight: 650;
+  letter-spacing: -.005em;
+}
+.lede {
+  font-size: clamp(16px, 1.65vw, 21px); line-height: 1.55; color: var(--muted);
+  max-width: 64ch; margin: 0 0 30px;
+}
+p { line-height: 1.6; margin: 0 0 12px; }
+.small { font-size: 13.5px; color: var(--muted); line-height: 1.55; }
+code, .m { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+code {
+  font-size: .92em; background: var(--panel-2); border: 1px solid var(--line-soft);
+  border-radius: 4px; padding: 1px 5px; color: var(--text);
+}
+
+/* ── Bileşenler ─────────────────────────────────────────────── */
+.grid { display: grid; gap: 16px; }
+.g2 { grid-template-columns: repeat(2, minmax(0,1fr)); }
+.g3 { grid-template-columns: repeat(3, minmax(0,1fr)); }
+.g4 { grid-template-columns: repeat(4, minmax(0,1fr)); }
+@media (max-width: 900px) { .g2, .g3, .g4 { grid-template-columns: 1fr; } }
+
+.card {
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: 12px; padding: 18px 20px;
+}
+.card .n {
+  font-family: var(--mono); font-size: 12px; color: var(--signal);
+  letter-spacing: .08em; display: block; margin-bottom: 9px;
+}
+
+.stat { display: flex; flex-direction: column; gap: 4px; }
+.stat .v {
+  font-family: var(--mono); font-size: clamp(30px, 4.2vw, 52px);
+  font-weight: 700; letter-spacing: -.03em; line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.stat .k { font-size: 13px; color: var(--muted); line-height: 1.4; }
+
+/* Statü zinciri */
+.flow { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; }
+.step {
+  flex: 1 1 118px; min-width: 108px;
+  background: var(--panel); border: 1px solid var(--line);
+  border-top: 2px solid var(--stepc, var(--line));
+  border-radius: 9px; padding: 11px 12px;
+}
+.step .c {
+  font-family: var(--mono); font-size: 17px; font-weight: 700;
+  color: var(--stepc, var(--text)); font-variant-numeric: tabular-nums;
+}
+.step .t { font-size: 11.5px; color: var(--muted); line-height: 1.35; margin-top: 3px; }
+
+/* Kod tablosu */
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td {
+  text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line-soft);
+  vertical-align: top;
+}
+th {
+  font-family: var(--mono); font-size: 11.5px; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--muted); font-weight: 600;
+  border-bottom: 1px solid var(--line);
+}
+td.c { font-family: var(--mono); font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.scroll { overflow-x: auto; }
+
+.pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--mono); font-size: 11.5px; font-weight: 600;
+  border-radius: 999px; padding: 3px 10px; white-space: nowrap;
+  border: 1px solid currentColor;
+}
+.dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+.lvl { display: flex; flex-direction: column; gap: 9px; }
+.lvl .row {
+  display: grid; grid-template-columns: 62px 1fr auto; gap: 14px; align-items: center;
+  background: var(--panel); border: 1px solid var(--line);
+  border-left: 3px solid var(--lc, var(--line));
+  border-radius: 9px; padding: 12px 16px;
+}
+.lvl .ord {
+  font-family: var(--mono); font-size: 21px; font-weight: 700; color: var(--lc, var(--text));
+  font-variant-numeric: tabular-nums;
+}
+
+ul.tight { margin: 0; padding-left: 19px; }
+ul.tight li { margin-bottom: 7px; line-height: 1.5; }
+ul.none { list-style: none; margin: 0; padding: 0; }
+ul.none li {
+  padding-left: 17px; position: relative; margin-bottom: 8px; line-height: 1.5;
+}
+ul.none li::before {
+  content: ""; position: absolute; left: 0; top: .62em;
+  width: 7px; height: 1px; background: var(--signal);
+}
+
+figure { margin: 0; }
+figure img {
+  width: 100%; display: block; border-radius: 10px;
+  border: 1px solid var(--line);
+}
+figcaption { font-size: 12px; color: var(--muted); margin-top: 8px; font-family: var(--mono); }
+
+.barcode {
+  font-family: "LabelCode39", var(--mono);
+  font-size: clamp(40px, 6vw, 82px); line-height: 1; color: var(--text);
+  letter-spacing: 0; user-select: none;
+}
+.split { display: grid; grid-template-columns: 1.05fr .95fr; gap: 34px; align-items: center; }
+@media (max-width: 980px) { .split { grid-template-columns: 1fr; gap: 22px; } }
+
+.note {
+  border-left: 2px solid var(--signal); padding: 2px 0 2px 15px;
+  color: var(--muted); font-size: 14.5px; line-height: 1.55;
+}
+
+/* ── Baskı: PDF'e aktarım için her slayt bir sayfa ─────────── */
+@media print {
+  @page { size: 297mm 167mm; margin: 0; }
+  #rail, #hud { display: none !important; }
+  body { background: #fff; color: #000; }
+  .slide {
+    display: flex !important; min-height: 0; height: 167mm;
+    page-break-after: always; break-after: page; animation: none;
+  }
+}
+</style>
+
+<div id="rail"></div>
+
+<div class="deck" id="deck">
+
+<!-- 01 ───────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="eyebrow"><span class="code">REMALAB WMS</span><span class="bar"></span><span>Sistem Sunumu</span></div>
+  <h1>Telefon yenileme hattını<br>tek bir sistemde yönetmek</h1>
+  <p class="lede">
+    Depo kabulünden müşteriye sevkiyata kadar cihazın geçtiği her adımı, her onarımı,
+    her parça hareketini ve her testi kayda alan masaüstü uygulaması.
+  </p>
+  <div class="barcode" aria-hidden="true">(REMALAB)</div>
+  <p class="small" style="margin-top:10px">
+    Yukarıdaki şerit süs değil — uygulamanın etiket basımında kullandığı gerçek
+    <b>Code&nbsp;39</b> yazı tipi. Barkodlarda başlangıç/bitiş işareti olarak
+    yıldız yerine parantez kullanılıyor.
+  </p>
+</section>
+
+<!-- 02 ───────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="eyebrow"><span class="code">01</span><span class="bar"></span><span>Problem</span></div>
+  <h2>Hattın belleği kâğıtta ve kafalardaydı</h2>
+  <div class="split">
+    <div>
+      <p class="lede" style="margin-bottom:20px">
+        Bir cihaza kimin, hangi parçayı, ne zaman taktığı; testten neden döndüğü;
+        müşterinin neye onay verdiği — hepsi ayrı yerlerde tutuluyordu.
+      </p>
+      <ul class="none">
+        <li>Cihaz hangi aşamada, kimde bekliyor belirsiz</li>
+        <li>Aynı parça iki kez talep edilebiliyor, stok tutmuyor</li>
+        <li>Onarım sırası kişiye göre değişiyor; L1 ekibi bitmemiş bir ekranın üstünde çalışıyor</li>
+        <li>Müşteri onayı gereken iş, onay alınmadan yapılabiliyor</li>
+        <li>Test sonuçları cihazın geçmişine bağlanmıyor</li>
+      </ul>
+    </div>
+    <div class="grid g2">
+      <div class="card stat"><span class="v" style="color:var(--signal)">24</span><span class="k">cihaz statüsü — kabulden sevkiyata</span></div>
+      <div class="card stat"><span class="v" style="color:var(--signal)">9</span><span class="k">onarım statüsü — atamadan tamamlamaya</span></div>
+      <div class="card stat"><span class="v" style="color:var(--signal)">7</span><span class="k">onarım ekibi, sıralı çalışan</span></div>
+      <div class="card stat"><span class="v" style="color:var(--signal)">3</span><span class="k">test noktası, PhoneCheck bağlı</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- 03 ───────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="eyebrow"><span class="code">02</span><span class="bar"></span><span>Mimari</span></div>
+  <h2>Tek pencere, iki dünya</h2>
+  <p class="lede">
+    Kullanıcı tek bir masaüstü uygulaması görüyor. İçinde modern bir web arayüzü ile
+    Python iş mantığı yan yana çalışıyor; ikisi <code>QWebChannel</code> köprüsüyle konuşuyor.
+  </p>
+  <div class="grid g3">
+    <div class="card">
+      <span class="n">ARAYÜZ</span>
+      <h3>React 19 + Vite + Tailwind</h3>
+      <p class="small">Qt WebEngine (Chromium) içinde açılan tek sayfalı uygulama.
+      63 dosya, ~33.500 satır. Ekranlar rol bazlı menülerle ayrılmış.</p>
+    </div>
+    <div class="card" style="border-color:var(--signal-d)">
+      <span class="n">KÖPRÜ</span>
+      <h3>QWebChannel</h3>
+      <p class="small">Arayüzdeki her <code>api.xxx()</code> çağrısı Python tarafında bir
+      <code>@Slot</code>'a düşer ve JSON döner. Masaüstünde doğrudan, tarayıcıda WebSocket üzerinden.</p>
+    </div>
+    <div class="card">
+      <span class="n">İŞ MANTIĞI + VERİ</span>
+      <h3>Python + PySide6 + SQLAlchemy</h3>
+      <p class="small">Bütün kurallar burada. <code>core/web_bridge.py</code> sistemin kalbi;
+      uzak PostgreSQL sunucusuna SQLAlchemy ile bağlanır.</p>
+    </div>
+  </div>
+  <div class="note" style="margin-top:22px">
+    <b>Neden önemli:</b> kural arayüzde <i>de</i> var ama arayüz hiçbir zaman <i>tek</i> bekçi değil.
+    Bir ekran atlanırsa ya da eski bir sürüm çalışırsa kural yine backend'de uygulanıyor.
+  </div>
+</section>
+
+<!-- 04 ───────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="eyebrow"><span class="code">03</span><span class="bar"></span><span>Cihazın yolculuğu</span></div>
+  <h2>Statü akışı — kabulden sevkiyata</h2>
+  <p class="lede">Her cihaz numaralı bir durum makinesinde ilerler. Geçişler serbest değil:
+  hangi statüden hangisine gidilebileceği tanımlı (<code>service_statu_map</code>).</p>
+
+  <div class="flow" style="margin-bottom:14px">
+    <div class="step" style="--stepc:var(--muted)"><div class="c">100</div><div class="t">Ön bildirim yapıldı</div></div>
+    <div class="step" style="--stepc:var(--muted)"><div class="c">101</div><div class="t">Depo kabulü tamamlandı</div></div>
+    <div class="step" style="--stepc:var(--live)"><div class="c">102</div><div class="t">İlk teste aktarıldı</div></div>
+    <div class="step" style="--stepc:var(--live)"><div class="c">103</div><div class="t">İlk test bekleniyor</div></div>
+    <div class="step" style="--stepc:var(--live)"><div class="c">104</div><div class="t">İlk test tamamlandı</div></div>
+    <div class="step" style="--stepc:var(--signal)"><div class="c">105</div><div class="t">Üretim planlama onayı</div></div>
+  </div>
+  <div class="flow" style="margin-bottom:14px">
+    <div class="step" style="--stepc:var(--wait)"><div class="c">106</div><div class="t">Müşteri onayına gönderilecek</div></div>
+    <div class="step" style="--stepc:var(--wait)"><div class="c">107</div><div class="t">Müşteri onayı bekleniyor</div></div>
+    <div class="step" style="--stepc:var(--wait)"><div class="c">136</div><div class="t">Onay / red alındı</div></div>
+    <div class="step" style="--stepc:var(--done)"><div class="c">109</div><div class="t">Üretim aşamasında</div></div>
+    <div class="step" style="--stepc:var(--live)"><div class="c">138</div><div class="t">Ara test bekleniyor</div></div>
+    <div class="step" style="--stepc:var(--live)"><div class="c">124</div><div class="t">Son teste teslim edilecek</div></div>
+  </div>
+  <div class="flow">
+    <div class="step" style="--stepc:var(--live)"><div class="c">125</div><div class="t">Son teste kabul edildi</div></div>
+    <div class="step" style="--stepc:var(--done)"><div class="c">126</div><div class="t">Depoya sevk edilecek</div></div>
+    <div class="step" style="--stepc:var(--done)"><div class="c">127</div><div class="t">Müşteriye sevkiyat</div></div>
+    <div class="step" style="--stepc:var(--stop)"><div class="c">134</div><div class="t">RMA incelemesi</div></div>
+    <div class="step" style="--stepc:var(--stop)"><div class="c">135</div><div class="t">İade öncesi son test</div></div>
+    <div class="step" style="--stepc:var(--muted)"><div class="c">128</div><div class="t">Serbest bırakıldı</div></div>
+  </div>
+
+  <p class="small" style="margin-top:18px">
+    <b>Test başarısızsa cihaz geri döner:</b> ara testten <code>138 → 109</code>,
+    son testten <code>125 → 109</code>. İkisinde de cihaz üretime iner ve L1/L2 onarımları
+    yeniden teknisyene atanır.
+  </p>
+</section>
+
+<!-- 05 ───────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="eyebrow"><span class="code">04</span><span class="bar"></span><span>Roller</span></div>
+  <h2>Herkes yalnız kendi kapısını görür</h2>
+  <p class="lede">Menü role göre açılır ve her statü geçişi yetkiye bağlı. Depocu onarım
+  kapatamaz, teknisyen sevkiyat yapamaz.</p>
+  <div class="grid g3">
+    <div class="card"><span class="n">SPA_P</span><h3>Yedek Parça Personeli</h3>
+      <p class="small">Kayıt kabul <code>100→101</code>, ilk teste aktarma <code>101→102</code>,
+      müşteriye sevk <code>126→127</code>.</p></div>
+    <div class="card"><span class="n">QAC</span><h3>Test Personeli</h3>
+      <p class="small">İlk teste kabul <code>102→103</code>, üretime teslim <code>103→104</code>,
+      son teste kabul <code>124→125</code>, son test sonucu <code>125→126/109</code>.</p></div>
+    <div class="card"><span class="n">TEC_DISMANTLE</span><h3>Demontaj Teknisyeni</h3>
+      <p class="small">Teknik departmana kabul <code>104→105</code>, onarım planı kurma,
+      <b>Üretime Aktar</b> kararı, müşteri onayına gönderme <code>105→106</code>.</p></div>
+    <div class="card"><span class="n">ÜRETİM</span><h3>Üretim Teknisyeni</h3>
+      <p class="small">Üretim kaydını görüntüleme, teknisyen atama, parça teslim alma,
+      onarımı tamamlama, hızlı bitiş ekranları.</p></div>
+    <div class="card"><span class="n">HAVUZ</span><h3>Onarım Havuzu</h3>
+      <p class="small">Batarya · Kamera · Ekran · Kasa · L1 · L2 · L3 — her ekibin kendi
+      iş listesi, sırası gelen işler ayrı görünür.</p></div>
+    <div class="card"><span class="n">MNG / AS</span><h3>Ara Test &amp; Yönetim</h3>
+      <p class="small">Ara test <code>138→124</code>, müşteri onayı yönetimi,
+      fiyat matrisleri, departman ve kullanıcı yönetimi.</p></div>
+  </div>
+</section>
+
+<!-- 06 ───────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="eyebrow"><span class="code">05</span><span class="bar"></span><span>Veri modeli</span></div>
+  <h2>Onarım nedir? Satır değil, grup.</h2>
+  <div class="split">
+    <div>
+      <p class="lede">
+        <code>repair_records</code> tablosunda her satır bir <b>parçadır</b>.
+        Bir <b>onarım</b> ise aynı cihaz + aynı görev grubu altındaki <b>tüm satırlardır</b>.
+      </p>
+      <ul class="none">
+        <li>Teknisyen ataması grubun hepsini birden atar</li>
+        <li>Tamamlama da grubun hepsini birden kapatır</li>
+        <li>Yeniden açma tam tersi yönde çalışır: kapalı satırları açar</li>
+        <li>Bir satır bile engelliyse hiçbiri işlenmez — yarım kapanmış onarım oluşamaz</li>
+      </ul>
+      <div class="note" style="margin-top:18px">
+        Bu ayrım sistemin en kritik detayı. Tamamlama tek satırı kapattığı sürece
+        cihaz "bitti" görünüyor ama alt seviye onarım sonsuza kadar bekliyordu.
+      </div>
+    </div>
+    <div class="card" style="padding:22px">
+      <span class="n">ÖRNEK — BİR CİHAZ</span>
+      <table>
+        <thead><tr><th>Grup</th><th>Parça</th><th>Durum</th></tr></thead>
+        <tbody>
+          <tr><td class="c">DISPLAY</td><td>LCD</td><td><span class="pill" style="color:var(--done)"><span class="dot"></span>1002</span></td></tr>
+          <tr><td class="c">BATTERY</td><td>Battery</td><td><span class="pill" style="color:var(--done)"><span class="dot"></span>1002</span></td></tr>
+          <tr><td class="c">BATTERY</td><td>Battery Flex</td><td><span class="pill" style="color:var(--done)"><span class="dot"></span>1002</span></td></tr>
+          <tr><td class="c">CASE</td><td>Back Cover</td><td><span class="pill" style="color:var(--live)"><span class="dot"></span>1001</span></td></tr>
+          <tr><td class="c">L1REPAIR</td><td>Receiver</td><td><span class="pill" style="color:var(--wait)"><span class="dot"></span>1004</span></td></tr>
+        </tbody>
+      </table>
+      <p class="small" style="margin-top:14px;margin-bottom:0">
+        Batarya onarımı <b>iki satır</b>, ikisi birlikte kapandı. L1 bekliyor çünkü
+        Kasa hâlâ açık.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- 07 ───────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="eyebrow"><span class="code">06</span><span class="bar"></span><span>Onarım statüleri</span></div>
+  <h2>Bir onarımın geçebileceği dokuz durum</h2>
+  <div class="scroll">
+    <table>
+      <thead><tr><th style="width:88px">Kod</th><th style="width:250px">Anlamı</th><th>Ne zaman oluşur</th></tr></thead>
+      <tbody>
+        <tr><td class="c" style="color:var(--muted)">1000</td><td>Teknisyene Atanacak</td><td>Onarım açıldı, havuzda bekliyor. Henüz kimseye atanmamış.</td></tr>
+        <tr><td class="c" style="color:var(--live)">1001</td><td>Teknisyen Atandı</td><td>İş bir teknisyende. Parça teslimi ve tamamlama bu durumda yapılır.</td></tr>
+        <tr><td class="c" style="color:var(--done)">1002</td><td>Onarım Tamamlandı</td><td>Bütün şartlar sağlandı ve iş kapandı. <code>closed_at</code> yazılır.</td></tr>
+        <tr><td class="c" style="color:var(--stop)">1003</td><td>Onarım İptal Edildi</td><td>İş yapılmayacak. Kural motorlarında hiç sayılmaz.</td></tr>
+        <tr><td class="c" style="color:var(--wait)">1004</td><td>Sırada Bekliyor</td><td>Kendinden yüksek seviyeli bir onarım hâlâ açık. Teknisyen atanabilir; parça teslimi ve tamamlama kapalı.</td></tr>
+        <tr><td class="c" style="color:var(--signal)">1005</td><td>Müşteri Onayı Bekliyor</td><td>İş, müşteri onayı olmadan yapılamaz.</td></tr>
+        <tr><td class="c" style="color:var(--live)">1006</td><td>Onarım Testi Bekleniyor</td><td>Kamera / L3 / Ekran / Kasa onarımları tamamlanınca doğrudan 1002 olmaz — önce bitiş testine gider.</td></tr>
+        <tr><td class="c" style="color:var(--signal)">1007</td><td>Onarım Testi Başarısız</td><td>Bitiş testinden döndü, yeniden çalışılacak.</td></tr>
+        <tr><td class="c" style="color:var(--signal)">1008</td><td>Parça Bekleniyor</td><td>Depoda parça yok, iş parça gelene kadar duruyor.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- 08 ───────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="eyebrow"><span class="code">07</span><span class="bar"></span><span>Seviyelendirme</span></div>
+  <h2>Onarımlar rastgele değil, sırayla yapılır</h2>
+  <p class="lede">
+    Sıra <code>mission_groups.order_number</code> ile tanımlı: <b>büyük olan önce</b>,
+    <b>eşit olanlar paralel</b>. Sırası gelmeyen onarım havuzda normal iş gibi durmaz —
+    <code>1004</code> ile beklemeye alınır ve üst seviye kapanınca kendiliğinden açılır.
+  </p>
+  <div class="lvl">
+    <div class="row" style="--lc:var(--stop)">
+      <div class="ord">99</div>
+      <div><h3 style="margin:0">RMA Kontrol ve Onarımı</h3>
+        <div class="small">Her şeyden önce gelir</div></div>
+      <span class="pill" style="color:var(--stop)">1. sıra</span>
+    </div>
+    <div class="row" style="--lc:var(--signal)">
+      <div class="ord">9</div>
+      <div><h3 style="margin:0">L3 Onarımı</h3>
+        <div class="small">Anakart / mikro lehim seviyesi</div></div>
+      <span class="pill" style="color:var(--signal)">2. sıra</span>
+    </div>
+    <div class="row" style="--lc:var(--live)">
+      <div class="ord">7</div>
+      <div><h3 style="margin:0">Batarya · Kamera · Kasa · Ekran</h3>
+        <div class="small">Dördü <b>aynı seviyede</b> — birbirini beklemez, paralel çalışır</div></div>
+      <span class="pill" style="color:var(--live)">3. sıra</span>
+    </div>
+    <div class="row" style="--lc:var(--done)">
+      <div class="ord">6</div>
+      <div><h3 style="margin:0">L1 / L2 Onarımı</h3>
+        <div class="small">En son. Bittiğinde cihaz kendiliğinden Ara Test'e geçer</div></div>
+      <span class="pill" style="color:var(--done)">4. sıra</span>
+    </div>
+    <div class="row" style="--lc:var(--muted)">
+      <div class="ord">—</div>
+      <div><h3 style="margin:0">Demontaj · Test</h3>
+        <div class="small">Sıra numarası yok: ne bekletir ne bekletilir, her zaman görünür</div></div>
+      <span class="pill" style="color:var(--muted)">sırasız</span>
+    </div>
+  </div>
+</section>
+
+<!-- 09 ───────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="eyebrow"><span class="code">08</span><span class="bar"></span><span>Kural motoru</span></div>
+  <h2>Sistem yanlış parça kombinasyonuna izin vermiyor</h2>
+  <p class="lede">
+    Bazı parçalar aynı cihazda birlikte olamaz — LCD komple ekran modülüdür, ön cam ve
+    arka aydınlatma zaten onun içinde gelir. Kural cihaz genelinde çalışır, onarım
+    grubundan bağımsız.
+  </p>
+  <div class="grid g2">
+    <div class="card">
+      <span class="n">ÇAKIŞAN İKİLİLER</span>
+      <ul class="none" style="font-size:14.5px">
+        <li><b>LCD</b> ↔ Front Glass · Front Bezel · Backlight · Touch Glass</li>
+        <li><b>Touch Glass</b> ↔ Front Glass with POL</li>
+        <li><b>Front Glass</b> ↔ Front Glass with POL</li>
+        <li><b>Main Camera</b> ↔ 5x · 1x · 0,5x objektifler</li>
+        <li><b>Back Cover</b> ↔ Middle Frame · Back Glass</li>
+        <li><b>Front Camera</b> / <b>Front Camera_Y</b> ↔ Front Camera_R</li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="n">"YALNIZCA BİR TANE" GRUPLARI</span>
+      <ul class="none" style="font-size:14.5px">
+        <li><b>Batarya flexi</b> — Battery / Cracked / Diag / Ti Flex arasından bir tane</li>
+        <li><b>Kombo flexler</b> — On-Off · Volume Key · Receiver · Flash · NFC ve bunların
+        "+" ile paketlenmiş hâlleri; hepsi aynı takımın farklı satış kombinasyonu</li>
+      </ul>
+      <p class="small" style="margin-top:14px;margin-bottom:0">
+        Ayrıca: <b>aynı parça iki kez</b> eklenemez, <b>tamamlanmış onarıma</b> parça
+        eklenemez, <b>iptal edilen</b> parça yeniden eklenebilir.
+      </p>
+    </div>
+  </div>
+  <div class="note" style="margin-top:20px">
+    Kural hem ekleme hem <b>düzenleme</b> yolunda uygulanıyor. Ekranda çakışan parçalar
+    listede üstü çizili ve sebebi yazılı olarak görünür — kullanıcı reddedilecek bir istek göndermez.
+  </div>
+</section>
+
+<!-- 10 ───────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="eyebrow"><span class="code">09</span><span class="bar"></span><span>Tamamlama şartları</span></div>
+  <h2>Bir onarım hangi durumda kapanabilir?</h2>
+  <p class="lede">Dört şart tek bir yerde toplandı. Aynı kuralı hem normal ekran hem
+  hızlı bitiş ekranı çağırır — kural iki yere yazılırsa zamanla ayrışır.</p>
+  <div class="grid g4">
+    <div class="card"><span class="n">ŞART 1</span><h3>Teknisyen atanmış olmalı</h3>
+      <p class="small">Kimin yaptığı bilinmeyen iş kapanamaz.</p></div>
+    <div class="card"><span class="n">ŞART 2</span><h3>Parça depodan çıkmış olmalı</h3>
+      <p class="small">Stok takipli parçada <code>Stoktan Çıktı</code> şartı aranır;
+      takipsiz parçada aranmaz.</p></div>
+    <div class="card"><span class="n">ŞART 3</span><h3>Müşteri onayı alınmış olmalı</h3>
+      <p class="small">Onay gerektiren akışlarda cihaz <code>106/107/136</code>'da
+      park ederken kapatılamaz.</p></div>
+    <div class="card" style="border-color:var(--signal-d)"><span class="n">ŞART 4</span><h3>Sırası gelmiş olmalı</h3>
+      <p class="small">Kendinden yüksek seviyede açık onarım varken kapanmaz.
+      İçine parça girilmemiş kayıt bu hesapta sayılmaz.</p></div>
+  </div>
+  <div class="note" style="margin-top:22px">
+    <b>Otomatik geçişler:</b> son onarım kapandığında cihaz kendiliğinden
+    <code>109 → 138</code> Ara Test'e geçer. İçine parça girilmemiş DGD işçilik satırı
+    da diğer işler bitince otomatik tamamlanır — cihaz onun arkasında takılı kalmaz.
+  </div>
+</section>
+
+<!-- 11 ───────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="eyebrow"><span class="code">10</span><span class="bar"></span><span>Test zinciri</span></div>
+  <h2>PhoneCheck entegrasyonu ve üç test noktası</h2>
+  <div class="split">
+    <div>
+      <p class="lede" style="margin-bottom:20px">
+        Test verisi elle girilmiyor — IMEI okutulduğunda PhoneCheck API'sinden çekilip
+        cihazın geçmişine yazılıyor.
+      </p>
+      <ul class="none">
+        <li><b>Giriş Testi</b> <code>103→104</code> — cihazı üretime taşıyan test</li>
+        <li><b>Ara Test</b> <code>138→124</code> / <code>138→109</code></li>
+        <li><b>Son Test</b> <code>125→126</code> / <code>125→109</code></li>
+        <li><b>Onarım Bitiş Testi</b> — Kamera / L3 / Ekran / Kasa için ayrı adım</li>
+      </ul>
+      <p class="small" style="margin-top:16px">
+        Her test adımında <b>en fazla 10 başarısız deneme</b> hakkı var; hak dolunca sistem
+        yeni denemeyi reddeder. Başarısızlar
+        <span class="m">1. Başarısız … (1/10)</span> diye numaralanır.
+      </p>
+    </div>
+    <div class="card">
+      <span class="n">CİHAZ PHONECHECK'TE BULUNAMAZSA</span>
+      <p class="small" style="margin-bottom:14px">Test verisi elle doldurulur ama gerekçe
+      <b>zorunludur</b> — kayıt "elle girildi" olarak işaretlenir, denetlenebilir kalır.</p>
+      <span class="n" style="margin-top:6px">VERİ EKSİK GELİRSE</span>
+      <p class="small" style="margin-bottom:0">PhoneCheck cihazı bulup bazı alanları boş
+      dönerse, <b>gelenler dolu gelir</b>, yalnız eksikler sorulur. Var olan kayıt
+      tamamlanır — yeni deneme açılmaz, 10 hak boşuna tükenmez.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 12 ───────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="eyebrow"><span class="code">11</span><span class="bar"></span><span>Fiyat ve onay</span></div>
+  <h2>Onay kararını sistem veriyor</h2>
+  <p class="lede">
+    Demontaj teknisyeni onarım planını kurar ve <b>Üretime Aktar</b> der. Sistem o anda
+    parça fiyatları toplamını müşterinin <b>hedef fiyat limiti</b> ile karşılaştırır.
+  </p>
+  <div class="grid g3">
+    <div class="card" style="border-left:3px solid var(--done)">
+      <span class="n">LİMİT İÇİNDE</span>
+      <h3>Doğrudan üretime</h3>
+      <p class="small">Cihaz <code>105 → 109</code> geçer, iş başlar. Müşteriye sorulmaz.</p>
+    </div>
+    <div class="card" style="border-left:3px solid var(--signal)">
+      <span class="n">LİMİT AŞILDI</span>
+      <h3>Müşteri onayına</h3>
+      <p class="small">Cihaz <code>105 → 106</code> gider. Buton "Müşteri Onayı Al"a döner
+      ve basıldığında barkodlar da basılır.</p>
+    </div>
+    <div class="card" style="border-left:3px solid var(--live)">
+      <span class="n">SONRADAN EKLENEN İŞ</span>
+      <h3>Karar yeniden verilir</h3>
+      <p class="small">Üretimdeki cihaza yeni onarım eklenirse cihaz karar aşamasına geri
+      çekilir ve toplam yeniden değerlendirilir.</p>
+    </div>
+  </div>
+  <p class="small" style="margin-top:20px">
+    Fiyat kaynakları: <b>Müşteri Fiyat Matrisi</b> (parça birim fiyatı),
+    <b>Müşteri Hedef Fiyat Matrisi</b> (cihaz başına üst limit),
+    <b>Müşteri İşçilik Fiyatı Matrisi</b> ve <b>seviye bazlı işçilik</b>.
+  </p>
+</section>
+
+<!-- 13 ───────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="eyebrow"><span class="code">12</span><span class="bar"></span><span>Depo</span></div>
+  <h2>Parça, teslim edilmeden onarım kapanmıyor</h2>
+  <div class="split">
+    <div>
+      <ul class="none">
+        <li><b>Depo → Parça Teslim</b> ekranı: teknisyene çıkan her parça kaydedilir</li>
+        <li>Sırası gelmemiş onarımın parçası <b>teslim edilemez</b> — ekranda
+          "Sırada Bekliyor, önce şu onarım" olarak görünür</li>
+        <li>Reçete (Product BOM) cihazın modeline göre gösterilecek parçaları belirler</li>
+        <li>Stok hareketleri, irsaliye ve iş emirleri aynı veriden beslenir</li>
+        <li><b>DGD</b> işçilik kalemi gerçek stok değildir — depo çıkışı yapılmaz</li>
+      </ul>
+    </div>
+    <figure>
+      <img src="data:image/jpeg;base64,__IMG_HAVUZ__" alt="Onarım Havuzu ekranı">
+      <figcaption>Onarım Havuzu — ekibin kendi iş listesi</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- 14 ───────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="eyebrow"><span class="code">13</span><span class="bar"></span><span>Ekranlar</span></div>
+  <h2>Sahada kullanılan arayüz</h2>
+  <div class="grid g2">
+    <figure>
+      <img src="data:image/jpeg;base64,__IMG_TECH__" alt="Üretim Kaydını Görüntüle ekranı">
+      <figcaption>Üretim Kaydını Görüntüle — onarım grupları, parçalar, statüler</figcaption>
+    </figure>
+    <figure>
+      <img src="data:image/jpeg;base64,__IMG_DEMONTAJ__" alt="Demontaj Üretime Aktar ekranı">
+      <figcaption>Üretime Aktar — onarım planı ve karar</figcaption>
+    </figure>
+    <figure>
+      <img src="data:image/jpeg;base64,__IMG_SERVIS__" alt="Servis cihaz sorgulama ekranı">
+      <figcaption>Cihaz Sorgulama — statü geçmişi, test sonuçları, onarımlar</figcaption>
+    </figure>
+    <figure>
+      <img src="data:image/jpeg;base64,__IMG_SONTEST__" alt="Son test sonuç ekranı">
+      <figcaption>Son Test Sonuç — başarılıysa etiket basımı</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- 15 ───────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="eyebrow"><span class="code">14</span><span class="bar"></span><span>Etiket ve barkod</span></div>
+  <h2>Etiket tasarımı koda gömülü değil</h2>
+  <div class="split">
+    <div>
+      <p class="lede" style="margin-bottom:20px">
+        Şablonlar veritabanında tutulur ve <b>Etiket Tasarımı</b> ekranından düzenlenir.
+        Üç tür etiket var: parça, üretime teslim, cihaz.
+      </p>
+      <ul class="none">
+        <li>Barkod gerçek <b>Code 39</b> yazı tipiyle basılır; yazı tipi hazır olmadan
+          basım yapılmaz</li>
+        <li>Başlangıç/bitiş işareti <b>parantez</b> — yıldız kaldırıldı</li>
+        <li>DYMO 99014 (54×101 mm) için tam sayfa modu, kenar payı ve
+          "tek sayfaya sığdır" ölçümü</li>
+        <li>Yazdır'a basınca pencere iş bitince <b>kendi kapanır</b>; aynı etiket iki kez
+          basılamaz</li>
+        <li>Demontaj'da "Üretime Aktar" ve "Müşteri Onayı Al" barkodları otomatik basar</li>
+      </ul>
+    </div>
+    <div class="card" style="text-align:center;padding:34px 20px">
+      <span class="n" style="text-align:left">ÜRETİME TESLİM ETİKETİ</span>
+      <div class="barcode" style="font-size:clamp(34px,5vw,64px)">(358120)</div>
+      <p class="small" style="margin:14px 0 0">IMEI · Model · Parti · Açıklama · Lokasyon · Referans</p>
+      <p class="small" style="margin-top:10px;color:var(--signal)">
+        Form eksiksiz dolmadan yazdırılamaz.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- 16 ───────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="eyebrow"><span class="code">15</span><span class="bar"></span><span>Bu dönemde eklenenler</span></div>
+  <h2>Kurallar sisteme yerleşti</h2>
+  <div class="grid g3">
+    <div class="card"><span class="n">SEVİYELENDİRME</span>
+      <p class="small">RMA → L3 → Batarya/Kamera/Kasa/Ekran → L1/L2 sırası kuruldu.
+      Sırası gelmeyen iş <code>1004</code> ile bekletiliyor, üst seviye bitince
+      kendiliğinden açılıyor.</p></div>
+    <div class="card"><span class="n">GRUP SEVİYESİNDE İŞLEM</span>
+      <p class="small">Tamamlama artık tek parça satırını değil onarımın tamamını kapatıyor.
+      Bu düzeltmeden önce cihazlar "bitmiş" görünüp Ara Test'e geçemiyordu.</p></div>
+    <div class="card"><span class="n">OTOMATİK ARA TEST</span>
+      <p class="small">Son onarım kapanınca cihaz <code>109 → 138</code> kendiliğinden
+      geçiyor; ayrı buton kaldırıldı.</p></div>
+    <div class="card"><span class="n">PARÇA ÇAKIŞMA KURALLARI</span>
+      <p class="small">11 kural, 185 parça kategorisinin tamamında sınandı.
+      Backend ve arayüz aynı sonucu veriyor.</p></div>
+    <div class="card"><span class="n">TEST DÖNÜŞÜ</span>
+      <p class="small">Ara/son testten dönen cihazda yalnız L1/L2 teknisyene geri atanıyor;
+      diğerleri tamamlanmış kalıyor.</p></div>
+    <div class="card"><span class="n">TEK FORM</span>
+      <p class="small">Test verisi ve barkod bilgileri tek formda toplandı; eksik alan
+      varken kaydedilemiyor.</p></div>
+    <div class="card"><span class="n">AÇIK İŞ SAYACI</span>
+      <p class="small">Teknisyenin açık iş sayısı onarım bazında sayılıyor ve iş bitince
+      düşüyor.</p></div>
+    <div class="card"><span class="n">KAPANIŞ ZAMANI</span>
+      <p class="small"><code>closed_at</code> eklendi; statü geçmişinde artık işin
+      gerçekten kapandığı an görünüyor.</p></div>
+    <div class="card"><span class="n">CİHAZ İADE İZİ</span>
+      <p class="small">İade prosedürü statü geçmişine yazılıyor; sebebiyle birlikte
+      denetlenebilir.</p></div>
+  </div>
+</section>
+
+<!-- 17 ───────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="eyebrow"><span class="code">16</span><span class="bar"></span><span>Sayılarla</span></div>
+  <h2>Projenin bugünkü hâli</h2>
+  <div class="grid g4" style="margin-bottom:20px">
+    <div class="card stat"><span class="v">33.5K</span><span class="k">satır arayüz kodu (63 dosya)</span></div>
+    <div class="card stat"><span class="v">18.7K</span><span class="k">satır Python iş mantığı</span></div>
+    <div class="card stat"><span class="v">48</span><span class="k">veri modeli (tablo eşleşmesi)</span></div>
+    <div class="card stat"><span class="v">185</span><span class="k">parça kategorisi</span></div>
+  </div>
+  <div class="grid g4">
+    <div class="card stat"><span class="v" style="color:var(--signal)">40+</span><span class="k">ekran / menü girişi</span></div>
+    <div class="card stat"><span class="v" style="color:var(--signal)">24</span><span class="k">cihaz statüsü</span></div>
+    <div class="card stat"><span class="v" style="color:var(--signal)">11</span><span class="k">parça çakışma kuralı</span></div>
+    <div class="card stat"><span class="v" style="color:var(--signal)">10</span><span class="k">test denemesi üst sınırı</span></div>
+  </div>
+  <p class="small" style="margin-top:22px">
+    Veritabanı: PostgreSQL — <code>warehouse</code> ve <code>organization</code> şemaları,
+    Türkçe sıralama için ICU <code>tr-TR</code> collation.
+  </p>
+</section>
+
+<!-- 18 ───────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="eyebrow"><span class="code">17</span><span class="bar"></span><span>Sıradaki adımlar</span></div>
+  <h2>Açık başlıklar</h2>
+  <div class="grid g2">
+    <div class="card">
+      <span class="n">VERİ TEMİZLİĞİ</span>
+      <ul class="none" style="font-size:14.5px">
+        <li>Kurallar öncesinde girilmiş <b>Back Cover + Back Glass</b> çakışmaları
+          (10 cihaz) ve fazla batarya flexleri (5 cihaz)</li>
+        <li>Cihaza bağlanamayan <b>75 sahipsiz onarım grubu</b> (209 satır)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="n">EKSİK / KARAR BEKLEYEN</span>
+      <ul class="none" style="font-size:14.5px">
+        <li><b>Rezervasyon sistemi</b> henüz yok</li>
+        <li><b>Hedef fiyat kapsamı:</b> cihazların çoğu kural bulunamadığı için
+          varsayılan limite düşüyor — matrisin doldurulması gerekiyor</li>
+        <li><code>mission_groups.order_number</code> için arayüzde düzenleme ekranı yok</li>
+      </ul>
+    </div>
+  </div>
+  <div class="note" style="margin-top:22px">
+    <b>Öneri:</b> parça çakışma kuralları ve seviyelendirme artık sistemin çekirdeğinde.
+    Bundan sonraki kurallar tek satır ekleyerek tanımlanabiliyor — kural listesi
+    backend ve arayüzde tek yerde tutuluyor.
+  </div>
+</section>
+
+<!-- 19 ───────────────────────────────────────────────────────── -->
+<section class="slide">
+  <div class="eyebrow"><span class="code">SON</span><span class="bar"></span><span>Teşekkürler</span></div>
+  <h1 style="max-width:22ch">Sorular?</h1>
+  <p class="lede">
+    RemaLab WMS — depo, servis ve onarım operasyonunun tamamı tek sistemde.
+  </p>
+  <div class="barcode" aria-hidden="true" style="font-size:clamp(30px,4.5vw,56px)">(TESEKKURLER)</div>
+</section>
+
+</div>
+
+<div id="hud">
+  <button id="prev" aria-label="Önceki slayt">◀</button>
+  <span><b id="cur">1</b> / <span id="tot">19</span></span>
+  <button id="next" aria-label="Sonraki slayt">▶</button>
+  <span style="opacity:.55">← → boşluk</span>
+</div>
+
+<script>
+(function () {
+  var slides = Array.prototype.slice.call(document.querySelectorAll(".slide"));
+  var rail = document.getElementById("rail");
+  var cur = document.getElementById("cur");
+  document.getElementById("tot").textContent = slides.length;
+  var i = 0;
+
+  function show(n) {
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach(function (s, k) { s.classList.toggle("on", k === i); });
+    rail.style.width = ((i + 1) / slides.length * 100) + "%";
+    cur.textContent = i + 1;
+    window.scrollTo(0, 0);
+    try { location.hash = "s" + (i + 1); } catch (e) {}
+  }
+
+  document.getElementById("next").addEventListener("click", function () { show(i + 1); });
+  document.getElementById("prev").addEventListener("click", function () { show(i - 1); });
+
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "ArrowRight" || e.key === "PageDown" || e.key === " ") { e.preventDefault(); show(i + 1); }
+    else if (e.key === "ArrowLeft" || e.key === "PageUp") { e.preventDefault(); show(i - 1); }
+    else if (e.key === "Home") { show(0); }
+    else if (e.key === "End") { show(slides.length - 1); }
+  });
+
+  var m = (location.hash || "").match(/^#s(\d+)$/);
+  show(m ? parseInt(m[1], 10) - 1 : 0);
+})();
+</script>

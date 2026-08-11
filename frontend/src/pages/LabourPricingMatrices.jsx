@@ -1,15 +1,25 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
-import { Wrench, Save, RefreshCw, Layers, Hash, ClipboardCheck, FileSpreadsheet } from 'lucide-react';
+import {
+  Wrench, Save, RefreshCw, Layers, Hash, ClipboardCheck, FileSpreadsheet,
+  ListOrdered, Tags, Plus, Trash2, Search, AlertTriangle,
+} from 'lucide-react';
 import { api } from '../services/api';
 
-// pricing.xlsx'teki 3 fiyat tablosu. Her tablo KÜÇÜK (müşteri × birkaç sabit sütun) olduğundan
-// parça matrisindeki (CustomerPriceMatrix) sanallaştırma/marka filtresi/Excel akışına gerek yok:
-// tek sayfada alt alta 3 basit grid, her biri kendi Kaydet'iyle. Ortak SimpleLabourGrid bileşeni
-// dirty-hücre takibi + kaydet mantığını üçünde de paylaşır.
+// Bu ekran işçilik fiyatlandırmasının ÜÇ katmanını da yönetir:
+//   1) Seviyeler        warehouse.item_labour       - hangi seviyeler var, baskınlık sırası
+//   2) Kategori→Seviye  warehouse.item_category     - hangi parça hangi seviyede
+//   3) Fiyat            customer_*_labour_prices    - seviye/sıra/DGD başına müşteri fiyatı
+// Önce yalnızca 3. katman vardı; 1 ve 2 sadece MioCreate.xlsx'ten tohumlanıp SQL ile
+// değiştirilebiliyordu. Üçü aynı ekranda çünkü biri değişince diğeri anlamsızlaşıyor:
+// seviye eklersen fiyatı girilmeli, kategoriyi taşırsan fiyatı değişir.
 
-// Sütun anahtarları backend key kolonlarıyla (level_key / order_key / dgd_key) BİREBİR eşleşmeli.
-const LEVEL_COLUMNS = [
+// Fiyat matrislerinin sütun anahtarları backend key kolonlarıyla BİREBİR eşleşmeli.
+// SEVİYE sütunları artık burada SABİT DEĞİL - item_labour'dan gelir (get_level_labour_matrix
+// yanıtındaki level_keys). Aşağıdaki liste yalnızca backend eski sürümdeyse devreye giren
+// yedektir. (Sütunlar sabitken Level 1M hiç görünmüyordu, fiyatı hiç girilememişti ve ona
+// bağlı Front Camera her müşteride 0 € faturalanıyordu.)
+const LEVEL_COLUMNS_YEDEK = [
   { key: 'Level 0', label: 'Level 0' },
   { key: 'Level 1', label: 'Level 1' },
   { key: 'Level 2', label: 'Level 2' },
@@ -17,6 +27,9 @@ const LEVEL_COLUMNS = [
   { key: 'Bat.Replacement1', label: 'Bat.Repl. 1' },
   { key: 'Bat.Replacement2', label: 'Bat.Repl. 2' },
 ];
+// Uzun kodların başlıkta kısaltılmış hâli; listede olmayan kod kendi adıyla gösterilir.
+const SEVIYE_ETIKET = { 'Bat.Replacement1': 'Bat.Repl. 1', 'Bat.Replacement2': 'Bat.Repl. 2' };
+
 const PARTORDER_COLUMNS = [
   { key: '1-5', label: '1-5. Parça' },
   { key: '6+', label: '6. ve Sonrası' },
@@ -28,10 +41,13 @@ const DGD_COLUMNS = [
 ];
 
 // Üstteki sekme çubuğu. id -> aktif sekme state'i; her sekme kendi grid'ini gösterir.
+// İlk üçü fiyat matrisi (müşteri × anahtar), son ikisi tanım/kural yönetimi.
 const TABS = [
   { id: 'level', label: 'Seviye', icon: Layers },
   { id: 'partorder', label: 'Parça Sırası', icon: Hash },
   { id: 'dgd', label: 'DGD', icon: ClipboardCheck },
+  { id: 'labours', label: 'Seviyeler', icon: ListOrdered },
+  { id: 'rules', label: 'Kategori→Seviye', icon: Tags },
 ];
 
 function getCurrentUser() {
@@ -141,31 +157,346 @@ function SimpleLabourGrid({ title, icon: Icon, columns, customers, priceList, on
   );
 }
 
+// ── Sekme 4: Seviyeler (warehouse.item_labour) ──────────────────────────────
+// Baskınlık SIRA numarasından okunur: bir onarımda birden çok parça varsa cihazın seviyesi,
+// parçalarının seviyeleri içinde sırası EN BÜYÜK olandır. Bu yüzden sıra düzenlenebilir
+// olmak zorunda - fiyatlandırmanın tamamı buna dayanıyor.
+function LevelDefinitionsGrid({ labours, onSave, saving }) {
+  const [dirty, setDirty] = useState({});   // { [code]: {order_number?, short_name?, enabled?} }
+  const [yeniler, setYeniler] = useState([]); // [{code, order_number, short_name}]
+  const [silinecek, setSilinecek] = useState([]);
+
+  useEffect(() => { setDirty({}); setYeniler([]); setSilinecek([]); }, [labours]);
+
+  const val = (l, alan) => {
+    const d = dirty[l.code];
+    if (d && Object.prototype.hasOwnProperty.call(d, alan)) return d[alan];
+    return l[alan];
+  };
+  const setVal = (code, alan, deger) =>
+    setDirty(p => ({ ...p, [code]: { ...(p[code] || {}), [alan]: deger } }));
+
+  const kirliSayi = Object.keys(dirty).length + yeniler.length + silinecek.length;
+
+  const kaydet = () => {
+    const rows = [];
+    for (const code of silinecek) rows.push({ code, sil: true });
+    for (const l of labours) {
+      if (silinecek.includes(l.code) || !dirty[l.code]) continue;
+      rows.push({
+        code: l.code,
+        order_number: val(l, 'order_number'),
+        short_name: val(l, 'short_name'),
+        enabled: val(l, 'enabled'),
+      });
+    }
+    for (const y of yeniler) {
+      if (!String(y.code || '').trim()) continue;
+      rows.push({ code: y.code.trim(), order_number: y.order_number, short_name: y.short_name || y.code, enabled: true });
+    }
+    if (rows.length) onSave(rows);
+  };
+
+  const sirali = useMemo(
+    () => [...labours].sort((a, b) => (a.order_number ?? 999) - (b.order_number ?? 999)),
+    [labours]
+  );
+
+  return (
+    <div className="glass-card rounded-2xl shadow-md overflow-hidden flex flex-col">
+      <div className="p-4 border-b border-[#DCE1F1] dark:border-[#1e222d] bg-[#F5F7FC] dark:bg-[#181a24] flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200 font-bold text-sm">
+          <ListOrdered size={16} className="text-emerald-500" /> İşçilik Seviyeleri
+          <span className="font-normal text-xs text-slate-400">— sıra büyüdükçe baskınlık artar</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setYeniler(p => [...p, { code: '', order_number: '', short_name: '' }])}
+            className="flex items-center gap-1.5 bg-white dark:bg-[#1e222d] hover:bg-[#EFF1FA] dark:hover:bg-[#2e3545] text-[#12141c] dark:text-[#F6F8FF] border border-[#DCE1F1] dark:border-[#2e3545] px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer"
+          >
+            <Plus size={14} /> Seviye Ekle
+          </button>
+          <button
+            onClick={kaydet}
+            disabled={kirliSayi === 0 || saving}
+            className="flex items-center gap-2 bg-[#00B2FF] hover:bg-[#1e222d] disabled:opacity-40 disabled:cursor-not-allowed text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+          >
+            <Save size={15} /> {saving ? 'Kaydediliyor...' : `Kaydet${kirliSayi > 0 ? ` (${kirliSayi})` : ''}`}
+          </button>
+        </div>
+      </div>
+      <div className="overflow-auto max-h-[55vh]">
+        <table className="text-left text-xs whitespace-nowrap w-full">
+          <thead className="bg-slate-50 dark:bg-[#181a24] text-slate-400 font-semibold uppercase tracking-wider sticky top-0 z-10">
+            <tr>
+              <th className="px-4 py-3 w-24 text-center">Sıra</th>
+              <th className="px-4 py-3 min-w-[180px]">Kod</th>
+              <th className="px-4 py-3 min-w-[180px]">Görünen Ad</th>
+              <th className="px-4 py-3 text-center">Kategori</th>
+              <th className="px-4 py-3 text-center">Fiyat Girilmiş</th>
+              <th className="px-4 py-3 text-center">Aktif</th>
+              <th className="px-4 py-3 w-12"></th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-700/30">
+            {sirali.map(l => {
+              const silinen = silinecek.includes(l.code);
+              const aktif = val(l, 'enabled');
+              return (
+                <tr key={l.code} className={`transition-colors ${silinen ? 'opacity-40 line-through' : 'hover:bg-slate-100 dark:hover:bg-[#1e222d]'}`}>
+                  <td className="px-2 py-1.5 text-center">
+                    <input
+                      type="number" value={val(l, 'order_number') ?? ''}
+                      onChange={e => setVal(l.code, 'order_number', e.target.value)}
+                      className="w-16 text-center px-2 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#181a24] text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </td>
+                  <td className="px-4 py-2 font-mono font-medium text-slate-700 dark:text-slate-300">{l.code}</td>
+                  <td className="px-2 py-1.5">
+                    <input
+                      value={val(l, 'short_name') ?? ''}
+                      onChange={e => setVal(l.code, 'short_name', e.target.value)}
+                      className="w-44 px-2 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#181a24] text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </td>
+                  <td className="px-4 py-2 text-center text-slate-500">
+                    {l.kategori_sayisi}{l.kategori_sayisi !== l.aktif_kategori ? ` (${l.aktif_kategori} aktif)` : ''}
+                  </td>
+                  <td className="px-4 py-2 text-center">
+                    {l.fiyat_sayisi > 0
+                      ? <span className="text-slate-500">{l.fiyat_sayisi} müşteri</span>
+                      : <span className="inline-flex items-center gap-1 text-amber-500 font-semibold"><AlertTriangle size={12} /> yok</span>}
+                  </td>
+                  <td className="px-4 py-2 text-center">
+                    <input
+                      type="checkbox" checked={!!aktif}
+                      onChange={e => setVal(l.code, 'enabled', e.target.checked)}
+                      className="w-4 h-4 accent-emerald-500 cursor-pointer"
+                    />
+                  </td>
+                  <td className="px-2 py-2 text-center">
+                    <button
+                      onClick={() => setSilinecek(p => silinen ? p.filter(c => c !== l.code) : [...p, l.code])}
+                      title={silinen ? 'Silmekten vazgeç' : 'Sil'}
+                      className="text-slate-400 hover:text-rose-500 transition-colors cursor-pointer"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+            {yeniler.map((y, i) => (
+              <tr key={`yeni-${i}`} className="bg-emerald-50/50 dark:bg-emerald-500/5">
+                <td className="px-2 py-1.5 text-center">
+                  <input
+                    type="number" value={y.order_number} placeholder="0"
+                    onChange={e => setYeniler(p => p.map((r, j) => j === i ? { ...r, order_number: e.target.value } : r))}
+                    className="w-16 text-center px-2 py-1.5 rounded-lg border border-emerald-300 dark:border-emerald-700 bg-white dark:bg-[#181a24] text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </td>
+                <td className="px-2 py-1.5">
+                  <input
+                    value={y.code} placeholder="Level 4"
+                    onChange={e => setYeniler(p => p.map((r, j) => j === i ? { ...r, code: e.target.value } : r))}
+                    className="w-44 px-2 py-1.5 rounded-lg border border-emerald-300 dark:border-emerald-700 bg-white dark:bg-[#181a24] text-slate-800 dark:text-slate-200 font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </td>
+                <td className="px-2 py-1.5">
+                  <input
+                    value={y.short_name} placeholder="(kod ile aynı)"
+                    onChange={e => setYeniler(p => p.map((r, j) => j === i ? { ...r, short_name: e.target.value } : r))}
+                    className="w-44 px-2 py-1.5 rounded-lg border border-emerald-300 dark:border-emerald-700 bg-white dark:bg-[#181a24] text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </td>
+                <td className="px-4 py-2 text-center text-slate-400">0</td>
+                <td className="px-4 py-2 text-center text-slate-400">—</td>
+                <td className="px-4 py-2 text-center text-slate-400">✓</td>
+                <td className="px-2 py-2 text-center">
+                  <button onClick={() => setYeniler(p => p.filter((_, j) => j !== i))} className="text-slate-400 hover:text-rose-500 cursor-pointer">
+                    <Trash2 size={14} />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="px-4 py-3 border-t border-[#DCE1F1] dark:border-[#1e222d] text-[11px] text-slate-500 leading-relaxed">
+        Kategori taşıyan bir seviye kapatılamaz veya silinemez — önce o kategorileri Kategori→Seviye
+        sekmesinden başka bir seviyeye taşıyın. Yeni seviye eklerseniz <b>Seviye</b> sekmesinde her
+        müşteri için fiyatını girmeyi unutmayın; fiyatı olmayan seviye 0 € faturalanır.
+      </div>
+    </div>
+  );
+}
+
+// ── Sekme 5: Kategori → Seviye (warehouse.item_category.item_labour) ────────
+// Fiyatlandırmanın kural katmanı. Bu tablo Createinvoice makrosu ile MioCreate.xlsx'in
+// birleştirilmiş hâlidir: makronun listelerinde ADI AÇIKÇA geçen kategorilerde makro,
+// tanımadığı kategorilerde Mio belirleyici olmuştur.
+function CategoryRulesGrid({ categories, labours, onSave, saving }) {
+  const [dirty, setDirty] = useState({});
+  const [arama, setArama] = useState('');
+  const [seviyeFiltre, setSeviyeFiltre] = useState('');
+  const [sadeceAktif, setSadeceAktif] = useState(true);
+
+  useEffect(() => { setDirty({}); }, [categories]);
+
+  const val = c => (Object.prototype.hasOwnProperty.call(dirty, c.code) ? dirty[c.code] : c.item_labour);
+
+  const gorunen = useMemo(() => {
+    const q = arama.trim().toLowerCase();
+    return categories.filter(c => {
+      if (sadeceAktif && !c.enabled) return false;
+      if (seviyeFiltre && val(c) !== seviyeFiltre) return false;
+      if (!q) return true;
+      return c.code.toLowerCase().includes(q) || (c.short_name || '').toLowerCase().includes(q);
+    });
+  }, [categories, arama, seviyeFiltre, sadeceAktif, dirty]);
+
+  const kirliSayi = Object.keys(dirty).length;
+
+  const kaydet = () => {
+    const rows = Object.keys(dirty).map(code => ({ code, item_labour: dirty[code] }));
+    if (rows.length) onSave(rows);
+  };
+
+  return (
+    <div className="glass-card rounded-2xl shadow-md overflow-hidden flex flex-col">
+      <div className="p-4 border-b border-[#DCE1F1] dark:border-[#1e222d] bg-[#F5F7FC] dark:bg-[#181a24] flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200 font-bold text-sm">
+          <Tags size={16} className="text-emerald-500" /> Kategori → Seviye
+          <span className="font-normal text-xs text-slate-400">
+            {gorunen.length} / {categories.length} kategori
+          </span>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="relative">
+            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            <input
+              value={arama} onChange={e => setArama(e.target.value)} placeholder="Kategori ara..."
+              className="w-52 pl-8 pr-2 py-2 rounded-xl border border-[#DCE1F1] dark:border-[#2e3545] bg-white dark:bg-[#1e222d] text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <select
+            value={seviyeFiltre} onChange={e => setSeviyeFiltre(e.target.value)}
+            className="px-3 py-2 rounded-xl border border-[#DCE1F1] dark:border-[#2e3545] bg-white dark:bg-[#1e222d] text-xs font-semibold text-slate-800 dark:text-slate-200 cursor-pointer focus:outline-none"
+          >
+            <option value="">Tüm seviyeler</option>
+            {labours.map(l => <option key={l} value={l}>{l}</option>)}
+          </select>
+          <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 cursor-pointer select-none">
+            <input type="checkbox" checked={sadeceAktif} onChange={e => setSadeceAktif(e.target.checked)} className="w-4 h-4 accent-emerald-500 cursor-pointer" />
+            Sadece aktif
+          </label>
+          <button
+            onClick={kaydet}
+            disabled={kirliSayi === 0 || saving}
+            className="flex items-center gap-2 bg-[#00B2FF] hover:bg-[#1e222d] disabled:opacity-40 disabled:cursor-not-allowed text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+          >
+            <Save size={15} /> {saving ? 'Kaydediliyor...' : `Kaydet${kirliSayi > 0 ? ` (${kirliSayi})` : ''}`}
+          </button>
+        </div>
+      </div>
+      <div className="overflow-auto max-h-[60vh]">
+        <table className="text-left text-xs whitespace-nowrap w-full">
+          <thead className="bg-slate-50 dark:bg-[#181a24] text-slate-400 font-semibold uppercase tracking-wider sticky top-0 z-10">
+            <tr>
+              <th className="px-4 py-3 min-w-[260px]">Kategori</th>
+              <th className="px-4 py-3 min-w-[200px]">Departman</th>
+              <th className="px-4 py-3 min-w-[190px]">İşçilik Seviyesi</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-700/30">
+            {gorunen.length === 0 ? (
+              <tr><td colSpan={3} className="px-6 py-8 text-center text-slate-500">Eşleşen kategori yok.</td></tr>
+            ) : gorunen.map(c => {
+              const secili = val(c);
+              const degisti = Object.prototype.hasOwnProperty.call(dirty, c.code);
+              return (
+                <tr key={c.code} className={`transition-colors ${degisti ? 'bg-amber-50 dark:bg-amber-500/10' : 'hover:bg-slate-100 dark:hover:bg-[#1e222d]'}`}>
+                  <td className="px-4 py-2 font-medium text-slate-700 dark:text-slate-300">
+                    {c.code}
+                    {!c.enabled && <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-500">pasif</span>}
+                    {c.short_name && c.short_name !== c.code && (
+                      <span className="ml-2 text-[11px] text-slate-400">{c.short_name}</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-2 text-slate-500">{c.missions || '—'}</td>
+                  <td className="px-2 py-1.5">
+                    <select
+                      value={secili}
+                      onChange={e => setDirty(p => ({ ...p, [c.code]: e.target.value }))}
+                      className={`w-44 px-2 py-1.5 rounded-lg border text-slate-800 dark:text-slate-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                        secili
+                          ? 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#181a24]'
+                          : 'border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-500/10'
+                      }`}
+                    >
+                      <option value="">(işçilik yok)</option>
+                      {labours.map(l => <option key={l} value={l}>{l}</option>)}
+                      {secili && !labours.includes(secili) && (
+                        <option value={secili}>{secili} (pasif seviye)</option>
+                      )}
+                    </select>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <div className="px-4 py-3 border-t border-[#DCE1F1] dark:border-[#1e222d] text-[11px] text-slate-500 leading-relaxed">
+        <b>(işçilik yok)</b> seçili kategoriler fiyatlandırmada seviye doğurmaz — DGD ve SW-Up
+        böyledir; DGD zaten işçilik kaleminin kendisidir. Bir onarımda birden çok parça varsa
+        cihazın seviyesi, parçalarının seviyeleri içinde <b>sırası en büyük</b> olandır.
+      </div>
+    </div>
+  );
+}
+
 export default function LabourPricingMatrices() {
   const [customers, setCustomers] = useState([]);
   const [levelPrices, setLevelPrices] = useState([]);
   const [partorderPrices, setPartorderPrices] = useState([]);
   const [dgdPrices, setDgdPrices] = useState([]);
+  const [levelKeys, setLevelKeys] = useState(null);  // item_labour'dan gelen aktif seviye kodları
+  const [labours, setLabours] = useState([]);        // Seviyeler sekmesi (kullanım sayılarıyla)
+  const [categories, setCategories] = useState([]);  // Kategori→Seviye sekmesi
+  const [labourCodes, setLabourCodes] = useState([]); // atanabilir (aktif) seviye kodları
   const [loading, setLoading] = useState(false);
-  const [savingSection, setSavingSection] = useState(null); // 'level' | 'partorder' | 'dgd' | null
-  const [activeTab, setActiveTab] = useState('level'); // aktif sekme: 'level' | 'partorder' | 'dgd'
+  const [savingSection, setSavingSection] = useState(null); // aktif sekmenin id'si | null
+  const [activeTab, setActiveTab] = useState('level');
 
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [lvl, po, dgd] = await Promise.all([
+      const [lvl, po, dgd, lab, rules] = await Promise.all([
         api.getLevelLabourMatrix(),
         api.getPartorderLabourMatrix(),
         api.getDgdLabourMatrix(),
+        api.getItemLabours(),
+        api.getCategoryLabours(),
       ]);
-      // Müşteri listesi üç sorguda da aynı; ilk başarılı olandan alınır.
-      if (lvl.success) { setCustomers(lvl.customers || []); setLevelPrices(lvl.prices || []); }
+      // Müşteri listesi üç fiyat sorgusunda da aynı; ilk başarılı olandan alınır.
+      if (lvl.success) { setCustomers(lvl.customers || []); setLevelPrices(lvl.prices || []); setLevelKeys(lvl.level_keys || null); }
       if (po.success) { if (!lvl.success) setCustomers(po.customers || []); setPartorderPrices(po.prices || []); }
       if (dgd.success) { if (!lvl.success && !po.success) setCustomers(dgd.customers || []); setDgdPrices(dgd.prices || []); }
+      if (lab.success) setLabours(lab.labours || []);
+      if (rules.success) { setCategories(rules.categories || []); setLabourCodes(rules.labours || []); }
     } finally {
       setLoading(false);
     }
   }, []);
+
+  // Seviye fiyat matrisinin sütunları: backend level_keys verdiyse ondan, vermediyse yedekten.
+  // Böylece Seviyeler sekmesinden seviye açıp kapatmak matrisi anında etkiler.
+  const levelColumns = useMemo(() => (
+    levelKeys && levelKeys.length
+      ? levelKeys.map(k => ({ key: k, label: SEVIYE_ETIKET[k] || k }))
+      : LEVEL_COLUMNS_YEDEK
+  ), [levelKeys]);
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
@@ -174,7 +505,10 @@ export default function LabourPricingMatrices() {
     const res = await saveFn(rows, getCurrentUser()?.username);
     setSavingSection(null);
     if (res.success) {
+      // Seviye kaydı fiyat matrisinin sütunlarını değiştirebilir; her durumda tümü tazelenir.
       await loadAll();
+      if (res.warnings?.length) alert(res.warnings.join('\n'));
+      else if (res.message) alert(res.message);
     } else {
       alert(res.message || 'Kaydetme başarısız oldu.');
     }
@@ -183,27 +517,31 @@ export default function LabourPricingMatrices() {
   // Aktif sekmenin Excel akışı için tek merkezî config: hangi kolonlar, hangi veri, hangi save,
   // hangi dosya adı. Böylece export/şablon/import tek gövdeyle üç sekmeyi de idare eder.
   const importFileInputRef = useRef(null);
+  // Yalnızca FİYAT sekmeleri buraya girer. 'labours' ve 'rules' sekmeleri müşteri × anahtar
+  // matrisi değil, kendi tablolarını yönetir; Excel akışı onlara uygulanmaz (cfg undefined
+  // olur, aşağıdaki her kullanım cfg? ile korunur).
   const TAB_CONFIG = {
-    level: { columns: LEVEL_COLUMNS, priceList: levelPrices, saveFn: api.saveLevelLabourMatrixBatch, file: 'iscilik_seviye_fiyati' },
+    level: { columns: levelColumns, priceList: levelPrices, saveFn: api.saveLevelLabourMatrixBatch, file: 'iscilik_seviye_fiyati' },
     partorder: { columns: PARTORDER_COLUMNS, priceList: partorderPrices, saveFn: api.savePartorderLabourMatrixBatch, file: 'iscilik_parca_sirasi' },
     dgd: { columns: DGD_COLUMNS, priceList: dgdPrices, saveFn: api.saveDgdLabourMatrixBatch, file: 'iscilik_dgd' },
   };
   const cfg = TAB_CONFIG[activeTab];
+  const fiyatSekmesi = !!cfg;
 
   // priceList -> { [customer_code]: { [key]: price } }
   const activePriceMap = useMemo(() => {
     const m = {};
-    for (const p of (cfg.priceList || [])) {
+    for (const p of (cfg?.priceList || [])) {
       if (!m[p.customer_code]) m[p.customer_code] = {};
       m[p.customer_code][p.key] = p.price;
     }
     return m;
-  }, [cfg.priceList]);
+  }, [cfg?.priceList]);
 
   // "Geniş" (wide) Excel: 1. sütun Müşteri (short_name), sonraki sütunlar her key'in label'ı.
   const buildWideRows = (fill) => customers.map(c => {
     const row = { 'Müşteri': c.short_name };
-    for (const col of cfg.columns) {
+    for (const col of (cfg?.columns || [])) {
       row[col.label] = fill === 'data' ? (activePriceMap[c.code]?.[col.key] ?? '') : '';
     }
     return row;
@@ -212,6 +550,7 @@ export default function LabourPricingMatrices() {
   const handleExcelAction = async (e) => {
     const action = e.target.value;
     e.target.value = '';
+    if (!cfg) return; // tanım/kural sekmelerinde Excel akışı yok
     if (action === 'download_template') {
       const rows = buildWideRows('empty');
       if (rows[0] && cfg.columns[0]) rows[0][cfg.columns[0].label] = 0; // örnek değer
@@ -228,7 +567,7 @@ export default function LabourPricingMatrices() {
   // ile eşlenir; label -> key eşlemesi cfg.columns'tan yapılır.
   const handleWideExcelFile = (e) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || !cfg) return;
     const reader = new FileReader();
     reader.onload = async (event) => {
       try {
@@ -296,32 +635,36 @@ export default function LabourPricingMatrices() {
               <Wrench size={13} className="text-emerald-400" /> İŞÇİLİK FİYATLANDIRMA
             </div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#181a24] dark:text-white">
-              İşçilik Fiyatlandırma (Seviye)
+              İşçilik Fiyatlandırma
             </h1>
             <p className="text-sm text-[#4A5A9E] dark:text-slate-300 leading-relaxed">
-              Müşteri başına işçilik ücretleri: onarım seviyesine göre (ilk parça), sonraki parçaların
-              sırasına göre ve DGD durumuna göre. Her tablo ayrı kaydedilir.
+              Fiyatlandırmanın üç katmanı: hangi <b>seviyeler</b> var ve baskınlık sırası nedir,
+              hangi <b>parça kategorisi</b> hangi seviyede, ve her müşteri için o seviyenin
+              <b> fiyatı</b> ne. Her tablo ayrı kaydedilir.
             </p>
           </div>
           <div className="flex items-center gap-3 shrink-0 flex-wrap">
             {/* Excel İşlemleri AKTİF sekmeye uygulanır: şablon/dışa aktar/içe aktar o tablonun
-                kendi sütunlarıyla "geniş" formatta (satır=müşteri, sütun=key). */}
-            <div className="relative">
-              <select
-                onChange={handleExcelAction}
-                value=""
-                className="appearance-none bg-white dark:bg-[#1e222d] hover:bg-[#EFF1FA] dark:hover:bg-[#2e3545] text-[#12141c] dark:text-[#F6F8FF] border border-[#DCE1F1] dark:border-[#2e3545] rounded-xl px-4 py-2.5 pr-9 text-xs font-bold transition-all cursor-pointer focus:outline-none"
-                title="Aktif sekmedeki tabloya uygulanır"
-              >
-                <option value="">Excel İşlemleri ({TABS.find(t => t.id === activeTab)?.label})...</option>
-                <option value="download_template">Boş Şablon İndir</option>
-                <option value="export">Dışa Aktar</option>
-                <option value="import">Excel'den İçe Aktar</option>
-              </select>
-              <div className="absolute inset-y-0 right-0 flex items-center px-2.5 pointer-events-none text-[#5A6685] dark:text-[#8892B5]">
-                <FileSpreadsheet size={15} />
+                kendi sütunlarıyla "geniş" formatta (satır=müşteri, sütun=key). Tanım/kural
+                sekmeleri bu formata girmediğinden orada menü hiç gösterilmez. */}
+            {fiyatSekmesi && (
+              <div className="relative">
+                <select
+                  onChange={handleExcelAction}
+                  value=""
+                  className="appearance-none bg-white dark:bg-[#1e222d] hover:bg-[#EFF1FA] dark:hover:bg-[#2e3545] text-[#12141c] dark:text-[#F6F8FF] border border-[#DCE1F1] dark:border-[#2e3545] rounded-xl px-4 py-2.5 pr-9 text-xs font-bold transition-all cursor-pointer focus:outline-none"
+                  title="Aktif sekmedeki tabloya uygulanır"
+                >
+                  <option value="">Excel İşlemleri ({TABS.find(t => t.id === activeTab)?.label})...</option>
+                  <option value="download_template">Boş Şablon İndir</option>
+                  <option value="export">Dışa Aktar</option>
+                  <option value="import">Excel'den İçe Aktar</option>
+                </select>
+                <div className="absolute inset-y-0 right-0 flex items-center px-2.5 pointer-events-none text-[#5A6685] dark:text-[#8892B5]">
+                  <FileSpreadsheet size={15} />
+                </div>
               </div>
-            </div>
+            )}
             <button
               onClick={loadAll}
               className="flex items-center gap-2 bg-white dark:bg-[#1e222d] hover:bg-[#EFF1FA] dark:hover:bg-[#2e3545] text-[#12141c] dark:text-[#F6F8FF] border border-[#DCE1F1] dark:border-[#2e3545] px-4 py-2.5 rounded-xl text-xs font-bold transition-all"
@@ -366,7 +709,7 @@ export default function LabourPricingMatrices() {
         <SimpleLabourGrid
           title="Seviye İşçilik Fiyatı (ilk parça)"
           icon={Layers}
-          columns={LEVEL_COLUMNS}
+          columns={levelColumns}
           customers={customers}
           priceList={levelPrices}
           onSave={makeSaver('level', api.saveLevelLabourMatrixBatch)}
@@ -395,6 +738,23 @@ export default function LabourPricingMatrices() {
           priceList={dgdPrices}
           onSave={makeSaver('dgd', api.saveDgdLabourMatrixBatch)}
           saving={savingSection === 'dgd'}
+        />
+      )}
+
+      {activeTab === 'labours' && (
+        <LevelDefinitionsGrid
+          labours={labours}
+          onSave={makeSaver('labours', api.saveItemLabours)}
+          saving={savingSection === 'labours'}
+        />
+      )}
+
+      {activeTab === 'rules' && (
+        <CategoryRulesGrid
+          categories={categories}
+          labours={labourCodes}
+          onSave={makeSaver('rules', api.saveCategoryLabours)}
+          saving={savingSection === 'rules'}
         />
       )}
     </div>

@@ -1009,92 +1009,10 @@ export const api = {
         });
     },
 
-    // ── Müşteri İşçilik Fiyatı Matrisi ───────────────────────────
-    // Müşteri Fiyat Matrisi (getPriceMatrix*) wrapper'larının birebir ikizi; tek fark
-    // çağrılan backend Slot'unun customer_labour_prices tablosunu okuması/yazmasıdır.
-    getLabourMatrixCustomers: async () => {
-        const backend = await getBackend();
-        return new Promise((resolve) => {
-            backend.get_labour_matrix_customers((res) => resolve(JSON.parse(res)));
-        });
-    },
-
-    getLabourMatrixBrands: async () => {
-        const backend = await getBackend();
-        return new Promise((resolve) => {
-            backend.get_labour_matrix_brands((res) => resolve(JSON.parse(res)));
-        });
-    },
-
-    getLabourMatrixProductTypes: async (brand) => {
-        const backend = await getBackend();
-        return new Promise((resolve) => {
-            backend.get_labour_matrix_product_types(String(brand || ''), (res) => resolve(JSON.parse(res)));
-        });
-    },
-
-    getLabourMatrixModels: async (brand, productType) => {
-        const backend = await getBackend();
-        return new Promise((resolve) => {
-            backend.get_labour_matrix_models(String(brand || ''), String(productType || ''), (res) => resolve(JSON.parse(res)));
-        });
-    },
-
-    getLabourMatrixCategories: async (brand, model, productType) => {
-        const backend = await getBackend();
-        return new Promise((resolve) => {
-            backend.get_labour_matrix_categories(String(brand || ''), String(model || ''), String(productType || ''), (res) => resolve(JSON.parse(res)));
-        });
-    },
-
-    getLabourMatrixItems: async (search, brand, category, model, productType) => {
-        const backend = await getBackend();
-        return new Promise((resolve) => {
-            backend.get_labour_matrix_items(String(search || ''), String(brand || ''), String(category || ''), String(model || ''), String(productType || ''), async (resStr) => {
-                try {
-                    const res = JSON.parse(resStr);
-                    if (res.fetch_url) {
-                        const fetchRes = await fetch(res.fetch_url, { cache: 'no-store' });
-                        const jsonData = await fetchRes.json();
-                        resolve(jsonData);
-                    } else {
-                        resolve(res);
-                    }
-                } catch (e) {
-                    resolve({ success: false, message: e.message });
-                }
-            });
-        });
-    },
-
-    getLabourMatrix: async (brand, category, model, productType) => {
-        const backend = await getBackend();
-        return new Promise((resolve) => {
-            backend.get_labour_matrix(String(brand || ''), String(category || ''), String(model || ''), String(productType || ''), (res) => resolve(JSON.parse(res)));
-        });
-    },
-
-    saveLabourMatrixBatch: async (rows, username) => {
-        const backend = await getBackend();
-        return new Promise((resolve) => {
-            backend.save_labour_matrix_batch(JSON.stringify(rows || []), String(username || ''), (res) => resolve(JSON.parse(res)));
-        });
-    },
-
-    bulkImportLabourMatrix: async (rows, username) => {
-        const backend = await getBackend();
-        return new Promise((resolve) => {
-            backend.bulk_import_labour_matrix(JSON.stringify(rows || []), String(username || ''), (res) => resolve(JSON.parse(res)));
-        });
-    },
-
-    getLabourPricesForItems: async (itemCodes, customerCode) => {
-        const backend = await getBackend();
-        return new Promise((resolve) => {
-            const csv = Array.isArray(itemCodes) ? itemCodes.join(',') : String(itemCodes || '');
-            backend.get_labour_prices_for_items(csv, String(customerCode || ''), (res) => resolve(JSON.parse(res)));
-        });
-    },
+    // NOT: "Müşteri İşçilik Fiyatı Matrisi" (parça başına sabit işçilik fiyatı)
+    // ekranı ve wrapper'ları kaldırıldı. İşçilik artık seviye modelinden hesaplanıyor:
+    // cihazın en baskın seviyesi + parçanın kaçıncı sırada olduğu. Bir parçanın sabit
+    // işçilik fiyatı diye bir kavram kalmadı; aşağıdaki üç matris geçerli olandır.
 
     // ── Seviye Bazlı İşçilik Fiyatlandırması (pricing.xlsx 3 tablo) ──
     // Üç küçük matris: Seviye / Parça Sırası / DGD. Her biri {customers, prices:[{customer_code,key,price}]}.
@@ -1132,6 +1050,74 @@ export const api = {
         const backend = await getBackend();
         return new Promise((resolve) => {
             backend.save_dgd_labour_matrix_batch(JSON.stringify(rows || []), String(username || ''), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    // ── İşçilik Seviyeleri ve Kategori Kuralları ─────────────────
+    // Fiyatın üstündeki iki katman: hangi seviyeler var (item_labour) ve hangi parça
+    // kategorisi hangi seviyede (item_category.item_labour). İkisi de aynı ekranın
+    // sekmelerinden yönetilir; seviye fiyat matrisinin sütunları buradan türer.
+    getItemLabours: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_item_labours((res) => resolve(JSON.parse(res)));
+        });
+    },
+    saveItemLabours: async (rows, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.save_item_labours(JSON.stringify(rows || []), String(username || ''), (res) => resolve(JSON.parse(res)));
+        });
+    },
+    // ── Müşteriye Sevk / Faturalandırma ─────────────────────────
+    // Fatura müşteri bazında kesilir (cari hesaplar ayrı). getInvoiceableDevices sevk
+    // bekleyen (127) cihazları müşteriye göre gruplu döner; createInvoice o müşterinin
+    // tamamını faturalandırıp cihazları 128'e (çıkış yapıldı) alır; saveInvoiceFile
+    // saklanmış CSV'yi kullanıcının seçtiği yere yazıp açar.
+    getInvoiceableDevices: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_invoiceable_devices((res) => resolve(JSON.parse(res)));
+        });
+    },
+    getInvoices: async (limit) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_invoices(Number(limit || 200), (res) => resolve(JSON.parse(res)));
+        });
+    },
+    createInvoice: async (customerCode, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.create_invoice(String(customerCode || ''), String(username || ''), (res) => resolve(JSON.parse(res)));
+        });
+    },
+    saveInvoiceFile: async (invoiceId) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.save_invoice_file(String(invoiceId || ''), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    // Bir cihazın fatura kırılımı: seviye, parça/işçilik/DGD satırları ve toplam.
+    // İşçilik satır bazındadır (repair_id) çünkü seviye modelinde değer parçanın
+    // kaçıncı sırada olduğuna göre değişir.
+    getDeviceInvoice: async (term) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_device_invoice(String(term || ''), (res) => resolve(JSON.parse(res)));
+        });
+    },
+    getCategoryLabours: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_category_labours((res) => resolve(JSON.parse(res)));
+        });
+    },
+    saveCategoryLabours: async (rows, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.save_category_labours(JSON.stringify(rows || []), String(username || ''), (res) => resolve(JSON.parse(res)));
         });
     },
 

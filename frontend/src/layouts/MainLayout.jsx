@@ -4,7 +4,7 @@ import {
   LogOut, LayoutDashboard, Users, Package, Settings, Bell,
   Warehouse, FileText, BarChart2, Box, Truck, MapPin,
   CheckCircle, Search, AlertTriangle, Zap, RefreshCw, Sun, Moon, Database, Building2, Wrench, ClipboardList, PackagePlus, Tags, ChevronDown, ChevronRight, Menu, X, Layers, FileSpreadsheet,
-  Boxes, ClipboardCheck, Cog, Repeat, DollarSign, Target, ShieldCheck
+  Boxes, ClipboardCheck, Cog, Repeat, DollarSign, Target, ShieldCheck, Receipt
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useTheme } from '../context/ThemeContext';
@@ -161,7 +161,10 @@ export default function MainLayout() {
       items: [
         { name: 'Kayıt kabul yap (100>101)', icon: Boxes, path: '/statu-gecis/SPA_P/100_101' },
         { name: 'İlk teste aktar (101>102)', icon: Boxes, path: '/statu-gecis/SPA_P/101_102' },
-        { name: 'Müşteri için sevket (126>127)', icon: Boxes, path: '/statu-gecis/SPA_P/126_127' }
+        { name: 'Müşteri için sevket (126>127)', icon: Boxes, path: '/statu-gecis/SPA_P/126_127' },
+        // Sevke okutulanların müşteri bazında faturalandırıldığı ekran: fatura kesilince
+        // cihazlar 128'e (çıkış yapıldı) geçer.
+        { name: 'Sevk ve Faturalandırma', icon: Receipt, path: '/musteri-sevk-fatura' }
       ]
     },
     {
@@ -254,8 +257,11 @@ export default function MainLayout() {
         { name: 'Flow → DGD Eşleşmesi', icon: Wrench, path: '/flow-dgd-mapping' },
         { name: 'Müşteri Fiyat Matrisi', icon: DollarSign, path: '/customer-price-matrix' },
         { name: 'Müşteri Hedef Fiyat Matrisi', icon: Target, path: '/customer-target-price-matrix' },
-        { name: 'Müşteri İşçilik Fiyatı Matrisi', icon: Wrench, path: '/customer-labour-price-matrix' },
-        { name: 'İşçilik Fiyatlandırma (Seviye)', icon: Layers, path: '/labour-pricing-matrices' },
+        // "Müşteri İşçilik Fiyatı Matrisi" (parça başına sabit işçilik) kaldırıldı: işçilik
+        // artık seviye modelinden hesaplanıyor (cihazın en baskın seviyesi + parçanın sırası),
+        // dolayısıyla parça başına sabit bir işçilik fiyatı diye bir şey yok. İkisi bir arada
+        // kalsaydı hangisinin faturaya girdiği belirsizleşirdi.
+        { name: 'İşçilik Fiyatlandırma', icon: Layers, path: '/labour-pricing-matrices' },
         { name: 'Etiket Tasarımı', icon: Tags, path: '/etiket-tasarimi' },
         { name: 'Schema Mapper', icon: Database, path: '/schema-mapper' }
       ]
@@ -378,9 +384,9 @@ export default function MainLayout() {
         return { color: '#B27B2F' };
       case '/customer-price-matrix':
         return { color: '#2FA36E' };
-      case '/customer-labour-price-matrix':
-        return { color: '#2FA36E' };
       case '/labour-pricing-matrices':
+        return { color: '#2FA36E' };
+      case '/musteri-sevk-fatura':
         return { color: '#2FA36E' };
       case '/etiket-tasarimi':
         return { color: '#7A54C0' };

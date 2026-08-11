@@ -35,7 +35,8 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
   const [returningDgd, setReturningDgd] = useState(false);
   const [togglingDgdId, setTogglingDgdId] = useState(null);
   const [partPrices, setPartPrices] = useState({}); // { [item_code]: price } - Müşteri Fiyat Matrisi
-  const [labourPrices, setLabourPrices] = useState({}); // { [item_code]: price } - Müşteri İşçilik Fiyatı Matrisi
+  // İşçilik artık parça başına sabit bir tarifeden (customer_labour_prices) okunmuyor;
+  // seviye modelinden, onarım kaydı bazında geliyor - bkz. iscilikSatirlari.
   const [editingRepairId, setEditingRepairId] = useState(null);
   const [deletingRepairId, setDeletingRepairId] = useState(null);
   const editingRepairIdRef = useRef(null);
@@ -335,25 +336,37 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
         setPartPrices(prev => ({ ...prev, ...res.prices }));
       }
     });
-    // İşçilik Fiyatı sütunu: aynı parça kodları için Müşteri İşçilik Fiyatı Matrisi'nden
-    // (customer_labour_prices) müşteriye özel işçilik fiyatını çeker. Eşleşme yoksa "—".
-    api.getLabourPricesForItems(codes, device.customerNo).then(res => {
-      if (res && res.success) {
-        setLabourPrices(prev => ({ ...prev, ...res.prices }));
-      }
-    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [repairs, device?.customerNo]);
 
-  // Teklif Parçaları tablosundaki aktif (iptal edilmemiş) satırların toplam fiyatı -
-  // submit_dismantle_decision'ın (backend, _compute_dismantle_decision) Hedef Fiyat
-  // Matrisi limit kontrolünde topladığı tutarla aynı kaynak (partPrices), bu yüzden
-  // teknisyen karar vermeden önce toplamı burada da görebilir.
-  const totalRepairPrice = useMemo(() => {
+  // İşçilik Fiyatı sütunu SEVİYE MODELİNDEN gelir, parça başına sabit bir tarifeden değil:
+  // ilk parça eklenen parçalar içindeki EN BASKIN seviyenin fiyatını (customer_level_labour_prices),
+  // 2.-5. parça '1-5', 6. ve sonrası '6+' tarifesini alır (customer_partorder_labour_prices).
+  // Bu yüzden değer parça KODUNA değil ONARIM KAYDINA bağlıdır - aynı parça başka cihazda,
+  // hatta aynı cihazda başka sırada, başka işçilik doğurur. Hesabı backend yapar
+  // (_cihaz_fatura_hesabi); ekran tekrar hesaplamaz ki hedef fiyat kontrolüyle aynı
+  // rakamı göstersin.
+  const iscilikSatirlari = useMemo(() => {
+    const m = {};
+    for (const s of (decisionPreview?.invoice_lines || [])) {
+      if (s.repair_id) m[s.repair_id] = s;
+    }
+    return m;
+  }, [decisionPreview]);
+
+  // Hedef fiyat kontrolünün karşılaştırdığı tutar NİHAİ FATURA TOPLAMIDIR:
+  // parça + işçilik + DGD. Backend (_compute_dismantle_decision) bunu hesaplayıp
+  // total_price olarak döner; ekran onu gösterir ki teknisyenin gördüğü rakamla
+  // kararın dayandığı rakam aynı olsun.
+  //
+  // Aşağıdaki yerel toplam yalnızca YEDEK: önizleme henüz gelmediyse boş ekran
+  // yerine parça toplamı gösterilir.
+  const yerelParcaToplami = useMemo(() => {
     return activeRepairs
       .filter(r => r.partItemCode && partPrices[r.partItemCode] !== undefined)
       .reduce((sum, r) => sum + partPrices[r.partItemCode], 0);
   }, [activeRepairs, partPrices]);
+  const totalRepairPrice = decisionPreview?.total_price ?? yerelParcaToplami;
 
   const totalPriceBadgeInfo = useMemo(() => {
     const status = device?.serviceStatus || device?.statuCode;
@@ -654,11 +667,12 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
                           ? <span className="inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold bg-cyan-50 dark:bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-200 dark:border-cyan-500/30">{r.labourLevel}</span>
                           : <span className="text-slate-400 font-normal">—</span>}
                       </td>
-                      {/* İşçilik Fiyatı: Müşteri İşçilik Fiyatı Matrisi'nden (customer_labour_prices)
-                          müşteriye özel değer. Eşleşme yoksa "—". */}
+                      {/* İşçilik Fiyatı: seviye modelinden, onarım kaydı bazında
+                          (bkz. iscilikSatirlari). Parça eklendikçe/çıkarıldıkça sıralar
+                          kayar ve bu değerler backend'de yeniden hesaplanır. */}
                       <td className="px-3 py-2 text-right text-xs font-semibold text-slate-700 dark:text-slate-200">
-                        {r.partItemCode && labourPrices[r.partItemCode] !== undefined
-                          ? `${labourPrices[r.partItemCode].toFixed(2)} ${device?.currency || ''}`.trim()
+                        {iscilikSatirlari[r.id]?.faturalanabilir
+                          ? `${iscilikSatirlari[r.id].iscilik_fiyat.toFixed(2)} ${device?.currency || ''}`.trim()
                           : <span className="text-slate-400 font-normal">—</span>}
                       </td>
                       <td className="px-3 py-2 text-xs text-slate-700 dark:text-slate-300">
@@ -759,8 +773,17 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
               <div>
                 <div className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Toplam</div>
                 <div className={`text-sm font-extrabold tabular-nums ${isPriceExceeded ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`}>
-                  {(decisionPreview?.total_price ?? totalRepairPrice).toFixed(2)} {device?.currency || ''}
+                  {totalRepairPrice.toFixed(2)} {device?.currency || ''}
                 </div>
+                {/* Kırılım: toplamın neden bu rakam olduğu görünsün - hedef limit
+                    karşılaştırması da bu toplam üzerinden yapılıyor. */}
+                {decisionPreview?.labour_total != null && (
+                  <div className="text-[9px] text-slate-400 tabular-nums whitespace-nowrap">
+                    parça {(decisionPreview.parts_total || 0).toFixed(2)}
+                    {' + '}işçilik {(decisionPreview.labour_total || 0).toFixed(2)}
+                    {' + '}DGD {(decisionPreview.dgd_fee || 0).toFixed(2)}
+                  </div>
+                )}
               </div>
               {decisionPreview?.target_price > 0 && (
                 <>
@@ -814,7 +837,7 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
                 : (isProductionReady
                   ? "Cihazı üretime aktarır ve parça barkodlarını basar."
                   : (isPriceExceeded
-                    ? `Parça toplam fiyatı (${(decisionPreview?.total_price || totalRepairPrice).toFixed(2)} ${device?.currency || 'TL'}), hedef limitini (${(decisionPreview?.target_price || 0).toFixed(2)} ${device?.currency || 'TL'}) aştı — cihaz Müşteri Onayına gönderilecek.`
+                    ? `Toplam tutar (${totalRepairPrice.toFixed(2)} ${device?.currency || 'TL'} = parça + işçilik + DGD), hedef limitini (${(decisionPreview?.target_price || 0).toFixed(2)} ${device?.currency || 'TL'}) aştı — cihaz Müşteri Onayına gönderilecek.`
                     : "Cihazı müşteri onayına gönderir ve parça barkodlarını basar.")))}
             className={`h-11 px-5 rounded-xl text-white text-sm font-bold transition-colors shadow-lg disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-2 whitespace-nowrap ${isProductionReady ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20" : "bg-violet-600 hover:bg-violet-700 shadow-violet-500/20"}`}
           >
