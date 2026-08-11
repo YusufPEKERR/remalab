@@ -1107,6 +1107,29 @@ export const api = {
             backend.save_invoice_file(String(invoiceId || ''), (res) => resolve(JSON.parse(res)));
         });
     },
+    // ── Pack List (Sevk Paketleme) ──────────────────────────────
+    // packDevice: sevk bekleyen (127) cihazı okutur; müşterisine sıradaki kutu/sırayı atar
+    // ve cihazı 128'e (çıkış) alır. getPackList: paketlenmiş cihazları müşteriye göre gruplu döner.
+    packDevice: async (searchTerm, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.pack_device(String(searchTerm || ''), String(username || ''), (res) => resolve(JSON.parse(res)));
+        });
+    },
+    getPackList: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_pack_list((res) => resolve(JSON.parse(res)));
+        });
+    },
+    // shipBoxes: seçili kutuları sevk eder (127→128 + pack_list 'shipped' işaretlenir).
+    shipBoxes: async (customerNo, boxNos, username) => {
+        const backend = await getBackend();
+        const csv = (boxNos || []).join(',');
+        return new Promise((resolve) => {
+            backend.ship_boxes(String(customerNo || ''), csv, String(username || ''), (res) => resolve(JSON.parse(res)));
+        });
+    },
 
     // Bir cihazın fatura kırılımı: seviye, parça/işçilik/DGD satırları ve toplam.
     // İşçilik satır bazındadır (repair_id) çünkü seviye modelinde değer parçanın

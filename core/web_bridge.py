@@ -15111,6 +15111,282 @@ class WebBridge(QObject):
         finally:
             db.close()
 
+    # ── PACK LIST (Müşteriye Sevk Paketleme) ──────────────────────────────────
+    # "Müşteri için sevket (126>127)" ekranında bir cihaz okutulunca: müşterisine
+    # (batch_entries.customer_no) göre sıradaki kutu/sıra atanır ve cihaz 126→127'ye
+    # (müşteriye sevkiyat) alınır. Kutu kapasitesi 50:
+    #   seq (müşteri bazında 1..N) -> box_no = (seq-1)//50 + 1, row_no = (seq-1)%50 + 1
+    # Sıra MÜŞTERİ BAZINDA kalıcıdır (pack_list tablosu); başka müşteri araya girse bile
+    # her müşteri kendi kaldığı sıradan devam eder.
+    PACK_BOX_KAPASITE = 50
+    PACK_KAYNAK_STATU = 126   # Depoya sevk edilecek (okutma öncesi)
+    PACK_HEDEF_STATU = 127    # Müşteriye sevkiyat bekleniyor (okutma sonrası)
+
+    def _ensure_pack_list_table(self, db):
+        from sqlalchemy import text
+        db.execute(text("""
+            CREATE TABLE IF NOT EXISTS warehouse.pack_list (
+                id SERIAL PRIMARY KEY,
+                customer_no TEXT NOT NULL,
+                customer_name TEXT,
+                imei_number TEXT,
+                serial_number TEXT,
+                internal_id TEXT,
+                model TEXT,
+                technician TEXT,
+                service_id TEXT,
+                seq INTEGER NOT NULL,
+                box_no INTEGER NOT NULL,
+                row_no INTEGER NOT NULL,
+                batch_entry_id INTEGER,
+                created_by TEXT,
+                created_at TIMESTAMP DEFAULT now()
+            )
+        """))
+        # Eski tabloya (önceki sürümde oluşmuşsa) yeni kolonları güvenle ekle.
+        for kol, tip in (("serial_number", "TEXT"), ("internal_id", "TEXT"),
+                         ("model", "TEXT"), ("technician", "TEXT"),
+                         ("shipped", "BOOLEAN DEFAULT false"), ("shipped_at", "TIMESTAMP"),
+                         ("shipped_by", "TEXT")):
+            db.execute(text(f"ALTER TABLE warehouse.pack_list ADD COLUMN IF NOT EXISTS {kol} {tip}"))
+        # Aynı cihaz (müşteri+IMEI) iki kez paketlenemesin.
+        db.execute(text("""
+            CREATE UNIQUE INDEX IF NOT EXISTS ux_pack_list_customer_imei
+                ON warehouse.pack_list (customer_no, imei_number)
+        """))
+
+    def _cihaz_teknisyeni(self, db, imei, service_id):
+        """Cihaza (IMEI / service_id) atanmış EN GÜNCEL teknisyeni döner (kullanıcı tam adı,
+        yoksa kullanıcı adı). Onarım kaydı yoksa boş döner. Salt-okunur, hata yutulur."""
+        from sqlalchemy import text
+        refs = [r for r in [str(service_id or "").strip(), str(imei or "").strip()] if r]
+        if not refs:
+            return ""
+        try:
+            row = db.execute(text("""
+                SELECT COALESCE(NULLIF(TRIM(u.fullname), ''), rr.assigned_technician) AS tec
+                  FROM warehouse.repair_records rr
+                  LEFT JOIN warehouse.users u ON u.username = rr.assigned_technician
+                 WHERE rr.assigned_technician IS NOT NULL
+                   AND TRIM(rr.assigned_technician) <> ''
+                   AND rr.service_record_id = ANY(:refs)
+                 ORDER BY rr.created_at DESC
+                 LIMIT 1
+            """), {"refs": refs}).mappings().first()
+            return (row["tec"] or "") if row else ""
+        except Exception as e:
+            print(f"[WebBridge] pack teknisyen çözülemedi: {e}")
+            return ""
+
+    @Slot(str, str, result=str)
+    def pack_device(self, search_term, username):
+        """Cihazı okutur: müşterisine sıradaki kutu/sırayı atar ve cihazı 126→127'ye
+        (müşteriye sevkiyat) alır. Kutu kapasitesi 50; sıra müşteri bazında devam eder.
+        Statü geçişi execute_batch_entry_statu_transition ile aynı kuralı kullanır
+        (StateMachineService doğrulaması) - atama ve geçiş tek transaction'da atomiktir."""
+        from models.batch_entry import BatchEntry
+        from models.service_statu import ServiceStatu
+        from services.state_machine_service import StateMachineService
+        from sqlalchemy import func, text
+        db = SessionLocal()
+        try:
+            term = (search_term or "").strip()
+            if len(term) < 2:
+                return json.dumps({"success": False, "message": "Arama terimi çok kısa."})
+            self._ensure_pack_list_table(db)
+
+            term_lower = term.lower()
+            entry = db.query(BatchEntry).filter(
+                (func.lower(func.trim(BatchEntry.imei_number)) == term_lower) |
+                (func.lower(func.trim(BatchEntry.serial_number)) == term_lower) |
+                (func.lower(func.trim(BatchEntry.internal_id)) == term_lower)
+            ).order_by(BatchEntry.id.desc()).first()
+            if not entry:
+                return json.dumps({"success": False, "message": f"Cihaz bulunamadı: {term}"})
+
+            customer_no = (entry.customer_no or "").strip()
+            if not customer_no:
+                return json.dumps({"success": False, "message":
+                    "Cihazın müşterisi tanımlı değil, paketlenemez."})
+
+            imei = (entry.imei_number or "").strip()
+
+            # Zaten paketlenmişse tekrar okutmada aynı kutu/sırayı döndür (mükerrer engellenir).
+            mevcut = db.execute(text("""
+                SELECT box_no, row_no, seq FROM warehouse.pack_list
+                 WHERE customer_no = :cc AND COALESCE(imei_number,'') = :imei
+            """), {"cc": customer_no, "imei": imei}).mappings().first()
+            if mevcut:
+                return json.dumps({"success": True, "already": True,
+                    "message": "Bu cihaz zaten paketlenmiş.",
+                    "customer_no": customer_no, "customer_name": entry.customer_name or "",
+                    "imei_number": imei, "box_no": mevcut["box_no"], "row_no": mevcut["row_no"],
+                }, ensure_ascii=False)
+
+            # Statü kaynak/hedef doğrulaması (okutma ekranındaki 126→127 ile aynı kural).
+            actual = entry.statu_code if entry.statu_code is not None else 100
+            if actual != self.PACK_KAYNAK_STATU:
+                sname = db.query(ServiceStatu).filter_by(code=actual).first()
+                sname = sname.short_name if sname else str(actual)
+                return json.dumps({"success": False, "message":
+                    f"Cihaz sevke uygun statüde değil: {sname} ({actual}). Beklenen: müşteri için sevket ({self.PACK_KAYNAK_STATU})."})
+            if not StateMachineService(db).validate_transition(self.PACK_KAYNAK_STATU, self.PACK_HEDEF_STATU):
+                return json.dumps({"success": False, "message":
+                    f"{self.PACK_KAYNAK_STATU}→{self.PACK_HEDEF_STATU} geçişi tanımlı değil."})
+
+            # Müşteri bazında sıradaki numara.
+            son_seq = db.execute(text("""
+                SELECT COALESCE(MAX(seq), 0) FROM warehouse.pack_list WHERE customer_no = :cc
+            """), {"cc": customer_no}).scalar() or 0
+            seq = int(son_seq) + 1
+            box_no = (seq - 1) // self.PACK_BOX_KAPASITE + 1
+            row_no = (seq - 1) % self.PACK_BOX_KAPASITE + 1
+
+            # Okutma anındaki cihaz künyesi + teknisyeni pakete SNAPSHOT olarak yazılır
+            # (sonradan onarım kaydı değişse de pakette görünen bilgi sabit kalır).
+            serial_no = (entry.serial_number or "").strip()
+            internal_id = (entry.internal_id or "").strip()
+            model = (entry.model or "").strip()
+            technician = self._cihaz_teknisyeni(db, imei, entry.service_id)
+
+            db.execute(text("""
+                INSERT INTO warehouse.pack_list
+                    (customer_no, customer_name, imei_number, serial_number, internal_id,
+                     model, technician, service_id, seq, box_no, row_no,
+                     batch_entry_id, created_by, created_at)
+                VALUES (:cc, :cn, :imei, :serial, :internal, :model, :tec, :sid, :seq, :box, :row,
+                        :bid, :who, now())
+            """), {
+                "cc": customer_no, "cn": entry.customer_name or "", "imei": imei,
+                "serial": serial_no, "internal": internal_id, "model": model, "tec": technician,
+                "sid": str(entry.service_id or ""), "seq": seq, "box": box_no, "row": row_no,
+                "bid": entry.id, "who": username or None,
+            })
+
+            # Cihazı müşteriye sevkiyata (127) al ve geçmişe logla.
+            db.execute(text("""
+                UPDATE warehouse.batch_entries
+                   SET statu_code = :yeni, statu_update_time = now(), updated_at = now()
+                 WHERE id = :id
+            """), {"yeni": self.PACK_HEDEF_STATU, "id": entry.id})
+            self._record_statu_change(
+                db, entry.id, imei, self.PACK_KAYNAK_STATU, self.PACK_HEDEF_STATU,
+                staff=username, note=f"Sevk paketlendi (Box {box_no}, Sıra {row_no})")
+
+            db.commit()
+            return json.dumps({"success": True,
+                "customer_no": customer_no, "customer_name": entry.customer_name or "",
+                "imei_number": imei, "serial_number": serial_no, "internal_id": internal_id,
+                "model": model, "technician": technician,
+                "box_no": box_no, "row_no": row_no, "seq": seq,
+            }, ensure_ascii=False)
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(result=str)
+    def get_pack_list(self):
+        """Paketlenmiş cihazları müşteriye göre gruplu döner (kutu/sıra ile)."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            self._ensure_pack_list_table(db)
+            rows = db.execute(text("""
+                SELECT customer_no, customer_name, imei_number, serial_number, internal_id,
+                       model, technician, box_no, row_no, seq, COALESCE(shipped, false) AS shipped,
+                       created_at
+                  FROM warehouse.pack_list
+                 ORDER BY customer_no, seq
+            """)).mappings().all()
+            gruplar = {}
+            for r in rows:
+                g = gruplar.setdefault(r["customer_no"], {
+                    "customer_no": r["customer_no"], "customer_name": r["customer_name"] or "",
+                    "device_count": 0, "box_count": 0, "rows": [],
+                })
+                g["rows"].append({"imei_number": r["imei_number"] or "",
+                                  "serial_number": r["serial_number"] or "",
+                                  "internal_id": r["internal_id"] or "",
+                                  "model": r["model"] or "",
+                                  "technician": r["technician"] or "",
+                                  "box_no": r["box_no"], "row_no": r["row_no"],
+                                  "shipped": bool(r["shipped"]),
+                                  "created_at": r["created_at"].isoformat() if r["created_at"] else ""})
+                g["device_count"] += 1
+                g["box_count"] = max(g["box_count"], r["box_no"])
+            return json.dumps({"success": True, "groups": list(gruplar.values())},
+                              ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, str, result=str)
+    def ship_boxes(self, customer_no, box_nos_csv, username):
+        """Seçili kutuları sevk eder: o kutulardaki (henüz sevk edilmemiş) cihazları
+        127→128'e (çıkış) alır, geçmişe loglar ve pack_list satırlarını 'shipped' işaretler.
+        box_nos_csv: '1,2,3' gibi virgülle ayrılmış kutu numaraları. Tek transaction'da atomik."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            customer_no = (customer_no or "").strip()
+            if not customer_no:
+                return json.dumps({"success": False, "message": "Müşteri belirtilmedi."})
+            box_nos = []
+            for p in (box_nos_csv or "").split(","):
+                p = p.strip()
+                if p.isdigit():
+                    box_nos.append(int(p))
+            if not box_nos:
+                return json.dumps({"success": False, "message": "Sevk edilecek kutu seçilmedi."})
+
+            self._ensure_pack_list_table(db)
+            rows = db.execute(text("""
+                SELECT id, batch_entry_id, imei_number, box_no
+                  FROM warehouse.pack_list
+                 WHERE customer_no = :cc AND box_no = ANY(:boxes)
+                   AND COALESCE(shipped, false) = false
+            """), {"cc": customer_no, "boxes": box_nos}).mappings().all()
+            if not rows:
+                return json.dumps({"success": False, "message":
+                    "Seçili kutularda sevk edilecek (paketlenmiş, henüz sevk edilmemiş) cihaz yok."})
+
+            sevk_sayisi = 0
+            for r in rows:
+                # Cihaz hâlâ 127'deyse 128'e al ve logla (değilse sadece işaretle).
+                be = None
+                if r["batch_entry_id"]:
+                    be = db.execute(text("""
+                        SELECT id, statu_code FROM warehouse.batch_entries WHERE id = :id
+                    """), {"id": r["batch_entry_id"]}).mappings().first()
+                if be and be["statu_code"] == self._FATURA_KAYNAK_STATU:
+                    db.execute(text("""
+                        UPDATE warehouse.batch_entries
+                           SET statu_code = :yeni, statu_update_time = now(), updated_at = now()
+                         WHERE id = :id
+                    """), {"yeni": self._FATURA_HEDEF_STATU, "id": be["id"]})
+                    self._record_statu_change(
+                        db, be["id"], r["imei_number"],
+                        self._FATURA_KAYNAK_STATU, self._FATURA_HEDEF_STATU,
+                        staff=username, note=f"Sevk edildi (Box {r['box_no']})")
+                db.execute(text("""
+                    UPDATE warehouse.pack_list
+                       SET shipped = true, shipped_at = now(), shipped_by = :who
+                     WHERE id = :id
+                """), {"who": username or None, "id": r["id"]})
+                sevk_sayisi += 1
+
+            db.commit()
+            return json.dumps({"success": True, "shipped_count": sevk_sayisi,
+                               "box_nos": sorted(set(box_nos))}, ensure_ascii=False)
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
     def _get_effective_price(self, db, item_code, customer_code):
         """get_effective_price Slot'unun DB oturumu paylaşan iç hali (aynı kural: önce
         customer_item_prices, yoksa item.satis) - submit_dismantle_decision'ın hedef fiyat

@@ -56,6 +56,7 @@ const CustomerPriceMatrix = dayanikliLazy(() => import('./pages/CustomerPriceMat
 const CustomerTargetPriceMatrix = dayanikliLazy(() => import('./pages/CustomerTargetPriceMatrix'));
 const LabourPricingMatrices = dayanikliLazy(() => import('./pages/LabourPricingMatrices'));
 const MusteriSevkFatura = dayanikliLazy(() => import('./pages/MusteriSevkFatura'));
+const MusteriSevkPaket = dayanikliLazy(() => import('./pages/MusteriSevkPaket'));
 const ServiceRecords = dayanikliLazy(() => import('./pages/ServiceRecords'));
 const BatchEntry = dayanikliLazy(() => import('./pages/BatchEntry'));
 const TestRaporu = dayanikliLazy(() => import('./pages/TestRaporu'));
@@ -140,6 +141,7 @@ function App() {
               <Route path="/service-transition" element={<ServiceTransition />} />
               <Route path="/statu-gecis/MNG1_AS/138_124" element={<AraTestSonuc />} />
               <Route path="/statu-gecis/QAC/125_126" element={<SonTestSonuc />} />
+              <Route path="/statu-gecis/SPA_P/126_127" element={<MusteriSevkPaket />} />
               <Route path="/statu-gecis/:groupKey/:code" element={<BatchStatuTransition />} />
               <Route path="/musteri-onayi" element={<CustomerApprovalDecision />} />
               {/* "Müşteri Onay/Red Geldi" — eskiden düz bir statü geçişi ekranıydı, cihazı
