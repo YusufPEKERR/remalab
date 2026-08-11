@@ -34,12 +34,12 @@ echo [1/4] Private GitHub deposundan en son paket indiriliyor...
 if defined GH_TOKEN goto WITH_TOKEN
 
 echo [INFO] Token bulunamadi, direkt indiriliyor...
-powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Headers @{ 'User-Agent' = 'RemaLabUpdater' } -Uri 'https://github.com/YusufPEKERR/remalab/archive/refs/heads/main.zip' -OutFile 'latest_update.zip'"
+powershell -ExecutionPolicy Bypass -File download_update.ps1 -Url "https://github.com/YusufPEKERR/remalab/archive/refs/heads/main.zip" -OutFile "latest_update.zip"
 goto DO_UNZIP
 
 :WITH_TOKEN
 echo [INFO] GitHub Token (.env GH_TOKEN) ile yetkilendiriliyor...
-powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Headers @{ Authorization = 'Bearer %GH_TOKEN%'; 'User-Agent' = 'RemaLabUpdater' } -Uri 'https://api.github.com/repos/YusufPEKERR/remalab/zipball/main' -OutFile 'latest_update.zip'"
+powershell -ExecutionPolicy Bypass -File download_update.ps1 -Url "https://api.github.com/repos/YusufPEKERR/remalab/zipball/main" -OutFile "latest_update.zip" -Token "%GH_TOKEN%"
 
 :DO_UNZIP
 if not exist latest_update.zip (
