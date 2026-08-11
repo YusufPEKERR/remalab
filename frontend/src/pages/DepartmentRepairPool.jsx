@@ -515,7 +515,7 @@ const DepartmentRepairPool = () => {
                             title="Üst seviye onarımlar bitmeden bu onarıma başlanamaz."
                           >
                             <Clock size={12} />
-                            Sırada Bekliyor (1004)
+                            Yüksek Seviye Onarım Bekleniyor (1004)
                           </span>
                         ) : item.assignedTechnician ? (
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">

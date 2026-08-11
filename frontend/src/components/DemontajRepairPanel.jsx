@@ -372,10 +372,9 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
   const totalRepairPrice = decisionPreview?.total_price ?? yerelParcaToplami;
 
   // ── ONARIM TAKIMINA GÖRE GRUPLAMA ──────────────────────────────
-  // Aynı onarım takımına birden çok parça girildiğinde tablo tek satırda "N parça"
-  // gösterir; satır açılınca parçalar tek tek görünür. Tek parçalı takımlar
-  // gruplanmaz, bugünkü gibi doğrudan satır olarak çizilir - tek parça için
-  // açılır-kapanır başlık gereksiz bir tıklama olurdu.
+  // Tablo her onarım takımını tek satırda "N parça" olarak gösterir; satır açılınca
+  // parçalar tek tek görünür. Takımda tek parça olsa bile başlık çizilir - böylece
+  // ekranın düzeni cihazdan cihaza değişmez, her takım aynı yerde aynı biçimde durur.
   // ETİKETLER BUNDAN ETKİLENMEZ: barkod hâlâ onarım KAYDI başına basılır, iki
   // parçalı bir takım iki etiket üretir (bkz. EtiketYazdirModal.acikOnarimlar).
   const gruplananOnarimlar = useMemo(() => {
@@ -400,9 +399,8 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
     return sira.map(a => harita.get(a));
   }, [repairs]);
 
-  // Çok parçalı gruplar KAPALI başlar (istenen davranış: "tek satırda 2 parça"),
-  // tek parçalılar zaten grup başlığı almaz. Parça eklenip çıkarıldıkça grupların
-  // şekli değişeceği için durum o değiştiğinde sıfırlanır.
+  // Gruplar KAPALI başlar (istenen davranış: "tek satırda 2 parça"). Parça eklenip
+  // çıkarıldıkça grupların şekli değişeceği için durum o değiştiğinde sıfırlanır.
   const grupImzasi = gruplananOnarimlar.map(g => `${g.anahtar}:${g.satirlar.length}`).join("|");
   const [acikGruplar, setAcikGruplar] = useState(() => new Set());
   useEffect(() => { setAcikGruplar(new Set()); }, [grupImzasi]);
@@ -770,17 +768,20 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-[#1e222d]">
                   {gruplananOnarimlar.flatMap(g => {
-                    // Tek parçalı takım: başlık yok, bugünkü gibi düz satır.
-                    if (g.satirlar.length < 2) return g.satirlar.map(satirCiz);
                     const acik = acikGruplar.has(g.anahtar);
                     const aktif = g.satirlar.filter(r => !r.isCancelled);
                     // DGD bir PARÇA değil, Flow'a göre otomatik eklenen işçilik satırıdır;
                     // "N parça" sayısına katılmaz, ayrıca belirtilir.
                     const dgdVar = aktif.some(r => (r.itemCategory || "").toUpperCase() === "DGD");
                     const parcaAdedi = aktif.filter(r => (r.itemCategory || "").toUpperCase() !== "DGD").length;
+                    // Grubun tamamı iptal edilmişse aktif sayısı 0'dır; "0 kayıt" yazmak
+                    // yerine iptal edildiği söylenir (tek satırlı gruplar da artık başlık
+                    // aldığı için bu durum ekrana düşebiliyor).
                     const ozet = parcaAdedi
                       ? `${parcaAdedi} parça${dgdVar ? " + DGD" : ""}`
-                      : (dgdVar ? "DGD işçiliği" : `${aktif.length} kayıt`);
+                      : (dgdVar ? "DGD işçiliği"
+                                : (aktif.length ? `${aktif.length} kayıt`
+                                                : `${g.satirlar.length} iptal edilmiş kayıt`));
                     const parcaTut = aktif.reduce((t, r) =>
                       t + (r.partItemCode && partPrices[r.partItemCode] !== undefined ? partPrices[r.partItemCode] : 0), 0);
                     const iscilikTut = aktif.reduce((t, r) =>
@@ -803,7 +804,7 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
                           parça {parcaTut.toFixed(2)} · işçilik {iscilikTut.toFixed(2)} {device?.currency || ''}
                         </td>
                         <td colSpan={4} className="px-3 py-2 text-right text-[11px] text-slate-400">
-                          {acik ? "gizlemek için tıklayın" : "parçaları görmek için tıklayın"}
+                          {acik ? "gizlemek için tıklayın" : "ayrıntı için tıklayın"}
                         </td>
                       </tr>,
                       ...(acik ? g.satirlar.map(satirCiz) : []),

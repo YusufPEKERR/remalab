@@ -3,7 +3,7 @@ import { useLocation } from "react-router-dom";
 import {
   Search, Plus, Play, AlertTriangle, Shield, Battery,
   BatteryCharging, Cpu, X, ChevronLeft, ChevronRight, Wrench,
-  CheckCircle, Clock, Package, ArrowRightLeft, Info, User
+  CheckCircle, Clock, Package, ArrowRightLeft, Info, User, Trash2
 } from "lucide-react";
 import { api } from "../services/api";
 import PartSelectCombobox from "../components/PartSelectCombobox";
@@ -27,16 +27,32 @@ function getCurrentUser() {
 
 
 // ─── REPAIR STATUS CODES ────────────────────────────────────────────
+// Bu ekranın açtığı TEK cihaz statüsü: warehouse.service_statu 109
+// "Production in Progress" (backend karşılığı WebBridge._URETIM_STATUSU).
+const URETIM_STATUSU = 109;
+
+// Reddedilen cihazın nerede olduğunu söyleyebilmek için statü adları.
+// Yalnızca hata mesajında kullanılır; kaynak warehouse.service_statu.short_name.
+const STATU_ADLARI = {
+  100: "Ön Bildirim Yapıldı", 101: "Depo Girişi Tamamlandı", 102: "İlk Teste Aktarıldı",
+  103: "İlk Test Bekleniyor", 104: "İlk Test Tamamlandı", 105: "Üretim Planlaması Bekleniyor",
+  106: "Müşteri Onayına Gönderilecek", 107: "Müşteri Onayı Bekleniyor",
+  109: "Üretim Aşamasında", 124: "Son Teste Teslim Edilecek", 125: "Son Teste Kabul Edildi",
+  126: "Depoya Sevk Edilecek", 127: "Müşteriye Sevk Bekleniyor", 128: "Serbest Bırakıldı",
+  133: "Montaj Tamamlandı", 134: "RMA İncelemesi", 135: "İade Öncesi Son Teste Gönderildi",
+  136: "Müşteri Onay/Red Geldi", 138: "Ara Test Bekleniyor",
+};
+
 // warehouse.repair_result_type tablosundaki gerçek statü kodları/anlamları.
 const REPAIR_STATUS = {
   1000: { label: "Teknisyene Atanacak", color: "bg-slate-500", textColor: "text-slate-600 dark:text-slate-400", bgLight: "bg-slate-100 dark:bg-slate-800" },
   1001: { label: "Teknisyene Atandı", color: "bg-blue-500", textColor: "text-blue-600 dark:text-blue-400", bgLight: "bg-blue-50 dark:bg-blue-500/10" },
   1002: { label: "Onarım Tamamlandı", color: "bg-emerald-500", textColor: "text-emerald-600 dark:text-emerald-400", bgLight: "bg-emerald-50 dark:bg-emerald-500/10" },
   1003: { label: "Onarım İptal Edildi", color: "bg-red-500", textColor: "text-red-600 dark:text-red-400", bgLight: "bg-red-50 dark:bg-red-500/10" },
-  // 1004'ün veritabanındaki adı "Yüksek Seviye Onarımını Bekliyor" ama rozete
-  // sığmıyor ve satırı taşırıyordu. Ekranın kendi çipi ve Onarım Havuzu zaten
-  // "Sırada Bekliyor" diyor; rozet de onlarla aynı metni kullanır.
-  1004: { label: "Sırada Bekliyor", color: "bg-violet-500", textColor: "text-violet-600 dark:text-violet-400", bgLight: "bg-violet-50 dark:bg-violet-500/10" },
+  // 1004 = kendinden yüksek seviyeli bir onarım hâlâ açık olduğu için sırası
+  // gelmemiş kayıt. "Sırada Bekliyor" neyin beklendiğini söylemiyordu; metin
+  // veritabanındaki anlamıyla aynı olsun diye açıkça yazılır.
+  1004: { label: "Yüksek Seviye Onarım Bekleniyor", color: "bg-violet-500", textColor: "text-violet-600 dark:text-violet-400", bgLight: "bg-violet-50 dark:bg-violet-500/10" },
   1005: { label: "Onarım Müşteri Onayı Bekliyor", color: "bg-amber-500", textColor: "text-amber-600 dark:text-amber-400", bgLight: "bg-amber-50 dark:bg-amber-500/10" },
   1006: { label: "Onarım Testi Bekleniyor", color: "bg-cyan-500", textColor: "text-cyan-600 dark:text-cyan-400", bgLight: "bg-cyan-50 dark:bg-cyan-500/10" },
   1007: { label: "Onarım Testi Başarısız", color: "bg-orange-500", textColor: "text-orange-600 dark:text-orange-400", bgLight: "bg-orange-50 dark:bg-orange-500/10" },
@@ -633,6 +649,23 @@ const TechnicianRepairOperations = () => {
       const productInfo = [d.model, d.gb, d.color].filter(Boolean).join(" ");
       const batchStatusCode = (d.statu_code !== null && d.statu_code !== undefined) ? Number(d.statu_code) : null;
 
+      // BU EKRAN YALNIZCA ÜRETİMDEKİ CİHAZI AÇAR.
+      // 109 = "Production in Progress" (backend'de _URETIM_STATUSU). Kapı burada,
+      // get_repair_operations_by_imei'de DEĞİL: aynı slot 105'teki cihazı gösteren
+      // Demontaj/Üretime Aktar ekranı tarafından da kullanılıyor, oraya konulan bir
+      // kısıt o ekranı da kapatırdı.
+      if (batchStatusCode !== URETIM_STATUSU) {
+        showNotif(
+          "error",
+          "Cihaz Üretimde Değil",
+          `Bu ekran yalnızca üretim aşamasındaki (${URETIM_STATUSU}) cihazları açar. `
+          + `"${imei}" şu anda ${batchStatusCode !== null ? `${batchStatusCode} — ${STATU_ADLARI[batchStatusCode] || "bilinmeyen statü"}` : "statüsüz"} durumunda.`
+        );
+        setDevice(null);
+        setRepairs([]);
+        return;
+      }
+
       let repairLink = null;
       try {
         const repairRes = await api.getRepairOperationsByImei(imei);
@@ -945,29 +978,51 @@ const TechnicianRepairOperations = () => {
     }
   }, [device, refreshRepairs, showNotif]);
 
-  // ── Tekil Onarım İptali (Sert Engelleme) ───────────────────────
-  // Tek bir görev grubunu (ör. sadece Batarya) diğerlerine dokunmadan iptal eder.
-  // Cihaz İade Prosedürü'ndeki AYNI korumayla çalışır: parça stok takipliyse ve hâlâ
-  // 'Stoktan Çıktı' ise reddedilir - önce depocuya teslim edilmeli.
-  const handleCancelRepair = useCallback(async (repair) => {
+  // ── Parça Silme (Sert Engelleme) ───────────────────────────────
+  // Onarım Parçaları bölümündeki tek bir PARÇA satırını siler; aynı onarımın
+  // diğer parçalarına ve diğer görev gruplarına dokunmaz. Kayıt fiziksel olarak
+  // silinmez, 1003 (Onarım İptal Edildi) yapılır - fatura, geçmiş ve etiket
+  // tarafı iptal edilmiş kayıtları görmeye devam etmeli.
+  //
+  // Cihaz İade Prosedürü'ndeki AYNI korumayla çalışır: parça stok takipliyse ve
+  // hâlâ 'Stoktan Çıktı' ise reddedilir - önce depocuya teslim edilmeli.
+  //
+  // DGD'YE HİÇBİR KOŞULDA DOKUNULMAZ. DGD teknisyenin girdiği bir parça değil,
+  // Flow'a göre eklenen işçilik satırıdır; silinemez ve statüsü ASLA 1003 olmaz -
+  // grubun içinde hiç parça kalmasa bile. Kullanıcı düğmesi çizilmediği gibi,
+  // aşağıdaki hiçbir otomatik adım da DGD kaydına yazmaz.
+  const handleDeletePart = useCallback(async (repair) => {
     if (!repair || repair.isCancelled) return;
+    if ((repair.itemCategory || "").toUpperCase() === "DGD") return;
     if (!repair.isStoksuz && repair.isDelivered) {
       showNotif(
         "error",
-        "İptal Edilemez",
+        "Silinemez",
         `'${repair.partName || repair.partItemCode}' parçası hâlâ depoda görünmüyor (Stoktan Çıktı). Parçayı depocuya teslim edin — depocu 'Depo → Parça Teslim' ekranından geri alma işlemini tamamladıktan sonra tekrar deneyin.`
       );
       return;
     }
+    // updateRepairStatus DEĞİL: o, onarımı bütün olarak işler (aynı görev grubundaki
+    // tüm açık satırlar) ve tek parça silmek isterken grubun tamamını kapatırdı.
     setCancellingRepairId(repair.id);
-    const res = await api.updateRepairStatus(repair.id, "1003", getCurrentUser()?.username);
-    setCancellingRepairId(null);
+    const res = await api.cancelRepairPart(repair.id, getCurrentUser()?.username);
     if (!res || !res.success) {
-      showNotif("error", "İptal Edilemedi", res?.message || "İşlem başarısız oldu.");
+      setCancellingRepairId(null);
+      showNotif("error", "Silinemedi", res?.message || "İşlem başarısız oldu.");
       return;
     }
+
+    // Silinen satır dışında hiçbir kayda dokunulmaz. Grupta yalnızca DGD kalsa
+    // bile DGD açık kalır; grubun tamamı ancak kullanıcı tüm gerçek parçaları
+    // tek tek sildiğinde kapanır (DGD'si olmayan gruplarda kendiliğinden olur).
+    setCancellingRepairId(null);
     await refreshRepairs();
-    showNotif("success", "Onarım İptal Edildi", `${takimAdi(repair.missionGroupCode, repair.missionGroup)} onarımı iptal edildi.`);
+    showNotif(
+      "success",
+      "Parça Silindi",
+      `'${repair.partName || repair.partItemCode || repair.itemCategory}' parçası `
+      + `${takimAdi(repair.missionGroupCode, repair.missionGroup)} onarımından silindi.`
+    );
   }, [refreshRepairs, showNotif]);
 
   // ── Toggle Repair Charge Type ─────────────────────────────────
@@ -1472,7 +1527,7 @@ const TechnicianRepairOperations = () => {
                   className="px-3.5 py-2 rounded-xl bg-violet-600/20 text-violet-700 dark:text-violet-300 border border-violet-500/30 text-xs font-bold flex items-center gap-1.5"
                   title="Görev grubu sırası: önce üst seviye onarımlar (RMA → L3 → Batarya/Kamera/Kasa/Ekran → L1/L2) bitmeli. Onlar kapandığında bu onarım kendiliğinden açılır."
                 >
-                  <Clock size={14} /> Sırada Bekliyor
+                  <Clock size={14} /> Yüksek Seviye Onarım Bekleniyor
                 </span>
               )}
               {selectedRepair && selectedRepair.statusCode !== 1002 && selectedRepair.statusCode !== 1003 && selectedRepair.statusCode !== 1006 && selectedRepair.statusCode !== 1004 && (() => {
@@ -1557,7 +1612,10 @@ const TechnicianRepairOperations = () => {
                   <th className="text-left px-3 py-3">Alt Statü</th>
                   <th className="text-left px-3 py-3">Tarih</th>
                   <th className="text-center px-3 py-3">Ücret</th>
-                  <th className="text-center px-3 py-3">İşlemler</th>
+                  {/* "İşlemler" sütunu YOK. Silme buraya değil Onarım Parçaları
+                      bölümüne ait: bu grid bir görev grubunu TEK satırda özetliyor,
+                      oradaki tek düğme grubun hangi kaydını sildiğini belirsiz
+                      bırakıyordu. Artık silinecek parça tek tek seçiliyor. */}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-[#1e222d]">
@@ -1580,21 +1638,6 @@ const TechnicianRepairOperations = () => {
                         className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold border cursor-pointer hover:opacity-80 transition-opacity disabled:cursor-not-allowed ${CHARGE_TYPES[g.active.chargeType]?.bg} ${CHARGE_TYPES[g.active.chargeType]?.color}`}
                       >
                         {CHARGE_TYPES[g.active.chargeType]?.label}
-                      </button>
-                    </td>
-                    <td className="px-3 py-3 text-center">
-                      {/* Tekil onarım iptali: bu görev grubunu (ör. sadece Batarya) diğer
-                          gruplara dokunmadan iptal eder. Parça 'Stoktan Çıktı' ise backend
-                          reddeder (_repair_cancellation_blocker), burada da önden aynı
-                          kontrolle engellenir - handleCancelRepair. */}
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); handleCancelRepair(g.active); }}
-                        disabled={!hasAccess || g.active.isCancelled || g.active.statusCode === 1002 || cancellingRepairId === g.active.id}
-                        title="Onarımı İptal Et"
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
-                      >
-                        <X size={16} />
                       </button>
                     </td>
                   </tr>
@@ -1662,6 +1705,7 @@ const TechnicianRepairOperations = () => {
                     <th className="text-left px-3 py-2.5">Açıklama</th>
                     {/* "Durum" sütunu YOK: statü zaten üstteki Onarım Detay
                         satırında/sekmesinde görünüyor, burada tekrar edilmiyor. */}
+                    <th className="text-center px-3 py-2.5">İşlemler</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-[#1e222d]">
@@ -1718,6 +1762,25 @@ const TechnicianRepairOperations = () => {
                         )}
                       </td>
                       <td className="px-3 py-2.5 text-xs text-slate-500 dark:text-slate-400">{r.notes || "N/A"}</td>
+                      {/* Parça bazında silme. DGD satırında düğme hiç çizilmez:
+                          Flow'un eklediği işçilik satırı elle silinemez, grubun son
+                          gerçek parçası gidince kendiliğinden iptale düşer
+                          (bkz. handleDeletePart). */}
+                      <td className="px-3 py-2.5 text-center">
+                        {(r.itemCategory || "").toUpperCase() === "DGD" ? (
+                          <span className="text-[10px] text-slate-400" title="DGD, Flow'a göre otomatik eklenen işçilik satırıdır; silinemez.">—</span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleDeletePart(r)}
+                            disabled={!hasAccess || r.isCancelled || r.statusCode === 1002 || cancellingRepairId === r.id}
+                            title="Bu parçayı sil"
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

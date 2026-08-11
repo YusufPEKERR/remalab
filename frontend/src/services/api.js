@@ -1303,6 +1303,15 @@ export const api = {
         });
     },
 
+    // Tek bir PARÇA satırını siler (1003). updateRepairStatus grup kapsamında
+    // çalışır, bu ise yalnızca verilen kaydı işler - bkz. cancel_repair_part.
+    cancelRepairPart: async (repairId, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.cancel_repair_part(String(repairId), String(username || ''), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
     updateRepairStatus: async (repairId, newStatusCode, username) => {
         const backend = await getBackend();
         return new Promise((resolve) => {

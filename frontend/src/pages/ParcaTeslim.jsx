@@ -432,7 +432,7 @@ export default function ParcaTeslim() {
                                   : "Üst seviye onarımlar tamamlanmadan bu parça teslim edilemez."}
                               >
                                 <Clock size={14} />
-                                Sırada Bekliyor{p.waitingFor ? ` — önce ${p.waitingFor}` : ""}
+                                Yüksek Seviye Onarım Bekleniyor{p.waitingFor ? ` — önce ${p.waitingFor}` : ""}
                               </span>
                             </div>
                           ) : (

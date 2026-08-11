@@ -16462,6 +16462,18 @@ class WebBridge(QObject):
                 else:
                     applied_message = "Onarım tamamlandı."
             elif target_code == 1003:
+                # DGD ASLA İPTAL EDİLMEZ. DGD teknisyenin girdiği bir parça değil,
+                # Flow'a göre eklenen işçilik satırıdır; grubun içinde hiç parça
+                # kalmasa bile 1003'e düşmez. İptal grup kapsamında çalıştığı için
+                # (aynı service_record_id + department_mission) DGD satırı yanlışlıkla
+                # kapsama giriyordu: "L1/L2 Onarımına Al" DGD'nin department_mission'ını
+                # L1REPAIR/L2REPAIR yaptığı anda o grubun iptali DGD'yi de kapatırdı.
+                grup_kayitlari = [k for k in grup_kayitlari if not self._dgd_kaydi_mi(db, k)]
+                if not grup_kayitlari:
+                    return json.dumps({
+                        "success": False,
+                        "message": "DGD işçilik satırı iptal edilemez."
+                    }, ensure_ascii=False)
                 for k in grup_kayitlari:
                     engel = self._repair_cancellation_blocker(db, k)
                     if engel:
@@ -16492,6 +16504,84 @@ class WebBridge(QObject):
                 "affected": len(grup_kayitlari),
                 "autoSentToTest": bool(otomatik),
                 "message": applied_message,
+            }, ensure_ascii=False)
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)}, ensure_ascii=False)
+        finally:
+            db.close()
+
+    def _dgd_kaydi_mi(self, db, rec):
+        """Kayıt DGD işçilik satırı mı? Kategori kaydın kendi alanında da olabilir,
+        yalnızca parça kartında da (repair_records.item_category boş bırakılıp
+        part_item_code üzerinden çözülen kayıtlar var)."""
+        from sqlalchemy import text
+        if (getattr(rec, "item_category", None) or "").strip().upper() == "DGD":
+            return True
+        kod = (getattr(rec, "part_item_code", None) or "").strip()
+        if not kod:
+            return False
+        kat = db.execute(
+            text("SELECT item_category FROM warehouse.parts WHERE item_code = :c LIMIT 1"),
+            {"c": kod}).scalar()
+        return (kat or "").strip().upper() == "DGD"
+
+    @Slot(str, str, result=str)
+    def cancel_repair_part(self, repair_id, username):
+        """Üretim Kaydını Görüntüle → Onarım Parçaları: TEK BİR PARÇA satırını siler.
+
+        update_repair_status'tan farkı KAPSAM: orası bir onarımı bütün olarak işler
+        (aynı cihaz + aynı görev grubundaki tüm açık satırlar), çünkü "Onarımı
+        Tamamla" grubun tamamını kapatmalı. Parça silme ise tam tersini ister -
+        kullanıcı listeden hangi parçayı seçtiyse yalnızca o gitmeli, aynı onarımın
+        diğer parçaları yerinde kalmalı.
+
+        Kayıt fiziksel olarak silinmez, 1003 (Onarım İptal Edildi) yapılır; fatura,
+        geçmiş ve etiket tarafı iptal edilmiş kayıtları görmeye devam eder.
+        DGD satırı hiçbir koşulda silinmez."""
+        from models.repair_record import RepairRecord
+        db = SessionLocal()
+        try:
+            rec = db.query(RepairRecord).filter(RepairRecord.id == repair_id).first()
+            if not rec:
+                return json.dumps({"success": False, "message": "Onarım kaydı bulunamadı."})
+
+            user_missions, is_admin = self._get_user_missions(db, username)
+            if not is_admin:
+                required = self._get_required_mission_for_ref(db, rec.service_record_id)
+                if required and required not in user_missions:
+                    return json.dumps({"success": False, "message": f"Bu işlem için '{required}' yetkisi gerekiyor."})
+
+            if self._dgd_kaydi_mi(db, rec):
+                return json.dumps({
+                    "success": False,
+                    "message": "DGD işçilik satırı silinemez. Flow'a göre eklenir, elle kaldırılamaz."
+                }, ensure_ascii=False)
+
+            if int(rec.repair_result_type_code or 0) == 1003:
+                return json.dumps({"success": False, "message": "Bu parça zaten silinmiş."})
+
+            # Depoya iade edilmemiş parça kuralı: iptal ile aynı engel.
+            engel = self._repair_cancellation_blocker(db, rec)
+            if engel:
+                return json.dumps({"success": False, "message": engel}, ensure_ascii=False)
+
+            rec.repair_result_type_code = 1003
+            rec.closed_at = _dt.datetime.utcnow()
+            db.flush()
+
+            # Bu satırın kapanmasıyla bir alt seviyenin sırası gelmiş olabilir.
+            self._sync_hierarchy_wait(db, rec.service_record_id)
+            # Cihazda açık iş kalmadıysa Ara Test'e geçiş yine kendiliğinden olur -
+            # DGD satırı açık kaldığı sürece bu tetiklenmez, kural gereği öyle olmalı.
+            otomatik = self._auto_send_to_intermediate_test(db, rec.service_record_id, username)
+            db.commit()
+
+            return json.dumps({
+                "success": True,
+                "autoSentToTest": bool(otomatik),
+                "message": "Parça silindi." + (
+                    " Cihazın tüm onarımları kapandı — Ara Test Bekleniyor (138)." if otomatik else "")
             }, ensure_ascii=False)
         except Exception as e:
             db.rollback()
