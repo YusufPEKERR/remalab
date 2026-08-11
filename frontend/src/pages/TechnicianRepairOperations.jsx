@@ -8,6 +8,7 @@ import {
 import { api } from "../services/api";
 import PartSelectCombobox from "../components/PartSelectCombobox";
 import { mevcutParcaSiniflari, mevcutParcaKodlari, parcaEngeli } from "../constants/parcaCakismaKurallari";
+import { statuAdi } from "../constants/statuAdlari";
 
 // Görev grubunun ekranda görünen adı. DGD (department_mission='DISMANTLE') kendi
 // takımı olmayan bir işçilik kaydıdır; cihaz L1'deyse "L1 Onarımı", L2'deyse
@@ -30,18 +31,6 @@ function getCurrentUser() {
 // Bu ekranın açtığı TEK cihaz statüsü: warehouse.service_statu 109
 // "Production in Progress" (backend karşılığı WebBridge._URETIM_STATUSU).
 const URETIM_STATUSU = 109;
-
-// Reddedilen cihazın nerede olduğunu söyleyebilmek için statü adları.
-// Yalnızca hata mesajında kullanılır; kaynak warehouse.service_statu.short_name.
-const STATU_ADLARI = {
-  100: "Ön Bildirim Yapıldı", 101: "Depo Girişi Tamamlandı", 102: "İlk Teste Aktarıldı",
-  103: "İlk Test Bekleniyor", 104: "İlk Test Tamamlandı", 105: "Üretim Planlaması Bekleniyor",
-  106: "Müşteri Onayına Gönderilecek", 107: "Müşteri Onayı Bekleniyor",
-  109: "Üretim Aşamasında", 124: "Son Teste Teslim Edilecek", 125: "Son Teste Kabul Edildi",
-  126: "Depoya Sevk Edilecek", 127: "Müşteriye Sevk Bekleniyor", 128: "Serbest Bırakıldı",
-  133: "Montaj Tamamlandı", 134: "RMA İncelemesi", 135: "İade Öncesi Son Teste Gönderildi",
-  136: "Müşteri Onay/Red Geldi", 138: "Ara Test Bekleniyor",
-};
 
 // warehouse.repair_result_type tablosundaki gerçek statü kodları/anlamları.
 const REPAIR_STATUS = {
@@ -659,7 +648,7 @@ const TechnicianRepairOperations = () => {
           "error",
           "Cihaz Üretimde Değil",
           `Bu ekran yalnızca üretim aşamasındaki (${URETIM_STATUSU}) cihazları açar. `
-          + `"${imei}" şu anda ${batchStatusCode !== null ? `${batchStatusCode} — ${STATU_ADLARI[batchStatusCode] || "bilinmeyen statü"}` : "statüsüz"} durumunda.`
+          + `"${imei}" şu anda ${batchStatusCode !== null ? `${batchStatusCode} — ${statuAdi(batchStatusCode, "bilinmeyen statü")}` : "statüsüz"} durumunda.`
         );
         setDevice(null);
         setRepairs([]);

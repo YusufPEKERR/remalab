@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Search, Zap, CheckCircle, AlertTriangle, X, ArrowRight } from "lucide-react";
 import { api } from "../services/api";
+import { statuAdi } from "../constants/statuAdlari";
 
 const NotificationToast = ({ notification, onClose }) => {
   if (!notification) return null;
@@ -55,9 +56,11 @@ export default function StatuKontrol() {
     setTimeout(() => setNotification(null), 5000);
   };
 
+  // service_statu.short_name İngilizce; ekranda Türkçe karşılığı gösterilir,
+  // karşılık yoksa kaynaktaki ada düşülür (bkz. constants/statuAdlari).
   const currentStatuName = (code) => {
     const s = statuList.find((x) => x.code === code);
-    return s ? s.short_name : String(code);
+    return statuAdi(code, s ? s.short_name : "");
   };
 
   const handleSearch = async (e) => {
@@ -188,7 +191,7 @@ export default function StatuKontrol() {
               >
                 {statuList.map((s) => (
                   <option key={s.code} value={s.code}>
-                    {s.code} — {s.short_name}
+                    {s.code} — {statuAdi(s.code, s.short_name)}
                   </option>
                 ))}
               </select>
