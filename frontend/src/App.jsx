@@ -143,11 +143,15 @@ function App() {
               <Route path="/statu-gecis/QAC/125_126" element={<SonTestSonuc />} />
               <Route path="/statu-gecis/SPA_P/126_127" element={<MusteriSevkPaket />} />
               <Route path="/statu-gecis/:groupKey/:code" element={<BatchStatuTransition />} />
-              <Route path="/musteri-onayi" element={<CustomerApprovalDecision />} />
-              {/* "Müşteri Onay/Red Geldi" — eskiden düz bir statü geçişi ekranıydı, cihazı
-                  yalnızca 107'den 136'ya taşıyordu ve orada bırakıyordu (136'dan çıkan aktif
-                  geçiş yoktu, cihaz kilitleniyordu). Artık kararın verildiği ekran burası:
-                  akış şemasındaki 107 → 136 → 109/124 zincirini tek işlemde yürütür. */}
+              <Route path="/musteri-onayi" element={
+                <CustomerApprovalDecision
+                  sourceStatu={106}
+                  autoTargetStatu={107}
+                  rozet="MÜŞTERİ ONAYINA SUNULACAK"
+                  baslik="Müşteri Onayı Bekleyecek Cihazlar"
+                  bosMetin="Müşteri onayına sunulacak (106) cihaz bulunmuyor."
+                />
+              } />
               <Route path="/musteri-onay-red" element={
                 <CustomerApprovalDecision
                   sourceStatu={107}

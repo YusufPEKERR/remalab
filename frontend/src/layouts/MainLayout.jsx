@@ -240,7 +240,7 @@ export default function MainLayout() {
       colorTheme: 'purple',
       items: [
         { name: 'Müşteri onayı bekleyecek', icon: Repeat, path: '/musteri-onayi' },
-        // { name: 'Müşteri Onay/Red Geldi', icon: Repeat, path: '/musteri-onay-red' }, // gizlendi
+        { name: 'Müşteri Onay/Red Geldi', icon: Repeat, path: '/musteri-onay-red' },
         { name: 'Ara Test Yap (138>124)', icon: Repeat, path: '/statu-gecis/MNG1_AS/138_124' }
       ]
     },

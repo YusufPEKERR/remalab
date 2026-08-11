@@ -1250,6 +1250,13 @@ export const api = {
         });
     },
 
+    cancelRepairRecord: async (repairId, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.cancel_repair_record(String(repairId), String(username || ''), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
     getItemFaults: async () => {
         const backend = await getBackend();
         return new Promise((resolve) => {

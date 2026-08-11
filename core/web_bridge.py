@@ -15847,6 +15847,31 @@ class WebBridge(QObject):
         finally:
             db.close()
 
+    @Slot(str, str, result=str)
+    def cancel_repair_record(self, repair_id, username):
+        """Bir onarım kaydını silmeden iptal eder: repair_result_type_code = 1003
+        (Onarım İptal Edildi) olarak günceller. Kayıt veritabanında kalır, tabloda
+        soluk ve 'İptal Edildi' etiketiyle görünür. Müşteri Onay/Red ekranından
+        tek tek parça iptali için kullanılır."""
+        db = SessionLocal()
+        try:
+            from models.repair_record import RepairRecord
+            rec = db.query(RepairRecord).filter(RepairRecord.id == repair_id).first()
+            if not rec:
+                return json.dumps({"success": False, "message": "Onarım kaydı bulunamadı."})
+
+            if rec.repair_result_type_code == 1003:
+                return json.dumps({"success": False, "message": "Bu kayıt zaten iptal edilmiş."})
+
+            rec.repair_result_type_code = 1003
+            db.commit()
+            return json.dumps({"success": True, "message": "Onarım kaydı iptal edildi (1003)."})
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
     def _compute_dismantle_decision(self, db, imei, entry):
         """submit_dismantle_decision'ın SAF karar hesaplaması: statü mutasyonu YAPMAZ,
         sadece kategori onayı + Müşteri Hedef Fiyat Matrisi limit kontrolünü hesaplayıp
