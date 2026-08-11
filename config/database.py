@@ -139,7 +139,6 @@ def init_database_schema():
     from models.flow_dgd_mapping import FlowDgdMapping
     from models.customer_item_price import CustomerItemPrice
     from models.customer_target_price import CustomerTargetPrice
-    from models.customer_labour_price import CustomerLabourPrice
     from models.customer_level_labour_price import CustomerLevelLabourPrice
     from models.customer_partorder_labour_price import CustomerPartorderLabourPrice
     from models.customer_dgd_labour_price import CustomerDgdLabourPrice
