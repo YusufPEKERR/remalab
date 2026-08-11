@@ -510,12 +510,8 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
                                 : "border-l-transparent hover:bg-slate-50 dark:hover:bg-[#12141c]"
                         }`}
                       >
-                        {/* DGD satırı fiziksel bir parça değil, Flow'a göre otomatik eklenen
-                            işçilik kaydıdır; parça kodu sütununda DGD kodu gösterilmez.
-                            Kod kayıtta (repair_records.part_item_code) olduğu gibi durur -
-                            iade/muhasebe tarafı onu kullanmaya devam eder. */}
                         <td className="px-4 py-2 text-xs font-mono text-slate-700 dark:text-slate-300">
-                          {r.itemCategory === "DGD" ? "—" : (r.partItemCode || "N/A")}
+                          {r.partItemCode || "N/A"}
                         </td>
                         <td className="px-3 py-2 text-right text-xs font-semibold text-slate-700 dark:text-slate-200">
                           {r.partItemCode && partPrices[r.partItemCode] !== undefined

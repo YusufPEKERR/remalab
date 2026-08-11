@@ -11470,6 +11470,14 @@ class WebBridge(QObject):
             )
             db.commit()
 
+            # Üretime teslim edildiğinde (104), Flow DGD eşleşmesine göre otomatik DGD kaydı oluştur
+            if target_statu_code == 104 and (entry.imei_number or entry.serial_number or entry.internal_id):
+                try:
+                    ref_id = entry.imei_number or entry.serial_number or entry.internal_id
+                    self.open_device_for_dismantle(ref_id, performing_staff)
+                except Exception as dgd_err:
+                    print(f"[WARN] Automatic DGD creation error for {entry.id}: {dgd_err}")
+
             return json.dumps({
                 "success": True,
                 "new_statu_code": target_statu_code,

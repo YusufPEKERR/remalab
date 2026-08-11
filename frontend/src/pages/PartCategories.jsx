@@ -190,7 +190,6 @@ export default function PartCategories() {
                       <th className="px-6 py-4">Parça Tipi</th>
                       <th className="px-6 py-4">Flow</th>
                       <th className="px-6 py-4">Departmanlar</th>
-                      <th className="px-6 py-4">İşçilik Seviyesi</th>
                       <th className="px-6 py-4">Ön Fiyat Verebilir</th>
                       <th className="px-6 py-4">Stok Takibi</th>
                       <th className="px-6 py-4">Durum</th>
@@ -200,11 +199,11 @@ export default function PartCategories() {
                   <tbody className="divide-y divide-[#DCE1F1] dark:divide-[#1e222d]">
                     {loading ? (
                       <tr>
-                        <td colSpan="9" className="px-6 py-8 text-center text-slate-400">Yükleniyor...</td>
+                        <td colSpan="8" className="px-6 py-8 text-center text-slate-400">Yükleniyor...</td>
                       </tr>
                     ) : filteredCategories.length === 0 ? (
                       <tr>
-                        <td colSpan="9" className="px-6 py-8 text-center text-slate-500">Kayıt bulunamadı.</td>
+                        <td colSpan="8" className="px-6 py-8 text-center text-slate-500">Kayıt bulunamadı.</td>
                       </tr>
                     ) : (
                       filteredCategories.map(cat => (
@@ -226,11 +225,6 @@ export default function PartCategories() {
                                 <span key={i} className="px-2.5 py-1 rounded-full text-xs font-medium border bg-purple-500/10 text-purple-400 border-purple-500/20">{d}</span>
                               )) : <span className="text-slate-500">-</span>}
                             </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            {cat.labour_level ? (
-                              <span className="px-2.5 py-1 rounded-full text-xs font-medium border bg-cyan-500/10 text-cyan-400 border-cyan-500/20">{cat.labour_level}</span>
-                            ) : <span className="text-slate-500">-</span>}
                           </td>
                           <td className="px-6 py-4">
                             <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${

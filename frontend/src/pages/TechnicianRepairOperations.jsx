@@ -1667,14 +1667,11 @@ const TechnicianRepairOperations = () => {
                 <tbody className="divide-y divide-slate-100 dark:divide-[#1e222d]">
                   {selectedGroup.items.map(r => (
                     <tr key={r.id} className={`hover:bg-slate-50 dark:hover:bg-[#12141c] transition-colors ${r.isCancelled ? "opacity-50" : ""}`}>
-                      {/* DGD satırı fiziksel bir parça değil, Flow'a göre otomatik eklenen
-                          işçilik kaydıdır; parça kodu/kategorisi gösterilmez (Üretime Aktar
-                          ekranıyla aynı davranış). Kod kayıtta olduğu gibi durur. */}
                       <td className="px-5 py-2.5 text-xs font-mono font-semibold text-slate-700 dark:text-slate-300">
-                        {r.itemCategory === "DGD" ? "—" : (r.partItemCode || "N/A")}
+                        {r.partItemCode || "N/A"}
                       </td>
                       <td className="px-3 py-2.5 text-xs text-slate-800 dark:text-slate-200">
-                        {r.itemCategory === "DGD" ? "—" : (r.itemCategory || "N/A")}
+                        {r.itemCategory || "N/A"}
                       </td>
                       <td className="px-3 py-2.5 text-xs text-slate-700 dark:text-slate-300">{r.faultName || "N/A"}</td>
                       <td className="px-3 py-2.5 text-center">
