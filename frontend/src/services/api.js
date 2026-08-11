@@ -219,6 +219,14 @@ export const api = {
         });
     },
 
+    // Üretim aşamasındaki cihazların onarım raporu (cihaz+departman+durum, part1..10)
+    getProductionRepairReport: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_production_repair_report((res) => resolve(JSON.parse(res)));
+        });
+    },
+
     createUser: async (userData) => {
         const backend = await getBackend();
         return new Promise((resolve) => {

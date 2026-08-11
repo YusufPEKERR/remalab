@@ -1,740 +1,344 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Download, Filter, RefreshCw, AlertTriangle } from 'lucide-react';
+import { useState } from 'react';
+import { Download, RefreshCw, Calendar, FolderDown } from 'lucide-react';
 import { api } from '../services/api';
 
+// Sistem raporları — dikey liste. Her rapor bir "Rapor Oluştur" aksiyonu ile
+// Excel üretir ve İndirilenler klasörüne kaydeder. Sayfada veri önizlemesi YOK.
+const REPORT_TABS = [
+  { key: 'stok', title: 'Stok Raporu', accent: '#00B2FF',
+    desc: 'Tüm parçaların depo bazında güncel stok miktarları ve kritik durumu.' },
+  { key: 'critical', title: 'Kritik Stok Raporu', accent: '#DC2626',
+    desc: 'Kritik limitin altına düşen, acil tedarik gereken parçalar.' },
+  { key: 'transfers', title: 'Transfer Hareketleri', accent: '#D97706', dateRange: true,
+    desc: 'Seçili tarih aralığındaki giriş / çıkış / transfer stok hareketleri.' },
+  { key: 'uretim', title: 'Üretim Onarım', accent: '#059669', dateRange: true,
+    desc: 'Üretim aşamasındaki cihazların tamamlanan/iptal onarımları ve değişen parçaları.' },
+];
+
+const bugun = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+const gunEkle = (isoTarih, gun) => {
+  const d = new Date(isoTarih + 'T00:00:00');
+  d.setDate(d.getDate() + gun);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+// "dd.mm.yyyy HH:MM" -> Date | null  (Üretim Onarım tarih filtresi için)
+const parseTrDate = (s) => {
+  if (!s || s === '-') return null;
+  const parts = String(s).trim().split(' ');
+  const [dd, mm, yyyy] = (parts[0] || '').split('.');
+  if (!yyyy) return null;
+  const [hh = '0', mi = '0'] = (parts[1] || '').split(':');
+  const d = new Date(Number(yyyy), Number(mm) - 1, Number(dd), Number(hh), Number(mi));
+  return isNaN(d.getTime()) ? null : d;
+};
+
 export default function Raporlar() {
-  const [stockReports, setStockReports] = useState([]);
-  const [transferReports, setTransferReports] = useState([]);
-  const [criticalReports, setCriticalReports] = useState([]);
-  const [locations, setLocations] = useState([]);
-  const [selectedLocation, setSelectedLocation] = useState('');
-  const [loading, setLoading] = useState(false);
-  
-  // Selection and Export States
-  const [selectedRows, setSelectedRows] = useState([]);
+  const [generating, setGenerating] = useState(null);   // üretilmekte olan rapor anahtarı
+  const [openKey, setOpenKey] = useState(null);         // hangi raporun tarih paneli açık
+  const [ranges, setRanges] = useState({
+    transfers: { start: gunEkle(bugun(), -30), end: bugun() },
+    uretim: { start: gunEkle(bugun(), -30), end: bugun() },
+  });
+  const setRange = (key, field, val) => setRanges((r) => ({ ...r, [key]: { ...r[key], [field]: val } }));
+  const [preview, setPreview] = useState(null);       // önizleme modalı: { key, title, filename, rows }
+  const [downloading, setDownloading] = useState(false);
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 30;
-
-  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
-  const [selectedStockCols, setSelectedStockCols] = useState({
-    "Son Hareket Tarihi": true,
-    "İtem Kodu": true,
-    "Parça Adı": true,
-    "Lokasyon": true,
-    "Stok Miktarı": true,
-    "Kritik Durumu": true
-  });
-  const [selectedTransferCols, setSelectedTransferCols] = useState({
-    "Tarih": true,
-    "İtem Kodu": true,
-    "Parça Adı": true,
-    "Miktar": true,
-    "Kaynakta Kalan": true,
-    "Kaynak Depo": true,
-    "Hedef Depo": true,
-    "İşlemi Yapan": true,
-    "Açıklama": true
-  });
-  const [selectedCriticalCols, setSelectedCriticalCols] = useState({
-    "İtem Kodu": true,
-    "Parça Adı": true,
-    "Lokasyon": true,
-    "Mevcut Stok": true,
-    "Kritik Limit": true
-  });
-  
-  // Date filters
-  const [startDate, setStartDate] = useState(() => {
-    const d = new Date();
-    d.setDate(d.getDate() - 30);
-    d.setHours(0, 0, 0, 0); 
-    const offset = d.getTimezoneOffset() * 60000;
-    return (new Date(d - offset)).toISOString().slice(0, 16);
-  });
-  const [endDate, setEndDate] = useState(() => {
-    const d = new Date();
-    d.setHours(23, 59, 59, 999);
-    const offset = d.getTimezoneOffset() * 60000;
-    return (new Date(d - offset)).toISOString().slice(0, 16);
-  });
-  
-  const setQuickFilter = (type) => {
-    const now = new Date();
-    const end = new Date(now);
-    end.setHours(23, 59, 59, 999);
-    
-    let start = new Date(now);
-    if (type === 'today') {
-      start.setHours(0, 0, 0, 0);
-    } else if (type === 'yesterday') {
-      start.setDate(start.getDate() - 1);
-      start.setHours(0, 0, 0, 0);
-      end.setDate(end.getDate() - 1);
-      end.setHours(23, 59, 59, 999);
-    } else if (type === 'week') {
-      start.setDate(start.getDate() - 7);
-      start.setHours(0, 0, 0, 0);
-    } else if (type === 'month') {
-      start.setDate(start.getDate() - 30);
-      start.setHours(0, 0, 0, 0);
+  // Rapor verisini seçilen türe göre Excel satırlarına dönüştürür
+  const buildRows = (key, data) => {
+    if (key === 'stok') {
+      return data.map((r) => ({
+        'Son Hareket Tarihi': r.updated_at || r.date || '-',
+        'İtem Kodu': r.item_code,
+        'Parça Adı': r.part_name,
+        'Lokasyon': r.location_name,
+        'Stok Miktarı': r.quantity,
+        'Kritik Durumu': (r.location_kind === 'good_stock' && r.quantity <= r.critical_limit) ? 'Kritik' : 'Normal',
+      }));
     }
-
-    const offset = start.getTimezoneOffset() * 60000;
-    setStartDate(new Date(start - offset).toISOString().slice(0, 16));
-    setEndDate(new Date(end - offset).toISOString().slice(0, 16));
+    if (key === 'critical') {
+      return data.map((r) => ({
+        'İtem Kodu': r.item_code,
+        'Parça Adı': r.part_name,
+        'Lokasyon': r.location_name,
+        'Mevcut Stok': r.quantity,
+        'Kritik Limit': r.critical_limit,
+      }));
+    }
+    if (key === 'transfers') {
+      return data.map((r) => {
+        const t = r.type || '';
+        const isOut = ['Çıkış', 'Satış', 'Servis Kullanımı', 'Outbound', 'Fire', 'Teknik Servis'].some((x) => t.includes(x));
+        const isIn = ['Giriş', 'Yeni Alım', 'İade', 'Return', 'İptal', 'Inbound'].some((x) => t.includes(x));
+        return {
+          'Tarih': r.date,
+          'İtem Kodu': r.item_code,
+          'Parça Adı': r.part_name,
+          'Miktar': (isOut ? '-' : (isIn ? '+' : '')) + r.quantity,
+          'Kaynakta Kalan': (r.source_balance_after !== null && r.source_balance_after !== undefined) ? r.source_balance_after : '',
+          'Kaynak Depo': r.source_location,
+          'Hedef Depo': r.target_location,
+          'İşlemi Yapan': r.user,
+          'Açıklama': r.type,
+        };
+      });
+    }
+    // uretim
+    return data.map((r) => {
+      const row = {
+        'IMEI': r.imei || '',
+        'Internal ID': r.internalId || '',
+        'Seri No': r.serialNumber || '',
+        'Model': r.model || '',
+        'Departman': r.departman || '',
+        'Durum': r.durum || '',
+        'Teknisyen': r.teknisyen || '',
+        'Tarih': r.tarih || '',
+      };
+      for (let i = 0; i < 10; i++) row[`Parça ${i + 1}`] = (r.parts && r.parts[i]) || '';
+      return row;
+    });
   };
-  
-  const [activeTab, setActiveTab] = useState('stok');
 
-  useEffect(() => {
-    setSelectedRows([]);
-  }, [activeTab]);
-
-  const fetchReports = useCallback(async (silent = false) => {
-    if (!silent) setLoading(true);
+  // Raporu oluştur → Excel → İndirilenler klasörüne kaydet
+  const raporOlustur = async (key) => {
+    setGenerating(key);
     try {
-      if (activeTab === 'stok') {
+      let data = [];
+      let filename = '';
+      if (key === 'stok') {
         const res = await api.getStockStatus();
-        if (res.success) {
-          setStockReports(res.stock || []);
-        } else {
-          alert("Stok raporları alınamadı: " + (res.message || "Bilinmeyen hata"));
-        }
-      } else if (activeTab === 'transfers') {
-        const res = await api.getReports(startDate, endDate);
-        if (res.success) {
-          setTransferReports(res.reports || []);
-        } else {
-          alert("Transfer hareketleri alınamadı: " + (res.message || "Bilinmeyen hata"));
-        }
-      } else {
+        data = res.success ? (res.stock || []) : [];
+        filename = 'stok_raporu.xlsx';
+      } else if (key === 'critical') {
         const res = await api.getCriticalStock();
-        if (res.success) {
-          setCriticalReports(res.critical_stock || []);
-        } else {
-          alert("Kritik raporlar alınamadı: " + (res.message || "Bilinmeyen hata"));
+        data = res.success ? (res.critical_stock || []) : [];
+        filename = 'kritik_stok_raporu.xlsx';
+      } else if (key === 'uretim') {
+        const res = await api.getProductionRepairReport();
+        let items = res.success ? (res.items || []) : [];
+        // Üretim Onarım'ın kendi onarım tarihine (tarih alanı) göre filtre
+        const { start, end } = ranges.uretim;
+        const s = start ? new Date(`${start}T00:00:00`) : null;
+        const e = end ? new Date(`${end}T23:59:59`) : null;
+        if (s || e) {
+          items = items.filter((it) => {
+            const dt = parseTrDate(it.tarih);
+            if (!dt) return false;
+            if (s && dt < s) return false;
+            if (e && dt > e) return false;
+            return true;
+          });
         }
+        data = items;
+        filename = `uretim_onarim_raporu_${ranges.uretim.start}_${ranges.uretim.end}.xlsx`;
+      } else if (key === 'transfers') {
+        const { start, end } = ranges.transfers;
+        const res = await api.getReports(`${start}T00:00`, `${end}T23:59`);
+        data = res.success ? (res.reports || []) : [];
+        filename = `transfer_hareketleri_${start}_${end}.xlsx`;
       }
-    } catch (err) {
-      console.error("Reports error:", err);
-      alert("Bir hata oluştu: " + err.message);
+
+      if (!data || data.length === 0) {
+        alert('Bu rapor için veri bulunamadı.');
+        return;
+      }
+      const rows = buildRows(key, data);
+      const title = (REPORT_TABS.find((t) => t.key === key) || {}).title || 'Rapor';
+      setPreview({ key, title, filename, rows });      // indirmeden önce önizleme aç
+      setOpenKey(null);                                // tarih paneli açıksa kapat
+    } catch (e) {
+      alert('Rapor oluşturulamadı: ' + (e?.message || e));
     } finally {
-      if (silent !== true) setLoading(false);
-    }
-  }, [activeTab, startDate, endDate]);
-
-  const fetchReportsRef = useRef(fetchReports);
-  useEffect(() => {
-    fetchReportsRef.current = fetchReports;
-  }, [fetchReports]);
-
-  useEffect(() => {
-    const loadLocations = async () => {
-      const res = await api.getLocations();
-      if (res.success) setLocations(res.locations);
-    };
-    loadLocations();
-  }, []);
-
-  const filteredStockReports = useMemo(() => stockReports.filter(r => selectedLocation === '' || r.location_name === selectedLocation), [stockReports, selectedLocation]);
-  const filteredTransferReports = useMemo(() => transferReports.filter(r => selectedLocation === '' || r.source_location === selectedLocation || r.target_location === selectedLocation), [transferReports, selectedLocation]);
-  const filteredCriticalReports = useMemo(() => criticalReports.filter(r => selectedLocation === '' || r.location_name === selectedLocation), [criticalReports, selectedLocation]);
-
-  useEffect(() => { setCurrentPage(1); }, [activeTab, selectedLocation, startDate, endDate]);
-
-  const activeDataList = activeTab === 'stok' ? filteredStockReports : (activeTab === 'transfers' ? filteredTransferReports : filteredCriticalReports);
-
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const paginatedReports = activeDataList.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(activeDataList.length / itemsPerPage);
-
-  const toggleSelectAll = () => {
-    const dataList = activeTab === 'stok' ? filteredStockReports : (activeTab === 'transfers' ? filteredTransferReports : filteredCriticalReports);
-    if (selectedRows.length === dataList.length && dataList.length > 0) {
-      setSelectedRows([]);
-    } else {
-      setSelectedRows(dataList.map(item => item.id));
+      setGenerating(null);
     }
   };
 
-  const toggleRowSelect = (id, e) => {
-    e.stopPropagation();
-    setSelectedRows(prev => 
-      prev.includes(id) ? prev.filter(rowId => rowId !== id) : [...prev, id]
-    );
+  // Önizlemedeki raporu Excel olarak İndirilenler'e kaydet
+  const previewIndir = async () => {
+    if (!preview) return;
+    setDownloading(true);
+    try {
+      await api.exportTableToExcel(preview.rows, preview.filename);
+      setPreview(null);
+    } catch (e) {
+      alert('İndirilemedi: ' + (e?.message || e));
+    } finally {
+      setDownloading(false);
+    }
   };
 
-  const executeExport = async () => {
-    const dataList = activeTab === 'stok' ? filteredStockReports : (activeTab === 'transfers' ? filteredTransferReports : filteredCriticalReports);
-    const baseReports = activeTab === 'stok' ? stockReports : (activeTab === 'transfers' ? transferReports : criticalReports);
-    
-    const dataToExport = selectedRows.length > 0 
-      ? baseReports.filter(r => selectedRows.includes(r.id))
-      : dataList;
-
-    if (dataToExport.length === 0) {
-      alert("Dışa aktarılacak veri bulunamadı.");
-      setIsExportModalOpen(false);
-      return;
-    }
-
-    let exportReadyData = [];
-
-    if (activeTab === 'stok') {
-      exportReadyData = dataToExport.map(r => {
-        const row = {};
-        if (selectedStockCols["Son Hareket Tarihi"]) row["Son Hareket Tarihi"] = r.updated_at || r.date || '-';
-        if (selectedStockCols["İtem Kodu"]) row["İtem Kodu"] = r.item_code;
-        if (selectedStockCols["Parça Adı"]) row["Parça Adı"] = r.part_name;
-        if (selectedStockCols["Lokasyon"]) row["Lokasyon"] = r.location_name;
-        if (selectedStockCols["Stok Miktarı"]) row["Stok Miktarı"] = r.quantity;
-        if (selectedStockCols["Kritik Durumu"]) row["Kritik Durumu"] = (r.location_kind === 'good_stock' && r.quantity <= r.critical_limit) ? 'Kritik' : 'Normal';
-        return row;
-      });
-      await api.exportTableToExcel(exportReadyData, 'stok_raporu.xlsx');
-    } else if (activeTab === 'transfers') {
-      exportReadyData = dataToExport.map(r => {
-        const row = {};
-        if (selectedTransferCols["Tarih"]) row["Tarih"] = r.date;
-        if (selectedTransferCols["İtem Kodu"]) row["İtem Kodu"] = r.item_code;
-        if (selectedTransferCols["Parça Adı"]) row["Parça Adı"] = r.part_name;
-        if (selectedTransferCols["Miktar"]) {
-          const isOut = (r.type || '').includes('Çıkış') || (r.type || '').includes('Satış') || (r.type || '').includes('Servis Kullanımı') || (r.type || '').includes('Outbound') || (r.type || '').includes('Fire') || (r.type || '').includes('Teknik Servis');
-          const isIn = (r.type || '').includes('Giriş') || (r.type || '').includes('Yeni Alım') || (r.type || '').includes('İade') || (r.type || '').includes('Return') || (r.type || '').includes('İptal') || (r.type || '').includes('Inbound');
-          row["Miktar"] = (isOut ? '-' : (isIn ? '+' : '')) + r.quantity;
-        }
-        if (selectedTransferCols["Kaynakta Kalan"]) {
-          row["Kaynakta Kalan"] = (r.source_balance_after !== null && r.source_balance_after !== undefined)
-            ? r.source_balance_after : "";
-        }
-        if (selectedTransferCols["Kaynak Depo"]) row["Kaynak Depo"] = r.source_location;
-        if (selectedTransferCols["Hedef Depo"]) row["Hedef Depo"] = r.target_location;
-        if (selectedTransferCols["İşlemi Yapan"]) row["İşlemi Yapan"] = r.user;
-        if (selectedTransferCols["Açıklama"]) row["Açıklama"] = r.type;
-        return row;
-      });
-      await api.exportTableToExcel(exportReadyData, 'transfer_hareketleri.xlsx');
-    } else {
-      exportReadyData = dataToExport.map(r => {
-        const row = {};
-        if (selectedCriticalCols["İtem Kodu"]) row["İtem Kodu"] = r.item_code;
-        if (selectedCriticalCols["Parça Adı"]) row["Parça Adı"] = r.part_name;
-        if (selectedCriticalCols["Lokasyon"]) row["Lokasyon"] = r.location_name;
-        if (selectedCriticalCols["Mevcut Stok"]) row["Mevcut Stok"] = r.quantity;
-        if (selectedCriticalCols["Kritik Limit"]) row["Kritik Limit"] = r.critical_limit;
-        return row;
-      });
-      await api.exportTableToExcel(exportReadyData, 'kritik_raporlar.xlsx');
-    }
-    
-    setIsExportModalOpen(false);
+  const setQuickRange = (key, type) => {
+    const today = bugun();
+    let start = today; let end = today;
+    if (type === 'yesterday') { start = gunEkle(today, -1); end = start; }
+    else if (type === 'week') { start = gunEkle(today, -7); }
+    else if (type === 'month') { start = gunEkle(today, -30); }
+    else if (type === '6month') { start = gunEkle(today, -182); }
+    else if (type === 'year') { start = gunEkle(today, -365); }
+    setRanges((r) => ({ ...r, [key]: { start, end } }));
   };
-
-  useEffect(() => {
-    fetchReportsRef.current();
-    const interval = setInterval(() => {
-      if (fetchReportsRef.current) fetchReportsRef.current(true);
-    }, 60000);
-    return () => clearInterval(interval);
-  }, [fetchReports]);
-
-  useEffect(() => {
-    if (activeTab === 'critical') {
-      const goodStock = locations.find(l => l.kind === 'good_stock');
-      if (goodStock && selectedLocation !== goodStock.name) {
-        setSelectedLocation(goodStock.name);
-      }
-    }
-  }, [activeTab, locations, selectedLocation]);
 
   return (
-    <div className="flex flex-col space-y-6 pb-12 text-[#12141c] dark:text-[#F6F8FF] max-w-[1600px] mx-auto animate-in fade-in duration-300">
+    <div className="flex flex-col space-y-6 pb-12 text-[#12141c] dark:text-[#F6F8FF] max-w-[1100px] mx-auto animate-in fade-in duration-300">
 
-      {/* ════════════════ HERO BANNER ════════════════ */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#EFF1FA] dark:from-[#090a0f] via-[#DDE2F2] dark:via-[#12141c] to-[#FFFFFF] dark:to-[#1e222d] p-6 sm:p-8 text-[#181a24] dark:text-white shadow-xl border border-[#DCE1F1] dark:border-[#1e222d]">
-        {/* Ambient Grid Overlay */}
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(185, 62, 134,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(185, 62, 134,0.08)_1px,transparent_1px)] bg-[size:32px_32px] opacity-50 pointer-events-none" />
+      {/* ════════════════ HERO ════════════════ */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#EFF1FA] dark:from-[#090a0f] via-[#DDE2F2] dark:via-[#12141c] to-[#FFFFFF] dark:to-[#1e222d] p-6 sm:p-8 shadow-xl border border-[#DCE1F1] dark:border-[#1e222d]">
         <div className="absolute top-0 right-0 w-96 h-96 bg-pink-600/10 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-pink-500/20 border border-pink-400/30 text-pink-300 text-xs font-semibold tracking-wide">
-              <Download size={13} className="text-pink-400" /> RAPORLAMA VE ANALİZ MODÜLÜ
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#181a24] dark:text-white">
-              Sistem Raporları
-            </h1>
-            <p className="text-sm text-[#4A5A9E] dark:text-slate-300 leading-relaxed">
-              Stok seviyelerini, kritik stok durumlarını ve transfer hareketlerini tarih aralığına ve depoya göre raporlayın.
-            </p>
+        <div className="relative z-10 space-y-2 max-w-2xl">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-pink-500/20 border border-pink-400/30 text-pink-300 text-xs font-semibold tracking-wide">
+            <Download size={13} className="text-pink-400" /> RAPORLAMA VE ANALİZ MODÜLÜ
           </div>
-
-          <div className="flex items-center gap-3 shrink-0 flex-wrap">
-            <div className="flex items-center gap-2 px-3.5 py-2 bg-[#FFFFFF] dark:bg-[#1e222d] border border-[#DCE1F1] dark:border-[#2e3545] rounded-xl text-xs font-bold text-[#5A6685] dark:text-[#8892B5]">
-              <span>Depo:</span>
-              <select
-                value={selectedLocation}
-                onChange={(e) => setSelectedLocation(e.target.value)}
-                className="bg-transparent text-[#12141c] dark:text-[#F6F8FF] font-bold focus:outline-none cursor-pointer"
-              >
-                {activeTab !== 'critical' && <option value="" className="bg-[#F5F7FC] dark:bg-[#12141c]">Tüm Depolar</option>}
-                {locations.filter(loc => activeTab === 'critical' ? loc.kind === 'good_stock' : true).map(loc => (
-                  <option key={loc.id} value={loc.name} className="bg-[#F5F7FC] dark:bg-[#12141c]">{loc.name}</option>
-                ))}
-              </select>
-            </div>
-
-            <button 
-              onClick={() => setIsExportModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-[#00B2FF] hover:bg-[#1e222d] text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
-            >
-              <Download size={16} /> {selectedRows.length > 0 ? `${selectedRows.length} Seçiliyi Dışa Aktar` : "Excel Dışa Aktar"}
-            </button>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#181a24] dark:text-white">Sistem Raporları</h1>
+          <p className="text-sm text-[#4A5A9E] dark:text-slate-300 leading-relaxed">
+            İstediğiniz raporu seçip <strong>Rapor Oluştur</strong>'a basın. Rapor Excel (.xlsx) olarak
+            oluşturulur ve bilgisayarınızın <strong>İndirilenler</strong> klasörüne kaydedilir.
+          </p>
+          <div className="inline-flex items-center gap-2 text-xs text-[#5A6685] dark:text-[#8892B5] pt-1">
+            <FolderDown size={14} /> Kayıt konumu: İndirilenler (Downloads)
           </div>
         </div>
       </div>
 
-      {/* ════════════════ TAB BUTTONS ════════════════ */}
-      <div className="glass-card flex space-x-2 p-1.5 rounded-2xl shadow-md shrink-0 self-start overflow-x-auto">
-        <button
-          onClick={() => setActiveTab('stok')}
-          className={`whitespace-nowrap px-6 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
-            activeTab === 'stok' 
-              ? 'bg-[#00B2FF] text-white shadow-md' 
-              : 'text-[#5A6685] dark:text-[#8892B5] hover:text-[#12141c] dark:hover:text-[#F6F8FF] hover:bg-[#FFFFFF] dark:hover:bg-[#1e222d]'
-          }`}
-        >
-          Stok Raporu
-        </button>
-        <button
-          onClick={() => setActiveTab('critical')}
-          className={`whitespace-nowrap px-6 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
-            activeTab === 'critical' 
-              ? 'bg-red-600 text-white shadow-md' 
-              : 'text-[#5A6685] dark:text-[#8892B5] hover:text-[#12141c] dark:hover:text-[#F6F8FF] hover:bg-[#FFFFFF] dark:hover:bg-[#1e222d]'
-          }`}
-        >
-          Kritik Stok Raporu
-        </button>
-        <button
-          onClick={() => setActiveTab('transfers')}
-          className={`whitespace-nowrap px-6 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
-            activeTab === 'transfers' 
-              ? 'bg-amber-600 text-white shadow-md' 
-              : 'text-[#5A6685] dark:text-[#8892B5] hover:text-[#12141c] dark:hover:text-[#F6F8FF] hover:bg-[#FFFFFF] dark:hover:bg-[#1e222d]'
-          }`}
-        >
-          Transfer Hareketleri
-        </button>
+      {/* ════════════════ DİKEY RAPOR LİSTESİ ════════════════ */}
+      <div className="flex flex-col gap-3">
+        {/* Başlık satırı */}
+        <div className="hidden sm:flex items-center gap-4 px-5 pb-1 text-[11px] font-bold uppercase tracking-wider text-[#5A6685] dark:text-[#8892B5]">
+          <div className="w-52 shrink-0">Rapor Adı</div>
+          <div className="flex-1 min-w-0">Rapor Açıklaması</div>
+          <div className="w-44 shrink-0 text-right">Aksiyon</div>
+        </div>
+
+        {REPORT_TABS.map((t) => {
+          const busy = generating === t.key;
+          const hasDate = !!t.dateRange;
+          const isOpen = openKey === t.key;
+          const rng = ranges[t.key] || {};
+          const toggle = () => setOpenKey((k) => (k === t.key ? null : t.key));
+          return (
+            <div key={t.key} className="glass-card rounded-2xl shadow-md border border-[#DCE1F1] dark:border-[#1e222d] overflow-hidden">
+              <div
+                className={`flex items-center gap-4 p-5 flex-wrap ${hasDate ? 'cursor-pointer hover:bg-[#FFFFFF]/40 dark:hover:bg-[#1e222d]/40 transition-colors' : ''}`}
+                style={{ borderLeft: `4px solid ${t.accent}` }}
+                onClick={hasDate ? toggle : undefined}
+              >
+                {/* Rapor Adı */}
+                <div className="w-52 shrink-0 flex items-center gap-2.5">
+                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: t.accent }} />
+                  <h3 className="font-bold text-sm text-[#12141c] dark:text-[#F6F8FF]">{t.title}</h3>
+                </div>
+
+                {/* Rapor Açıklaması */}
+                <p className="flex-1 min-w-[200px] text-xs text-[#5A6685] dark:text-[#8892B5] leading-relaxed">{t.desc}</p>
+
+                {/* Aksiyon */}
+                <div className="w-44 shrink-0 flex sm:justify-end">
+                  <button
+                    onClick={(e) => { if (hasDate) { e.stopPropagation(); toggle(); } else { raporOlustur(t.key); } }}
+                    disabled={busy}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white transition-all shadow-md cursor-pointer disabled:opacity-60"
+                    style={{ background: t.accent }}
+                  >
+                    {busy
+                      ? <><RefreshCw size={15} className="animate-spin" /> Oluşturuluyor...</>
+                      : hasDate
+                        ? <><Calendar size={15} /> {isOpen ? 'Kapat' : 'Rapor Oluştur'}</>
+                        : <><Download size={15} /> Rapor Oluştur</>}
+                  </button>
+                </div>
+              </div>
+
+              {/* Tarih aralığı seçimi (transfer + üretim onarım) */}
+              {hasDate && isOpen && (
+                <div className="px-5 pb-5 pt-1 border-t border-[#DCE1F1] dark:border-[#1e222d] bg-[#F5F7FC] dark:bg-[#181a24]">
+                  <p className="text-xs font-bold text-[#5A6685] dark:text-[#8892B5] mt-3 mb-2">
+                    {t.key === 'uretim' ? 'Onarım Tarihi Aralığı Seçin' : 'Hareket Tarihi Aralığı Seçin'}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2 mb-3">
+                    {[['today', 'Bugün'], ['yesterday', 'Dün'], ['week', 'Son 1 Hafta'], ['month', 'Son 1 Ay'], ['6month', 'Son 6 Ay'], ['year', 'Son 1 Yıl']].map(([q, label]) => (
+                      <button key={q} onClick={() => setQuickRange(t.key, q)}
+                        className="text-xs px-3 py-1.5 bg-[#FFFFFF] dark:bg-[#1e222d] hover:bg-[#EFF1FA] dark:hover:bg-[#2e3545] text-[#12141c] dark:text-[#F6F8FF] rounded-lg border border-[#DCE1F1] dark:border-[#2e3545] font-semibold cursor-pointer">{label}</button>
+                    ))}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-[#5A6685] dark:text-[#8892B5]">Başlangıç:</span>
+                      <input type="date" style={{ colorScheme: 'dark' }} value={rng.start || ''} onChange={(e) => setRange(t.key, 'start', e.target.value)}
+                        className="bg-[#FFFFFF] dark:bg-[#1e222d] text-[#12141c] dark:text-[#F6F8FF] border border-[#DCE1F1] dark:border-[#2e3545] rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:border-[#00B2FF]" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-[#5A6685] dark:text-[#8892B5]">Bitiş:</span>
+                      <input type="date" style={{ colorScheme: 'dark' }} value={rng.end || ''} onChange={(e) => setRange(t.key, 'end', e.target.value)}
+                        className="bg-[#FFFFFF] dark:bg-[#1e222d] text-[#12141c] dark:text-[#F6F8FF] border border-[#DCE1F1] dark:border-[#2e3545] rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:border-[#00B2FF]" />
+                    </div>
+                    <button
+                      onClick={() => raporOlustur(t.key)}
+                      disabled={busy || !rng.start || !rng.end}
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white transition-all shadow-md cursor-pointer disabled:opacity-60"
+                      style={{ background: t.accent }}
+                    >
+                      {busy ? <><RefreshCw size={15} className="animate-spin" /> Oluşturuluyor...</> : <><Download size={15} /> Oluştur ve İndir</>}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
-      {activeTab === 'stok' && (
-        /* Table Stok */
-        <div className="glass-card rounded-2xl shadow-md flex-1 flex flex-col overflow-hidden">
-            <div className="overflow-x-auto w-full">
-              <table className="w-full text-left text-xs whitespace-nowrap">
-                <thead className="bg-[#F5F7FC] dark:bg-[#181a24] text-[#5A6685] dark:text-[#8892B5] font-semibold uppercase tracking-wider border-b border-[#DCE1F1] dark:border-[#1e222d] sticky top-0 z-10">
-                  <tr>
-                    <th className="px-6 py-4 w-12 text-center">
-                      <input 
-                        type="checkbox" 
-                        className="w-4 h-4 rounded border-[#DCE1F1] dark:border-[#2e3545] text-[#00B2FF] focus:ring-[#00B2FF] bg-[#FFFFFF] dark:bg-[#1e222d]"
-                        checked={selectedRows.length === filteredStockReports.length && filteredStockReports.length > 0}
-                        onChange={toggleSelectAll}
-                      />
-                    </th>
-                    <th className="px-6 py-4">SON HAREKET TARİHİ</th>
-                    <th className="px-6 py-4">İTEM KODU</th>
-                    <th className="px-6 py-4">PARÇA ADI</th>
-                    <th className="px-6 py-4">LOKASYON</th>
-                    <th className="px-6 py-4">STOK MİKTARI</th>
-                    <th className="px-6 py-4">KRİTİK DURUMU</th>
+      {/* ════════════════ ÖNİZLEME MODALI ════════════════ */}
+      {preview && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="glass-modal shadow-2xl rounded-2xl w-full max-w-5xl max-h-[85vh] flex flex-col text-[#12141c] dark:text-[#F6F8FF]">
+            <div className="flex items-center justify-between p-5 border-b border-[#DCE1F1] dark:border-[#1e222d]">
+              <div>
+                <h2 className="text-base font-bold">{preview.title} — Önizleme</h2>
+                <p className="text-xs text-[#5A6685] dark:text-[#8892B5] mt-0.5">
+                  Toplam {preview.rows.length} satır{preview.rows.length > 15 ? ' · ilk 15 gösteriliyor' : ''} · İndirince İndirilenler klasörüne kaydedilir
+                </p>
+              </div>
+              <button onClick={() => setPreview(null)} className="text-[#5A6685] hover:text-[#12141c] dark:hover:text-white cursor-pointer text-lg leading-none">✕</button>
+            </div>
+
+            <div className="flex-1 overflow-auto p-5">
+              <table className="w-full text-[11px] border-collapse whitespace-nowrap">
+                <thead>
+                  <tr className="bg-[#F5F7FC] dark:bg-[#181a24] text-[#5A6685] dark:text-[#8892B5] sticky top-0">
+                    {Object.keys(preview.rows[0]).map((c) => (
+                      <th key={c} className="border border-[#DCE1F1] dark:border-[#2e3545] px-2 py-1.5 text-left font-semibold">{c}</th>
+                    ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#DCE1F1] dark:divide-[#1e222d]">
-                  {loading ? (
-                    <tr>
-                      <td colSpan="7" className="px-6 py-8 text-center text-[#5A6685] dark:text-[#8892B5]">
-                        <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-[#8894D8]" />
-                        Yükleniyor...
-                      </td>
+                <tbody>
+                  {preview.rows.slice(0, 15).map((r, i) => (
+                    <tr key={i} className={i % 2 ? 'bg-[#F5F7FC]/40 dark:bg-[#171a26]' : ''}>
+                      {Object.keys(preview.rows[0]).map((c, j) => (
+                        <td key={j} className="border border-[#DCE1F1] dark:border-[#2e3545] px-2 py-1">
+                          {(r[c] === null || r[c] === undefined) ? '' : String(r[c])}
+                        </td>
+                      ))}
                     </tr>
-                  ) : filteredStockReports.length === 0 ? (
-                    <tr>
-                      <td colSpan="7" className="px-6 py-8 text-center text-[#5A6685] dark:text-[#8892B5]">
-                        Kayıt bulunamadı.
-                      </td>
-                    </tr>
-                  ) : (
-                    paginatedReports.map((r) => {
-                      const isChecked = selectedRows.includes(r.id);
-                      const isCritical = r.location_kind === 'good_stock' && r.quantity <= r.critical_limit;
-                      return (
-                      <tr key={r.id} className={`hover:bg-[#FFFFFF]/70 dark:hover:bg-[#1e222d]/70 transition-colors text-[#12141c] dark:text-[#F6F8FF] ${isChecked ? 'bg-blue-900/30 border-l-4 border-[#00B2FF]' : ''}`}>
-                        <td className="px-6 py-3.5 text-center" onClick={(e) => e.stopPropagation()}>
-                          <input 
-                            type="checkbox" 
-                            className="w-4 h-4 rounded border-[#DCE1F1] dark:border-[#2e3545] text-[#00B2FF] focus:ring-[#00B2FF] bg-[#FFFFFF] dark:bg-[#1e222d]"
-                            checked={isChecked}
-                            onChange={(e) => toggleRowSelect(r.id, e)}
-                          />
-                        </td>
-                        <td className="px-6 py-3.5 font-mono text-[#5A6685] dark:text-[#8892B5] text-[11px]">{r.updated_at || r.date || '-'}</td>
-                        <td className="px-6 py-3.5">
-                          <span className="px-2.5 py-1 rounded-md bg-blue-50 dark:bg-blue-950/70 text-[#1e222d] dark:text-[#8894D8] border border-blue-200 dark:border-blue-800/60 font-mono font-bold text-[11px]">
-                            {r.item_code}
-                          </span>
-                        </td>
-                        <td className="px-6 py-3.5 font-semibold text-[#12141c] dark:text-[#F6F8FF]">{r.part_name}</td>
-                        <td className="px-6 py-3.5">{r.location_name}</td>
-                        <td className="px-6 py-3.5 font-mono font-semibold text-sm">{r.quantity}</td>
-                        <td className="px-6 py-3.5">
-                          <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${
-                            isCritical ? 'bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400 border-red-200 dark:border-red-500/30' : 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30'
-                          }`}>
-                            {isCritical ? '⚠️ KRİTİK' : 'NORMAL'}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })
-                  )}
+                  ))}
                 </tbody>
               </table>
             </div>
 
-            {/* Pagination Footer */}
-            <div className="flex justify-between items-center px-6 py-4 bg-[#F5F7FC] dark:bg-[#181a24] border-t border-[#DCE1F1] dark:border-[#1e222d] shrink-0 text-xs text-[#5A6685] dark:text-[#8892B5]">
-              <span>
-                Toplam <strong className="text-[#12141c] dark:text-[#F6F8FF]">{activeDataList.length}</strong> kayıttan <strong className="text-[#12141c] dark:text-[#F6F8FF]">{activeDataList.length === 0 ? 0 : indexOfFirstItem + 1}-{Math.min(indexOfLastItem, activeDataList.length)}</strong> arası gösteriliyor
-              </span>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  disabled={currentPage === 1 || activeDataList.length === 0}
-                  className="px-3 py-1.5 bg-[#F5F7FC] dark:bg-[#12141c] border border-[#DCE1F1] dark:border-[#2e3545] rounded-xl text-xs font-bold text-[#12141c] dark:text-[#F6F8FF] hover:bg-[#FFFFFF] dark:hover:bg-[#1e222d] disabled:opacity-40 transition-all cursor-pointer"
-                >
-                  Önceki
-                </button>
-                <span className="text-xs font-bold px-3 py-1.5 bg-[#F5F7FC] dark:bg-[#12141c] border border-[#DCE1F1] dark:border-[#2e3545] rounded-xl text-[#8894D8]">
-                  Sayfa {currentPage} / {totalPages}
-                </span>
-                <button
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                  disabled={currentPage >= totalPages || activeDataList.length === 0}
-                  className="px-3 py-1.5 bg-[#F5F7FC] dark:bg-[#12141c] border border-[#DCE1F1] dark:border-[#2e3545] rounded-xl text-xs font-bold text-[#12141c] dark:text-[#F6F8FF] hover:bg-[#FFFFFF] dark:hover:bg-[#1e222d] disabled:opacity-40 transition-all cursor-pointer"
-                >
-                  Sonraki
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      {activeTab === 'critical' && (
-        <div className="glass-card rounded-2xl shadow-md flex-1 flex flex-col overflow-hidden">
-          <div className="overflow-x-auto w-full">
-            <table className="w-full text-left text-xs whitespace-nowrap">
-              <thead className="bg-[#F5F7FC] dark:bg-[#181a24] text-[#5A6685] dark:text-[#8892B5] font-semibold uppercase tracking-wider border-b border-[#DCE1F1] dark:border-[#1e222d] sticky top-0 z-10">
-                <tr>
-                  <th className="px-6 py-4 w-12 text-center">
-                    <input 
-                      type="checkbox" 
-                      className="w-4 h-4 rounded border-[#DCE1F1] dark:border-[#2e3545] text-[#00B2FF] focus:ring-[#00B2FF] bg-[#FFFFFF] dark:bg-[#1e222d]"
-                      checked={selectedRows.length === filteredCriticalReports.length && filteredCriticalReports.length > 0}
-                      onChange={toggleSelectAll}
-                    />
-                  </th>
-                  <th className="px-6 py-4">İTEM KODU</th>
-                  <th className="px-6 py-4">PARÇA ADI</th>
-                  <th className="px-6 py-4">LOKASYON</th>
-                  <th className="px-6 py-4">MEVCUT STOK</th>
-                  <th className="px-6 py-4">KRİTİK LİMİT</th>
-                  <th className="px-6 py-4">DURUM</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#DCE1F1] dark:divide-[#1e222d]">
-                {loading ? (
-                  <tr>
-                    <td colSpan="7" className="px-6 py-8 text-center text-[#5A6685] dark:text-[#8892B5]">
-                      <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-[#8894D8]" />
-                      Yükleniyor...
-                    </td>
-                  </tr>
-                ) : filteredCriticalReports.length === 0 ? (
-                  <tr>
-                    <td colSpan="7" className="px-6 py-8 text-center text-[#5A6685] dark:text-[#8892B5]">
-                      Kritik stok seviyesinde parça bulunamadı.
-                    </td>
-                  </tr>
-                ) : (
-                  paginatedReports.map((r) => {
-                    const isChecked = selectedRows.includes(r.id);
-                    return (
-                    <tr key={r.id} className={`hover:bg-[#FFFFFF]/70 dark:hover:bg-[#1e222d]/70 transition-colors text-[#12141c] dark:text-[#F6F8FF] ${isChecked ? 'bg-blue-900/30 border-l-4 border-[#00B2FF]' : ''}`}>
-                      <td className="px-6 py-3.5 text-center" onClick={(e) => e.stopPropagation()}>
-                        <input 
-                          type="checkbox" 
-                          className="w-4 h-4 rounded border-[#DCE1F1] dark:border-[#2e3545] text-[#00B2FF] focus:ring-[#00B2FF] bg-[#FFFFFF] dark:bg-[#1e222d]"
-                          checked={isChecked}
-                          onChange={(e) => toggleRowSelect(r.id, e)}
-                        />
-                      </td>
-                      <td className="px-6 py-3.5">
-                        <span className="px-2.5 py-1 rounded-md bg-blue-50 dark:bg-blue-950/70 text-[#1e222d] dark:text-[#8894D8] border border-blue-200 dark:border-blue-800/60 font-mono font-bold text-[11px]">
-                          {r.item_code}
-                        </span>
-                      </td>
-                      <td className="px-6 py-3.5 font-semibold text-[#12141c] dark:text-[#F6F8FF]">{r.part_name}</td>
-                      <td className="px-6 py-3.5">{r.location_name}</td>
-                      <td className="px-6 py-3.5 font-mono font-semibold text-sm text-red-400">{r.quantity}</td>
-                      <td className="px-6 py-3.5 font-mono text-[#5A6685] dark:text-[#8892B5]">{r.critical_limit}</td>
-                      <td className="px-6 py-3.5">
-                        <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-500/30 flex items-center gap-1.5 w-fit">
-                          <AlertTriangle size={12} /> KRİTİK SEVİYE
-                        </span>
-                      </td>
-                    </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="flex justify-between items-center px-6 py-4 bg-[#F5F7FC] dark:bg-[#181a24] border-t border-[#DCE1F1] dark:border-[#1e222d] shrink-0 text-xs text-[#5A6685] dark:text-[#8892B5]">
-            <span>
-              Toplam <strong className="text-[#12141c] dark:text-[#F6F8FF]">{activeDataList.length}</strong> kayıttan <strong className="text-[#12141c] dark:text-[#F6F8FF]">{activeDataList.length === 0 ? 0 : indexOfFirstItem + 1}-{Math.min(indexOfLastItem, activeDataList.length)}</strong> arası gösteriliyor
-            </span>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1 || activeDataList.length === 0}
-                className="px-3 py-1.5 bg-[#F5F7FC] dark:bg-[#12141c] border border-[#DCE1F1] dark:border-[#2e3545] rounded-xl text-xs font-bold text-[#12141c] dark:text-[#F6F8FF] hover:bg-[#FFFFFF] dark:hover:bg-[#1e222d] disabled:opacity-40 transition-all cursor-pointer"
-              >
-                Önceki
-              </button>
-              <span className="text-xs font-bold px-3 py-1.5 bg-[#F5F7FC] dark:bg-[#12141c] border border-[#DCE1F1] dark:border-[#2e3545] rounded-xl text-[#8894D8]">
-                Sayfa {currentPage} / {totalPages}
-              </span>
-              <button
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                disabled={currentPage >= totalPages || activeDataList.length === 0}
-                className="px-3 py-1.5 bg-[#F5F7FC] dark:bg-[#12141c] border border-[#DCE1F1] dark:border-[#2e3545] rounded-xl text-xs font-bold text-[#12141c] dark:text-[#F6F8FF] hover:bg-[#FFFFFF] dark:hover:bg-[#1e222d] disabled:opacity-40 transition-all cursor-pointer"
-              >
-                Sonraki
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'transfers' && (
-        <div className="space-y-4">
-          {/* Toolbar Transfers */}
-          <div className="glass-card p-4 rounded-2xl shadow-md flex flex-col gap-4">
-            <div className="flex gap-2 border-b border-[#DCE1F1] dark:border-[#1e222d] pb-3">
-               <span className="text-xs font-bold text-[#5A6685] dark:text-[#8892B5] self-center mr-2">Hızlı Filtre:</span>
-               <button onClick={() => setQuickFilter('today')} className="text-xs px-3 py-1.5 bg-[#FFFFFF] dark:bg-[#1e222d] hover:bg-[#EFF1FA] dark:hover:bg-[#2e3545] text-[#12141c] dark:text-[#F6F8FF] rounded-xl border border-[#DCE1F1] dark:border-[#2e3545] transition-colors font-semibold cursor-pointer">Bugün</button>
-               <button onClick={() => setQuickFilter('yesterday')} className="text-xs px-3 py-1.5 bg-[#FFFFFF] dark:bg-[#1e222d] hover:bg-[#EFF1FA] dark:hover:bg-[#2e3545] text-[#12141c] dark:text-[#F6F8FF] rounded-xl border border-[#DCE1F1] dark:border-[#2e3545] transition-colors font-semibold cursor-pointer">Dün</button>
-               <button onClick={() => setQuickFilter('week')} className="text-xs px-3 py-1.5 bg-[#FFFFFF] dark:bg-[#1e222d] hover:bg-[#EFF1FA] dark:hover:bg-[#2e3545] text-[#12141c] dark:text-[#F6F8FF] rounded-xl border border-[#DCE1F1] dark:border-[#2e3545] transition-colors font-semibold cursor-pointer">Son 1 Hafta</button>
-               <button onClick={() => setQuickFilter('month')} className="text-xs px-3 py-1.5 bg-[#FFFFFF] dark:bg-[#1e222d] hover:bg-[#EFF1FA] dark:hover:bg-[#2e3545] text-[#12141c] dark:text-[#F6F8FF] rounded-xl border border-[#DCE1F1] dark:border-[#2e3545] transition-colors font-semibold cursor-pointer">Son 1 Ay</button>
-            </div>
-            
-            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-              <div className="flex items-center gap-3 flex-wrap">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-[#5A6685] dark:text-[#8892B5]">Başlangıç:</span>
-                  <input 
-                    type="date" 
-                    style={{ colorScheme: 'dark' }}
-                    className="bg-[#FFFFFF] dark:bg-[#1e222d] text-[#12141c] dark:text-[#F6F8FF] border border-[#DCE1F1] dark:border-[#2e3545] rounded-xl px-3 py-2 text-xs font-mono focus:outline-none focus:border-[#00B2FF]"
-                    value={startDate.split('T')[0] || ''}
-                    onChange={(e) => setStartDate(`${e.target.value}T${startDate.split('T')[1] || '00:00'}`)}
-                  />
-                </div>
-                
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-[#5A6685] dark:text-[#8892B5]">Bitiş:</span>
-                  <input 
-                    type="date" 
-                    style={{ colorScheme: 'dark' }}
-                    className="bg-[#FFFFFF] dark:bg-[#1e222d] text-[#12141c] dark:text-[#F6F8FF] border border-[#DCE1F1] dark:border-[#2e3545] rounded-xl px-3 py-2 text-xs font-mono focus:outline-none focus:border-[#00B2FF]"
-                    value={endDate.split('T')[0] || ''}
-                    onChange={(e) => setEndDate(`${e.target.value}T${endDate.split('T')[1] || '23:59'}`)}
-                  />
-                </div>
-
-                <button 
-                  onClick={() => fetchReports(false)}
-                  className="flex items-center gap-2 px-4 py-2 bg-[#00B2FF] hover:bg-[#1e222d] text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
-                >
-                  <Filter size={15} /> Filtrele
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Table Transfers */}
-          <div className="glass-card rounded-2xl shadow-md flex-1 flex flex-col overflow-hidden">
-            <div className="overflow-x-auto w-full">
-              <table className="w-full text-left text-xs whitespace-nowrap">
-                <thead className="bg-[#F5F7FC] dark:bg-[#181a24] text-[#5A6685] dark:text-[#8892B5] font-semibold uppercase tracking-wider border-b border-[#DCE1F1] dark:border-[#1e222d] sticky top-0 z-10">
-                  <tr>
-                    <th className="px-6 py-4 w-12 text-center">
-                      <input 
-                        type="checkbox" 
-                        className="w-4 h-4 rounded border-[#DCE1F1] dark:border-[#2e3545] text-[#00B2FF] focus:ring-[#00B2FF] bg-[#FFFFFF] dark:bg-[#1e222d]"
-                        checked={selectedRows.length === filteredTransferReports.length && filteredTransferReports.length > 0}
-                        onChange={toggleSelectAll}
-                      />
-                    </th>
-                    <th className="px-6 py-4">TARİH</th>
-                    <th className="px-6 py-4">İTEM KODU</th>
-                    <th className="px-6 py-4">PARÇA ADI</th>
-                    <th className="px-6 py-4">MİKTAR</th>
-                    {/* İşlem sonrası kaynak depoda kalan miktar. Hareket miktarı (1)
-                        değil, bakiye (49) görünsün diye eklendi. */}
-                    <th className="px-6 py-4">KAYNAKTA KALAN</th>
-                    <th className="px-6 py-4">KAYNAK DEPO</th>
-                    <th className="px-6 py-4">HEDEF DEPO</th>
-                    <th className="px-6 py-4">İŞLEMİ YAPAN</th>
-                    <th className="px-6 py-4">TÜR</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#DCE1F1] dark:divide-[#1e222d]">
-                  {loading ? (
-                    <tr>
-                      <td colSpan="10" className="px-6 py-8 text-center text-[#5A6685] dark:text-[#8892B5]">
-                        <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-[#8894D8]" />
-                        Yükleniyor...
-                      </td>
-                    </tr>
-                  ) : filteredTransferReports.length === 0 ? (
-                    <tr>
-                      <td colSpan="10" className="px-6 py-8 text-center text-[#5A6685] dark:text-[#8892B5]">
-                        Transfer hareketi bulunamadı.
-                      </td>
-                    </tr>
-                  ) : (
-                    paginatedReports.map((r) => {
-                      const isChecked = selectedRows.includes(r.id);
-                      const isOut = (r.type || '').includes('Çıkış') || (r.type || '').includes('Satış') || (r.type || '').includes('Servis Kullanımı') || (r.type || '').includes('Outbound') || (r.type || '').includes('Fire') || (r.type || '').includes('Teknik Servis');
-                      const isIn = (r.type || '').includes('Giriş') || (r.type || '').includes('Yeni Alım') || (r.type || '').includes('İade') || (r.type || '').includes('Return') || (r.type || '').includes('İptal') || (r.type || '').includes('Inbound');
-                      return (
-                      <tr key={r.id} className={`hover:bg-[#FFFFFF]/70 dark:hover:bg-[#1e222d]/70 transition-colors text-[#12141c] dark:text-[#F6F8FF] ${isChecked ? 'bg-blue-900/30 border-l-4 border-[#00B2FF]' : ''}`}>
-                        <td className="px-6 py-3.5 text-center" onClick={(e) => e.stopPropagation()}>
-                          <input 
-                            type="checkbox" 
-                            className="w-4 h-4 rounded border-[#DCE1F1] dark:border-[#2e3545] text-[#00B2FF] focus:ring-[#00B2FF] bg-[#FFFFFF] dark:bg-[#1e222d]"
-                            checked={isChecked}
-                            onChange={(e) => toggleRowSelect(r.id, e)}
-                          />
-                        </td>
-                        <td className="px-6 py-3.5 font-mono text-[#5A6685] dark:text-[#8892B5] text-[11px]">{r.date || '-'}</td>
-                        <td className="px-6 py-3.5">
-                          <span className="px-2.5 py-1 rounded-md bg-blue-50 dark:bg-blue-950/70 text-[#1e222d] dark:text-[#8894D8] border border-blue-200 dark:border-blue-800/60 font-mono font-bold text-[11px]">
-                            {r.item_code}
-                          </span>
-                        </td>
-                        <td className="px-6 py-3.5 font-semibold text-[#12141c] dark:text-[#F6F8FF]">{r.part_name}</td>
-                        <td className={`px-6 py-3.5 font-mono font-semibold text-sm ${isOut ? 'text-red-400' : (isIn ? 'text-emerald-400' : 'text-blue-400')}`}>
-                          {isOut ? '-' : (isIn ? '+' : '')}{r.quantity}
-                        </td>
-                        <td className="px-6 py-3.5 font-mono font-semibold text-sm">
-                          {r.source_balance_after !== null && r.source_balance_after !== undefined
-                            ? r.source_balance_after
-                            : <span className="text-[#5A6685] dark:text-[#8892B5] font-normal" title="Bu hareket, kalan miktar kaydedilmeye başlamadan önce oluşturulmuş">—</span>}
-                        </td>
-                        <td className="px-6 py-3.5">{r.source_location || '-'}</td>
-                        <td className="px-6 py-3.5">{r.target_location || '-'}</td>
-                        <td className="px-6 py-3.5">{r.user || '-'}</td>
-                        <td className="px-6 py-3.5 text-[#5A6685] dark:text-[#8892B5]">{r.type || '-'}</td>
-                      </tr>
-                    );
-                  })
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="flex justify-between items-center px-6 py-4 bg-[#F5F7FC] dark:bg-[#181a24] border-t border-[#DCE1F1] dark:border-[#1e222d] shrink-0 text-xs text-[#5A6685] dark:text-[#8892B5]">
-              <span>
-                Toplam <strong className="text-[#12141c] dark:text-[#F6F8FF]">{activeDataList.length}</strong> kayıttan <strong className="text-[#12141c] dark:text-[#F6F8FF]">{activeDataList.length === 0 ? 0 : indexOfFirstItem + 1}-{Math.min(indexOfLastItem, activeDataList.length)}</strong> arası gösteriliyor
-              </span>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  disabled={currentPage === 1 || activeDataList.length === 0}
-                  className="px-3 py-1.5 bg-[#F5F7FC] dark:bg-[#12141c] border border-[#DCE1F1] dark:border-[#2e3545] rounded-xl text-xs font-bold text-[#12141c] dark:text-[#F6F8FF] hover:bg-[#FFFFFF] dark:hover:bg-[#1e222d] disabled:opacity-40 transition-all cursor-pointer"
-                >
-                  Önceki
-                </button>
-                <span className="text-xs font-bold px-3 py-1.5 bg-[#F5F7FC] dark:bg-[#12141c] border border-[#DCE1F1] dark:border-[#2e3545] rounded-xl text-[#8894D8]">
-                  Sayfa {currentPage} / {totalPages}
-                </span>
-                <button
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                  disabled={currentPage >= totalPages || activeDataList.length === 0}
-                  className="px-3 py-1.5 bg-[#F5F7FC] dark:bg-[#12141c] border border-[#DCE1F1] dark:border-[#2e3545] rounded-xl text-xs font-bold text-[#12141c] dark:text-[#F6F8FF] hover:bg-[#FFFFFF] dark:hover:bg-[#1e222d] disabled:opacity-40 transition-all cursor-pointer"
-                >
-                  Sonraki
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Dışa Aktar Sütun Seçimi Modalı */}
-      {isExportModalOpen && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="glass-modal shadow-2xl rounded-2xl w-full max-w-sm p-6 text-[#12141c] dark:text-[#F6F8FF]">
-            <h2 className="text-lg font-semibold text-[#12141c] dark:text-[#F6F8FF] mb-2">Excel Sütun Seçimi</h2>
-            <p className="text-xs text-[#5A6685] dark:text-[#8892B5] mb-4">Dışa aktarılacak raporda yer almasını istediğiniz sütunları işaretleyin.</p>
-            
-            <div className="space-y-3 mb-6 max-h-60 overflow-y-auto pr-2">
-              {Object.keys(activeTab === 'stok' ? selectedStockCols : (activeTab === 'transfers' ? selectedTransferCols : selectedCriticalCols)).map((col) => (
-                <label key={col} className="flex items-center gap-3 cursor-pointer text-xs font-medium text-[#12141c] dark:text-[#F6F8FF]">
-                  <input 
-                    type="checkbox" 
-                    checked={activeTab === 'stok' ? selectedStockCols[col] : (activeTab === 'transfers' ? selectedTransferCols[col] : selectedCriticalCols[col])}
-                    onChange={(e) => {
-                      if (activeTab === 'stok') {
-                        setSelectedStockCols(prev => ({...prev, [col]: e.target.checked}));
-                      } else if (activeTab === 'transfers') {
-                        setSelectedTransferCols(prev => ({...prev, [col]: e.target.checked}));
-                      } else {
-                        setSelectedCriticalCols(prev => ({...prev, [col]: e.target.checked}));
-                      }
-                    }}
-                    className="w-4 h-4 rounded border-[#DCE1F1] dark:border-[#2e3545] text-[#00B2FF] focus:ring-[#00B2FF] bg-[#FFFFFF] dark:bg-[#1e222d]"
-                  />
-                  <span>{col}</span>
-                </label>
-              ))}
-            </div>
-
-            <div className="flex justify-end gap-3 mt-6">
-              <button 
-                onClick={() => setIsExportModalOpen(false)}
-                className="px-4 py-2 bg-[#FFFFFF] dark:bg-[#1e222d] hover:bg-[#EFF1FA] dark:hover:bg-[#2e3545] text-[#12141c] dark:text-[#F6F8FF] rounded-xl text-xs font-bold transition-all cursor-pointer"
-              >
+            <div className="flex justify-end gap-3 p-5 border-t border-[#DCE1F1] dark:border-[#1e222d]">
+              <button onClick={() => setPreview(null)} disabled={downloading}
+                className="px-4 py-2 bg-[#FFFFFF] dark:bg-[#1e222d] hover:bg-[#EFF1FA] dark:hover:bg-[#2e3545] rounded-xl text-xs font-bold cursor-pointer disabled:opacity-50">
                 İptal
               </button>
-              <button 
-                onClick={executeExport}
-                disabled={!Object.values(activeTab === 'stok' ? selectedStockCols : (activeTab === 'transfers' ? selectedTransferCols : selectedCriticalCols)).some(Boolean)}
-                className="px-4 py-2 bg-[#00B2FF] hover:bg-[#1e222d] text-white rounded-xl text-xs font-semibold transition-all shadow-md cursor-pointer disabled:opacity-50"
-              >
-                Dışa Aktar
+              <button onClick={previewIndir} disabled={downloading}
+                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md cursor-pointer disabled:opacity-60">
+                {downloading ? <><RefreshCw size={15} className="animate-spin" /> İndiriliyor...</> : <><Download size={15} /> İndir</>}
               </button>
             </div>
           </div>
         </div>
       )}
-
     </div>
   );
 }

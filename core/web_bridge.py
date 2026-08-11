@@ -12523,6 +12523,88 @@ class WebBridge(QObject):
         finally:
             db.close()
 
+    _PROD_REPAIR_REPORT_DDL = r"""
+CREATE OR REPLACE VIEW warehouse.production_repair_report AS
+WITH prod AS (
+  SELECT service_id::text AS sid, imei_number, internal_id, serial_number,
+         coalesce(nullif(btrim(model),''), nullif(btrim(product_family),'')) AS model
+  FROM warehouse.batch_entries WHERE statu_code = 109
+),
+r AS (
+  SELECT
+    p.imei_number, p.internal_id, p.serial_number, p.model, rr.department_mission,
+    CASE WHEN rr.repair_result_type_code = 1002 THEN 'Tamamlandı'
+         WHEN rr.repair_result_type_code = 1003 THEN 'İptal' END AS durum,
+    coalesce(nullif(btrim(u.fullname),''), nullif(btrim(rr.assigned_technician),'')) AS teknisyen,
+    coalesce(rr.closed_at, rr.updated_at, rr.created_at) AS tarih_ts,
+    coalesce(nullif(btrim(pc.name),''), nullif(btrim(pr.part_category),''),
+             nullif(btrim(pr.item_category),''), nullif(btrim(pr.name),''),
+             nullif(btrim(rr.part_item_code),'')) AS part_kategori
+  FROM prod p
+  JOIN warehouse.repair_records rr
+    ON  rr.service_record_id = p.sid
+     OR LOWER(TRIM(rr.service_record_id)) = LOWER(TRIM(p.imei_number))
+     OR LOWER(TRIM(rr.service_record_id)) = LOWER(TRIM(p.internal_id))
+     OR LOWER(TRIM(rr.service_record_id)) = LOWER(TRIM(p.serial_number))
+  LEFT JOIN warehouse.users u ON u.username = rr.assigned_technician
+  LEFT JOIN warehouse.parts pr ON pr.item_code = rr.part_item_code
+  LEFT JOIN warehouse.part_categories pc ON pc.id = pr.part_category_id
+  WHERE rr.repair_result_type_code IN (1002, 1003)
+),
+g AS (
+  SELECT imei_number, internal_id, serial_number, model, department_mission, durum,
+    coalesce(string_agg(DISTINCT teknisyen, ', '), '-') AS teknisyen,
+    max(tarih_ts) AS tarih,
+    (array_agg(DISTINCT part_kategori) FILTER (WHERE coalesce(part_kategori,'')<>'')) AS parts
+  FROM r
+  GROUP BY imei_number, internal_id, serial_number, model, department_mission, durum
+)
+SELECT g.imei_number AS imei, g.internal_id, g.serial_number, g.model, g.teknisyen, g.durum,
+  coalesce(mg.short_name, g.department_mission) AS departman, g.tarih,
+  g.parts[1] AS part1, g.parts[2] AS part2, g.parts[3] AS part3, g.parts[4] AS part4, g.parts[5] AS part5,
+  g.parts[6] AS part6, g.parts[7] AS part7, g.parts[8] AS part8, g.parts[9] AS part9, g.parts[10] AS part10
+FROM g LEFT JOIN organization.mission_groups mg ON mg.code = g.department_mission
+ORDER BY imei, departman, durum;
+"""
+
+    @Slot(result=str)
+    def get_production_repair_report(self):
+        """Üretim aşamasındaki (statü 109) cihazların çözülmüş onarımlarını
+        (Tamamlandı/İptal) cihaz+departman+durum grain'inde, değişen parça
+        kategorileri part1..part10 ile döndürür. Kaynak: warehouse.production_repair_report
+        VIEW — deploy-safe olması için her çağrıda idempotent garanti edilir."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            try:
+                db.execute(text(self._PROD_REPAIR_REPORT_DDL))
+                db.commit()
+            except Exception as ddl_err:
+                db.rollback()
+                print(f"[WebBridge] production_repair_report VIEW oluşturulamadı: {ddl_err}")
+
+            rows = db.execute(text("SELECT * FROM warehouse.production_repair_report")).mappings().all()
+            fmt = fmt_tr_datetime
+            items = []
+            for r in rows:
+                parts = [r[f"part{i}"] for i in range(1, 11) if r.get(f"part{i}")]
+                items.append({
+                    "imei": r["imei"] or "",
+                    "internalId": r["internal_id"] or "",
+                    "serialNumber": r["serial_number"] or "",
+                    "model": r["model"] or "",
+                    "teknisyen": r["teknisyen"] or "-",
+                    "durum": r["durum"] or "",
+                    "departman": r["departman"] or "",
+                    "tarih": fmt(r["tarih"]),
+                    "parts": parts,
+                })
+            return json.dumps({"success": True, "items": items}, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
     @Slot(result=str)
     def get_service_statu_list(self):
         """warehouse.service_statu'daki tüm statü kodlarını (kısa ad + gerekli mission) getirir.
