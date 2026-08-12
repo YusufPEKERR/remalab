@@ -17,6 +17,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxcb-shape0 \
     libxcb-xfixes0 \
     libx11-xcb1 \
+    libgssapi-krb5-2 \
+    libnss3 \
+    libnspr4 \
+    libasound2 \
     && rm -rf /var/lib/apt/lists/*
 
 # Set up work directory
