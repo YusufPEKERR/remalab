@@ -10,7 +10,12 @@
 </head>
 
 <body>
-  <div id="root">
+  <!-- Splash #root DIŞINDA durur: React #root'a mount olur ve konteynerin
+       içindeki React'e ait olmayan düğümleri (özellikle inline <style>) kaldırmaya
+       çalışınca "removeChild ... not a child of this node" hatası veriyordu.
+       #root boş bırakılır; splash bağımsızdır, React yüklenince main.jsx siler. -->
+  <div id="root"></div>
+  <div id="splash">
     <style>
       body,
       html {
