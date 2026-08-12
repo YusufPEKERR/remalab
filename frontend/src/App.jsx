@@ -46,6 +46,7 @@ const Suppliers = dayanikliLazy(() => import('./pages/Suppliers'));
 const Locations = dayanikliLazy(() => import('./pages/Locations'));
 const Depo = dayanikliLazy(() => import('./pages/Depo'));
 const Servis = dayanikliLazy(() => import('./pages/Servis'));
+const Irsaliye = dayanikliLazy(() => import('./pages/Irsaliye'));
 const WorkOrders = dayanikliLazy(() => import('./pages/WorkOrders'));
 const Raporlar = dayanikliLazy(() => import('./pages/Raporlar'));
 const Settings = dayanikliLazy(() => import('./pages/Settings'));
@@ -54,6 +55,7 @@ const FlowDgdMapping = dayanikliLazy(() => import('./pages/FlowDgdMapping'));
 const CustomerPriceMatrix = dayanikliLazy(() => import('./pages/CustomerPriceMatrix'));
 const CustomerTargetPriceMatrix = dayanikliLazy(() => import('./pages/CustomerTargetPriceMatrix'));
 const LabourPricingMatrices = dayanikliLazy(() => import('./pages/LabourPricingMatrices'));
+const MusteriSevkFatura = dayanikliLazy(() => import('./pages/MusteriSevkFatura'));
 // MusteriSevkPaket (Sevk Paketleme / Pack List) ASKIYA ALINDI: 126→127 artık genel
 // BatchStatuTransition ekranıyla yapılır (bkz. aşağıda /statu-gecis/SPA_P/126_127
 // override'ının kaldırılması). Paketleme (kutu/sıra/pack_list) ve kaçak 127→128
@@ -112,6 +114,7 @@ function App() {
               <Route path="/depo" element={<Depo />} />
               <Route path="/parca-teslim" element={<ParcaTeslim />} />
               <Route path="/servis" element={<Servis />} />
+              <Route path="/irsaliye" element={<Irsaliye />} />
               <Route path="/work-orders" element={<WorkOrders />} />
 
               <Route path="/raporlar" element={<Raporlar />} />
@@ -133,6 +136,7 @@ function App() {
               <Route path="/customer-price-matrix" element={<CustomerPriceMatrix />} />
               <Route path="/customer-target-price-matrix" element={<CustomerTargetPriceMatrix />} />
               <Route path="/labour-pricing-matrices" element={<LabourPricingMatrices />} />
+              <Route path="/musteri-sevk-fatura" element={<MusteriSevkFatura />} />
               <Route path="/service-records" element={<ServiceRecords />} />
               <Route path="/data-management" element={<DataManagement />} />
 
