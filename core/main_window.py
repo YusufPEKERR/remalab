@@ -3,7 +3,6 @@ RemaLab WMS - Main Window (React Embedded via QWebChannel)
 """
 
 from PySide6.QtWidgets import QMainWindow, QVBoxLayout, QWidget
-from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWebChannel import QWebChannel, QWebChannelAbstractTransport
 from PySide6.QtWebSockets import QWebSocketServer
 from PySide6.QtNetwork import QHostAddress
@@ -19,7 +18,15 @@ import gzip
 
 from core.web_bridge import WebBridge
 
-from PySide6.QtWebEngineCore import QWebEnginePage
+try:
+    from PySide6.QtWebEngineWidgets import QWebEngineView
+    from PySide6.QtWebEngineCore import QWebEnginePage
+except ImportError:
+    # Headless bulut ortamlarında (örn. Render.com) QtWebEngineView için Chromium
+    # bağımlılıkları yüklü olmadığında içe aktarma hatasını yoksay.
+    print("[INFO] Headless mod: QWebEngineView ve QWebEnginePage pasif geçildi.")
+    QWebEngineView = object
+    QWebEnginePage = object
 
 
 class WebSocketTransport(QWebChannelAbstractTransport):
