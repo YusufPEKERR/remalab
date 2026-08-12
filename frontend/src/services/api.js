@@ -107,7 +107,17 @@ export const getBackend = () => {
                     }
                 } catch { /* localStorage/URL erisilemezse override yok say */ }
 
-                const wsUri = overrideUrl ? overrideUrl : `${wsProtocol}${hostName}:5174`;
+                let wsUri = overrideUrl;
+                if (!wsUri) {
+                    // Bulut/Render modunda (aynı host ve port üzerinden çoklanmış bağlantı):
+                    // Eğer port boşsa (standart 80/443 portu) doğrudan host'a bağlanır, :5174 eklenmez.
+                    const currentPort = window.location.port;
+                    if (!currentPort || currentPort === '80' || currentPort === '443') {
+                        wsUri = `${wsProtocol}${hostName}`;
+                    } else {
+                        wsUri = `${wsProtocol}${hostName}:5174`;
+                    }
+                }
                 // Tunel/uzaktan baglantida ilk el sikismasi 3sn'den uzun surebilir; override varsa bekleme suresini uzat.
                 const wsTimeoutMs = overrideUrl ? 10000 : 3000;
                 console.log('WebSocket hedefi:', wsUri);
