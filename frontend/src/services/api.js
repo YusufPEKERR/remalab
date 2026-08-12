@@ -248,6 +248,14 @@ export const api = {
         });
     },
 
+    // Üretim Durumu raporu (statü 109 güncel durum: cihaz+mission group, part1..10 fiyat+işçilik)
+    getProductionStatusReport: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_production_status_report((res) => resolve(JSON.parse(res)));
+        });
+    },
+
     createUser: async (userData) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
