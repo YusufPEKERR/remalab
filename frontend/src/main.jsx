@@ -11,3 +11,7 @@ createRoot(document.getElementById('root')).render(
     </ThemeProvider>
   </StrictMode>,
 )
+
+// Splash #root dışında bağımsız bir düğüm; React ondan sorumlu değil.
+// Uygulama mount olduktan sonra elle kaldırılır.
+document.getElementById('splash')?.remove()
