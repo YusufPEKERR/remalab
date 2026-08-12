@@ -3298,7 +3298,13 @@ class WebBridge(QObject):
                 SELECT DISTINCT item_category FROM warehouse.service_request_item_category
                 WHERE LOWER(TRIM(service_request_type)) = LOWER(:flow) AND is_customer_approved = TRUE
             """), {"flow": kanonik}).fetchall()
-            categories = [r[0] for r in rows if r[0]]
+            categories = [r[0].strip() for r in rows if r[0]]
+            
+            # EĞER flow "battery only" ise, sadece "battery" ve "dgd" içeren/olan kategoriler onaylı kabul edilsin.
+            is_battery_only_flow = "battery only" in kanonik.lower()
+            if is_battery_only_flow:
+                categories = [c for c in categories if "battery" in c.lower() or c.lower() == "dgd"]
+
             return json.dumps({
                 "success": True,
                 "categories": categories,
@@ -3329,11 +3335,18 @@ class WebBridge(QObject):
                 WHERE LOWER(TRIM(item_category)) = LOWER(:cat)
                 ORDER BY service_request_type ASC
             """), {"cat": category}).mappings().all()
-            types = [{
-                "code": (r["service_request_type"] or "").strip(),
-                "short_name": (r["service_request_type"] or "").strip(),
-                "is_customer_approved": bool(r["is_customer_approved"]),
-            } for r in rows]
+            
+            types = []
+            for r in rows:
+                code = (r["service_request_type"] or "").strip()
+                is_approved = bool(r["is_customer_approved"])
+                if "battery only" in code.lower() and not ("battery" in category.lower() or category.lower() == "dgd"):
+                    is_approved = False
+                types.append({
+                    "code": code,
+                    "short_name": code,
+                    "is_customer_approved": is_approved,
+                })
             return json.dumps({"success": True, "service_request_types": types}, ensure_ascii=False)
         except Exception as e:
             return json.dumps({"success": False, "message": str(e)})
@@ -16394,6 +16407,11 @@ ORDER BY imei, departman, durum;
                     WHERE LOWER(TRIM(service_request_type)) = LOWER(:flow) AND is_customer_approved = TRUE
                 """), {"flow": flow}).fetchall()
                 approved_categories = {c[0].strip().lower() for c in cat_rows if c[0]}
+
+            # EĞER flow "battery only" ise, sadece "battery" ve "dgd" içeren/olan kategoriler onaylı kabul edilsin.
+            is_battery_only_flow = "battery only" in flow.lower()
+            if is_battery_only_flow:
+                approved_categories = {c for c in approved_categories if "battery" in c or c == "dgd"}
 
             kategorisi_uygunsuz = [
                 r for r in onaysiz_kayitlar
