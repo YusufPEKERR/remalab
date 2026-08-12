@@ -57,26 +57,37 @@ class HeadlessServer(QObject):
         )
         self.websocket_server.setMaxPendingConnections(200)
         
-        # Cloud/Render uyumluluğu için PORT çevre değişkenini oku
-        self.port = int(os.environ.get("PORT", 5174))
+        # Cloud/Render uyumluluğu kontrolü
+        env_port = os.environ.get("PORT")
+        is_cloud = env_port is not None and env_port != "5174"
+        
+        if is_cloud:
+            self.ws_port = 5174
+            self.http_port_target = 5175
+            self.public_port = int(env_port)
+        else:
+            self.ws_port = 5174
+            self.http_port_target = 80
+            self.public_port = None
 
-        if not self.websocket_server.listen(QHostAddress.Any, self.port):
-            print(f"[WARN] Port {self.port} meşgul. Arka plandaki eski sunucu süreçleri temizleniyor...")
+        # WebSocket sunucusunu başlat
+        if not self.websocket_server.listen(QHostAddress.Any, self.ws_port):
+            print(f"[WARN] Port {self.ws_port} meşgul. Arka plandaki eski sunucu süreçleri temizleniyor...")
             try:
                 import subprocess
                 subprocess.run("taskkill /F /FI \"COMMANDLINE eq *server.py*\" >nul 2>&1", shell=True)
                 time.sleep(1)
             except Exception:
                 pass
-            self.websocket_server.listen(QHostAddress.Any, self.port)
+            self.websocket_server.listen(QHostAddress.Any, self.ws_port)
 
         if self.websocket_server.isListening():
-            print(f"[INFO] WebSocket Arka Plan Sunucusu {self.port} portunda (100+ Eşzamanlı Kullanıcı Kapasiteli) baslatildi.")
+            print(f"[INFO] WebSocket Arka Plan Sunucusu {self.ws_port} portunda baslatildi.")
             self.websocket_server.newConnection.connect(self.on_new_websocket_connection)
         else:
-            print(f"[ERROR] WebSocket sunucusu {self.port} portunda başlatılamadı! Lütfen Görev Yöneticisi'nden eski python süreçlerini sonlandırın.")
+            print(f"[ERROR] WebSocket sunucusu {self.ws_port} portunda başlatılamadı!")
 
-        # Frontend dist dizinini kontrol et, eksik/uyumsuz paket varsa otomatik onar ve Web Sunucusunu başlat
+        # Frontend dist dizinini kontrol et
         from core.main_window import ensure_frontend_dist_integrity
         ensure_frontend_dist_integrity()
 
@@ -84,14 +95,82 @@ class HeadlessServer(QObject):
         dist_dir = os.path.join(base_dir, "frontend", "dist")
 
         if os.path.exists(dist_dir):
-            # Eğer port 5174 değilse (Render/buluttaysak), HTTP sunucusunu başlatmaya gerek yok
-            # çünkü bu portu zaten WebSocket kullanıyor olacak.
-            if self.port == 5174:
-                self.http_server, self.http_port = _start_frontend_http_server(dist_dir, 80)
+            if is_cloud:
+                # Bulut ortamında HTTP sunucusunu dahili portta başlat
+                self.http_server, self.actual_http_port = _start_frontend_http_server(dist_dir, self.http_port_target)
+                self.http_port = self.public_port
+                # Ve dış dünyadan gelen istekleri WS (5174) ve HTTP (5175) arasında paylaştıran TCP Multiplexer'ı çalıştır
+                self._start_tcp_multiplexer(self.public_port, self.ws_port, self.actual_http_port)
             else:
-                print("[INFO] Bulut/Render modu: Frontend HTTP sunucusu pasif, sadece WebSocket aktif.")
+                self.http_server, self.actual_http_port = _start_frontend_http_server(dist_dir, self.http_port_target)
+                self.http_port = self.actual_http_port
         else:
+            self.http_port = 80
             print("[WARN] Frontend dist klasoru bulunamadi! Web sunucusu baslatilamadi.")
+
+    def _start_tcp_multiplexer(self, public_port, ws_port, http_port):
+        import socket
+        def handle_client(client_sock):
+            try:
+                # HTTP isteğini oku
+                data = client_sock.recv(4096)
+                if not data:
+                    client_sock.close()
+                    return
+
+                # İstekte WebSocket geçişi (Upgrade) var mı kontrol et
+                is_websocket = b"upgrade: websocket" in data.lower()
+                target_port = ws_port if is_websocket else http_port
+
+                # Hedef sunucuya bağlan ve veriyi ilet
+                target_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                target_sock.connect(("127.0.0.1", target_port))
+                target_sock.sendall(data)
+
+                # Çift yönlü köprü (piping)
+                def pipe(source, dest):
+                    try:
+                        while True:
+                            chunk = source.recv(4096)
+                            if not chunk:
+                                break
+                            dest.sendall(chunk)
+                    except Exception:
+                        pass
+                    finally:
+                        try:
+                            source.close()
+                        except Exception:
+                            pass
+                        try:
+                            dest.close()
+                        except Exception:
+                            pass
+
+                threading.Thread(target=pipe, args=(client_sock, target_sock), daemon=True).start()
+                threading.Thread(target=pipe, args=(target_sock, client_sock), daemon=True).start()
+            except Exception as e:
+                print(f"[Multiplexer Error] {e}")
+                try:
+                    client_sock.close()
+                except Exception:
+                    pass
+
+        def listen_loop():
+            server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            server_sock.bind(("0.0.0.0", public_port))
+            server_sock.listen(128)
+            print(f"[INFO] TCP Multiplexer started on port {public_port} -> Routing WS to {ws_port}, HTTP to {http_port}")
+            while True:
+                try:
+                    client_sock, addr = server_sock.accept()
+                    threading.Thread(target=handle_client, args=(client_sock,), daemon=True).start()
+                except Exception as e:
+                    print(f"[Multiplexer Accept Error] {e}")
+                    time.sleep(0.5)
+
+        threading.Thread(target=listen_loop, daemon=True).start()
 
     def on_new_websocket_connection(self):
         socket = self.websocket_server.nextPendingConnection()
