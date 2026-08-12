@@ -305,6 +305,29 @@ export const api = {
         });
     },
 
+    getRepairCompletionReport: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (!backend || typeof backend.get_repair_completion_report !== 'function') {
+                // Slot çalışan süreçte yoksa: uygulama güncelleme sonrası yeniden başlatılmamış.
+                resolve({ success: false, message: 'Yazdırma/rapor desteği bu süreçte yok. Uygulamayı tamamen kapatıp yeniden başlatın.' });
+                return;
+            }
+            backend.get_repair_completion_report((res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    getBillingReport: async (startIso, endIso) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (!backend || typeof backend.get_billing_report !== 'function') {
+                resolve({ success: false, message: 'Faturalandırma raporu bu süreçte yok. Uygulamayı tamamen kapatıp yeniden başlatın.' });
+                return;
+            }
+            backend.get_billing_report(startIso, endIso, (res) => resolve(JSON.parse(res)));
+        });
+    },
+
     createUser: async (userData) => {
         const backend = await getBackend();
         return new Promise((resolve) => {

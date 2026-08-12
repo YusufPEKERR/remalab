@@ -13285,12 +13285,16 @@ class WebBridge(QObject):
 CREATE OR REPLACE VIEW warehouse.production_repair_report AS
 WITH prod AS (
   SELECT service_id::text AS sid, imei_number, internal_id, serial_number,
-         coalesce(nullif(btrim(model),''), nullif(btrim(product_family),'')) AS model
+         coalesce(nullif(btrim(model),''), nullif(btrim(product_family),'')) AS model,
+         batch_no,
+         coalesce(nullif(btrim(customer_name),''), customer_no, '') AS customer,
+         flow
   FROM warehouse.batch_entries WHERE statu_code = 109
 ),
 r AS (
   SELECT
-    p.imei_number, p.internal_id, p.serial_number, p.model, rr.department_mission,
+    p.imei_number, p.internal_id, p.serial_number, p.model, p.batch_no, p.customer, p.flow,
+    rr.department_mission,
     CASE WHEN rr.repair_result_type_code = 1002 THEN 'Tamamlandı'
          WHEN rr.repair_result_type_code = 1003 THEN 'İptal' END AS durum,
     coalesce(nullif(btrim(u.fullname),''), nullif(btrim(rr.assigned_technician),'')) AS teknisyen,
@@ -13310,17 +13314,22 @@ r AS (
   WHERE rr.repair_result_type_code IN (1002, 1003)
 ),
 g AS (
-  SELECT imei_number, internal_id, serial_number, model, department_mission, durum,
+  SELECT imei_number, internal_id, serial_number, model, batch_no, customer, flow,
+    department_mission, durum,
     coalesce(string_agg(DISTINCT teknisyen, ', '), '-') AS teknisyen,
     max(tarih_ts) AS tarih,
     (array_agg(DISTINCT part_kategori) FILTER (WHERE coalesce(part_kategori,'')<>'')) AS parts
   FROM r
-  GROUP BY imei_number, internal_id, serial_number, model, department_mission, durum
+  GROUP BY imei_number, internal_id, serial_number, model, batch_no, customer, flow, department_mission, durum
 )
+-- NOT: Yeni sütunlar (batch_no, customer, flow) SONA eklenir. CREATE OR REPLACE VIEW
+-- mevcut sütunların sırasını değiştiremez; ortaya eklemek "cannot change name of view
+-- column" hatası verir. Ön yüz zaten isimle okuduğu için sıra önemsiz.
 SELECT g.imei_number AS imei, g.internal_id, g.serial_number, g.model, g.teknisyen, g.durum,
   coalesce(mg.short_name, g.department_mission) AS departman, g.tarih,
   g.parts[1] AS part1, g.parts[2] AS part2, g.parts[3] AS part3, g.parts[4] AS part4, g.parts[5] AS part5,
-  g.parts[6] AS part6, g.parts[7] AS part7, g.parts[8] AS part8, g.parts[9] AS part9, g.parts[10] AS part10
+  g.parts[6] AS part6, g.parts[7] AS part7, g.parts[8] AS part8, g.parts[9] AS part9, g.parts[10] AS part10,
+  g.batch_no, g.customer, g.flow
 FROM g LEFT JOIN organization.mission_groups mg ON mg.code = g.department_mission
 ORDER BY imei, departman, durum;
 """
@@ -13351,6 +13360,9 @@ ORDER BY imei, departman, durum;
                     "internalId": r["internal_id"] or "",
                     "serialNumber": r["serial_number"] or "",
                     "model": r["model"] or "",
+                    "batchNo": r["batch_no"] or "",
+                    "customer": r["customer"] or "",
+                    "flow": r["flow"] or "",
                     "teknisyen": r["teknisyen"] or "-",
                     "durum": r["durum"] or "",
                     "departman": r["departman"] or "",
@@ -13448,6 +13460,151 @@ ORDER BY imei, mission_group;
                     "parts": parts,
                 })
             return json.dumps({"success": True, "items": items}, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(result=str)
+    def get_repair_completion_report(self):
+        """Onarım Bitiş Raporu — cihaz bazında IMEI, Internal ID, Seri No, Model,
+        Batch No, Customer ve Flow sütunlarını döndürür. Tarihe göre süzülmez;
+        raporun süzülmesi ön yüzde IMEI / Internal ID / Seri No ile yapılır.
+        Kaynak: warehouse.batch_entries (cihaz başına EN GÜNCEL satır)."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            # DISTINCT ON: her cihaz için TEK satır. Cihaz başına EN GÜNCEL kayıt kazanır
+            # (önce updated_at, yoksa statu_update_time, en son id) — böylece IMEI / Seri No /
+            # Internal ID sütunları cihazın güncel değerlerini gösterir, eski batch'i değil.
+            rows = db.execute(text("""
+                SELECT DISTINCT ON (COALESCE(NULLIF(TRIM(imei_number), ''),
+                                             NULLIF(TRIM(internal_id), ''),
+                                             NULLIF(TRIM(serial_number), ''),
+                                             id::text))
+                       imei_number, internal_id, serial_number, model, batch_no,
+                       COALESCE(NULLIF(TRIM(customer_name), ''), customer_no, '') AS customer,
+                       flow, id,
+                       -- İADE: cihazda onarımı İPTAL edilmiş (kod 1003, is_cancelled) ve
+                       -- gerçek parçası olan bir onarım kaydı var mı? Varsa parça iade gelmiş.
+                       EXISTS(
+                         SELECT 1 FROM warehouse.repair_records rr
+                         LEFT JOIN warehouse.repair_result_type rrt ON rrt.code = rr.repair_result_type_code
+                         WHERE COALESCE(rrt.is_cancelled, FALSE) = TRUE
+                           AND rr.part_item_code IS NOT NULL AND TRIM(rr.part_item_code) <> ''
+                           AND rr.service_record_id IN (imei_number, internal_id, serial_number, service_id::text)
+                       ) AS iade_var
+                FROM warehouse.batch_entries
+                ORDER BY COALESCE(NULLIF(TRIM(imei_number), ''),
+                                  NULLIF(TRIM(internal_id), ''),
+                                  NULLIF(TRIM(serial_number), ''),
+                                  id::text),
+                         updated_at DESC NULLS LAST,
+                         statu_update_time DESC NULLS LAST,
+                         id DESC
+            """)).mappings().all()
+            items = [{
+                "imei": r["imei_number"] or "",
+                "internalId": r["internal_id"] or "",
+                "serialNumber": r["serial_number"] or "",
+                "model": r["model"] or "",
+                "batchNo": r["batch_no"] or "",
+                "customer": r["customer"] or "",
+                "flow": r["flow"] or "",
+                "iade": bool(r["iade_var"]),
+            } for r in rows]
+            return json.dumps({"success": True, "items": items}, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, result=str)
+    def get_billing_report(self, start_iso, end_iso):
+        """Faturalandırma Raporu — seçilen TARİH ARALIĞINDAKİ cihazların fatura kırılımı.
+        Cihaz alanları (IMEI, Internal ID, Seri No, Model, Batch No, Customer, Flow) +
+        her parça için ÜÇLÜ (Parça / Parça Flow=departman / Parça İşçilik) 10 yuvaya kadar +
+        DGD durumu. Kaynak: batch_entries (tarih süzgeci) + _cihaz_fatura_hesabi.
+
+        Tarih: cihazın son statü güncelleme zamanı (yoksa updated_at/created_at)."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            params, kosul = {}, ""
+            if start_iso:
+                kosul += " AND COALESCE(be.statu_update_time, be.updated_at, be.created_at) >= :bas"
+                params["bas"] = start_iso
+            if end_iso:
+                kosul += " AND COALESCE(be.statu_update_time, be.updated_at, be.created_at) <= :bit"
+                params["bit"] = end_iso
+            rows = db.execute(text(f"""
+                SELECT be.imei_number, be.internal_id, be.serial_number, be.model,
+                       be.batch_no, be.customer_no, be.customer_name, be.flow, be.service_id
+                  FROM warehouse.batch_entries be
+                 WHERE 1=1 {kosul}
+                 ORDER BY be.customer_no, be.imei_number
+            """), params).mappings().all()
+
+            SLOT = 10
+            items = []
+            for be in rows:
+                refs = [be["imei_number"]] if be["imei_number"] else []
+                if be["service_id"]:
+                    refs.append(str(be["service_id"]))
+                if not refs:
+                    continue
+                f = self._cihaz_fatura_hesabi(db, refs, (be["customer_no"] or "").strip(), flow=be["flow"])
+                # Parça yuvalarına GERÇEK parça satırları girer (mevcut fatura CSV'siyle aynı kural):
+                # faturalanabilir olan VEYA gerçek parça kodu + sırası olan satırlar. Bunlar
+                # faturalanan (iptal EDİLMEMİŞ) parçalardır -> iade = False.
+                parcalar_ham = []
+                for s in [x for x in f["satirlar"]
+                          if x["faturalanabilir"] or (x["part_item_code"] and x["order_number"] is not None)]:
+                    iscilik = s.get("iscilik_fiyat")
+                    parcalar_ham.append({
+                        "parca": s.get("item_category") or s.get("part_item_code") or "",
+                        "flow": s.get("department_mission") or "",
+                        "iscilik": (round(float(iscilik), 2) if iscilik not in (None, "") else ""),
+                        "iade": False,
+                        "_ts": s.get("created_at") or "",
+                    })
+                # İADE = onarım sonucu 'Onarım İptal Edildi' (kod 1003, is_cancelled) olan parçalar.
+                # _cihaz_fatura_hesabi bunları eler; raporda göstermek için ayrıca çekilir.
+                # İşçilik/fiyat yoktur (faturalanmaz), yalnızca parça + flow + iade=True.
+                for ip in db.execute(text("""
+                    SELECT COALESCE(pp.item_category, '') AS item_category, rr.part_item_code,
+                           rr.department_mission, rr.created_at
+                      FROM warehouse.repair_records rr
+                      LEFT JOIN warehouse.repair_result_type rrt ON rrt.code = rr.repair_result_type_code
+                      LEFT JOIN warehouse.parts pp ON pp.item_code = rr.part_item_code
+                     WHERE rr.service_record_id = ANY(:refs)
+                       AND COALESCE(rrt.is_cancelled, FALSE) = TRUE
+                     ORDER BY rr.created_at
+                """), {"refs": refs}).mappings().all():
+                    if not (ip["item_category"] or ip["part_item_code"]):
+                        continue  # parçasız iptal satırı gösterilmez
+                    parcalar_ham.append({
+                        "parca": ip["item_category"] or ip["part_item_code"] or "",
+                        "flow": ip["department_mission"] or "",
+                        "iscilik": "",
+                        "iade": True,
+                        "_ts": ip["created_at"].isoformat() if ip["created_at"] else "",
+                    })
+                # Gerçek ekleme sırasına göre diz; ilk 10 yuva. _ts yalnızca sıralama içindir.
+                parcalar_ham.sort(key=lambda p: p["_ts"] or "")
+                parcalar = [{k: v for k, v in p.items() if k != "_ts"} for p in parcalar_ham[:SLOT]]
+                items.append({
+                    "imei": be["imei_number"] or "",
+                    "internalId": be["internal_id"] or "",
+                    "serialNumber": be["serial_number"] or "",
+                    "model": be["model"] or "",
+                    "batchNo": be["batch_no"] or "",
+                    "customer": (be["customer_name"] or be["customer_no"] or ""),
+                    "flow": be["flow"] or "",
+                    "dgd": f.get("dgd_durum") or "",
+                    "parcalar": parcalar,
+                })
+            return json.dumps({"success": True, "items": items, "slot": SLOT}, ensure_ascii=False)
         except Exception as e:
             return json.dumps({"success": False, "message": str(e)})
         finally:

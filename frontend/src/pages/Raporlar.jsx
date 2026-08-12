@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Download, RefreshCw, Calendar, FolderDown } from 'lucide-react';
+import { Download, RefreshCw, Calendar, FolderDown, Search } from 'lucide-react';
 import { api } from '../services/api';
 
 // Sistem raporları — dikey liste. Her rapor bir "Rapor Oluştur" aksiyonu ile
@@ -15,6 +15,10 @@ const REPORT_TABS = [
     desc: 'Üretim aşamasındaki cihazların tamamlanan/iptal onarımları ve değişen parçaları.' },
   { key: 'uretim_durum', title: 'Üretim Durumu', accent: '#7C3AED',
     desc: 'Üretimdeki cihazların güncel durumu: mission group statüsü ve değişen parçalar (fiyat + işçilik).' },
+  { key: 'onarimBitis', title: 'Onarım Bitiş Raporu', accent: '#0EA5E9', deviceFilter: true,
+    desc: 'Seçilen cihazların IMEI, Internal ID, Seri No, Model, Batch No, Customer ve Flow bilgileri. Tarihe göre değil; IMEI / Internal ID / Seri No ile süzülür.' },
+  { key: 'fatura', title: 'Seçilen Cihazlara Göre Faturalandırma Raporu', accent: '#EA580C', deviceFilter: true,
+    desc: 'Seçilen cihazların fatura kırılımı: cihaz bilgileri + her parça için (Parça / Parça Flow / Parça İşçilik) 10 yuvaya kadar + DGD durumu. IMEI / Internal ID / Seri No ile süzülür.' },
 ];
 
 const bugun = () => {
@@ -43,8 +47,12 @@ export default function Raporlar() {
   const [ranges, setRanges] = useState({
     transfers: { start: gunEkle(bugun(), -30), end: bugun() },
     uretim: { start: gunEkle(bugun(), -30), end: bugun() },
+    fatura: { start: gunEkle(bugun(), -30), end: bugun() },
   });
   const setRange = (key, field, val) => setRanges((r) => ({ ...r, [key]: { ...r[key], [field]: val } }));
+  // Onarım Bitiş Raporu cihaz süzgeci (tarih yok): TEK kutu — IMEI / Internal ID / Seri No'dan
+  // herhangi biriyle eşleşen cihaz kabul edilir.
+  const [deviceQuery, setDeviceQuery] = useState('');
   const [preview, setPreview] = useState(null);       // önizleme modalı: { key, title, filename, rows }
   const [downloading, setDownloading] = useState(false);
 
@@ -108,6 +116,42 @@ export default function Raporlar() {
         };
       });
     }
+    if (key === 'fatura') {
+      const SLOT = 10;
+      return data.map((r) => {
+        const row = {
+          'IMEI': r.imei || '',
+          'Internal ID': r.internalId || '',
+          'Seri No': r.serialNumber || '',
+          'Model': r.model || '',
+          'Batch No': r.batchNo || '',
+          'Customer': r.customer || '',
+          'Flow': r.flow || '',
+        };
+        for (let i = 0; i < SLOT; i++) {
+          const varMi = !!(r.parcalar && r.parcalar[i]);
+          const p = (r.parcalar && r.parcalar[i]) || {};
+          row[`Parça ${i + 1}`] = p.parca || '';
+          row[`Parça ${i + 1} Flow`] = p.flow || '';
+          row[`Parça ${i + 1} İşçilik`] = (p.iscilik === null || p.iscilik === undefined) ? '' : p.iscilik;
+          row[`Parça ${i + 1} İade`] = varMi ? (p.iade ? 'Evet' : 'Hayır') : '';
+        }
+        row['DGD'] = r.dgd || '';
+        return row;
+      });
+    }
+    if (key === 'onarimBitis') {
+      return data.map((r) => ({
+        'IMEI': r.imei || '',
+        'Internal ID': r.internalId || '',
+        'Seri No': r.serialNumber || '',
+        'Model': r.model || '',
+        'Batch No': r.batchNo || '',
+        'Customer': r.customer || '',
+        'Flow': r.flow || '',
+        'İade': r.iade ? 'Evet' : 'Hayır',
+      }));
+    }
     // uretim
     return data.map((r) => {
       const row = {
@@ -115,6 +159,9 @@ export default function Raporlar() {
         'Internal ID': r.internalId || '',
         'Seri No': r.serialNumber || '',
         'Model': r.model || '',
+        'Batch No': r.batchNo || '',
+        'Customer': r.customer || '',
+        'Flow': r.flow || '',
         'Departman': r.departman || '',
         'Durum': r.durum || '',
         'Teknisyen': r.teknisyen || '',
@@ -123,6 +170,40 @@ export default function Raporlar() {
       for (let i = 0; i < 10; i++) row[`Parça ${i + 1}`] = (r.parts && r.parts[i]) || '';
       return row;
     });
+  };
+
+  // Cihaz süzgeci (Onarım Bitiş + Faturalandırma ortak): deviceQuery'deki her değer
+  // (satır/virgül/boşlukla ayrılmış) bir "aranan"; cihaz, arananlardan HERHANGİ biri
+  // IMEI / Internal ID / Seri No'dan HERHANGİ birine eşleşirse kabul edilir. Sonuç,
+  // girilen sıraya göre dizilir; bulunamayan aramalar kullanıcıya bildirilir.
+  const cihazSuzgeci = (items) => {
+    const tokenlar = deviceQuery.split(/[\s,;]+/).map((s) => s.trim().toLowerCase()).filter(Boolean);
+    if (!tokenlar.length) return items;
+    const benzersiz = [...new Set(tokenlar)];
+    const eslesti = new Set();
+    const alanlariAl = (it) => [it.imei, it.internalId, it.serialNumber].map((x) => String(x || '').toLowerCase());
+    let sonuc = items.filter((it) => {
+      const alanlar = alanlariAl(it);
+      let tut = false;
+      for (const tok of benzersiz) {
+        if (alanlar.some((a) => a.includes(tok))) { eslesti.add(tok); tut = true; }
+      }
+      return tut;
+    });
+    const sira = (it) => {
+      const alanlar = alanlariAl(it);
+      for (let i = 0; i < benzersiz.length; i++) {
+        if (alanlar.some((a) => a.includes(benzersiz[i]))) return i;
+      }
+      return benzersiz.length;
+    };
+    sonuc = sonuc.map((it, i) => ({ it, s: sira(it), i })).sort((a, b) => a.s - b.s || a.i - b.i).map((x) => x.it);
+    const bulunamayan = benzersiz.filter((tok) => !eslesti.has(tok));
+    if (bulunamayan.length) {
+      const liste = bulunamayan.slice(0, 30).join(', ') + (bulunamayan.length > 30 ? ` … (+${bulunamayan.length - 30})` : '');
+      alert(`${bulunamayan.length} arama için cihaz bulunamadı ve rapora girmedi:\n${liste}`);
+    }
+    return sonuc;
   };
 
   // Raporu oluştur → Excel → İndirilenler klasörüne kaydet
@@ -161,6 +242,17 @@ export default function Raporlar() {
         const res = await api.getProductionStatusReport();
         data = res.success ? (res.items || []) : [];
         filename = 'uretim_durumu_raporu.xlsx';
+      } else if (key === 'onarimBitis') {
+        const res = await api.getRepairCompletionReport();
+        if (!res.success) { alert('Rapor oluşturulamadı: ' + (res.message || 'bilinmeyen hata')); return; }
+        data = cihazSuzgeci(res.items || []);
+        filename = 'onarim_bitis_raporu.xlsx';
+      } else if (key === 'fatura') {
+        // Onarım Bitiş gibi: tarih değil, çoklu IMEI/Internal/Seri kutusuyla süzülür.
+        const res = await api.getBillingReport('', '');
+        if (!res.success) { alert('Rapor oluşturulamadı: ' + (res.message || 'bilinmeyen hata')); return; }
+        data = cihazSuzgeci(res.items || []);
+        filename = 'faturalandirma_raporu.xlsx';
       } else if (key === 'transfers') {
         const { start, end } = ranges.transfers;
         const res = await api.getReports(`${start}T00:00`, `${end}T23:59`);
@@ -173,9 +265,13 @@ export default function Raporlar() {
         return;
       }
       const rows = buildRows(key, data);
-      const title = (REPORT_TABS.find((t) => t.key === key) || {}).title || 'Rapor';
+      const secili = REPORT_TABS.find((t) => t.key === key) || {};
+      const title = secili.title || 'Rapor';
       setPreview({ key, title, filename, rows });      // indirmeden önce önizleme aç
-      setOpenKey(null);                                // tarih paneli açıksa kapat
+      setOpenKey(null);                                // panel açıksa kapat
+      // Cihaz süzgeçli raporlarda panel burada kapanıyor (toggle atlanıyor); girilen
+      // IMEI'ler kalmasın diye kutuyu ayrıca temizle.
+      if (secili.deviceFilter) setDeviceQuery('');
     } catch (e) {
       alert('Rapor oluşturulamadı: ' + (e?.message || e));
     } finally {
@@ -241,15 +337,22 @@ export default function Raporlar() {
         {REPORT_TABS.map((t) => {
           const busy = generating === t.key;
           const hasDate = !!t.dateRange;
+          const hasFilter = !!t.deviceFilter;     // cihaz süzgeci (tarih yok)
+          const hasPanel = hasDate || hasFilter;  // açılır panel var mı
           const isOpen = openKey === t.key;
           const rng = ranges[t.key] || {};
-          const toggle = () => setOpenKey((k) => (k === t.key ? null : t.key));
+          const toggle = () => {
+            const kapaniyor = openKey === t.key;
+            // Cihaz süzgeci paneli kapanınca girilen IMEI'ler kalmasın
+            if (kapaniyor && t.deviceFilter) setDeviceQuery('');
+            setOpenKey(kapaniyor ? null : t.key);
+          };
           return (
             <div key={t.key} className="glass-card rounded-2xl shadow-md border border-[#DCE1F1] dark:border-[#1e222d] overflow-hidden">
               <div
-                className={`flex items-center gap-4 p-5 flex-wrap ${hasDate ? 'cursor-pointer hover:bg-[#FFFFFF]/40 dark:hover:bg-[#1e222d]/40 transition-colors' : ''}`}
+                className={`flex items-center gap-4 p-5 flex-wrap ${hasPanel ? 'cursor-pointer hover:bg-[#FFFFFF]/40 dark:hover:bg-[#1e222d]/40 transition-colors' : ''}`}
                 style={{ borderLeft: `4px solid ${t.accent}` }}
-                onClick={hasDate ? toggle : undefined}
+                onClick={hasPanel ? toggle : undefined}
               >
                 {/* Rapor Adı */}
                 <div className="w-52 shrink-0 flex items-center gap-2.5">
@@ -263,13 +366,15 @@ export default function Raporlar() {
                 {/* Aksiyon */}
                 <div className="w-44 shrink-0 flex sm:justify-end">
                   <button
-                    onClick={(e) => { if (hasDate) { e.stopPropagation(); toggle(); } else { raporOlustur(t.key); } }}
+                    onClick={(e) => { if (hasPanel) { e.stopPropagation(); toggle(); } else { raporOlustur(t.key); } }}
                     disabled={busy}
                     className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white transition-all shadow-md cursor-pointer disabled:opacity-60"
                     style={{ background: t.accent }}
                   >
                     {busy
                       ? <><RefreshCw size={15} className="animate-spin" /> Oluşturuluyor...</>
+                      : hasFilter
+                        ? <><Search size={15} /> {isOpen ? 'Kapat' : 'Rapor Oluştur'}</>
                       : hasDate
                         ? <><Calendar size={15} /> {isOpen ? 'Kapat' : 'Rapor Oluştur'}</>
                         : <><Download size={15} /> Rapor Oluştur</>}
@@ -281,7 +386,9 @@ export default function Raporlar() {
               {hasDate && isOpen && (
                 <div className="px-5 pb-5 pt-1 border-t border-[#DCE1F1] dark:border-[#1e222d] bg-[#F5F7FC] dark:bg-[#181a24]">
                   <p className="text-xs font-bold text-[#5A6685] dark:text-[#8892B5] mt-3 mb-2">
-                    {t.key === 'uretim' ? 'Onarım Tarihi Aralığı Seçin' : 'Hareket Tarihi Aralığı Seçin'}
+                    {t.key === 'uretim' ? 'Onarım Tarihi Aralığı Seçin'
+                      : t.key === 'fatura' ? 'Cihaz Tarihi Aralığı Seçin'
+                      : 'Hareket Tarihi Aralığı Seçin'}
                   </p>
                   <div className="flex flex-wrap items-center gap-2 mb-3">
                     {[['today', 'Bugün'], ['yesterday', 'Dün'], ['week', 'Son 1 Hafta'], ['month', 'Son 1 Ay'], ['6month', 'Son 6 Ay'], ['year', 'Son 1 Yıl']].map(([q, label]) => (
@@ -308,6 +415,38 @@ export default function Raporlar() {
                     >
                       {busy ? <><RefreshCw size={15} className="animate-spin" /> Oluşturuluyor...</> : <><Download size={15} /> Oluştur ve İndir</>}
                     </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Cihaz süzgeci (Onarım Bitiş Raporu) — tarih YOK */}
+              {hasFilter && isOpen && (
+                <div className="px-5 pb-5 pt-1 border-t border-[#DCE1F1] dark:border-[#1e222d] bg-[#F5F7FC] dark:bg-[#181a24]">
+                  <p className="text-xs font-bold text-[#5A6685] dark:text-[#8892B5] mt-3 mb-2">
+                    Cihaz Süz — IMEI / Internal ID / Seri No. Birden fazla girebilirsin (alt alta, virgül veya boşlukla). Boş bırakılırsa tüm cihazlar.
+                  </p>
+                  <div className="flex flex-col gap-2">
+                    <textarea value={deviceQuery}
+                      onChange={(e) => setDeviceQuery(e.target.value.replace(/[\s,;]+/g, '\n').replace(/^\n+/, ''))}
+                      rows={4}
+                      placeholder={"Örn:\n356789012345678\nINT-00123\nSN-ABC-9981"}
+                      className="bg-[#FFFFFF] dark:bg-[#1e222d] text-[#12141c] dark:text-[#F6F8FF] border border-[#DCE1F1] dark:border-[#2e3545] rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:border-[#7C3AED] w-full resize-y" />
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-[11px] text-[#5A6685] dark:text-[#8892B5]">
+                        {deviceQuery.split(/[\s,;]+/).filter(Boolean).length} giriş
+                        {deviceQuery.trim() && (
+                          <button onClick={() => setDeviceQuery('')} className="ml-2 underline hover:no-underline cursor-pointer">temizle</button>
+                        )}
+                      </span>
+                      <button
+                        onClick={() => raporOlustur(t.key)}
+                        disabled={busy}
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white transition-all shadow-md cursor-pointer disabled:opacity-60"
+                        style={{ background: t.accent }}
+                      >
+                        {busy ? <><RefreshCw size={15} className="animate-spin" /> Oluşturuluyor...</> : <><Download size={15} /> Oluştur ve İndir</>}
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
