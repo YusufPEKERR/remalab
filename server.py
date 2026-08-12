@@ -56,21 +56,25 @@ class HeadlessServer(QObject):
             self
         )
         self.websocket_server.setMaxPendingConnections(200)
-        if not self.websocket_server.listen(QHostAddress.Any, 5174):
-            print("[WARN] Port 5174 meşgul. Arka plandaki eski sunucu süreçleri temizleniyor...")
+        
+        # Cloud/Render uyumluluğu için PORT çevre değişkenini oku
+        self.port = int(os.environ.get("PORT", 5174))
+
+        if not self.websocket_server.listen(QHostAddress.Any, self.port):
+            print(f"[WARN] Port {self.port} meşgul. Arka plandaki eski sunucu süreçleri temizleniyor...")
             try:
                 import subprocess
                 subprocess.run("taskkill /F /FI \"COMMANDLINE eq *server.py*\" >nul 2>&1", shell=True)
                 time.sleep(1)
             except Exception:
                 pass
-            self.websocket_server.listen(QHostAddress.Any, 5174)
+            self.websocket_server.listen(QHostAddress.Any, self.port)
 
         if self.websocket_server.isListening():
-            print("[INFO] WebSocket Arka Plan Sunucusu 5174 portunda (100+ Eşzamanlı Kullanıcı Kapasiteli) baslatildi.")
+            print(f"[INFO] WebSocket Arka Plan Sunucusu {self.port} portunda (100+ Eşzamanlı Kullanıcı Kapasiteli) baslatildi.")
             self.websocket_server.newConnection.connect(self.on_new_websocket_connection)
         else:
-            print("[ERROR] WebSocket sunucusu 5174 portunda başlatılamadı! Lütfen Görev Yöneticisi'nden eski python süreçlerini sonlandırın.")
+            print(f"[ERROR] WebSocket sunucusu {self.port} portunda başlatılamadı! Lütfen Görev Yöneticisi'nden eski python süreçlerini sonlandırın.")
 
         # Frontend dist dizinini kontrol et, eksik/uyumsuz paket varsa otomatik onar ve Web Sunucusunu başlat
         from core.main_window import ensure_frontend_dist_integrity
@@ -80,7 +84,12 @@ class HeadlessServer(QObject):
         dist_dir = os.path.join(base_dir, "frontend", "dist")
 
         if os.path.exists(dist_dir):
-            self.http_server, self.http_port = _start_frontend_http_server(dist_dir, 80)
+            # Eğer port 5174 değilse (Render/buluttaysak), HTTP sunucusunu başlatmaya gerek yok
+            # çünkü bu portu zaten WebSocket kullanıyor olacak.
+            if self.port == 5174:
+                self.http_server, self.http_port = _start_frontend_http_server(dist_dir, 80)
+            else:
+                print("[INFO] Bulut/Render modu: Frontend HTTP sunucusu pasif, sadece WebSocket aktif.")
         else:
             print("[WARN] Frontend dist klasoru bulunamadi! Web sunucusu baslatilamadi.")
 
