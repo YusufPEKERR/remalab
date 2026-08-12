@@ -140,7 +140,6 @@ export default function MainLayout() {
       items: [
         { name: 'Depo', icon: Warehouse, path: '/depo' },
         { name: 'Parça Teslim', icon: PackagePlus, path: '/parca-teslim' },
-        { name: 'İrsaliye', icon: FileText, path: '/irsaliye' },
         { name: 'İş Emirleri', icon: ClipboardList, path: '/work-orders' },
         { name: 'Raporlar', icon: BarChart2, path: '/raporlar' },
         { name: 'Test Raporu', icon: FileCheck2, path: '/test-raporu' }
@@ -162,10 +161,7 @@ export default function MainLayout() {
       items: [
         { name: 'Kayıt kabul yap (100>101)', icon: Boxes, path: '/statu-gecis/SPA_P/100_101' },
         { name: 'İlk teste aktar (101>102)', icon: Boxes, path: '/statu-gecis/SPA_P/101_102' },
-        { name: 'Müşteri için sevket (126>127)', icon: Boxes, path: '/statu-gecis/SPA_P/126_127' },
-        // Sevke okutulanların müşteri bazında faturalandırıldığı ekran: fatura kesilince
-        // cihazlar 128'e (çıkış yapıldı) geçer.
-        { name: 'Sevk ve Faturalandırma', icon: Receipt, path: '/musteri-sevk-fatura' }
+        { name: 'Müşteri için sevket (126>127)', icon: Boxes, path: '/statu-gecis/SPA_P/126_127' }
       ]
     },
     {
@@ -308,8 +304,6 @@ export default function MainLayout() {
         return { color: '#E67E22' };
       case '/servis':
         return { color: '#C2445F' }; // Darker Rose
-      case '/irsaliye':
-        return { color: '#3B8B76' }; // Darker Emerald Green
       case '/work-orders':
         return { color: '#3A76B8' }; // Darker Sky Blue
       case '/technician-repair':
@@ -386,8 +380,6 @@ export default function MainLayout() {
       case '/customer-price-matrix':
         return { color: '#2FA36E' };
       case '/labour-pricing-matrices':
-        return { color: '#2FA36E' };
-      case '/musteri-sevk-fatura':
         return { color: '#2FA36E' };
       case '/etiket-tasarimi':
         return { color: '#7A54C0' };
