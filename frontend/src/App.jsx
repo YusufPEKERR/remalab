@@ -64,6 +64,7 @@ const MusteriSevkFatura = dayanikliLazy(() => import('./pages/MusteriSevkFatura'
 // const MusteriSevkPaket = dayanikliLazy(() => import('./pages/MusteriSevkPaket'));
 const ServiceRecords = dayanikliLazy(() => import('./pages/ServiceRecords'));
 const BatchEntry = dayanikliLazy(() => import('./pages/BatchEntry'));
+const OperasyonPaneli = dayanikliLazy(() => import('./pages/OperasyonPaneli'));
 const TestRaporu = dayanikliLazy(() => import('./pages/TestRaporu'));
 const DataManagement = dayanikliLazy(() => import('./pages/DataManagement'));
 const ItemBOM = dayanikliLazy(() => import('./pages/ItemBOM'));
@@ -107,6 +108,7 @@ function App() {
             {/* Protected Routes (Wrapped in MainLayout) */}
             <Route element={<MainLayout />}>
               <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/operasyon-paneli" element={<OperasyonPaneli />} />
               <Route path="/qc" element={<QC />} />
               <Route path="/statu-kontrol" element={<StatuKontrol />} />
 

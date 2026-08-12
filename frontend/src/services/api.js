@@ -248,6 +248,55 @@ export const api = {
         });
     },
 
+    // Operasyon Paneli (Genel Bakış) — Sekme 1: müşteri x statü pivotu (canlı)
+    getOperationsPanelActive: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_operations_panel_active((res) => resolve(JSON.parse(res)));
+        });
+    },
+    // Operasyon Paneli — düzenlenebilir Hedef Adet & Birim Fiyat (JSON config)
+    getOperationsPanelConfig: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_operations_panel_config((res) => resolve(JSON.parse(res)));
+        });
+    },
+    saveOperationsPanelConfig: async (config) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.save_operations_panel_config(JSON.stringify(config || {}), (res) => resolve(JSON.parse(res)));
+        });
+    },
+    // Operasyon Paneli — Sekme 2: teknisyen x onarım tipi (tamamlanan), tarih/müşteri/departman filtreli
+    getOperationsPanelPerformance: async (startDate, endDate, customer, department) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_operations_panel_performance(startDate || '', endDate || '', customer || '', department || '', (res) => resolve(JSON.parse(res)));
+        });
+    },
+    // Operasyon Paneli — Sekme 3: statü 109 üretim takibi (durum x onarım tipi), müşteri/batch filtreli
+    getOperationsPanelProduction: async (customer, batch) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_operations_panel_production(customer || '', batch || '', (res) => resolve(JSON.parse(res)));
+        });
+    },
+    // Operasyon Paneli — Sekme 1 drill-down: bir statü×müşteri hücresindeki cihaz listesi
+    getOperationsPanelDevices: async (groupKey, customerKey) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_operations_panel_devices(groupKey || '', customerKey || '', (res) => resolve(JSON.parse(res)));
+        });
+    },
+    // Operasyon Paneli — Sekme 3 drill-down: durum×tip hücresindeki cihaz/onarım listesi (müşteri/batch filtreli)
+    getOperationsPanelProductionDevices: async (stateCode, categoryKey, customer, batch) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_operations_panel_production_devices(stateCode || '', categoryKey || '', customer || '', batch || '', (res) => resolve(JSON.parse(res)));
+        });
+    },
+
     createUser: async (userData) => {
         const backend = await getBackend();
         return new Promise((resolve) => {

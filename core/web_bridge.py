@@ -98,6 +98,71 @@ SERVICE_STATU_TR = {
 }
 
 
+# ── Operasyon Paneli (Genel Bakış > Operasyon Paneli) ───────────────────────
+# "RemalabPanel" referans ekranının bize uyarlanmış hali. Sekme 1 "Aktif Servisler"
+# batch_entries.statu_code üzerinden müşteri x statü-grubu pivotu üretir. Statü
+# eşlemesi kullanıcıyla onaylandı (2026-08-12).
+OPS_PANEL_GROUPS = [
+    ("ilk_test",    "İlk Test Bekleniyor",    (102, 103)),
+    ("demontaj",    "Demontaj Bekliyor",      (105, 106, 107)),
+    ("uretim",      "Üretim Aşamasında",      (109,)),
+    ("ara_test",    "Ara Test",               (137, 138)),
+    ("son_test",    "Son Test",               (124, 125)),
+    ("sevk_gonder", "Müşteriye Gönderilecek", (126,)),
+]
+OPS_PANEL_SEVK_KALAN = (127,)                                     # "Sevk için Kalan"
+OPS_PANEL_VALUE_GROUPS = ("ara_test", "son_test", "sevk_gonder")  # Toplam Değer'e sayılan gruplar
+OPS_PANEL_CONFIG_FILE = "operations_panel_config.json"
+
+# Sekme 2 (Günlük Performans) & 3 (Üretim Takibi) onarım tipi kolonları.
+# Kullanıcı "referansa sadık (6+Diğer)" gruplamayı onayladı (2026-08-12).
+OPS_PANEL_REPAIR_COLS = [
+    ("l1", "L1"), ("l2", "L2/L3"), ("ekran", "Ekran"), ("kamera", "Kamera"),
+    ("batarya", "Batarya"), ("kasa", "Kasa"), ("diger", "Diğer"),
+]
+# Sekme 3 (Üretim Takibi) satırları — statü 109 cihazlarının aktif onarım durumları
+# (repair_result_type). Terminal durumlar (1002 Tamamlandı, 1003 İptal) hariç.
+OPS_PANEL_PRODUCTION_STATES = [
+    (1004, "Yüksek Seviye Onarımını Bekliyor"),
+    (1000, "Teknisyene Atanacak"),
+    (1001, "Teknisyene Atandı"),
+    (1008, "Parça Bekleniyor"),
+    (1006, "Onarım Testi Bekleniyor"),
+    (1007, "Onarım Testi Başarısız"),
+]
+# department_mission (+ item_category.item_labour) -> kolon anahtarı (SQL CASE).
+# {dm} = department_mission ifadesi, {lab} = item_category.item_labour (onarım seviyesi).
+# Öncelik: (1) parça-tipi Ekran/Kamera/Batarya/Kasa, (2) L1/L2/L3 mission kodları,
+# (3) geri kalan = parçanın item_labour seviyesine göre L1 (Level 1) / L2 (Level 2/3).
+# ÖNEMLI: lower() bu DB'de Türkçe locale davranışı gösteriyor (lower('I')='ı' noktasız),
+# bu yüzden ASCII desenleri `COLLATE "C"` ile eşliyoruz (bkz. hafıza: trgm COLLATE "C" tuzağı).
+OPS_PANEL_CATEGORY_CASE = """
+  CASE
+    WHEN strpos(lower({dm} COLLATE "C"), 'lcd') > 0 OR strpos(lower({dm} COLLATE "C"), 'display') > 0
+      OR strpos(lower({dm} COLLATE "C"), 'ekran') > 0 OR strpos(lower({dm} COLLATE "C"), 'screen') > 0 THEN 'ekran'
+    WHEN strpos(lower({dm} COLLATE "C"), 'camera') > 0 OR strpos(lower({dm} COLLATE "C"), 'kamera') > 0 THEN 'kamera'
+    WHEN strpos(lower({dm} COLLATE "C"), 'batter') > 0 OR strpos(lower({dm} COLLATE "C"), 'batarya') > 0
+      OR strpos(lower({dm} COLLATE "C"), 'pil') > 0 THEN 'batarya'
+    WHEN strpos(lower({dm} COLLATE "C"), 'case') > 0 OR strpos(lower({dm} COLLATE "C"), 'glass') > 0
+      OR strpos(lower({dm} COLLATE "C"), 'kasa') > 0 OR strpos(lower({dm} COLLATE "C"), 'housing') > 0
+      OR strpos(lower({dm} COLLATE "C"), 'frame') > 0 THEN 'kasa'
+    WHEN left(lower({dm} COLLATE "C"), 2) = 'l1' OR lower({dm} COLLATE "C") = 'dismantle' THEN 'l1'
+    WHEN left(lower({dm} COLLATE "C"), 2) IN ('l2', 'l3') THEN 'l2'
+    WHEN strpos(lower({lab} COLLATE "C"), 'level 1') > 0 THEN 'l1'
+    WHEN strpos(lower({lab} COLLATE "C"), 'level 2') > 0 OR strpos(lower({lab} COLLATE "C"), 'level 3') > 0 THEN 'l2'
+    ELSE 'diger'
+  END
+"""
+# repair_records'a parça seviyesini (item_labour) getiren LATERAL join. rr alias'ı gerektirir.
+OPS_PANEL_LABOUR_JOIN = """
+  LEFT JOIN LATERAL (
+    SELECT item_labour FROM warehouse.item_category ic2
+    WHERE ic2.short_name = rr.item_category OR ic2.code = rr.item_category
+    LIMIT 1
+  ) ic ON TRUE
+"""
+
+
 def statu_label_tr(code, fallback_name=None):
     """Statü kodunu 'Türkçe ad (kod)' biçiminde döner. Harita yoksa DB short_name'ine
     (fallback_name), o da yoksa kodun kendisine düşer."""
@@ -1866,6 +1931,460 @@ class WebBridge(QObject):
             finally:
                 db.close()
         return self._cached_json("users", 60, _compute)
+
+    # ── Operasyon Paneli (Genel Bakış) ──────────────────────────────────────
+    @Slot(result=str)
+    def get_operations_panel_active(self):
+        """Sekme 1 (Aktif Servisler). batch_entries'i müşteri x statü-grubu ile
+        pivotlar. Müşteri adı büyük/küçük harf farkından tek biçime indirgenir
+        (Revendo/REVENDO -> tek kolon); iptal ve çıkış (128) hariç tutulur."""
+        from datetime import datetime, timezone
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            rows = db.execute(text("""
+                SELECT COALESCE(NULLIF(TRIM(customer_name), ''), '(Müşteri yok)') AS cname,
+                       statu_code, COUNT(*) AS n
+                FROM warehouse.batch_entries
+                WHERE COALESCE(repair_is_cancelled, FALSE) = FALSE
+                  AND statu_code <> 128
+                GROUP BY 1, 2
+            """)).all()
+
+            code_to_group = {}
+            for gkey, _label, codes in OPS_PANEL_GROUPS:
+                for c in codes:
+                    code_to_group[c] = gkey
+            sevk_codes = set(OPS_PANEL_SEVK_KALAN)
+
+            agg = {}  # key -> {counts, names, total}
+            for cname, statu, n in rows:
+                key = cname.strip().upper()
+                slot = agg.setdefault(key, {"counts": {}, "names": {}, "total": 0})
+                slot["names"][cname] = slot["names"].get(cname, 0) + n
+                gkey = code_to_group.get(statu)
+                if gkey:
+                    slot["counts"][gkey] = slot["counts"].get(gkey, 0) + n
+                    slot["total"] += n
+                if statu in sevk_codes:
+                    slot["counts"]["sevk_kalan"] = slot["counts"].get("sevk_kalan", 0) + n
+
+            customers, counts = [], {}
+            for key, slot in agg.items():
+                if slot["total"] == 0 and not slot["counts"].get("sevk_kalan"):
+                    continue
+                display = max(slot["names"].items(), key=lambda kv: kv[1])[0]
+                customers.append({"key": key, "name": display, "_total": slot["total"]})
+                row = {g: int(slot["counts"].get(g, 0)) for g, _l, _c in OPS_PANEL_GROUPS}
+                row["sevk_kalan"] = int(slot["counts"].get("sevk_kalan", 0))
+                row["_total"] = int(slot["total"])
+                counts[key] = row
+
+            customers.sort(key=lambda c: c["_total"], reverse=True)
+            return json.dumps({
+                "success": True,
+                "updated_at": datetime.now(timezone.utc).astimezone().strftime("%d.%m.%Y %H:%M"),
+                "groups": [{"key": g, "label": l} for g, l, _c in OPS_PANEL_GROUPS],
+                "value_groups": list(OPS_PANEL_VALUE_GROUPS),
+                "customers": [{"key": c["key"], "name": c["name"]} for c in customers],
+                "counts": counts,
+            }, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(result=str)
+    def get_operations_panel_config(self):
+        """Düzenlenebilir Hedef Adet & Birim Fiyat değerlerini JSON dosyasından
+        okur (müşteri anahtarı bazında). DB'ye dokunmaz."""
+        try:
+            path = os.path.join(get_cache_dirs()[0], OPS_PANEL_CONFIG_FILE)
+            data = {}
+            if os.path.exists(path):
+                with open(path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+            if not isinstance(data, dict):
+                data = {}
+            data.setdefault("targets", {})
+            data.setdefault("prices", {})
+            return json.dumps({"success": True, "config": data}, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e),
+                               "config": {"targets": {}, "prices": {}}})
+
+    @Slot(str, result=str)
+    def save_operations_panel_config(self, config_json):
+        """Hedef Adet & Birim Fiyat değerlerini JSON dosyasına yazar. DB'ye dokunmaz."""
+        try:
+            data = json.loads(config_json or "{}")
+            if not isinstance(data, dict):
+                return json.dumps({"success": False, "message": "Geçersiz yapı"})
+
+            def _num_map(m):
+                out = {}
+                for k, v in (m or {}).items():
+                    if v in (None, ""):
+                        continue
+                    try:
+                        out[str(k)] = float(v)
+                    except (TypeError, ValueError):
+                        continue
+                return out
+
+            clean = {"targets": _num_map(data.get("targets")),
+                     "prices": _num_map(data.get("prices"))}
+            write_to_cache(OPS_PANEL_CONFIG_FILE, json.dumps(clean, ensure_ascii=False))
+            return json.dumps({"success": True, "config": clean}, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+
+    @Slot(str, str, str, str, result=str)
+    def get_operations_panel_performance(self, start_date, end_date, customer, department):
+        """Sekme 2 (Günlük Performans). Tamamlanan onarımları (repair_result_type 1002)
+        teknisyen x onarım-tipi kolonlarında sayar. closed_at tarih aralığı + müşteri +
+        departman (kolon bucket) filtrelenebilir. Müşteri, repair_records -> batch_entries
+        fuzzy join'inden türetilir (bkz. production_repair_report VIEW)."""
+        from datetime import datetime, date
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            def _d(s, default):
+                s = (s or "").strip()
+                if not s:
+                    return default
+                try:
+                    return datetime.strptime(s, "%Y-%m-%d").date()
+                except ValueError:
+                    return default
+            today = date.today()
+            d1 = _d(start_date, today)
+            d2 = _d(end_date, today)
+            if d2 < d1:
+                d1, d2 = d2, d1
+
+            cust = (customer or "").strip().upper()
+            dep = (department or "").strip().lower()
+            cat_sql = OPS_PANEL_CATEGORY_CASE.format(dm="rr.department_mission", lab="ic.item_labour")
+            cust_join = """
+              LEFT JOIN LATERAL (
+                SELECT be.customer_name FROM warehouse.batch_entries be
+                WHERE be.service_id::text = rr.service_record_id
+                   OR LOWER(TRIM(rr.service_record_id)) = LOWER(TRIM(be.imei_number))
+                   OR LOWER(TRIM(rr.service_record_id)) = LOWER(TRIM(be.internal_id))
+                   OR LOWER(TRIM(rr.service_record_id)) = LOWER(TRIM(be.serial_number))
+                LIMIT 1
+              ) be ON TRUE
+            """
+
+            params = {"d1": d1, "d2": d2}
+            where = ["rr.repair_result_type_code = 1002",
+                     "NULLIF(BTRIM(rr.assigned_technician), '') IS NOT NULL",  # teknisyeni boş ('—') satırları gizle
+                     "COALESCE(rr.closed_at, rr.updated_at, rr.created_at)::date BETWEEN :d1 AND :d2"]
+            if cust and cust not in ("TÜMÜ", "TUMU"):
+                where.append("UPPER(TRIM(COALESCE(be.customer_name, ''))) = :cust")
+                params["cust"] = cust
+            if dep and dep not in ("tümü", "tumu"):
+                where.append("(%s) = :dep" % cat_sql)
+                params["dep"] = dep
+
+            sql = """
+              SELECT COALESCE(NULLIF(BTRIM(u.fullname), ''), NULLIF(BTRIM(rr.assigned_technician), ''), '—') AS teknisyen,
+                     %s AS kategori, COUNT(*) AS n
+              FROM warehouse.repair_records rr
+              LEFT JOIN warehouse.users u ON u.username = rr.assigned_technician
+              %s
+              WHERE %s
+              GROUP BY 1, 2
+            """ % (cat_sql, cust_join + OPS_PANEL_LABOUR_JOIN, " AND ".join(where))
+            rows = db.execute(text(sql), params).all()
+
+            tekmap = {}
+            for tek, kat, n in rows:
+                slot = tekmap.setdefault(tek, {})
+                slot[kat] = slot.get(kat, 0) + int(n)
+            technicians = []
+            for tek, cnts in tekmap.items():
+                row = {k: int(cnts.get(k, 0)) for k, _l in OPS_PANEL_REPAIR_COLS}
+                row["_total"] = sum(row.values())
+                technicians.append({"name": tek, "counts": row})
+            technicians.sort(key=lambda t: t["counts"]["_total"], reverse=True)
+
+            # Müşteri dropdown seçenekleri: tamamlanan onarımı olan müşteriler
+            cust_rows = db.execute(text("""
+              SELECT DISTINCT UPPER(TRIM(be.customer_name)) AS k, be.customer_name AS n
+              FROM warehouse.repair_records rr
+              %s
+              WHERE rr.repair_result_type_code = 1002 AND COALESCE(be.customer_name, '') <> ''
+            """ % cust_join)).all()
+            seen, customers = set(), []
+            for k, n in cust_rows:
+                if k and k not in seen:
+                    seen.add(k)
+                    customers.append({"key": k, "name": n})
+            customers.sort(key=lambda c: c["name"].lower())
+
+            return json.dumps({
+                "success": True,
+                "columns": [{"key": k, "label": l} for k, l in OPS_PANEL_REPAIR_COLS],
+                "technicians": technicians,
+                "customers": customers,
+                "departments": [{"key": k, "label": l} for k, l in OPS_PANEL_REPAIR_COLS],
+                "range": {"start": d1.isoformat(), "end": d2.isoformat()},
+            }, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, result=str)
+    def get_operations_panel_production(self, customer, batch):
+        """Sekme 3 (Üretim Takibi). Statü 109'daki cihazların aktif onarım durumlarını
+        (repair_result_type, terminal olmayan) x onarım-tipi kolonlarında sayar.
+        Müşteri + Batch/Waybill filtrelenebilir."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            cust = (customer or "").strip().upper()
+            bat = (batch or "").strip()
+            cat_sql = OPS_PANEL_CATEGORY_CASE.format(dm="rr.department_mission", lab="ic.item_labour")
+            codes_csv = ",".join(str(c) for c, _l in OPS_PANEL_PRODUCTION_STATES)  # güvenli (kendi int'lerimiz)
+
+            prod_where = ["be.statu_code = 109"]
+            params = {}
+            if cust and cust not in ("TÜMÜ", "TUMU"):
+                prod_where.append("UPPER(TRIM(COALESCE(be.customer_name, ''))) = :cust")
+                params["cust"] = cust
+            if bat and bat.lower() not in ("tümü", "tumu"):
+                prod_where.append("TRIM(COALESCE(be.batch_no, '')) = :bat")
+                params["bat"] = bat
+
+            sql = """
+              WITH prod AS (
+                SELECT service_id::text AS sid, imei_number, internal_id, serial_number
+                FROM warehouse.batch_entries be
+                WHERE %s
+              )
+              SELECT rr.repair_result_type_code AS code, %s AS kategori, COUNT(*) AS n
+              FROM prod p
+              JOIN warehouse.repair_records rr
+                ON rr.service_record_id = p.sid
+                OR LOWER(TRIM(rr.service_record_id)) = LOWER(TRIM(p.imei_number))
+                OR LOWER(TRIM(rr.service_record_id)) = LOWER(TRIM(p.internal_id))
+                OR LOWER(TRIM(rr.service_record_id)) = LOWER(TRIM(p.serial_number))
+              %s
+              WHERE rr.repair_result_type_code IN (%s)
+              GROUP BY 1, 2
+            """ % (" AND ".join(prod_where), cat_sql, OPS_PANEL_LABOUR_JOIN, codes_csv)
+            rows = db.execute(text(sql), params).all()
+
+            codemap = {}
+            for code, kat, n in rows:
+                slot = codemap.setdefault(int(code), {})
+                slot[kat] = slot.get(kat, 0) + int(n)
+            counts = {}
+            for code, _label in OPS_PANEL_PRODUCTION_STATES:
+                cnts = codemap.get(code, {})
+                row = {k: int(cnts.get(k, 0)) for k, _l in OPS_PANEL_REPAIR_COLS}
+                row["_total"] = sum(row.values())
+                counts[str(code)] = row
+
+            # Dropdown seçenekleri (statü 109 cihazları — filtreden bağımsız tam liste)
+            cust_rows = db.execute(text("""
+              SELECT DISTINCT UPPER(TRIM(customer_name)) AS k, customer_name AS n
+              FROM warehouse.batch_entries
+              WHERE statu_code = 109 AND COALESCE(customer_name, '') <> ''
+            """)).all()
+            seen, customers = set(), []
+            for k, n in cust_rows:
+                if k and k not in seen:
+                    seen.add(k)
+                    customers.append({"key": k, "name": n})
+            customers.sort(key=lambda c: c["name"].lower())
+
+            batch_rows = db.execute(text("""
+              SELECT DISTINCT TRIM(batch_no) AS b
+              FROM warehouse.batch_entries
+              WHERE statu_code = 109 AND COALESCE(batch_no, '') <> ''
+              ORDER BY 1
+            """)).all()
+            batches = [r[0] for r in batch_rows if r[0]]
+
+            return json.dumps({
+                "success": True,
+                "columns": [{"key": k, "label": l} for k, l in OPS_PANEL_REPAIR_COLS],
+                "rows": [{"key": str(c), "label": l} for c, l in OPS_PANEL_PRODUCTION_STATES],
+                "counts": counts,
+                "customers": customers,
+                "batches": batches,
+            }, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, result=str)
+    def get_operations_panel_devices(self, group_key, customer_key):
+        """Sekme 1 drill-down: 'Aktif Servis Sayıları' (veya 'Sevk için Kalan') tablosunda
+        bir statü-grubu × müşteri hücresine tıklanınca o kombinasyondaki cihazları listeler
+        (IMEI, Internal ID, Waybill No, Müşteri, Servis Tipi). Müşteri eşlemesi ASCII UPPER
+        (COLLATE "C") ile — Python .upper() ile tutarlı (Türkçe 'i'->'İ' tuzağını önler)."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            gkey = (group_key or "").strip()
+            cust = (customer_key or "").strip().upper()
+
+            group_codes, group_label = None, gkey
+            if gkey in ("__all__", "__ALL__"):
+                # TOPLAM satırı / genel toplam: tüm izlenen aktif servis grupları (sevk_kalan hariç)
+                allc = []
+                for _k, _label, codes in OPS_PANEL_GROUPS:
+                    allc.extend(codes)
+                group_codes, group_label = allc, "Tüm Aktif Servisler"
+            elif gkey == "sevk_kalan":
+                group_codes, group_label = list(OPS_PANEL_SEVK_KALAN), "Sevk için Kalan"
+            else:
+                for k, label, codes in OPS_PANEL_GROUPS:
+                    if k == gkey:
+                        group_codes, group_label = list(codes), label
+                        break
+            if not group_codes:
+                return json.dumps({"success": False, "message": "Geçersiz grup anahtarı"})
+
+            all_customers = cust in ("", "__ALL__", "TÜMÜ", "TUMU")
+            codes_csv = ",".join(str(c) for c in group_codes)  # güvenli (kendi int'lerimiz)
+            params = {}
+            cust_clause = ""
+            if not all_customers:
+                cust_clause = " AND UPPER(TRIM(COALESCE(customer_name, '')) COLLATE \"C\") = :cust"
+                params["cust"] = cust
+            rows = db.execute(text("""
+                SELECT imei_number, internal_id, batch_no, customer_name, flow
+                FROM warehouse.batch_entries
+                WHERE COALESCE(repair_is_cancelled, FALSE) = FALSE
+                  AND statu_code IN (%s)%s
+                ORDER BY customer_name, imei_number
+            """ % (codes_csv, cust_clause)), params).all()
+
+            flow_map = {"to repair": "Onarım", "to refurbish": "Yenileme",
+                        "to rma": "RMA", "battery only": "Batarya"}
+            devices, cust_name = [], ""
+            for imei, iid, batch, cname, flow in rows:
+                if cname and not cust_name:
+                    cust_name = cname
+                st = flow_map.get((flow or "").strip().lower(), (flow or "").strip() or "—")
+                devices.append({
+                    "IMEI": imei or "",
+                    "Internal ID": iid or "",
+                    "Waybill No": batch or "",
+                    "Müşteri": cname or "",
+                    "Servis Tipi": st,
+                })
+            return json.dumps({
+                "success": True,
+                "group_label": group_label,
+                "customer_name": "Tüm Müşteriler" if all_customers else (cust_name or customer_key),
+                "count": len(devices),
+                "columns": ["IMEI", "Internal ID", "Waybill No", "Müşteri", "Servis Tipi"],
+                "devices": devices,
+            }, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, str, str, str, result=str)
+    def get_operations_panel_production_devices(self, state_code, category_key, customer, batch):
+        """Sekme 3 drill-down: 'Üretim Takibi' tablosunda bir durum × onarım-tipi hücresine
+        tıklanınca, statü 109 cihazlarının o kombinasyondaki onarım kayıtlarını listeler
+        (cihaz + teknisyen + onarım + durum). Mevcut Müşteri + Batch filtreleri uygulanır.
+        state_code / category_key '__all__' ise TOPLAM satırı/sütunu (o eksende filtre yok)."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            cust = (customer or "").strip().upper()
+            bat = (batch or "").strip()
+            skey = (state_code or "").strip()
+            ckey = (category_key or "").strip().lower()
+
+            cat_sql = OPS_PANEL_CATEGORY_CASE.format(dm="rr.department_mission", lab="ic.item_labour")
+            codes_csv = ",".join(str(c) for c, _l in OPS_PANEL_PRODUCTION_STATES)
+
+            prod_where = ["be.statu_code = 109"]
+            params = {}
+            if cust and cust not in ("TÜMÜ", "TUMU"):
+                prod_where.append("UPPER(TRIM(COALESCE(be.customer_name, '')) COLLATE \"C\") = :cust")
+                params["cust"] = cust
+            if bat and bat.lower() not in ("tümü", "tumu"):
+                prod_where.append("TRIM(COALESCE(be.batch_no, '')) = :bat")
+                params["bat"] = bat
+
+            extra = ""
+            if skey and skey not in ("__all__", "__ALL__"):
+                extra += " AND rr.repair_result_type_code = :state"
+                params["state"] = int(skey)
+            if ckey and ckey not in ("__all__", "tümü", "tumu"):
+                extra += " AND (%s) = :cat" % cat_sql
+                params["cat"] = ckey
+
+            sql = """
+              WITH prod AS (
+                SELECT service_id::text AS sid, imei_number, internal_id, serial_number, batch_no, customer_name
+                FROM warehouse.batch_entries be
+                WHERE %s
+              )
+              SELECT p.imei_number, p.internal_id, p.batch_no, p.customer_name,
+                     COALESCE(NULLIF(BTRIM(u.fullname), ''), NULLIF(BTRIM(rr.assigned_technician), ''), '—') AS teknisyen,
+                     rr.department_mission AS onarim, rrt.short_name AS durum
+              FROM prod p
+              JOIN warehouse.repair_records rr
+                ON rr.service_record_id = p.sid
+                OR LOWER(TRIM(rr.service_record_id)) = LOWER(TRIM(p.imei_number))
+                OR LOWER(TRIM(rr.service_record_id)) = LOWER(TRIM(p.internal_id))
+                OR LOWER(TRIM(rr.service_record_id)) = LOWER(TRIM(p.serial_number))
+              %s
+              LEFT JOIN warehouse.users u ON u.username = rr.assigned_technician
+              JOIN warehouse.repair_result_type rrt ON rrt.code = rr.repair_result_type_code
+              WHERE rr.repair_result_type_code IN (%s)%s
+              ORDER BY p.customer_name, p.imei_number
+            """ % (" AND ".join(prod_where), OPS_PANEL_LABOUR_JOIN, codes_csv, extra)
+            rows = db.execute(text(sql), params).all()
+
+            devices = []
+            for imei, iid, batch_no, cname, tek, onarim, durum in rows:
+                devices.append({
+                    "IMEI": imei or "",
+                    "Internal ID": iid or "",
+                    "Waybill No": batch_no or "",
+                    "Müşteri": cname or "",
+                    "Teknisyen": tek or "—",
+                    "Onarım": onarim or "",
+                    "Durum": durum or "",
+                })
+
+            state_label = "Tüm Durumlar"
+            for c, l in OPS_PANEL_PRODUCTION_STATES:
+                if str(c) == skey:
+                    state_label = l
+                    break
+            cat_label = "Tüm Tipler"
+            for k, l in OPS_PANEL_REPAIR_COLS:
+                if k == ckey:
+                    cat_label = l
+                    break
+            return json.dumps({
+                "success": True,
+                "group_label": state_label,
+                "customer_name": cat_label,
+                "count": len(devices),
+                "columns": ["IMEI", "Internal ID", "Waybill No", "Müşteri", "Teknisyen", "Onarım", "Durum"],
+                "devices": devices,
+            }, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
 
     @Slot(str, str, str, str, str, str, bool, str, str, str, result=str)
     def create_user(self, username, tc_no, password, role, gorev, fullname, account_enabled, team_leader, operation_manager, administrative_manager):
