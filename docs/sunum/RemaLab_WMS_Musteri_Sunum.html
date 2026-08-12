@@ -1,0 +1,475 @@
+<title>RemaLab WMS — Müşteri Sunumu</title>
+<style>
+  :root{
+    --ground:#F5F7FB; --panel:#FFFFFF; --panel-2:#EEF2F9;
+    --ink:#0E1220; --ink-soft:#3A4256; --muted:#5A6685; --faint:#8A93AD;
+    --line:#DCE1F1; --line-soft:#E7EBF5;
+    --go:#0E9E6E; --go-bright:#10B981; --go-ink:#065F44;
+    --warn:#D9871F; --pain:#E1425C;
+    --shadow:0 18px 44px -20px rgba(16,22,40,.28);
+    --mono:ui-monospace,"Cascadia Code","SF Mono",Consolas,"Liberation Mono",monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --ground:#0A0C12; --panel:#12141C; --panel-2:#171A24;
+      --ink:#EEF1F8; --ink-soft:#C4CBDD; --muted:#8892B5; --faint:#5A6685;
+      --line:#1E222D; --line-soft:#20242F;
+      --go:#2ED9A0; --go-bright:#34D399; --go-ink:#8CF0CE;
+      --warn:#F0A63C; --pain:#F4667C;
+      --shadow:0 26px 60px -28px rgba(0,0,0,.75);
+    }
+  }
+  :root[data-theme="light"]{
+    --ground:#F5F7FB; --panel:#FFFFFF; --panel-2:#EEF2F9;
+    --ink:#0E1220; --ink-soft:#3A4256; --muted:#5A6685; --faint:#8A93AD;
+    --line:#DCE1F1; --line-soft:#E7EBF5;
+    --go:#0E9E6E; --go-bright:#10B981; --go-ink:#065F44;
+    --warn:#D9871F; --pain:#E1425C;
+    --shadow:0 18px 44px -20px rgba(16,22,40,.28);
+  }
+  :root[data-theme="dark"]{
+    --ground:#0A0C12; --panel:#12141C; --panel-2:#171A24;
+    --ink:#EEF1F8; --ink-soft:#C4CBDD; --muted:#8892B5; --faint:#5A6685;
+    --line:#1E222D; --line-soft:#20242F;
+    --go:#2ED9A0; --go-bright:#34D399; --go-ink:#8CF0CE;
+    --warn:#F0A63C; --pain:#F4667C;
+    --shadow:0 26px 60px -28px rgba(0,0,0,.75);
+  }
+
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+  body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
+    -webkit-font-smoothing:antialiased;line-height:1.55}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+
+  /* scroll-snap deck */
+  .deck{scroll-snap-type:y proximity}
+  .slide{min-height:100svh;scroll-snap-align:start;display:flex;flex-direction:column;
+    justify-content:center;padding:clamp(28px,6vw,96px) clamp(20px,7vw,120px);
+    position:relative;border-bottom:1px solid var(--line-soft)}
+  .slide-inner{width:100%;max-width:1120px;margin:0 auto}
+
+  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.22em;text-transform:uppercase;
+    color:var(--go);font-weight:600;display:inline-flex;align-items:center;gap:10px}
+  .eyebrow::before{content:"";width:26px;height:1px;background:var(--go);opacity:.6}
+  h1,h2,h3{text-wrap:balance;margin:0;letter-spacing:-.02em;line-height:1.05}
+  h1{font-size:clamp(38px,6.4vw,74px);font-weight:800}
+  h2{font-size:clamp(28px,4.4vw,50px);font-weight:800}
+  h3{font-size:clamp(18px,2vw,23px);font-weight:700;letter-spacing:-.01em}
+  p.lead{font-size:clamp(17px,1.7vw,21px);color:var(--ink-soft);max-width:60ch;line-height:1.6}
+  .muted{color:var(--muted)}
+  strong{color:var(--ink);font-weight:700}
+
+  /* fixed chrome */
+  .rail{position:fixed;top:0;left:0;height:3px;width:0;background:linear-gradient(90deg,var(--go),var(--go-bright));
+    z-index:60;transition:width .15s ease}
+  .hud{position:fixed;top:16px;right:18px;z-index:60;display:flex;gap:8px;align-items:center;
+    font-family:var(--mono);font-size:12px;color:var(--muted);
+    background:color-mix(in srgb,var(--panel) 82%,transparent);border:1px solid var(--line);
+    padding:6px 10px;border-radius:999px;backdrop-filter:blur(8px)}
+  .hud b{color:var(--ink)}
+  .theme-btn{position:fixed;top:16px;left:18px;z-index:60;cursor:pointer;font-family:var(--mono);
+    font-size:12px;color:var(--muted);background:color-mix(in srgb,var(--panel) 82%,transparent);
+    border:1px solid var(--line);padding:6px 12px;border-radius:999px;backdrop-filter:blur(8px)}
+  .theme-btn:hover{color:var(--ink);border-color:var(--go)}
+  .theme-btn:focus-visible,a:focus-visible{outline:2px solid var(--go);outline-offset:3px}
+
+  .brand{display:flex;align-items:center;gap:13px}
+  .mark{width:42px;height:42px;border-radius:11px;background:linear-gradient(150deg,var(--go-bright),var(--go));
+    display:grid;place-items:center;color:#fff;font-family:var(--mono);font-weight:700;font-size:19px;
+    box-shadow:0 8px 22px -8px color-mix(in srgb,var(--go) 70%,transparent)}
+  .brand-name{font-weight:800;letter-spacing:-.01em;font-size:18px}
+  .brand-sub{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+
+  .grid{display:grid;gap:18px}
+  .g2{grid-template-columns:repeat(2,1fr)} .g3{grid-template-columns:repeat(3,1fr)}
+  .g4{grid-template-columns:repeat(4,1fr)}
+  @media(max-width:860px){.g2,.g3,.g4{grid-template-columns:1fr}}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px 22px 20px;
+    box-shadow:var(--shadow)}
+  .card h3{margin-bottom:7px}
+  .card p{margin:0;color:var(--muted);font-size:15px}
+  .knum{font-family:var(--mono);font-weight:700;font-size:clamp(26px,3.6vw,40px);
+    color:var(--ink);letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1}
+  .klabel{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-top:8px}
+
+  .tag{display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-size:11.5px;
+    letter-spacing:.08em;text-transform:uppercase;padding:4px 10px;border-radius:999px;
+    border:1px solid var(--line);color:var(--muted);background:var(--panel-2)}
+  .tag.go{color:var(--go-ink);border-color:color-mix(in srgb,var(--go) 40%,var(--line));
+    background:color-mix(in srgb,var(--go) 12%,transparent)}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--go)}
+  .dot.warn{background:var(--warn)} .dot.pain{background:var(--pain)}
+
+  ul.clean{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px}
+  ul.clean li{display:flex;gap:12px;align-items:flex-start;color:var(--ink-soft);font-size:15.5px}
+  ul.clean li::before{content:"";flex:none;width:8px;height:8px;margin-top:8px;border-radius:2px;
+    background:var(--go);box-shadow:0 0 0 4px color-mix(in srgb,var(--go) 16%,transparent)}
+  ul.clean.pain li::before{background:var(--pain);box-shadow:0 0 0 4px color-mix(in srgb,var(--pain) 15%,transparent)}
+
+  /* before / after */
+  .ba{display:grid;grid-template-columns:1fr auto 1fr;gap:20px;align-items:stretch}
+  @media(max-width:860px){.ba{grid-template-columns:1fr}.ba .arrow{display:none}}
+  .col{border-radius:16px;padding:24px;border:1px solid var(--line)}
+  .col.old{background:color-mix(in srgb,var(--pain) 7%,var(--panel));border-color:color-mix(in srgb,var(--pain) 26%,var(--line))}
+  .col.new{background:color-mix(in srgb,var(--go) 8%,var(--panel));border-color:color-mix(in srgb,var(--go) 32%,var(--line))}
+  .col h3{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+  .arrow{align-self:center;font-family:var(--mono);color:var(--muted);font-size:26px}
+
+  /* pipeline */
+  .pipe{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+  .step{font-family:var(--mono);font-size:12.5px;border:1px solid var(--line);border-radius:9px;
+    padding:8px 11px;background:var(--panel);display:flex;gap:9px;align-items:center;color:var(--ink-soft)}
+  .step .c{color:var(--go);font-weight:700}
+  .step.k{border-color:color-mix(in srgb,var(--go) 45%,var(--line));
+    background:color-mix(in srgb,var(--go) 10%,var(--panel));color:var(--ink)}
+  .phase{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--faint);margin:14px 0 6px}
+
+  .quote{font-size:clamp(22px,3.2vw,38px);font-weight:700;letter-spacing:-.02em;line-height:1.25;
+    max-width:20ch;text-wrap:balance}
+  .quote .hl{color:var(--go);white-space:nowrap}
+
+  .foot{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;
+    margin-top:26px;padding-top:16px;border-top:1px solid var(--line-soft);
+    font-family:var(--mono);font-size:12px;color:var(--faint)}
+  a{color:var(--go);text-decoration:none;border-bottom:1px solid color-mix(in srgb,var(--go) 40%,transparent)}
+  .cta{display:inline-flex;align-items:center;gap:10px;background:var(--go);color:#fff;font-weight:700;
+    font-size:15px;padding:13px 22px;border-radius:12px;border:none;box-shadow:0 12px 30px -12px color-mix(in srgb,var(--go) 70%,transparent)}
+  .cover-bg{position:absolute;inset:0;overflow:hidden;pointer-events:none;opacity:.5}
+  .cover-bg::before{content:"";position:absolute;top:-20%;right:-10%;width:60vw;height:60vw;
+    background:radial-gradient(circle,color-mix(in srgb,var(--go) 22%,transparent),transparent 62%);filter:blur(20px)}
+  .krow{display:flex;gap:34px;flex-wrap:wrap}
+  .print-tip{font-family:var(--mono);font-size:11px;color:var(--faint)}
+  @media print{.hud,.theme-btn,.rail{display:none}.slide{min-height:auto;page-break-after:always;border:none}}
+</style>
+
+<div class="rail" id="rail"></div>
+<button class="theme-btn" id="themeBtn" aria-label="Tema değiştir">◐ tema</button>
+<div class="hud"><span id="hudNow">01</span><span>/</span><span id="hudTot">13</span></div>
+
+<main class="deck" id="deck">
+
+  <!-- 01 COVER -->
+  <section class="slide" id="s1">
+    <div class="cover-bg"></div>
+    <div class="slide-inner">
+      <div class="brand" style="margin-bottom:38px">
+        <div class="mark">R</div>
+        <div><div class="brand-name">RemaLab WMS</div><div class="brand-sub">Warehouse & Repair Operations</div></div>
+      </div>
+      <div class="eyebrow" style="margin-bottom:20px">Cihaz Onarım & Yenileme Operasyon Platformu</div>
+      <h1>Tahmine değil,<br>doğrulanmış sürece dayanan<br>onarım operasyonu.</h1>
+      <p class="lead" style="margin-top:24px">Cihaz depo girişinden müşteri faturasına kadar tüm yaşam döngüsünü tek platformda yöneten,
+        her adımı barkodla doğrulayan ve fiyatlandırmayı otomatikleştiren yeni nesil sistem.</p>
+      <div class="krow" style="margin-top:40px">
+        <div><div class="knum">28</div><div class="klabel">statülü tam yaşam döngüsü</div></div>
+        <div><div class="knum">100+</div><div class="klabel">eşzamanlı kullanıcı</div></div>
+        <div><div class="knum">4</div><div class="klabel">platform · Win / Mac / Android / Web</div></div>
+      </div>
+      <div class="foot"><span>RemaLab WMS · Müşteri Tanıtımı</span><span class="print-tip">↓ kaydırın · ← → ok tuşları · P ile yazdır</span></div>
+    </div>
+  </section>
+
+  <!-- 02 PROBLEM -->
+  <section class="slide" id="s2">
+    <div class="slide-inner">
+      <div class="eyebrow" style="margin-bottom:18px">Başladığımız nokta</div>
+      <h2>Eski ERP yavaştı ve hata payı yüksekti.</h2>
+      <p class="lead" style="margin-top:16px">Operasyon büyüdükçe eski sistem yük altında kaldı. Sorun tek bir ekranda değil,
+        sürecin bütününde birikiyordu:</p>
+      <div class="grid g2" style="margin-top:30px">
+        <div class="card">
+          <span class="tag"><span class="dot pain"></span>Hız</span>
+          <ul class="clean pain" style="margin-top:14px">
+            <li>Ekranlar yük altında donuyor, liste yükleme dakikaları buluyordu.</li>
+            <li>Tek kullanıcı bile zorlarken, aynı anda çalışan ekipler birbirini bekliyordu.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <span class="tag"><span class="dot pain"></span>Doğruluk</span>
+          <ul class="clean pain" style="margin-top:14px">
+            <li>Statüler elle giriliyor, yanlış adıma atlanan cihazlar süreçte kayboluyordu.</li>
+            <li>Fiyatlandırma Excel makrolarına bağlıydı — sıra, seviye ve iskonto hataları faturaya yansıyordu.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <span class="tag"><span class="dot pain"></span>İzlenebilirlik</span>
+          <ul class="clean pain" style="margin-top:14px">
+            <li>"Bu cihaza ne oldu, kim yaptı?" sorusunun net cevabı yoktu.</li>
+            <li>Statü değişince eski değer üzerine yazılıyor, geçmiş kayboluyordu.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <span class="tag"><span class="dot pain"></span>Kontrol</span>
+          <ul class="clean pain" style="margin-top:14px">
+            <li>Aynı cihaz iki kez girilebiliyor, aynı parça iki kez faturalanabiliyordu.</li>
+            <li>Yarım kalan işlemler tutarsız kayıtlar bırakıyordu.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 03 THESIS -->
+  <section class="slide" id="s3">
+    <div class="slide-inner">
+      <div class="eyebrow" style="margin-bottom:26px">Yaklaşımımız</div>
+      <p class="quote">Her hatayı sonradan düzeltmek yerine, <span class="hl">baştan imkânsız</span> kılmak.</p>
+      <p class="lead" style="margin-top:26px">RemaLab WMS, bir cihazın izleyebileceği tek geçerli yolu tanımlar. Sistem yalnızca izin verilen adımı kabul eder;
+        geri kalanı en baştan reddeder. Böylece hız, insanı yormadan; doğruluk, ekstra kontrol gerektirmeden gelir.</p>
+    </div>
+  </section>
+
+  <!-- 04 BEFORE / AFTER -->
+  <section class="slide" id="s4">
+    <div class="slide-inner">
+      <div class="eyebrow" style="margin-bottom:18px">Eski ERP → RemaLab WMS</div>
+      <h2 style="margin-bottom:26px">Aynı iş, iki farklı dünya.</h2>
+      <div class="ba">
+        <div class="col old">
+          <h3><span class="dot pain"></span>Eski ERP</h3>
+          <ul class="clean pain">
+            <li>Statü elle yazılır, yanlış geçiş mümkün</li>
+            <li>Fiyat Excel makrosunda, sıra/seviye hatası riski</li>
+            <li>Geçmiş üzerine yazılır, iz kalmaz</li>
+            <li>Mükerrer giriş / mükerrer parça engelsiz</li>
+            <li>Tek makinede, tek kullanıcı odaklı</li>
+          </ul>
+        </div>
+        <div class="arrow">→</div>
+        <div class="col new">
+          <h3><span class="dot"></span>RemaLab WMS</h3>
+          <ul class="clean">
+            <li>Barkod okut, sistem geçişi doğrular</li>
+            <li>Müşteriye özel fiyat motoru, tek tıkla fatura</li>
+            <li>Her geçiş kim/ne zaman/not ile kalıcı kayıt</li>
+            <li>Mükerrer giriş ve parça otomatik engellenir</li>
+            <li>Web tabanlı, 100+ eşzamanlı kullanıcı</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 05 WHAT IT IS -->
+  <section class="slide" id="s5">
+    <div class="slide-inner">
+      <div class="eyebrow" style="margin-bottom:18px">Tek platform</div>
+      <h2>Girişten faturaya, dağınık araçlar yerine tek sistem.</h2>
+      <div class="grid g4" style="margin-top:30px">
+        <div class="card"><div class="knum">1</div><div class="klabel">Kaynak</div><p style="margin-top:10px">Depo, test, onarım, sevk ve muhasebe aynı veriyle çalışır.</p></div>
+        <div class="card"><div class="knum">7/24</div><div class="klabel">Erişim</div><p style="margin-top:10px">Sunucuda sürekli çalışır; masaüstü, tarayıcı veya mobilden bağlanılır.</p></div>
+        <div class="card"><div class="knum">RBAC</div><div class="klabel">Yetki</div><p style="margin-top:10px">Her rol yalnızca kendi adımını görür ve yapar; yetkisiz işlem reddedilir.</p></div>
+        <div class="card"><div class="knum">Excel</div><div class="klabel">Göç</div><p style="margin-top:10px">Mevcut parça, ürün ve fiyat verisi toplu içe aktarımla taşınır.</p></div>
+      </div>
+      <p class="lead" style="margin-top:26px">Depo Girişi · Kalite/Test · Demontaj & DGD · Departman Onarım Havuzu · Teknisyen Panelleri ·
+        Parça Teslim · Son Test · Sevk & Paketleme · Faturalandırma · Fiyat Matrisleri · İrsaliye · Raporlar · Etiket —
+        hepsi tek uygulamada.</p>
+    </div>
+  </section>
+
+  <!-- 06 LIFECYCLE -->
+  <section class="slide" id="s6">
+    <div class="slide-inner">
+      <div class="eyebrow" style="margin-bottom:18px">Yaşam döngüsü</div>
+      <h2>Bir cihazın izlediği tek geçerli yol.</h2>
+      <p class="lead" style="margin-top:14px">Her cihaz, tanımlı bir durum makinesinde ilerler. Sistem her adımda "bu geçişe izin var mı?" diye sorar.</p>
+
+      <div class="phase">Giriş & Test</div>
+      <div class="pipe">
+        <span class="step"><span class="c">100</span>Ön Bildirim</span>
+        <span class="step"><span class="c">101</span>Depo Girişi</span>
+        <span class="step"><span class="c">102–104</span>İlk Test</span>
+      </div>
+      <div class="phase">Karar & Üretim</div>
+      <div class="pipe">
+        <span class="step"><span class="c">105–107</span>Müşteri Onayı</span>
+        <span class="step k"><span class="c">109</span>Üretim / Onarım</span>
+        <span class="step"><span class="c">138</span>Ara Test</span>
+      </div>
+      <div class="phase">Son Test & Çıkış</div>
+      <div class="pipe">
+        <span class="step"><span class="c">124–125</span>Son Test</span>
+        <span class="step"><span class="c">126</span>Depoya Sevk</span>
+        <span class="step k"><span class="c">127</span>Müşteriye Sevk Bekliyor</span>
+        <span class="step k"><span class="c">128</span>Serbest / Çıkış</span>
+      </div>
+      <p class="muted" style="margin-top:22px;font-size:14.5px">Tanımlı olmayan hiçbir sıçrama gerçekleşmez. Cihaz "sürecin dışına" düşemez.</p>
+    </div>
+  </section>
+
+  <!-- 07 ERROR PROOFING -->
+  <section class="slide" id="s7">
+    <div class="slide-inner">
+      <div class="eyebrow" style="margin-bottom:18px">Hata payını düşüren tasarım</div>
+      <h2>Hata "yakalanmaz" — oluşamaz.</h2>
+      <div class="grid g3" style="margin-top:28px">
+        <div class="card"><span class="tag go"><span class="dot"></span>Durum makinesi</span>
+          <h3 style="margin-top:12px">Geçersiz adım reddedilir</h3>
+          <p style="margin-top:6px">Her statü geçişi merkezi kural tablosuna karşı doğrulanır; yanlış sıraya atlanan cihaz kabul edilmez.</p></div>
+        <div class="card"><span class="tag go"><span class="dot"></span>Barkod / IMEI</span>
+          <h3 style="margin-top:12px">Elle yazım biter</h3>
+          <p style="margin-top:6px">Cihaz ve parça okutularak işlenir; yanlış cihaz, yanlış kutu, yanlış müşteri riskı ortadan kalkar.</p></div>
+        <div class="card"><span class="tag go"><span class="dot"></span>Atomik işlem</span>
+          <h3 style="margin-top:12px">Ya hepsi, ya hiçbiri</h3>
+          <p style="margin-top:6px">Fatura + cihaz çıkışı + kayıt tek işlemde. Yarım kalan, tutarsız kayıt oluşmaz.</p></div>
+        <div class="card"><span class="tag go"><span class="dot"></span>Mükerrer koruma</span>
+          <h3 style="margin-top:12px">İki kez işlenemez</h3>
+          <p style="margin-top:6px">Aynı cihaz süreç kapanmadan tekrar giremez; aynı parça ikinci kez eklenemez/faturalanamaz.</p></div>
+        <div class="card"><span class="tag go"><span class="dot"></span>Fiyat güvencesi</span>
+          <h3 style="margin-top:12px">Eksik fiyat gizlenmez</h3>
+          <p style="margin-top:6px">Fiyatı bulunamayan kalem varsa fatura, sayısı açıkça söylenip onaylanmadan kesilmez.</p></div>
+        <div class="card"><span class="tag go"><span class="dot"></span>İade koruması</span>
+          <h3 style="margin-top:12px">Stok tutarlı kalır</h3>
+          <p style="margin-top:6px">Parça hâlâ "stoktan çıktı" iken cihaz iadesi engellenir; önce depoya dönmesi zorunludur.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 08 PRICING -->
+  <section class="slide" id="s8">
+    <div class="slide-inner">
+      <div class="eyebrow" style="margin-bottom:18px">Otomatik fiyatlandırma & faturalandırma</div>
+      <h2>Excel makrosunun yaptığı işi, hatasız ve tek tıkla.</h2>
+      <div class="grid g2" style="margin-top:26px">
+        <div>
+          <ul class="clean">
+            <li><strong>Müşteriye özel matrisler:</strong> parça satış fiyatı, seviye işçiliği, parça-sıra işçiliği ve DGD/test ücreti her müşteri için ayrı tanımlanır.</li>
+            <li><strong>Otomatik seviye tespiti:</strong> takılan parçalardan onarım seviyesi ve işçilik sırası sistemce hesaplanır — elle karar yok.</li>
+            <li><strong>Özel kurallar korunur:</strong> batarya hücresi + flex tek işçilik, RMA girişinde teşhis muafiyeti, onarılamayan cihazda ayrı ücret — hepsi kod içinde sabit.</li>
+            <li><strong>Tek tıkla fatura:</strong> müşterinin tüm sevke hazır cihazları tek faturada kapanır, cihazlar çıkışa geçer, belge (CSV) anında üretilir.</li>
+          </ul>
+        </div>
+        <div class="card" style="align-self:start">
+          <div class="brand-sub" style="margin-bottom:12px">Örnek — bir müşteri grubu</div>
+          <div style="display:flex;flex-direction:column;gap:10px;font-family:var(--mono);font-size:14px">
+            <div style="display:flex;justify-content:space-between"><span class="muted">Cihaz</span><b>50</b></div>
+            <div style="display:flex;justify-content:space-between"><span class="muted">Parça toplam</span><b>40,30</b></div>
+            <div style="display:flex;justify-content:space-between"><span class="muted">İşçilik toplam</span><b>1.271,75</b></div>
+            <div style="display:flex;justify-content:space-between"><span class="muted">DGD / test</span><b>192,60</b></div>
+            <div style="display:flex;justify-content:space-between;border-top:1px solid var(--line);padding-top:10px;margin-top:2px">
+              <span>Genel toplam</span><b style="color:var(--go)">1.504,65 €</b></div>
+            <div style="display:flex;justify-content:space-between"><span class="muted">Eksik fiyat</span><b>0</b></div>
+          </div>
+          <p class="muted" style="margin-top:14px;font-size:13px">Seviyeler, iptaller ve RMA muafiyetleri dahil — otomatik.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 09 TRACEABILITY -->
+  <section class="slide" id="s9">
+    <div class="slide-inner">
+      <div class="eyebrow" style="margin-bottom:18px">Şeffaflık & izlenebilirlik</div>
+      <h2>Her cihazın hikâyesi eksiksiz durur.</h2>
+      <div class="grid g3" style="margin-top:28px">
+        <div class="card"><h3>Tam statü geçmişi</h3><p style="margin-top:8px">Her geçiş — eski/yeni durum, personel, tarih ve not — kalıcı olarak saklanır. Üzerine yazılmaz.</p></div>
+        <div class="card"><h3>Kim, ne, ne zaman</h3><p style="margin-top:8px">Teknisyen ataması, parça teslimi, onay/red kararı — her aksiyonun sahibi bellidir.</p></div>
+        <div class="card"><h3>Canlı raporlar</h3><p style="margin-top:8px">Test raporları, stok hareketleri (kaynak/hedef bakiyeli) ve operasyon raporları anlık, filtrelenebilir ve Excel'e aktarılabilir.</p></div>
+      </div>
+      <p class="lead" style="margin-top:26px">Müşteriniz "cihazım ne durumda?" diye sorduğunda cevap; tahmin değil, kayıt.</p>
+    </div>
+  </section>
+
+  <!-- 10 SPEED / RELIABILITY -->
+  <section class="slide" id="s10">
+    <div class="slide-inner">
+      <div class="eyebrow" style="margin-bottom:18px">Hız & kararlılık</div>
+      <h2>Ekip büyüdükçe yavaşlamayan altyapı.</h2>
+      <div class="grid g4" style="margin-top:28px">
+        <div class="card"><div class="knum">100+</div><div class="klabel">eşzamanlı kullanıcı</div><p style="margin-top:10px">WebSocket tabanlı çekirdek, ekiplerin aynı anda çalışmasını taşır.</p></div>
+        <div class="card"><div class="knum">Auto</div><div class="klabel">kendini onarma</div><p style="margin-top:10px">Sürüm güncellendiğinde arayüz boş açılmaz, kendini toparlar.</p></div>
+        <div class="card"><div class="knum">Index</div><div class="klabel">optimize sorgu</div><p style="margin-top:10px">Kritik ekranlar indekslerle hızlandırıldı; fiyat/stok anlık gelir.</p></div>
+        <div class="card"><div class="knum">R / Q</div><div class="klabel">tek tuş yönetim</div><p style="margin-top:10px">Sunucu tek tuşla yeniden başlar; zombi süreçler otomatik temizlenir.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 11 PLATFORMS -->
+  <section class="slide" id="s11">
+    <div class="slide-inner">
+      <div class="eyebrow" style="margin-bottom:18px">Her yerden erişim</div>
+      <h2>Kurulum yükü yok, cihaz kısıtı yok.</h2>
+      <div class="grid g4" style="margin-top:28px">
+        <div class="card"><h3>Windows</h3><p style="margin-top:8px">Yüksek performanslı masaüstü uygulaması, barkod istasyonları için ideal.</p></div>
+        <div class="card"><h3>macOS</h3><p style="margin-top:8px">Intel & Apple Silicon derlemeleri; ofis kullanımı için.</p></div>
+        <div class="card"><h3>Android</h3><p style="margin-top:8px">Saha ve depo için mobil sarmalayıcı, çoklu site desteği.</p></div>
+        <div class="card"><h3>Web tarayıcı</h3><p style="margin-top:8px">Kurulumsuz erişim; adresi açan yetkili kullanıcı çalışmaya başlar.</p></div>
+      </div>
+      <p class="lead" style="margin-top:26px">Aynı sunucu, aynı veri, aynı anda dört kanaldan.</p>
+    </div>
+  </section>
+
+  <!-- 12 ROLLOUT -->
+  <section class="slide" id="s12">
+    <div class="slide-inner">
+      <div class="eyebrow" style="margin-bottom:18px">Geçiş & devreye alma</div>
+      <h2>Düşük riskli, kademeli geçiş.</h2>
+      <div class="grid g3" style="margin-top:28px">
+        <div class="card"><span class="tag go">01</span><h3 style="margin-top:12px">Veri göçü</h3><p style="margin-top:6px">Parça, ürün, BOM ve fiyat listeleri Excel'den toplu içe aktarılır; hatalı satırlar sessizce atlanmaz, liste olarak gösterilir.</p></div>
+        <div class="card"><span class="tag go">02</span><h3 style="margin-top:12px">Rol & yetki kurulumu</h3><p style="margin-top:6px">Her ekip kendi adımına yetkilendirilir; süreç önce pilot bir hatla çalıştırılabilir.</p></div>
+        <div class="card"><span class="tag go">03</span><h3 style="margin-top:12px">Canlıya alma</h3><p style="margin-top:6px">Sunucu merkezî çalışır; istemciler kendini günceller. Eğitim, ekranların sadeliği sayesinde kısadır.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 13 CLOSE -->
+  <section class="slide" id="s13">
+    <div class="cover-bg"></div>
+    <div class="slide-inner">
+      <div class="eyebrow" style="margin-bottom:22px">Özetle</div>
+      <h2 style="max-width:18ch">Daha hızlı operasyon, daha az hata, tam izlenebilirlik.</h2>
+      <div class="grid g3" style="margin-top:30px">
+        <div class="card"><h3>Hız</h3><p style="margin-top:8px">Web tabanlı, çok kullanıcılı, indeksli çekirdek.</p></div>
+        <div class="card"><h3>Doğruluk</h3><p style="margin-top:8px">Durum makinesi + barkod + atomik işlem + otomatik fiyat.</p></div>
+        <div class="card"><h3>Güven</h3><p style="margin-top:8px">Eksiksiz geçmiş, canlı raporlar, rol bazlı yetki.</p></div>
+      </div>
+      <div style="margin-top:36px;display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+        <span class="cta">Canlı demo planlayalım →</span>
+        <span class="muted" style="font-family:var(--mono);font-size:13px">RemaLab WMS · Cihaz Onarım & Yenileme Operasyon Platformu</span>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+  (function(){
+    var root=document.documentElement, deck=document.getElementById('deck');
+    var slides=[].slice.call(document.querySelectorAll('.slide'));
+    document.getElementById('hudTot').textContent=String(slides.length).padStart(2,'0');
+    var rail=document.getElementById('rail'), hud=document.getElementById('hudNow');
+
+    function onScroll(){
+      var y=window.scrollY, h=document.body.scrollHeight-window.innerHeight;
+      rail.style.width=(h>0?(y/h*100):0)+'%';
+      var idx=0, mid=y+window.innerHeight/2;
+      for(var i=0;i<slides.length;i++){ if(slides[i].offsetTop<=mid) idx=i; }
+      hud.textContent=String(idx+1).padStart(2,'0');
+    }
+    window.addEventListener('scroll',onScroll,{passive:true}); onScroll();
+
+    function go(d){
+      var y=window.scrollY+window.innerHeight/2, cur=0;
+      for(var i=0;i<slides.length;i++){ if(slides[i].offsetTop<=y) cur=i; }
+      var t=Math.max(0,Math.min(slides.length-1,cur+d));
+      slides[t].scrollIntoView({behavior:'smooth',block:'start'});
+    }
+    window.addEventListener('keydown',function(e){
+      if(e.key==='ArrowDown'||e.key==='ArrowRight'||e.key===' '){e.preventDefault();go(1);}
+      else if(e.key==='ArrowUp'||e.key==='ArrowLeft'){e.preventDefault();go(-1);}
+      else if(e.key==='p'||e.key==='P'){window.print();}
+    });
+
+    // theme toggle: cycle auto -> light -> dark
+    var tb=document.getElementById('themeBtn'), mode='auto';
+    tb.addEventListener('click',function(){
+      mode = mode==='auto' ? 'light' : mode==='light' ? 'dark' : 'auto';
+      if(mode==='auto'){root.removeAttribute('data-theme'); tb.textContent='◐ tema';}
+      else{root.setAttribute('data-theme',mode); tb.textContent=(mode==='dark'?'● koyu':'○ açık');}
+    });
+  })();
+</script>

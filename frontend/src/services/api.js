@@ -89,12 +89,33 @@ export const getBackend = () => {
                 console.warn('Qt WebChannel not detected in browser. Connecting over WebSocket (port 5174)...');
                 const wsProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
                 const hostName = window.location.hostname || '127.0.0.1';
-                const wsUri = `${wsProtocol}${hostName}:5174`;
+
+                // BACKEND ADRES OVERRIDE (Cloudflare Tunnel / uzaktan erisim icin):
+                // Frontend ile backend AYRI tunellerden geciyorsa (farkli trycloudflare
+                // adresleri), backend'in tam ws/wss adresini disaridan verebilmek gerekir.
+                //   1) URL parametresi:  https://<frontend>/?backend=wss://<backend>.trycloudflare.com
+                //   2) Bir kez verildiginde localStorage'a yazilir; sonraki gezinme/yenilemede korunur.
+                // Parametre yoksa eski davranis (ayni host, port 5174) aynen calisir -> yerel/masaustu bozulmaz.
+                let overrideUrl = null;
+                try {
+                    const params = new URLSearchParams(window.location.search);
+                    overrideUrl = params.get('backend');
+                    if (overrideUrl) {
+                        localStorage.setItem('backendWsUrl', overrideUrl);
+                    } else {
+                        overrideUrl = localStorage.getItem('backendWsUrl');
+                    }
+                } catch { /* localStorage/URL erisilemezse override yok say */ }
+
+                const wsUri = overrideUrl ? overrideUrl : `${wsProtocol}${hostName}:5174`;
+                // Tunel/uzaktan baglantida ilk el sikismasi 3sn'den uzun surebilir; override varsa bekleme suresini uzat.
+                const wsTimeoutMs = overrideUrl ? 10000 : 3000;
+                console.log('WebSocket hedefi:', wsUri);
 
                 const timeoutId = setTimeout(() => {
-                    console.warn('WebSocket connection timed out (3s). Falling back to mock backend.');
+                    console.warn(`WebSocket connection timed out (${wsTimeoutMs}ms). Falling back to mock backend.`);
                     safeResolve(getMockBackend());
-                }, 3000);
+                }, wsTimeoutMs);
 
                 try {
                     const socket = new WebSocket(wsUri);
