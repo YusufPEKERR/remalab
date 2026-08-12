@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>RemaLab WMS</title>
   <script src="/qwebchannel.js"></script>
-  <script type="module" crossorigin src="/assets/index-DJ2ixQ4z.js"></script>
+  <script type="module" crossorigin src="/assets/index-Di5lWtK8.js"></script>
   <link rel="modulepreload" crossorigin href="/assets/rolldown-runtime-Bh1tDfsg.js">
   <link rel="modulepreload" crossorigin href="/assets/icons-v4cbjFyi.js">
   <link rel="modulepreload" crossorigin href="/assets/vendor-_0Zhmaqq.js">
@@ -15,7 +15,12 @@
 </head>
 
 <body>
-  <div id="root">
+  <!-- Splash #root DIŞINDA durur: React #root'a mount olur ve konteynerin
+       içindeki React'e ait olmayan düğümleri (özellikle inline <style>) kaldırmaya
+       çalışınca "removeChild ... not a child of this node" hatası veriyordu.
+       #root boş bırakılır; splash bağımsızdır, React yüklenince main.jsx siler. -->
+  <div id="root"></div>
+  <div id="splash">
     <style>
       body,
       html {
