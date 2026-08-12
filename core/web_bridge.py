@@ -13364,6 +13364,96 @@ ORDER BY imei, departman, durum;
             db.close()
 
     @Slot(result=str)
+    def get_production_status_report(self):
+        """Üretim Durumu raporu: statü 109 (üretim aşaması) cihazların GÜNCEL durumu —
+        (cihaz + mission group) grain'inde. Her satır: imei/internal_id/serial/model/batch/
+        müşteri + mission group + güncel statü + parça 1..10 (her biri fiyat + işçilik).
+        Fiyat customer_item_prices, işçilik customer_labour_prices'tan (müşteri × item_code).
+        Kaynak: warehouse.production_status_report VIEW (deploy-safe, her çağrıda garanti)."""
+        from sqlalchemy import text
+        part_cols = ",\n  ".join(
+            "g.parts[%d] AS part%d, g.prices[%d] AS part%d_price, g.labours[%d] AS part%d_labour"
+            % (i, i, i, i, i, i) for i in range(1, 11))
+        head = """CREATE OR REPLACE VIEW warehouse.production_status_report AS
+WITH prod AS (
+  SELECT service_id::text AS sid, imei_number, internal_id, serial_number,
+         coalesce(nullif(btrim(model),''), nullif(btrim(product_family),'')) AS model,
+         batch_no, customer_no, customer_name
+  FROM warehouse.batch_entries WHERE statu_code = 109
+),
+r AS (
+  SELECT p.sid, p.imei_number, p.internal_id, p.serial_number, p.model, p.batch_no, p.customer_name,
+         rr.department_mission, rr.repair_result_type_code, rr.updated_at, rr.created_at,
+         rr.part_item_code, rr.part_item_code AS part_name,
+         cip.price AS part_price, clp.price AS part_labour
+  FROM prod p
+  JOIN warehouse.repair_records rr ON rr.service_record_id = p.sid
+  LEFT JOIN warehouse.customer_item_prices  cip ON cip.item_code = rr.part_item_code AND cip.customer_code = p.customer_no
+  LEFT JOIN warehouse.customer_labour_prices clp ON clp.item_code = rr.part_item_code AND clp.customer_code = p.customer_no
+),
+grp AS (
+  SELECT sid, imei_number, internal_id, serial_number, model, batch_no, customer_name, department_mission,
+    (array_agg(part_name   ORDER BY created_at) FILTER (WHERE coalesce(part_item_code,'')<>'')) AS parts,
+    (array_agg(part_price  ORDER BY created_at) FILTER (WHERE coalesce(part_item_code,'')<>'')) AS prices,
+    (array_agg(part_labour ORDER BY created_at) FILTER (WHERE coalesce(part_item_code,'')<>'')) AS labours,
+    (array_agg(repair_result_type_code ORDER BY updated_at DESC NULLS LAST))[1] AS cur_status_code
+  FROM r
+  GROUP BY sid, imei_number, internal_id, serial_number, model, batch_no, customer_name, department_mission
+)
+SELECT
+  g.imei_number AS imei, g.internal_id, g.serial_number, g.model, g.batch_no AS batch,
+  g.customer_name,
+  coalesce(mg.short_name, g.department_mission) AS mission_group,
+  coalesce(rrt.short_name, g.cur_status_code::text) AS mission_group_status,
+  """
+        tail = """
+FROM grp g
+LEFT JOIN organization.mission_groups mg ON mg.code = g.department_mission
+LEFT JOIN warehouse.repair_result_type rrt ON rrt.code = g.cur_status_code
+ORDER BY imei, mission_group;
+"""
+        db = SessionLocal()
+        try:
+            try:
+                db.execute(text(head + part_cols + tail))
+                db.commit()
+            except Exception as ddl_err:
+                db.rollback()
+                print(f"[WebBridge] production_status_report VIEW oluşturulamadı: {ddl_err}")
+
+            rows = db.execute(text("SELECT * FROM warehouse.production_status_report")).mappings().all()
+            items = []
+            for r in rows:
+                parts = []
+                for i in range(1, 11):
+                    name = r.get(f"part{i}")
+                    if not name:
+                        continue
+                    pp = r.get(f"part{i}_price")
+                    pl = r.get(f"part{i}_labour")
+                    parts.append({
+                        "name": name,
+                        "price": float(pp) if pp is not None else None,
+                        "labour": float(pl) if pl is not None else None,
+                    })
+                items.append({
+                    "imei": r["imei"] or "",
+                    "internalId": r["internal_id"] or "",
+                    "serialNumber": r["serial_number"] or "",
+                    "model": r["model"] or "",
+                    "batch": r["batch"] or "",
+                    "customerName": r["customer_name"] or "",
+                    "missionGroup": r["mission_group"] or "",
+                    "missionGroupStatus": r["mission_group_status"] or "",
+                    "parts": parts,
+                })
+            return json.dumps({"success": True, "items": items}, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(result=str)
     def get_service_statu_list(self):
         """warehouse.service_statu'daki tüm statü kodlarını (kısa ad + gerekli mission) getirir.
         Servis Onarımları ekranındaki statü-bazlı rol/yetki kontrolünün kaynağıdır.

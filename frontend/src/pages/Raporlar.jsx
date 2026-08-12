@@ -13,6 +13,8 @@ const REPORT_TABS = [
     desc: 'Seçili tarih aralığındaki giriş / çıkış / transfer stok hareketleri.' },
   { key: 'uretim', title: 'Üretim Onarım', accent: '#059669', dateRange: true,
     desc: 'Üretim aşamasındaki cihazların tamamlanan/iptal onarımları ve değişen parçaları.' },
+  { key: 'uretim_durum', title: 'Üretim Durumu', accent: '#7C3AED',
+    desc: 'Üretimdeki cihazların güncel durumu: mission group statüsü ve değişen parçalar (fiyat + işçilik).' },
 ];
 
 const bugun = () => {
@@ -48,6 +50,27 @@ export default function Raporlar() {
 
   // Rapor verisini seçilen türe göre Excel satırlarına dönüştürür
   const buildRows = (key, data) => {
+    if (key === 'uretim_durum') {
+      return data.map((r) => {
+        const row = {
+          'IMEI': r.imei || '',
+          'Internal ID': r.internalId || '',
+          'Seri No': r.serialNumber || '',
+          'Model': r.model || '',
+          'Batch': r.batch || '',
+          'Müşteri Adı': r.customerName || '',
+          'Mission Group': r.missionGroup || '',
+          'Mission Group Statü': r.missionGroupStatus || '',
+        };
+        for (let i = 0; i < 10; i++) {
+          const p = (r.parts && r.parts[i]) || {};
+          row[`Parça ${i + 1}`] = p.name || '';
+          row[`Parça ${i + 1} Fiyat`] = (p.price !== null && p.price !== undefined) ? p.price : '';
+          row[`Parça ${i + 1} İşçilik`] = (p.labour !== null && p.labour !== undefined) ? p.labour : '';
+        }
+        return row;
+      });
+    }
     if (key === 'stok') {
       return data.map((r) => ({
         'Son Hareket Tarihi': r.updated_at || r.date || '-',
@@ -134,6 +157,10 @@ export default function Raporlar() {
         }
         data = items;
         filename = `uretim_onarim_raporu_${ranges.uretim.start}_${ranges.uretim.end}.xlsx`;
+      } else if (key === 'uretim_durum') {
+        const res = await api.getProductionStatusReport();
+        data = res.success ? (res.items || []) : [];
+        filename = 'uretim_durumu_raporu.xlsx';
       } else if (key === 'transfers') {
         const { start, end } = ranges.transfers;
         const res = await api.getReports(`${start}T00:00`, `${end}T23:59`);
