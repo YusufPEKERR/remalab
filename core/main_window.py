@@ -143,9 +143,17 @@ class CustomRequestHandler(http.server.SimpleHTTPRequestHandler):
             path = '/qwebchannel.js'
         if path.startswith('/api_cache/'):
             base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            cache_dir = os.path.join(base_dir, 'api_cache')
-            rel_path = path[len('/api_cache/'):]
-            return os.path.join(cache_dir, rel_path)
+            cache_dir = os.path.realpath(os.path.join(base_dir, 'api_cache'))
+            # Sorgu/parça ekini at ve URL kodlamasını çöz; ardından yolun api_cache
+            # DIŞINA çıkmadığını doğrula. Aksi halde "/api_cache/../../<dosya>" ile
+            # sunucudaki keyfi dosyalar okunabilirdi (path traversal).
+            from urllib.parse import unquote
+            rel_path = unquote(path[len('/api_cache/'):].split('?', 1)[0].split('#', 1)[0])
+            candidate = os.path.realpath(os.path.join(cache_dir, rel_path))
+            if candidate != cache_dir and not candidate.startswith(cache_dir + os.sep):
+                # api_cache dışına çıkma girişimi: var olmayan bir yola yönlendir (404).
+                return os.path.join(cache_dir, '__gecersiz__')
+            return candidate
         if path.endswith('/favicon.svg') and path != '/favicon.svg':
             path = '/favicon.svg'
 

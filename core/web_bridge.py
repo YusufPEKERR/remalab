@@ -6,6 +6,7 @@ if _BASE_DIR not in sys.path:
     sys.path.insert(0, _BASE_DIR)
 
 import json
+import time as _time_mod
 from PySide6.QtCore import QObject, Slot, Signal
 import logging
 import datetime as _dt
@@ -41,6 +42,37 @@ from models.user import User
 
 from sqlalchemy import event
 from sqlalchemy.orm import Session
+
+# SQL enjeksiyonu koruması: jenerik tablo endpoint'lerinde (get/insert/bulk_insert
+# _table_data) şema, tablo ve kolon adları doğrudan sorguya gömülüyor. Postgres
+# tanımlayıcıları burada snake_case; bu sıkı desen tırnak, boşluk, noktalı virgül vb.
+# hiçbir kaçış karakterine izin vermediğinden gömme yoluyla enjeksiyonu tümüyle keser.
+_SAFE_IDENTIFIER_RE = _re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+def _is_safe_identifier(name):
+    return isinstance(name, str) and bool(_SAFE_IDENTIFIER_RE.match(name))
+
+# Basit kaba-kuvvet koruması: kullanıcı adı bazında son başarısız giriş denemeleri.
+# Tek süreçli backend olduğundan bellek içi yeterli. Zaman penceresi içinde eşik
+# aşılırsa kısa süreli kilit uygulanır (sözlük saldırısını ciddi yavaşlatır).
+_LOGIN_ATTEMPTS = {}          # username -> [zaman_damgalari]
+_LOGIN_MAX_ATTEMPTS = 10      # pencere içinde izin verilen başarısız deneme
+_LOGIN_WINDOW_SEC = 300       # 5 dakikalık pencere
+
+def _login_locked(username):
+    """(kilitli_mi, kalan_saniye) döner."""
+    now = _time_mod.time()
+    hits = [t for t in _LOGIN_ATTEMPTS.get(username, []) if now - t < _LOGIN_WINDOW_SEC]
+    _LOGIN_ATTEMPTS[username] = hits
+    if len(hits) >= _LOGIN_MAX_ATTEMPTS:
+        return True, int(_LOGIN_WINDOW_SEC - (now - hits[0]))
+    return False, 0
+
+def _login_record_failure(username):
+    _LOGIN_ATTEMPTS.setdefault(username, []).append(_time_mod.time())
+
+def _login_reset(username):
+    _LOGIN_ATTEMPTS.pop(username, None)
 
 def clear_api_cache(session=None):
     """Veritabanında değişiklik olduğunda cache'i temizler, böylece UI sadece yeni veriyi bekler."""
@@ -2324,14 +2356,32 @@ class WebBridge(QObject):
     def login(self, username, password):
         """React üzerinden gelen giriş isteğini işler."""
         print(f"[WebBridge] Login request received for username: {username}")
+        username = (username or "").strip()
+        # Genel hata mesajı: "kullanıcı bulunamadı" / "hatalı şifre" ayrımı kullanıcı
+        # adı sıralamasına (enumeration) izin veriyordu; tek biçim mesaj kullanılır.
+        GENERIC_FAIL = "Kullanıcı adı veya şifre hatalı"
+
+        locked, kalan = _login_locked(username)
+        if locked:
+            return json.dumps({"success": False,
+                               "message": f"Çok fazla hatalı deneme. {kalan} saniye sonra tekrar deneyin."})
+
         db = SessionLocal()
         try:
             user = db.query(User).filter(User.username == username).first()
             if not user:
-                return json.dumps({"success": False, "message": "Kullanıcı bulunamadı"})
-            
+                _login_record_failure(username)
+                return json.dumps({"success": False, "message": GENERIC_FAIL})
+
             if not verify_password(password, user.password_hash):
-                return json.dumps({"success": False, "message": "Hatalı şifre"})
+                _login_record_failure(username)
+                return json.dumps({"success": False, "message": GENERIC_FAIL})
+
+            # Devre dışı bırakılmış hesap giriş yapamaz (None = etkin sayılır).
+            if user.account_enabled is False:
+                return json.dumps({"success": False, "message": "Bu hesap devre dışı bırakılmış."})
+
+            _login_reset(username)
 
             # Başarılı giriş
             user_data = {
@@ -2348,7 +2398,9 @@ class WebBridge(QObject):
             }
             return json.dumps({"success": True, "user": user_data})
         except Exception as e:
-            return json.dumps({"success": False, "message": f"Veritabanı hatası: {str(e)}"})
+            # İç hata ayrıntısı istemciye sızdırılmaz; yalnızca sunucu günlüğüne yazılır.
+            print(f"[WebBridge] login DB hatası: {e}")
+            return json.dumps({"success": False, "message": "Sunucu/veritabanı hatası. Lütfen tekrar deneyin."})
         finally:
             db.close()
 
@@ -9798,7 +9850,10 @@ class WebBridge(QObject):
         # Security: whitelist check or ensure schema is valid
         if schema not in ['public', 'warehouse', 'auth']:
             return json.dumps({"success": False, "message": "Invalid schema"})
-            
+        # Tablo adı doğrudan sorguya gömüldüğü için sıkı doğrulanır (SQL enjeksiyonu).
+        if not _is_safe_identifier(table_name):
+            return json.dumps({"success": False, "message": "Geçersiz tablo adı"})
+
         try:
             with get_db() as db:
                 query = text(f'SELECT * FROM "{schema}"."{table_name}"')
@@ -9823,12 +9878,17 @@ class WebBridge(QObject):
         
         if schema not in ['public', 'warehouse', 'auth']:
             return json.dumps({"success": False, "message": "Invalid schema"})
-            
+        if not _is_safe_identifier(table_name):
+            return json.dumps({"success": False, "message": "Geçersiz tablo adı"})
+
         try:
             data = json.loads(data_json)
             if not isinstance(data, dict):
                 return json.dumps({"success": False, "message": "Data must be a dictionary"})
-                
+            # Kolon adları da sorguya gömüldüğü için doğrulanır.
+            if not all(_is_safe_identifier(c) for c in data.keys()):
+                return json.dumps({"success": False, "message": "Geçersiz kolon adı"})
+
             with get_db() as db:
                 # Apply SYSTEM_TRANSFER_RULES if inserting into stock_movements (e.g. via Excel)
                 if table_name == 'stock_movements':
@@ -9879,6 +9939,8 @@ class WebBridge(QObject):
 
         if schema not in ['public', 'warehouse', 'auth']:
             return json.dumps({"success": False, "message": "Invalid schema", "errors": []})
+        if not _is_safe_identifier(table_name):
+            return json.dumps({"success": False, "message": "Geçersiz tablo adı", "errors": []})
 
         try:
             rows = json.loads(rows_json or "[]")
@@ -9923,6 +9985,9 @@ class WebBridge(QObject):
                                 continue
 
                     columns = list(data.keys())
+                    if not all(_is_safe_identifier(c) for c in columns):
+                        errors.append({"row": row_num, "field": "-", "message": "Geçersiz kolon adı."})
+                        continue
                     placeholders = ', '.join([f':{col}' for col in columns])
                     col_names = ', '.join([f'"{col}"' for col in columns])
                     query = text(f'INSERT INTO "{schema}"."{table_name}" ({col_names}) VALUES ({placeholders})')

@@ -1,9 +1,20 @@
 import jwt
 import bcrypt
 import os
+import secrets
 from datetime import datetime, timedelta, timezone
 
-SECRET_KEY = os.getenv("SECRET_KEY", "remalab_super_secret_key_1234567890")
+# SECRET_KEY sabit/kaynağa gömülü OLMAMALI: eskiden koda gömülü bilinen bir varsayılan
+# vardı, bu değerle JWT sahtelenebiliyordu. Öncelik .env'deki SECRET_KEY'dir. Tanımlı
+# değilse süreç başına RASTGELE bir anahtar üretilir (kaynakta sabit sır bırakmaz).
+# Not: rastgele anahtar her yeniden başlatmada değişir; kalıcı oturumlar isteniyorsa
+# .env içine güçlü ve sabit bir SECRET_KEY konmalıdır.
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    SECRET_KEY = secrets.token_urlsafe(48)
+    print("[WARN] SECRET_KEY .env'de tanimli degil; sureç icin rastgele bir anahtar "
+          "uretildi. Kalici oturumlar icin .env'e guclu bir SECRET_KEY ekleyin.")
+
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 1 day
 
