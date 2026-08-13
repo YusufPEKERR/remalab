@@ -2,6 +2,7 @@ import uuid
 from sqlalchemy import Column, String, Integer, Boolean, ForeignKey, DateTime, Text
 from sqlalchemy.dialects.postgresql import UUID
 from config.database import Base
+from core.zaman import tr_now
 import datetime
 
 class RepairRecord(Base):
@@ -13,11 +14,23 @@ class RepairRecord(Base):
     __table_args__ = {"schema": "warehouse"}
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    service_record_id = Column(String(255), nullable=False) # service_records veya work_orders FK id'si 
+    service_record_id = Column(String(255), nullable=False) # service_records veya work_orders FK id'si
     department_mission = Column(String(255), nullable=False) # Hangi mission'a atandi (BATTERY, L1 vb)
+
+    # ONARIM ÜST KAYDI (warehouse.repairs). Bu tablodaki her satır bir PARÇADIR;
+    # "Kasa Onarımı" gibi bir onarım, aynı cihaz + aynı görev grubundaki parçaların
+    # bağlı olduğu üst kayıttır. Statü, teknisyen ataması ve bitiş testi sonucu
+    # onarımın kendi alanlarıdır (bkz. WebBridge._ensure_repairs_table).
+    # Geçiş sürerken bu kolon boş kalabilir; açılıştaki tarama bağsız satırları bağlar.
+    repair_id = Column(UUID(as_uuid=True), nullable=True)
     
     # Su anki statu (Orn: 1000 - Atanacak, 1001 - Atandi, 1002 - Tamamlandi)
     repair_result_type_code = Column(Integer, ForeignKey("warehouse.repair_result_type.code"), default=1000)
+    # AŞAMA 4: parçanın YAŞAM DÖNGÜSÜ ekseni (warehouse.repair_part_status).
+    # 2000 Aktif · 2001 Silindi · 2002 Muadille Değiştirildi · 2003 Yanlış Girildi.
+    # "Listede mi" sorusunu kod değil repair_part_status.is_removed cevaplar.
+    # Tedarik durumu (supply_status_code) ve onarım statüsü (repairs) AYRI eksenlerdir.
+    part_status_code = Column(Integer, default=2000)
     
     # Secilen islem/garanti turleri (teknisyen secer veya sistem atar)
     operation_type_code = Column(String(255), nullable=True)
@@ -47,8 +60,10 @@ class RepairRecord(Base):
 
     notes = Column(Text, nullable=True)
 
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    # K7: Türkiye yerel saati. Eskiden utcnow() ile Greenwich yazılıyordu; aynı
+    # tablodaki SQL NOW() yazımlarıyla 3 saat uyuşmazlık oluşuyordu.
+    created_at = Column(DateTime, default=tr_now)
+    updated_at = Column(DateTime, default=tr_now, onupdate=tr_now)
     # Onarımın KAPANDIĞI an (1002 Tamamlandı / 1003 İptal). Kayıt yeniden açılırsa
     # temizlenir. updated_at "satıra son yazma" olduğu için kapanış zamanı ondan
     # okunamaz - depo durumu değişikliği gibi sonraki yazmalar damgayı ileri kaydırır.

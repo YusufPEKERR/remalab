@@ -14,6 +14,7 @@ import uuid
 import datetime
 
 from config.database import Base
+from core.zaman import tr_now
 
 
 class CustomerDgdLabourPrice(Base):
@@ -28,5 +29,5 @@ class CustomerDgdLabourPrice(Base):
     dgd_key = Column(String(50), nullable=False)
     price = Column(Numeric(12, 2), nullable=False, default=0)
     updated_by = Column(String(100), nullable=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=tr_now)
+    updated_at = Column(DateTime, default=tr_now, onupdate=tr_now)

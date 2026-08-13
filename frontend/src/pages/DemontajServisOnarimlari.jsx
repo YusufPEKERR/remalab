@@ -5,6 +5,11 @@ import {
 import { api } from "../services/api";
 import DemontajRepairPanel from "../components/DemontajRepairPanel";
 
+// Cihaz üretime aktarıldıktan sonraki statü (warehouse.service_statu 109 -
+// "Production in Progress"). Bu ekran o statüdeki cihazı açmaz; işi üretim
+// teknisyeni "Üretim Kaydını Görüntüle" ekranından yürütür.
+const URETIM_STATUSU = 109;
+
 function getCurrentUser() {
   try {
     return JSON.parse(localStorage.getItem("user") || sessionStorage.getItem("user") || "null");
@@ -90,6 +95,22 @@ const DemontajServisOnarimlari = () => {
       const imei = d.imei_number || term;
       const productInfo = [d.model, d.gb, d.color].filter(Boolean).join(" ");
       const batchStatusCode = (d.statu_code !== null && d.statu_code !== undefined) ? Number(d.statu_code) : null;
+
+      // ÜRETİM AŞAMASINDAKİ CİHAZ BU EKRANDA AÇILMAZ.
+      // Cihaz 109'a geçtiği anda iş üretim teknisyenine devrolur; onarımları
+      // "Üretim Kaydını Görüntüle" ekranından yönetilir. Burada açılabilmesi
+      // demontaj kararının yeniden verilebilmesi anlamına gelir ve iki ekran aynı
+      // kayıtlar üzerinde çalışır. Eskiden engel yoktu: parça ekleme izni
+      // service_statu.mission == 'TEC_DISMANTLE' ile belirleniyor, 109 da o
+      // mission'a bağlı olduğu için üretimdeki cihaz burada tam yetkiyle açılıyordu.
+      if (batchStatusCode === URETIM_STATUSU) {
+        showNotif("error", "Cihaz Üretim Aşamasında",
+          `${imei} üretim aşamasında (${URETIM_STATUSU}). Bu ekran yalnızca demontaj aşamasındaki cihazları açar; ` +
+          `onarımları "Üretim Kaydını Görüntüle" ekranından yönetin.`);
+        setDevice(null);
+        setRepairs([]);
+        return;
+      }
 
       // Cihazın Flow'una göre DGD işçilik kodunu otomatik ekler (idempotent - zaten eklenmişse
       // tekrar eklemez). Arama akışını bloklamaz, hata olursa sessizce yutulur.

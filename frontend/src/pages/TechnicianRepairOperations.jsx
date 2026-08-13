@@ -3,7 +3,7 @@ import { useLocation } from "react-router-dom";
 import {
   Search, Plus, Play, AlertTriangle, Shield, Battery,
   BatteryCharging, Cpu, X, ChevronLeft, ChevronRight, Wrench,
-  CheckCircle, Clock, Package, ArrowRightLeft, Info, User, Trash2
+  CheckCircle, Clock, Package, ArrowRightLeft, Info, User, Trash2, PackageSearch
 } from "lucide-react";
 import { api } from "../services/api";
 import PartSelectCombobox from "../components/PartSelectCombobox";
@@ -187,6 +187,35 @@ const AddRepairModal = ({ onClose, onAdd, missionGroups, device, mevcutKategoril
     });
   }, [device?.model]);
 
+  // KATEGORİ ↔ DEPARTMAN İLİŞKİSİ KİLİTLİ MODDA DA KORUNUR.
+  // "Onarım Ekle"de departman parçanın kategorisinden türetilir, ilişki kendiliğinden
+  // sağlanır. "Seçili Onarıma Parça Ekle"de ise departman SABİT (seçili onarımdan gelir)
+  // ve parça listesi hiç süzülmüyordu: Kasa onarımına Kamera kategorisinden parça
+  // eklenebiliyordu. Demontaj ekranında böyle bir yol yok - orada ilişki her zaman
+  // kategoriden kuruluyor. Artık kilitli modda liste, o departmana bağlı kategorilerle
+  // sınırlanır. Hiçbir departmana bağlanmamış kategoriler KISITLANMAZ (projedeki
+  // yerleşik kural: eşleşme yoksa serbest bırak).
+  const [izinliKategoriler, setIzinliKategoriler] = useState(null);
+  useEffect(() => {
+    if (!lockedMissionGroupCode) { setIzinliKategoriler(null); return; }
+    api.getItemCategoriesForMission(lockedMissionGroupCode).then(res => {
+      if (!res || !res.success) { setIzinliKategoriler(null); return; }
+      setIzinliKategoriler({
+        izinli: new Set((res.categories || []).map(k => k.trim().toLowerCase())),
+        tanimli: new Set((res.mapped_categories || []).map(k => k.trim().toLowerCase())),
+      });
+    });
+  }, [lockedMissionGroupCode]);
+
+  const gosterilecekParcalar = useMemo(() => {
+    if (!izinliKategoriler) return parts;
+    return parts.filter(p => {
+      const kat = (p.item_category || p.part_category || '').trim().toLowerCase();
+      if (!kat) return true;
+      return izinliKategoriler.izinli.has(kat) || !izinliKategoriler.tanimli.has(kat);
+    });
+  }, [parts, izinliKategoriler]);
+
   const selectedPart = parts.find(p => String(p.id) === String(selectedPartId));
   const selectedItemCategory = selectedPart?.item_category || "";
 
@@ -254,8 +283,26 @@ const AddRepairModal = ({ onClose, onAdd, missionGroups, device, mevcutKategoril
               <span>{partsWarning}</span>
             </div>
           )}
+          {/* Kilitli modda liste süzülüyor - kullanıcı eksik parça aradığında sebebini
+              görsün. Süzme sonucu boşsa bu, "cihazın reçetesi boş" ile karıştırılmasın. */}
+          {lockedMissionGroupCode && izinliKategoriler && (
+            <div className={`flex items-start gap-2 px-3 py-2 rounded-lg border text-xs ${
+              gosterilecekParcalar.length === 0
+                ? 'bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/30 text-rose-700 dark:text-rose-400'
+                : 'bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/30 text-blue-700 dark:text-blue-400'
+            }`}>
+              <Wrench size={14} className="shrink-0 mt-0.5" />
+              <span>
+                {gosterilecekParcalar.length === 0
+                  ? <>Bu cihazın reçetesinde <strong>{lockedMissionGroupName || lockedMissionGroupCode}</strong> departmanına ait parça yok. Farklı bir departmanın parçası gerekiyorsa <strong>Onarım Ekle</strong> ile yeni onarım açın.</>
+                  : <>Liste <strong>{lockedMissionGroupName || lockedMissionGroupCode}</strong> departmanına ait kategorilerle sınırlı ({gosterilecekParcalar.length}/{parts.length} parça).</>}
+              </span>
+            </div>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <PartSelectCombobox parts={parts} value={selectedPartId} onChange={setSelectedPartId} placeholder="Parça seçiniz..." labelMode="category" disabled={false}
+            <PartSelectCombobox parts={gosterilecekParcalar} value={selectedPartId} onChange={setSelectedPartId}
+              placeholder={lockedMissionGroupCode ? `${lockedMissionGroupName || lockedMissionGroupCode} parçası seçiniz...` : "Parça seçiniz..."}
+              labelMode="category" disabled={false}
               engelSebebi={p => parcaEngeli(p, parcaSiniflari, ekliKodlar)} />
             <select
               value={faultCode}
@@ -583,6 +630,9 @@ const TechnicianRepairOperations = () => {
   const [diagnosisDraft, setDiagnosisDraft] = useState("");
   const [savingDiagnosis, setSavingDiagnosis] = useState(false);
   const [supplyStatuses, setSupplyStatuses] = useState([]);
+  // K8/1008: Onarım Parçaları satırındaki sağ tık menüsü — { r, x, y }.
+  const [parcaMenu, setParcaMenu] = useState(null);
+  const [bekletiliyorId, setBekletiliyorId] = useState("");
   const [partStock, setPartStock] = useState({}); // { [item_code]: quantity }
   const [partPrices, setPartPrices] = useState({}); // { [item_code]: price } - Müşteri Fiyat Matrisi
   // { [repair_id]: fatura satırı } - seviye modelinden gelen işçilik (bkz. aşağıdaki effect).
@@ -611,6 +661,20 @@ const TechnicianRepairOperations = () => {
       if (res && res.success) setSupplyStatuses(res.supply_statuses || []);
     });
   }, []);
+
+  // Sağ tık menüsü dışarı tıklama / kaydırma / yeniden boyutlandırmada kapanır.
+  useEffect(() => {
+    if (!parcaMenu) return;
+    const kapat = () => setParcaMenu(null);
+    window.addEventListener("click", kapat);
+    window.addEventListener("scroll", kapat, true);
+    window.addEventListener("resize", kapat);
+    return () => {
+      window.removeEventListener("click", kapat);
+      window.removeEventListener("scroll", kapat, true);
+      window.removeEventListener("resize", kapat);
+    };
+  }, [parcaMenu]);
 
   // MÜŞTERİ ONAYI KARARI. Üretime Aktar ekranındaki BASE kriterlerin aynısı; karar
   // backend'de tek yerde veriliyor (bkz. _compute_dismantle_decision), burada yalnızca
@@ -908,21 +972,25 @@ const TechnicianRepairOperations = () => {
       const target = repairs.find(r => r.id === repairId);
       if (target) { openAssignModal(target); return; }
     }
-    const prevRepairs = repairs;
-    setRepairs(prev => prev.map(r => r.id === repairId ? { ...r, statusCode: newStatus } : r));
+    // K5: EKRAN TAHMİN YÜRÜTMEZ, HER ZAMAN SUNUCUDAN TAZELER.
+    // Eskiden istek gönderilmeden önce satır iyimser biçimde boyanıyor, sonra
+    // yalnızca backend FARKLI bir kod uyguladıysa (appliedCode) liste tazeleniyordu.
+    // İki yönden kırıktı:
+    //   1) Boyama parça satırındaki statusCode'a yazıyordu; Aşama 3b'den beri rozet
+    //      onarımın kendi statüsünden (onarimStatusCode) çiziliyor - yazım görünmüyordu.
+    //   2) Asıl zarar: Batarya/L1/L2'de istenen kod ile uygulanan kod aynı (1002)
+    //      olduğu için HİÇ tazelenmiyordu. Oysa backend aynı işlemde KARDEŞ onarımları
+    //      da değiştiriyor (_sync_hierarchy_wait sırası gelenleri 1004'ten çıkarır) ve
+    //      cihazı Ara Test'e alabiliyor. Ekran bunların hiçbirini görmüyor, teknisyen
+    //      "tamamladım ama hâlâ atandı görünüyor" diyordu; IMEI yeniden aranınca düzeliyordu.
+    // Statü artık onarım düzeyinde ve tek doğru kaynak sunucu - koşulsuz tazeleniyor.
     const res = await api.updateRepairStatus(repairId, newStatus, getCurrentUser()?.username);
     if (!res || !res.success) {
-      setRepairs(prevRepairs);
       showNotif("error", "Statü Güncellenemedi", res?.message || "İşlem başarısız oldu.");
       return;
     }
-    // Kamera / L3 / Ekran / Kasa: "Onarımı Tamamla" backend'de 1002 yerine 1006
-    // (bitiş testine aktarıldı) uygular. Optimistik 1002'yi backend'in gerçekte
-    // uyguladığı kodla (appliedCode) düzeltip listeyi tazeliyoruz.
+    await refreshRepairs();
     const applied = res.appliedCode != null ? Number(res.appliedCode) : Number(newStatus);
-    if (applied !== Number(newStatus)) {
-      await refreshRepairs();
-    }
     // Son onarım kapandıysa backend cihazı Ara Test'e (138) almış olabilir; ekrandaki
     // statü rozeti cihaz yeniden aranmadan da doğru görünsün.
     if (res.autoSentToTest) {
@@ -1047,6 +1115,23 @@ const TechnicianRepairOperations = () => {
     setOnayKarari(null);
   }, [device, onayaGonderiliyor, showNotif]);
 
+  // ── Yedek Parça Bekleniyor (K8/1008) ──────────────────────────
+  // Teknisyen depoya gidip parçayı bulamadığında kendi onarımının parçasına sağ
+  // tıklayıp bunu seçer. PARÇA "Yedek Parça Bekleniyor" depo durumuna geçer,
+  // ONARIM 1008 görünür (1008 parçaya yazılmaz, backend'de türetilir).
+  // Geri dönüş elle yapılmaz: parça depodan çıkınca (muadil dahil) onarım 1001'e döner.
+  const handleAwaitSpare = useCallback(async (repairRecordId) => {
+    setBekletiliyorId(repairRecordId);
+    const res = await api.markPartAwaitingSpare(repairRecordId, getCurrentUser()?.username);
+    setBekletiliyorId("");
+    if (!res || !res.success) {
+      showNotif("error", "İşaretlenemedi", res?.message || "İşlem başarısız oldu.");
+      return;
+    }
+    await refreshRepairs();
+    showNotif("success", "Yedek Parça Bekleniyor", res.message || "");
+  }, [refreshRepairs, showNotif]);
+
   // ── Toggle Repair Charge Type ─────────────────────────────────
   // warehouse.repair_records.warranty_code'a kalıcı olarak yazar (IW=Ücretsiz, OOW=Ücretli).
   const handleToggleChargeType = useCallback(async (repairId, currentChargeType) => {
@@ -1081,12 +1166,27 @@ const TechnicianRepairOperations = () => {
     }
     return Array.from(map.values()).map(g => {
       const activeItem = g.items.find(r => !r.isCancelled && (r.technician || r.assignedTechnicianName || r.assignedTechnician)) ||
-                         g.items.find(r => !r.isCancelled) || 
+                         g.items.find(r => !r.isCancelled) ||
                          g.items[g.items.length - 1];
       const techName = g.items.map(r => r.technician || r.assignedTechnicianName || r.assignedTechnician).find(Boolean) || "";
+      // GRUBUN STATÜSÜ ARTIK ONARIMIN KENDİ STATÜSÜ.
+      // Eskiden buradaki "temsilci satır" (activeItem) grubun statüsünü de temsil
+      // ediyordu: rozet o TEK parçanın koduna göre çiziliyordu. Grup karışık
+      // durumdayken (bir parça bitiş testinde 1006, diğeri 1002) rozet yalan
+      // söylüyor, yarım kalmış onarım ekranda "Tamamlandı" görünüyordu. Onarım
+      // artık gerçek bir kayıt (warehouse.repairs) ve statüsü backend'de
+      // parçalarından hesaplanıyor - rozet doğrudan ondan okunur.
+      // Üst kaydı olmayan eski satırlar için temsilci satıra düşülür.
+      const onarimKodu = g.items.map(r => r.onarimStatusCode).find(v => v !== null && v !== undefined);
+      const onarimAdi = g.items.map(r => r.onarimStatusName).find(Boolean);
       return {
         ...g,
-        active: { ...activeItem, technician: techName || activeItem?.technician || "" }
+        active: {
+          ...activeItem,
+          technician: techName || activeItem?.technician || "",
+          statusCode: onarimKodu !== undefined ? onarimKodu : activeItem?.statusCode,
+          statusName: onarimAdi || activeItem?.statusName,
+        }
       };
     });
   }, [repairs]);
@@ -1261,6 +1361,54 @@ const TechnicianRepairOperations = () => {
     <div className="flex flex-col space-y-6 pb-12 text-[#12141c] dark:text-[#F6F8FF] max-w-[1600px] mx-auto animate-in fade-in duration-300">
       {/* Notification Toast */}
       <NotificationToast notification={notification} onClose={() => setNotification(null)} />
+
+      {/* ── ONARIM PARÇASI SAĞ TIK MENÜSÜ (K8/1008) ──
+          Tek işlem: "Yedek Parça Bekleniyor". Sadece onarım 1001'deyken ve parçası
+          seçilmiş, iptal edilmemiş, henüz depodan çıkmamış satırlarda etkin.
+          Engelli durumda satır listede kalır ama sebebi yazar - kullanıcı işlemin
+          var olduğunu ama neden yapılamadığını görsün. */}
+      {parcaMenu && (() => {
+        const r = parcaMenu.r;
+        const onarimKodu = Number(r.onarimStatusCode ?? r.statusCode);
+        const zatenBekliyor = (r.supplyStatusCode || "") === "Yedek Parça Bekleniyor";
+        const cikmis = r.isDelivered;
+        const sebep =
+          !hasAccess ? "Bu cihaz için yetkiniz yok"
+          : r.isCancelled ? "İptal edilmiş kayıt"
+          : !r.partItemCode ? "Parçası seçilmemiş kayıt"
+          : onarimKodu !== 1001 ? "Yalnızca teknisyene atanmış onarımda yapılabilir"
+          : zatenBekliyor ? "Bu parça zaten yedek parça bekliyor"
+          : cikmis ? "Parça depodan çıkmış durumda"
+          : "";
+        const yapilabilir = !sebep && bekletiliyorId !== r.id;
+        const GENISLIK = 232, YUKSEKLIK = sebep ? 96 : 74;
+        const sol = Math.min(parcaMenu.x, window.innerWidth - GENISLIK - 8);
+        const ust = Math.min(parcaMenu.y, window.innerHeight - YUKSEKLIK - 8);
+        return (
+          <div
+            className="fixed z-[200] rounded-xl border border-slate-200 dark:border-[#2e3545] bg-white dark:bg-[#12141c] shadow-2xl overflow-hidden py-1"
+            style={{ left: sol, top: ust, width: GENISLIK }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-400 truncate">
+              {r.partItemCode || r.itemCategory || "Parça"}
+            </div>
+            <button
+              type="button"
+              disabled={!yapilabilir}
+              title={sebep || "Parça depodan çıkınca onarım otomatik olarak Teknisyene Atandı'ya döner"}
+              onClick={() => { setParcaMenu(null); if (yapilabilir) handleAwaitSpare(r.id); }}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-left transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-slate-700 dark:text-slate-200 hover:bg-amber-50 dark:hover:bg-amber-500/10 hover:text-amber-600"
+            >
+              <PackageSearch size={14} />
+              {bekletiliyorId === r.id ? "İşaretleniyor…" : "Yedek Parça Bekleniyor"}
+            </button>
+            {sebep && (
+              <div className="px-3 pb-1.5 pt-0.5 text-[10px] text-amber-500 leading-snug">{sebep}</div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Add Repair Modal */}
       {showAddModal && <AddRepairModal onClose={() => setShowAddModal(false)} onAdd={handleAddRepair} missionGroups={missionGroups} device={device} mevcutKategoriler={mevcutKategoriler} mevcutKodlar={mevcutKodlar} />}
@@ -1733,7 +1881,16 @@ const TechnicianRepairOperations = () => {
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-[#1e222d]">
                   {selectedGroup.items.map(r => (
-                    <tr key={r.id} className={`hover:bg-slate-50 dark:hover:bg-[#12141c] transition-colors ${r.isCancelled ? "opacity-50" : ""}`}>
+                    <tr
+                      key={r.id}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        // Menü imlecin altında açılır; ekran kenarını taşmasın diye
+                        // konum render sırasında sınırlanır.
+                        setParcaMenu({ r, x: e.clientX, y: e.clientY });
+                      }}
+                      className={`hover:bg-slate-50 dark:hover:bg-[#12141c] transition-colors ${r.isCancelled ? "opacity-50" : ""}`}
+                    >
                       <td className="px-5 py-2.5 text-xs font-mono font-semibold text-slate-700 dark:text-slate-300">
                         {r.partItemCode || "N/A"}
                       </td>

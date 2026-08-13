@@ -131,8 +131,9 @@ export default function MainLayout() {
         { name: 'Kontrol Paneli', icon: LayoutDashboard, path: '/dashboard' },
         { name: 'Operasyon Paneli', icon: Gauge, path: '/operasyon-paneli' },
         { name: 'QC', icon: ShieldCheck, path: '/qc' },
-        { name: 'Arama', icon: Search, path: '/servis' },
-        { name: 'Statü Kontrol', icon: Zap, path: '/statu-kontrol' }
+        { name: 'Arama', icon: Search, path: '/servis' }
+        // K10: 'Statü Kontrol' kaldırıldı - kural tanımadan statü yazıyor ve
+        // hatalı veri üretiyordu. Rotası da App.jsx'ten çıkarıldı.
       ]
     },
     {
@@ -284,9 +285,6 @@ export default function MainLayout() {
         return { color: '#00B2FF' }; // Rich Royal Blue
       case '/qc':
         return { color: '#06B6D4' }; // Cyan (Quality Control)
-      case '/statu-kontrol':
-        return { color: '#2C8CA8' }; // Darker Cyan
-      
       // DEPO - Unique Rich Dark Amber/Yellow for Depo!
       case '/depo':
         return { color: '#C1801C' }; // Rich Amber Yellow

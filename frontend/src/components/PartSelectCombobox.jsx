@@ -51,6 +51,14 @@ export default function PartSelectCombobox({ parts = [], value, onChange, placeh
   };
 
   const formatPartLabel = (p) => {
+    // "category-code": kategori + parça kodu. Liste PARÇA bazında olduğunda (aynı
+    // kategoride birden fazla parça kodu bulunabilir) yalnızca kategori yazmak
+    // satırları birbirinin aynısı gösteriyor - kullanıcı hangisini seçtiğini
+    // ayırt edemiyor. Kod eklenince her satır tekilleşir.
+    if (labelMode === "category-code") {
+      const kat = p.item_category || p.part_category || '-';
+      return p.item_code ? `${kat} — ${p.item_code}` : kat;
+    }
     if (labelMode === "category") {
       return p.item_category || p.part_category || '-';
     }

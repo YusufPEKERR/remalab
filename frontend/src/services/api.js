@@ -107,7 +107,17 @@ export const getBackend = () => {
                     }
                 } catch { /* localStorage/URL erisilemezse override yok say */ }
 
-                const wsUri = overrideUrl ? overrideUrl : `${wsProtocol}${hostName}:5174`;
+                let wsUri = overrideUrl;
+                if (!wsUri) {
+                    // Bulut/Render modunda (aynı host ve port üzerinden çoklanmış bağlantı):
+                    // Eğer port boşsa (standart 80/443 portu) doğrudan host'a bağlanır, :5174 eklenmez.
+                    const currentPort = window.location.port;
+                    if (!currentPort || currentPort === '80' || currentPort === '443') {
+                        wsUri = `${wsProtocol}${hostName}`;
+                    } else {
+                        wsUri = `${wsProtocol}${hostName}:5174`;
+                    }
+                }
                 // Tunel/uzaktan baglantida ilk el sikismasi 3sn'den uzun surebilir; override varsa bekleme suresini uzat.
                 const wsTimeoutMs = overrideUrl ? 10000 : 3000;
                 console.log('WebSocket hedefi:', wsUri);
@@ -616,6 +626,16 @@ export const api = {
         });
     },
 
+    // get_missions_for_item_category'nin tersi: bir departmana bağlı parça kategorileri.
+    // "Seçili Onarıma Parça Ekle" akışında departman sabit olduğu için parça listesini
+    // o departmanın kategorileriyle sınırlamakta kullanılır.
+    getItemCategoriesForMission: async (missionGroupCode) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_item_categories_for_mission(String(missionGroupCode || ''), (res) => resolve(JSON.parse(res)));
+        });
+    },
+
     getFlowValues: async () => {
         const backend = await getBackend();
         return new Promise((resolve) => {
@@ -674,6 +694,19 @@ export const api = {
                 backend.get_item_supply_statuses((res) => resolve(JSON.parse(res)));
             } else {
                 resolve({ success: true, supply_statuses: [] });
+            }
+        });
+    },
+
+    // K8/1008: teknisyen depoda parçayı bulamayınca "Yedek Parça Bekleniyor" der.
+    // Onarım 1008'e düşer; parça depodan çıkınca (muadil dahil) 1001'e döner.
+    markPartAwaitingSpare: async (repairId, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.mark_part_awaiting_spare) {
+                backend.mark_part_awaiting_spare(String(repairId), username || '', (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false, message: "Backend eksik" });
             }
         });
     },
@@ -744,6 +777,32 @@ export const api = {
                 backend.get_deliverable_parts_for_device(brand || '', model || '', color || '', String(imeiOrSerial || ''), (res) => resolve(JSON.parse(res)));
             } else {
                 resolve({ success: true, parts: [] });
+            }
+        });
+    },
+
+    // Bir onarım kaydına takılabilecek muadiller (cihazın reçetesinden, Good Stock
+    // miktarlarıyla). Demontajda yazılan kod yer tutucudur; gerçek parçayı depocu
+    // buradan seçer.
+    getEquivalentPartsForRepair: async (repairRecordId) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.get_equivalent_parts_for_repair) {
+                backend.get_equivalent_parts_for_repair(String(repairRecordId || ''), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false, message: "Backend servis alanı eksik." });
+            }
+        });
+    },
+
+    // Seçilen muadili onarım kaydına yazar ve teslimi yapar (stok düşümü + hareket).
+    deliverEquivalentPart: async (repairRecordId, secilenItemCode, username) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (backend.deliver_equivalent_part) {
+                backend.deliver_equivalent_part(String(repairRecordId || ''), String(secilenItemCode || ''), String(username || ''), (res) => resolve(JSON.parse(res)));
+            } else {
+                resolve({ success: false, message: "Backend servis alanı eksik." });
             }
         });
     },
@@ -942,16 +1001,9 @@ export const api = {
         });
     },
 
-    adminSetBatchEntryStatu: async (imei, targetStatuCode) => {
-        const backend = await getBackend();
-        return new Promise((resolve) => {
-            if (backend.admin_set_batch_entry_statu) {
-                backend.admin_set_batch_entry_statu(String(imei), Number(targetStatuCode), (res) => resolve(JSON.parse(res)));
-            } else {
-                resolve({ success: false, message: "Backend eksik" });
-            }
-        });
-    },
+    // K10: adminSetBatchEntryStatu KALDIRILDI. Statü Kontrol ekranı kural tanımadan
+    // statu_code yazıyordu; 88 idari geçişin 88'inde kimin yaptığı kaydedilmemişti ve
+    // yan etkiler (DGD, kapılar) hiç çalışmıyordu. Backend slot'u da reddediyor.
 
     createMission: async (m) => {
         const backend = await getBackend();
@@ -2026,21 +2078,7 @@ export const api = {
         });
     },
 
-    removeWorkOrderPart: async (wopId, reason) => {
-        const backend = await getBackend();
-        return new Promise((resolve) => {
-            if (backend.remove_work_order_part) {
-                // Try sending it as a single JSON string!
-                backend.remove_work_order_part(JSON.stringify({ id: wopId, reason: reason || '' }), (res) => {
-                    try { resolve(JSON.parse(res)); } catch (e) { resolve({ success: false, message: 'Parse error' }); }
-                });
-            } else {
-                resolve({ success: true });
-            }
-        });
-    },
-
-    revertWorkOrderPartStatus: async (wopId, username) => {
+revertWorkOrderPartStatus: async (wopId, username) => {
         const backend = await getBackend();
         return new Promise((resolve) => {
             if (backend.revert_work_order_part_status) {
@@ -3168,28 +3206,6 @@ export const api = {
                 String(deviceRef || ''), String(returnReason || ''), String(username || ''),
                 (res) => resolve(JSON.parse(res))
             );
-        });
-    },
-
-    getDashboardStats: async () => {
-        const backend = await getBackend();
-        return new Promise((resolve) => {
-            if (backend.get_dashboard_stats) {
-                backend.get_dashboard_stats((res) => resolve(JSON.parse(res)));
-            } else {
-                resolve({
-                    success: true,
-                    stats: {
-                        totalParts: '12,458',
-                        totalStock: '84,291',
-                        lowStock: '23',
-                        criticalStock: '0',
-                        todaysInbound: '0',
-                        todaysOutbound: '0',
-                        activeLocations: '0'
-                    }
-                });
-            }
         });
     },
 

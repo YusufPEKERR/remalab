@@ -3,6 +3,7 @@ import datetime
 from sqlalchemy import Column, String, Integer, DateTime
 from sqlalchemy.dialects.postgresql import UUID
 from config.database import Base
+from core.zaman import tr_now
 
 
 class TestResultFault(Base):
@@ -42,4 +43,4 @@ class TestResultFault(Base):
     hata10 = Column(String(255), nullable=True)
 
     created_by = Column(String(100), nullable=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=tr_now)

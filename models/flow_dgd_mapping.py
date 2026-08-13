@@ -12,6 +12,7 @@ import uuid
 import datetime
 
 from config.database import Base
+from core.zaman import tr_now
 
 
 class FlowDgdMapping(Base):
@@ -22,5 +23,5 @@ class FlowDgdMapping(Base):
     flow_code = Column(String(100), unique=True, nullable=False)
     dgd_item_code = Column(String(100), nullable=False)
     enabled = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=tr_now)
+    updated_at = Column(DateTime, default=tr_now, onupdate=tr_now)

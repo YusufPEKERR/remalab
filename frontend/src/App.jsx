@@ -79,7 +79,6 @@ const EtiketTasarimi = dayanikliLazy(() => import('./pages/EtiketTasarimi'));
 const CustomerApprovalDecision = dayanikliLazy(() => import('./pages/CustomerApprovalDecision'));
 const AraTestSonuc = dayanikliLazy(() => import('./pages/AraTestSonuc'));
 const SonTestSonuc = dayanikliLazy(() => import('./pages/SonTestSonuc'));
-const StatuKontrol = dayanikliLazy(() => import('./pages/StatuKontrol'));
 const ParcaTeslim = dayanikliLazy(() => import('./pages/ParcaTeslim'));
 const DepartmentRepairPool = dayanikliLazy(() => import('./pages/DepartmentRepairPool'));
 const OnarimBitisTesti = dayanikliLazy(() => import('./pages/OnarimBitisTesti'));
@@ -110,7 +109,10 @@ function App() {
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/operasyon-paneli" element={<OperasyonPaneli />} />
               <Route path="/qc" element={<QC />} />
-              <Route path="/statu-kontrol" element={<StatuKontrol />} />
+              {/* K10: Statü Kontrol KALDIRILDI. Kural tanımadan statü yazıyordu;
+                  88 idari geçişin 88'i imzasızdı ve hatalı veri üretiyordu.
+                  Ekran dosyası (pages/StatuKontrol.jsx) duruyor ama hiçbir yerden
+                  erişilemez - iki istisna için ayrıca bir düzenleme yapılacak. */}
 
               {/* DEPO */}
               <Route path="/depo" element={<Depo />} />

@@ -3,6 +3,7 @@ import datetime
 from sqlalchemy import Column, String, DateTime
 from sqlalchemy.dialects.postgresql import UUID
 from config.database import Base
+from core.zaman import tr_now
 
 
 class TestDetectedPart(Base):
@@ -21,4 +22,4 @@ class TestDetectedPart(Base):
     part_category = Column(String(255), nullable=True)
     part_item_code = Column(String(100), nullable=True)
     created_by = Column(String(100), nullable=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=tr_now)

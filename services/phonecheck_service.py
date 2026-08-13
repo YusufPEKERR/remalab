@@ -9,7 +9,6 @@ Tasarim:
     seed'lenen isin kendi referans verisidir ve StateMachineService.execute_transition
     tarafindan kullanilir.
   * Cihaz Phonecheck'te bulunamazsa zorunlu aciklamali manuel giris yapilir.
-  * Ayni (imei, test_stage) icin en fazla MAX_FAILED_ATTEMPTS basarisiz deneme.
 """
 import os
 from typing import Dict, Any, Optional
@@ -27,7 +26,6 @@ PHONECHECK_URL = "https://clientapiv2.phonecheck.com/cloud/CloudDB/v2/GetAllDevi
 PHONECHECK_USERNAME = "out1"
 
 # Ayni test adiminda bir cihaz icin izin verilen basarisiz deneme sayisi
-MAX_FAILED_ATTEMPTS = 10
 
 # Phonecheck API alani -> phonecheck_test_results kolonu
 FIELD_MAP = {
@@ -251,33 +249,6 @@ class PhonecheckService:
             PhonecheckTestResult.imei == imei,
             PhonecheckTestResult.test_stage == test_stage,
         ).count()
-
-    def failed_attempt_count(self, imei: str, test_stage: str) -> int:
-        """Bu cihazin bu test adimindaki basarisiz deneme sayisi.
-
-        Giris testi (103_104) kabul testidir; kusurlu cihaz kabul edilse bile
-        basarisiz test sayilmaz ve hak sinirina takilmaz.
-        """
-        if test_stage == "103_104":
-            return 0
-
-        from sqlalchemy import or_, and_
-
-        return self.db.query(PhonecheckTestResult).filter(
-            PhonecheckTestResult.imei == imei,
-            PhonecheckTestResult.test_stage == test_stage,
-            or_(
-                PhonecheckTestResult.working == "No",
-                and_(
-                    PhonecheckTestResult.is_manual.is_(True),
-                    or_(PhonecheckTestResult.working.is_(None),
-                        PhonecheckTestResult.working == ""),
-                ),
-            ),
-        ).count()
-
-    def failed_limit_reached(self, imei: str, test_stage: str) -> bool:
-        return self.failed_attempt_count(imei, test_stage) >= MAX_FAILED_ATTEMPTS
 
     # --- Phonecheck API ------------------------------------------------------
 

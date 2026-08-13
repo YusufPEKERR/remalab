@@ -139,8 +139,11 @@ const DepartmentRepairPool = () => {
     !aramaSorgu ||
     [
       item.imei, item.productInfo, item.customerName, item.batchNo,
-      item.faultName, item.operationTypeName, item.operationTypeCode,
-      item.partName, item.assignedTechnicianName, item.assignedTechnician,
+      item.operationTypeName, item.operationTypeCode,
+      item.assignedTechnicianName, item.assignedTechnician,
+      // Satır bir ONARIMI temsil ettiği için arama onun TÜM parçalarını kapsamalı;
+      // yalnızca ilk parçaya bakılırsa ikinci parçanın kodu/arızası aranamaz.
+      ...(item.parts || []).flatMap(p => [p.partName, p.partItemCode, p.faultName]),
     ].some(alan => (alan ?? '').toString().toLowerCase().includes(aramaSorgu));
 
   const filteredPool = poolItems.filter(eslesiyorMu);
@@ -450,29 +453,42 @@ const DepartmentRepairPool = () => {
                         </div>
                       </td>
 
-                      {/* Arıza */}
+                      {/* Arıza — onarımın TÜM parçalarının arızaları.
+                          Satır artık bir parçayı değil bir ONARIMI temsil ediyor. */}
                       <td className="px-4 py-3.5">
-                        {item.faultName ? (
-                          <span className="inline-flex items-center gap-1 text-slate-700 dark:text-slate-300 font-medium">
-                            <AlertTriangle size={12} className="text-amber-500" />
-                            {item.faultName}
-                          </span>
-                        ) : (
-                          <span className="text-slate-400 italic">Belirtilmedi</span>
-                        )}
+                        {(() => {
+                          const arizalar = [...new Set((item.parts || [])
+                            .map(p => p.faultName).filter(Boolean))];
+                          if (!arizalar.length) return <span className="text-slate-400 italic">Belirtilmedi</span>;
+                          return (
+                            <div className="space-y-0.5">
+                              {arizalar.map((a, i) => (
+                                <div key={i} className="inline-flex items-center gap-1 text-slate-700 dark:text-slate-300 font-medium">
+                                  <AlertTriangle size={12} className="text-amber-500 shrink-0" />
+                                  {a}
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })()}
                       </td>
 
-                      {/* İşlem / Parça */}
+                      {/* İşlem / Parçalar */}
                       <td className="px-4 py-3.5">
-                        <div className="font-semibold text-slate-800 dark:text-slate-200">
+                        <div className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
                           {item.operationTypeName || item.operationTypeCode || '-'}
+                          {(item.partCount || 1) > 1 && (
+                            <span className="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20">
+                              {item.partCount} parça
+                            </span>
+                          )}
                         </div>
-                        {item.partName && (
-                          <div className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
-                            <Tag size={10} />
-                            {item.partName}
+                        {(item.parts || []).filter(p => p.partName || p.partItemCode).map((p) => (
+                          <div key={p.partRecordId} className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
+                            <Tag size={10} className="shrink-0" />
+                            {p.partName || p.partItemCode}
                           </div>
-                        )}
+                        ))}
                       </td>
 
                       {/* Atanan Teknisyen */}
