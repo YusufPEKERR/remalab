@@ -13612,7 +13612,7 @@ ORDER BY imei, mission_group;
 
     @Slot(result=str)
     def get_service_statu_list(self):
-        """warehouse.service_statu'daki tüm statü kodlarını (kısa ad + gerekli mission) getirir.
+        """warehouse.service_statu tablosundaki tüm statü kodlarını (kısa ad + gerekli mission) getirir.
         Servis Onarımları ekranındaki statü-bazlı rol/yetki kontrolünün kaynağıdır.
         Çalışma zamanında pratikte hiç değişmediğinden 5 dakika önbelleklenir."""
         def _compute():
