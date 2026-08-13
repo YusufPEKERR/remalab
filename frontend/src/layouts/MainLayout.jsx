@@ -4,7 +4,7 @@ import {
   LogOut, LayoutDashboard, Users, Package, Settings, Bell,
   Warehouse, FileText, BarChart2, Box, Truck, MapPin,
   CheckCircle, Search, AlertTriangle, Zap, RefreshCw, Sun, Moon, Database, Building2, Wrench, ClipboardList, PackagePlus, Tags, ChevronDown, ChevronRight, Menu, X, Layers, FileSpreadsheet,
-  Boxes, ClipboardCheck, Cog, Repeat, DollarSign, Target, ShieldCheck, Receipt, FileCheck2
+  Boxes, ClipboardCheck, Cog, Repeat, DollarSign, Target, ShieldCheck, Receipt, FileCheck2, Gauge
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useTheme } from '../context/ThemeContext';
@@ -129,6 +129,7 @@ export default function MainLayout() {
       colorTheme: 'blue',
       items: [
         { name: 'Kontrol Paneli', icon: LayoutDashboard, path: '/dashboard' },
+        { name: 'Operasyon Paneli', icon: Gauge, path: '/operasyon-paneli' },
         { name: 'QC', icon: ShieldCheck, path: '/qc' },
         { name: 'Arama', icon: Search, path: '/servis' }
         // K10: 'Statü Kontrol' kaldırıldı - kural tanımadan statü yazıyor ve

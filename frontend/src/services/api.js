@@ -107,7 +107,17 @@ export const getBackend = () => {
                     }
                 } catch { /* localStorage/URL erisilemezse override yok say */ }
 
-                const wsUri = overrideUrl ? overrideUrl : `${wsProtocol}${hostName}:5174`;
+                let wsUri = overrideUrl;
+                if (!wsUri) {
+                    // Bulut/Render modunda (aynı host ve port üzerinden çoklanmış bağlantı):
+                    // Eğer port boşsa (standart 80/443 portu) doğrudan host'a bağlanır, :5174 eklenmez.
+                    const currentPort = window.location.port;
+                    if (!currentPort || currentPort === '80' || currentPort === '443') {
+                        wsUri = `${wsProtocol}${hostName}`;
+                    } else {
+                        wsUri = `${wsProtocol}${hostName}:5174`;
+                    }
+                }
                 // Tunel/uzaktan baglantida ilk el sikismasi 3sn'den uzun surebilir; override varsa bekleme suresini uzat.
                 const wsTimeoutMs = overrideUrl ? 10000 : 3000;
                 console.log('WebSocket hedefi:', wsUri);
@@ -245,6 +255,86 @@ export const api = {
         const backend = await getBackend();
         return new Promise((resolve) => {
             backend.get_production_repair_report((res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    // Operasyon Paneli (Genel Bakış) — Sekme 1: müşteri x statü pivotu (canlı)
+    getOperationsPanelActive: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_operations_panel_active((res) => resolve(JSON.parse(res)));
+        });
+    },
+    // Operasyon Paneli — düzenlenebilir Hedef Adet & Birim Fiyat (JSON config)
+    getOperationsPanelConfig: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_operations_panel_config((res) => resolve(JSON.parse(res)));
+        });
+    },
+    saveOperationsPanelConfig: async (config) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.save_operations_panel_config(JSON.stringify(config || {}), (res) => resolve(JSON.parse(res)));
+        });
+    },
+    // Operasyon Paneli — Sekme 2: teknisyen x onarım tipi (tamamlanan), tarih/müşteri/departman filtreli
+    getOperationsPanelPerformance: async (startDate, endDate, customer, department) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_operations_panel_performance(startDate || '', endDate || '', customer || '', department || '', (res) => resolve(JSON.parse(res)));
+        });
+    },
+    // Operasyon Paneli — Sekme 3: statü 109 üretim takibi (durum x onarım tipi), müşteri/batch filtreli
+    getOperationsPanelProduction: async (customer, batch) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_operations_panel_production(customer || '', batch || '', (res) => resolve(JSON.parse(res)));
+        });
+    },
+    // Operasyon Paneli — Sekme 1 drill-down: bir statü×müşteri hücresindeki cihaz listesi
+    getOperationsPanelDevices: async (groupKey, customerKey) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_operations_panel_devices(groupKey || '', customerKey || '', (res) => resolve(JSON.parse(res)));
+        });
+    },
+    // Operasyon Paneli — Sekme 3 drill-down: durum×tip hücresindeki cihaz/onarım listesi (müşteri/batch filtreli)
+    getOperationsPanelProductionDevices: async (stateCode, categoryKey, customer, batch) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_operations_panel_production_devices(stateCode || '', categoryKey || '', customer || '', batch || '', (res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    // Üretim Durumu raporu (statü 109 güncel durum: cihaz+mission group, part1..10 fiyat+işçilik)
+    getProductionStatusReport: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            backend.get_production_status_report((res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    getRepairCompletionReport: async () => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (!backend || typeof backend.get_repair_completion_report !== 'function') {
+                // Slot çalışan süreçte yoksa: uygulama güncelleme sonrası yeniden başlatılmamış.
+                resolve({ success: false, message: 'Yazdırma/rapor desteği bu süreçte yok. Uygulamayı tamamen kapatıp yeniden başlatın.' });
+                return;
+            }
+            backend.get_repair_completion_report((res) => resolve(JSON.parse(res)));
+        });
+    },
+
+    getBillingReport: async (startIso, endIso) => {
+        const backend = await getBackend();
+        return new Promise((resolve) => {
+            if (!backend || typeof backend.get_billing_report !== 'function') {
+                resolve({ success: false, message: 'Faturalandırma raporu bu süreçte yok. Uygulamayı tamamen kapatıp yeniden başlatın.' });
+                return;
+            }
+            backend.get_billing_report(startIso, endIso, (res) => resolve(JSON.parse(res)));
         });
     },
 
