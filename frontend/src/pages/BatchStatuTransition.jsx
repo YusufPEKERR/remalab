@@ -69,8 +69,15 @@ const cihazBilgisi = (scanData) => ({
   productCode: scanData.batch_no || "",
 });
 
-// Geçiş başarılı olduktan sonra etiket sorulan ekranlar.
-// 103_104 = "Üretime teslim edilecek": barkod basılır, kalan alanlar elle doldurulur.
+// Geçiş başarılı olduktan sonra etiket basılabilen ekranlar.
+// 103_104 = "Üretime teslim edilecek".
+//
+// ETİKET HER GEÇİŞTE BASILMAZ. Yalnızca cihaz PhoneCheck'te BULUNAMAYIP test verisi
+// elle girildiğinde basılır. Sebebi: etiketin taşıdığı tek anlamlı metin, o yolda
+// zorunlu olan "neden bulunamadı" gerekçesidir (şablon: barkod · açıklama · lokasyon ·
+// referans). Cihaz PhoneCheck'te bulunduysa kayıt zaten var, etikete yazılacak bir
+// gerekçe yok - eskiden bu iki yolda da etiket basılıyor ve açıklama satırı BOŞ
+// çıkıyordu (tamamlama modunda üstelik soru bile sorulmadan).
 const ETIKET_SORULAN_KODLAR = { "103_104": "teslim" };
 
 const MANUAL_FIELD_LABELS = {
@@ -385,12 +392,17 @@ const BatchStatuTransition = () => {
       showNotification("success", data.message);
       appendLog("success", data.message);
       setDeviceInfo((prev) => (prev ? { ...prev, statuCode: transition.child_statu, statuName: null } : prev));
+      // Etiket YALNIZCA etiketForm ile çağrıldığında basılır; o da tek bir yolda
+      // doluyor: cihaz PhoneCheck'te bulunamayıp test verisi elle girildiğinde
+      // (bkz. handleManualSubmit). Normal okutmada ve tamamlama modunda etiket
+      // penceresi hiç açılmaz - PhoneCheck kaydı zaten var, etikete yazılacak bir
+      // gerekçe yok.
       const etiketTuru = ETIKET_SORULAN_KODLAR[transition.code];
-      if (etiketTuru) setEtiketSorusu({
+      if (etiketTuru && etiketForm) setEtiketSorusu({
         tur: etiketTuru,
         cihaz: cihazBilgisi,
-        form: etiketForm || null,
-        otomatik: !!etiketForm,
+        form: etiketForm,
+        otomatik: true,
       });
     } else {
       showNotification("error", data.message);
@@ -428,13 +440,21 @@ const BatchStatuTransition = () => {
       // Etiket bu yolda da dolu basılsın: cihaz alanları okutma anından taşınır,
       // Açıklama burada yazılan zorunlu gerekçedir, Lokasyon/Referans da aynı
       // formdan gelir. Form dolu geldiği için etiket penceresi soru sormaz.
-      await applyTransition(manualModal.entryId, manualModal.cihaz, {
-        // Tamamlama modunda "neden bulunamadı" açıklaması yok; etiketin açıklama
-        // alanı da bu yüzden boş basılır.
-        aciklama: manualModal.tamamlamaModu ? "" : reason,
-        lokasyon: etiket.lokasyon || "",
-        referans: etiket.referans || "",
-      });
+      // ETİKET YALNIZCA "CİHAZ PHONECHECK'TE BULUNAMADI" YOLUNDA BASILIR.
+      // Tamamlama modunda cihaz bulunmuştur, yalnızca birkaç alanı eksiktir; ortada
+      // etikete yazılacak bir gerekçe yoktur ve etiket boş açıklamayla basılıyordu.
+      // Etiketin taşıdığı tek anlamlı metin o zorunlu gerekçedir - yoksa etiketin
+      // basılmasına da gerek yok. etiketForm null geçilince applyTransition etiket
+      // penceresini hiç açmaz.
+      await applyTransition(
+        manualModal.entryId,
+        manualModal.cihaz,
+        manualModal.tamamlamaModu ? null : {
+          aciklama: reason,
+          lokasyon: etiket.lokasyon || "",
+          referans: etiket.referans || "",
+        }
+      );
     } catch (err) {
       console.error(err);
       showNotification("error", "Manuel kayıt sırasında beklenmeyen bir hata oluştu.");
@@ -579,7 +599,7 @@ const BatchStatuTransition = () => {
         stageName={stageLabel(manualModal?.testStage, transition)}
         fields={manualModal?.fields}
         saving={savingManual}
-        etiketBasilacak={!!ETIKET_SORULAN_KODLAR[transition?.code]}
+        etiketBasilacak={!!ETIKET_SORULAN_KODLAR[transition?.code] && !manualModal?.tamamlamaModu}
         tamamlamaModu={!!manualModal?.tamamlamaModu}
         baslangicDegerleri={manualModal?.baslangicDegerleri || null}
         onClose={() => { setManualModal(null); inputRef.current?.focus(); }}

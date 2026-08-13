@@ -18,13 +18,21 @@ import {
 import { api } from '../services/api';
 
 // ─── ONARIM BİTİŞ TESTİ ──────────────────────────────────────────────
-// Kamera / L3 / Ekran / Kasa departmanlarında teknisyen onarımı bitirince kayıt
+// Kamera / L3 / Ekran / Kasa departmanlarında teknisyen onarımı bitirince onarım
 // DOĞRUDAN tamamlanmaz; 1006 (Onarım Testi Bekleniyor) statüsüne düşer ve bu
-// ekranda listelenir. Testçi her kayıt için:
-//   Başarılı → backend kaydı 1002 (Onarım Tamamlandı) yapar,
-//   Başarısız → 1001 (Teknisyene Atandı) yapar (kayıt teknisyende açık iş kalır),
+// ekranda listelenir. Testçi her ONARIM için tek karar verir:
+//   Başarılı → backend onarımın TÜM parçalarını 1002 (Onarım Tamamlandı) yapar,
+//   Başarısız → 1001 (Teknisyene Atandı) yapar (onarım teknisyende açık iş kalır),
 //                açıklama (arıza nedeni) girmek ZORUNLUDUR.
 // Departman bazlıdır; görev grubu URL'den (/onarim-bitis-testi/CAMERA) okunur.
+//
+// LİSTENİN BİRİMİ ONARIMDIR, PARÇA DEĞİL. Bir onarımın birden çok parçası olabilir
+// (ör. 4 parçalı Ekran Onarımı) ve hepsi tek tıkla teste gönderilir. Eskiden bu
+// ekran her parçayı ayrı kart olarak gösteriyordu; hiçbir işaret kartların aynı
+// onarıma ait olduğunu söylemediği için testçi birini onaylayıp diğerlerini
+// unutabiliyordu. Unutulan parça "açık onarım" sayıldığından hem alt seviyeyi
+// 1004'te hem cihazı 109'da tutuyordu. Artık her kart bir onarımdır, parçaları
+// kartın içinde listelenir ve karar bütününe uygulanır.
 
 const DEPARTMENTS_CONFIG = {
   CAMERA: { title: 'Kamera', icon: Camera, color: 'text-purple-500 bg-purple-500/10 border-purple-500/30' },
@@ -191,7 +199,10 @@ const OnarimBitisTesti = () => {
             <Clock size={16} className="text-cyan-500" />
             Bitiş Testi Bekleyen Onarımlar
           </h2>
-          <span className="text-xs font-semibold text-slate-500">Toplam {items.length} kayıt</span>
+          <span className="text-xs font-semibold text-slate-500">
+            Toplam {items.length} onarım
+            {items.length > 0 && ` · ${items.reduce((t, i) => t + (i.partCount || 1), 0)} parça`}
+          </span>
         </div>
 
         {loading ? (
@@ -231,18 +242,39 @@ const OnarimBitisTesti = () => {
                       <User size={12} className="text-blue-500 shrink-0" />
                       <span className="truncate">{item.assignedTechnicianName || 'Atanmadı'}</span>
                     </div>
-                    <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
-                      <AlertTriangle size={12} className="text-amber-500 shrink-0" />
-                      <span className="truncate">{item.faultName || 'Arıza belirtilmedi'}</span>
+                    <div className="text-slate-400 text-right">
+                      {item.customerName || '-'} · {item.batchNo || '-'}
                     </div>
-                    {item.partName && (
-                      <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 col-span-2">
-                        <Tag size={12} className="shrink-0" />
-                        <span className="truncate">{item.partName}</span>
-                      </div>
-                    )}
-                    <div className="text-slate-400 col-span-2">
-                      {item.customerName || '-'} · {item.batchNo || '-'} · {item.updatedAt || item.createdAt}
+                  </div>
+
+                  {/* ONARIMIN PARÇALARI. Karar bu listenin TAMAMINA uygulanır -
+                      testçi hangi parçaların birlikte kapanacağını görmeden karar
+                      vermemeli. */}
+                  <div className="rounded-xl border border-slate-200 dark:border-[#2e3545] overflow-hidden">
+                    <div className="px-3 py-1.5 bg-slate-50 dark:bg-[#171a26] text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center justify-between">
+                      <span>Onarım Parçaları</span>
+                      <span className="text-cyan-600 dark:text-cyan-400">{item.partCount || (item.parts || []).length} parça</span>
+                    </div>
+                    <div className="divide-y divide-slate-100 dark:divide-[#232838]">
+                      {(item.parts || []).map((p) => (
+                        <div key={p.partRecordId} className="px-3 py-2 flex items-start gap-2 text-[11px]">
+                          <Tag size={12} className="text-slate-400 shrink-0 mt-0.5" />
+                          <div className="min-w-0 flex-1">
+                            <div className="text-slate-700 dark:text-slate-200 truncate">
+                              {p.partName || p.partItemCode || '-'}
+                              {p.partItemCode && p.partName && (
+                                <span className="text-slate-400 font-mono ml-1.5">{p.partItemCode}</span>
+                              )}
+                            </div>
+                            {p.faultName && (
+                              <div className="flex items-center gap-1 text-slate-500 dark:text-slate-400 mt-0.5">
+                                <AlertTriangle size={10} className="text-amber-500 shrink-0" />
+                                <span className="truncate">{p.faultName}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
 

@@ -13,8 +13,9 @@ export default function AraTestSonuc() {
          hiçbir yerde görünmüyordu - phonecheck_test_results'ta 138_124 aşamasına ait
          TEK BİR satır bile yoktu.
          Yan etki (bilinçli): bu bayrak aynı zamanda başarısız deneme sayacını da
-         devreye alır - aynı cihaz aynı adımda en fazla MAX_FAILED_ATTEMPTS (10) kez
-         başarısız işaretlenebilir. */
+         devreye alır. Sayaç yalnızca BİLGİDİR - üst sınır kaldırıldı; sınır varken
+         hakkı dolan cihazda testçi ne başarılı ne başarısız sonuç kaydedebiliyor,
+         cihaz o adımda kilitleniyordu. */
       logExitTest
     />
   );

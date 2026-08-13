@@ -101,6 +101,65 @@ export default function ParcaTeslim() {
     }
   };
 
+  // ── MUADİL SEÇİMİ ──────────────────────────────────────────────
+  // Demontaj teknisyeni parça KATEGORİSİNİ seçer; sisteme yazılan kod o kategoriden
+  // herhangi biridir (YER TUTUCU). Gerçek parçayı depocu bilir.
+  //
+  // Seçim TESLİMDEN ÖNCE, satırın kendi içinde yapılır: depocu parçanın üzerine
+  // tıklar, o kategorinin cihaz reçetesindeki muadilleri stok adetleriyle açılır ve
+  // vereceğini işaretler. "Teslim Et" işaretlediği kodu kayda yazar ve stoktan düşer.
+  // (Önce teslimden sonra açılan bir pencere olarak yapılmıştı; depocu ne vereceğini
+  // teslim tuşuna basmadan görmeli.)
+  const [acikMuadilSatiri, setAcikMuadilSatiri] = useState(null);   // repairRecordId
+  const [muadilListesi, setMuadilListesi] = useState({});           // { [rid]: parts[] }
+  const [muadilYukleniyor, setMuadilYukleniyor] = useState(null);   // repairRecordId
+  const [secilenMuadil, setSecilenMuadil] = useState({});           // { [rid]: itemCode }
+
+  const muadilAcKapa = async (p) => {
+    const rid = p.repairRecordId;
+    if (!rid) return;
+    if (acikMuadilSatiri === rid) { setAcikMuadilSatiri(null); return; }
+    setAcikMuadilSatiri(rid);
+    if (muadilListesi[rid]) return;            // bir kez çekilir, sonra önbellekten
+    setMuadilYukleniyor(rid);
+    try {
+      const res = await api.getEquivalentPartsForRepair(rid);
+      const liste = (res && res.success ? (res.parts || []) : []);
+      setMuadilListesi(m => ({ ...m, [rid]: liste }));
+      // Varsayılan seçim: stokta olan ilk muadil (yoksa kayıtta yazan).
+      const ilkStoklu = liste.find(x => x.goodStockQty > 0);
+      setSecilenMuadil(s => ({ ...s, [rid]: (ilkStoklu || liste[0] || {}).itemCode || p.itemCode }));
+    } finally {
+      setMuadilYukleniyor(null);
+    }
+  };
+
+  const teslimEt = async (targetPart, secilenKod) => {
+    issuingRef.current = true;
+    setSubmitting(true);
+    setError('');
+    setSuccessMsg('');
+    try {
+      const username = getCurrentUser()?.username;
+      const imeiOrSerial = device?.imei_number || device?.serial_number || imeiInput;
+      const res = targetPart.repairRecordId
+        ? await api.deliverEquivalentPart(targetPart.repairRecordId, secilenKod, username)
+        : await api.deliverPartToDevice(imeiOrSerial, secilenKod, username);
+      if (!res || !res.success) {
+        setError(res?.message || 'Parça teslimatı başarısız oldu.');
+        return;
+      }
+      setSuccessMsg(res.message || `${secilenKod} teslim edildi.`);
+      setAcikMuadilSatiri(null);
+      await fetchDeliverableParts(device.brand, device.model, device.color, imeiOrSerial);
+    } catch (err) {
+      setError('Parça teslimatı sırasında beklenmeyen hata: ' + err.message);
+    } finally {
+      setSubmitting(false);
+      issuingRef.current = false;
+    }
+  };
+
   // Parça Çıkışı / Teslim Et İşlemi
   const handleDeliverPart = async (targetPart) => {
     if (issuingRef.current) return;
@@ -108,23 +167,41 @@ export default function ParcaTeslim() {
       setError('Lütfen teslim edilecek bir parça seçin.');
       return;
     }
-    if (targetPart.goodStockQty < 1 && !targetPart.isStoksuz) {
-      setError(`'${targetPart.partName}' Good Stock depoda tükenmiştir.`);
-      return;
-    }
     // Görev grubu sırası - hızlı istemci kontrolü. Asıl kural backend'dedir
     // (deliver_part_to_device, 1004 kaydı reddeder).
     if (targetPart.isWaitingTurn) {
       setError(targetPart.waitingFor
-        ? `'${targetPart.partName}' teslim edilemez: bu onarımın sırası gelmedi. Önce şu onarımlar tamamlanmalı: ${targetPart.waitingFor}.`
-        : `'${targetPart.partName}' teslim edilemez: bu onarımın sırası gelmedi.`);
+        ? `${targetPart.itemCode} teslim edilemez: bu onarımın sırası gelmedi. Önce şu onarımlar tamamlanmalı: ${targetPart.waitingFor}.`
+        : `${targetPart.itemCode} teslim edilemez: bu onarımın sırası gelmedi.`);
       return;
     }
 
-    issuingRef.current = true;
-    setSubmitting(true);
     setError('');
     setSuccessMsg('');
+    // Satırda işaretlenmiş muadil varsa o teslim edilir; yoksa kayıttaki kod.
+    if (targetPart.repairRecordId) {
+      const rid = targetPart.repairRecordId;
+      const kod = secilenMuadil[rid] || targetPart.itemCode;
+      const liste = muadilListesi[rid] || [];
+      const secilen = liste.find(x => x.itemCode === kod);
+      if (secilen && secilen.goodStockQty < 1 && !targetPart.isStoksuz) {
+        setError(`${kod} Good Stock depoda tükenmiştir. Stokta olan bir muadil seçin.`);
+        return;
+      }
+      if (!secilen && targetPart.goodStockQty < 1 && !targetPart.isStoksuz) {
+        setError(`${targetPart.itemCode} Good Stock depoda tükenmiştir.`);
+        return;
+      }
+      await teslimEt(targetPart, kod);
+      return;
+    }
+
+    if (targetPart.goodStockQty < 1 && !targetPart.isStoksuz) {
+      setError(`${targetPart.itemCode} Good Stock depoda tükenmiştir.`);
+      return;
+    }
+    issuingRef.current = true;
+    setSubmitting(true);
 
     try {
       const username = getCurrentUser()?.username;
@@ -136,7 +213,7 @@ export default function ParcaTeslim() {
         return;
       }
 
-      setSuccessMsg(res.message || `'${targetPart.partName}' (${targetPart.itemCode}) teslim edildi.`);
+      setSuccessMsg(res.message || `${targetPart.itemCode} teslim edildi.`);
 
       // Listeleri yenile
       await fetchDeliverableParts(device.brand, device.model, device.color, imeiOrSerial);
@@ -179,7 +256,7 @@ export default function ParcaTeslim() {
         return;
       }
 
-      setSuccessMsg(res.message || `'${selectedReturnPart.partName}' parçası teslimden geri alındı.`);
+      setSuccessMsg(res.message || `${selectedReturnPart.itemCode} teslimden geri alındı.`);
       setReturnModalOpen(false);
       setSelectedReturnPart(null);
 
@@ -375,10 +452,14 @@ export default function ParcaTeslim() {
                             : 'border-slate-200/80 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-[#181a24]'
                         }`}
                       >
+                        {/* BAŞLIK PARÇA KODUDUR. Depocunun bu ekranda işine yarayan tek
+                            kimlik item_code'dur; parça adı ("APPLE iPSE22") marka/model
+                            tekrarından ibaret ve satırın en görünür yerini kaplayıp
+                            kategori, onarım takımı gibi asıl bilgileri gölgeliyordu. */}
                         <div className="min-w-0 flex-1 space-y-1">
                           <div className="flex items-center gap-2">
-                            <span className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate" title={p.partName}>
-                              {p.partName}
+                            <span className="font-mono font-bold text-sm text-slate-900 dark:text-slate-100 truncate" title={p.itemCode}>
+                              {p.itemCode}
                             </span>
                             {isColorMatch && (
                               <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 shrink-0">
@@ -388,7 +469,9 @@ export default function ParcaTeslim() {
                           </div>
 
                           <div className="flex items-center gap-3 text-[11px]">
-                            <span className="font-mono font-bold text-blue-600 dark:text-[#00b2ff]">{p.itemCode}</span>
+                            <span className="font-semibold text-slate-600 dark:text-slate-300">
+                              {p.itemCategory || p.partCategory || '-'}
+                            </span>
                             <span className="text-slate-400">•</span>
                             <span className="text-slate-500 dark:text-slate-400">{p.repairTeamName || 'Genel'}</span>
                             {p.color && (
@@ -437,6 +520,21 @@ export default function ParcaTeslim() {
                             </div>
                           ) : (
                             <div className="flex items-center gap-3">
+                              {/* Muadil seçimi: satıra tıklanınca açılır. Depocu teslim
+                                  tuşuna basmadan önce ne vereceğini seçer. */}
+                              {p.repairRecordId && (
+                                <button
+                                  type="button"
+                                  onClick={() => muadilAcKapa(p)}
+                                  className="px-3 py-1.5 rounded-lg text-xs font-bold border border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 transition-colors flex items-center gap-1.5 cursor-pointer"
+                                  title="Verilecek muadili seç"
+                                >
+                                  <Layers size={13} />
+                                  {secilenMuadil[p.repairRecordId] && secilenMuadil[p.repairRecordId] !== p.itemCode
+                                    ? secilenMuadil[p.repairRecordId]
+                                    : 'Parça Seç'}
+                                </button>
+                              )}
                               <span className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border ${
                                 p.goodStockQty > 0
                                   ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
@@ -457,6 +555,72 @@ export default function ParcaTeslim() {
                             </div>
                           )}
                         </div>
+
+                        {/* ── MUADİL LİSTESİ (satır içi) ──
+                            Kayıttaki kod demontajda yazılmış bir yer tutucudur; depocu
+                            gerçekte verdiğini burada işaretler. Teslim, işaretlenen kodla
+                            yapılır ve kayıttaki kod onunla değiştirilir. */}
+                        {acikMuadilSatiri === p.repairRecordId && (
+                          <div className="mt-3 pt-3 border-t border-slate-200 dark:border-[#1e222d]">
+                            {muadilYukleniyor === p.repairRecordId ? (
+                              <div className="py-4 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
+                                <RefreshCw size={14} className="animate-spin text-blue-500" /> Muadiller yükleniyor...
+                              </div>
+                            ) : (muadilListesi[p.repairRecordId] || []).length === 0 ? (
+                              <div className="py-3 text-center text-xs text-slate-400 italic">
+                                Bu kategoride cihazın reçetesinde başka parça tanımlı değil.
+                              </div>
+                            ) : (
+                              <>
+                                <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">
+                                  {p.itemCategory || p.partCategory} · verilecek parçayı seçin
+                                  <span className="ml-2 font-sans normal-case text-slate-400">
+                                    ({(muadilListesi[p.repairRecordId] || []).length} muadil)
+                                  </span>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-64 overflow-y-auto">
+                                  {(muadilListesi[p.repairRecordId] || []).map(m => {
+                                    const secili = (secilenMuadil[p.repairRecordId] || p.itemCode) === m.itemCode;
+                                    const stokYok = m.goodStockQty < 1;
+                                    return (
+                                      <button
+                                        key={m.itemCode}
+                                        type="button"
+                                        disabled={stokYok}
+                                        onClick={() => setSecilenMuadil(s => ({ ...s, [p.repairRecordId]: m.itemCode }))}
+                                        className={`text-left px-3 py-2 rounded-lg border text-xs transition-colors flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed ${
+                                          secili
+                                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/10'
+                                            : 'border-slate-200 dark:border-[#2e3545] hover:bg-slate-50 dark:hover:bg-[#171a26]'
+                                        }`}
+                                      >
+                                        <span className={`w-3 h-3 rounded-full border-2 shrink-0 ${secili ? 'border-blue-500 bg-blue-500' : 'border-slate-300 dark:border-slate-600'}`} />
+                                        <span className="min-w-0 flex-1">
+                                          {/* Kod başta: muadiller birbirinden yalnızca
+                                              kodla ayrılır, adları çoğunlukla aynıdır. */}
+                                          <span className="block font-mono font-bold text-slate-800 dark:text-slate-100 truncate">
+                                            {m.itemCode}
+                                            {m.isCurrent && <span className="ml-1.5 font-sans font-normal text-[10px] text-amber-600 dark:text-amber-400">kayıtta yazan</span>}
+                                          </span>
+                                          {m.color && (
+                                            <span className="block text-[10px] text-slate-400">{m.color}</span>
+                                          )}
+                                        </span>
+                                        <span className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded border ${
+                                          stokYok
+                                            ? 'bg-rose-50 dark:bg-rose-500/10 text-rose-600 border-rose-200 dark:border-rose-500/30'
+                                            : 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 border-emerald-200 dark:border-emerald-500/30'
+                                        }`}>
+                                          {stokYok ? 'yok' : m.goodStockQty}
+                                        </span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        )}
                       </div>
                     );
                   })
@@ -605,6 +769,7 @@ export default function ParcaTeslim() {
           </div>
         </div>
       )}
+
     </div>
   );
 }

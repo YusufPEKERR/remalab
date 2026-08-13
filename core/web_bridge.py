@@ -11,21 +11,11 @@ import logging
 import datetime as _dt
 import re as _re
 
-# Türkiye kalıcı olarak UTC+3'tür (2016'dan beri yaz saati uygulaması yok), bu yüzden
-# sabit offset güvenli ve tzdata bağımlılığı gerektirmez. Bazı zaman sütunları naive
-# (tz'siz) ve UTC olarak yazılmış (Python utcnow()), bazıları TIMESTAMPTZ. İkisini de
-# doğru Türkiye yerel saatine çevirip gg.aa.yyyy SS:DD formatında döndürür.
-_TR_TZ = _dt.timezone(_dt.timedelta(hours=3))
-
-def fmt_tr_datetime(dt, with_time=True):
-    """Bir datetime'ı Türkiye yerel saatine çevirip formatlar. None -> ''.
-    Naive datetime'lar UTC kabul edilir (repair_records.created_at gibi utcnow() ile yazılanlar)."""
-    if not dt:
-        return ""
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=_dt.timezone.utc)
-    local = dt.astimezone(_TR_TZ)
-    return local.strftime("%d.%m.%Y %H:%M" if with_time else "%d.%m.%Y")
+# SİSTEMDEKİ TEK ZAMAN KAYNAĞI - bkz. core/zaman.py (K7).
+# Python tarafındaki her zaman damgası tr_now()'dan alınır; SQL tarafında NOW()
+# kullanılır. Veritabanı sunucusunun saat dilimi Europe/Istanbul olduğu için
+# ikisi aynı saati verir. utcnow() ARTIK KULLANILMAZ.
+from core.zaman import TR_TZ as _TR_TZ, tr_now, fmt_tr_datetime  # noqa: F401
 
 def get_cache_dirs():
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -284,6 +274,11 @@ class WebBridge(QObject):
         self._ensure_batch_entries_table()
         self._ensure_label_templates_table()
         self._ensure_customer_decision_transitions()
+        self._ensure_batch_entry_tekillik()
+        self._ensure_repairs_table()
+        self._ensure_repair_status_history()
+        self._ensure_yedek_parca_durumu()
+        self._ensure_repair_part_status()
         self._ensure_hierarchy_wait_sync()
         self._schema_cache = None
         # Yazdırılacak etiketin kağıt ölçüsü (mm). Ekran, window.print() öncesi
@@ -1050,6 +1045,420 @@ class WebBridge(QObject):
         finally:
             db.close()
 
+    # ── ONARIM (ÜST KAYIT) TABLOSU — AŞAMA 1 ─────────────────────────────
+    # SORUN: "onarım" kavramının veritabanında karşılığı yoktu. repair_records'ta
+    # her satır bir PARÇADIR; "Kasa Onarımı" ise aynı cihaz (service_record_id) +
+    # aynı görev grubu (department_mission) satırlarının gruplanmasından doğan
+    # TÜRETİLMİŞ bir görüntüydü. Giriş tarafı (update_repair_status) bu grubu
+    # sorguyla taklit ediyor, çıkış tarafı (submit_completion_test tek repair_id
+    # alıyor) taklit etmiyordu. Aradaki asimetri her seferinde bir kısmı 1006'da
+    # bir kısmı 1002'de kalan "yarım onarım" bırakıyor; o yarım onarım hem alt
+    # seviyeyi 1004'te hem cihazı 109'da tutuyordu.
+    #
+    # ÇÖZÜM: onarım gerçek bir kayıt olur. Statü, teknisyen ataması, kapanış ve
+    # BİTİŞ TESTİ SONUCU artık onarımın kendi alanlarıdır; parça satırları
+    # repair_records'ta kalıp repair_id ile buraya bağlanır.
+    #
+    # BU AŞAMA TAMAMEN EKLEMELİDİR. Hiçbir okuma/yazma yolu henüz bu tabloyu
+    # kullanmaz, davranış birebir aynı kalır. Yazma yolları Aşama 2'de taşınacak.
+
+    # Backfill'de onarımın statüsü, İPTAL EDİLMEMİŞ parçaları arasında en
+    # "bitmemiş" olanıdır - bu listede önce gelen kazanır. İptal edilmiş parça
+    # onarımı geriye çekmez (bir parça iptal edilip yerine yenisi eklenmiş
+    # olabilir); parçaların HEPSİ iptalse onarım da iptaldir.
+    _ONARIM_BACKFILL_KOD_SIRASI = (1006, 1005, 1004, 1001, 1000, 1002)
+
+    def _ensure_repairs_table(self):
+        """warehouse.repairs (onarım üst kaydı) tablosunu oluşturur, repair_records'a
+        repair_id kolonunu ekler ve mevcut parça satırlarını gruplayıp üst kayıtları
+        üretir. İdempotenttir: bağlanmamış (repair_id IS NULL) satır kalmadığında
+        hiçbir şey yapmaz."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            db.execute(text("""
+                CREATE TABLE IF NOT EXISTS warehouse.repairs (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    service_record_id VARCHAR(255) NOT NULL,
+                    department_mission VARCHAR(100) NOT NULL,
+                    repair_result_type_code INTEGER,
+                    assigned_technician VARCHAR(100),
+                    assigned_by VARCHAR(100),
+                    assigned_at TIMESTAMP,
+                    closed_at TIMESTAMP,
+                    test_result VARCHAR(20),
+                    test_description TEXT,
+                    tested_by VARCHAR(100),
+                    tested_at TIMESTAMP,
+                    notes TEXT,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                );
+            """))
+            db.execute(text(
+                "CREATE INDEX IF NOT EXISTS idx_repairs_service ON warehouse.repairs(service_record_id);"))
+            db.execute(text(
+                "CREATE INDEX IF NOT EXISTS idx_repairs_mission ON warehouse.repairs(department_mission);"))
+            # AKTİF ONARIM TEK OLMALI. Kapalı (1002) / iptal (1003) onarımlar aynı
+            # cihaz+grup altında birikebilir - iptal edilen bir onarımın yerine
+            # yenisi açıldığında eskisi geçmiş olarak durur.
+            db.execute(text("""
+                CREATE UNIQUE INDEX IF NOT EXISTS uq_repairs_aktif
+                    ON warehouse.repairs (service_record_id, department_mission)
+                 WHERE COALESCE(repair_result_type_code, 0) NOT IN (1002, 1003);
+            """))
+            self._ddl_kolon(db, "ALTER TABLE warehouse.repair_records "
+                                "ADD COLUMN IF NOT EXISTS repair_id UUID")
+            db.execute(text(
+                "CREATE INDEX IF NOT EXISTS idx_repair_records_repair ON warehouse.repair_records(repair_id);"))
+            db.commit()
+
+            # ── BACKFILL ──
+            # Üst kaydı olmayan her (cihaz + görev grubu) için bir onarım üretilir.
+            # Teknisyen/atama alanları gruptaki dolu değerden alınır: atama zaten
+            # grup kapsamlı yapıldığı için (assign_technician_to_repair) gruptaki
+            # tüm satırlar aynı teknisyeni taşır.
+            kod_dizisi = ",".join(str(k) for k in self._ONARIM_BACKFILL_KOD_SIRASI)
+            db.execute(text(f"""
+                WITH gruplar AS (
+                    SELECT service_record_id,
+                           department_mission,
+                           MIN(created_at) AS created_at,
+                           MAX(updated_at) AS updated_at,
+                           MAX(assigned_at) AS assigned_at,
+                           MAX(closed_at) AS closed_at,
+                           MAX(assigned_technician) FILTER (
+                               WHERE COALESCE(TRIM(assigned_technician), '') <> '') AS assigned_technician,
+                           MAX(assigned_by) FILTER (
+                               WHERE COALESCE(TRIM(assigned_by), '') <> '') AS assigned_by,
+                           ARRAY_AGG(DISTINCT COALESCE(repair_result_type_code, 0)) AS kodlar
+                      FROM warehouse.repair_records
+                     WHERE repair_id IS NULL
+                     GROUP BY service_record_id, department_mission
+                )
+                INSERT INTO warehouse.repairs (
+                    service_record_id, department_mission, repair_result_type_code,
+                    assigned_technician, assigned_by, assigned_at, closed_at,
+                    created_at, updated_at)
+                SELECT g.service_record_id, g.department_mission,
+                       COALESCE((
+                           SELECT s.kod
+                             FROM unnest(ARRAY[{kod_dizisi}]) WITH ORDINALITY AS s(kod, sira)
+                            WHERE s.kod = ANY(g.kodlar)
+                         ORDER BY s.sira
+                            LIMIT 1
+                       ), 1003),
+                       g.assigned_technician, g.assigned_by, g.assigned_at, g.closed_at,
+                       COALESCE(g.created_at, NOW()), COALESCE(g.updated_at, NOW())
+                  FROM gruplar g;
+            """))
+            # Parça satırlarını üst kayda bağla. Aşama 1'de her grubun tek üst
+            # kaydı var; Aşama 2'de birden fazla olabileceği için (iptal edilmiş
+            # eski onarım + yenisi) o aşamada bağlama kuralı da güncellenmeli.
+            baglanan = db.execute(text("""
+                UPDATE warehouse.repair_records rr
+                   SET repair_id = r.id
+                  FROM warehouse.repairs r
+                 WHERE rr.repair_id IS NULL
+                   AND r.service_record_id = rr.service_record_id
+                   AND r.department_mission = rr.department_mission;
+            """)).rowcount or 0
+            db.commit()
+            if baglanan:
+                toplam = db.execute(text("SELECT count(*) FROM warehouse.repairs")).scalar()
+                print(f"[WebBridge] Onarım üst kaydı: {baglanan} parça bağlandı, "
+                      f"toplam {toplam} onarım.")
+        except Exception as e:
+            db.rollback()
+            print(f"[WebBridge] warehouse.repairs tablosu hazırlanamadı: {e}")
+        finally:
+            db.close()
+
+    def _ensure_repair_status_history(self):
+        """warehouse.repair_status_history - ONARIM statü değişim defteri.
+
+        Cihaz statüsünün (100-138) geçmişi baştan beri tutuluyor
+        (batch_entry_statu_history, 1752 satır) ama ONARIM statüsünün (1000-1006)
+        hiçbir geçmişi yoktu. Elde yalnızca notes alanı ve üzerine yazılan zaman
+        damgaları vardı: assigned_at yeniden atamada ileri kayıyor, closed_at onarım
+        yeniden açılınca siliniyor. Sonuç: "bu kaydı kim 1006'ya itti", "neden 1004'e
+        düştü", "bu onarım ne kadar sürdü" sorularının hiçbiri cevaplanamıyordu.
+
+        ONARIM SÜRESİ BU TABLODAN TÜRETİLİR. Süre yalnızca 1001 (Teknisyene Atandı)
+        durumunda geçen zamandır: kayıt 1001'e girdiğinde tur başlar, 1001'den
+        çıktığında (1002/1003/1004/1005/1006 - hangisi olursa) biter. Bekleme
+        durumları (üst seviye, müşteri onayı, bitiş testi) süreye dâhil değildir.
+        Yeniden açılan onarımda her tur AYRI ölçülür, toplanmaz."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            db.execute(text("""
+                CREATE TABLE IF NOT EXISTS warehouse.repair_status_history (
+                    id BIGSERIAL PRIMARY KEY,
+                    repair_id UUID,
+                    service_record_id VARCHAR(255),
+                    department_mission VARCHAR(100),
+                    old_code INTEGER,
+                    new_code INTEGER NOT NULL,
+                    staff_name VARCHAR(100),
+                    source VARCHAR(60),
+                    note TEXT,
+                    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+                );
+            """))
+            db.execute(text(
+                "CREATE INDEX IF NOT EXISTS idx_rsh_repair ON warehouse.repair_status_history(repair_id);"))
+            db.execute(text(
+                "CREATE INDEX IF NOT EXISTS idx_rsh_service ON warehouse.repair_status_history(service_record_id);"))
+            db.execute(text(
+                "CREATE INDEX IF NOT EXISTS idx_rsh_created ON warehouse.repair_status_history(created_at);"))
+            db.commit()
+
+            # ── TEK SEFERLİK GERİ DOLGU ──
+            # Defter yeni; mevcut onarımların geçmişi yok. Elimizdeki iki zaman
+            # damgasından (assigned_at, closed_at) her onarım için TEK bir tur
+            # yeniden kurulur. Yalnızca defter boşken çalışır, yoksa gerçek
+            # kayıtların üstüne ikinci bir kopya biner.
+            var_mi = db.execute(text(
+                "SELECT EXISTS (SELECT 1 FROM warehouse.repair_status_history)")).scalar()
+            if not var_mi:
+                db.execute(text("""
+                    INSERT INTO warehouse.repair_status_history
+                        (repair_id, service_record_id, department_mission,
+                         old_code, new_code, staff_name, source, created_at)
+                    SELECT r.id, r.service_record_id, r.department_mission,
+                           1000, 1001, r.assigned_technician, 'geri_dolgu', r.assigned_at
+                      FROM warehouse.repairs r
+                     WHERE r.assigned_at IS NOT NULL
+                """))
+                # Turu kapatan satır: kayıt artık 1001'de değilse çıkış anı
+                # closed_at, o yoksa updated_at'tir. 1001'de duranlar açık kalır.
+                db.execute(text("""
+                    INSERT INTO warehouse.repair_status_history
+                        (repair_id, service_record_id, department_mission,
+                         old_code, new_code, staff_name, source, created_at)
+                    SELECT r.id, r.service_record_id, r.department_mission,
+                           1001, r.repair_result_type_code, r.assigned_technician, 'geri_dolgu',
+                           COALESCE(r.closed_at, r.updated_at, r.assigned_at)
+                      FROM warehouse.repairs r
+                     WHERE r.assigned_at IS NOT NULL
+                       AND COALESCE(r.repair_result_type_code, 1000) <> 1001
+                """))
+                db.commit()
+        except Exception as e:
+            db.rollback()
+            print(f"[WebBridge] repair_status_history tablosu oluşturulamadı: {e}")
+        finally:
+            db.close()
+
+    # K8/1008: Teknisyenin "bu parçanın uygunu yok, bekliyorum" demesi için PARÇA
+    # düzeyindeki depo durumu. Onarımın 1008 (Parça Bekleniyor) statüsü bundan
+    # TÜRETİLİR (bkz. _onarimlari_tazele) - 1008 parçaya yazılmaz.
+    YEDEK_PARCA_BEKLENIYOR = "Yedek Parça Bekleniyor"
+
+    # ── PARÇA YAŞAM DÖNGÜSÜ (AŞAMA 4, ADIM 1) ────────────────────────────
+    # Parçanın ÜÇ bağımsız ekseni vardır, hiçbiri diğerinin yerine geçmez:
+    #   1) Yaşam döngüsü  : bu parça onarım listesinde duruyor mu?  → part_status_code
+    #   2) Tedarik durumu : parça şu an fiziksel olarak nerede?      → supply_status_code
+    #   3) Onarım statüsü : ONARIMIN durumu (parçanın değil)         → repairs tablosu
+    #
+    # 1 ile 2 ayrı kolonlarda durmak ZORUNDA. item_supply_status'ta "İptal Edildi"
+    # değeri var ve silmeyi oraya yazmak cazip görünüyor; ama cihaz iadesindeki sert
+    # engel (execute_device_return) supply_status_code = 'Stoktan Çıktı' okuyor.
+    # Depodan çıkmış bir parça silinince tedarik durumu ezilirse parçanın hâlâ
+    # teknisyende olduğu bilgisi kaybolur ve cihaz eksik parçayla iade edilebilir.
+    PARCA_DURUMU_AKTIF = 2000
+    PARCA_DURUMU_SILINDI = 2001
+    # is_removed=TRUE olan kodlar. Açılışta repair_part_status'tan OKUNUR - sorgulara
+    # kod gömülmez, yeni bir "silinmiş" durumu eklenince tek satır tablo değişikliği
+    # yeter, 12 ayrı sorgunun bulunup düzeltilmesi gerekmez.
+    _SILINMIS_PARCA_KODLARI = (2001, 2003)
+
+    @property
+    def _silinmis_parca_sql(self):
+        """Sorgularda kullanılacak "silinmiş sayılan parça kodları" listesi."""
+        return ",".join(str(k) for k in (self._SILINMIS_PARCA_KODLARI or (2001,)))
+
+    def _parca_silinmis_mi(self, rec):
+        """Bir parça satırı listeden çıkarılmış mı? (part_status_code ekseni)"""
+        return int(getattr(rec, "part_status_code", None) or self.PARCA_DURUMU_AKTIF) \
+            in self._SILINMIS_PARCA_KODLARI
+
+    def _ensure_repair_part_status(self):
+        """warehouse.repair_part_status + repair_records.part_status_code.
+
+        AŞAMA 4'ÜN ÖNÜNÜ AÇAR. Bugün 1003 iki ayrı anlam taşıyor: onarımda "onarım
+        iptal edildi", parçada "parça listeden çıkarıldı". Statü kolonu parçadan
+        düşürülünce ikinci anlam kaybolacaktı; onu bu eksen devralır.
+
+        'Listede mi' sorusunu KOD DEĞİL is_removed cevaplar (repair_result_type'taki
+        is_cancelled ile aynı desen). Muadille değiştirilen parça hâlâ listededir -
+        satır durur, yalnızca part_item_code değişir - bu yüzden is_removed=false."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            db.execute(text("""
+                CREATE TABLE IF NOT EXISTS warehouse.repair_part_status (
+                    code INTEGER PRIMARY KEY,
+                    short_name VARCHAR(60) NOT NULL,
+                    is_removed BOOLEAN NOT NULL DEFAULT FALSE,
+                    order_number INTEGER
+                );
+            """))
+            for kod, ad, silinmis, sira in (
+                (2000, "Aktif", False, 1),
+                (2001, "Silindi", True, 2),
+                (2002, "Muadille Değiştirildi", False, 3),
+                (2003, "Yanlış Girildi", True, 4),
+            ):
+                db.execute(text("""
+                    INSERT INTO warehouse.repair_part_status (code, short_name, is_removed, order_number)
+                    VALUES (:k, :a, :s, :o)
+                    ON CONFLICT (code) DO UPDATE
+                       SET short_name = EXCLUDED.short_name,
+                           is_removed = EXCLUDED.is_removed,
+                           order_number = EXCLUDED.order_number
+                """), {"k": kod, "a": ad, "s": silinmis, "o": sira})
+
+            db.execute(text("""
+                ALTER TABLE warehouse.repair_records
+                ADD COLUMN IF NOT EXISTS part_status_code INTEGER DEFAULT 2000
+            """))
+            # Mevcut satırlar: 1003 olanlar silinmiş, kalanlar aktif kabul edilir.
+            # (Tablolar şu an boş; bu satır ileride veri varken çalıştırılırsa diye durur.)
+            db.execute(text("""
+                UPDATE warehouse.repair_records
+                   SET part_status_code = CASE
+                           WHEN repair_result_type_code = 1003 THEN 2001 ELSE 2000 END
+                 WHERE part_status_code IS NULL
+            """))
+            db.execute(text(
+                "CREATE INDEX IF NOT EXISTS idx_rr_part_status ON warehouse.repair_records(part_status_code);"))
+            db.commit()
+
+            # Sorguların kullanacağı "silinmiş" kod listesi TABLODAN okunur.
+            kodlar = [r[0] for r in db.execute(text(
+                "SELECT code FROM warehouse.repair_part_status WHERE is_removed ORDER BY code")).all()]
+            if kodlar:
+                type(self)._SILINMIS_PARCA_KODLARI = tuple(kodlar)
+        except Exception as e:
+            db.rollback()
+            print(f"[WebBridge] repair_part_status kurulamadı: {e}")
+        finally:
+            db.close()
+
+    def _ensure_yedek_parca_durumu(self):
+        """warehouse.item_supply_status'a 'Yedek Parça Bekleniyor' satırını ekler.
+
+        STOK KONTROLÜNDEN AYRI BİR DURUMDUR. 'Stok Yok' depo sayımının söylediği
+        şeydir; bu ise teknisyenin kararıdır: parça stokta görünse bile uygun
+        muadili yoksa teknisyen bekletme kararı verebilir. İkisini tek koda
+        indirmek, kimin ne dediğini kaybettirir.
+
+        is_success=False: teslim edilmiş sayılmaz, iş hâlâ açıktır.
+        order_number=3: diğer bekleme durumlarıyla (Stok Yok, Onarım Onayı
+        Bekleniyor) aynı kuşakta listelenir."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            db.execute(text("""
+                INSERT INTO warehouse.item_supply_status
+                    (id, order_number, code, language, short_name, is_success, is_cancelled, "update")
+                SELECT gen_random_uuid(), 3, :kod, 'tr', :kod, FALSE, FALSE, FALSE
+                 WHERE NOT EXISTS (
+                     SELECT 1 FROM warehouse.item_supply_status WHERE code = :kod)
+            """), {"kod": self.YEDEK_PARCA_BEKLENIYOR})
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            print(f"[WebBridge] 'Yedek Parça Bekleniyor' depo durumu eklenemedi: {e}")
+        finally:
+            db.close()
+
+    def _ensure_batch_entry_tekillik(self):
+        """AYNI CİHAZ AYNI ANDA İKİ AÇIK SERVİSTE OLAMAZ.
+
+        IMEI / seri no / internal ID üçü de cihazı tek başına tanımlar; aynı değerle
+        ikinci bir AÇIK kayıt açılması cihazı ikiye böler: onarımlar birine, statü
+        geçişleri diğerine yazılır ve hiçbir ekran doğruyu göstermez.
+
+        Kısıt KISMİDİR (statu_code <> 128): çıkışı yapılmış (128 Serbest Bırakıldı)
+        bir cihaz tekrar servise girebilir - bu aynı cihazın YENİ bir servis
+        döngüsüdür, mükerrer kayıt değil. Kural zaten uygulama içinde de var
+        (_validate_new_batch_entry → _find_active_service_for_device) ama orada
+        'aynı batch numarasıysa izin ver' istisnası bulunuyor; sahadaki 5 mükerrer
+        cihazın tamamı tam da bu istisnadan (aynı batch içinde) girmişti. Bu indeks
+        son savunma hattıdır: uygulama katmanı atlansa bile veritabanı reddeder.
+
+        Boş alanlar kısıtın dışındadır - IMEI'si girilmemiş iki kayıt çakışmaz."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            for alan, ad in (("imei_number", "imei"),
+                             ("internal_id", "internal"),
+                             ("serial_number", "serial")):
+                try:
+                    db.execute(text(f"""
+                        CREATE UNIQUE INDEX IF NOT EXISTS uq_be_{ad}_acik
+                            ON warehouse.batch_entries (LOWER(TRIM({alan})))
+                         WHERE COALESCE(TRIM({alan}), '') <> ''
+                           AND COALESCE(statu_code, 100) <> 128;
+                    """))
+                    db.commit()
+                except Exception as e:
+                    # Mükerrer kayıt varsa indeks kurulamaz. Uygulama açılışını
+                    # bloklamamalı: hangi alanda çakışma olduğu loglanır, temizlik
+                    # yapıldıktan sonraki açılışta indeks kendiliğinden kurulur.
+                    db.rollback()
+                    print(f"[WebBridge] {alan} tekillik indeksi kurulamadı "
+                          f"(mükerrer kayıt olabilir): {e}")
+        finally:
+            db.close()
+
+    def _onarim_ustu(self, db, service_record_id, department_mission, kod,
+                     teknisyen=None, atayan=None, atama_zamani=None):
+        """Verilen (cihaz + görev grubu) için AKTİF onarım üst kaydını döner; yoksa açar.
+
+        AŞAMA 2a: yeni doğan her parça satırı artık bir üst kayda (warehouse.repairs)
+        bağlanır. Aktif onarım tek olduğu için (uq_repairs_aktif) aynı gruba eklenen
+        ikinci parça VAR OLAN onarıma katılır - "Kasa Onarımı"na ikinci parça eklemek
+        yeni bir onarım açmaz. Kapalı (1002) / iptal (1003) onarımlar geçmiş olarak
+        durur ve yeni parça onlara bağlanmaz; o gruba yeniden parça girilirse yeni bir
+        onarım doğar (bkz. karar: aktif onarım tek, kapalılar birikebilir).
+
+        COMMIT ETMEZ - çağıran kendi transaction'ında commit eder.
+        Döner: warehouse.repairs.id (UUID) ya da çözülemezse None."""
+        from sqlalchemy import text as _t
+        ref = (service_record_id or "").strip()
+        grup = (department_mission or "").strip()
+        if not ref or not grup:
+            return None
+        try:
+            mevcut = db.execute(_t("""
+                SELECT id FROM warehouse.repairs
+                 WHERE service_record_id = :ref
+                   AND department_mission = :grup
+                   AND COALESCE(repair_result_type_code, 0) NOT IN (1002, 1003)
+                 ORDER BY created_at DESC
+                 LIMIT 1
+            """), {"ref": ref, "grup": grup}).scalar()
+            if mevcut:
+                return mevcut
+            return db.execute(_t("""
+                INSERT INTO warehouse.repairs (
+                    service_record_id, department_mission, repair_result_type_code,
+                    assigned_technician, assigned_by, assigned_at)
+                VALUES (:ref, :grup, :kod, :tek, :atayan, :zaman)
+                RETURNING id
+            """), {"ref": ref, "grup": grup, "kod": kod, "tek": teknisyen,
+                   "atayan": atayan, "zaman": atama_zamani}).scalar()
+        except Exception as e:
+            # Üst kayıt kurulamazsa parça yine de yazılsın: Aşama 2a'da hiçbir okuma
+            # yolu bu tabloya bakmıyor, dolayısıyla eksik bağ üretimi durdurmamalı.
+            # Açılıştaki _ensure_repairs_table bağsız kalan satırları toparlar.
+            print(f"[WebBridge] onarım üst kaydı kurulamadı ({ref}/{grup}): {e}")
+            return None
+
     def _ddl_kolon(self, db, sql):
         """"ALTER TABLE ... ADD COLUMN IF NOT EXISTS ..." ifadesini, kolon ZATEN VARSA
         hiç çalıştırmaz.
@@ -1171,12 +1580,11 @@ class WebBridge(QObject):
                 refs.append(sid)
             if not refs:
                 return
-            # ZAMAN DAMGASI PYTHON'DAN, SQL NOW()'DAN DEĞİL.
-            # repair_records.created_at model tarafında datetime.utcnow() ile yazılıyor
-            # (UTC). Buraya SQL NOW() konulursa sunucunun YEREL saati (UTC+3) yazılır ve
-            # "onaydan sonra eklenmiş kayıt" karşılaştırması 3 saat boyunca yanlış sonuç
-            # verir: onay sonrası eklenen parça bile onaydan önce görünür.
-            simdi = _dt.datetime.utcnow()
+            # K7 sonrası: Python ve SQL artık aynı saati (Türkiye yerel) yazıyor,
+            # bu yüzden ikisi de kullanılabilir. tr_now() tercih ediliyor çünkü
+            # "onaydan sonra eklenmiş kayıt" karşılaştırması repair_records.created_at
+            # ile yapılıyor ve o da aynı kaynaktan geliyor.
+            simdi = tr_now()
             db.execute(_text("""
                 UPDATE warehouse.repair_records rr
                    SET customer_approved = TRUE,
@@ -1185,7 +1593,8 @@ class WebBridge(QObject):
                   FROM warehouse.repair_result_type rrt
                  WHERE rrt.code = rr.repair_result_type_code
                    AND rr.service_record_id = ANY(:refs)
-                   AND COALESCE(rrt.is_cancelled, FALSE) = FALSE
+                   AND COALESCE(rr.part_status_code, 2000) NOT IN
+                       (SELECT code FROM warehouse.repair_part_status WHERE is_removed)
                    AND COALESCE(rr.customer_approved, FALSE) = FALSE
             """), {"refs": refs, "simdi": simdi, "who": (staff or "")[:100] or "MÜŞTERİ ONAYI"})
 
@@ -1255,19 +1664,33 @@ class WebBridge(QObject):
                 karar = self._compute_dismantle_decision(db, imei, entry)
                 bekleyen = list(karar.get("onay_bekleyen_kayitlar") or []) if karar.get("ok") else []
                 if bekleyen:
+                    # AŞAMA 4 / ADIM 3: 1005 ONARIMA yazılır. Onay bekleyen kayıt
+                    # listesi parça kimlikleriyle gelir; bunların bağlı olduğu onarımlar
+                    # beklemeye alınır (aynı onarımın diğer parçaları da doğal olarak).
                     db.execute(_t("""
-                        UPDATE warehouse.repair_records
+                        UPDATE warehouse.repairs r
                            SET repair_result_type_code = :kod, updated_at = NOW()
-                         WHERE id::text = ANY(:idler)
-                           AND COALESCE(repair_result_type_code, 0) NOT IN (1002, 1003)
+                         WHERE COALESCE(r.repair_result_type_code, 0) NOT IN (1002, 1003)
+                           AND EXISTS (SELECT 1 FROM warehouse.repair_records rr
+                                        WHERE rr.repair_id = r.id AND rr.id::text = ANY(:idler))
                     """), {"kod": self.ONAY_BEKLEME_KODU, "idler": bekleyen})
+                    # AŞAMA 2e: ONAYA GİRİŞTE DE ÜST KAYIT TAZELENMELİ. Çıkış dalı
+                    # (aşağıdaki elif) _sync_hierarchy_wait üzerinden tazeliyordu ama
+                    # giriş dalı hiçbir şey çağırmıyordu: parçalar 1005'e alınırken
+                    # onarım hâlâ 1001 görünüyordu. Müşteri onayı PARÇA bazlıdır
+                    # (kategori onayı parçanın kategorisine bakar), dolayısıyla bir
+                    # onarımın yalnızca bir parçası onay bekliyor olabilir; tazeleme
+                    # kuralı gereği o durumda onarımın tamamı 1005 olur - doğrusu da
+                    # budur, çünkü o parça onaylanmadan onarım ilerleyemez.
+                    for _r in refs:
+                        self._onarimlari_tazele(db, _r, staff=None, source="musteri_onayi")
 
             elif yeni not in self.APPROVAL_STATUSES:
                 # Döngüden çıkıldı (onay 109, red 124 ya da başka bir yol): 1005'te
                 # kalan kayıt olmasın. Teknisyeni varsa 1001'e, yoksa 1000'e döner -
                 # _sync_hierarchy_wait ile aynı kural, sıra gerekiyorsa o 1004'e alır.
                 db.execute(_t("""
-                    UPDATE warehouse.repair_records
+                    UPDATE warehouse.repairs
                        SET repair_result_type_code = CASE
                                WHEN COALESCE(TRIM(assigned_technician), '') <> '' THEN 1001
                                ELSE 1000 END,
@@ -1275,7 +1698,19 @@ class WebBridge(QObject):
                      WHERE service_record_id = ANY(:refs)
                        AND repair_result_type_code = :kod
                 """), {"refs": refs, "kod": self.ONAY_BEKLEME_KODU})
-                self._sync_hierarchy_wait(db, refs[0])
+                # SENKRON TÜM REFERANSLARLA. refs = [IMEI, service_id] ve onarım
+                # kayıtları service_id altında yazılıyor (bkz.
+                # _resolve_service_record_id_for_new_repair); yalnızca refs[0]
+                # (IMEI) ile çağrılınca _sync_hierarchy_wait'in
+                # "service_record_id = :ref" filtresi HİÇBİR satırla eşleşmiyor,
+                # sıra kuralı hiç uygulanmıyordu. Sonuç: müşteri onayından dönen
+                # (1005 -> 1000/1001) kayıt, cihazda daha yüksek sıralı bir onarım
+                # açıkken 1004'e alınmıyor; teknisyen atanıp parça çekilebiliyor ve
+                # engel ancak tamamlama anında çıkıyordu. Yukarıdaki geri açma
+                # UPDATE'i zaten ANY(:refs) kullanıyor - senkron da aynı kapsamda
+                # olmalı.
+                for _ref in refs:
+                    self._sync_hierarchy_wait(db, _ref, staff=None, source="musteri_onayi")
         except Exception as e:
             print(f"[WebBridge] onay bekleme statüsü güncellenemedi (entry {entry_id}): {e}")
 
@@ -1291,6 +1726,21 @@ class WebBridge(QObject):
         # Onay bayrağından SONRA: 109'a dönüşte kayıtlar önce onaylı işaretlenir,
         # sonra 1005'ten geri açılır. Ters sırada 1005 kaydı onaysız kalırdı.
         self._onay_bekleme_statusu_guncelle(db, entry_id, imei, old_code, new_code)
+        # STATÜYE GİRİŞ ANI. batch_entries.statu_update_time hiçbir geçiş yolundan
+        # yazılmıyordu (95 cihazın 95'i boştu); ekran onun yerine updated_at'e
+        # düşüyordu, o da parça eklense/not yazılsa değiştiği için "bu cihaz bu
+        # statüde ne kadar bekledi" hiçbir yerde doğru çıkmıyordu.
+        # Burası tek geçit: statü değiştiren HER yol bu metottan geçiyor.
+        try:
+            from sqlalchemy import text as _t_zaman
+            if entry_id is not None:
+                db.execute(_t_zaman("""
+                    UPDATE warehouse.batch_entries
+                       SET statu_update_time = NOW(), updated_at = NOW()
+                     WHERE id = :id
+                """), {"id": int(entry_id)})
+        except Exception as e:
+            print(f"[WebBridge] statü giriş anı yazılamadı: {e}")
         try:
             from models.batch_entry_statu_history import BatchEntryStatuHistory
             db.add(BatchEntryStatuHistory(
@@ -3070,6 +3520,55 @@ class WebBridge(QObject):
             valid_codes = [r[0] for r in existing]
 
             return json.dumps({"success": True, "mission_codes": valid_codes}, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)})
+        finally:
+            db.close()
+
+    @Slot(str, result=str)
+    def get_item_categories_for_mission(self, mission_group_code):
+        """get_missions_for_item_category'nin TERSİ: verilen departmana (görev grubu)
+        warehouse.item_category_mission'da bağlanmış ETKİN parça kategorilerini döner.
+
+        NEDEN: "Onarım Ekle" akışında departman kategoriden türetiliyor, dolayısıyla
+        ilişki kendiliğinden korunuyor. Ama "Seçili Onarıma Parça Ekle" akışında
+        departman SABİT (seçili onarımdan gelir) ve parça listesi hiç süzülmüyordu -
+        Kasa onarımına Kamera kategorisinden parça eklenebiliyordu. Bu uç, parça
+        listesini o departmana ait kategorilerle sınırlamak için var.
+
+        Döner:
+          categories        - bu departmana bağlı kategoriler
+          mapped_categories - HERHANGİ bir departmana bağlı tüm kategoriler
+
+        İkincisi bilinçli: hiçbir eşleşmesi olmayan kategori kısıtlanmaz (projedeki
+        yerleşik kural - eşleşme yoksa tüm departmanlara geri düşülür). Çağıran taraf
+        "kategori bu departmanda VAR ya da hiçbir yerde tanımlı DEĞİL" ölçütünü
+        uygulayabilsin diye iki liste birden döner."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            kod = (mission_group_code or "").strip()
+            if not kod:
+                return json.dumps({"success": True, "categories": [], "mapped_categories": []})
+
+            # mission alanı 'TEC_CASE' gibi tutuluyor; grup kodu ise 'CASE'.
+            # Önek kırpılarak karşılaştırılır (get_missions_for_item_category ile aynı kural).
+            rows = db.execute(text("""
+                SELECT DISTINCT item_category FROM warehouse.item_category_mission
+                 WHERE enabled = TRUE
+                   AND COALESCE(TRIM(item_category), '') <> ''
+                   AND UPPER(REGEXP_REPLACE(TRIM(mission), '^TEC_', '')) = UPPER(:kod)
+            """), {"kod": kod}).fetchall()
+            categories = sorted({(r[0] or "").strip() for r in rows if (r[0] or "").strip()})
+
+            tumu = db.execute(text("""
+                SELECT DISTINCT item_category FROM warehouse.item_category_mission
+                 WHERE enabled = TRUE AND COALESCE(TRIM(item_category), '') <> ''
+            """)).fetchall()
+            mapped = sorted({(r[0] or "").strip() for r in tumu if (r[0] or "").strip()})
+
+            return json.dumps({"success": True, "categories": categories,
+                               "mapped_categories": mapped}, ensure_ascii=False)
         except Exception as e:
             return json.dumps({"success": False, "message": str(e)})
         finally:
@@ -7053,7 +7552,7 @@ class WebBridge(QObject):
                 WHERE id = :uid
             """), {
                 "reason": return_reason,
-                "now": datetime.utcnow(),
+                "now": tr_now(),
                 "ret_loc_id": return_location_id,
                 "uid": unit_id,
                 "returned_mats": json.dumps(returned_mats),
@@ -9200,13 +9699,32 @@ class WebBridge(QObject):
         internal_val = (d.get("internal_id") or "").strip()
         active = self._find_active_service_for_device(db, imei_val, serial_val, internal_val)
         if active:
-            # Aynı batch numarasına ait bir güncellemeyse izin ver
-            active_batch = (active.get("batch_no") or "").strip().lower()
-            current_batch = batch_no.strip().lower()
-            if not (current_batch and active_batch and current_batch == active_batch):
-                match_id = imei_val or serial_val or internal_val
-                return (f"Cihaz ({match_id}) için farklı bir batch ({active.get('batch_no') or 'Tanımsız'}) altında zaten aktif servis var (Statü: {active['statu_code']}). "
-                        f"Süreç tamamlanmadan (statü 128) aynı cihaz başka bir batch numarasıyla tekrar girilemez.")
+            # AYNI BATCH İSTİSNASI KALDIRILDI.
+            # Buradaki kontrol eskiden "aynı batch numarasıysa izin ver" diyordu; gerekçe
+            # "bu bir güncellemedir" idi. Ama bu doğrulayıcının ÜÇ çağıranı da (dry-run
+            # validate_batch_entry, create_batch_entry, _try_create_batch_entry) YENİ
+            # SATIR oluşturur; güncelleme yolları (update_batch_entry,
+            # _try_update_defined_batch_entry) buradan hiç geçmez. Dolayısıyla istisna
+            # var olmayan bir durumu korurken gerçek bir deliği açık bırakıyordu:
+            # güncelleme eşleşmesi kaçtığında (bkz. _try_update_defined_batch_entry'deki
+            # Türkçe locale lower() sorunu) akış "oluştur"a düşüyor ve aynı batch içinde
+            # ikinci bir satır açılıyordu. Sahada bu şekilde 5 cihaz çift kayıt olmuştu;
+            # hepsi aynı batch (CHECK-001) içindeydi.
+            #
+            # Artık kural istisnasız: cihazın AÇIK (statü 128 olmayan) bir servisi varken
+            # ikinci bir kayıt oluşturulamaz - batch aynı olsa bile. Veritabanı tarafında
+            # da aynı kural kısmi tekillik indeksleriyle güvence altında
+            # (bkz. _ensure_batch_entry_tekillik); burası kullanıcıya anlamlı mesaj
+            # verebilmek için var, indeks ise son savunma hattı.
+            match_id = imei_val or serial_val or internal_val
+            ayni_batch = (batch_no.strip().lower()
+                          and (active.get("batch_no") or "").strip().lower() == batch_no.strip().lower())
+            if ayni_batch:
+                return (f"Cihaz ({match_id}) '{batch_no}' batch'inde zaten kayıtlı "
+                        f"(Statü: {active['statu_code']}). Aynı cihaz için ikinci bir kayıt "
+                        f"oluşturulamaz; mevcut kaydı güncelleyin.")
+            return (f"Cihaz ({match_id}) için farklı bir batch ({active.get('batch_no') or 'Tanımsız'}) altında zaten aktif servis var (Statü: {active['statu_code']}). "
+                    f"Süreç tamamlanmadan (statü 128) aynı cihaz başka bir batch numarasıyla tekrar girilemez.")
 
         return None
 
@@ -9651,7 +10169,7 @@ class WebBridge(QObject):
                 if new_flow not in valid_flow_values:
                     return json.dumps({"success": False, "message": f"Geçersiz Flow değeri: \"{new_flow}\". Geçerli değerler: {', '.join(valid_flow_values)}"})
                 entry.flow = new_flow
-            entry.updated_at = datetime.now()
+            entry.updated_at = tr_now()
 
             db.commit()
             return json.dumps({"success": True})
@@ -9812,19 +10330,28 @@ class WebBridge(QObject):
 
             int_ids = [int(i) for i in ids]
 
-            # Find the batch numbers for the selected IDs to update the entire batch
-            target_batches = db.query(BatchEntry.batch_no).filter(BatchEntry.id.in_(int_ids)).all()
-            batch_nos = [t[0] for t in target_batches if t[0]]
-            
-            db.query(BatchEntry).filter(
-                (BatchEntry.batch_no.in_(batch_nos)) | (BatchEntry.id.in_(int_ids))
+            # KAPSAM YALNIZCA SEÇİLEN KAYITLARDIR.
+            # Eskiden seçilen kayıtların batch_no'su bulunup O BATCH'İN TAMAMI
+            # güncelleniyordu: tek cihaz işaretleyip akış değiştirmek, aynı sevkiyattaki
+            # bütün cihazların akışını değiştiriyordu (sahada CHECK-001 = 45 cihaz).
+            # Üstelik batch içinde akış cihaz bazlı farklılaşıyor (To repair / To RMA /
+            # Battery only / To refurbish bir arada) - toplu yazma bu ayrımı siliyordu.
+            # Akış; DGD işçilik kodunu, müşteri onayı kategorilerini, hedef fiyatı ve
+            # durum makinesindeki özel işlemeyi belirlediği için etkisi sessiz ama büyük.
+            #
+            # Doğrulama tek kayıt güncellemesiyle aynı kaldı: geçerli Flow değerleri
+            # kontrolü yukarıda yapılıyor (bkz. update_batch_entry).
+            etkilenen = db.query(BatchEntry).filter(
+                BatchEntry.id.in_(int_ids)
             ).update(
-                {BatchEntry.flow: str(new_flow).strip(), BatchEntry.updated_at: datetime.now()},
+                {BatchEntry.flow: new_flow, BatchEntry.updated_at: tr_now()},
                 synchronize_session=False
             )
-            
+
             db.commit()
-            return json.dumps({"success": True, "count": len(int_ids)})
+            # count ARTIK GERÇEKTEN DEĞİŞEN SATIR SAYISI. Eskiden seçilen kayıt sayısı
+            # dönüyordu; 45 satır değişmişken ekrana "1 kayıt güncellendi" yazıyordu.
+            return json.dumps({"success": True, "count": etkilenen})
         except Exception as e:
             db.rollback()
             print(f"[WebBridge] bulk_update_batch_flow hatası: {e}")
@@ -10085,8 +10612,8 @@ class WebBridge(QObject):
                         "power_test": '',
                         "flow": flow_val,
                         "service_id": uuid.uuid4(),
-                        "created_at": r["created_at"] or datetime.now(),
-                        "updated_at": datetime.now(),
+                        "created_at": r["created_at"] or tr_now(),
+                        "updated_at": tr_now(),
                     })
                     added_count += 1
 
@@ -10098,7 +10625,7 @@ class WebBridge(QObject):
                 values_sql = ", ".join(
                     f"(:id{i}, :customer_name{i}, :customer_no{i}, :currency{i})" for i in range(len(update_rows))
                 )
-                params = {"sync_ts": datetime.now()}
+                params = {"sync_ts": tr_now()}
                 for i, u in enumerate(update_rows):
                     params[f"id{i}"] = u["id"]
                     params[f"customer_name{i}"] = u["customer_name"]
@@ -10442,14 +10969,12 @@ class WebBridge(QObject):
             test_stage = (pc.build_stage(entry.statu_code, positive["target_statu_code"])
                           if positive else str(entry.statu_code))
 
-            # Bu adimda basarisiz deneme hakki dolmus mu?
-            if pc.failed_limit_reached(pc_term, test_stage):
-                from services.phonecheck_service import MAX_FAILED_ATTEMPTS
-                return json.dumps({
-                    "success": False,
-                    "message": f"Bu cihaz için bu test adımında en fazla {MAX_FAILED_ATTEMPTS} başarısız deneme hakkı var, hak doldu.",
-                })
-
+            # BAŞARISIZ DENEME SINIRI KALDIRILDI (karar: operasyon).
+            # Eskiden aynı (cihaz, test adımı) için 10 başarısız denemeden sonra bu
+            # metotlar işlemi tamamen reddediyordu. Sınırın çıkış yolu yoktu: sonucu
+            # kaydetmenin başka yolu olmadığı için cihaz o adımda kilitleniyor, ne
+            # başarılı ne başarısız sonuç yazılabiliyordu. Deneme sayısı bilgi olarak
+            # tutulmaya devam ediyor (attempt_no), yalnızca engel kalktı.
             fetched = pc.fetch_device(pc_term)
             if not fetched.get("success"):
                 # Cihaz Phonecheck'te yok -> arayuz manuel doldurma formunu acmali
@@ -10565,19 +11090,13 @@ class WebBridge(QObject):
 
         Cihaz Phonecheck'te bulunamazsa needs_manual=True döner; bu durumda
         arayüz manuel doldurma formunu açmalı ve save_phonecheck_manual çağırmalıdır."""
-        from services.phonecheck_service import PhonecheckService, MAX_FAILED_ATTEMPTS
+        from services.phonecheck_service import PhonecheckService
         db = SessionLocal()
         try:
             svc = PhonecheckService(db)
             stage = svc.build_stage(current_statu_code, target_statu_code)
 
-            if svc.failed_limit_reached(term, stage):
-                return json.dumps({
-                    "success": False,
-                    "message": f"Bu cihaz için bu test adımında en fazla {MAX_FAILED_ATTEMPTS} başarısız deneme hakkı var, hak doldu.",
-                    "test_stage": stage,
-                })
-
+            # Başarısız deneme sınırı kaldırıldı - bkz. fetch_phonecheck_and_transition.
             result = svc.fetch_device(term)
             if not result.get("success"):
                 result["test_stage"] = stage
@@ -10904,13 +11423,15 @@ class WebBridge(QObject):
             # En yeni üstte (en son yapılan statü işlemi ilk sırada): dakikaya yuvarlanmış
             # string yerine SANİYE hassasiyetinde gerçek datetime'a göre azalan sıralanır —
             # böylece aynı dakika içinde yapılan ardışık geçişler de doğru sırada gelir.
-            # Naive (tz'siz) değerler UTC kabul edilir ki karşılaştırma tutarlı olsun.
+            # K7: Naive (tz'siz) değerler Türkiye yerel saatidir (bkz. core/zaman.tr_now).
+            # Eskiden UTC kabul ediliyordu; naive ve TIMESTAMPTZ satırlar aynı listede
+            # sıralanırken naive olanlar 3 saat geriye kayıp yanlış sıraya düşüyordu.
             def _sort_key(e):
                 dt = e[1]
                 if not dt:
                     return float("-inf")
                 if dt.tzinfo is None:
-                    dt = dt.replace(tzinfo=_dt.timezone.utc)
+                    dt = dt.replace(tzinfo=_TR_TZ)
                 return dt.timestamp()
             ordered = sorted(best.values(), key=_sort_key, reverse=True)
 
@@ -11067,9 +11588,10 @@ class WebBridge(QObject):
                     t_zaman = (m.group(3) or "").strip()
                     t_aciklama = (m.group(4) or "").strip()
                     try:
-                        # Not yerel saatle yazılıyor (datetime.now); aynı eksende kalsın diye
-                        # yerel dilim bilgisi ekleniyor.
-                        t_dt = _dt.datetime.strptime(t_zaman, "%Y-%m-%d %H:%M").astimezone()
+                        # Not Türkiye yerel saatiyle yazılıyor (bkz. tr_now); aynı eksende
+                        # kalsın diye TR dilim bilgisi ekleniyor. astimezone() kullanılmıyor:
+                        # o, uygulamayı çalıştıran bilgisayarın saat dilimini varsayar.
+                        t_dt = _dt.datetime.strptime(t_zaman, "%Y-%m-%d %H:%M").replace(tzinfo=_TR_TZ)
                     except (ValueError, TypeError):
                         t_dt = r["updated_at"]
                     olumlu = "BAŞARILI" in t_sonuc.upper()
@@ -11139,14 +11661,15 @@ class WebBridge(QObject):
                     (r["part_item_code"] or "").strip(),
                     kalan_not,
                 ) if x)
-                # ZAMAN DİLİMİ: repair_records.updated_at TIMESTAMP (naive) ve UTC olarak
-                # yazılıyor (datetime.utcnow); statü geçmişi ise TIMESTAMPTZ olduğu için
-                # yerel saatle geliyor. Dönüştürülmezse aynı an tabloda 12:32 ve 15:32
-                # diye iki farklı saatle görünüyor. Naive değer UTC kabul edilip yerel
-                # saate çevriliyor - diğer satırlarla aynı eksene oturuyor.
+                # ZAMAN DİLİMİ: repair_records.updated_at TIMESTAMP (naive), statü
+                # geçmişi ise TIMESTAMPTZ. K7'den beri ikisi de Türkiye yerel saati
+                # taşıyor, ama biri saat dilimli biri değil - aynı listede sıralanacakları
+                # için ortak eksene alınıyor. Naive değer UTC DEĞİL, Türkiye saatidir;
+                # eskiden UTC kabul edilip +3 ekleniyor ve aynı an tabloda 12:32 ile
+                # 15:32 diye iki farklı saatle görünüyordu.
                 ts = r["updated_at"]
                 if ts is not None and ts.tzinfo is None:
-                    ts = ts.replace(tzinfo=_dt.timezone.utc).astimezone()
+                    ts = ts.replace(tzinfo=_TR_TZ)
                 satirlar.append((ts, {
                     "date": fmt(ts),
                     "staffName": (r["teknisyen"] or "").strip(),
@@ -11188,7 +11711,7 @@ class WebBridge(QObject):
 
             # Kritik parca orijinallik kontrolu (Ana Kamera / Batarya / Eski Pil).
             # Her kayit icin HER ZAMAN 3 satir doner; veri yoksa "unknown" (gri).
-            from services.phonecheck_service import parse_all_parts, parse_critical_parts, MAX_FAILED_ATTEMPTS
+            from services.phonecheck_service import parse_all_parts, parse_critical_parts
 
             # ── TEST ADLANDIRMA ──────────────────────────────────────────────
             # phonecheck_test_results.test_stage bir STATÜ GEÇİŞİ kodudur ("103_104").
@@ -11207,9 +11730,8 @@ class WebBridge(QObject):
             BASARILI = ("yes", "true", "1", "ok", "pass")
 
             # Başarısız denemeler test türü bazında KRONOLOJİK sayılır: 1., 2., 3. …
-            # Sınır MAX_FAILED_ATTEMPTS (10) - phonecheck_service aynı sabiti kullanıp
-            # hak dolduğunda yeni başarısız kayıt yazmayı reddeder, bu yüzden sayaç
-            # ekranda da "n/10" olarak gösterilir.
+            # ÜST SINIR YOK: deneme hakkı sınırı kaldırıldı (cihazı o adımda kilitliyordu),
+            # bu yüzden sayaç artık "n/10" değil yalnızca "n." olarak gösterilir.
             def _test_adi_hesapla(satirlar):
                 sayac, adlar = {}, {}
                 # Kronolojik sıra: numaralandırma eskiden yeniye doğru gitmeli.
@@ -11228,7 +11750,7 @@ class WebBridge(QObject):
                     else:
                         sayac[tur] = sayac.get(tur, 0) + 1
                         n = sayac[tur]
-                        adlar[s.id] = (f"{n}. Başarısız {tur} Sonucu ({n}/{MAX_FAILED_ATTEMPTS})", False)
+                        adlar[s.id] = (f"{n}. Başarısız {tur} Sonucu", False)
                 return adlar
 
             test_adlari = _test_adi_hesapla(rows)
@@ -11303,7 +11825,6 @@ class WebBridge(QObject):
         sonucunu özetler. Başarısız testlerde kalan test/arıza listesi (Test 1, Test 2...)
         da döner. Mevcut tabloları ETKİLEMEZ - yalnızca okuyup özetler."""
         from models.phonecheck_test_result import PhonecheckTestResult
-        from services.phonecheck_service import MAX_FAILED_ATTEMPTS
         db = SessionLocal()
         try:
             term = (term or "").strip()
@@ -11326,8 +11847,7 @@ class WebBridge(QObject):
                      .first())
                 if not r:
                     return {"done": False, "result": None, "failedTests": [],
-                            "date": "", "description": "", "attemptNo": None,
-                            "maxAttempts": MAX_FAILED_ATTEMPTS}
+                            "date": "", "description": "", "attemptNo": None}
                 working = (r.working or "").strip().lower()
                 failed_list = self._parse_failed_tests(r.failed, r.notes, r.manual_reason)
                 if stages == ["103_104"]:
@@ -11367,7 +11887,6 @@ class WebBridge(QObject):
                     "date": r.fetched_at.strftime("%Y-%m-%d %H:%M") if r.fetched_at else "",
                     "description": "",
                     "attemptNo": attempt_no,
-                    "maxAttempts": MAX_FAILED_ATTEMPTS,
                 }
 
             def son_test_fault_detail():
@@ -11687,18 +12206,37 @@ class WebBridge(QObject):
             )
             db.commit()
 
-            # Üretime teslim edildiğinde (104), Flow DGD eşleşmesine göre otomatik DGD kaydı oluştur
+            # Üretime teslim edildiğinde (104), Flow DGD eşleşmesine göre otomatik DGD kaydı oluştur.
+            # SONUÇ ARTIK YANITTA TAŞINIYOR. Eskiden hata da başarısızlık da sessizce
+            # yutuluyordu (yalnızca sunucu konsoluna bir satır düşüyordu): DGD oluşmadığında
+            # kullanıcı bunu hiçbir şekilde göremiyor, cihaz montaj işçiliği olmadan akışa
+            # devam ediyordu. DGD montajı yapılan her cihazdan alınan sabit işçilik olduğu
+            # için eksikliği doğrudan faturaya yansır.
+            dgd_sonuc = None
             if target_statu_code == 104 and (entry.imei_number or entry.serial_number or entry.internal_id):
                 try:
                     ref_id = entry.imei_number or entry.serial_number or entry.internal_id
-                    self.open_device_for_dismantle(ref_id, performing_staff)
+                    _ham = self.open_device_for_dismantle(ref_id, performing_staff)
+                    dgd_sonuc = json.loads(_ham) if _ham else None
                 except Exception as dgd_err:
                     print(f"[WARN] Automatic DGD creation error for {entry.id}: {dgd_err}")
+                    dgd_sonuc = {"success": False, "message": str(dgd_err)}
+                if dgd_sonuc and not dgd_sonuc.get("success"):
+                    print(f"[WARN] DGD oluşturulamadı ({entry.imei_number}): {dgd_sonuc.get('message')}")
+                elif dgd_sonuc and not dgd_sonuc.get("attached") and not dgd_sonuc.get("already_present"):
+                    print(f"[WARN] DGD eklenmedi ({entry.imei_number}): {dgd_sonuc.get('message') or 'sebep bildirilmedi'}")
 
+            mesaj = f"{device_label} {old_name} ({current_statu_code}) statüsünden {new_name} ({target_statu_code}) statüsüne alındı."
+            # DGD eklenemediyse geçiş yine de başarılıdır (statü değişti), ama kullanıcı
+            # bunu görmeli - montaj işçiliği eksik kalan cihaz sessizce akışa devam etmesin.
+            if dgd_sonuc is not None and not (dgd_sonuc.get("attached") or dgd_sonuc.get("already_present")):
+                mesaj += (" UYARI: montaj işçiliği (DGD) eklenemedi — "
+                          + (dgd_sonuc.get("message") or "sebep bildirilmedi"))
             return json.dumps({
                 "success": True,
                 "new_statu_code": target_statu_code,
-                "message": f"{device_label} {old_name} ({current_statu_code}) statüsünden {new_name} ({target_statu_code}) statüsüne alındı."
+                "dgd": dgd_sonuc,
+                "message": mesaj
             })
         except Exception as e:
             db.rollback()
@@ -11901,7 +12439,7 @@ class WebBridge(QObject):
                     pc = PhonecheckService(db)
                     stage = pc.build_stage(current_statu_code, success_statu_code)
                     imei = entry.imei_number or ""
-                    now_dt = __import__("datetime").datetime.now()
+                    now_dt = tr_now()
                     timestamp = now_dt.strftime('%d.%m.%Y %H:%M')
                     auto_note = f"[{timestamp}] Test olumlu — {device_label}"
                     db.add(PhonecheckTestResult(
@@ -11931,15 +12469,16 @@ class WebBridge(QObject):
                     return json.dumps({"success": False, "message": "En fazla 10 hatalı parça / hata kodu seçebilirsiniz."})
 
                 if log_exit_test:
-                    from services.phonecheck_service import PhonecheckService, MAX_FAILED_ATTEMPTS
+                    from services.phonecheck_service import PhonecheckService
                     pc = PhonecheckService(db)
                     stage = pc.build_stage(current_statu_code, fail_statu_code)
                     imei = entry.imei_number or ""
 
-                    if pc.failed_limit_reached(imei, stage):
-                        return json.dumps({"success": False, "message": f"Bu cihaz için bu test adımında en fazla {MAX_FAILED_ATTEMPTS} başarısız deneme hakkı var, hak doldu."})
-
-                    now_dt = __import__("datetime").datetime.now()
+                    # Başarısız deneme sınırı kaldırıldı: testçi sonucu her zaman
+                    # kaydedebilmeli (bkz. fetch_phonecheck_and_transition). Burada
+                    # engel olması en kötüsüydü - cihaz son testte 10 kez kalmışsa
+                    # testçi ne başarılı ne başarısız sonuç yazabiliyordu.
+                    now_dt = tr_now()
                     timestamp = now_dt.strftime('%d.%m.%Y %H:%M')
                     fail_note = f"[{timestamp}] Test Başarısız — {description.strip()}\nHatalı Parçalar: " + "; ".join(fault_lines)
                     db.add(PhonecheckTestResult(
@@ -11955,7 +12494,7 @@ class WebBridge(QObject):
                         fetched_at=now_dt,
                     ))
 
-                timestamp = __import__("datetime").datetime.now().strftime('%d.%m.%Y %H:%M')
+                timestamp = tr_now().strftime('%d.%m.%Y %H:%M')
                 note = f"[{timestamp}] Test Başarısız — {description.strip()}\nHatalı Parçalar: " + "; ".join(fault_lines)
                 entry.defects = (entry.defects + "\n\n" + note) if entry.defects else note
 
@@ -11992,7 +12531,7 @@ class WebBridge(QObject):
                 # olarak açar (update_repair_status → 1001).
                 if int(current_statu_code) in self.TEST_FAIL_REOPEN_SOURCE_STATUS:
                     geri_donen = db.execute(text("""
-                        UPDATE warehouse.repair_records
+                        UPDATE warehouse.repairs
                            SET repair_result_type_code = 1001, closed_at = NULL, updated_at = NOW()
                          WHERE service_record_id = ANY(:refs)
                            AND repair_result_type_code = 1002
@@ -12025,7 +12564,7 @@ class WebBridge(QObject):
             if geri_donen:
                 db.flush()
                 for _ref in repair_refs:
-                    self._sync_hierarchy_wait(db, _ref)
+                    self._sync_hierarchy_wait(db, _ref, staff=username, source="test_sonucu")
             db.commit()
 
             mesaj = f"{device_label} {old_name} ({current_statu_code}) statüsünden {new_name} ({target_statu_code}) statüsüne alındı."
@@ -12314,9 +12853,18 @@ class WebBridge(QObject):
 
             repair_rows = db.execute(text("""
                 SELECT rr.id, rr.department_mission, rr.notes, rr.repair_result_type_code, rr.warranty_code,
+                       -- ONARIM (üst kayıt) alanları. Grup rozeti artık temsilci
+                       -- parçadan değil onarımın KENDİ statüsünden çiziliyor.
+                       rr.repair_id AS onarim_id,
+                       onr.repair_result_type_code AS onarim_kodu,
+                       onrt.short_name AS onarim_statu_adi,
+                       onr.test_result AS onarim_test_sonucu,
                        rr.part_item_code, rr.item_fault_code, rr.operation_type_code, rr.supply_status_code,
                        rr.assigned_technician, rr.assigned_by, rr.assigned_at, rr.created_at, rr.updated_at,
-                       rrt.short_name AS result_name, rrt.is_cancelled, rrt.is_success,
+                       rrt.short_name AS result_name, rrt.is_success,
+                       -- AŞAMA 4: parçanın silinmişliği kendi ekseninden (repair_part_status),
+                       -- onarım statüsünden DEĞİL. 1003 artık yalnızca ONARIM iptalini anlatır.
+                       COALESCE(rps.is_removed, FALSE) AS is_cancelled,
                        -- mission_group_name SELECT'ten dusmustu (merge kaybi): mg JOIN'i duruyordu
                        -- ama kolon secilmiyordu, mapping r["mission_group_name"] okuyunca
                        -- NoSuchColumnError firlatiyor, metod success:false donuyor ve arayuzde
@@ -12341,7 +12889,10 @@ class WebBridge(QObject):
                        -- teknisyen gibi görünüyor, "kime atadıysam o görünsün" bozuluyordu.
                        COALESCE(NULLIF(TRIM(au_tek.fullname), ''), rr.assigned_technician) AS assigned_technician_name
                 FROM warehouse.repair_records rr
+                LEFT JOIN warehouse.repairs onr ON onr.id = rr.repair_id
+                LEFT JOIN warehouse.repair_result_type onrt ON onrt.code = onr.repair_result_type_code
                 LEFT JOIN warehouse.repair_result_type rrt ON rrt.code = rr.repair_result_type_code
+                LEFT JOIN warehouse.repair_part_status rps ON rps.code = COALESCE(rr.part_status_code, 2000)
                 LEFT JOIN organization.mission_groups mg ON mg.code = rr.department_mission
                 LEFT JOIN warehouse.item it ON it.code = rr.part_item_code
                 LEFT JOIN warehouse.parts pp ON pp.item_code = rr.part_item_code
@@ -12424,6 +12975,14 @@ class WebBridge(QObject):
                     ),
                     "statusCode": r["repair_result_type_code"],
                     "statusName": r["result_name"] or str(r["repair_result_type_code"]),
+                    # AŞAMA 3b: ONARIMIN KENDİ STATÜSÜ. Ekran grubu tek satırla
+                    # temsil ediyordu ve o satırın statüsünü grubun statüsü gibi
+                    # gösteriyordu; grup karışık durumdayken (bir parça 1006, diğeri
+                    # 1002) rozet yalan söylüyordu. Artık grup rozeti buradan çizilir.
+                    "onarimId": str(r["onarim_id"]) if r["onarim_id"] else "",
+                    "onarimStatusCode": r["onarim_kodu"],
+                    "onarimStatusName": r["onarim_statu_adi"] or "",
+                    "onarimTestResult": r["onarim_test_sonucu"] or "",
                     "isCancelled": bool(r["is_cancelled"]),
                     "chargeType": "FREE" if r["warranty_code"] == "IW" else "PAID",
                     "partItemCode": r["part_item_code"] or "",
@@ -12610,18 +13169,21 @@ class WebBridge(QObject):
             # kim değiştirdi" (depocu) bilgisidir. Teknisyeni oraya da yazmak iki kaynağı
             # birbirine karıştırıyor, ekranlarda depocu teknisyen gibi görünüyordu.
             db.execute(text("""
-                UPDATE warehouse.repair_records
+                UPDATE warehouse.repairs r
                 SET repair_result_type_code = 1001,
                     assigned_technician = :tech,
                     assigned_by = :tech,
                     assigned_at = NOW(),
                     updated_at = NOW()
-                WHERE id = ANY(:rids)
-            """), {"tech": tech, "rids": r_ids})
+                -- :rids PARÇA kimlikleridir (havuz sorgusu parça satırı döner);
+                -- güncellenecek olan onlara bağlı ONARIMLAR'dır.
+                WHERE EXISTS (SELECT 1 FROM warehouse.repair_records rr
+                               WHERE rr.repair_id = r.id AND rr.id::text = ANY(:rids))
+            """), {"tech": tech, "rids": [str(x) for x in r_ids]})
             # Atama sırayı değiştirmez: sırası gelmemiş kayıt teknisyeni üzerinde
             # kalarak 1004'e (beklemede) geri döner.
             for _ref in {r["service_record_id"] for r in repairs if r["service_record_id"]}:
-                self._sync_hierarchy_wait(db, _ref)
+                self._sync_hierarchy_wait(db, _ref, staff=technician_username, source="teknisyen_atama")
             db.commit()
 
             tech_name = tech_user["fullname"] or tech_user["username"]
@@ -12650,14 +13212,15 @@ class WebBridge(QObject):
                 return json.dumps({"success": False, "message": "Departman kodu boş olamaz."})
 
             rows = db.execute(text("""
-                SELECT 
+                SELECT
                     rr.id AS repair_id,
+                    rr.repair_id AS onarim_id,
                     rr.service_record_id,
                     rr.department_mission,
-                    rr.repair_result_type_code,
-                    rrt.short_name AS status_name,
-                    rrt.is_cancelled,
-                    rrt.is_success,
+                    COALESCE(onr.repair_result_type_code, rr.repair_result_type_code) AS repair_result_type_code,
+                    COALESCE(onrt.short_name, rrt.short_name) AS status_name,
+                    COALESCE(rps.is_removed, FALSE) AS is_cancelled,
+                    COALESCE(onrt.is_success, rrt.is_success) AS is_success,
                     rr.operation_type_code,
                     opt.short_name AS operation_type_name,
                     rr.warranty_code,
@@ -12669,10 +13232,10 @@ class WebBridge(QObject):
                     rr.supply_status_code,
                     sup.short_name AS supply_status_name,
                     -- Depocuya (supply_requested_by) düşülmez; teknisyen yalnızca atamadan gelir.
-                    rr.assigned_technician AS assigned_technician,
+                    COALESCE(onr.assigned_technician, rr.assigned_technician) AS assigned_technician,
                     -- Iki ayri JOIN: tek OR'lu JOIN teknisyen ile depocu farkli oldugunda
                     -- satiri ikiye katliyordu (bkz. get_repair_operations_by_imei).
-                    COALESCE(NULLIF(TRIM(u_tek.fullname), ''), rr.assigned_technician) AS assigned_technician_name,
+                    COALESCE(NULLIF(TRIM(u_tek.fullname), ''), onr.assigned_technician, rr.assigned_technician) AS assigned_technician_name,
                     rr.notes,
                     rr.created_at,
                     rr.updated_at,
@@ -12688,11 +13251,17 @@ class WebBridge(QObject):
                     be.statu_code AS batch_status_code
                 FROM warehouse.repair_records rr
                 LEFT JOIN warehouse.repair_result_type rrt ON rrt.code = rr.repair_result_type_code
+                -- AŞAMA 4 / ADIM 2: statü ve teknisyen ONARIMDAN okunur; parça satırındaki
+                -- kolonlar duruyor ama okunmuyor. Üst kaydı olmayan çok eski satırlarda
+                -- COALESCE parçaya düşer.
+                LEFT JOIN warehouse.repairs onr ON onr.id = rr.repair_id
+                LEFT JOIN warehouse.repair_result_type onrt ON onrt.code = onr.repair_result_type_code
+                LEFT JOIN warehouse.repair_part_status rps ON rps.code = COALESCE(rr.part_status_code, 2000)
                 LEFT JOIN warehouse.parts pp ON pp.item_code = rr.part_item_code
                 LEFT JOIN warehouse.item_fault fault ON fault.code = rr.item_fault_code
                 LEFT JOIN warehouse.repair_item_operation_type opt ON opt.code = rr.operation_type_code
                 LEFT JOIN warehouse.item_supply_status sup ON sup.code = rr.supply_status_code
-                LEFT JOIN warehouse.users u_tek ON u_tek.username = rr.assigned_technician
+                LEFT JOIN warehouse.users u_tek ON u_tek.username = COALESCE(onr.assigned_technician, rr.assigned_technician)
                 LEFT JOIN warehouse.batch_entries be ON LOWER(TRIM(be.imei_number)) = LOWER(TRIM(rr.service_record_id))
                     OR LOWER(TRIM(be.serial_number)) = LOWER(TRIM(rr.service_record_id))
                     OR LOWER(TRIM(be.internal_id)) = LOWER(TRIM(rr.service_record_id))
@@ -12709,21 +13278,47 @@ class WebBridge(QObject):
             # ertesi güne geçildiğinde önceki günden kalanlar düşer. (Aktif onarımlar her zaman kalır.)
             today_tr = _dt.datetime.now(_TR_TZ).date()
 
+            # K7: naive değerler zaten Türkiye yerel saati - çevrilmez, doğrudan
+            # tarihi alınır. Eskiden UTC kabul edilip +3 ekleniyordu; akşam 21:00'den
+            # sonra kapanan onarımlar ertesi güne sayılıp listeden erken düşüyordu.
             def _tr_date(dt):
                 if not dt:
                     return None
-                if dt.tzinfo is None:
-                    dt = dt.replace(tzinfo=_dt.timezone.utc)
-                return dt.astimezone(_TR_TZ).date()
+                if dt.tzinfo is not None:
+                    dt = dt.astimezone(_TR_TZ)
+                return dt.date()
 
-            items = []
+            # AŞAMA 3c: HAVUZUN BİRİMİ DE ONARIM.
+            # Bu ekran her PARÇA satırını ayrı bir kayıt gibi listeliyordu; 3 parçalı
+            # bir Kasa Onarımı havuzda 3 kez görünüyor, teknisyen aynı cihazı üç ayrı
+            # iş sanıyordu (sahada ölçüldü: Ekran departmanında 5 onarım = 10 satır).
+            # Atama zaten cihaz + görev grubu kapsamında çalıştığı için (bkz.
+            # assign_repair_to_technician) üç satırdan birine basmak diğer ikisini de
+            # atıyordu; yani liste, işin gerçek birimini hiç yansıtmıyordu.
+            # Artık her satır bir onarımdır, parçaları "parts" altında taşınır.
+            gruplar = {}
             for r in rows:
                 if bool(r["is_success"]) or bool(r["is_cancelled"]):
                     comp_date = _tr_date(r["closed_at"] or r["updated_at"])
                     if comp_date and comp_date != today_tr:
                         continue  # önceki günlerden kalan tamamlanmış/iptal onarım
+                anahtar = (str(r["onarim_id"]) if r["onarim_id"]
+                           else f'{r["service_record_id"]}|{r["department_mission"]}|{r["repair_id"]}')
+                mevcut = gruplar.get(anahtar)
+                if mevcut is not None:
+                    # Aynı onarımın ek parçası: yalnızca parça listesine eklenir.
+                    mevcut["parts"].append({
+                        "partRecordId": str(r["repair_id"]),
+                        "partItemCode": r["part_item_code"] or "",
+                        "partName": r["part_name"] or "",
+                        "itemCategory": r["item_category"] or "",
+                        "faultName": r["fault_name"] or r["item_fault_code"] or "",
+                        "supplyStatusName": r["supply_status_name"] or r["supply_status_code"] or "",
+                    })
+                    mevcut["partCount"] = len(mevcut["parts"])
+                    continue
                 product_info = " ".join(filter(None, [r["model"], r["gb"], r["color"]])) or "-"
-                items.append({
+                gruplar[anahtar] = {
                     "repairId": str(r["repair_id"]),
                     "serviceRecordId": r["service_record_id"] or "",
                     "departmentMission": r["department_mission"] or "",
@@ -12754,8 +13349,20 @@ class WebBridge(QObject):
                     "customerName": r["customer_name"] or "",
                     "batchStatusCode": r["batch_status_code"],
                     "createdAtRaw": r["created_at"].timestamp() if r["created_at"] else 0,
-                })
+                    # Onarımın parçaları. İlk satır kartın kendisini kurar, aynı
+                    # onarımın diğer parçaları yukarıdaki dalda buraya eklenir.
+                    "partCount": 1,
+                    "parts": [{
+                        "partRecordId": str(r["repair_id"]),
+                        "partItemCode": r["part_item_code"] or "",
+                        "partName": r["part_name"] or "",
+                        "itemCategory": r["item_category"] or "",
+                        "faultName": r["fault_name"] or r["item_fault_code"] or "",
+                        "supplyStatusName": r["supply_status_name"] or r["supply_status_code"] or "",
+                    }],
+                }
 
+            items = list(gruplar.values())
             return json.dumps({"success": True, "items": items}, ensure_ascii=False)
         except Exception as e:
             return json.dumps({"success": False, "message": str(e)})
@@ -12868,50 +13475,32 @@ ORDER BY imei, departman, durum;
 
     @Slot(str, int, result=str)
     def admin_set_batch_entry_statu(self, imei, target_statu_code):
-        """Genel Bakış > Statü Kontrol ekranından çağrılır. Normal iş akışındaki
-        execute_batch_entry_statu_transition'ın aksine StateMachineService kurallarını
-        (hangi statüden hangi statüye geçilebileceği) uygulamaz - IMEI'ye ait en güncel
-        batch_entries satırının statu_code'unu doğrudan hedef statüye ayarlar. Manuel/idari
-        düzeltme amaçlıdır (ör. yanlışlıkla yanlış statüde kalmış bir cihazı düzeltmek)."""
-        from sqlalchemy import text
-        db = SessionLocal()
-        try:
-            imei = (imei or "").strip()
-            if not imei:
-                return json.dumps({"success": False, "message": "IMEI boş olamaz."})
+        """K10: KAPATILDI - artık hiçbir statü değişikliği yapmaz.
 
-            entry = db.execute(text("""
-                SELECT id, statu_code FROM warehouse.batch_entries
-                WHERE LOWER(TRIM(imei_number)) = LOWER(:imei)
-                ORDER BY id DESC LIMIT 1
-            """), {"imei": imei}).mappings().first()
-            if not entry:
-                return json.dumps({"success": False, "message": "Bu IMEI için Batch Girişi kaydı bulunamadı."})
+        Genel Bakış > Statü Kontrol ekranından çağrılıyordu ve StateMachineService
+        kurallarını uygulamadan batch_entries.statu_code'u doğrudan yazıyordu.
+        Ölçülen zararı:
+          - 88 idari geçişin 88'inde kimin yaptığı kaydedilmemiş (slot kullanıcı adı
+            almıyordu, geçmişe staff_name=NULL gidiyordu). Kural tanımayan geçişler
+            tam da imzasız olanlardı.
+          - Yetki kontrolü yoktu; ekran menüde herkese açıktı.
+          - Ham SQL yazdığı için ORM'in updated_at kancasını atlıyordu: geçiş 14:52'de
+            yapılıyor, ekranda "son güncelleme" 14:48 kalıyordu.
+          - Yan etkiler hiç çalışmıyordu (ör. 104'te otomatik DGD) - bu yoldan
+            ilerleyen cihaz montaj işçiliği alınmadan geçiyordu.
 
-            target_row = db.execute(text("SELECT code, short_name FROM warehouse.service_statu WHERE code = :c"), {"c": target_statu_code}).mappings().first()
-            if not target_row:
-                return json.dumps({"success": False, "message": f"Geçersiz statü kodu: {target_statu_code}"})
+        Ekran kaldırıldı (App.jsx rotası ve MainLayout menü girdisi silindi,
+        api.js sarmalayıcısı kaldırıldı). Slot burada duruyor ve REDDEDİYOR:
+        QWebChannel üzerinden adı bilinen biri yine çağırabilir, sessizce çalışmasın.
 
-            old_code = entry["statu_code"] if entry["statu_code"] is not None else 100
-            old_row = db.execute(text("SELECT short_name FROM warehouse.service_statu WHERE code = :c"), {"c": old_code}).mappings().first()
-            old_name = old_row["short_name"] if old_row else str(old_code)
-
-            db.execute(text("UPDATE warehouse.batch_entries SET statu_code = :c WHERE id = :id"), {"c": target_statu_code, "id": entry["id"]})
-            self._record_statu_change(
-                db, entry["id"], imei, old_code, target_statu_code,
-                note=f"Manuel/idari düzeltme: {old_name} ({old_code}) → {target_row['short_name']} ({target_statu_code})",
-            )
-            db.commit()
-            return json.dumps({
-                "success": True,
-                "new_statu_code": target_statu_code,
-                "message": f"{imei}: {old_name} ({old_code}) statüsünden {target_row['short_name']} ({target_statu_code}) statüsüne alındı."
-            }, ensure_ascii=False)
-        except Exception as e:
-            db.rollback()
-            return json.dumps({"success": False, "message": str(e)})
-        finally:
-            db.close()
+        Statüsü yanlış kalmış cihaz için normal geçiş yolu kullanılmalıdır
+        (execute_batch_entry_statu_transition) - kuralları, imzayı ve yan etkileri
+        birlikte uygular."""
+        return json.dumps({
+            "success": False,
+            "message": "Statü Kontrol kaldırıldı. Statü değişikliği yalnızca normal iş akışı "
+                       "üzerinden yapılabilir.",
+        }, ensure_ascii=False)
 
     def _get_user_missions(self, db, username):
         """(mission_kod_listesi, is_admin) döner. warehouse.users.gorev (virgülle ayrılmış
@@ -13250,8 +13839,6 @@ ORDER BY imei, departman, durum;
 
     # L1 (demontaj) dışındaki onarım takımları. DISMANTLE ve L1REPAIR bu kuralın
     # DIŞINDADIR - onlar L1 seviyesidir, kendilerini bekleyemezler.
-    UPPER_LEVEL_TEAMS = frozenset({"L2REPAIR", "L3REPAIR", "BATTERY", "CAMERA", "DISPLAY", "CASE"})
-
     def _cihaz_referanslari(self, db, device_ref):
         """Bir cihazın onarım kayıtlarının tutulabileceği TÜM referansları döner
         (IMEI, service_id, verilen ham ref). Kayıtlar tek bir anahtar altında
@@ -13265,32 +13852,84 @@ ORDER BY imei, departman, durum;
                 refs.add(str(b["imei_number"]).strip())
         return [r for r in refs if r]
 
-    def _l1_baslamadi_engeli(self, db, device_ref, team_code, islem_adi):
-        """L1 (demontaj) onarımı HİÇ BAŞLAMAMIŞKEN üst seviye onarımlarda işlem
-        yapılmasını engeller; engel yoksa None döner.
+    # Cihazın montaj seviyesi. L1 ve L2 aynı işin iki seviyesidir (ERP'de denk kabul
+    # edilir, aralarında doğrudan çevrim yapılabilir) ve bir cihazda yalnızca biri
+    # bulunur - bkz. OPPOSING_REPAIR_TEAMS.
+    VARSAYILAN_MONTAJ_GRUBU = "L1REPAIR"
+    MONTAJ_GRUPLARI = ("L1REPAIR", "L2REPAIR")
 
-        Cihazı açan, parçaları söken L1 teknisyenidir. O işe başlamadan üst ekibe iş
-        açmak ya da o işleri oynatmak, henüz açılmamış cihaza iş atamak demektir.
+    def _cihazin_montaj_grubu(self, db, device_ref):
+        """Cihazın montaj ekibini (L1REPAIR / L2REPAIR) döner.
 
-        Engellenen TEK durum 1000 (Teknisyene Atanacak). 1001 (onarımda), 1002 (bitti)
-        ve 1004 (sırada) kabul edilir - L1 bir kez başladıysa kural sağlanmıştır.
-        Hiç DISMANTLE kaydı yoksa engel YOKTUR: aksi halde DGD satırı doğmamış cihazda
-        hiçbir üst seviye işlem yapılamaz, çıkış yolu kalmazdı."""
-        from models.repair_record import RepairRecord
-        if (team_code or "").strip().upper() not in self.UPPER_LEVEL_TEAMS:
+        Cihazda daha önce bir montaj onarımı açılmışsa o seviye korunur - yeni doğan
+        işçilik satırı cihazı ikinci bir montaj ekibine bölmemeli. Hiç yoksa varsayılan
+        L1REPAIR kullanılır; teknisyen "L2 Onarımına Al" ile çevirebilir."""
+        from sqlalchemy import text as _t
+        try:
+            mevcut = db.execute(_t("""
+                SELECT department_mission
+                  FROM warehouse.repair_records
+                 WHERE service_record_id = ANY(:refs)
+                   AND department_mission = ANY(:gruplar)
+                   AND COALESCE(part_status_code, 2000) NOT IN
+                       (SELECT code FROM warehouse.repair_part_status WHERE is_removed)
+                 ORDER BY created_at DESC
+                 LIMIT 1
+            """), {"refs": self._cihaz_referanslari(db, device_ref),
+                   "gruplar": list(self.MONTAJ_GRUPLARI)}).scalar()
+            return (mevcut or "").strip() or self.VARSAYILAN_MONTAJ_GRUBU
+        except Exception:
+            return self.VARSAYILAN_MONTAJ_GRUBU
+
+    def _kategori_departman_engeli(self, db, part_code, part_cat, mission_group_code):
+        """Parçanın KATEGORİSİ ile seçilen ONARIM DEPARTMANI uyumlu mu? Uyumsuzsa
+        kullanıcıya gösterilecek mesajı, uyumluysa None döner.
+
+        İlişki warehouse.item_category_mission'da tanımlı (mission alanı 'TEC_CASE'
+        biçiminde; grup kodu 'CASE' - önek kırpılarak eşleştirilir). Ekranlar bu
+        ilişkiyi zaten uyguluyor: "Onarım Ekle"de departman kategoriden türetilir,
+        "Parça Ekle"de liste departmanın kategorileriyle sınırlanır. Ama @Slot
+        metodlarında rol/kapsam denetimi yok ve köprüye bağlanan herkes doğrudan
+        çağırabilir; ekran kuralı sunucuda tekrarlanmazsa Kasa onarımına Kamera
+        parçası yazılabilir.
+
+        SERBEST BIRAKILAN İKİ DURUM (projedeki yerleşik kurallarla aynı):
+          1) Kategorinin HİÇBİR departman eşleşmesi yoksa kısıtlanmaz - tanımsız
+             kategori yüzünden iş durmamalı (bkz. get_missions_for_item_category:
+             "eşleşme yoksa çağıran tüm departmanlara geri düşebilir").
+          2) DGD işçilik kalemleri: cihaza takılan bir parça değildir, akışa göre
+             otomatik eklenir ve departmanı Flow belirler."""
+        from sqlalchemy import text
+        kod = (mission_group_code or "").strip()
+        kat = (part_cat or "").strip()
+        if not (part_code or "").strip() or not kat or not kod:
             return None
-        kayitlar = db.query(RepairRecord).filter(
-            RepairRecord.service_record_id.in_(self._cihaz_referanslari(db, device_ref)),
-            RepairRecord.department_mission == "DISMANTLE",
-            RepairRecord.repair_result_type_code != 1003,
-        ).all()
-        if not kayitlar:
+        if kat.upper() == "DGD":
             return None
-        if all(int(k.repair_result_type_code or 0) == 1000 for k in kayitlar):
-            return (f"L1 (demontaj) onarımı henüz başlamamış (Teknisyene Atanacak). "
-                    f"Üst seviye onarımlarda (L2/L3, Batarya/Kamera/Ekran/Kasa) {islem_adi} — "
-                    f"önce L1 onarımını bir teknisyene atayın.")
-        return None
+
+        izinli = db.execute(text("""
+            SELECT DISTINCT UPPER(REGEXP_REPLACE(TRIM(mission), '^TEC_', '')) AS grup
+              FROM warehouse.item_category_mission
+             WHERE enabled = TRUE
+               AND LOWER(TRIM(item_category)) = LOWER(:kat)
+        """), {"kat": kat}).fetchall()
+        gruplar = {(r[0] or "").strip() for r in izinli if (r[0] or "").strip()}
+        if not gruplar or kod.upper() in gruplar:
+            return None
+
+        adlar = db.execute(text("""
+            SELECT COALESCE(NULLIF(TRIM(short_name), ''), code) FROM organization.mission_groups
+             WHERE UPPER(code) = ANY(:kodlar) ORDER BY 1
+        """), {"kodlar": list(gruplar)}).fetchall()
+        okunur = ", ".join(a[0] for a in adlar) or ", ".join(sorted(gruplar))
+        secilen = db.execute(text("""
+            SELECT COALESCE(NULLIF(TRIM(short_name), ''), code) FROM organization.mission_groups
+             WHERE UPPER(code) = UPPER(:c) LIMIT 1
+        """), {"c": kod}).scalar() or kod
+        return (f"'{kat}' kategorisindeki bir parça '{secilen}' onarımına eklenemez. "
+                f"Bu kategori şu departman(lar)a tanımlı: {okunur}. "
+                f"Parçayı doğru departmanın onarımına ekleyin ya da 'Onarım Ekle' ile "
+                f"o departmanda yeni bir onarım açın.")
 
     def _parca_cakisma_engeli(self, db, service_ref, part_code, part_cat=None, haric_id=None):
         """Cihaza girilmek istenen parça, orada duran bir parçayla çakışıyor mu?
@@ -13319,7 +13958,8 @@ ORDER BY imei, departman, durum;
               FROM warehouse.repair_records rr
               LEFT JOIN warehouse.parts p ON p.item_code = rr.part_item_code
              WHERE rr.service_record_id = :ref
-               AND COALESCE(rr.repair_result_type_code, 0) <> 1003
+               AND COALESCE(rr.part_status_code, 2000) NOT IN
+                   (SELECT code FROM warehouse.repair_part_status WHERE is_removed)
                AND (CAST(:haric AS text) IS NULL OR CAST(rr.id AS text) <> CAST(:haric AS text))
         """), {"ref": service_ref, "haric": str(haric_id) if haric_id else None}).fetchall()
         for (mevcut_kat,) in mevcutlar:
@@ -13420,6 +14060,11 @@ ORDER BY imei, departman, durum;
                 cakisma = self._parca_cakisma_engeli(db, service_ref, part_code, part_cat)
                 if cakisma:
                     return json.dumps({"success": False, "message": cakisma}, ensure_ascii=False)
+                # KATEGORİ ↔ DEPARTMAN. Ekran tarafı bu ilişkiyi uyguluyor ama @Slot
+                # metodları korumasız; kural sunucuda da doğrulanır.
+                kat_engel = self._kategori_departman_engeli(db, part_code, part_cat, mission_group_code)
+                if kat_engel:
+                    return json.dumps({"success": False, "message": kat_engel}, ensure_ascii=False)
 
             # L1REPAIR ve L2REPAIR aynı cihazda birlikte olamaz: biri varsa diğeri eklenemez.
             # Yalnızca aktif (iptal edilmemiş, 1003 değil) kayıtlar sayılır - iptal edilmiş bir
@@ -13440,17 +14085,29 @@ ORDER BY imei, departman, durum;
                         "message": f"Bu cihazda zaten aktif bir {opposing_label} onarımı var. Aynı cihaza hem {team_label} hem {opposing_label} onarımı eklenemez."
                     }, ensure_ascii=False)
 
-            # ÜST SEVİYE ONARIMLARI (L2/L3 + departman onarımları Batarya/Kamera/Ekran/Kasa),
-            # ancak cihazda L1 (demontaj = DISMANTLE) onarımı 1001 ("Onarıma Devam Et" /
-            # Onarımda) durumundayken eklenebilir. L1 devam etmeden hiçbir üst seviye onarım
-            # açılamaz. (L1REPAIR ve DISMANTLE/DGD bu kurala takılmaz - onlar L1 seviyesidir.)
-            # Kural YALNIZCA "Üretim Kaydını Görüntüle" (technician-repair) ekranından
-            # eklemede geçerlidir. "Üretime Aktar" (demontaj) ekranı source="dismantle"
-            # gönderir; orada parça ekleme serbesttir (demontaj zaten L1'in yapıldığı yerdir).
-            if (source or "").strip().lower() != "dismantle":
-                _engel = self._l1_baslamadi_engeli(db, device_ref, team_code, "onarım/parça eklenemez")
-                if _engel:
-                    return json.dumps({"success": False, "message": _engel}, ensure_ascii=False)
+            # "L1 BAŞLAMADAN ÜST SEVİYE ONARIM" KURALI KALDIRILDI.
+            # Kural, L1'i demontaj sanarak yazılmıştı ("Cihazı açan, parçaları söken L1
+            # teknisyenidir"). Gerçekte L1/L2 MONTAJ ekibidir ve işini tüm onarımlar
+            # bittikten SONRA yapar; üst seviye onarımlardan önce başlaması zaten
+            # mümkün değildir. Cihazı açan demontaj departmanıdır ve onun işini
+            # bitirdiği, cihazın 109'a (Üretim Aşamasında) geçmiş olmasıyla zaten
+            # garanti altındadır - yani kuralın koruduğu şeyi statü sağlıyor.
+            if (source or "").strip().lower() == "dismantle":
+                # ÜRETİM AŞAMASINDAKİ CİHAZA DEMONTAJ EKRANINDAN KAYIT EKLENEMEZ.
+                # Cihaz 109'a geçtiği anda iş üretim teknisyenine devrolur ve onarımları
+                # "Üretim Kaydını Görüntüle" ekranından yönetilir. Demontaj ekranının da
+                # aynı kayıtlara yazabilmesi iki ekranı aynı veri üzerinde çalıştırıyor,
+                # üstelik demontaj kararı (Üretime Aktar) yeniden verilebilir hâle
+                # geliyordu. Ekran tarafında cihaz zaten açılmıyor; burası köprüye
+                # doğrudan çağrı yapan istemcilere karşı sunucu tarafı karşılığıdır.
+                _be = self._resolve_batch_entry_by_ref(db, device_ref)
+                if _be and _be["statu_code"] is not None and int(_be["statu_code"]) == self._URETIM_STATUSU:
+                    return json.dumps({
+                        "success": False,
+                        "message": (f"Cihaz üretim aşamasında ({self._URETIM_STATUSU}); Üretime Aktar ekranından "
+                                    f"onarım/parça eklenemez. Bu cihazın onarımlarını 'Üretim Kaydını Görüntüle' "
+                                    f"ekranından yönetin."),
+                    }, ensure_ascii=False)
 
             # ZATEN ATANMIŞ BİR GRUBA EKLENEN PARÇA, TEKNİSYENİ DEVRALIR.
             # Yeni kayıt normalde 1000 (Teknisyene Atanacak) / teknisyensiz doğar. Grup
@@ -13459,13 +14116,21 @@ ORDER BY imei, departman, durum;
             # ekranı (get_deliverable_parts_for_device) yalnızca "1001 + teknisyen dolu"
             # kayıtları listelediği için o parça depoda HİÇ görünmüyor, teslim alınamıyor ve
             # onarım bitirilemiyordu. Grubun mevcut teknisyeni varsa devralınır.
-            atanmis = db.query(RepairRecord).filter(
-                RepairRecord.service_record_id == service_ref,
-                RepairRecord.department_mission == mission_group_code.strip(),
-                RepairRecord.repair_result_type_code == 1001,
-                RepairRecord.assigned_technician.isnot(None),
-                RepairRecord.assigned_technician != "",
-            ).order_by(RepairRecord.assigned_at.desc()).first()
+            # AŞAMA 4: teknisyen ONARIMDAN devralınır, parça satırından değil.
+            # Statü ölçütü "= 1001" idi; onarım 1008'e (parça bekleniyor) düşmüşken
+            # hiçbir şey bulamıyor, yeni eklenen parça ATANMAMIŞ kalıyordu. O parça
+            # Parça Teslim ekranında görünmediği için de teslim alınamıyordu.
+            # Ölçüt artık "kapanmamış onarım": 1000/1001/1004/1005/1006/1008 hepsi geçer.
+            atanmis = db.execute(text("""
+                SELECT assigned_technician, assigned_by
+                  FROM warehouse.repairs
+                 WHERE service_record_id = :sr
+                   AND department_mission = :dm
+                   AND COALESCE(repair_result_type_code, 0) NOT IN (1002, 1003)
+                   AND COALESCE(TRIM(assigned_technician), '') <> ''
+                 ORDER BY assigned_at DESC NULLS LAST
+                 LIMIT 1
+            """), {"sr": service_ref, "dm": mission_group_code.strip()}).first()
 
             # DGD gerçek bir stok kalemi değildir, depodan hiçbir zaman fiziksel çıkışı olmaz -
             # bu yüzden Depo Durum'u baştan "Talepsiz (Depo çıkışı yapılmaz)" olarak sabitlenir.
@@ -13500,7 +14165,7 @@ ORDER BY imei, departman, durum;
                 service_record_id=service_ref,
                 department_mission=mission_group_code.strip(),
                 customer_approved=devralinan_onay,
-                customer_approved_at=_dt.datetime.utcnow() if devralinan_onay else None,
+                customer_approved_at=tr_now() if devralinan_onay else None,
                 customer_approved_by="DEVRALINDI" if devralinan_onay else None,
                 repair_result_type_code=1001 if atanmis else 1000,
                 warranty_code=warranty_code.strip() if warranty_code else "OOW",
@@ -13510,15 +14175,21 @@ ORDER BY imei, departman, durum;
                 operation_type_code=operation_type_code.strip() if operation_type_code else None,
                 assigned_technician=atanmis.assigned_technician if atanmis else None,
                 assigned_by=atanmis.assigned_by if atanmis else None,
-                assigned_at=_dt.datetime.utcnow() if atanmis else None,
+                assigned_at=tr_now() if atanmis else None,
                 supply_status_code=dgd_supply_status,
             )
+            # AŞAMA 2a: parça, ait olduğu onarımın üst kaydına bağlanır. Aynı gruba
+            # ikinci parça eklenirse var olan onarıma katılır, yeni onarım açılmaz.
+            rec.repair_id = self._onarim_ustu(
+                db, service_ref, mission_group_code.strip(),
+                rec.repair_result_type_code,
+                rec.assigned_technician, rec.assigned_by, rec.assigned_at)
             db.add(rec)
             # Yeni onarım sıraya girer: üst seviyede açık iş varsa kayıt doğrudan
             # 1004 (beklemede) doğar; yeni kayıt kendisi üst seviyedeyse alttakiler
             # beklemeye alınır. flush() olmadan senkron yeni satırı göremez.
             db.flush()
-            self._sync_hierarchy_wait(db, service_ref)
+            self._sync_hierarchy_wait(db, service_ref, staff=username, source="onarim_ekle")
             db.commit()
 
             # PARÇA EKLEMEK STATÜ DEĞİŞTİRMEZ.
@@ -13727,9 +14398,9 @@ ORDER BY imei, departman, durum;
 
             existing = db.execute(text("""
                 SELECT rr.id FROM warehouse.repair_records rr
-                LEFT JOIN warehouse.repair_result_type rrt ON rrt.code = rr.repair_result_type_code
                 WHERE rr.service_record_id = ANY(:refs) AND rr.part_item_code = :code
-                  AND COALESCE(rrt.is_cancelled, FALSE) = FALSE
+                  AND COALESCE(rr.part_status_code, 2000) NOT IN
+                       (SELECT code FROM warehouse.repair_part_status WHERE is_removed)
                 LIMIT 1
             """), {"refs": repair_refs, "code": dgd_item_code}).mappings().first()
             if existing:
@@ -13741,10 +14412,20 @@ ORDER BY imei, departman, durum;
                 if required and required not in user_missions:
                     return json.dumps({"success": False, "message": f"Bu işlem için '{required}' yetkisi gerekiyor."})
 
+            _dgd_ref = self._resolve_service_record_id_for_new_repair(db, imei)
+            # DGD = MONTAJ İŞÇİLİĞİ. Sabit fiyatlı bir işçilik kalemidir ve montajı
+            # yapılan her cihazdan alınır; dolayısıyla montaj ekibine (L1/L2) aittir,
+            # demontaja değil. Varsayılan montaj seviyesi L1REPAIR'dir; teknisyen
+            # "L2 Onarımına Al" ile çevirebilir (ERP'de iki seviye iş olarak denktir,
+            # bkz. toggle_dgd_repair_team). Eskiden satır DISMANTLE altında doğuyordu -
+            # demontaj bir onarım departmanı olmadığı için orada yeri yoktu ve
+            # seviyelendirmeye girmediğinden montajın en sonda olması da sağlanamıyordu.
+            _montaj_grubu = self._cihazin_montaj_grubu(db, _dgd_ref)
             rec = RepairRecord(
                 id=uuid.uuid4(),
-                service_record_id=self._resolve_service_record_id_for_new_repair(db, imei),
-                department_mission="DISMANTLE",
+                service_record_id=_dgd_ref,
+                department_mission=_montaj_grubu,
+                repair_id=self._onarim_ustu(db, _dgd_ref, _montaj_grubu, 1000),
                 repair_result_type_code=1000,
                 warranty_code="OOW",
                 part_item_code=dgd_item_code,
@@ -13774,7 +14455,8 @@ ORDER BY imei, departman, durum;
         db = SessionLocal()
         try:
             row = db.execute(text("""
-                SELECT rr.id, rr.department_mission, rr.repair_result_type_code, p.item_category
+                SELECT rr.id, rr.service_record_id, rr.department_mission,
+                       rr.repair_result_type_code, p.item_category
                 FROM warehouse.repair_records rr
                 LEFT JOIN warehouse.parts p ON p.item_code = rr.part_item_code
                 WHERE rr.id = :id
@@ -13789,11 +14471,37 @@ ORDER BY imei, departman, durum;
                 return json.dumps({"success": False, "message": "Bu işlem sadece DGD (otomatik L1 işçiliği) satırları için geçerlidir."})
 
             new_team = "L1REPAIR" if row["department_mission"] == "L2REPAIR" else "L2REPAIR"
-            db.execute(text("""
-                UPDATE warehouse.repair_records SET department_mission = :team WHERE id = :id
-            """), {"team": new_team, "id": repair_id})
+            _ref = row["service_record_id"]
+            _eski_grup = row["department_mission"]
+
+            # TAKIM DEĞİŞİMİ ONARIMIN TAMAMINA UYGULANIR.
+            # Bu işlem yeni bir onarım açmaz, VAR OLAN onarımın hangi montaj ekibine
+            # ait olduğunu değiştirir - yani yalnızca onarımın adı/ekibi değişir,
+            # içindeki parçalar aynı kalır. Eskiden sadece tıklanan DGD satırının
+            # department_mission'ı değişiyordu; aynı gruptaki diğer parçalar eski
+            # takımda kalıyor ve onarım İKİYE BÖLÜNÜYORDU (ör. DGD L2REPAIR'e geçerken
+            # parçalar L1REPAIR'de kalıyordu). Kapsam artık grubun tamamı.
+            #
+            # İptal edilmiş (1003) satırlar da taşınır: onlar da o onarımın geçmişidir,
+            # eski takımda bırakılırsa geçmiş iki ekibe dağılır.
+            etkilenen = db.execute(text("""
+                UPDATE warehouse.repair_records
+                   SET department_mission = :team, updated_at = NOW()
+                 WHERE service_record_id = :ref
+                   AND department_mission = :eski
+            """), {"team": new_team, "ref": _ref, "eski": _eski_grup}).rowcount or 0
+
+            # Grup değiştiği için üst kayıt da hedef takımın onarımı olmalı.
+            _yeni_ust = self._onarim_ustu(
+                db, _ref, new_team, row["repair_result_type_code"])
+            if _yeni_ust:
+                db.execute(text("""
+                    UPDATE warehouse.repair_records SET repair_id = :ust
+                     WHERE service_record_id = :ref AND department_mission = :team
+                """), {"ust": _yeni_ust, "ref": _ref, "team": new_team})
+            self._onarimlari_tazele(db, _ref, staff=username, source="dgd_takim_degistir")
             db.commit()
-            return json.dumps({"success": True, "new_team": new_team})
+            return json.dumps({"success": True, "new_team": new_team, "affected": etkilenen})
         except Exception as e:
             db.rollback()
             return json.dumps({"success": False, "message": str(e)})
@@ -13830,26 +14538,33 @@ ORDER BY imei, departman, durum;
                 SELECT rr.id, rr.warranty_code
                 FROM warehouse.repair_records rr
                 JOIN warehouse.parts p ON p.item_code = rr.part_item_code
-                LEFT JOIN warehouse.repair_result_type rrt ON rrt.code = rr.repair_result_type_code
                 WHERE rr.service_record_id = ANY(:refs) AND p.item_category = 'DGD'
                   AND rr.part_item_code != 'DGDDEC'
-                  AND COALESCE(rrt.is_cancelled, FALSE) = FALSE
+                  AND COALESCE(rr.part_status_code, 2000) NOT IN
+                       (SELECT code FROM warehouse.repair_part_status WHERE is_removed)
             """), {"refs": repair_refs}).mappings().all()
             if not active_dgd_rows:
                 return json.dumps({"success": False, "message": "İade edilecek aktif bir DGD işçilik kaydı yok."})
 
             for row in active_dgd_rows:
+                # AŞAMA 4: parça listeden çıkarılır (kendi ekseni); onarımın 1003'e
+                # düşmesini "tüm parçaları silindi" kuralı _onarimlari_tazele'de sağlar.
                 db.execute(text("""
                     UPDATE warehouse.repair_records
-                       SET repair_result_type_code = 1003, closed_at = now(), updated_at = now()
+                       SET part_status_code = 2001,
+                           repair_result_type_code = 1003, closed_at = now(), updated_at = now()
                      WHERE id = :id
                 """), {"id": row["id"]})
 
             warranty_code = active_dgd_rows[0]["warranty_code"] or "OOW"
+            _iade_ref = self._resolve_service_record_id_for_new_repair(db, device_ref)
+            # İade işçiliği de bir montaj işçilik kalemidir - DGD ile aynı yere düşer.
+            _iade_grubu = self._cihazin_montaj_grubu(db, _iade_ref)
             rec = RepairRecord(
                 id=uuid.uuid4(),
-                service_record_id=self._resolve_service_record_id_for_new_repair(db, device_ref),
-                department_mission="DISMANTLE",
+                service_record_id=_iade_ref,
+                department_mission=_iade_grubu,
+                repair_id=self._onarim_ustu(db, _iade_ref, _iade_grubu, 1000),
                 repair_result_type_code=1000,
                 warranty_code=warranty_code,
                 part_item_code="DGDDEC",
@@ -14821,7 +15536,6 @@ ORDER BY imei, departman, durum;
                -- tamamı bedavaya düşer ve fatura sessizce sıfırlanırdı.
                COALESCE(w.is_paid_for, TRUE) AS ucretli
           FROM warehouse.repair_records rr
-          LEFT JOIN warehouse.repair_result_type rrt ON rrt.code = rr.repair_result_type_code
           LEFT JOIN warehouse.repair_item_warranty w ON w.code = rr.warranty_code
           LEFT JOIN warehouse.parts pp ON pp.item_code = rr.part_item_code
           LEFT JOIN LATERAL (
@@ -14835,7 +15549,8 @@ ORDER BY imei, departman, durum;
           LEFT JOIN warehouse.item_labour il
                  ON il.code = TRIM(COALESCE(ic.item_labour, '')) AND il.enabled
          WHERE rr.service_record_id = ANY(:refs)
-           AND COALESCE(rrt.is_cancelled, FALSE) = FALSE
+           AND COALESCE(rr.part_status_code, 2000) NOT IN
+                       (SELECT code FROM warehouse.repair_part_status WHERE is_removed)
          ORDER BY il.order_number DESC NULLS LAST, rr.created_at
     """
 
@@ -14917,9 +15632,9 @@ ORDER BY imei, departman, durum;
         # parça sorgusu iptalleri elediği için ayrı sorgu gerekir.
         durum = db.execute(text("""
             SELECT COUNT(*) AS toplam,
-                   COUNT(*) FILTER (WHERE COALESCE(rrt.is_cancelled, FALSE)) AS iptal
+                   COUNT(*) FILTER (WHERE COALESCE(rr.part_status_code, 2000) IN
+                          (SELECT code FROM warehouse.repair_part_status WHERE is_removed)) AS iptal
               FROM warehouse.repair_records rr
-              LEFT JOIN warehouse.repair_result_type rrt ON rrt.code = rr.repair_result_type_code
              WHERE rr.service_record_id = ANY(:refs)
         """), {"refs": list(repair_refs)}).mappings().first()
         toplam_onarim = int(durum["toplam"] or 0)
@@ -15465,7 +16180,7 @@ ORDER BY imei, departman, durum;
 
             ilk = kayitlar[0]["entry"]
             musteri_adi = ilk["customer_name"] or customer_code
-            yil = str(_dt.datetime.now().year)
+            yil = str(tr_now().year)
             sira = db.execute(text("""
                 SELECT COALESCE(MAX(CAST(NULLIF(split_part(invoice_no, '-', 3), '') AS integer)), 0) + 1
                   FROM warehouse.invoices
@@ -16268,6 +16983,20 @@ ORDER BY imei, departman, durum;
             if cakisma:
                 return json.dumps({"success": False, "message": cakisma}, ensure_ascii=False)
 
+            # KATEGORİ ↔ DEPARTMAN. Düzenleme yolu ekleme yoluyla aynı kuralı
+            # uygulamalı: aksi halde kayıt önce doğru departmanla açılıp sonra
+            # "Düzenle"den uyumsuz bir gruba taşınabilir (kural iki yerde ayrı
+            # yazılırsa zamanla ayrışır - bkz. _parca_cakisma_engeli'nin gerekçesi).
+            if yeni_parca:
+                from sqlalchemy import text as _t_kat
+                _kat = db.execute(
+                    _t_kat("SELECT item_category FROM warehouse.parts WHERE item_code = :c"),
+                    {"c": yeni_parca},
+                ).scalar()
+                kat_engel = self._kategori_departman_engeli(db, yeni_parca, _kat, mission_group_code)
+                if kat_engel:
+                    return json.dumps({"success": False, "message": kat_engel}, ensure_ascii=False)
+
             rec.department_mission = mission_group_code.strip()
             rec.warranty_code = warranty_code.strip() if warranty_code else "OOW"
             rec.notes = notes.strip() if notes else None
@@ -16299,12 +17028,38 @@ ORDER BY imei, departman, durum;
                 if required and required not in user_missions:
                     return json.dumps({"success": False, "message": f"Bu işlem için '{required}' yetkisi gerekiyor."})
 
+            # DGD İŞÇİLİK SATIRI SİLİNEMEZ - bkz. cancel_repair_record. Burada kalıcı
+            # DELETE yapıldığı için eksikliği daha ağırdı: satır geri dönüşsüz gidiyor,
+            # cihaz DGD'siz kalıyor ve "her cihazda DGD vardır" varsayımına dayanan
+            # kurallar (işçilik/fatura hesabı, L1 başlama kontrolü) sessizce bozuluyordu.
+            if self._dgd_kaydi_mi(db, rec):
+                return json.dumps({
+                    "success": False,
+                    "message": "DGD işçilik satırı silinemez. Flow'a göre eklenir, elle kaldırılamaz."
+                }, ensure_ascii=False)
+
             silinen_ref = rec.service_record_id
+            silinen_ust = rec.repair_id
             db.delete(rec)
             # Silinen kayıt üst seviyedeki son açık iş olabilir; alt seviyeler
             # beklemede kalmasın.
             db.flush()
-            self._sync_hierarchy_wait(db, silinen_ref)
+            # SON PARÇASI SİLİNEN ONARIM DA GİDER. Bu, kaydı 1003'e çeken iptal
+            # yollarından farklıdır: burada satır kalıcı olarak siliniyor, dolayısıyla
+            # geriye içi boş bir onarım bırakmak anlamsız. Boş kalan üst kayıt zararsız
+            # görünür ama "aktif onarım tek" indeksinde yer tutar ve Aşama 3'ten sonra
+            # ekranlarda parçasız bir hayalet onarım olarak listelenir.
+            # _onarimlari_tazele bilerek parçasız üst kayda dokunmaz (o, iptal edilmiş
+            # ama satırları duran onarımları korumak için); temizlik burada yapılır.
+            if silinen_ust:
+                from sqlalchemy import text as _t_ust
+                db.execute(_t_ust("""
+                    DELETE FROM warehouse.repairs r
+                     WHERE r.id = :ust
+                       AND NOT EXISTS (SELECT 1 FROM warehouse.repair_records rr
+                                        WHERE rr.repair_id = r.id)
+                """), {"ust": silinen_ust})
+            self._sync_hierarchy_wait(db, silinen_ref, staff=username, source="onarim_sil")
             db.commit()
             return json.dumps({"success": True})
         except Exception as e:
@@ -16326,10 +17081,39 @@ ORDER BY imei, departman, durum;
             if not rec:
                 return json.dumps({"success": False, "message": "Onarım kaydı bulunamadı."})
 
-            if rec.repair_result_type_code == 1003:
+            # AŞAMA 4: parçanın kendi ekseni.
+            if self._parca_silinmis_mi(rec):
                 return json.dumps({"success": False, "message": "Bu kayıt zaten iptal edilmiş."})
 
+            # DGD İŞÇİLİK SATIRI İPTAL EDİLEMEZ. Kurgu gereği her cihazda bir DGD
+            # satırı bulunur: Flow'a göre otomatik eklenir (bkz. open_device_for_dismantle,
+            # flow_dgd_mapping), teknisyenin girdiği bir parça değildir ve elle
+            # kaldırılamaz. cancel_repair_part ve update_repair_status bu korumayı
+            # zaten uyguluyordu; Müşteri Onay/Red ekranının kullandığı bu yol ile
+            # delete_repair_record'da eksikti - oradan DGD iptal edilebiliyordu.
+            if self._dgd_kaydi_mi(db, rec):
+                return json.dumps({
+                    "success": False,
+                    "message": "DGD işçilik satırı iptal edilemez. Flow'a göre eklenir, elle kaldırılamaz."
+                }, ensure_ascii=False)
+
+            # AŞAMA 4 / ADIM 1: silinme parçanın kendi ekseninde (bkz. cancel_repair_part).
+            rec.part_status_code = self.PARCA_DURUMU_SILINDI
             rec.repair_result_type_code = 1003
+            # İPTAL EDİLEN KAYIT ÜST SEVİYENİN SON AÇIK İŞİ OLABİLİR. Kardeş iptal
+            # yolu (cancel_repair_part) senkronu çağırıyordu, bu yol çağırmıyordu:
+            # Müşteri Onay/Red ekranından üst seviyedeki son parça iptal edilince
+            # alt seviye kayıtlar engelleyen bir şey kalmadığı hâlde 1004'te (Yüksek
+            # Seviye Onarımını Bekliyor) asılı kalıyor, ancak cihaza yapılan başka
+            # bir işlem ya da açılıştaki genel tarama (_ensure_hierarchy_wait_sync)
+            # onları serbest bırakıyordu.
+            #
+            # _auto_send_to_intermediate_test BİLEREK çağrılmıyor - cancel_repair_part
+            # ile aynı gerekçe: iptal bir düzenleme işlemidir, kullanıcı çoğu zaman
+            # yerine doğrusunu girecektir. Cihaz o an 138'e kaçarsa Üretim Kaydını
+            # Görüntüle ekranı onu artık açamaz (yalnızca 109'u açıyor).
+            db.flush()
+            self._sync_hierarchy_wait(db, rec.service_record_id, staff=username, source="onarim_iptal")
             db.commit()
             return json.dumps({"success": True, "message": "Onarım kaydı iptal edildi (1003)."})
         except Exception as e:
@@ -16376,8 +17160,8 @@ ORDER BY imei, departman, durum;
                     OR (:onay_ani IS NOT NULL AND rr.created_at > :onay_ani)) AS onay_kapsaminda_degil
             FROM warehouse.repair_records rr
             LEFT JOIN warehouse.parts p ON p.item_code = rr.part_item_code
-            LEFT JOIN warehouse.repair_result_type rrt ON rrt.code = rr.repair_result_type_code
-            WHERE rr.service_record_id = ANY(:refs) AND COALESCE(rrt.is_cancelled, FALSE) = FALSE
+            WHERE rr.service_record_id = ANY(:refs) AND COALESCE(rr.part_status_code, 2000) NOT IN
+                       (SELECT code FROM warehouse.repair_part_status WHERE is_removed)
         """), {"refs": repair_refs, "onay_ani": onay_ani}).mappings().all()
 
         if not repair_rows:
@@ -16756,8 +17540,19 @@ ORDER BY imei, departman, durum;
     # order_number'ı OLMAYAN gruplar (DISMANTLE/Demontaj, TEST vb.) sıralamaya
     # HİÇ girmez: ne bekletilir ne de başkasını bekletir, her zaman görünür kalır.
     HIERARCHY_WAIT_CODE = 1004
-    # Beklemeye yalnızca bu iki kod alınır. 1005 (müşteri onayı), 1006 (bitiş
-    # testi), 1007, 1008 zaten kendi kapılarında bekliyor - onlara dokunulmaz.
+    # Beklemeye yalnızca bu iki kod alınır. 1005 (müşteri onayı) ve 1006 (bitiş
+    # testi) zaten kendi kapılarında bekliyor - onlara dokunulmaz.
+    #
+    # 1008 (Parça Bekleniyor) burada YOK, çünkü parça satırına hiç yazılmaz:
+    # türetilmiş bir ONARIM statüsüdür (bkz. _onarimlari_tazele). Parça bekleyen
+    # bir onarımın satırları 1001'de kalır ve seviyelendirme onları normal şekilde
+    # 1004'e alabilir - üst seviye engeli parça beklemesinden güçlüdür.
+    #
+    # 1008 (Parça Bekleniyor) BU LİSTEDE OLMAMALI. Beklemeye alınsa 1004'e düşerdi;
+    # 1004 ise teslime kapalı (bkz. TESLIME_ACIK_KODLAR), yani teknisyenin beklediği
+    # parça bir anda verilemez hâle gelir ve onarım kilitlenir. 1008'deki onarım
+    # açık sayılmaya devam eder (alt seviyeleri bekletir), parçası teslim edilip
+    # 1001'e döndüğünde sıra kuralı onu normal şekilde işler.
     HIERARCHY_MOVABLE_CODES = (1000, 1001)
 
     # İÇİNDE PARÇA OLMAYAN ONARIM SEVİYELENDİRMEYE GİRMEZ. Parçası seçilmemiş bir
@@ -16770,21 +17565,48 @@ ORDER BY imei, departman, durum;
     # Bir cihazın açık onarımları arasındaki EN YÜKSEK grup sırası. Beklemeye
     # alma ve serbest bırakma kararlarının ikisi de bunu ölçüt alır; iki sorguda
     # ayrı yazılırsa zamanla ayrışır.
-    _HIERARCHY_TOP_SQL = """
-        SELECT MAX(mg2.order_number)
-          FROM warehouse.repair_records rr2
-          JOIN organization.mission_groups mg2 ON mg2.code = rr2.department_mission
-         WHERE rr2.service_record_id = rr.service_record_id
-           AND COALESCE(rr2.repair_result_type_code, 0) NOT IN (1002, 1003)
+    #
+    # KAPSAM CİHAZDIR, TEK REFERANS DEĞİL. Bir cihazın onarım kayıtları iki ayrı
+    # anahtar altında durabiliyor (IMEI ve service_id - bkz. _cihaz_referanslari).
+    # Korelasyon "rr2.service_record_id = rr.service_record_id" ile kurulduğunda
+    # üst seviye onarım bir referansta, alt seviye diğerindeyse birbirlerini HİÇ
+    # görmüyor ve sıra kuralı sessizce devre dışı kalıyordu. Çağrı bir cihaz için
+    # yapıldığında referansların tamamı kapsama alınır; referanssız genel taramada
+    # (açılış) eski korelasyon korunur - orada "hangi cihaz" bilgisi yoktur.
+    # AŞAMA 4 / ADIM 3: ÖLÇÜT ARTIK ONARIM TABLOSUNDAN. Açıklık onarımın statüsü;
+    # "içinde parça var mı" ise hâlâ parça satırlarının sorusu - bu yüzden EXISTS ile
+    # sorulur (parçasız onarım kimseyi bekletmez, bkz. _HIERARCHY_PART_FILTER notu).
+    _HIERARCHY_TOP_ORTAK = """
+           AND COALESCE(onr2.repair_result_type_code, 0) NOT IN (1002, 1003)
            AND mg2.order_number IS NOT NULL
-           AND COALESCE(TRIM(rr2.part_item_code), '') <> ''
+           AND EXISTS (SELECT 1 FROM warehouse.repair_records rp2
+                        WHERE rp2.repair_id = onr2.id
+                          AND COALESCE(TRIM(rp2.part_item_code), '') <> ''
+                          AND COALESCE(rp2.part_status_code, 2000) NOT IN
+                              (SELECT code FROM warehouse.repair_part_status WHERE is_removed))
     """
 
-    def _sync_hierarchy_wait(self, db, service_record_id=None):
+    def _hierarchy_top_sql(self, cihaz_kapsamli):
+        kaynak = ("onr2.service_record_id = ANY(:refs)" if cihaz_kapsamli
+                  else "onr2.service_record_id = onr.service_record_id")
+        return f"""
+        SELECT MAX(mg2.order_number)
+          FROM warehouse.repairs onr2
+          JOIN organization.mission_groups mg2 ON mg2.code = onr2.department_mission
+         WHERE {kaynak}
+           {self._HIERARCHY_TOP_ORTAK}
+        """
+
+    def _sync_hierarchy_wait(self, db, service_record_id=None, staff=None, source=None):
         """Bir cihazın açık onarımlarını görev grubu sırasına göre 1004'e alır ya
         da 1004'ten çıkarır.
 
         service_record_id verilmezse TÜM cihazlar taranır (açılışta bir kez).
+        Verilirse o CİHAZIN TÜM REFERANSLARI kapsama alınır (bkz. _cihaz_referanslari):
+        onarım kayıtları IMEI ve service_id altında bölünmüş olabiliyor, tek referansla
+        çalışan eski hâli böyle bir cihazda üst ve alt seviyeyi birbirine hiç
+        göstermiyordu.
+
         COMMIT ETMEZ - çağıran kendi transaction'ında commit eder; böylece onarım
         ekleme/tamamlama ile bekleme durumu tek atomik yazma olur.
 
@@ -16793,42 +17615,225 @@ ORDER BY imei, departman, durum;
 
         params = {}
         filtre = ""
+        refs = []
         if service_record_id:
-            filtre = " AND rr.service_record_id = :ref "
-            params["ref"] = str(service_record_id)
+            refs = self._cihaz_referanslari(db, service_record_id) or [str(service_record_id)]
+            filtre = " AND onr.service_record_id = ANY(:refs) "
+            params["refs"] = refs
+        ust_sql = self._hierarchy_top_sql(bool(refs))
+
+        # AŞAMA 4 / ADIM 3: BEKLEMEYE ALMA ARTIK ONARIM SATIRINA YAZILIR.
+        # Eskiden parça satırlarına yazılıyordu ve aynı onarımın parçaları farklı
+        # kodlarda kalabiliyordu; 1004 "sırası gelmedi" demek ve bu, tek tek
+        # parçaların değil onarımın durumudur. Parça kolonlarına aşağı yansıtma
+        # _onarimlari_tazele'de yapılır.
 
         # 1) Sırası gelmemişleri beklemeye al. mg.order_number < üst seviye.
         #    NULL sıralı gruplar IS NOT NULL ile zaten dışarıda.
         bekleyen = db.execute(_t(f"""
-            UPDATE warehouse.repair_records rr
+            UPDATE warehouse.repairs onr
                SET repair_result_type_code = {self.HIERARCHY_WAIT_CODE},
                    updated_at = NOW()
               FROM organization.mission_groups mg
-             WHERE mg.code = rr.department_mission
-               AND rr.repair_result_type_code IN {self.HIERARCHY_MOVABLE_CODES}
+             WHERE mg.code = onr.department_mission
+               AND onr.repair_result_type_code IN {self.HIERARCHY_MOVABLE_CODES}
                AND mg.order_number IS NOT NULL
                {filtre}
-               AND mg.order_number < ({self._HIERARCHY_TOP_SQL})
+               AND mg.order_number < ({ust_sql})
         """), params).rowcount or 0
 
         # 2) Sırası gelenleri serbest bırak. Teknisyeni varsa 1001'e (onarımda),
         #    yoksa 1000'e (teknisyene atanacak) döner - atama korunur.
         #    NULL sıralı bir kayıt yanlışlıkla 1004'te kaldıysa o da açılır.
         serbest = db.execute(_t(f"""
-            UPDATE warehouse.repair_records rr
+            UPDATE warehouse.repairs onr
                SET repair_result_type_code = CASE
-                       WHEN COALESCE(TRIM(rr.assigned_technician), '') <> '' THEN 1001
+                       WHEN COALESCE(TRIM(onr.assigned_technician), '') <> '' THEN 1001
                        ELSE 1000 END,
                    updated_at = NOW()
               FROM organization.mission_groups mg
-             WHERE mg.code = rr.department_mission
-               AND rr.repair_result_type_code = {self.HIERARCHY_WAIT_CODE}
+             WHERE mg.code = onr.department_mission
+               AND onr.repair_result_type_code = {self.HIERARCHY_WAIT_CODE}
                {filtre}
                AND (mg.order_number IS NULL
-                    OR mg.order_number >= COALESCE(({self._HIERARCHY_TOP_SQL}), mg.order_number))
+                    OR mg.order_number >= COALESCE(({ust_sql}), mg.order_number))
         """), params).rowcount or 0
 
+        # AŞAMA 2b: parça statüleri değiştiğine göre üst kayıtlar da tazelenmeli.
+        # Buradan çağrılıyor olması bilinçli: _sync_hierarchy_wait, statü değiştiren
+        # 12 yazma yolunun HEPSİNDEN commit'ten hemen önce çağrılıyor. Tek noktaya
+        # bağlamak, her yazma yoluna ayrı satır eklemekten hem daha az riskli hem de
+        # kendini onarır - bir yol atlansa bile bir sonraki işlemde ebeveyn düzelir.
+        # Kapsam neyse tazeleme de o: cihazın tüm referansları (ya da genel tarama).
+        for _r in (refs or [None]):
+            self._onarimlari_tazele(db, _r, staff=staff, source=source)
+
         return bekleyen, serbest
+
+    # ── ONARIM ÜST KAYDINI PARÇALARINDAN YENİDEN HESAPLA (AŞAMA 2b) ──────
+    # Geçiş dönemi kuralı: GERÇEK KAYNAK hâlâ parça satırlarıdır (26 okuma yolu
+    # oradan okuyor), ebeveyn ise onlardan TÜRETİLİR. Aşama 3'te okuyucular
+    # ebeveyne geçtiğinde yön tersine dönecek; Aşama 4'te parça satırındaki statü
+    # kolonları düşürülünce bu tazeleme tamamen kalkacak.
+    def _onarim_sure_turlari(self, db, onarim_idler):
+        """Onarım süresi = yalnızca 1001 (Teknisyene Atandı) durumunda geçen zaman.
+
+        Defterdeki her "1001'e giriş" satırı bir TUR açar, bir sonraki satır (kod ne
+        olursa olsun) o turu kapatır. 1004/1005/1006 beklemeleri tur dışında kalır.
+        Yeniden açılan onarımda turlar AYRI döner, TOPLANMAZ - kullanıcı kuralı.
+
+        Süre her onarımın (yani her DEPARTMANIN) kendi ekseninde tutulur. Aynı
+        order_number'a sahip onarımlar (Batarya/Kamera/Ekran/Kasa = 7) eşzamanlı
+        yürüyebildiği için turların çakışması normaldir; cihaz düzeyinde tek bir
+        toplam üretilmez.
+
+        KULLANIM: yalnızca süre RAPORU. Operasyon ekranlarında (Üretim Kaydını
+        Görüntüle / Onarım Havuzu / Bitiş Testi) süre GÖSTERİLMEZ - kullanıcı
+        kararı; ölçüm raporu çekmeye yetkili kişilere aittir.
+
+        Dönen: {onarim_id: [{"baslangic","bitis","saniye","acik"}, ...]}"""
+        from sqlalchemy import text as _t
+        idler = [str(i) for i in (onarim_idler or []) if i]
+        if not idler:
+            return {}
+        try:
+            rows = db.execute(_t("""
+                WITH defter AS (
+                    SELECT repair_id, new_code, created_at,
+                           LEAD(created_at) OVER (
+                               PARTITION BY repair_id ORDER BY created_at, id) AS sonraki
+                      FROM warehouse.repair_status_history
+                     WHERE repair_id = ANY(CAST(:idler AS uuid[]))
+                )
+                SELECT repair_id, created_at AS baslangic, sonraki AS bitis,
+                       EXTRACT(EPOCH FROM (COALESCE(sonraki, NOW()) - created_at))::bigint AS saniye
+                  FROM defter
+                 WHERE new_code = 1001
+                 ORDER BY repair_id, created_at
+            """), {"idler": idler}).mappings().all()
+        except Exception as e:
+            print(f"[WebBridge] onarım süre turları okunamadı: {e}")
+            return {}
+
+        sonuc = {}
+        for r in rows:
+            sonuc.setdefault(str(r["repair_id"]), []).append({
+                "baslangic": r["baslangic"].isoformat() if r["baslangic"] else "",
+                "bitis": r["bitis"].isoformat() if r["bitis"] else "",
+                "saniye": int(r["saniye"] or 0),
+                "acik": r["bitis"] is None,
+            })
+        return sonuc
+
+    def _onarimlari_tazele(self, db, service_record_id=None, staff=None, source=None):
+        """ONARIM ASIL KAYITTIR; bu metot onu PARÇA satırlarına AŞAĞI YANSITIR.
+
+        AŞAMA 4 / ADIM 3'TE YÖN TERSİNE DÖNDÜ. Önceden parça satırları gerçek
+        kaynaktı ve üst kayıt onlardan hesaplanıyordu; artık statü, teknisyen ve
+        kapanış zamanı doğrudan warehouse.repairs'e yazılıyor. Burada iki iş yapılır:
+
+          1) 1008 (Parça Bekleniyor) TÜRETMESİ - tek kalan türetme.
+             Onarım 1001'ken herhangi bir aktif parçası 'Yedek Parça Bekleniyor'
+             depo durumundaysa onarım 1008 olur; o parça depodan çıkınca (muadil
+             dahil) koşul kalkar ve onarım 1001'e döner. Bu yüzden 1008 için ayrı
+             bir "geri al" yolu yoktur.
+
+          2) AŞAĞI YANSITMA - onarımın statü/teknisyen/kapanış bilgisi parça
+             satırlarına kopyalanır. Parça kolonları Adım 5'te düşürülecek; o güne
+             kadar bu kolonları okuyan yerler (fatura, eski raporlar, henüz
+             çevrilmemiş sorgular) doğru değeri görmeye devam etsin diye yansıtılır.
+             SİLİNMİŞ PARÇA HARİÇ: onun satırı 1003'te kalır, çünkü eski okuyucular
+             "listeden çıkarılmış"ı hâlâ 1003'ten anlıyor.
+
+        Statü değişimi defterine (repair_status_history) yazan yer de burasıdır.
+
+        COMMIT ETMEZ - çağıran kendi transaction'ında commit eder."""
+        from sqlalchemy import text as _t
+        params = {"ref": (service_record_id or None), "bekleme": self.YEDEK_PARCA_BEKLENIYOR}
+
+        # ── 1) 1008 TÜRETMESİ ──
+        # Yalnızca 1001 ↔ 1008 arasında gidip gelir; 1004/1005/1006 daha güçlü
+        # engellerdir, onların önüne geçmez.
+        _hedef = """
+                WITH parca AS (
+                    SELECT rr.repair_id,
+                           BOOL_OR(TRIM(COALESCE(rr.supply_status_code, '')) = :bekleme
+                                   AND COALESCE(rr.part_status_code, 2000) NOT IN
+                                       (SELECT code FROM warehouse.repair_part_status WHERE is_removed)) AS bekleyen_var,
+                           count(*) FILTER (WHERE COALESCE(rr.part_status_code, 2000) NOT IN
+                               (SELECT code FROM warehouse.repair_part_status WHERE is_removed)) AS aktif,
+                           count(*) AS toplam
+                      FROM warehouse.repair_records rr
+                     WHERE rr.repair_id IS NOT NULL
+                       AND (:ref IS NULL OR rr.service_record_id = :ref)
+                     GROUP BY rr.repair_id
+                ), hesap AS (
+                    SELECT r.id AS repair_id,
+                           CASE
+                                -- TÜM PARÇALARI SİLİNEN ONARIM İPTALDİR. Eskiden bu, statü
+                                -- parçalardan türetildiği için kendiliğinden oluyordu; yön
+                                -- tersine dönünce kural açıkça yazılmak zorunda. "toplam > 0"
+                                -- şartı, hiç parçası olmayan yeni üst kaydı korur.
+                                WHEN COALESCE(p.toplam, 0) > 0 AND COALESCE(p.aktif, 0) = 0 THEN 1003
+                                WHEN COALESCE(p.bekleyen_var, FALSE) AND r.repair_result_type_code = 1001 THEN 1008
+                                WHEN NOT COALESCE(p.bekleyen_var, FALSE) AND r.repair_result_type_code = 1008 THEN 1001
+                                ELSE r.repair_result_type_code END AS kod
+                      FROM warehouse.repairs r
+                      LEFT JOIN parca p ON p.repair_id = r.id
+                     WHERE (:ref IS NULL OR r.service_record_id = :ref)
+                )"""
+        try:
+            # Defter UPDATE'ten ÖNCE yazılır: eski kod ancak güncellenmeden önce okunur.
+            db.execute(_t(_hedef + """
+                INSERT INTO warehouse.repair_status_history
+                    (repair_id, service_record_id, department_mission,
+                     old_code, new_code, staff_name, source)
+                SELECT r.id, r.service_record_id, r.department_mission,
+                       r.repair_result_type_code, h.kod, :staff, :source
+                  FROM warehouse.repairs r
+                  JOIN hesap h ON h.repair_id = r.id
+                 WHERE r.repair_result_type_code IS DISTINCT FROM h.kod
+            """), {**params, "staff": (staff or None), "source": (source or "sistem")})
+        except Exception as e:
+            # Defter yazılamazsa asıl işlem durmamalı - iz kaybı, veri kaybı değil.
+            print(f"[WebBridge] onarım statü geçmişi yazılamadı ({service_record_id}): {e}")
+
+        try:
+            db.execute(_t(_hedef + """
+                UPDATE warehouse.repairs r
+                   SET repair_result_type_code = h.kod,
+                       updated_at = NOW()
+                  FROM hesap h
+                 WHERE r.id = h.repair_id
+                   AND r.repair_result_type_code IS DISTINCT FROM h.kod
+            """), params)
+        except Exception as e:
+            print(f"[WebBridge] 1008 türetmesi uygulanamadı ({service_record_id}): {e}")
+
+        # ── 2) AŞAĞI YANSITMA ──
+        try:
+            db.execute(_t("""
+                UPDATE warehouse.repair_records rr
+                   SET repair_result_type_code = r.repair_result_type_code,
+                       assigned_technician = r.assigned_technician,
+                       assigned_by = r.assigned_by,
+                       assigned_at = r.assigned_at,
+                       closed_at = r.closed_at,
+                       updated_at = NOW()
+                  FROM warehouse.repairs r
+                 WHERE r.id = rr.repair_id
+                   AND (:ref IS NULL OR rr.service_record_id = :ref)
+                   AND COALESCE(rr.part_status_code, 2000) NOT IN
+                       (SELECT code FROM warehouse.repair_part_status WHERE is_removed)
+                   AND (rr.repair_result_type_code IS DISTINCT FROM r.repair_result_type_code
+                     OR rr.assigned_technician IS DISTINCT FROM r.assigned_technician
+                     OR rr.assigned_by IS DISTINCT FROM r.assigned_by
+                     OR rr.assigned_at IS DISTINCT FROM r.assigned_at
+                     OR rr.closed_at IS DISTINCT FROM r.closed_at)
+            """), {"ref": (service_record_id or None)})
+        except Exception as e:
+            print(f"[WebBridge] onarım bilgisi parçalara yansıtılamadı ({service_record_id}): {e}")
+
 
     # ── SON ONARIM BİTİNCE OTOMATİK ARA TESTE GÖNDER (109 → 138) ─────────
     # İş sırasının en altındaki grup (L1/L2) bitince cihazda açık onarım kalmaz;
@@ -16885,29 +17890,53 @@ ORDER BY imei, departman, durum;
         # Tamamlama engelleri (teknisyen ataması, parça teslimi) BİLEREK aranmaz:
         # ortada teslim edilecek parça yok ve bu, kullanıcının bastığı bir buton
         # değil sistemin kendi kapanışı. İz kalsın diye nota yazılır.
+        # AŞAMA 4 / ADIM 2: AÇIKLIK ONARIMIN, "parçası var mı" PARÇANIN sorusudur.
         parcali_acik = db.execute(_t(f"""
             SELECT count(*) FROM warehouse.repair_records rr
+             LEFT JOIN warehouse.repairs onr ON onr.id = rr.repair_id
              WHERE rr.service_record_id = ANY(:refs)
-               AND COALESCE(rr.repair_result_type_code, 0) NOT IN (1002, 1003)
+               AND COALESCE(onr.repair_result_type_code, rr.repair_result_type_code, 0)
+                   NOT IN (1002, 1003)
+               AND COALESCE(rr.part_status_code, 2000) NOT IN
+                   (SELECT code FROM warehouse.repair_part_status WHERE is_removed)
                AND NOT {self._PARCA_GIRILMEMIS_KOSULU}
         """), {"refs": refs}).scalar() or 0
         if parcali_acik:
             return None
 
+        # AŞAMA 4 / ADIM 3: kapatma ONARIMA yazılır; iz notu parçada kalır.
         db.execute(_t(f"""
             UPDATE warehouse.repair_records rr
-               SET repair_result_type_code = 1002,
-                   closed_at = NOW(),
-                   updated_at = NOW(),
-                   notes = TRIM(BOTH ' ' FROM COALESCE(rr.notes, '') ||
-                                ' [parça girilmedi - diğer onarımlar bitince otomatik tamamlandı]')
+               SET notes = TRIM(BOTH ' ' FROM COALESCE(rr.notes, '') ||
+                                ' [parça girilmedi - diğer onarımlar bitince otomatik tamamlandı]'),
+                   updated_at = NOW()
              WHERE rr.service_record_id = ANY(:refs)
                AND COALESCE(rr.repair_result_type_code, 0) NOT IN (1002, 1003)
                AND {self._PARCA_GIRILMEMIS_KOSULU}
         """), {"refs": refs})
+        db.execute(_t(f"""
+            UPDATE warehouse.repairs onr
+               SET repair_result_type_code = 1002, closed_at = NOW(), updated_at = NOW()
+             WHERE onr.service_record_id = ANY(:refs)
+               AND COALESCE(onr.repair_result_type_code, 0) NOT IN (1002, 1003)
+               -- İçindeki TÜM parçalar "parça girilmemiş" sayılıyorsa onarım kapanır.
+               AND NOT EXISTS (
+                   SELECT 1 FROM warehouse.repair_records rr
+                    WHERE rr.repair_id = onr.id
+                      AND COALESCE(rr.part_status_code, 2000) NOT IN
+                          (SELECT code FROM warehouse.repair_part_status WHERE is_removed)
+                      AND NOT {self._PARCA_GIRILMEMIS_KOSULU})
+        """), {"refs": refs})
 
+        # AŞAMA 2b: bu metot _sync_hierarchy_wait'ten SONRA çalışıyor, dolayısıyla
+        # yukarıdaki otomatik kapatmalar üst kayda oradan yansımaz - burada tazelenir.
+        for _r in refs:
+            self._onarimlari_tazele(db, _r)
+
+        # AŞAMA 4 / ADIM 2: "cihazda açık iş kaldı mı" bir ONARIM sorusudur; artık
+        # parça satırları sayılmıyor, doğrudan onarım tablosuna bakılıyor.
         acik = db.execute(_t("""
-            SELECT count(*) FROM warehouse.repair_records
+            SELECT count(*) FROM warehouse.repairs
              WHERE service_record_id = ANY(:refs)
                AND COALESCE(repair_result_type_code, 0) NOT IN (1002, 1003)
         """), {"refs": refs}).scalar() or 0
@@ -16939,15 +17968,23 @@ ORDER BY imei, departman, durum;
         from sqlalchemy import text as _t
         db = SessionLocal()
         try:
-            # DGD SEVİYELENDİRMEYE GİRER. DISMANTLE'ın order_number'ı NULL'dı; sıra
-            # numarası olmayan grup _sync_hierarchy_wait tarafından hiç değerlendirilmiyor,
-            # bu yüzden üstünde açık Batarya/Kamera onarımı olsa bile DGD 1000/1001'de
-            # takılı kalıyordu. L1REPAIR/L2REPAIR ile aynı seviyeye (6) alınır - DGD
-            # zaten ekranda L1 olarak görünüyor ve L1 seviyesinde bir iştir.
+            # DEMONTAJ SIRALAMAYA GİRMEZ.
+            # Buraya eskiden "DISMANTLE.order_number = 6" yazan bir güncelleme konmuştu;
+            # gerekçesi "DGD ekranda L1 olarak görünüyor ve L1 seviyesinde bir iştir" idi.
+            # Bu, DEMONTAJ ile MONTAJ'ı aynı şey sanmaktan kaynaklanıyordu. Gerçek akış:
+            #
+            #   DEMONTAJ  → cihazı söker, değişecek parçaları belirler, "Üretime Aktar" der
+            #   ONARIMLAR → RMA 99 · L3 9 · Batarya/Kamera/Ekran/Kasa 7
+            #   MONTAJ    → L1/L2 (6), tüm onarımlar bittikten SONRA cihazı toplar
+            #
+            # Demontaj bir onarım departmanı değil, onarım aşamasını BAŞLATAN adımdır;
+            # dolayısıyla iş sırasına hiç girmez (ne bekler ne bekletir). DGD ise montaj
+            # işçiliğidir ve L1REPAIR/L2REPAIR altında durur - sıra 6 orada zaten
+            # montajın en sonda olmasını sağlıyor.
             db.execute(_t("""
                 UPDATE organization.mission_groups
-                   SET order_number = 6
-                 WHERE code = 'DISMANTLE' AND order_number IS DISTINCT FROM 6
+                   SET order_number = NULL
+                 WHERE code = 'DISMANTLE' AND order_number IS NOT NULL
             """))
 
             # AKIŞ ADLARINDAKİ SONDAKİ BOŞLUKLAR. service_request_item_category'de hem
@@ -17068,7 +18105,9 @@ ORDER BY imei, departman, durum;
                 # testine (1006) aktarılır. Diğer departmanlar 1002 ile kapanır.
                 if self._needs_completion_test(rec.department_mission):
                     # 1006 KAPANIŞ DEĞİLDİR (bitiş testi bekliyor) - closed_at yazılmaz.
-                    rec.repair_result_type_code = self.COMPLETION_TEST_PENDING_CODE
+                    # AŞAMA 4 / ADIM 3: statü ONARIMA. 1006 KAPANIŞ DEĞİLDİR,
+                    # _onarima_kod_yaz closed_at'i zaten temizler.
+                    self._onarima_kod_yaz(db, self._onarim_id_bul(db, rec), self.COMPLETION_TEST_PENDING_CODE)
                     kapanan += 1
                     sonuclar.append({
                         "repairId": str(rec.id),
@@ -17079,8 +18118,8 @@ ORDER BY imei, departman, durum;
                         "message": "Onarım bitiş testine aktarıldı.",
                     })
                 else:
-                    rec.repair_result_type_code = 1002
-                    rec.closed_at = _dt.datetime.utcnow()
+                    # AŞAMA 4 / ADIM 3: kapanış ONARIMA yazılır.
+                    self._onarima_kod_yaz(db, self._onarim_id_bul(db, rec), 1002)
                     kapanan += 1
                     sonuclar.append({
                         "repairId": str(rec.id),
@@ -17097,7 +18136,7 @@ ORDER BY imei, departman, durum;
             if kapanan:
                 db.flush()
                 for _ref in {r.service_record_id for r in kayitlar if r.service_record_id}:
-                    self._sync_hierarchy_wait(db, _ref)
+                    self._sync_hierarchy_wait(db, _ref, staff=username, source="hizli_tamamla")
                     otomatik = self._auto_send_to_intermediate_test(db, _ref, username) or otomatik
             db.commit()
 
@@ -17169,6 +18208,74 @@ ORDER BY imei, departman, durum;
             print(f"[WebBridge] onay engeli hesaplanamadı (repair {getattr(rec, 'id', '?')}): {e}")
             return None
 
+    # ── DEPODAN PARÇA ÇIKIŞINA AÇIK ONARIM STATÜLERİ ────────────────────
+    # 1008 (Parça Bekleniyor) BU LİSTEDE OLMAK ZORUNDA. Teknisyen zaten TAM DA
+    # bu parçayı beklediği için onarım 1008'de; teslimi engellemek akışı
+    # kilitliyor: parça verilemez → 1008'den çıkılamaz → onarım hiç ilerlemez.
+    #
+    # Sahada görüldü (iç ID 123456, DISPLAY onarımı, teknisyen rana.uzun atanmış):
+    # Adım 3'te onarımın statüsü parça satırlarına aşağı yansıtılmaya başlayınca
+    # parça da 1008 oldu ve "yalnızca 1001 teslim edilebilir" kapıları reddetti.
+    # Önceden parça 1001'de kalıyordu, bu yüzden sorun görünmüyordu.
+    TESLIME_ACIK_KODLAR = (1001, 1008)
+
+    # ── ONARIMA YAZAN TEK KAPI (AŞAMA 4 / ADIM 3) ────────────────────────
+    # Statü ve teknisyen artık warehouse.repairs'e yazılır. Parça satırlarına
+    # _onarimlari_tazele aşağı yansıtır - yazan yolların parçaya dokunmasına
+    # gerek yoktur (dokunursa zaten yansıtma tarafından ezilir).
+    def _onarima_kod_yaz(self, db, repair_id, kod):
+        """Onarımın statüsünü yazar. Kapanış zamanı koda göre ayarlanır:
+        kapalı kodlarda (1002/1003) dolar, açılan her kodda temizlenir."""
+        from sqlalchemy import text as _t_yaz
+        if not repair_id:
+            return 0
+        return db.execute(_t_yaz("""
+            UPDATE warehouse.repairs
+               SET repair_result_type_code = :kod,
+                   closed_at = CASE WHEN :kod IN (1002, 1003) THEN NOW() ELSE NULL END,
+                   updated_at = NOW()
+             WHERE id = :id
+        """), {"kod": int(kod), "id": str(repair_id)}).rowcount or 0
+
+    def _onarima_teknisyen_yaz(self, db, repair_id, teknisyen, atayan=None):
+        """Onarımın teknisyenini yazar. teknisyen boşsa atama kaldırılır."""
+        from sqlalchemy import text as _t_tek
+        if not repair_id:
+            return 0
+        tek = (teknisyen or "").strip() or None
+        return db.execute(_t_tek("""
+            UPDATE warehouse.repairs
+               SET assigned_technician = :tek,
+                   assigned_by = :by,
+                   assigned_at = CASE WHEN :tek IS NULL THEN NULL ELSE NOW() END,
+                   updated_at = NOW()
+             WHERE id = :id
+        """), {"tek": tek, "by": ((atayan or "").strip() or None), "id": str(repair_id)}).rowcount or 0
+
+    def _onarim_id_bul(self, db, rec):
+        """Parça satırından onarım kimliği; yoksa gruptan bulunur/oluşturulur."""
+        if getattr(rec, "repair_id", None):
+            return rec.repair_id
+        return self._onarim_ustu(db, rec.service_record_id, rec.department_mission,
+                                 rec.repair_result_type_code, rec.assigned_technician,
+                                 rec.assigned_by, rec.assigned_at)
+
+    def _onarim_bilgisi(self, db, rec):
+        """Bir parça satırının bağlı olduğu ONARIMIN (statü, teknisyen) bilgisi.
+
+        AŞAMA 4: statü ve teknisyen onarımın; parça satırındaki kolonlar kolon
+        düşürülene kadar duruyor ama karar verirken okunmuyor. Üst kaydı olmayan
+        çok eski satırlarda parçaya düşülür - böylece her adımda sistem çalışır kalır."""
+        from sqlalchemy import text as _t_onr
+        if getattr(rec, "repair_id", None):
+            ust = db.execute(_t_onr("""
+                SELECT repair_result_type_code, assigned_technician
+                  FROM warehouse.repairs WHERE id = :id
+            """), {"id": str(rec.repair_id)}).mappings().first()
+            if ust:
+                return (ust["repair_result_type_code"], ust["assigned_technician"])
+        return (rec.repair_result_type_code, rec.assigned_technician)
+
     def _repair_completion_blocker(self, db, rec):
         """Bir onarım kaydının 1002 (Tamamlandı) yapılmasını ENGELLEYEN sebebi döner;
         engel yoksa None.
@@ -17210,8 +18317,9 @@ ORDER BY imei, departman, durum;
         if _onay:
             return "Bu onarım tamamlanamaz! " + _onay
 
-        # 1) Teknisyen ataması
-        if not (rec.assigned_technician or "").strip():
+        # 1) Teknisyen ataması - ONARIMIN teknisyeni (bkz. _onarim_bilgisi).
+        _onarim_kodu, _onarim_teknisyen = self._onarim_bilgisi(db, rec)
+        if not (_onarim_teknisyen or "").strip():
             return ("Bu onarım tamamlanamaz! Kayıt henüz bir teknisyene atanmamış. "
                     "Önce 'Teknisyene Ata' ile atama yapın.")
 
@@ -17231,8 +18339,10 @@ ORDER BY imei, departman, durum;
                             f"({rec.part_item_code}) parçası henüz depodan teknisyene "
                             f"teslim edilmemiş (Good Stock'tan çıkışı yapılmamış).")
 
-        # 3) Müşteri onayı
-        if rec.repair_result_type_code == 1001:
+        # 3) Müşteri onayı - ONARIMIN statüsü.
+        # 1008 de "teknisyene atanmış" hâlin bir alt durumudur (parçası bekleniyor);
+        # müşteri onayı kapısı orada da işlemeli.
+        if _onarim_kodu in (1001, 1008):
             ref = str(rec.service_record_id or "")
             be_row = db.execute(text("""
                 SELECT flow, statu_code FROM warehouse.batch_entries
@@ -17302,18 +18412,26 @@ ORDER BY imei, departman, durum;
             """), {"c": my_group}).scalar()
             if my_order is not None:
                 # Parçasız kayıtlar sayılmaz - bkz. _HIERARCHY_PART_FILTER.
+                # KAPSAM CİHAZDIR: _sync_hierarchy_wait ile aynı referans kümesi
+                # kullanılır. İkisi farklı kapsamda çalışırsa kayıt ekranda açık
+                # görünüp tamamlanmada reddedilir (ya da tersi) - engel ile beklemeye
+                # alma kararı aynı ölçüte dayanmalı.
                 onceki = db.execute(text(f"""
                     SELECT mg.short_name, mg.order_number, count(*) AS adet
                       FROM warehouse.repair_records rr2
                       JOIN organization.mission_groups mg ON mg.code = rr2.department_mission
-                     WHERE rr2.service_record_id = :ref
+                     WHERE rr2.service_record_id = ANY(:refs)
+                       -- AŞAMA 4: BU FİLTRE HENÜZ PARÇA DÜZEYİNDE. _sync_hierarchy_wait
+                       -- ile AYNI ölçüte dayanmak zorunda (yukarıdaki nota bakınız);
+                       -- ikisi Adım 3'te BİRLİKTE onarım düzeyine geçecek.
                        AND rr2.repair_result_type_code NOT IN (1002, 1003)
                        AND mg.order_number IS NOT NULL
                        AND mg.order_number > :ord
                        AND {self._HIERARCHY_PART_FILTER}
                      GROUP BY mg.short_name, mg.order_number
                      ORDER BY mg.order_number DESC
-                """), {"ref": rec.service_record_id, "ord": my_order}).mappings().all()
+                """), {"refs": self._cihaz_referanslari(db, rec.service_record_id),
+                       "ord": my_order}).mappings().all()
                 if onceki:
                     adlar = ", ".join(f"{r['short_name']} ({r['adet']} kayıt)" for r in onceki)
                     return ("Bu onarımın sırası gelmedi (Yüksek Seviye Onarımını Bekliyor - 1004). "
@@ -17378,13 +18496,6 @@ ORDER BY imei, departman, durum;
                     "message": "Tamamlanmış onarım iptal edilemez. Önce 'Onarıma Devam Et' ile yeniden açın."
                 }, ensure_ascii=False)
 
-            # L1 başlamadan üst seviye onarım başlatılamaz ("Onarıma Devam Et" / atama).
-            if target_code in self.REOPEN_CODES:
-                _l1 = self._l1_baslamadi_engeli(db, rec.service_record_id,
-                                                rec.department_mission, "onarım başlatılamaz")
-                if _l1:
-                    return json.dumps({"success": False, "message": _l1}, ensure_ascii=False)
-
             # ── İŞLEM SEVİYESİ = ONARIM, PARÇA DEĞİL ─────────────────────────
             # repair_records'ta her satır bir PARÇADIR; bir onarım = aynı cihaz
             # (service_record_id) + aynı görev grubu (department_mission) altındaki
@@ -17410,7 +18521,30 @@ ORDER BY imei, departman, durum;
                 RepairRecord.department_mission == rec.department_mission,
                 ~RepairRecord.repair_result_type_code.in_(haric),
             ).all()
-            if rec not in grup_kayitlari:      # zaten kapalı kayda tekrar basıldıysa
+            if rec not in grup_kayitlari:
+                # KAPALI KAYDA "TAMAMLA" GELİRSE REDDEDİLİR.
+                # Buraya yalnızca tıklanan kayıt kapsam dışıysa düşülür; tamamlamada
+                # kapsam 1002/1003'ü dışladığı için bu, kaydın ZATEN KAPALI olduğu
+                # anlamına gelir. Eskiden burada "grup_kayitlari = [rec]" yedeği vardı
+                # ve grup işlemi tek bir kapalı kayda daralıyordu: bitiş testi
+                # gerektiren departmanlarda (Kamera/L3/Ekran/Kasa) hedef 1006'ya
+                # çevrildiği için TAMAMLANMIŞ bir onarım sessizce test kuyruğuna geri
+                # itiliyor, üstelik closed_at siliniyordu. Hata dönmediği için kimse
+                # fark etmiyordu; onarımın parçaları farklı statülere düşüyor ve açık
+                # kalan kayıt hem alt seviyeyi 1004'te hem cihazı 109'da tutuyordu.
+                #
+                # Nasıl gelir: ekran bayatsa (onarımı bu arada başka bir kullanıcı ya
+                # da başka bir ekran kapattıysa) ya da köprüye doğrudan çağrı yapılırsa.
+                # Ekranda buton zaten kapalı kayıtta gizli.
+                if target_code == 1002:
+                    _mevcut = int(rec.repair_result_type_code or 0)
+                    return json.dumps({
+                        "success": False,
+                        "message": ("Bu onarım zaten tamamlanmış; yeniden tamamlanamaz. "
+                                    "Üzerinde çalışmak için önce 'Onarıma Devam Et' ile açın."
+                                    if _mevcut == 1002 else
+                                    "Bu onarım iptal edilmiş; tamamlanamaz."),
+                    }, ensure_ascii=False)
                 grup_kayitlari = [rec]
 
             # Tamamlama sartlari TEK YERDE toplandi (_repair_completion_blocker).
@@ -17450,17 +18584,24 @@ ORDER BY imei, departman, durum;
                     if engel:
                         return json.dumps({"success": False, "message": engel}, ensure_ascii=False)
 
+            # AŞAMA 4 / ADIM 3: STATÜ ONARIMA YAZILIR, PARÇALARA DEĞİL.
+            # Parça satırlarına _onarimlari_tazele aşağı yansıtır. Eskiden grubun her
+            # satırına tek tek yazılıyordu; bir satır atlanırsa aynı onarımın parçaları
+            # farklı statülerde kalıyordu - şemanın engellemediği o durum bu ekranda
+            # "rozet yalan söylüyor" olarak görünüyordu.
+            _yazilan_onarimlar = set()
             for k in grup_kayitlari:
-                k.repair_result_type_code = target_code
-                # Kapanış zamanı: kapanınca yazılır, yeniden açılınca temizlenir.
-                k.closed_at = _dt.datetime.utcnow() if target_code in (1002, 1003) else None
+                _oid = self._onarim_id_bul(db, k)
+                if _oid and str(_oid) not in _yazilan_onarimlar:
+                    self._onarima_kod_yaz(db, _oid, target_code)
+                    _yazilan_onarimlar.add(str(_oid))
             if len(grup_kayitlari) > 1:
                 applied_message = (applied_message or "Statü güncellendi.") + \
                     f" ({len(grup_kayitlari)} parça kaydı)"
             # Bu onarım kapandıysa (1002/1003) bir alt seviyenin sırası gelmiş
             # olabilir; senkron o kayıtları 1004'ten çıkarır.
             db.flush()
-            self._sync_hierarchy_wait(db, rec.service_record_id)
+            self._sync_hierarchy_wait(db, rec.service_record_id, staff=username, source="statu_degistir")
             # Son onarım TAMAMLANDIYSA cihaz kendiliğinden Ara Test'e geçer.
             # İPTAL (1003) BU GEÇİŞİ TETİKLEMEZ. İptal bir düzenleme işlemidir: teknisyen
             # çoğu zaman yanlış girdiği kaydı iptal edip yerine doğrusunu ekleyecektir.
@@ -17534,7 +18675,8 @@ ORDER BY imei, departman, durum;
                     "message": "DGD işçilik satırı silinemez. Flow'a göre eklenir, elle kaldırılamaz."
                 }, ensure_ascii=False)
 
-            if int(rec.repair_result_type_code or 0) == 1003:
+            # AŞAMA 4: "zaten silinmiş mi" sorusu parçanın kendi ekseninden okunur.
+            if self._parca_silinmis_mi(rec):
                 return json.dumps({"success": False, "message": "Bu parça zaten silinmiş."})
 
             # TAMAMLANMIŞ ONARIMIN PARÇASI SİLİNEMEZ. Onarım kapandıysa iş fiilen
@@ -17547,23 +18689,22 @@ ORDER BY imei, departman, durum;
                     "message": "Tamamlanmış onarımın parçası silinemez. Önce 'Onarıma Devam Et' ile onarımı yeniden açın."
                 }, ensure_ascii=False)
 
-            # L1 başlamadan üst seviye onarımlarda parça silinemez.
-            _l1 = self._l1_baslamadi_engeli(db, rec.service_record_id,
-                                            rec.department_mission, "parça silinemez")
-            if _l1:
-                return json.dumps({"success": False, "message": _l1}, ensure_ascii=False)
-
             # Depoya iade edilmemiş parça kuralı: iptal ile aynı engel.
             engel = self._repair_cancellation_blocker(db, rec)
             if engel:
                 return json.dumps({"success": False, "message": engel}, ensure_ascii=False)
 
+            # AŞAMA 4 / ADIM 1: SİLİNME ARTIK PARÇANIN KENDİ EKSENİNDE.
+            # part_status_code asıl kayıttır; repair_result_type_code = 1003 geçiş
+            # boyunca birlikte yazılıyor çünkü onarım statüsü hâlâ parçalardan
+            # türetiliyor (_onarimlari_tazele). Kolon düşürüldüğünde bu satır kalkar.
+            rec.part_status_code = self.PARCA_DURUMU_SILINDI
             rec.repair_result_type_code = 1003
-            rec.closed_at = _dt.datetime.utcnow()
+            rec.closed_at = tr_now()
             db.flush()
 
             # Bu satırın kapanmasıyla bir alt seviyenin sırası gelmiş olabilir.
-            self._sync_hierarchy_wait(db, rec.service_record_id)
+            self._sync_hierarchy_wait(db, rec.service_record_id, staff=username, source="parca_iptal")
 
             # PARÇA SİLMEK CİHAZI ARA TESTE GÖNDERMEZ.
             # Burada _auto_send_to_intermediate_test çağrılıyordu; cihazın tek gerçek
@@ -17608,9 +18749,10 @@ ORDER BY imei, departman, durum;
             rows = db.execute(text("""
                 SELECT
                     rr.id AS repair_id,
+                    rr.repair_id AS onarim_id,
                     rr.service_record_id,
                     rr.department_mission,
-                    rr.repair_result_type_code,
+                    COALESCE(onr.repair_result_type_code, rr.repair_result_type_code) AS repair_result_type_code,
                     rr.item_category,
                     rr.part_item_code,
                     pp.name AS part_name,
@@ -17619,10 +18761,10 @@ ORDER BY imei, departman, durum;
                     rr.operation_type_code,
                     opt.short_name AS operation_type_name,
                     -- Depocuya (supply_requested_by) düşülmez; teknisyen yalnızca atamadan gelir.
-                    rr.assigned_technician AS assigned_technician,
+                    COALESCE(onr.assigned_technician, rr.assigned_technician) AS assigned_technician,
                     -- Iki ayri JOIN: tek OR'lu JOIN teknisyen ile depocu farkli oldugunda
                     -- satiri ikiye katliyordu (bkz. get_repair_operations_by_imei).
-                    COALESCE(NULLIF(TRIM(u_tek.fullname), ''), rr.assigned_technician) AS assigned_technician_name,
+                    COALESCE(NULLIF(TRIM(u_tek.fullname), ''), onr.assigned_technician, rr.assigned_technician) AS assigned_technician_name,
                     rr.notes,
                     rr.created_at,
                     rr.updated_at,
@@ -17638,26 +18780,61 @@ ORDER BY imei, departman, durum;
                 LEFT JOIN warehouse.parts pp ON pp.item_code = rr.part_item_code
                 LEFT JOIN warehouse.item_fault fault ON fault.code = rr.item_fault_code
                 LEFT JOIN warehouse.repair_item_operation_type opt ON opt.code = rr.operation_type_code
-                LEFT JOIN warehouse.users u_tek ON u_tek.username = rr.assigned_technician
+                LEFT JOIN warehouse.repairs onr ON onr.id = rr.repair_id
+                LEFT JOIN warehouse.repair_result_type onrt ON onrt.code = onr.repair_result_type_code
+                LEFT JOIN warehouse.users u_tek ON u_tek.username = COALESCE(onr.assigned_technician, rr.assigned_technician)
                 LEFT JOIN warehouse.batch_entries be ON LOWER(TRIM(be.imei_number)) = LOWER(TRIM(rr.service_record_id))
                     OR LOWER(TRIM(be.serial_number)) = LOWER(TRIM(rr.service_record_id))
                     OR LOWER(TRIM(be.internal_id)) = LOWER(TRIM(rr.service_record_id))
                     OR (be.service_id IS NOT NULL AND be.service_id::text = rr.service_record_id)
                 WHERE UPPER(TRIM(rr.department_mission)) = :dept
-                  AND rr.repair_result_type_code = :pending
+                  -- AŞAMA 4 / ADIM 2: bitiş testini bekleyen ONARIMDIR, parça değil.
+                  AND COALESCE(onr.repair_result_type_code, rr.repair_result_type_code) = :pending
                 ORDER BY rr.updated_at ASC, rr.created_at ASC
             """), {"dept": dept, "pending": self.COMPLETION_TEST_PENDING_CODE}).mappings().all()
 
             def fmt(dt):
                 return dt.strftime("%Y-%m-%d %H:%M") if dt else ""
 
-            items = []
+            # AŞAMA 3a: KUYRUĞUN BİRİMİ ARTIK ONARIM, PARÇA DEĞİL.
+            # Kayıtlar onarıma (cihaz + görev grubu) göre toplanır; her kart bir
+            # onarımı temsil eder ve parçaları içinde listelenir. Eskiden 4 parçalı
+            # bir Ekran Onarımı testçiye 4 ayrı kart olarak görünüyordu ve hiçbir
+            # işaret bu kartların aynı onarıma ait olduğunu söylemiyordu; testçi
+            # birini onaylayıp diğerlerini unutabiliyordu (bkz. submit_completion_test
+            # AŞAMA 2c). Karar zaten onarımın tamamına uygulanıyor - gösterim de artık
+            # onunla aynı birimde.
+            #
+            # Anahtar: üst kayıt id'si; henüz bağlanmamış eski satırlar için
+            # (cihaz + görev grubu) ikilisi kullanılır. repairId olarak üst kayıt
+            # id'si gönderilir - submit_completion_test ikisini de kabul ediyor.
+            gruplar = {}
             for r in rows:
-                product_info = " ".join(filter(None, [r["model"], r["gb"], r["color"]])) or "-"
-                items.append({
-                    "repairId": str(r["repair_id"]),
-                    "serviceRecordId": r["service_record_id"] or "",
-                    "departmentMission": r["department_mission"] or "",
+                anahtar = (str(r["onarim_id"]) if r["onarim_id"]
+                           else f'{r["service_record_id"]}|{r["department_mission"]}')
+                g = gruplar.get(anahtar)
+                if not g:
+                    product_info = " ".join(filter(None, [r["model"], r["gb"], r["color"]])) or "-"
+                    g = {
+                        "repairId": str(r["onarim_id"]) if r["onarim_id"] else str(r["repair_id"]),
+                        "serviceRecordId": r["service_record_id"] or "",
+                        "departmentMission": r["department_mission"] or "",
+                        "assignedTechnician": r["assigned_technician"] or "",
+                        "assignedTechnicianName": r["assigned_technician_name"] or r["assigned_technician"] or "",
+                        "createdAt": fmt(r["created_at"]),
+                        "updatedAt": fmt(r["updated_at"]),
+                        "imei": r["imei_number"] or r["service_record_id"] or "-",
+                        "serialNo": r["serial_number"] or "",
+                        "internalId": r["internal_id"] or "",
+                        "batchNo": r["batch_no"] or "",
+                        "productInfo": product_info,
+                        "customerName": r["customer_name"] or "",
+                        "notes": r["notes"] or "",
+                        "parts": [],
+                    }
+                    gruplar[anahtar] = g
+                g["parts"].append({
+                    "partRecordId": str(r["repair_id"]),
                     "itemCategory": r["item_category"] or "",
                     "partItemCode": r["part_item_code"] or "",
                     "partName": r["part_name"] or "",
@@ -17665,18 +18842,10 @@ ORDER BY imei, departman, durum;
                     "faultName": r["fault_name"] or r["item_fault_code"] or "",
                     "operationTypeCode": r["operation_type_code"] or "",
                     "operationTypeName": r["operation_type_name"] or "",
-                    "assignedTechnician": r["assigned_technician"] or "",
-                    "assignedTechnicianName": r["assigned_technician_name"] or r["assigned_technician"] or "",
-                    "notes": r["notes"] or "",
-                    "createdAt": fmt(r["created_at"]),
-                    "updatedAt": fmt(r["updated_at"]),
-                    "imei": r["imei_number"] or r["service_record_id"] or "-",
-                    "serialNo": r["serial_number"] or "",
-                    "internalId": r["internal_id"] or "",
-                    "batchNo": r["batch_no"] or "",
-                    "productInfo": product_info,
-                    "customerName": r["customer_name"] or "",
                 })
+            items = list(gruplar.values())
+            for g in items:
+                g["partCount"] = len(g["parts"])
 
             return json.dumps({"success": True, "items": items}, ensure_ascii=False)
         except Exception as e:
@@ -17686,11 +18855,26 @@ ORDER BY imei, departman, durum;
 
     @Slot(str, str, str, str, result=str)
     def submit_completion_test(self, repair_id, result, description, username):
-        """Onarım Bitiş Testi kararı. Kayıt 1006 (bitiş testinde) iken çağrılır.
+        """Onarım Bitiş Testi kararı. Onarım 1006 (bitiş testinde) iken çağrılır.
           result = 'pass' (başarılı)  -> 1002 (Onarım Tamamlandı)
-          result = 'fail' (başarısız) -> 1001 (Teknisyene Atandı); kayıt atanmış
+          result = 'fail' (başarısız) -> 1001 (Teknisyene Atandı); onarım atanmış
                      teknisyende AÇIK İŞ olarak kalır, açıklama ZORUNLUDUR.
-        Karar her iki durumda da tarih/kullanıcı/sonuç ile notes'a eklenir."""
+
+        AŞAMA 2c - KARAR ARTIK ONARIMIN TAMAMINA UYGULANIR.
+        Eskiden bu metot yalnızca tıklanan PARÇA satırını kapatıyordu; oysa onarımı
+        teste gönderen taraf (update_repair_status) grubun TÜM parçalarını birden
+        1006'ya alıyor. Giriş grup, çıkış satır olduğu için her testte "yarım kalmış
+        onarım" oluşuyordu: 4 parçalı Ekran Onarımı tek tıkla teste giriyor, tek onay
+        yalnızca birini kapatıyor, kalanlar 1006'da unutuluyordu. O kalan satırlar
+        "açık" sayıldığı için hem alt seviyeyi 1004'te hem cihazı 109'da tutuyor,
+        üstelik teknisyen ekranı grubu tek satırla gösterdiğinden görünmüyordu.
+        Artık testin birimi ONARIMDIR: karar, o onarımın bitiş testinde bekleyen tüm
+        parçalarına birlikte uygulanır ve sonuç onarımın kendi alanlarına yazılır
+        (warehouse.repairs.test_result / test_description / tested_by / tested_at).
+
+        Slot imzası BİLEREK değişmedi: ekran hâlâ bir parça id'si gönderiyor, backend
+        o parçanın onarımını çözüp bütününe karar uyguluyor. Böylece frontend'e
+        dokunmadan davranış düzeliyor (kuyruğun tek kart göstermesi Aşama 3'ün işi)."""
         from models.repair_record import RepairRecord
         from sqlalchemy import text
         import datetime
@@ -17698,6 +18882,15 @@ ORDER BY imei, departman, durum;
         db = SessionLocal()
         try:
             rec = db.query(RepairRecord).filter(RepairRecord.id == repair_id).first()
+            if not rec:
+                # AŞAMA 3a: kuyruk artık ONARIM (üst kayıt) id'si gönderiyor. Parça
+                # id'si de kabul edilmeye devam ediyor - eski ekranlar ve bağlanmamış
+                # kayıtlar kırılmasın. Hangisi gelirse gelsin karar aynı: onarımın
+                # bitiş testinde bekleyen tüm parçaları.
+                rec = db.query(RepairRecord).filter(
+                    RepairRecord.repair_id == repair_id,
+                    RepairRecord.repair_result_type_code == self.COMPLETION_TEST_PENDING_CODE,
+                ).order_by(RepairRecord.created_at.asc()).first()
             if not rec:
                 return json.dumps({"success": False, "message": "Onarım kaydı bulunamadı."}, ensure_ascii=False)
 
@@ -17737,33 +18930,84 @@ ORDER BY imei, departman, durum;
                         "message": f"Bu işlem için '{rec.department_mission}' görev grubuna bağlı bir yetkiniz yok."
                     }, ensure_ascii=False)
 
+            # ── KARARIN KAPSAMI: ONARIMIN BİTİŞ TESTİNDEKİ TÜM PARÇALARI ──
+            # Üst kayıt (repair_id) varsa kapsam odur. Henüz bağlanmamış eski satırlar
+            # için (cihaz + görev grubu) ikilisine düşülür - Aşama 2a'dan önce doğmuş
+            # kayıtlar açılıştaki tarama onları bağlayana kadar bu yoldan işlenir.
+            # Yalnızca 1006'dakiler alınır: aynı onarımda testten önce kapanmış (1002)
+            # ya da başarısız dönüp teknisyende bekleyen (1001) satır varsa onlara
+            # dokunulmaz, karar sadece gerçekten testte bekleyenleri ilgilendirir.
+            if rec.repair_id:
+                kapsam = db.query(RepairRecord).filter(
+                    RepairRecord.repair_id == rec.repair_id,
+                    RepairRecord.repair_result_type_code == self.COMPLETION_TEST_PENDING_CODE,
+                ).all()
+            else:
+                kapsam = db.query(RepairRecord).filter(
+                    RepairRecord.service_record_id == rec.service_record_id,
+                    RepairRecord.department_mission == rec.department_mission,
+                    RepairRecord.repair_result_type_code == self.COMPLETION_TEST_PENDING_CODE,
+                ).all()
+            if rec not in kapsam:
+                kapsam = [rec]
+
             if is_pass:
                 # Başarılı testte de tamamlama şartları korunur (parça teslimi vb.).
-                engel = self._repair_completion_blocker(db, rec)
-                if engel:
-                    return json.dumps({"success": False, "message": engel}, ensure_ascii=False)
-                rec.repair_result_type_code = 1002
-                rec.closed_at = datetime.datetime.utcnow()
+                # Engel HER PARÇA için ayrı sorulur; biri bile engelliyse hiçbiri
+                # kapanmaz - yarım kapanmış onarım oluşmasın (update_repair_status ile
+                # aynı "hep ya da hiç" kuralı).
+                for k in kapsam:
+                    engel = self._repair_completion_blocker(db, k)
+                    if engel:
+                        return json.dumps({"success": False, "message": engel}, ensure_ascii=False)
                 sonuc_etiket = "BAŞARILI"
                 mesaj = "Onarım bitiş testi başarılı — onarım tamamlandı."
             else:
-                # Başarısız: kayıt teknisyene geri döner (atama korunur, açık iş olur).
-                rec.repair_result_type_code = 1001
-                rec.closed_at = None
                 sonuc_etiket = "BAŞARISIZ"
-                mesaj = "Onarım bitiş testi başarısız — kayıt teknisyene geri gönderildi."
+                mesaj = "Onarım bitiş testi başarısız — onarım teknisyene geri gönderildi."
 
-            zaman = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+            zaman = tr_now().strftime("%Y-%m-%d %H:%M")
             not_satiri = f"[Onarım Bitiş Testi · {sonuc_etiket} · {username or '?'} · {zaman}]"
             if aciklama:
                 not_satiri += f" {aciklama}"
-            rec.notes = (rec.notes + "\n" + not_satiri) if (rec.notes or "").strip() else not_satiri
-            rec.updated_at = datetime.datetime.utcnow()
+
+            # AŞAMA 4 / ADIM 3: statü ONARIMA yazılır (başarılı → 1002, başarısız →
+            # 1001; atama korunur, iş teknisyende açık kalır). Parça satırlarına
+            # yansıtmayı _onarimlari_tazele yapar.
+            _yazilan = set()
+            for k in kapsam:
+                _oid = self._onarim_id_bul(db, k)
+                if _oid and str(_oid) not in _yazilan:
+                    self._onarima_kod_yaz(db, _oid, 1002 if is_pass else 1001)
+                    _yazilan.add(str(_oid))
+                # Karar her parçanın notuna yazılır: statü geçmişi ve test özeti
+                # ekranları bu metni parça satırından okuyor.
+                k.notes = (k.notes + "\n" + not_satiri) if (k.notes or "").strip() else not_satiri
+                k.updated_at = tr_now()
+
+            if len(kapsam) > 1:
+                mesaj += f" ({len(kapsam)} parça kaydı)"
+
+            # SONUÇ ONARIMIN VERİSİDİR. Statü alanını burada yazmıyoruz: onu
+            # _onarimlari_tazele parçalardan hesaplıyor (bkz. _sync_hierarchy_wait).
+            if rec.repair_id:
+                db.execute(text("""
+                    UPDATE warehouse.repairs
+                       SET test_result = :sonuc,
+                           test_description = :aciklama,
+                           tested_by = :kim,
+                           tested_at = NOW(),
+                           updated_at = NOW()
+                     WHERE id = :id
+                """), {"sonuc": "pass" if is_pass else "fail",
+                       "aciklama": aciklama or None,
+                       "kim": (username or "").strip() or None,
+                       "id": rec.repair_id})
 
             # Test başarılıysa onarım kapandı, alt seviyenin sırası gelmiş olabilir;
             # başarısızsa kayıt tekrar açıldı, alt seviye yeniden beklemeye girer.
             db.flush()
-            self._sync_hierarchy_wait(db, rec.service_record_id)
+            self._sync_hierarchy_wait(db, rec.service_record_id, staff=username, source="bitis_testi")
             # Bitiş testi başarılıysa ve cihazın son açık onarımı buysa Ara Test'e geçer.
             otomatik = self._auto_send_to_intermediate_test(db, rec.service_record_id, username) if is_pass else None
             db.commit()
@@ -17890,8 +19134,10 @@ ORDER BY imei, departman, durum;
            görevlisi verir. Teknisyen işini bitirmiş olduğu hâlde kayıt açık iş
            sayılmaya devam ediyor, sayaç hiç düşmüyordu. 1005 (Müşteri Onayı
            Bekliyor) de teknisyende değil müşteride bekler. İkisi de elenir.
-           Elenmeyenler bilinçli: 1004 (sırası gelmemiş - kuyrukta duran iş),
-           1007 (testten kaldı, teknisyene geri döndü), 1008 (parça bekliyor).
+           Elenmeyenler bilinçli: 1004 (sırası gelmemiş - kuyrukta duran iş) ve
+           1008 (parça bekliyor - iş teknisyende, sadece parçası gelmemiş).
+           1007 BURADA GEÇMEZ: o bir onarım statüsü değil, cihaz statü akışı
+           ekranında "bitiş testinden kaldı" satırının etiketidir.
 
         2) PARÇA DEĞİL ONARIM SAYILIR. repair_records'ta her satır bir PARÇADIR;
            atama ise onarım (service_record_id + department_mission) seviyesindedir.
@@ -18002,7 +19248,7 @@ ORDER BY imei, departman, durum;
 
             tech = (technician_username or "").strip()
             actor = (username or "").strip() or None
-            now = datetime.datetime.utcnow()
+            now = tr_now()
 
             # Onarımın kapsamı: aynı cihaz kaydı + aynı görev grubu, tamamlanmamış/iptal
             # edilmemiş tüm satırlar. Parça kodu ölçüt DEĞİLDİR.
@@ -18013,8 +19259,14 @@ ORDER BY imei, departman, durum;
             # (biri atanmış, DGD atanmamış) dağılıyordu. L1REPAIR ile L2REPAIR aynı
             # cihazda birlikte olamadığı için (bkz. OPPOSING_REPAIR_TEAMS) bu üçlüyü
             # tek kapsam saymak L1 ve L2'yi yanlışlıkla birleştirmez.
-            L1_L2_GRUBU = ("DISMANTLE", "L1REPAIR", "L2REPAIR")
+            # MONTAJ EKİBİ: L1 ve L2 aynı işin iki seviyesidir, bir cihazda yalnızca
+            # biri bulunur. DISMANTLE bu kapsamdan ÇIKARILDI - demontaj ayrı bir
+            # departmandır, kendi takım lideri ve teknisyenleri vardır; montaj
+            # ataması onu kapsamamalı.
+            L1_L2_GRUBU = ("L1REPAIR", "L2REPAIR")
             dm = (rec.department_mission or "").strip().upper()
+            # AŞAMA 4 / ADIM 3: kapsam da atama da ONARIM tablosunda. Aynı onarımın
+            # parçaları arasında farklı teknisyen kalması artık şemaca imkânsız.
             if dm in L1_L2_GRUBU:
                 scope = """
                     WHERE service_record_id = :sr
@@ -18033,12 +19285,19 @@ ORDER BY imei, departman, durum;
             # Atamayı kaldırma
             if not tech:
                 n = db.execute(text(f"""
-                    UPDATE warehouse.repair_records
-                    SET assigned_technician = NULL, supply_requested_by = NULL, assigned_by = :by, assigned_at = :now,
-                        repair_result_type_code = 1000
+                    UPDATE warehouse.repairs
+                    SET assigned_technician = NULL, assigned_by = :by, assigned_at = NULL,
+                        repair_result_type_code = 1000, updated_at = NOW()
                     {scope}
-                """), {**scope_params, "by": actor, "now": now}).rowcount
-                self._sync_hierarchy_wait(db, rec.service_record_id)
+                """), {**scope_params, "by": actor}).rowcount
+                # supply_requested_by PARÇANIN alanıdır (depocunun işlemi) - atama
+                # kaldırılırken temizlenmesi oradan yapılır.
+                db.execute(text("""
+                    UPDATE warehouse.repair_records rr SET supply_requested_by = NULL
+                      FROM warehouse.repairs r
+                     WHERE r.id = rr.repair_id AND r.service_record_id = :sr
+                """), {"sr": rec.service_record_id})
+                self._sync_hierarchy_wait(db, rec.service_record_id, staff=username, source="teknisyen_atama")
                 db.commit()
                 return json.dumps({
                     "success": True, "assigned": False, "statusCode": 1000,
@@ -18058,16 +19317,17 @@ ORDER BY imei, departman, durum;
                 return json.dumps({"success": False, "message": f"'{row['fullname']}' pasif durumda, atama yapılamaz."}, ensure_ascii=False)
 
             n = db.execute(text(f"""
-                UPDATE warehouse.repair_records
+                UPDATE warehouse.repairs
                 -- supply_requested_by'a YAZILMIYOR: o sütun depocunun Parça Teslim'de
-                -- yaptığı işlemi tutar, teknisyen atamasıyla ilgisi yoktur.
+                -- yaptığı işlemi tutar, teknisyen atamasıyla ilgisi yoktur (ve zaten
+                -- PARÇANIN alanıdır, onarımın değil).
                 SET assigned_technician = :u, assigned_by = :by, assigned_at = :now,
-                    repair_result_type_code = 1001
+                    repair_result_type_code = 1001, updated_at = NOW()
                 {scope}
             """), {**scope_params, "u": tech, "by": actor, "now": now}).rowcount
             # Sırası gelmemiş onarım atandıktan sonra da beklemede kalır (1004);
             # teknisyen ataması korunur, üst seviye bitince kendiliğinden 1001 olur.
-            self._sync_hierarchy_wait(db, rec.service_record_id)
+            self._sync_hierarchy_wait(db, rec.service_record_id, staff=username, source="teknisyen_atama")
             db.commit()
             db.refresh(rec)
 
@@ -18217,8 +19477,12 @@ ORDER BY imei, departman, durum;
             if not rec:
                 return json.dumps({"success": False, "message": "Onarım kaydı bulunamadı."}, ensure_ascii=False)
 
-            if int(rec.repair_result_type_code or 0) != 1001:
-                return json.dumps({"success": False, "message": "Yalnızca 'Teknisyene Atandı' (1001) statüsündeki kayıtlar teslim edilebilir."}, ensure_ascii=False)
+            # AŞAMA 4: karar ONARIMIN statüsünden (parça satırı yansımadır).
+            _onr_kod, _ = self._onarim_bilgisi(db, rec)
+            if int(_onr_kod or 0) not in self.TESLIME_ACIK_KODLAR:
+                return json.dumps({"success": False, "message":
+                    "Bu kayda parça teslim edilemez: onarım 'Teknisyene Atandı' ya da "
+                    "'Parça Bekleniyor' durumunda değil."}, ensure_ascii=False)
 
             if not (rec.part_item_code or "").strip():
                 return json.dumps({"success": False, "message": "Bu kayıtta eklenmiş bir parça yok. Parçayı teknisyen eklemelidir."}, ensure_ascii=False)
@@ -18238,7 +19502,7 @@ ORDER BY imei, departman, durum;
 
             rec.supply_status_code = "Stoktan Çıktı"
             rec.supply_requested_by = (username or "").strip() or None
-            rec.supply_requested_at = datetime.datetime.utcnow()
+            rec.supply_requested_at = tr_now()
 
             moved = False
             if tracked:
@@ -18253,7 +19517,7 @@ ORDER BY imei, departman, durum;
 
                 g_stock = db.query(Stock).filter(Stock.part_id == part_id, Stock.location_id == good_loc_id).first()
                 if not g_stock or (g_stock.quantity or 0) < 1:
-                    return json.dumps({"success": False, "message": f"'{part_row['name']}' ({code}) Good Stock'ta tükenmiş, teslim edilemez."}, ensure_ascii=False)
+                    return json.dumps({"success": False, "message": f"{code} Good Stock'ta tükenmiş, teslim edilemez."}, ensure_ascii=False)
 
                 g_stock.quantity = max(0, (g_stock.quantity or 0) - 1)
 
@@ -18278,6 +19542,12 @@ ORDER BY imei, departman, durum;
                 ))
                 moved = True
 
+            # K8/1008 ÇIKIŞ YOLU: parça depodan çıktığına göre "Yedek Parça
+            # Bekleniyor" koşulu kalktı; üst kayıt yeniden hesaplanınca onarım
+            # 1008'den 1001'e döner. Teslim yollarının hiçbiri tazeleme
+            # çağırmıyordu, bu yüzden onarım 1008'de takılı kalırdı.
+            db.flush()
+            self._onarimlari_tazele(db, rec.service_record_id, staff=username, source="parca_teslim")
             db.commit()
             clear_api_cache()
             return json.dumps({
@@ -18288,6 +19558,80 @@ ORDER BY imei, departman, durum;
                 "message": ("Parça teslim edildi, stok Repair Stock'a aktarıldı."
                             if moved else
                             "Parça teslim edildi. (Stok takipsiz parça - stok hareketi oluşturulmadı.)")
+            }, ensure_ascii=False)
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)}, ensure_ascii=False)
+        finally:
+            db.close()
+
+    @Slot(str, str, result=str)
+    def mark_part_awaiting_spare(self, repair_id, username):
+        """K8/1008: Teknisyen bir parçayı 'Yedek Parça Bekleniyor' durumuna alır.
+
+        Teknisyen depoya gidip istediği parçayı bulamadığında, kendi onarımının
+        altındaki parçaya sağ tıklayıp bu işlemi seçer. PARÇA bu depo durumuna
+        geçer; ONARIM 1008 (Parça Bekleniyor) görünür - 1008 parçaya yazılmaz,
+        _onarimlari_tazele tarafından türetilir.
+
+        ÇIKIŞ YOLU AYRI BİR İŞLEM DEĞİLDİR: parça depodan çıkış yapınca (muadil
+        çıkışı dahil) durumu 'Stoktan Çıktı' olur, koşul kalkar ve aynı hesap
+        onarımı 1001'e döndürür.
+
+        YALNIZCA 1001'DEKİ ONARIMDA yapılabilir: parça beklemek, teknisyenin
+        üstünde açık iş varken verdiği bir karardır. Atanmamış (1000), sırası
+        gelmemiş (1004), onayda (1005), testte (1006) veya kapanmış (1002/1003)
+        bir onarımda anlamı yoktur."""
+        from models.repair_record import RepairRecord
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            rec = db.query(RepairRecord).filter(RepairRecord.id == repair_id).first()
+            if not rec:
+                return json.dumps({"success": False, "message": "Onarım kaydı bulunamadı."})
+
+            user_missions, is_admin = self._get_user_missions(db, username)
+            if not is_admin:
+                required = self._get_required_mission_for_ref(db, rec.service_record_id)
+                if required and required not in user_missions:
+                    return json.dumps({"success": False, "message": f"Bu işlem için '{required}' yetkisi gerekiyor."})
+
+            if not (rec.part_item_code or "").strip():
+                return json.dumps({"success": False, "message": "Parçası seçilmemiş kayıt için yedek parça beklenemez."})
+
+            # Karar ONARIM düzeyindedir: kontrol üst kaydın statüsünden yapılır,
+            # parça satırının kendi kodundan değil (bkz. Aşama 3b).
+            onarim_kodu = None
+            if rec.repair_id:
+                onarim_kodu = db.execute(text(
+                    "SELECT repair_result_type_code FROM warehouse.repairs WHERE id = :id"
+                ), {"id": str(rec.repair_id)}).scalar()
+            if onarim_kodu is None:
+                onarim_kodu = rec.repair_result_type_code
+            # 1008 de kabul edilir: aynı onarımda İKİNCİ bir parça da bulunamamış
+            # olabilir. Onarım zaten beklemede, ikinci parçanın işaretlenmesi engellenmemeli.
+            if int(onarim_kodu or 0) not in (1001, 1008):
+                return json.dumps({"success": False, "message":
+                    "Yedek parça beklemesi yalnızca teknisyene atanmış (Teknisyene Atandı) onarımlarda işaretlenebilir."},
+                    ensure_ascii=False)
+
+            if (rec.supply_status_code or "").strip() == self.YEDEK_PARCA_BEKLENIYOR:
+                return json.dumps({"success": False, "message": "Bu parça zaten yedek parça bekliyor."}, ensure_ascii=False)
+            if (rec.supply_status_code or "").strip() in ("Stoktan Çıktı", "TESLIMEDILDI"):
+                return json.dumps({"success": False, "message":
+                    "Bu parça depodan çıkmış durumda; yedek parça beklemesine alınamaz."}, ensure_ascii=False)
+
+            rec.supply_status_code = self.YEDEK_PARCA_BEKLENIYOR
+            rec.supply_requested_by = (username or "").strip() or None
+            rec.supply_requested_at = tr_now()
+            db.flush()
+            # Üst kaydın 1008'e düşmesi ve defter satırı buradan gelir.
+            self._onarimlari_tazele(db, rec.service_record_id, staff=username, source="yedek_parca_bekleniyor")
+            db.commit()
+            return json.dumps({
+                "success": True,
+                "message": f"{rec.part_item_code} için yedek parça bekleniyor. "
+                           f"Parça depodan çıkış yapıldığında onarım otomatik olarak 'Teknisyene Atandı'ya döner.",
             }, ensure_ascii=False)
         except Exception as e:
             db.rollback()
@@ -18334,7 +19678,7 @@ ORDER BY imei, departman, durum;
             previous_status = rec.supply_status_code
             rec.supply_status_code = supply_status_code
             rec.supply_requested_by = (username or "").strip() or None
-            rec.supply_requested_at = datetime.datetime.utcnow()
+            rec.supply_requested_at = tr_now()
 
             # Eger durum "Stoktan Çıktı" / "TESLIMEDILDI" yapıldıysa ve daha önce çıkarılmamışsa Good Stock'tan Repair Stock'a aktar.
             # STOK TAKİBİ KURALI: stok hareketi YALNIZCA "Stok Takipli" parçalarda oluşur.
@@ -18389,6 +19733,11 @@ ORDER BY imei, departman, durum;
                     except Exception as mov_err:
                         logging.warning(f"Stock movement log eklenirken hata: {mov_err}")
 
+            # K8/1008: bu yol da depo durumunu değiştiriyor - 'Yedek Parça Bekleniyor'
+            # konulduğunda ya da 'Stoktan Çıktı' ile kaldırıldığında üst kaydın statüsü
+            # (1008 ↔ 1001) buradan tazelenir.
+            db.flush()
+            self._onarimlari_tazele(db, rec.service_record_id, staff=username, source="depo_durumu")
             db.commit()
             return json.dumps({"success": True})
         except Exception as e:
@@ -18425,7 +19774,7 @@ ORDER BY imei, departman, durum;
                     it.short_name AS part_name,
                     fault.short_name AS fault_name,
                     sup.short_name AS supply_status_name, sup.is_success AS supply_is_success, sup.is_cancelled AS supply_is_cancelled,
-                    rrt.is_cancelled AS repair_is_cancelled,
+                    COALESCE(rps.is_removed, FALSE) AS repair_is_cancelled,
                     be.imei_number, be.model AS device_model, be.batch_no, be.customer_name,
                     p.id AS part_id,
                     COALESCE(gsq.qty, 0) AS stock_qty
@@ -18436,7 +19785,7 @@ ORDER BY imei, departman, durum;
                 LEFT JOIN good_stock_qty gsq ON gsq.part_id = p.id
                 LEFT JOIN warehouse.item_fault fault ON fault.code = rr.item_fault_code
                 LEFT JOIN warehouse.item_supply_status sup ON sup.code = rr.supply_status_code
-                LEFT JOIN warehouse.repair_result_type rrt ON rrt.code = rr.repair_result_type_code
+                LEFT JOIN warehouse.repair_part_status rps ON rps.code = COALESCE(rr.part_status_code, 2000)
                 LEFT JOIN LATERAL (
                     SELECT imei_number, model, batch_no, customer_name
                     FROM warehouse.batch_entries b
@@ -18588,11 +19937,24 @@ ORDER BY imei, departman, durum;
                 }, ensure_ascii=False)
 
             # 3. Engel yok: cihaza bağlı tüm AKTİF onarımları iptal et.
+            # AŞAMA 4: parçalar listeden çıkarılır; onarımların 1003'e düşmesini
+            # "tüm parçaları silindi" kuralı _onarimlari_tazele'de sağlar.
             db.execute(text("""
                 UPDATE warehouse.repair_records
+                SET part_status_code = 2001,
+                    repair_result_type_code = 1003, closed_at = now(), updated_at = now()
+                WHERE service_record_id = ANY(:refs) AND repair_result_type_code NOT IN (1002, 1003)
+            """), {"refs": refs})
+            db.execute(text("""
+                UPDATE warehouse.repairs
                 SET repair_result_type_code = 1003, closed_at = now(), updated_at = now()
                 WHERE service_record_id = ANY(:refs) AND repair_result_type_code NOT IN (1002, 1003)
             """), {"refs": refs})
+            # AŞAMA 2b: bu yol _sync_hierarchy_wait çağırmıyor (iptalden sonra açık
+            # kayıt kalmıyor, serbest bırakılacak alt seviye yok) - üst kayıtlar
+            # burada tazelenir, yoksa iptal edilmiş onarım ebeveynde açık görünür.
+            for _r in refs:
+                self._onarimlari_tazele(db, _r, staff=username, source="cihaz_iade")
 
             # 3. Statüyü 124'e al (service_statu_map grafiğinden bağımsız, doğrudan).
             if wo_id is not None:
@@ -18704,19 +20066,24 @@ ORDER BY imei, departman, durum;
                     -- 1004 = sırası gelmemiş onarım. Satır listede KALIR ama teslime
                     -- kapalıdır: depocu parçanın neden verilemediğini görsün, "parça
                     -- kayboldu" sanmasın.
-                    rr.repair_result_type_code AS statu_code,
+                    COALESCE(onr.repair_result_type_code, rr.repair_result_type_code) AS statu_code,
                     TO_CHAR(rr.supply_requested_at, 'YYYY-MM-DD HH24:MI') AS supply_requested_at
                 FROM warehouse.repair_records rr
-                LEFT JOIN warehouse.repair_result_type rrt ON rrt.code = rr.repair_result_type_code
+                LEFT JOIN warehouse.repairs onr ON onr.id = rr.repair_id
+                LEFT JOIN warehouse.repair_result_type onrt ON onrt.code = onr.repair_result_type_code
                 LEFT JOIN warehouse.parts p ON p.item_code = rr.part_item_code
                 LEFT JOIN organization.mission_groups rr_mg ON rr_mg.code = rr.department_mission
                 WHERE rr.service_record_id = ANY(:refs)
-                  AND (rrt.is_cancelled IS NOT TRUE)
+                  AND (COALESCE(rr.part_status_code, 2000) NOT IN
+                       (SELECT code FROM warehouse.repair_part_status WHERE is_removed))
                   AND rr.part_item_code IS NOT NULL
                   AND TRIM(rr.part_item_code) <> ''
-                  AND rr.repair_result_type_code IN (1001, 1004)
-                  AND rr.assigned_technician IS NOT NULL
-                  AND TRIM(rr.assigned_technician) <> ''
+                  -- AŞAMA 4 / ADIM 2: teslim edilebilirlik ONARIMIN statüsünden.
+                  -- 1008 (Parça Bekleniyor) BURADA OLMAK ZORUNDA: teknisyen zaten o parçayı
+                  -- almaya geliyor. Listeden düşerse 1008'den çıkış yolu kapanır.
+                  AND COALESCE(onr.repair_result_type_code, rr.repair_result_type_code) IN (1001, 1004, 1008)
+                  AND COALESCE(onr.assigned_technician, rr.assigned_technician) IS NOT NULL
+                  AND TRIM(COALESCE(onr.assigned_technician, rr.assigned_technician)) <> ''
                   AND UPPER(TRIM(rr.part_item_code)) NOT LIKE 'DGD%'
                   AND LOWER(TRIM(COALESCE(p.item_category, ''))) NOT IN ('dgd', 'dgd_labor', 'dgd labor', 'dgd_iscilik', 'dgd işçilik')
                   AND LOWER(TRIM(COALESCE(p.part_category, ''))) NOT IN ('dgd', 'dgd_labor', 'dgd labor', 'dgd_iscilik', 'dgd işçilik')
@@ -18858,6 +20225,191 @@ ORDER BY imei, departman, durum;
         finally:
             db.close()
 
+    @Slot(str, result=str)
+    def get_equivalent_parts_for_repair(self, repair_record_id):
+        """Bir onarım kaydına takılabilecek MUADİL parçaları döner.
+
+        NEDEN: Demontaj teknisyeni parça KATEGORİSİNİ seçer (ör. "Back Cover");
+        sistem o kategoriden bir kod yazar ama hangi muadilin takılacağı o anda belli
+        değildir - sahada bir kategorinin binlerce muadili olabiliyor (Back Cover için
+        1289, Middle Frame için 4816). Gerçek parçayı, depoda o kategoriden hangisinin
+        verildiğini bilen DEPOCU seçer. Bu uç, Parça Teslim ekranına seçilebilecek
+        muadilleri getirir.
+
+        Muadil kümesi cihazın REÇETESİDİR (product_bom_node - get_parts_for_device ile
+        aynı kaynak): parts tablosundaki tüm aynı kategorili kalemler değil, yalnızca
+        o cihaz modeline tanımlı olanlar. Aksi hâlde başka modellerin parçaları da
+        listelenir ve liste kullanılamaz hâle gelir.
+
+        Her muadilin Good Stock miktarı da döner; stokta olmayanlar listede kalır ama
+        işaretlidir - depocu neyin tükendiğini görmeli."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            rid = (repair_record_id or "").strip()
+            if not rid:
+                return json.dumps({"success": False, "message": "Onarım kaydı belirtilmedi."})
+
+            rec = db.execute(text("""
+                SELECT rr.id::text AS id, rr.service_record_id, rr.part_item_code,
+                       COALESCE(NULLIF(TRIM(p.item_category), ''), rr.item_category) AS kategori,
+                       rr.supply_status_code, rr.repair_result_type_code
+                  FROM warehouse.repair_records rr
+                  LEFT JOIN warehouse.parts p ON p.item_code = rr.part_item_code
+                 WHERE rr.id::text = :rid
+            """), {"rid": rid}).mappings().first()
+            if not rec:
+                return json.dumps({"success": False, "message": "Onarım kaydı bulunamadı."})
+
+            kategori = (rec["kategori"] or "").strip()
+            if not kategori:
+                return json.dumps({"success": True, "parts": [], "category": "",
+                                   "message": "Kaydın parça kategorisi çözülemedi."})
+
+            be = self._resolve_batch_entry_by_ref(db, rec["service_record_id"])
+            model = ""
+            if be:
+                model = (db.execute(text("SELECT model FROM warehouse.batch_entries WHERE id = :id"),
+                                    {"id": be["id"]}).scalar() or "").strip()
+            if not model:
+                return json.dumps({"success": True, "parts": [], "category": kategori,
+                                   "message": "Cihaz modeli çözülemedi; muadil listesi kurulamadı."})
+
+            ham = json.loads(self.get_parts_for_device(model) or "{}")
+            adaylar = [p for p in (ham.get("parts") or [])
+                       if (p.get("item_category") or "").strip().lower() == kategori.lower()]
+            if not adaylar:
+                return json.dumps({"success": True, "parts": [], "category": kategori,
+                                   "message": f"'{model}' reçetesinde '{kategori}' kategorisinde parça yok."})
+
+            good_loc = _get_system_location_id(db, "good_stock")
+            kodlar = [p["item_code"] for p in adaylar if p.get("item_code")]
+            stoklar = {}
+            if kodlar and good_loc:
+                for r in db.execute(text("""
+                    SELECT p.item_code, COALESCE(SUM(s.quantity), 0) AS adet
+                      FROM warehouse.parts p
+                      LEFT JOIN warehouse.stock s ON s.part_id = p.id AND s.location_id = :loc
+                     WHERE p.item_code = ANY(:kodlar)
+                     GROUP BY p.item_code
+                """), {"loc": good_loc, "kodlar": kodlar}).mappings().all():
+                    stoklar[r["item_code"]] = int(r["adet"] or 0)
+
+            parts = [{
+                "itemCode": p.get("item_code") or "",
+                "name": p.get("name") or "",
+                "brand": p.get("brand") or "",
+                "model": p.get("model") or "",
+                "color": p.get("color") or "",
+                "itemCategory": p.get("item_category") or "",
+                "goodStockQty": stoklar.get(p.get("item_code"), 0),
+                "isCurrent": (p.get("item_code") or "").strip().lower()
+                             == (rec["part_item_code"] or "").strip().lower(),
+            } for p in adaylar]
+            # Stokta olanlar üstte; depocu önce verebileceklerini görsün.
+            parts.sort(key=lambda x: (-x["goodStockQty"], x["itemCode"]))
+
+            return json.dumps({"success": True, "category": kategori,
+                               "currentItemCode": rec["part_item_code"] or "",
+                               "parts": parts}, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"success": False, "message": str(e)}, ensure_ascii=False)
+        finally:
+            db.close()
+
+    @Slot(str, str, str, result=str)
+    def deliver_equivalent_part(self, repair_record_id, secilen_item_code, username=""):
+        """Depocunun seçtiği MUADİL parçayı onarım kaydına yazar ve teslimi yapar.
+
+        Demontajda yazılan kod bir YER TUTUCUDUR: kategori doğrudur, kod ise o
+        kategoriden herhangi biridir. Gerçek parça burada belli olur - kayıttaki kod
+        depocunun seçtiğiyle DEĞİŞTİRİLİR, sonra teslim akışı olduğu gibi işletilir
+        (stok düşümü, hareket kaydı, 'Stoktan Çıktı').
+
+        Stok işini yeniden yazmıyoruz: kod değiştirildikten sonra deliver_part_to_device
+        çağrılır. Kural iki yerde ayrı yazılırsa zamanla ayrışır (aynı gerekçe:
+        _repair_completion_blocker)."""
+        from sqlalchemy import text
+        db = SessionLocal()
+        try:
+            rid = (repair_record_id or "").strip()
+            yeni_kod = (secilen_item_code or "").strip()
+            kullanici = (username or "").strip() or "Sistem"
+            if not rid or not yeni_kod:
+                return json.dumps({"success": False, "message": "Onarım kaydı ve parça kodu zorunludur."})
+
+            rec = db.execute(text("""
+                SELECT rr.id::text AS id, rr.service_record_id, rr.part_item_code,
+                       rr.repair_result_type_code, rr.supply_status_code,
+                       COALESCE(NULLIF(TRIM(p.item_category), ''), rr.item_category) AS kategori
+                  FROM warehouse.repair_records rr
+                  LEFT JOIN warehouse.parts p ON p.item_code = rr.part_item_code
+                 WHERE rr.id::text = :rid
+            """), {"rid": rid}).mappings().first()
+            if not rec:
+                return json.dumps({"success": False, "message": "Onarım kaydı bulunamadı."})
+
+            teslim_edilmis = (rec["supply_status_code"] or "").strip().lower() in (
+                "stoktan çıktı", "teslim edildi", "teslim", "completed")
+            if teslim_edilmis:
+                return json.dumps({"success": False,
+                                   "message": "Bu kayda parça zaten teslim edilmiş."}, ensure_ascii=False)
+
+            yeni = db.execute(text("""
+                SELECT item_code, name, item_category FROM warehouse.parts WHERE item_code = :c LIMIT 1
+            """), {"c": yeni_kod}).mappings().first()
+            if not yeni:
+                return json.dumps({"success": False, "message": f"'{yeni_kod}' parça kartı bulunamadı."})
+
+            # MUADİL OLMAYAN PARÇA YAZILAMAZ. Depocu yalnızca aynı kategoriden bir
+            # parça verebilir; farklı kategoriye geçmek onarımın kendisini değiştirmek
+            # olur ve kategori-departman ilişkisini de bozar (bkz. _kategori_departman_engeli).
+            eski_kat = (rec["kategori"] or "").strip().lower()
+            yeni_kat = (yeni["item_category"] or "").strip().lower()
+            if eski_kat and yeni_kat and eski_kat != yeni_kat:
+                return json.dumps({
+                    "success": False,
+                    "message": (f"Seçilen parça farklı bir kategoride ('{yeni['item_category']}'). "
+                                f"Bu onarıma yalnızca '{rec['kategori']}' kategorisinden bir parça "
+                                f"teslim edilebilir."),
+                }, ensure_ascii=False)
+
+            eski_kod = (rec["part_item_code"] or "").strip()
+            if yeni_kod.lower() != eski_kod.lower():
+                zaman = tr_now().strftime("%Y-%m-%d %H:%M")
+                db.execute(text("""
+                    UPDATE warehouse.repair_records
+                       SET part_item_code = :yeni,
+                           -- AŞAMA 4: satır listede KALIR, yalnızca parça kodu değişti.
+                           -- 2002 is_removed=false; takas edildiği izlenebilsin diye ayrı kod.
+                           part_status_code = 2002,
+                           updated_at = NOW(),
+                           notes = TRIM(BOTH ' ' FROM COALESCE(notes, '') ||
+                                   ' [Parça teslimde seçildi: ' || :eski || ' → ' || :yeni ||
+                                   ' · ' || :kim || ' · ' || :zaman || ']')
+                     WHERE id::text = :rid
+                """), {"yeni": yeni_kod, "eski": eski_kod or "(boş)", "kim": kullanici,
+                       "zaman": zaman, "rid": rid})
+                # K8/1008: muadil teslimi de bir depo çıkışıdır - bekleme koşulu
+                # kalkar, onarım 1001'e döner.
+                self._onarimlari_tazele(db, rec["service_record_id"], staff=kullanici, source="muadil_teslim")
+                db.commit()
+
+            imei = ""
+            be = self._resolve_batch_entry_by_ref(db, rec["service_record_id"])
+            if be:
+                imei = (be["imei_number"] or "").strip()
+            if not imei:
+                imei = (rec["service_record_id"] or "").strip()
+        except Exception as e:
+            db.rollback()
+            return json.dumps({"success": False, "message": str(e)}, ensure_ascii=False)
+        finally:
+            db.close()
+
+        # Teslim akışı olduğu gibi işletilir (kendi oturumunu açar).
+        return self.deliver_part_to_device(imei, yeni_kod, username)
+
     @Slot(str, str, str, result=str)
     def deliver_part_to_device(self, imei_or_serial, item_code, username=""):
         """Parça Teslim ekranında seçilen parçayı Good Stock'tan düşüp Repair Stock'a aktarır."""
@@ -18895,17 +20447,23 @@ ORDER BY imei, departman, durum;
             if sr_row and sr_row["id"]:
                 refs.append(str(sr_row["id"]))
 
+            # AŞAMA 4: statü ve teknisyen ONARIMDAN okunur; 1008 de teslime açıktır.
             pending = db.execute(text("""
-                SELECT id FROM warehouse.repair_records
-                WHERE service_record_id = ANY(:refs)
-                  AND LOWER(TRIM(part_item_code)) = LOWER(TRIM(:code))
-                  AND repair_result_type_code = 1001
-                  AND assigned_technician IS NOT NULL AND TRIM(assigned_technician) <> ''
-                  AND LOWER(TRIM(COALESCE(supply_status_code, '')))
+                SELECT rr.id, rr.service_record_id FROM warehouse.repair_records rr
+                LEFT JOIN warehouse.repairs onr ON onr.id = rr.repair_id
+                WHERE rr.service_record_id = ANY(:refs)
+                  AND LOWER(TRIM(rr.part_item_code)) = LOWER(TRIM(:code))
+                  AND COALESCE(onr.repair_result_type_code, rr.repair_result_type_code) = ANY(:acik)
+                  AND COALESCE(NULLIF(TRIM(onr.assigned_technician), ''),
+                               NULLIF(TRIM(rr.assigned_technician), '')) IS NOT NULL
+                  AND COALESCE(rr.part_status_code, 2000) NOT IN
+                      (SELECT code FROM warehouse.repair_part_status WHERE is_removed)
+                  AND LOWER(TRIM(COALESCE(rr.supply_status_code, '')))
                       NOT IN ('stoktan çıktı', 'teslim edildi', 'teslimedildi')
-                ORDER BY created_at
+                ORDER BY rr.created_at
                 LIMIT 1
-            """), {"refs": refs, "code": code}).mappings().first()
+            """), {"refs": refs, "code": code,
+                   "acik": list(self.TESLIME_ACIK_KODLAR)}).mappings().first()
 
             # MÜŞTERİ ONAYI ALINMAMIŞ PARÇA DEPODAN ÇIKAMAZ.
             # Ekran kilitli göstermiyor olabilir ve @Slot'a doğrudan da çağrılabildiği
@@ -18979,12 +20537,17 @@ ORDER BY imei, departman, durum;
                     SET supply_status_code = 'Stoktan Çıktı', supply_requested_by = :user, supply_requested_at = NOW()
                     WHERE id = :rid
                 """), {"rid": pending_id, "user": user})
+                # K8/1008 çıkış yolu (stok takipsiz parça).
+                self._onarimlari_tazele(db, pending["service_record_id"], staff=user, source="parca_teslim")
                 db.commit()
                 return json.dumps({
                     "success": True,
                     "stockTracked": False,
                     "stockMoved": False,
-                    "message": f"'{part_row['name']}' ({code}) teslim edildi. (Stok takipsiz parça - stok hareketi oluşturulmadı.)"
+                    # MESAJDA PARÇA KODU ESAS. Parça adı ("APPLE iPSE22") marka/model
+                    # tekrarı; depocunun izlediği kimlik item_code'dur, muadiller de
+                    # birbirinden yalnızca kodla ayrılır.
+                    "message": f"{code} teslim edildi. (Stok takipsiz parça - stok hareketi oluşturulmadı.)"
                 }, ensure_ascii=False)
 
             good_loc_id = _get_system_location_id(db, "good_stock")
@@ -18998,7 +20561,7 @@ ORDER BY imei, departman, durum;
 
             current_qty = stock_row["quantity"] if stock_row else 0
             if current_qty < 1:
-                return json.dumps({"success": False, "message": f"'{part_row['name']}' ({code}) Good Stock'ta tükenmiş!"})
+                return json.dumps({"success": False, "message": f"{code} Good Stock'ta tükenmiş!"})
 
             db.execute(text("""
                 UPDATE warehouse.stock SET quantity = GREATEST(0, quantity - 1) 
@@ -19061,10 +20624,12 @@ ORDER BY imei, departman, durum;
             except Exception as mov_err:
                 print(f"[WARN] StockMovement / RepairRecord güncelleme hatası: {mov_err}")
 
+            # K8/1008 çıkış yolu (stok takipli parça).
+            self._onarimlari_tazele(db, pending["service_record_id"], staff=user, source="parca_teslim")
             db.commit()
             return json.dumps({
-                "success": True, 
-                "message": f"'{part_row['name']}' ({code}) başarıyla teslim edildi (Repair Stock'a aktarıldı)."
+                "success": True,
+                "message": f"{code} başarıyla teslim edildi (Repair Stock'a aktarıldı)."
             }, ensure_ascii=False)
         except Exception as e:
             db.rollback()
@@ -19261,7 +20826,7 @@ ORDER BY imei, departman, durum;
             target_name = "Good Stock (Sağlam Depo)" if target == "GOOD" else "DOA Stock (Hasarlı/Arızalı Depo)"
             return json.dumps({
                 "success": True,
-                "message": f"'{part_row['name'] if part_row else item_code}' parçası teslimden geri alındı ve {target_name} alanına aktarıldı."
+                "message": f"{item_code} teslimden geri alındı ve {target_name} alanına aktarıldı."
             }, ensure_ascii=False)
         except Exception as e:
             db.rollback()

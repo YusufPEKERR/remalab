@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { Plus, Package, Wrench, CheckCircle, AlertTriangle, Pencil, Ban, X, User, ArrowLeftRight, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, Package, Wrench, CheckCircle, AlertTriangle, Pencil, Ban, X, ArrowLeftRight } from "lucide-react";
 import { api } from "../services/api";
 import PartSelectCombobox from "./PartSelectCombobox";
 import { mevcutParcaSiniflari, mevcutParcaKodlari, parcaEngeli } from "../constants/parcaCakismaKurallari";
@@ -71,23 +71,31 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
 
   // Parça listesi cihaza özel: hangi marka/model telefon arandıysa sadece o cihazın
   // reçetesindeki (warehouse.product_bom_node - Product Bom sayfasıyla aynı kaynak)
-  // parçalar getirilir - bkz. WebBridge.get_parts_for_device. Aynı kategoriden birden fazla
-  // parça varsa sadece bir tanesi gösterilir (liste item_category, item_code sıralı geldiğinden
-  // her kategorinin ilk kodu seçilir). Reçete hiç girilmemişse backend bir "warning" döner.
+  // parçalar getirilir - bkz. WebBridge.get_parts_for_device. Reçete hiç girilmemişse
+  // backend bir "warning" döner.
+  //
+  // LİSTE KATEGORİ BAZINDA: her parça kategorisi YALNIZCA BİR KEZ görünür.
+  // Bir kategorinin reçetede birden çok muadili olabilir (ör. Back Cover için çok
+  // sayıda item_code). Demontaj teknisyeni hangi muadilin takılacağını bilmez ve
+  // bilmesi de gerekmez - kategoriyi seçer, sistem o kategoriden bir kod yazar.
+  // GERÇEK parça, depocunun Parça Teslim ekranında muadiller arasından seçtiği
+  // koddur; teslim anında kayıttaki kod onunla değiştirilir ve durum "Stoktan Çıktı"
+  // olur. Bu yüzden burada muadilleri tek tek listelemek yanlış: teknisyene anlamsız
+  // bir seçim yaptırır ve aynı kategori listede defalarca tekrar eder.
   useEffect(() => {
     if (!device?.model) { setParts([]); setPartsWarning(null); return; }
     api.getPartsForDevice(device.model).then(res => {
       if (!res || !res.success) { setParts([]); setPartsWarning(null); return; }
       setPartsWarning(res.warning || null);
-      const seenCategories = new Set();
-      const deduped = [];
+      const gorulenKategoriler = new Set();
+      const tekil = [];
       for (const p of (res.parts || [])) {
-        const cat = p.item_category || p.part_category || '';
-        if (seenCategories.has(cat)) continue;
-        seenCategories.add(cat);
-        deduped.push(p);
+        const kat = p.item_category || p.part_category || '';
+        if (gorulenKategoriler.has(kat)) continue;
+        gorulenKategoriler.add(kat);
+        tekil.push(p);
       }
-      setParts(deduped);
+      setParts(tekil);
     });
   }, [device?.model]);
 
@@ -383,38 +391,18 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
   // ekranın düzeni cihazdan cihaza değişmez, her takım aynı yerde aynı biçimde durur.
   // ETİKETLER BUNDAN ETKİLENMEZ: barkod hâlâ onarım KAYDI başına basılır, iki
   // parçalı bir takım iki etiket üretir (bkz. EtiketYazdirModal.acikOnarimlar).
-  const gruplananOnarimlar = useMemo(() => {
-    const sira = [];
-    const harita = new Map();
-    for (const r of repairs) {
-      // GRUPLAMA GÖRÜNEN ADA GÖRE yapılır, ham koda göre değil.
-      // Sebebi: DGD'nin takımı sabit değil. Kaydın department_mission'ı DISMANTLE
-      // (başlangıç), L1REPAIR ya da L2REPAIR olabilir - "L1/L2 Onarımına Al" düğmesi
-      // bunu değiştirir (bkz. handleToggleDgdTeam). DISMANTLE ise ekranda "L1 Onarımı"
-      // gösterilir (bkz. takimAdi). Ham koda bakan bir gruplama, ekranda ikisi de
-      // "L1 Onarımı" yazan DGD ve L1 satırlarını ayrı gruplara düşürüyordu.
-      // Ada göre gruplayınca kod ne olursa olsun ekrandaki adla tutarlı kalır.
-      const ad = takimAdi(r.missionGroupCode, r.missionGroup) || "?";
-      const anahtar = ad;
-      if (!harita.has(anahtar)) {
-        harita.set(anahtar, { anahtar, ad, satirlar: [] });
-        sira.push(anahtar);
-      }
-      harita.get(anahtar).satirlar.push(r);
-    }
-    return sira.map(a => harita.get(a));
-  }, [repairs]);
-
-  // Gruplar KAPALI başlar (istenen davranış: "tek satırda 2 parça"). Parça eklenip
-  // çıkarıldıkça grupların şekli değişeceği için durum o değiştiğinde sıfırlanır.
-  const grupImzasi = gruplananOnarimlar.map(g => `${g.anahtar}:${g.satirlar.length}`).join("|");
-  const [acikGruplar, setAcikGruplar] = useState(() => new Set());
-  useEffect(() => { setAcikGruplar(new Set()); }, [grupImzasi]);
-  const grupAc = (anahtar) => setAcikGruplar(prev => {
-    const s = new Set(prev);
-    s.has(anahtar) ? s.delete(anahtar) : s.add(anahtar);
-    return s;
-  });
+  // GRUPLAMA KALDIRILDI: liste DÜZ, her parça bir satır ve EKLENME SIRASINA göre
+  // durur. Görev grubu başlıkları (katlanabilir "Kasa Onarımı · 2 parça" satırları)
+  // kaldırıldı; onarım takımları zaten sayfanın altında rozet olarak gösteriliyor,
+  // tabloda ikinci kez temsil edilmelerine gerek yok. Backend kayıtları created_at
+  // sırasıyla döndürüyor, bu yüzden ek bir sıralama yapılmıyor.
+  //
+  // İPTAL EDİLEN KAYITLAR LİSTEDE GÖSTERİLMEZ. Kayıt silinmiyor - backend'de
+  // 1003 (Onarım İptal Edildi) olarak duruyor ve fatura/geçmiş tarafı onu görmeye
+  // devam ediyor (bkz. cancel_repair_part); yalnızca bu ekranda gizleniyor, çünkü
+  // teklif listesi "cihaza ne takılacak" sorusunun cevabıdır, iptal edilenin orada
+  // yeri yok.
+  const siraliOnarimlar = useMemo(() => repairs.filter(r => !r.isCancelled), [repairs]);
 
   const totalPriceBadgeInfo = useMemo(() => {
     const status = device?.serviceStatus || device?.statuCode;
@@ -500,10 +488,37 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
 
   // Tek bir onarım satırı. Grup başlığı altında ya da (tek parçalı takımlarda)
   // doğrudan çizilir - iki yerde aynı JSX'i tutmamak için fonksiyona alındı.
+  // SATIR AKSİYONLARI SAĞ TIK MENÜSÜNDE.
+  // Eskiden her satırın sonunda bir "İşlemler" sütunu ve içinde üç ikon butonu vardı;
+  // tablo 9 sütuna çıkınca o sütun sıkışıyor ve butonlar kırpılıyordu. Aksiyonlar
+  // parçanın üstünde sağ tıklayınca açılan menüye taşındı, sütun tamamen kalktı.
+  // NOT: dokunmatik cihazlarda sağ tık yerine uzun basma bu menüyü açar (Chromium
+  // long-press ile contextmenu olayını üretir).
+  const [satirMenu, setSatirMenu] = useState(null);   // { r, x, y }
+  useEffect(() => {
+    if (!satirMenu) return;
+    const kapat = () => setSatirMenu(null);
+    window.addEventListener("click", kapat);
+    window.addEventListener("scroll", kapat, true);
+    window.addEventListener("resize", kapat);
+    return () => {
+      window.removeEventListener("click", kapat);
+      window.removeEventListener("scroll", kapat, true);
+      window.removeEventListener("resize", kapat);
+    };
+  }, [satirMenu]);
+
   const satirCiz = (r) => (
                       <tr
                         key={r.id}
                         onClick={() => setSelectedRepairId(r.id)}
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          setSelectedRepairId(r.id);
+                          // Menü imlecin altında açılır; ekranın sağ/alt kenarını
+                          // taşmasın diye konum render sırasında sınırlanır.
+                          setSatirMenu({ r, x: e.clientX, y: e.clientY });
+                        }}
                         className={`cursor-pointer transition-colors border-l-[3px] ${
                           r.isCancelled
                             ? "opacity-50 border-l-transparent"
@@ -514,7 +529,11 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
                                 : "border-l-transparent hover:bg-slate-50 dark:hover:bg-[#12141c]"
                         }`}
                       >
-                        <td className="px-4 py-2 text-xs font-mono text-slate-700 dark:text-slate-300">
+                        <td className="px-4 py-2 text-xs text-slate-700 dark:text-slate-300">
+                          {r.itemCategory || "N/A"}
+                          {r.isCancelled && <span className="ml-1.5 text-[10px] font-bold text-red-500">(İptal Edildi)</span>}
+                        </td>
+                        <td className="px-3 py-2 text-xs font-mono text-slate-700 dark:text-slate-300">
                           {r.partItemCode || "N/A"}
                         </td>
                         <td className="px-3 py-2 text-right text-xs font-semibold text-slate-700 dark:text-slate-200">
@@ -537,19 +556,6 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
                             ? `${iscilikSatirlari[r.id].iscilik_fiyat.toFixed(2)} ${device?.currency || ''}`.trim()
                             : <span className="text-slate-400 font-normal">—</span>}
                         </td>
-                        <td className="px-3 py-2 text-xs text-slate-700 dark:text-slate-300">
-                          {takimAdi(r.missionGroupCode, r.missionGroup)}
-                          {r.isCancelled && <span className="ml-1.5 text-[10px] font-bold text-red-500">(İptal Edildi)</span>}
-                        </td>
-                        {/* Atama Üretim Teknisyeni ekranından yapılır; burası salt okunur. */}
-                        <td className="px-3 py-2 text-xs text-slate-700 dark:text-slate-300">
-                          {r.technician || r.assignedTechnicianName || r.assignedTechnician
-                            ? <span className="inline-flex items-center gap-1.5">
-                                <User size={11} className="text-blue-500 shrink-0" />
-                                {r.technician || r.assignedTechnicianName || r.assignedTechnician}
-                              </span>
-                            : <span className="italic text-slate-400 dark:text-slate-600">Atanmadı</span>}
-                        </td>
                         <td className="px-3 py-2 text-xs">
                           <span className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold border ${r.chargeType === "FREE" ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30" : "bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-500/30"}`}>
                             {r.chargeType === "FREE" ? "Ücretsiz" : "Ücretli"}
@@ -557,39 +563,6 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
                         </td>
                         <td className="px-3 py-2 text-xs text-slate-700 dark:text-slate-300">{r.faultName || "N/A"}</td>
                         <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">{r.notes || "N/A"}</td>
-                        <td className="px-3 py-2">
-                          <div className="flex items-center justify-center gap-2">
-                            {r.itemCategory === "DGD" && r.partItemCode !== "DGDDEC" && (
-                              <button
-                                type="button"
-                                onClick={() => hasAccess && !r.isCancelled && handleToggleDgdTeam(r)}
-                                disabled={!hasAccess || r.isCancelled || togglingDgdId === r.id}
-                                title={r.missionGroupCode === "L2REPAIR" ? "L1 Onarımına Al" : "L2 Onarımına Al"}
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                              >
-                                <ArrowLeftRight size={14} />
-                              </button>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => hasAccess && statusAllowsParts && !r.isCancelled && handleEditRow(r)}
-                              disabled={!hasAccess || !statusAllowsParts || r.isCancelled}
-                              title={statusAllowsParts ? "Düzenle" : "Cihaz L1 aşamasında değil"}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                            >
-                              <Pencil size={14} />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => hasAccess && !r.isCancelled && handleCancelRow(r.id)}
-                              disabled={!hasAccess || r.isCancelled || deletingRepairId === r.id}
-                              title="İptal Et"
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                            >
-                              <Ban size={14} />
-                            </button>
-                          </div>
-                        </td>
                       </tr>
   );
 
@@ -760,62 +733,22 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
               <table className="w-full text-sm">
                 <thead className="bg-slate-50 dark:bg-[#12141c] sticky top-0">
                   <tr className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">
-                    <th className="text-left px-4 py-2.5">Parça kodu</th>
+                    {/* Onarım Takımı sütunu YOK: takımlar sayfanın altında rozet olarak
+                        zaten gösteriliyor, satır başına tekrarlamak yer harcıyordu.
+                        Teknisyen sütunu da YOK: atama üretimde (109) yapılır, bu ekranın
+                        aşamasında henüz teknisyen atanmamıştır. */}
+                    <th className="text-left px-4 py-2.5">Parça Kategorisi</th>
+                    <th className="text-left px-3 py-2.5">Parça Kodu</th>
                     <th className="text-right px-3 py-2.5">Fiyat</th>
                     <th className="text-center px-3 py-2.5">İşçilik Seviyesi</th>
                     <th className="text-right px-3 py-2.5">İşçilik Fiyatı</th>
-                    <th className="text-left px-3 py-2.5">Onarım Takımı</th>
-                    <th className="text-left px-3 py-2.5">Teknisyen</th>
                     <th className="text-left px-3 py-2.5">Ücret Tipi</th>
                     <th className="text-left px-3 py-2.5">Arıza Tespiti</th>
                     <th className="text-left px-3 py-2.5">Açıklama</th>
-                    <th className="text-center px-3 py-2.5">İşlemler</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-[#1e222d]">
-                  {gruplananOnarimlar.flatMap(g => {
-                    const acik = acikGruplar.has(g.anahtar);
-                    const aktif = g.satirlar.filter(r => !r.isCancelled);
-                    // DGD bir PARÇA değil, Flow'a göre otomatik eklenen işçilik satırıdır;
-                    // "N parça" sayısına katılmaz, ayrıca belirtilir.
-                    const dgdVar = aktif.some(r => (r.itemCategory || "").toUpperCase() === "DGD");
-                    const parcaAdedi = aktif.filter(r => (r.itemCategory || "").toUpperCase() !== "DGD").length;
-                    // Grubun tamamı iptal edilmişse aktif sayısı 0'dır; "0 kayıt" yazmak
-                    // yerine iptal edildiği söylenir (tek satırlı gruplar da artık başlık
-                    // aldığı için bu durum ekrana düşebiliyor).
-                    const ozet = parcaAdedi
-                      ? `${parcaAdedi} parça${dgdVar ? " + DGD" : ""}`
-                      : (dgdVar ? "DGD işçiliği"
-                                : (aktif.length ? `${aktif.length} kayıt`
-                                                : `${g.satirlar.length} iptal edilmiş kayıt`));
-                    const parcaTut = aktif.reduce((t, r) =>
-                      t + (r.partItemCode && partPrices[r.partItemCode] !== undefined ? partPrices[r.partItemCode] : 0), 0);
-                    const iscilikTut = aktif.reduce((t, r) =>
-                      t + (iscilikSatirlari[r.id]?.faturalanabilir ? iscilikSatirlari[r.id].iscilik_fiyat : 0), 0);
-                    return [
-                      <tr
-                        key={`grup-${g.anahtar}`}
-                        onClick={() => grupAc(g.anahtar)}
-                        className="cursor-pointer border-l-[3px] border-l-transparent bg-slate-50/70 dark:bg-[#12141c] hover:bg-slate-100 dark:hover:bg-[#181a24] transition-colors"
-                      >
-                        <td colSpan={4} className="px-4 py-2">
-                          <span className="inline-flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-200">
-                            {acik ? <ChevronDown size={14} className="text-slate-400" />
-                                  : <ChevronRight size={14} className="text-slate-400" />}
-                            {g.ad}
-                            <span className="font-semibold text-slate-500">{ozet}</span>
-                          </span>
-                        </td>
-                        <td className="px-3 py-2 text-xs text-slate-500" colSpan={2}>
-                          parça {parcaTut.toFixed(2)} · işçilik {iscilikTut.toFixed(2)} {device?.currency || ''}
-                        </td>
-                        <td colSpan={4} className="px-3 py-2 text-right text-[11px] text-slate-400">
-                          {acik ? "gizlemek için tıklayın" : "ayrıntı için tıklayın"}
-                        </td>
-                      </tr>,
-                      ...(acik ? g.satirlar.map(satirCiz) : []),
-                    ];
-                  })}
+                  {siraliOnarimlar.map(satirCiz)}
                 </tbody>
               </table>
             )}
@@ -934,6 +867,62 @@ export default function DemontajRepairPanel({ device, repairs, hasAccess, status
           </button>
         </div>
       </div>
+
+      {/* ── SATIR SAĞ TIK MENÜSÜ ──
+          Teklif Parçaları tablosundaki "İşlemler" sütununun yerini alır. Konum
+          imleçten gelir; ekran kenarını taşmaması için sağ/alt sınır uygulanır.
+          Menü öğeleri satırın durumuna göre kilitlenir - eskiden butonlar da aynı
+          koşullarla disabled oluyordu, kural değişmedi yalnızca yeri değişti. */}
+      {satirMenu && (() => {
+        const r = satirMenu.r;
+        const dgdSatiri = r.itemCategory === "DGD" && r.partItemCode !== "DGDDEC";
+        const duzenlenebilir = hasAccess && statusAllowsParts && !r.isCancelled;
+        const iptalEdilebilir = hasAccess && !r.isCancelled && deletingRepairId !== r.id;
+        const dgdDegisebilir = hasAccess && !r.isCancelled && togglingDgdId !== r.id;
+        const GENISLIK = 208, YUKSEKLIK = dgdSatiri ? 132 : 92;
+        const sol = Math.min(satirMenu.x, window.innerWidth - GENISLIK - 8);
+        const ust = Math.min(satirMenu.y, window.innerHeight - YUKSEKLIK - 8);
+        const oge = "w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-left transition-colors disabled:opacity-40 disabled:cursor-not-allowed";
+        return (
+          <div
+            className="fixed z-[200] rounded-xl border border-slate-200 dark:border-[#2e3545] bg-white dark:bg-[#12141c] shadow-2xl overflow-hidden py-1"
+            style={{ left: sol, top: ust, width: GENISLIK }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-400 truncate">
+              {r.partItemCode || r.itemCategory || "Kayıt"}
+            </div>
+            <button
+              type="button"
+              disabled={!duzenlenebilir}
+              title={statusAllowsParts ? "" : "Cihaz L1 aşamasında değil"}
+              onClick={() => { setSatirMenu(null); if (duzenlenebilir) handleEditRow(r); }}
+              className={`${oge} text-slate-700 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 hover:text-indigo-600`}
+            >
+              <Pencil size={14} /> Düzenle
+            </button>
+            {dgdSatiri && (
+              <button
+                type="button"
+                disabled={!dgdDegisebilir}
+                onClick={() => { setSatirMenu(null); if (dgdDegisebilir) handleToggleDgdTeam(r); }}
+                className={`${oge} text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-500/10 hover:text-blue-600`}
+              >
+                <ArrowLeftRight size={14} />
+                {r.missionGroupCode === "L2REPAIR" ? "L1 Onarımına Al" : "L2 Onarımına Al"}
+              </button>
+            )}
+            <button
+              type="button"
+              disabled={!iptalEdilebilir}
+              onClick={() => { setSatirMenu(null); if (iptalEdilebilir) handleCancelRow(r.id); }}
+              className={`${oge} text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10`}
+            >
+              <Ban size={14} /> İptal Et
+            </button>
+          </div>
+        );
+      })()}
 
       <EtiketYazdirModal
         acik={etiketBas}

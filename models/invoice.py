@@ -20,6 +20,7 @@ import uuid
 import datetime
 
 from config.database import Base
+from core.zaman import tr_now
 
 
 class Invoice(Base):
@@ -49,7 +50,7 @@ class Invoice(Base):
     csv_content = Column(Text, nullable=True)
 
     created_by = Column(String(100), nullable=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=tr_now)
 
 
 class InvoiceDevice(Base):
